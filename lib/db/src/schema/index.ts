@@ -11,3 +11,4 @@ export * from "./pagamentos";
 export * from "./blocos";
 export * from "./regrasMotor";
 export * from "./fluxos";
+export * from "./catalogo";

@@ -22,6 +22,7 @@ import Unidades from "@/pages/unidades";
 import Configuracoes from "@/pages/configuracoes";
 import Fluxos from "@/pages/fluxos";
 import Permissoes from "@/pages/permissoes";
+import Catalogo from "@/pages/catalogo";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +53,7 @@ function Router() {
       <Route path="/configuracoes" component={Configuracoes} />
       <Route path="/fluxos" component={Fluxos} />
       <Route path="/permissoes" component={Permissoes} />
+      <Route path="/catalogo" component={Catalogo} />
       <Route component={NotFound} />
     </Switch>
   );
