@@ -17,7 +17,8 @@ import {
   Activity,
   GitBranch,
   ShieldCheck,
-  Database
+  Database,
+  FileText
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -39,6 +40,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Financeiro", path: "/financeiro", icon: CreditCard, roles: ["validador_mestre"] },
     { name: "Unidades", path: "/unidades", icon: Building2, roles: ["validador_mestre"] },
     { name: "Fluxos Aprovacao", path: "/fluxos", icon: GitBranch, roles: ["validador_mestre", "medico_tecnico"] },
+    { name: "Pedidos de Exame", path: "/pedidos-exame", icon: FileText, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, roles: ["validador_mestre"] },
     { name: "Configuracoes", path: "/configuracoes", icon: Settings, roles: ["validador_mestre"] },
