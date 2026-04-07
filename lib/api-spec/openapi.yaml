@@ -1,22 +1,51 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Motor Clínico - API para clínica médica integrativa
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: pacientes
+    description: Gestão de pacientes
+  - name: anamnese
+    description: Anamnese e questionários clínicos
+  - name: motor-clinico
+    description: Motor clínico e sugestões terapêuticas
+  - name: protocolo
+    description: Protocolos terapêuticos
+  - name: exames
+    description: Solicitação e gestão de exames
+  - name: formulas
+    description: Fórmulas magistrais
+  - name: injetaveis
+    description: Injetáveis IM e EV
+  - name: implantes
+    description: Implantes
+  - name: filas
+    description: Filas operacionais
+  - name: validacao
+    description: Validação médica
+  - name: followup
+    description: Follow-up e recorrência
+  - name: financeiro
+    description: Módulo financeiro e pagamentos
+  - name: unidades
+    description: Gestão de unidades
+  - name: usuarios
+    description: Gestão de usuários e perfis
+  - name: dashboard
+    description: Dados de dashboard e métricas
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +53,747 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Pacientes
+  /pacientes:
+    get:
+      operationId: listarPacientes
+      tags: [pacientes]
+      summary: Listar pacientes
+      parameters:
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+        - name: busca
+          in: query
+          schema:
+            type: string
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Lista de pacientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Paciente"
+    post:
+      operationId: criarPaciente
+      tags: [pacientes]
+      summary: Criar paciente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarPacienteBody"
+      responses:
+        "201":
+          description: Paciente criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paciente"
+
+  /pacientes/{id}:
+    get:
+      operationId: obterPaciente
+      tags: [pacientes]
+      summary: Obter paciente por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paciente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paciente"
+    put:
+      operationId: atualizarPaciente
+      tags: [pacientes]
+      summary: Atualizar paciente
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarPacienteBody"
+      responses:
+        "200":
+          description: Paciente atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paciente"
+
+  # Anamnese
+  /anamnese:
+    get:
+      operationId: listarAnamneses
+      tags: [anamnese]
+      summary: Listar anamneses
+      parameters:
+        - name: pacienteId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, em_andamento, concluida, validada]
+      responses:
+        "200":
+          description: Lista de anamneses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Anamnese"
+    post:
+      operationId: criarAnamnese
+      tags: [anamnese]
+      summary: Criar nova anamnese
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarAnamneseBody"
+      responses:
+        "201":
+          description: Anamnese criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Anamnese"
+
+  /anamnese/{id}:
+    get:
+      operationId: obterAnamnese
+      tags: [anamnese]
+      summary: Obter anamnese por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Anamnese encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Anamnese"
+    put:
+      operationId: atualizarAnamnese
+      tags: [anamnese]
+      summary: Atualizar respostas da anamnese
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtualizarAnamneseBody"
+      responses:
+        "200":
+          description: Anamnese atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Anamnese"
+
+  /anamnese/{id}/ativar-motor:
+    post:
+      operationId: ativarMotorClinico
+      tags: [anamnese, motor-clinico]
+      summary: Ativar motor clínico com base na anamnese
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sugestões geradas pelo motor clínico
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultadoMotorClinico"
+
+  # Motor Clínico
+  /motor-clinico/sugestoes:
+    get:
+      operationId: listarSugestoes
+      tags: [motor-clinico]
+      summary: Listar sugestões pendentes de validação
+      parameters:
+        - name: pacienteId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, validado, rejeitado]
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [exame, formula, injetavel, implante, protocolo]
+      responses:
+        "200":
+          description: Lista de sugestões
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SugestaoClinica"
+
+  /motor-clinico/sugestoes/{id}/validar:
+    post:
+      operationId: validarSugestao
+      tags: [motor-clinico, validacao]
+      summary: Validar ou rejeitar sugestão do motor clínico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidarSugestaoBody"
+      responses:
+        "200":
+          description: Sugestão validada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SugestaoClinica"
+
+  # Itens Terapêuticos - Toggles
+  /motor-clinico/itens-terapeuticos:
+    get:
+      operationId: listarItensTerapeuticos
+      tags: [motor-clinico]
+      summary: Listar itens terapêuticos com toggles de disponibilidade
+      parameters:
+        - name: categoria
+          in: query
+          schema:
+            type: string
+            enum: [formula, injetavel_im, injetavel_ev, implante, exame, protocolo]
+        - name: disponivel
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Lista de itens terapêuticos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItemTerapeutico"
+    post:
+      operationId: criarItemTerapeutico
+      tags: [motor-clinico]
+      summary: Criar item terapêutico
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarItemTerapeuticoBody"
+      responses:
+        "201":
+          description: Item criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemTerapeutico"
+
+  /motor-clinico/itens-terapeuticos/{id}/toggle:
+    patch:
+      operationId: toggleItemTerapeutico
+      tags: [motor-clinico]
+      summary: Ativar/desativar item terapêutico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToggleItemBody"
+      responses:
+        "200":
+          description: Toggle atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemTerapeutico"
+
+  # Protocolos
+  /protocolos:
+    get:
+      operationId: listarProtocolos
+      tags: [protocolo]
+      summary: Listar protocolos terapêuticos
+      parameters:
+        - name: categoria
+          in: query
+          schema:
+            type: string
+        - name: ativo
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Lista de protocolos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Protocolo"
+    post:
+      operationId: criarProtocolo
+      tags: [protocolo]
+      summary: Criar protocolo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarProtocoloBody"
+      responses:
+        "201":
+          description: Protocolo criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Protocolo"
+
+  # Filas Operacionais
+  /filas:
+    get:
+      operationId: obterFilasOperacionais
+      tags: [filas]
+      summary: Obter filas operacionais por unidade
+      parameters:
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [anamnese, validacao, procedimento, followup, pagamento]
+      responses:
+        "200":
+          description: Filas operacionais
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilasOperacionais"
+
+  /filas/{itemId}/mover:
+    post:
+      operationId: moverItemFila
+      tags: [filas]
+      summary: Mover item na fila
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoverFilaBody"
+      responses:
+        "200":
+          description: Item movido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemFila"
+
+  # Follow-up
+  /followup:
+    get:
+      operationId: listarFollowups
+      tags: [followup]
+      summary: Listar follow-ups agendados
+      parameters:
+        - name: pacienteId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [agendado, realizado, cancelado, atrasado]
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de follow-ups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Followup"
+    post:
+      operationId: criarFollowup
+      tags: [followup]
+      summary: Criar follow-up
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarFollowupBody"
+      responses:
+        "201":
+          description: Follow-up criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Followup"
+
+  /followup/{id}/concluir:
+    post:
+      operationId: concluirFollowup
+      tags: [followup]
+      summary: Marcar follow-up como concluído
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConcluirFollowupBody"
+      responses:
+        "200":
+          description: Follow-up concluído
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Followup"
+
+  # Financeiro
+  /financeiro/pagamentos:
+    get:
+      operationId: listarPagamentos
+      tags: [financeiro]
+      summary: Listar pagamentos
+      parameters:
+        - name: pacienteId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, pago, cancelado, estornado]
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de pagamentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pagamento"
+    post:
+      operationId: criarPagamento
+      tags: [financeiro]
+      summary: Criar registro de pagamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarPagamentoBody"
+      responses:
+        "201":
+          description: Pagamento criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pagamento"
+
+  /financeiro/pagamentos/{id}/confirmar:
+    post:
+      operationId: confirmarPagamento
+      tags: [financeiro]
+      summary: Confirmar pagamento
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pagamento confirmado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pagamento"
+
+  # Unidades
+  /unidades:
+    get:
+      operationId: listarUnidades
+      tags: [unidades]
+      summary: Listar unidades da clínica
+      responses:
+        "200":
+          description: Lista de unidades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Unidade"
+    post:
+      operationId: criarUnidade
+      tags: [unidades]
+      summary: Criar unidade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarUnidadeBody"
+      responses:
+        "201":
+          description: Unidade criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unidade"
+
+  # Usuários
+  /usuarios:
+    get:
+      operationId: listarUsuarios
+      tags: [usuarios]
+      summary: Listar usuários do sistema
+      parameters:
+        - name: perfil
+          in: query
+          schema:
+            type: string
+            enum: [enfermeira, validador_enfermeiro, medico_tecnico, validador_mestre]
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Usuario"
+    post:
+      operationId: criarUsuario
+      tags: [usuarios]
+      summary: Criar usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarUsuarioBody"
+      responses:
+        "201":
+          description: Usuário criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+
+  /usuarios/login:
+    post:
+      operationId: loginUsuario
+      tags: [usuarios]
+      summary: Login do usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login bem-sucedido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+
+  /usuarios/perfil-atual:
+    get:
+      operationId: obterPerfilAtual
+      tags: [usuarios]
+      summary: Obter perfil do usuário atual (mock)
+      responses:
+        "200":
+          description: Perfil atual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+
+  # Dashboard
+  /dashboard/resumo:
+    get:
+      operationId: obterResumoDashboard
+      tags: [dashboard]
+      summary: Resumo geral do dashboard
+      parameters:
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resumo do dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumoDashboard"
+
+  /dashboard/metricas-motor:
+    get:
+      operationId: obterMetricasMotor
+      tags: [dashboard]
+      summary: Métricas do motor clínico
+      parameters:
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+        - name: periodo
+          in: query
+          schema:
+            type: string
+            enum: [hoje, semana, mes]
+            default: hoje
+      responses:
+        "200":
+          description: Métricas do motor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricasMotor"
+
+  /dashboard/atividade-recente:
+    get:
+      operationId: obterAtividadeRecente
+      tags: [dashboard]
+      summary: Atividade recente do sistema
+      parameters:
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de atividades recentes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AtividadeRecente"
+
+  /dashboard/filas-resumo:
+    get:
+      operationId: obterResumoFilas
+      tags: [dashboard]
+      summary: Resumo rápido de todas as filas
+      parameters:
+        - name: unidadeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resumo das filas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumoFilas"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +804,778 @@ components:
       required:
         - status
 
+    Paciente:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        cpf:
+          type: string
+        dataNascimento:
+          type: string
+          format: date
+        telefone:
+          type: string
+        email:
+          type: string
+        unidadeId:
+          type: integer
+        statusAtivo:
+          type: boolean
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - nome
+        - telefone
+        - unidadeId
+        - statusAtivo
+        - criadoEm
+        - atualizadoEm
+
+    CriarPacienteBody:
+      type: object
+      properties:
+        nome:
+          type: string
+        cpf:
+          type: string
+        dataNascimento:
+          type: string
+          format: date
+        telefone:
+          type: string
+        email:
+          type: string
+        unidadeId:
+          type: integer
+      required:
+        - nome
+        - telefone
+        - unidadeId
+
+    Anamnese:
+      type: object
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        pacienteNome:
+          type: string
+        status:
+          type: string
+          enum: [pendente, em_andamento, concluida, validada]
+        respostasClincias:
+          type: object
+          additionalProperties: true
+        respostasFinanceiras:
+          type: object
+          additionalProperties: true
+        respostasPreferencias:
+          type: object
+          additionalProperties: true
+        sinaisSemanticos:
+          type: array
+          items:
+            type: string
+        motorAtivadoEm:
+          type: string
+          format: date-time
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pacienteId
+        - status
+        - criadoEm
+        - atualizadoEm
+
+    CriarAnamneseBody:
+      type: object
+      properties:
+        pacienteId:
+          type: integer
+      required:
+        - pacienteId
+
+    AtualizarAnamneseBody:
+      type: object
+      properties:
+        respostasClincias:
+          type: object
+          additionalProperties: true
+        respostasFinanceiras:
+          type: object
+          additionalProperties: true
+        respostasPreferencias:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [pendente, em_andamento, concluida, validada]
+
+    ResultadoMotorClinico:
+      type: object
+      properties:
+        anamneseId:
+          type: integer
+        sinaisSemanticos:
+          type: array
+          items:
+            type: string
+        sugestoesGeradas:
+          type: array
+          items:
+            $ref: "#/components/schemas/SugestaoClinica"
+        totalSugestoes:
+          type: integer
+      required:
+        - anamneseId
+        - sinaisSemanticos
+        - sugestoesGeradas
+        - totalSugestoes
+
+    SugestaoClinica:
+      type: object
+      properties:
+        id:
+          type: integer
+        anamneseId:
+          type: integer
+        pacienteId:
+          type: integer
+        pacienteNome:
+          type: string
+        tipo:
+          type: string
+          enum: [exame, formula, injetavel_im, injetavel_ev, implante, protocolo]
+        itemTerapeuticoId:
+          type: integer
+        itemNome:
+          type: string
+        itemDescricao:
+          type: string
+        justificativa:
+          type: string
+        prioridade:
+          type: string
+          enum: [baixa, media, alta, urgente]
+        status:
+          type: string
+          enum: [pendente, validado, rejeitado, em_execucao, concluido]
+        validadoPorId:
+          type: integer
+        validadoPorNome:
+          type: string
+        validadoEm:
+          type: string
+          format: date-time
+        observacaoValidacao:
+          type: string
+        criadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - anamneseId
+        - pacienteId
+        - tipo
+        - itemNome
+        - prioridade
+        - status
+        - criadoEm
+
+    ValidarSugestaoBody:
+      type: object
+      properties:
+        acao:
+          type: string
+          enum: [validar, rejeitar]
+        observacao:
+          type: string
+        validadoPorId:
+          type: integer
+      required:
+        - acao
+        - validadoPorId
+
+    ItemTerapeutico:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        descricao:
+          type: string
+        categoria:
+          type: string
+          enum: [formula, injetavel_im, injetavel_ev, implante, exame, protocolo]
+        subCategoria:
+          type: string
+        disponivel:
+          type: boolean
+        preco:
+          type: number
+          format: float
+        tags:
+          type: array
+          items:
+            type: string
+        criadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - nome
+        - categoria
+        - disponivel
+        - criadoEm
+
+    CriarItemTerapeuticoBody:
+      type: object
+      properties:
+        nome:
+          type: string
+        descricao:
+          type: string
+        categoria:
+          type: string
+          enum: [formula, injetavel_im, injetavel_ev, implante, exame, protocolo]
+        subCategoria:
+          type: string
+        disponivel:
+          type: boolean
+        preco:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - nome
+        - categoria
+
+    ToggleItemBody:
+      type: object
+      properties:
+        disponivel:
+          type: boolean
+      required:
+        - disponivel
+
+    Protocolo:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        descricao:
+          type: string
+        categoria:
+          type: string
+        itens:
+          type: array
+          items:
+            type: object
+            properties:
+              itemId:
+                type: integer
+              itemNome:
+                type: string
+              quantidade:
+                type: string
+              observacao:
+                type: string
+        ativo:
+          type: boolean
+        criadoPorId:
+          type: integer
+        criadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - nome
+        - ativo
+        - criadoEm
+
+    CriarProtocoloBody:
+      type: object
+      properties:
+        nome:
+          type: string
+        descricao:
+          type: string
+        categoria:
+          type: string
+        itens:
+          type: array
+          items:
+            type: object
+            properties:
+              itemId:
+                type: integer
+              quantidade:
+                type: string
+              observacao:
+                type: string
+        ativo:
+          type: boolean
+        criadoPorId:
+          type: integer
+      required:
+        - nome
+        - criadoPorId
+
+    FilasOperacionais:
+      type: object
+      properties:
+        filaAnamnese:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemFila"
+        filaValidacao:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemFila"
+        filaProcedimento:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemFila"
+        filaFollowup:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemFila"
+        filaPagamento:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemFila"
+      required:
+        - filaAnamnese
+        - filaValidacao
+        - filaProcedimento
+        - filaFollowup
+        - filaPagamento
+
+    ItemFila:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+          enum: [anamnese, validacao, procedimento, followup, pagamento]
+        pacienteId:
+          type: integer
+        pacienteNome:
+          type: string
+        descricao:
+          type: string
+        prioridade:
+          type: string
+          enum: [baixa, media, alta, urgente]
+        status:
+          type: string
+        responsavelId:
+          type: integer
+        responsavelNome:
+          type: string
+        unidadeId:
+          type: integer
+        criadoEm:
+          type: string
+          format: date-time
+        prazo:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tipo
+        - pacienteId
+        - pacienteNome
+        - prioridade
+        - status
+        - unidadeId
+        - criadoEm
+
+    MoverFilaBody:
+      type: object
+      properties:
+        novoStatus:
+          type: string
+        responsavelId:
+          type: integer
+        observacao:
+          type: string
+      required:
+        - novoStatus
+
+    Followup:
+      type: object
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        pacienteNome:
+          type: string
+        tipo:
+          type: string
+          enum: [consulta, exame, procedimento, ligacao, mensagem]
+        status:
+          type: string
+          enum: [agendado, realizado, cancelado, atrasado]
+        dataAgendada:
+          type: string
+          format: date-time
+        dataRealizada:
+          type: string
+          format: date-time
+        observacoes:
+          type: string
+        recorrencia:
+          type: string
+          enum: [nenhuma, diaria, semanal, quinzenal, mensal, trimestral]
+        responsavelId:
+          type: integer
+        responsavelNome:
+          type: string
+        unidadeId:
+          type: integer
+        criadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pacienteId
+        - pacienteNome
+        - tipo
+        - status
+        - dataAgendada
+        - unidadeId
+        - criadoEm
+
+    CriarFollowupBody:
+      type: object
+      properties:
+        pacienteId:
+          type: integer
+        tipo:
+          type: string
+          enum: [consulta, exame, procedimento, ligacao, mensagem]
+        dataAgendada:
+          type: string
+          format: date-time
+        observacoes:
+          type: string
+        recorrencia:
+          type: string
+          enum: [nenhuma, diaria, semanal, quinzenal, mensal, trimestral]
+        responsavelId:
+          type: integer
+        unidadeId:
+          type: integer
+      required:
+        - pacienteId
+        - tipo
+        - dataAgendada
+        - unidadeId
+
+    ConcluirFollowupBody:
+      type: object
+      properties:
+        observacoes:
+          type: string
+        responsavelId:
+          type: integer
+      required:
+        - responsavelId
+
+    Pagamento:
+      type: object
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        pacienteNome:
+          type: string
+        valor:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [pendente, pago, cancelado, estornado]
+        formaPagamento:
+          type: string
+          enum: [dinheiro, cartao_credito, cartao_debito, pix, boleto, plano_saude]
+        descricao:
+          type: string
+        unidadeId:
+          type: integer
+        criadoEm:
+          type: string
+          format: date-time
+        paguEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pacienteId
+        - pacienteNome
+        - valor
+        - status
+        - unidadeId
+        - criadoEm
+
+    CriarPagamentoBody:
+      type: object
+      properties:
+        pacienteId:
+          type: integer
+        valor:
+          type: number
+        formaPagamento:
+          type: string
+          enum: [dinheiro, cartao_credito, cartao_debito, pix, boleto, plano_saude]
+        descricao:
+          type: string
+        unidadeId:
+          type: integer
+      required:
+        - pacienteId
+        - valor
+        - formaPagamento
+        - unidadeId
+
+    Unidade:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        endereco:
+          type: string
+        cidade:
+          type: string
+        estado:
+          type: string
+        telefone:
+          type: string
+        ativa:
+          type: boolean
+        criadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - nome
+        - ativa
+        - criadoEm
+
+    CriarUnidadeBody:
+      type: object
+      properties:
+        nome:
+          type: string
+        endereco:
+          type: string
+        cidade:
+          type: string
+        estado:
+          type: string
+        telefone:
+          type: string
+      required:
+        - nome
+
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+        perfil:
+          type: string
+          enum: [enfermeira, validador_enfermeiro, medico_tecnico, validador_mestre]
+        unidadeId:
+          type: integer
+        unidadeNome:
+          type: string
+        ativo:
+          type: boolean
+        criadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - nome
+        - email
+        - perfil
+        - ativo
+        - criadoEm
+
+    CriarUsuarioBody:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+        senha:
+          type: string
+        perfil:
+          type: string
+          enum: [enfermeira, validador_enfermeiro, medico_tecnico, validador_mestre]
+        unidadeId:
+          type: integer
+      required:
+        - nome
+        - email
+        - senha
+        - perfil
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        senha:
+          type: string
+      required:
+        - email
+        - senha
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        usuario:
+          $ref: "#/components/schemas/Usuario"
+      required:
+        - token
+        - usuario
+
+    ResumoDashboard:
+      type: object
+      properties:
+        totalPacientes:
+          type: integer
+        anamnesesPendentes:
+          type: integer
+        sugestoesPendentesValidacao:
+          type: integer
+        procedimentosHoje:
+          type: integer
+        followupAtrasados:
+          type: integer
+        pagamentosPendentes:
+          type: integer
+        receitaHoje:
+          type: number
+        unidadeNome:
+          type: string
+      required:
+        - totalPacientes
+        - anamnesesPendentes
+        - sugestoesPendentesValidacao
+        - procedimentosHoje
+        - followupAtrasados
+        - pagamentosPendentes
+        - receitaHoje
+
+    MetricasMotor:
+      type: object
+      properties:
+        totalSugestoes:
+          type: integer
+        sugestoesValidadas:
+          type: integer
+        sugestoesRejeitadas:
+          type: integer
+        taxaValidacao:
+          type: number
+        sugestoesPorTipo:
+          type: array
+          items:
+            type: object
+            properties:
+              tipo:
+                type: string
+              total:
+                type: integer
+              validadas:
+                type: integer
+        periodo:
+          type: string
+      required:
+        - totalSugestoes
+        - sugestoesValidadas
+        - sugestoesRejeitadas
+        - taxaValidacao
+        - sugestoesPorTipo
+        - periodo
+
+    AtividadeRecente:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+          enum: [anamnese, validacao, pagamento, followup, cadastro, procedimento]
+        descricao:
+          type: string
+        pacienteNome:
+          type: string
+        usuarioNome:
+          type: string
+        criadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tipo
+        - descricao
+        - criadoEm
+
+    ResumoFilas:
+      type: object
+      properties:
+        anamnese:
+          type: integer
+        validacao:
+          type: integer
+        procedimento:
+          type: integer
+        followup:
+          type: integer
+        pagamento:
+          type: integer
+        totalUrgente:
+          type: integer
+      required:
+        - anamnese
+        - validacao
+        - procedimento
+        - followup
+        - pagamento
+        - totalUrgente
