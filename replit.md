@@ -33,7 +33,7 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 4. **Validação** — Fila médica para validar/rejeitar sugestões
 5. **Filas Operacionais** — Anamnese, validação, procedimento, follow-up, pagamento
 6. **Pacientes** — Cadastro, historico e questionario de saude com evolucao temporal
-7. **Itens Terapêuticos** — Fórmulas, injetáveis IM/EV, implantes, exames, protocolos com toggles de disponibilidade
+7. **Itens Terapeuticos** — Visao unificada com 533 itens reais do catalogo PADCOM V13: 305 injetaveis IM, 63 endovenosos, 54 formulas, 32 implantes, 68 blocos de exames (31 blocos x grades), 11 protocolos. Filtro por tipo, busca por nome/codigo/eixo/composicao, composicao expandivel. Dados reais do Google Sheets
 8. **Protocolos** — Criação e gestão de protocolos compostos
 9. **Follow-up** — Agendamento com recorrência (diário, semanal, quinzenal, mensal, trimestral)
 10. **Financeiro** — Pagamentos, confirmação, múltiplas formas de pagamento
