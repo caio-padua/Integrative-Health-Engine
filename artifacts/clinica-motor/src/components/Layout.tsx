@@ -14,7 +14,9 @@ import {
   Building2, 
   Settings,
   LogOut,
-  Activity
+  Activity,
+  GitBranch,
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -35,7 +37,9 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Follow-up", path: "/followup", icon: CalendarClock, roles: ["enfermeira", "validador_enfermeiro", "validador_mestre"] },
     { name: "Financeiro", path: "/financeiro", icon: CreditCard, roles: ["validador_mestre"] },
     { name: "Unidades", path: "/unidades", icon: Building2, roles: ["validador_mestre"] },
-    { name: "Configurações", path: "/configuracoes", icon: Settings, roles: ["validador_mestre"] },
+    { name: "Fluxos Aprovacao", path: "/fluxos", icon: GitBranch, roles: ["validador_mestre", "medico_tecnico"] },
+    { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, roles: ["validador_mestre"] },
+    { name: "Configuracoes", path: "/configuracoes", icon: Settings, roles: ["validador_mestre"] },
   ];
 
   const allowedItems = menuItems.filter(item => item.roles.includes(user.perfil));
