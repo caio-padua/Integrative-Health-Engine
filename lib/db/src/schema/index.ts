@@ -13,3 +13,4 @@ export * from "./regrasMotor";
 export * from "./fluxos";
 export * from "./catalogo";
 export * from "./questionarioPaciente";
+export * from "./examesV4";

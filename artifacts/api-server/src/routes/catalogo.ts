@@ -8,6 +8,8 @@ import {
   mapaAnamneseMotorTable, motorDecisaoTable, dietasTable,
   questionarioMasterTable, psicologiaTable,
   blocosTable as blocosTableRef, mapaBlockExameTable as mapaBlockExameTableRef,
+  examesBaseTable, matrizRastreioTable, regrasTriagemTable,
+  recorrenciaTable, dicionarioGrausTable,
 } from "@workspace/db";
 
 const router = Router();
@@ -100,7 +102,7 @@ router.get("/acoes", async (_req, res) => {
 });
 
 router.get("/itens-unificados", async (_req, res) => {
-  const [inj, endo, impl, form, proto, blocos, exames] = await Promise.all([
+  const [inj, endo, impl, form, proto, blocos, exames, examesBase] = await Promise.all([
     db.select().from(injetaveisTable).orderBy(injetaveisTable.codigoPadcom),
     db.select().from(endovenososTable).orderBy(endovenososTable.codigoPadcom),
     db.select().from(implantesTable).orderBy(implantesTable.codigoPadcom),
@@ -108,7 +110,11 @@ router.get("/itens-unificados", async (_req, res) => {
     db.select().from(protocolosMasterTable).orderBy(protocolosMasterTable.codigoProtocolo),
     db.select().from(blocosTableRef).orderBy(blocosTableRef.codigoBloco),
     db.select().from(mapaBlockExameTableRef),
+    db.select().from(examesBaseTable),
   ]);
+
+  const examesBaseMap = new Map<string, typeof examesBase[0]>();
+  examesBase.forEach(e => examesBaseMap.set(e.nomeExame.toUpperCase(), e));
 
   const items: Array<{
     id: string; tipo: string; codigo: string; nome: string; 
@@ -183,7 +189,23 @@ router.get("/itens-unificados", async (_req, res) => {
     const grades = b.grausDisponiveis || [];
     grades.forEach(grau => {
       const examesGrade = blocosExameMap.get(`${b.codigoBloco}-${grau}`) || [];
-      const nomes = examesGrade.sort((a, b2) => a.ordemNoBloco - b2.ordemNoBloco).map(e => e.nomeExame);
+      const sorted = examesGrade.sort((a, b2) => a.ordemNoBloco - b2.ordemNoBloco);
+      const nomes = sorted.map(e => e.nomeExame);
+      const examesEnriquecidos = sorted.map(e => {
+        const base = examesBaseMap.get(e.nomeExame.toUpperCase());
+        return {
+          nome: e.nomeExame,
+          codigo: base?.codigoExame || null,
+          modalidade: base?.modalidade || null,
+          materialOuSetor: base?.materialOuSetor || null,
+          justificativaObjetiva: base?.justificativaObjetiva || null,
+          prioridade: base?.prioridade || null,
+          sexoAplicavel: base?.sexoAplicavel || null,
+          legendaRapida: base?.legendaRapida || null,
+          finalidadePrincipal: base?.finalidadePrincipal || null,
+          enriquecido: !!base,
+        };
+      });
       items.push({
         id: `EXAM-${b.codigoBloco}-${grau.replace(/\s+/g, '_')}`,
         tipo: "EXAME",
@@ -192,6 +214,9 @@ router.get("/itens-unificados", async (_req, res) => {
         blocoId: b.codigoBloco,
         grau: grau,
         composicao: nomes.join(', '),
+        examesDetalhe: examesEnriquecidos,
+        totalExames: sorted.length,
+        totalEnriquecidos: examesEnriquecidos.filter(e => e.enriquecido).length,
         area: b.tipoMacro || null,
         status: b.ativo ? "ATIVO" : "INATIVO",
       });
@@ -241,6 +266,38 @@ router.get("/resumo", async (_req, res) => {
   });
   result.total = Object.values(result).reduce((a, b) => a + b, 0);
   res.json(result);
+});
+
+router.get("/exames-base", async (_req, res) => {
+  const rows = await db.select().from(examesBaseTable).orderBy(examesBaseTable.nomeExame);
+  res.json(rows);
+});
+
+router.get("/exames-base/:codigo", async (req, res) => {
+  const rows = await db.select().from(examesBaseTable)
+    .where(sql`${examesBaseTable.codigoExame} = ${req.params.codigo}`);
+  if (rows.length === 0) return res.status(404).json({ error: "Exame nao encontrado" });
+  res.json(rows[0]);
+});
+
+router.get("/matriz-rastreio", async (_req, res) => {
+  const rows = await db.select().from(matrizRastreioTable).orderBy(matrizRastreioTable.nomeExame);
+  res.json(rows);
+});
+
+router.get("/regras-triagem", async (_req, res) => {
+  const rows = await db.select().from(regrasTriagemTable).orderBy(regrasTriagemTable.regraId);
+  res.json(rows);
+});
+
+router.get("/recorrencia", async (_req, res) => {
+  const rows = await db.select().from(recorrenciaTable).orderBy(recorrenciaTable.regraId);
+  res.json(rows);
+});
+
+router.get("/dicionario-graus", async (_req, res) => {
+  const rows = await db.select().from(dicionarioGrausTable).orderBy(dicionarioGrausTable.grau);
+  res.json(rows);
 });
 
 export default router;
