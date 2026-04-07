@@ -1,9 +1,103 @@
 import { Router } from "express";
-import { db, anamnesesTable, pacientesTable, sugestoesTable, itensTerapeuticosTable } from "@workspace/db";
+import { db, anamnesesTable, pacientesTable, sugestoesTable, itensTerapeuticosTable, regrasMotorTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { CriarAnamneseBody, AtualizarAnamneseBody } from "@workspace/api-zod";
 
 const router = Router();
+
+// Retorna estrutura do questionario PADCOM V9
+router.get("/anamnese/questionario", async (_req, res): Promise<void> => {
+  res.json({
+    versao: "PADCOM V9",
+    blocos: [
+      {
+        bloco: "IDENTIFICACAO",
+        perguntas: [
+          { id: "Q001", pergunta: "Nome Completo", tipo: "texto", obrigatorio: true },
+          { id: "Q002", pergunta: "CPF", tipo: "texto", obrigatorio: true },
+        ],
+      },
+      {
+        bloco: "CLINICO",
+        perguntas: [
+          { id: "Q010", pergunta: "Queixa Principal", tipo: "texto_longo", obrigatorio: true, placeholder: "Descreva sua principal queixa ou motivo da consulta" },
+          { id: "Q011", pergunta: "Duracao da Queixa", tipo: "texto_curto", obrigatorio: true, placeholder: "Ex: 6 meses, 2 anos" },
+          {
+            id: "Q012",
+            pergunta: "Sintomas Atuais",
+            tipo: "multiselecao",
+            obrigatorio: true,
+            opcoes: [
+              "FADIGA", "CONSTIPACAO", "INSONIA", "ANSIEDADE", "GANHO DE PESO",
+              "QUEDA DE CABELO", "CANSACO", "IRRITABILIDADE", "DOR MUSCULAR",
+              "BAIXA LIBIDO", "RETENCAO DE LIQUIDO", "SUDORESE NOTURNA",
+              "FRIO NAS EXTREMIDADES", "DEPRESSAO", "DIFICULDADE DE CONCENTRACAO",
+              "DORES DE CABECA", "DISTENSAO ABDOMINAL", "GASES", "REFLUXO",
+            ],
+          },
+          {
+            id: "Q013",
+            pergunta: "Doencas Diagnosticadas",
+            tipo: "multiselecao",
+            obrigatorio: false,
+            opcoes: [
+              "HIPOTIREOIDISMO", "HIPERTIREOIDISMO", "HASHIMOTO", "DIABETES",
+              "RESISTENCIA INSULINICA", "ENDOMETRIOSE", "SINDROME DO OVARIO POLICISTICO",
+              "HIPERTENSAO", "COLESTEROL ALTO", "FIBROMIALGIA", "LUPUS",
+              "ARTRITE REUMATOIDE", "DEPRESSAO", "ANSIEDADE GENERALIZADA",
+              "TDAH", "DOENCA HEPATICA", "DOENCA RENAL", "OUTROS",
+            ],
+          },
+          {
+            id: "Q014",
+            pergunta: "Historico Familiar",
+            tipo: "multiselecao",
+            obrigatorio: false,
+            opcoes: [
+              "DIABETES", "INFARTO", "AVC", "CANCER", "ALZHEIMER",
+              "HIPOTIREOIDISMO", "DOENCA HEPATICA", "DOENCA RENAL", "OUTROS",
+            ],
+          },
+          { id: "Q015", pergunta: "Cirurgias Previas", tipo: "texto_longo", obrigatorio: false, placeholder: "Descreva se houver" },
+          { id: "Q016", pergunta: "Internacoes Previas", tipo: "texto_longo", obrigatorio: false, placeholder: "Descreva se houver" },
+          { id: "Q017", pergunta: "Alergias ou Intolerancias", tipo: "texto_longo", obrigatorio: false, placeholder: "Ex: Lactose, Gluten, Antibioticos" },
+        ],
+      },
+      {
+        bloco: "PREFERENCIA",
+        perguntas: [
+          { id: "Q030", pergunta: "Deseja somente exames (sem prescricoes)?", tipo: "sim_nao", obrigatorio: true },
+          { id: "Q031", pergunta: "Aceita formulas manipuladas?", tipo: "sim_nao", obrigatorio: true },
+          { id: "Q032", pergunta: "Aceita protocolo injetavel (IM/EV)?", tipo: "sim_nao", obrigatorio: true },
+          { id: "Q033", pergunta: "Aceita implante subdermal?", tipo: "sim_nao", obrigatorio: true },
+        ],
+      },
+      {
+        bloco: "FINANCEIRO",
+        perguntas: [
+          {
+            id: "Q040",
+            pergunta: "Modelo de Investimento Preferido",
+            tipo: "lista",
+            obrigatorio: true,
+            opcoes: ["TOTAL", "PARCELADO", "MENSAL"],
+          },
+          {
+            id: "Q041",
+            pergunta: "Conforto Financeiro",
+            tipo: "lista",
+            obrigatorio: true,
+            opcoes: [
+              { valor: "BASICO", descricao: "Basico — priorizar etapas essenciais" },
+              { valor: "INTERMEDIARIO", descricao: "Intermediario — combinar exames e formulas" },
+              { valor: "PREMIUM", descricao: "Premium — protocolo completo" },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+});
 
 router.get("/anamnese", async (req, res): Promise<void> => {
   const pacienteId = req.query.pacienteId ? parseInt(req.query.pacienteId as string, 10) : undefined;
@@ -81,7 +175,10 @@ router.put("/anamnese/:id", async (req, res): Promise<void> => {
   res.json(anamnese);
 });
 
-// Motor Clínico — geração de sugestões com base nos sinais semânticos
+// ─── Motor Clínico PADCOM V9 ────────────────────────────────────────────────
+// POST /anamnese/:id/ativar-motor
+// Aplica as regras PADCOM do banco (regras_motor) sobre as respostas Q010-Q033
+// para gerar sugestões semanticamente vinculadas.
 router.post("/anamnese/:id/ativar-motor", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -89,27 +186,86 @@ router.post("/anamnese/:id/ativar-motor", async (req, res): Promise<void> => {
   const [anamnese] = await db.select().from(anamnesesTable).where(eq(anamnesesTable.id, id));
   if (!anamnese) { res.status(404).json({ error: "Anamnese não encontrada" }); return; }
 
-  // Gerar sinais semânticos com base nas respostas
+  const respostasClincias = (anamnese.respostasClincias as Record<string, unknown>) || {};
+  const respostasPreferencias = (anamnese.respostasPreferencias as Record<string, unknown>) || {};
+  const respostasFinanceiras = (anamnese.respostasFinanceiras as Record<string, unknown>) || {};
+
+  // ── 1. Extrair sinais semânticos das respostas ──────────────────────────
   const sinais: string[] = [];
-  const respostas = (anamnese.respostasClincias as Record<string, unknown>) || {};
 
-  if (respostas.fadiga) sinais.push("fadiga_cronica");
-  if (respostas.insonia) sinais.push("disturbio_sono");
-  if (respostas.ansiedade) sinais.push("ansiedade");
-  if (respostas.tdah) sinais.push("tdah");
-  if (respostas.hormonal) sinais.push("desequilibrio_hormonal");
-  if (respostas.imunidade) sinais.push("baixa_imunidade");
-  if (respostas.emagrecimento) sinais.push("programa_emagrecimento");
-  if (respostas.performance) sinais.push("performance_cognitiva");
-  if (sinais.length === 0) sinais.push("avaliacao_geral", "bem_estar");
+  const queixaPrincipal = (respostasClincias.Q010 as string || "").toUpperCase();
+  if (queixaPrincipal) sinais.push(queixaPrincipal);
 
-  // Buscar itens terapêuticos disponíveis
-  const itensDisponiveis = await db
-    .select()
-    .from(itensTerapeuticosTable)
+  const sintomas = respostasClincias.Q012 as string[] || [];
+  sintomas.forEach(s => sinais.push(s.toUpperCase()));
+
+  const doencas = respostasClincias.Q013 as string[] || [];
+  doencas.forEach(d => sinais.push(d.toUpperCase()));
+
+  const historicoFamiliar = respostasClincias.Q014 as string[] || [];
+  historicoFamiliar.forEach(h => sinais.push(h.toUpperCase()));
+
+  // Adicionar sinais de preferência como trigger para implantes/injetáveis
+  const aceitaInjetavel = String(respostasPreferencias.Q032 || "NAO").toUpperCase();
+  const aceitaImplante = String(respostasPreferencias.Q033 || "NAO").toUpperCase();
+  const somentExames = String(respostasPreferencias.Q030 || "NAO").toUpperCase();
+
+  if (aceitaInjetavel === "SIM") sinais.push("Q031_SIM");
+  if (aceitaImplante === "SIM") sinais.push("Q033_SIM");
+
+  // Adicionar perfil financeiro como sinal
+  const perfilFinanceiro = String(respostasFinanceiras.Q041 || "BASICO").toUpperCase();
+
+  if (sinais.length === 0) sinais.push("AVALIACAO_GERAL");
+
+  // ── 2. Carregar regras PADCOM do banco ─────────────────────────────────
+  const todasRegras = await db.select().from(regrasMotorTable).where(eq(regrasMotorTable.ativo, "SIM"));
+
+  // ── 3. Filtrar regras que fazem match com os sinais ────────────────────
+  const regrasAtivadas = todasRegras.filter(regra => {
+    const palavraChave = regra.palavraChave.toUpperCase();
+    // Verificar match direto em sintomas, doenças, histórico familiar
+    const matchSinal = sinais.some(sinal =>
+      sinal.includes(palavraChave) || palavraChave.includes(sinal)
+    );
+    // Verificar match por perguntaId (ex: Q031 -> SIM)
+    const matchPerguntaId = regra.perguntaId === "Q030" && somentExames === (palavraChave) ||
+      regra.perguntaId === "Q031" && aceitaInjetavel === palavraChave ||
+      regra.perguntaId === "Q033" && aceitaImplante === palavraChave;
+
+    return matchSinal || matchPerguntaId;
+  });
+
+  // ── 4. Filtrar segmentos por preferências ──────────────────────────────
+  let regrasEfetivas = regrasAtivadas.filter(regra => {
+    if (somentExames === "SIM" && regra.segmento !== "exame") return false;
+    if (regra.segmento === "injetavel" && aceitaInjetavel !== "SIM") return false;
+    if (regra.segmento === "implante" && aceitaImplante !== "SIM") return false;
+
+    // Filtro por perfil financeiro
+    if (perfilFinanceiro === "BASICO" && regra.segmento === "implante") return false;
+    if (perfilFinanceiro === "BASICO" && regra.segmento === "protocolo") return false;
+
+    return true;
+  });
+
+  // Evitar duplicatas de código referência
+  const codigosVistos = new Set<string>();
+  regrasEfetivas = regrasEfetivas.filter(r => {
+    const key = `${r.segmento}:${r.codigoReferencia}`;
+    if (codigosVistos.has(key)) return false;
+    codigosVistos.add(key);
+    return true;
+  });
+
+  // ── 5. Buscar itens terapêuticos pelo código PADCOM ────────────────────
+  const itensDisponiveis = await db.select().from(itensTerapeuticosTable)
     .where(eq(itensTerapeuticosTable.disponivel, true));
 
-  // Gerar sugestões automáticas baseadas nos sinais
+  const findItemPorCodigo = (codigo: string | null) =>
+    codigo ? itensDisponiveis.find(i => i.codigoPadcom === codigo) : null;
+
+  // ── 6. Montar sugestões ────────────────────────────────────────────────
   const sugestoesDados: Array<{
     anamneseId: number;
     pacienteId: number;
@@ -121,41 +277,43 @@ router.post("/anamnese/:id/ativar-motor", async (req, res): Promise<void> => {
     prioridade: "baixa" | "media" | "alta" | "urgente";
   }> = [];
 
-  for (const sinal of sinais) {
-    const itensRelacionados = itensDisponiveis.filter(item => {
-      const tags = item.tags || [];
-      return tags.some(tag =>
-        tag.toLowerCase().includes(sinal.toLowerCase().replace(/_/g, " ")) ||
-        sinal.toLowerCase().includes(tag.toLowerCase().replace(/ /g, "_"))
-      );
-    });
+  for (const regra of regrasEfetivas) {
+    const item = findItemPorCodigo(regra.codigoReferencia);
 
-    if (itensRelacionados.length > 0) {
-      const item = itensRelacionados[0];
-      sugestoesDados.push({
-        anamneseId: id,
-        pacienteId: anamnese.pacienteId,
-        tipo: item.categoria as "exame" | "formula" | "injetavel_im" | "injetavel_ev" | "implante" | "protocolo",
-        itemTerapeuticoId: item.id,
-        itemNome: item.nome,
-        itemDescricao: item.descricao || undefined,
-        justificativa: `Indicado com base no sinal semântico: ${sinal.replace(/_/g, " ")}`,
-        prioridade: "media",
-      });
+    // Mapear segmento -> tipo do enum
+    let tipo: "exame" | "formula" | "injetavel_im" | "injetavel_ev" | "implante" | "protocolo" = "exame";
+    if (regra.segmento === "formula") tipo = "formula";
+    else if (regra.segmento === "injetavel") {
+      // Determinar IM ou EV pelo item
+      tipo = item?.categoria === "injetavel_ev" ? "injetavel_ev" : "injetavel_im";
     }
+    else if (regra.segmento === "implante") tipo = "implante";
+    else if (regra.segmento === "protocolo") tipo = "protocolo";
+
+    sugestoesDados.push({
+      anamneseId: id,
+      pacienteId: anamnese.pacienteId,
+      tipo,
+      itemTerapeuticoId: item?.id,
+      itemNome: item?.nome || regra.codigoReferencia || regra.palavraChave,
+      itemDescricao: item?.descricao || regra.observacao || undefined,
+      justificativa: `Regra ${regra.regraId} (${regra.perguntaId}): Sinal "${regra.palavraChave}" — ${regra.observacao || ""}`,
+      prioridade: regra.prioridade as "baixa" | "media" | "alta" | "urgente",
+    });
   }
 
-  // Se não gerou sugestões, sugerir avaliação geral
-  if (sugestoesDados.length === 0 && itensDisponiveis.length > 0) {
-    const exame = itensDisponiveis.find(i => i.categoria === "exame");
-    if (exame) {
+  // Se não gerou nenhuma sugestão, sugerir bloco base integrative
+  if (sugestoesDados.length === 0) {
+    const bloco = itensDisponiveis.find(i => i.codigoPadcom === "EXAM BASE BASI 001");
+    if (bloco) {
       sugestoesDados.push({
         anamneseId: id,
         pacienteId: anamnese.pacienteId,
         tipo: "exame",
-        itemTerapeuticoId: exame.id,
-        itemNome: exame.nome,
-        justificativa: "Avaliação inicial completa recomendada",
+        itemTerapeuticoId: bloco.id,
+        itemNome: bloco.nome,
+        itemDescricao: bloco.descricao || undefined,
+        justificativa: "BLK001 - Avaliacao integrativa base recomendada para todos os pacientes novos.",
         prioridade: "media",
       });
     }
@@ -166,16 +324,20 @@ router.post("/anamnese/:id/ativar-motor", async (req, res): Promise<void> => {
     sugestoesGeradas = await db.insert(sugestoesTable).values(sugestoesDados).returning() as typeof sugestoesDados;
   }
 
-  // Atualizar anamnese com sinais e timestamp
+  // ── 7. Atualizar anamnese ──────────────────────────────────────────────
+  const sinaisUnicos = [...new Set(sinais)];
   await db.update(anamnesesTable).set({
-    sinaisSemanticos: sinais,
+    sinaisSemanticos: sinaisUnicos,
     motorAtivadoEm: new Date(),
     status: "concluida",
   }).where(eq(anamnesesTable.id, id));
 
   res.json({
     anamneseId: id,
-    sinaisSemanticos: sinais,
+    sinaisSemanticos: sinaisUnicos,
+    regrasAtivadas: regrasEfetivas.length,
+    perfilFinanceiro,
+    somentExames: somentExames === "SIM",
     sugestoesGeradas,
     totalSugestoes: sugestoesGeradas.length,
   });

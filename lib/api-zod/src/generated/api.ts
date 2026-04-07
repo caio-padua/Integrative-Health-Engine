@@ -348,6 +348,36 @@ export const ListarItensTerapeuticosResponseItem = zod.object({
     "protocolo",
   ]),
   subCategoria: zod.string().optional(),
+  codigoPadcom: zod
+    .string()
+    .optional()
+    .describe("Codigo PADCOM no formato AAAA BBBB CCCC 000"),
+  blocoId: zod
+    .string()
+    .optional()
+    .describe("Referencia ao bloco PADCOM (ex: BLK001)"),
+  grau: zod
+    .string()
+    .optional()
+    .describe("Grau dentro do bloco (ex: GRADE BASICA)"),
+  viaUso: zod
+    .string()
+    .optional()
+    .describe("Via de administracao (ORAL, IM, IV, SUBDERMAL)"),
+  frequenciaBase: zod
+    .string()
+    .optional()
+    .describe("Frequencia de uso recomendada"),
+  composicao: zod.string().optional().describe("Composicao do item"),
+  posologia: zod.string().optional().describe("Posologia detalhada"),
+  areaSemantica: zod
+    .string()
+    .optional()
+    .describe("Area semantica PADCOM (ex: TIRE, META, HORM)"),
+  exigeValidacaoHumana: zod
+    .boolean()
+    .optional()
+    .describe("Se requer validacao humana obrigatoria"),
   disponivel: zod.boolean(),
   preco: zod.number().optional(),
   tags: zod.array(zod.string()).optional(),
@@ -401,6 +431,36 @@ export const ToggleItemTerapeuticoResponse = zod.object({
     "protocolo",
   ]),
   subCategoria: zod.string().optional(),
+  codigoPadcom: zod
+    .string()
+    .optional()
+    .describe("Codigo PADCOM no formato AAAA BBBB CCCC 000"),
+  blocoId: zod
+    .string()
+    .optional()
+    .describe("Referencia ao bloco PADCOM (ex: BLK001)"),
+  grau: zod
+    .string()
+    .optional()
+    .describe("Grau dentro do bloco (ex: GRADE BASICA)"),
+  viaUso: zod
+    .string()
+    .optional()
+    .describe("Via de administracao (ORAL, IM, IV, SUBDERMAL)"),
+  frequenciaBase: zod
+    .string()
+    .optional()
+    .describe("Frequencia de uso recomendada"),
+  composicao: zod.string().optional().describe("Composicao do item"),
+  posologia: zod.string().optional().describe("Posologia detalhada"),
+  areaSemantica: zod
+    .string()
+    .optional()
+    .describe("Area semantica PADCOM (ex: TIRE, META, HORM)"),
+  exigeValidacaoHumana: zod
+    .boolean()
+    .optional()
+    .describe("Se requer validacao humana obrigatoria"),
   disponivel: zod.boolean(),
   preco: zod.number().optional(),
   tags: zod.array(zod.string()).optional(),
