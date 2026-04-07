@@ -101,6 +101,195 @@ export const AtualizarPacienteResponse = zod.object({
 });
 
 /**
+ * @summary Listar perguntas do questionario master
+ */
+export const ListarPerguntasQuestionarioParams = zod.object({
+  pacienteId: zod.coerce.number(),
+});
+
+export const ListarPerguntasQuestionarioResponseItem = zod.object({
+  id: zod.number(),
+  bloco: zod.string(),
+  perguntaId: zod.string(),
+  pergunta: zod.string(),
+  tipoResposta: zod.string().nullish(),
+  obrigatorio: zod.string().nullish(),
+  exemplo: zod.string().nullish(),
+  observacao: zod.string().nullish(),
+});
+export const ListarPerguntasQuestionarioResponse = zod.array(
+  ListarPerguntasQuestionarioResponseItem,
+);
+
+/**
+ * @summary Listar respostas do questionario do paciente
+ */
+export const ListarRespostasQuestionarioParams = zod.object({
+  pacienteId: zod.coerce.number(),
+});
+
+export const ListarRespostasQuestionarioResponseItem = zod.object({
+  id: zod.number(),
+  pacienteId: zod.number(),
+  dataPreenchimento: zod.coerce.date(),
+  periodo: zod.string(),
+  respostas: zod.object({}).passthrough(),
+  observacoesMedico: zod.string().nullish(),
+  preenchidoPor: zod.string().nullish(),
+  status: zod.string(),
+  criadoEm: zod.coerce.date().optional(),
+  atualizadoEm: zod.coerce.date().optional(),
+});
+export const ListarRespostasQuestionarioResponse = zod.array(
+  ListarRespostasQuestionarioResponseItem,
+);
+
+/**
+ * @summary Registrar respostas do questionario para o paciente
+ */
+export const CriarRespostaQuestionarioParams = zod.object({
+  pacienteId: zod.coerce.number(),
+});
+
+export const CriarRespostaQuestionarioBody = zod.object({
+  periodo: zod.string(),
+  respostas: zod.object({}).passthrough(),
+  observacoesMedico: zod.string().optional(),
+  preenchidoPor: zod.string().optional(),
+});
+
+/**
+ * @summary Atualizar respostas do questionario
+ */
+export const AtualizarRespostaQuestionarioParams = zod.object({
+  pacienteId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const AtualizarRespostaQuestionarioBody = zod.object({
+  respostas: zod.object({}).passthrough().optional(),
+  observacoesMedico: zod.string().optional(),
+  status: zod.string().optional(),
+});
+
+export const AtualizarRespostaQuestionarioResponse = zod.object({
+  id: zod.number(),
+  pacienteId: zod.number(),
+  dataPreenchimento: zod.coerce.date(),
+  periodo: zod.string(),
+  respostas: zod.object({}).passthrough(),
+  observacoesMedico: zod.string().nullish(),
+  preenchidoPor: zod.string().nullish(),
+  status: zod.string(),
+  criadoEm: zod.coerce.date().optional(),
+  atualizadoEm: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Listar historico de estado de saude do paciente
+ */
+export const ListarEstadoSaudeParams = zod.object({
+  pacienteId: zod.coerce.number(),
+});
+
+export const ListarEstadoSaudeResponseItem = zod.object({
+  id: zod.number(),
+  pacienteId: zod.number(),
+  questionarioRespostaId: zod.number().nullish(),
+  dataAvaliacao: zod.coerce.date(),
+  periodo: zod.string(),
+  condicoesAtuais: zod.object({}).passthrough(),
+  sintomasAtivos: zod.object({}).passthrough().nullish(),
+  medicamentosEmUso: zod.object({}).passthrough().nullish(),
+  nivelEnergia: zod.number().nullish(),
+  nivelDor: zod.number().nullish(),
+  qualidadeSono: zod.number().nullish(),
+  nivelEstresse: zod.number().nullish(),
+  pesoKg: zod.string().nullish(),
+  alturaM: zod.string().nullish(),
+  pressaoArterial: zod.string().nullish(),
+  observacoes: zod.string().nullish(),
+  evolucao: zod.string(),
+  status: zod.string(),
+  criadoEm: zod.coerce.date().optional(),
+  atualizadoEm: zod.coerce.date().optional(),
+});
+export const ListarEstadoSaudeResponse = zod.array(
+  ListarEstadoSaudeResponseItem,
+);
+
+/**
+ * @summary Registrar novo estado de saude do paciente
+ */
+export const CriarEstadoSaudeParams = zod.object({
+  pacienteId: zod.coerce.number(),
+});
+
+export const CriarEstadoSaudeBody = zod.object({
+  questionarioRespostaId: zod.number().optional(),
+  periodo: zod.string(),
+  condicoesAtuais: zod.object({}).passthrough(),
+  sintomasAtivos: zod.object({}).passthrough().optional(),
+  medicamentosEmUso: zod.object({}).passthrough().optional(),
+  nivelEnergia: zod.number().optional(),
+  nivelDor: zod.number().optional(),
+  qualidadeSono: zod.number().optional(),
+  nivelEstresse: zod.number().optional(),
+  pesoKg: zod.string().optional(),
+  alturaM: zod.string().optional(),
+  pressaoArterial: zod.string().optional(),
+  observacoes: zod.string().optional(),
+  evolucao: zod.string().optional(),
+});
+
+/**
+ * @summary Atualizar estado de saude do paciente
+ */
+export const AtualizarEstadoSaudeParams = zod.object({
+  pacienteId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const AtualizarEstadoSaudeBody = zod.object({
+  condicoesAtuais: zod.object({}).passthrough().optional(),
+  sintomasAtivos: zod.object({}).passthrough().optional(),
+  medicamentosEmUso: zod.object({}).passthrough().optional(),
+  nivelEnergia: zod.number().optional(),
+  nivelDor: zod.number().optional(),
+  qualidadeSono: zod.number().optional(),
+  nivelEstresse: zod.number().optional(),
+  pesoKg: zod.string().optional(),
+  alturaM: zod.string().optional(),
+  pressaoArterial: zod.string().optional(),
+  observacoes: zod.string().optional(),
+  evolucao: zod.string().optional(),
+  status: zod.string().optional(),
+});
+
+export const AtualizarEstadoSaudeResponse = zod.object({
+  id: zod.number(),
+  pacienteId: zod.number(),
+  questionarioRespostaId: zod.number().nullish(),
+  dataAvaliacao: zod.coerce.date(),
+  periodo: zod.string(),
+  condicoesAtuais: zod.object({}).passthrough(),
+  sintomasAtivos: zod.object({}).passthrough().nullish(),
+  medicamentosEmUso: zod.object({}).passthrough().nullish(),
+  nivelEnergia: zod.number().nullish(),
+  nivelDor: zod.number().nullish(),
+  qualidadeSono: zod.number().nullish(),
+  nivelEstresse: zod.number().nullish(),
+  pesoKg: zod.string().nullish(),
+  alturaM: zod.string().nullish(),
+  pressaoArterial: zod.string().nullish(),
+  observacoes: zod.string().nullish(),
+  evolucao: zod.string(),
+  status: zod.string(),
+  criadoEm: zod.coerce.date().optional(),
+  atualizadoEm: zod.coerce.date().optional(),
+});
+
+/**
  * @summary Listar anamneses
  */
 export const ListarAnamnesesQueryParams = zod.object({

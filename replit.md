@@ -32,7 +32,7 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 3. **Motor Clínico** — Gera sugestões automáticas baseadas em sinais semânticos das respostas
 4. **Validação** — Fila médica para validar/rejeitar sugestões
 5. **Filas Operacionais** — Anamnese, validação, procedimento, follow-up, pagamento
-6. **Pacientes** — Cadastro e histórico
+6. **Pacientes** — Cadastro, historico e questionario de saude com evolucao temporal
 7. **Itens Terapêuticos** — Fórmulas, injetáveis IM/EV, implantes, exames, protocolos com toggles de disponibilidade
 8. **Protocolos** — Criação e gestão de protocolos compostos
 9. **Follow-up** — Agendamento com recorrência (diário, semanal, quinzenal, mensal, trimestral)
@@ -41,7 +41,8 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 12. **Fluxos de Aprovacao** — Fluxos parametrizados por tipo de procedimento (Consulta/Infusao/Implante) com etapas, responsaveis, condicionais e bypass — dados reais PADCOM V15.2
 13. **Permissoes** — Matriz de permissoes por perfil (10 perfis PADCOM V15.2) com flags: editar questionario, validar, bypass, emitir NF, ver outras unidades
 14. **Catalogo PADCOM** — Base completa com 688 registros: 305 injetaveis IM, 63 endovenosos, 32 implantes, 54 formulas, 11 protocolos, 49 doencas. 6 abas com busca, agrupamento por eixo, composicao expandivel, codigos PADCOM visiveis. Dados importados automaticamente de Google Sheets V13
-15. **Configuracoes** — Usuarios, permissoes
+15. **Questionario do Paciente** — Subpasta do paciente: questionario de saude com perguntas do Google Sheets, historico de respostas com status (RASCUNHO/VALIDADO/APROVADO/STAND BY), estado de saude temporal (condicoes, sintomas, medicamentos, indicadores subjetivos 1-10, dados fisicos), evolucao do paciente (INICIAL/MELHORADO/ESTAVEL/PIORADO/CURADO), linha do tempo visual. Historico automatico ao registrar novo estado
+16. **Configuracoes** — Usuarios, permissoes
 
 ## Estrutura do Projeto
 
