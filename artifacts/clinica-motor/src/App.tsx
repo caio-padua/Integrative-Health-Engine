@@ -20,6 +20,8 @@ import Followup from "@/pages/followup";
 import Financeiro from "@/pages/financeiro";
 import Unidades from "@/pages/unidades";
 import Configuracoes from "@/pages/configuracoes";
+import Fluxos from "@/pages/fluxos";
+import Permissoes from "@/pages/permissoes";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +50,8 @@ function Router() {
       <Route path="/financeiro" component={Financeiro} />
       <Route path="/unidades" component={Unidades} />
       <Route path="/configuracoes" component={Configuracoes} />
+      <Route path="/fluxos" component={Fluxos} />
+      <Route path="/permissoes" component={Permissoes} />
       <Route component={NotFound} />
     </Switch>
   );

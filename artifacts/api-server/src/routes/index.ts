@@ -11,6 +11,7 @@ import filasRouter from "./filas";
 import followupRouter from "./followup";
 import financeiroRouter from "./financeiro";
 import dashboardRouter from "./dashboard";
+import fluxosRouter from "./fluxos";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(filasRouter);
 router.use(followupRouter);
 router.use(financeiroRouter);
 router.use(dashboardRouter);
+router.use(fluxosRouter);
 
 export default router;
