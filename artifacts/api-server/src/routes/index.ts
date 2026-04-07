@@ -14,6 +14,7 @@ import dashboardRouter from "./dashboard";
 import fluxosRouter from "./fluxos";
 import catalogoRouter from "./catalogo";
 import questionarioPacienteRouter from "./questionarioPaciente";
+import pedidosExameRouter from "./pedidosExame";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(dashboardRouter);
 router.use(fluxosRouter);
 router.use("/catalogo", catalogoRouter);
 router.use(questionarioPacienteRouter);
+router.use("/pedidos-exame", pedidosExameRouter);
 
 export default router;

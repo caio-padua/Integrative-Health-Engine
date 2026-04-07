@@ -24,6 +24,7 @@ import Fluxos from "@/pages/fluxos";
 import Permissoes from "@/pages/permissoes";
 import Catalogo from "@/pages/catalogo";
 import QuestionarioPaciente from "@/pages/pacientes/questionario";
+import PedidosExame from "@/pages/pedidos-exame";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/configuracoes" component={Configuracoes} />
       <Route path="/fluxos" component={Fluxos} />
       <Route path="/permissoes" component={Permissoes} />
+      <Route path="/pedidos-exame" component={PedidosExame} />
       <Route path="/catalogo" component={Catalogo} />
       <Route component={NotFound} />
     </Switch>
