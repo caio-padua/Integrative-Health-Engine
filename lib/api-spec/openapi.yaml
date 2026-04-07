@@ -1024,6 +1024,33 @@ components:
           enum: [formula, injetavel_im, injetavel_ev, implante, exame, protocolo]
         subCategoria:
           type: string
+        codigoPadcom:
+          type: string
+          description: "Codigo PADCOM no formato AAAA BBBB CCCC 000"
+        blocoId:
+          type: string
+          description: "Referencia ao bloco PADCOM (ex: BLK001)"
+        grau:
+          type: string
+          description: "Grau dentro do bloco (ex: GRADE BASICA)"
+        viaUso:
+          type: string
+          description: "Via de administracao (ORAL, IM, IV, SUBDERMAL)"
+        frequenciaBase:
+          type: string
+          description: "Frequencia de uso recomendada"
+        composicao:
+          type: string
+          description: "Composicao do item"
+        posologia:
+          type: string
+          description: "Posologia detalhada"
+        areaSemantica:
+          type: string
+          description: "Area semantica PADCOM (ex: TIRE, META, HORM)"
+        exigeValidacaoHumana:
+          type: boolean
+          description: "Se requer validacao humana obrigatoria"
         disponivel:
           type: boolean
         preco:

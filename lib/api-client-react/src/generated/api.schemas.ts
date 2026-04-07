@@ -183,6 +183,24 @@ export interface ItemTerapeutico {
   descricao?: string;
   categoria: ItemTerapeuticoCategoria;
   subCategoria?: string;
+  /** Codigo PADCOM no formato AAAA BBBB CCCC 000 */
+  codigoPadcom?: string;
+  /** Referencia ao bloco PADCOM (ex: BLK001) */
+  blocoId?: string;
+  /** Grau dentro do bloco (ex: GRADE BASICA) */
+  grau?: string;
+  /** Via de administracao (ORAL, IM, IV, SUBDERMAL) */
+  viaUso?: string;
+  /** Frequencia de uso recomendada */
+  frequenciaBase?: string;
+  /** Composicao do item */
+  composicao?: string;
+  /** Posologia detalhada */
+  posologia?: string;
+  /** Area semantica PADCOM (ex: TIRE, META, HORM) */
+  areaSemantica?: string;
+  /** Se requer validacao humana obrigatoria */
+  exigeValidacaoHumana?: boolean;
   disponivel: boolean;
   preco?: number;
   tags?: string[];

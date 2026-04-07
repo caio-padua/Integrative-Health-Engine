@@ -8,3 +8,5 @@ export * from "./protocolos";
 export * from "./filas";
 export * from "./followups";
 export * from "./pagamentos";
+export * from "./blocos";
+export * from "./regrasMotor";
