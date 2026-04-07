@@ -40,7 +40,8 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 11. **Unidades** — Gestão multiunidades
 12. **Fluxos de Aprovacao** — Fluxos parametrizados por tipo de procedimento (Consulta/Infusao/Implante) com etapas, responsaveis, condicionais e bypass — dados reais PADCOM V15.2
 13. **Permissoes** — Matriz de permissoes por perfil (10 perfis PADCOM V15.2) com flags: editar questionario, validar, bypass, emitir NF, ver outras unidades
-14. **Configuracoes** — Usuarios, permissoes
+14. **Catalogo PADCOM** — Base completa com 688 registros: 305 injetaveis IM, 63 endovenosos, 32 implantes, 54 formulas, 11 protocolos, 49 doencas. 6 abas com busca, agrupamento por eixo, composicao expandivel, codigos PADCOM visiveis. Dados importados automaticamente de Google Sheets V13
+15. **Configuracoes** — Usuarios, permissoes
 
 ## Estrutura do Projeto
 

@@ -12,6 +12,7 @@ import followupRouter from "./followup";
 import financeiroRouter from "./financeiro";
 import dashboardRouter from "./dashboard";
 import fluxosRouter from "./fluxos";
+import catalogoRouter from "./catalogo";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(followupRouter);
 router.use(financeiroRouter);
 router.use(dashboardRouter);
 router.use(fluxosRouter);
+router.use("/catalogo", catalogoRouter);
 
 export default router;
