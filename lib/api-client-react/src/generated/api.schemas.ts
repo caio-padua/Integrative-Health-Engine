@@ -579,10 +579,137 @@ export interface ResumoFilas {
   totalUrgente: number;
 }
 
+export interface QuestionarioMasterPergunta {
+  id: number;
+  bloco: string;
+  perguntaId: string;
+  pergunta: string;
+  tipoResposta?: string | null;
+  obrigatorio?: string | null;
+  exemplo?: string | null;
+  observacao?: string | null;
+}
+
+export type QuestionarioRespostaRespostas = { [key: string]: unknown };
+
+export interface QuestionarioResposta {
+  id: number;
+  pacienteId: number;
+  dataPreenchimento: string;
+  periodo: string;
+  respostas: QuestionarioRespostaRespostas;
+  observacoesMedico?: string | null;
+  preenchidoPor?: string | null;
+  status: string;
+  criadoEm?: string;
+  atualizadoEm?: string;
+}
+
+export type EstadoSaudePacienteCondicoesAtuais = { [key: string]: unknown };
+
+export type EstadoSaudePacienteSintomasAtivos = {
+  [key: string]: unknown;
+} | null;
+
+export type EstadoSaudePacienteMedicamentosEmUso = {
+  [key: string]: unknown;
+} | null;
+
+export interface EstadoSaudePaciente {
+  id: number;
+  pacienteId: number;
+  questionarioRespostaId?: number | null;
+  dataAvaliacao: string;
+  periodo: string;
+  condicoesAtuais: EstadoSaudePacienteCondicoesAtuais;
+  sintomasAtivos?: EstadoSaudePacienteSintomasAtivos;
+  medicamentosEmUso?: EstadoSaudePacienteMedicamentosEmUso;
+  nivelEnergia?: number | null;
+  nivelDor?: number | null;
+  qualidadeSono?: number | null;
+  nivelEstresse?: number | null;
+  pesoKg?: string | null;
+  alturaM?: string | null;
+  pressaoArterial?: string | null;
+  observacoes?: string | null;
+  evolucao: string;
+  status: string;
+  criadoEm?: string;
+  atualizadoEm?: string;
+}
+
 export type ListarPacientesParams = {
   unidadeId?: number;
   busca?: string;
   pagina?: number;
+};
+
+export type CriarRespostaQuestionarioBodyRespostas = { [key: string]: unknown };
+
+export type CriarRespostaQuestionarioBody = {
+  periodo: string;
+  respostas: CriarRespostaQuestionarioBodyRespostas;
+  observacoesMedico?: string;
+  preenchidoPor?: string;
+};
+
+export type AtualizarRespostaQuestionarioBodyRespostas = {
+  [key: string]: unknown;
+};
+
+export type AtualizarRespostaQuestionarioBody = {
+  respostas?: AtualizarRespostaQuestionarioBodyRespostas;
+  observacoesMedico?: string;
+  status?: string;
+};
+
+export type CriarEstadoSaudeBodyCondicoesAtuais = { [key: string]: unknown };
+
+export type CriarEstadoSaudeBodySintomasAtivos = { [key: string]: unknown };
+
+export type CriarEstadoSaudeBodyMedicamentosEmUso = { [key: string]: unknown };
+
+export type CriarEstadoSaudeBody = {
+  questionarioRespostaId?: number;
+  periodo: string;
+  condicoesAtuais: CriarEstadoSaudeBodyCondicoesAtuais;
+  sintomasAtivos?: CriarEstadoSaudeBodySintomasAtivos;
+  medicamentosEmUso?: CriarEstadoSaudeBodyMedicamentosEmUso;
+  nivelEnergia?: number;
+  nivelDor?: number;
+  qualidadeSono?: number;
+  nivelEstresse?: number;
+  pesoKg?: string;
+  alturaM?: string;
+  pressaoArterial?: string;
+  observacoes?: string;
+  evolucao?: string;
+};
+
+export type AtualizarEstadoSaudeBodyCondicoesAtuais = {
+  [key: string]: unknown;
+};
+
+export type AtualizarEstadoSaudeBodySintomasAtivos = { [key: string]: unknown };
+
+export type AtualizarEstadoSaudeBodyMedicamentosEmUso = {
+  [key: string]: unknown;
+};
+
+export type AtualizarEstadoSaudeBody = {
+  condicoesAtuais?: AtualizarEstadoSaudeBodyCondicoesAtuais;
+  sintomasAtivos?: AtualizarEstadoSaudeBodySintomasAtivos;
+  medicamentosEmUso?: AtualizarEstadoSaudeBodyMedicamentosEmUso;
+  nivelEnergia?: number;
+  nivelDor?: number;
+  qualidadeSono?: number;
+  nivelEstresse?: number;
+  pesoKg?: string;
+  alturaM?: string;
+  pressaoArterial?: string;
+  observacoes?: string;
+  evolucao?: string;
+  status?: string;
 };
 
 export type ListarAnamnesesParams = {

@@ -13,6 +13,7 @@ import financeiroRouter from "./financeiro";
 import dashboardRouter from "./dashboard";
 import fluxosRouter from "./fluxos";
 import catalogoRouter from "./catalogo";
+import questionarioPacienteRouter from "./questionarioPaciente";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(financeiroRouter);
 router.use(dashboardRouter);
 router.use(fluxosRouter);
 router.use("/catalogo", catalogoRouter);
+router.use(questionarioPacienteRouter);
 
 export default router;

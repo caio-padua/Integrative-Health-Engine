@@ -39,6 +39,8 @@ tags:
     description: Gestão de usuários e perfis
   - name: dashboard
     description: Dados de dashboard e métricas
+  - name: questionario-paciente
+    description: Questionario de saude do paciente e historico temporal
 
 paths:
   /healthz:
@@ -142,6 +144,254 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Paciente"
+
+  # Questionario do Paciente
+  /pacientes/{pacienteId}/questionario/perguntas:
+    get:
+      operationId: listarPerguntasQuestionario
+      tags: [questionario-paciente]
+      summary: Listar perguntas do questionario master
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de perguntas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestionarioMasterPergunta"
+
+  /pacientes/{pacienteId}/questionario/respostas:
+    get:
+      operationId: listarRespostasQuestionario
+      tags: [questionario-paciente]
+      summary: Listar respostas do questionario do paciente
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de respostas com historico
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestionarioResposta"
+    post:
+      operationId: criarRespostaQuestionario
+      tags: [questionario-paciente]
+      summary: Registrar respostas do questionario para o paciente
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                periodo:
+                  type: string
+                respostas:
+                  type: object
+                observacoesMedico:
+                  type: string
+                preenchidoPor:
+                  type: string
+              required:
+                - periodo
+                - respostas
+      responses:
+        "201":
+          description: Respostas registradas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionarioResposta"
+
+  /pacientes/{pacienteId}/questionario/respostas/{id}:
+    put:
+      operationId: atualizarRespostaQuestionario
+      tags: [questionario-paciente]
+      summary: Atualizar respostas do questionario
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                respostas:
+                  type: object
+                observacoesMedico:
+                  type: string
+                status:
+                  type: string
+      responses:
+        "200":
+          description: Respostas atualizadas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionarioResposta"
+
+  /pacientes/{pacienteId}/estado-saude:
+    get:
+      operationId: listarEstadoSaude
+      tags: [questionario-paciente]
+      summary: Listar historico de estado de saude do paciente
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Historico de estados de saude
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EstadoSaudePaciente"
+    post:
+      operationId: criarEstadoSaude
+      tags: [questionario-paciente]
+      summary: Registrar novo estado de saude do paciente
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                questionarioRespostaId:
+                  type: integer
+                periodo:
+                  type: string
+                condicoesAtuais:
+                  type: object
+                sintomasAtivos:
+                  type: object
+                medicamentosEmUso:
+                  type: object
+                nivelEnergia:
+                  type: integer
+                nivelDor:
+                  type: integer
+                qualidadeSono:
+                  type: integer
+                nivelEstresse:
+                  type: integer
+                pesoKg:
+                  type: string
+                alturaM:
+                  type: string
+                pressaoArterial:
+                  type: string
+                observacoes:
+                  type: string
+                evolucao:
+                  type: string
+              required:
+                - periodo
+                - condicoesAtuais
+      responses:
+        "201":
+          description: Estado de saude registrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstadoSaudePaciente"
+
+  /pacientes/{pacienteId}/estado-saude/{id}:
+    put:
+      operationId: atualizarEstadoSaude
+      tags: [questionario-paciente]
+      summary: Atualizar estado de saude do paciente
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                condicoesAtuais:
+                  type: object
+                sintomasAtivos:
+                  type: object
+                medicamentosEmUso:
+                  type: object
+                nivelEnergia:
+                  type: integer
+                nivelDor:
+                  type: integer
+                qualidadeSono:
+                  type: integer
+                nivelEstresse:
+                  type: integer
+                pesoKg:
+                  type: string
+                alturaM:
+                  type: string
+                pressaoArterial:
+                  type: string
+                observacoes:
+                  type: string
+                evolucao:
+                  type: string
+                status:
+                  type: string
+      responses:
+        "200":
+          description: Estado de saude atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstadoSaudePaciente"
 
   # Anamnese
   /anamnese:
@@ -1606,3 +1856,134 @@ components:
         - followup
         - pagamento
         - totalUrgente
+
+    QuestionarioMasterPergunta:
+      type: object
+      properties:
+        id:
+          type: integer
+        bloco:
+          type: string
+        perguntaId:
+          type: string
+        pergunta:
+          type: string
+        tipoResposta:
+          type: string
+          nullable: true
+        obrigatorio:
+          type: string
+          nullable: true
+        exemplo:
+          type: string
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+      required:
+        - id
+        - bloco
+        - perguntaId
+        - pergunta
+
+    QuestionarioResposta:
+      type: object
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        dataPreenchimento:
+          type: string
+          format: date-time
+        periodo:
+          type: string
+        respostas:
+          type: object
+        observacoesMedico:
+          type: string
+          nullable: true
+        preenchidoPor:
+          type: string
+          nullable: true
+        status:
+          type: string
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pacienteId
+        - dataPreenchimento
+        - periodo
+        - respostas
+        - status
+
+    EstadoSaudePaciente:
+      type: object
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        questionarioRespostaId:
+          type: integer
+          nullable: true
+        dataAvaliacao:
+          type: string
+          format: date-time
+        periodo:
+          type: string
+        condicoesAtuais:
+          type: object
+        sintomasAtivos:
+          type: object
+          nullable: true
+        medicamentosEmUso:
+          type: object
+          nullable: true
+        nivelEnergia:
+          type: integer
+          nullable: true
+        nivelDor:
+          type: integer
+          nullable: true
+        qualidadeSono:
+          type: integer
+          nullable: true
+        nivelEstresse:
+          type: integer
+          nullable: true
+        pesoKg:
+          type: string
+          nullable: true
+        alturaM:
+          type: string
+          nullable: true
+        pressaoArterial:
+          type: string
+          nullable: true
+        observacoes:
+          type: string
+          nullable: true
+        evolucao:
+          type: string
+        status:
+          type: string
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pacienteId
+        - dataAvaliacao
+        - periodo
+        - condicoesAtuais
+        - evolucao
+        - status

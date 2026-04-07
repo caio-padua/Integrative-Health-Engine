@@ -1,8 +1,8 @@
 import { Layout } from "@/components/Layout";
-import { useRoute } from "wouter";
+import { useRoute, Link } from "wouter";
 import { useObterPaciente, getObterPacienteQueryKey, useAtualizarPaciente } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Activity, Clock, Edit } from "lucide-react";
+import { User, Activity, Clock, Edit, ClipboardList, HeartPulse } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,13 +102,20 @@ export default function PacienteDetalhe() {
                 </div>
               </div>
 
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
+              <div className="flex gap-2">
+                <Link href={`/pacientes/${id}/questionario`}>
                   <Button variant="outline">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Editar Paciente
+                    <HeartPulse className="w-4 h-4 mr-2" />
+                    Questionario de Saude
                   </Button>
-                </DialogTrigger>
+                </Link>
+                <Dialog open={open} onOpenChange={setOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar Paciente
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Editar Paciente</DialogTitle>
@@ -176,6 +183,7 @@ export default function PacienteDetalhe() {
                   </Form>
                 </DialogContent>
               </Dialog>
+            </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -23,6 +23,7 @@ import Configuracoes from "@/pages/configuracoes";
 import Fluxos from "@/pages/fluxos";
 import Permissoes from "@/pages/permissoes";
 import Catalogo from "@/pages/catalogo";
+import QuestionarioPaciente from "@/pages/pacientes/questionario";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/validacao" component={Validacao} />
       <Route path="/filas" component={Filas} />
       <Route path="/pacientes" component={Pacientes} />
+      <Route path="/pacientes/:id/questionario" component={QuestionarioPaciente} />
       <Route path="/pacientes/:id" component={PacienteDetalhe} />
       <Route path="/itens-terapeuticos" component={ItensTerapeuticos} />
       <Route path="/protocolos" component={Protocolos} />

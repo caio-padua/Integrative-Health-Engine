@@ -12,3 +12,4 @@ export * from "./blocos";
 export * from "./regrasMotor";
 export * from "./fluxos";
 export * from "./catalogo";
+export * from "./questionarioPaciente";
