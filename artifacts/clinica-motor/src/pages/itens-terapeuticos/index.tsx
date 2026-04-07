@@ -2,12 +2,25 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Search, Filter, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronRight, FlaskConical, Beaker, TestTube, Pill } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
+
+interface ExameDetalhe {
+  nome: string;
+  codigo: string | null;
+  modalidade: string | null;
+  materialOuSetor: string | null;
+  justificativaObjetiva: string | null;
+  prioridade: string | null;
+  sexoAplicavel: string | null;
+  legendaRapida: string | null;
+  finalidadePrincipal: string | null;
+  enriquecido: boolean;
+}
 
 interface ItemUnificado {
   id: string;
@@ -28,6 +41,9 @@ interface ItemUnificado {
   palavraChave?: string | null;
   indicacao?: string | null;
   objetivo?: string | null;
+  examesDetalhe?: ExameDetalhe[];
+  totalExames?: number;
+  totalEnriquecidos?: number;
 }
 
 interface ItensUnificadosResponse {
@@ -63,8 +79,14 @@ function formatValor(v?: string | null): string {
   return `R$ ${num.toFixed(2).replace(".", ",")}`;
 }
 
+function PrioridadeBadge({ p }: { p: string | null }) {
+  if (!p) return null;
+  const cor = p === "ALTA" ? "text-red-400 bg-red-500/10" : p === "MEDIA" ? "text-yellow-400 bg-yellow-500/10" : "text-gray-400 bg-gray-500/10";
+  return <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${cor}`}>{p}</span>;
+}
+
 function ItemRow({ item, expandido, onToggle }: { item: ItemUnificado; expandido: boolean; onToggle: () => void }) {
-  const temDetalhes = item.composicao || item.indicacao || item.objetivo || item.palavraChave || item.classificacao;
+  const temDetalhes = item.composicao || item.indicacao || item.objetivo || item.palavraChave || item.classificacao || item.examesDetalhe || item.tipo === "FORMULA" || item.tipo === "PROTOCOLO";
 
   return (
     <>
@@ -86,8 +108,13 @@ function ItemRow({ item, expandido, onToggle }: { item: ItemUnificado; expandido
           </code>
         </div>
 
-        <div>
+        <div className="flex items-center gap-2">
           <p className="font-medium text-sm truncate">{item.nome}</p>
+          {item.tipo === "EXAME" && item.totalExames && (
+            <span className="text-[10px] text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded">
+              {item.totalExames} exames ({item.totalEnriquecidos} V4)
+            </span>
+          )}
         </div>
 
         <div>
@@ -105,28 +132,72 @@ function ItemRow({ item, expandido, onToggle }: { item: ItemUnificado; expandido
         <div className="text-xs text-muted-foreground">
           {item.via && <span>{item.via}</span>}
           {item.frequencia && <span className="block text-[10px] opacity-60">{item.frequencia}</span>}
+          {item.grau && <span className="text-[10px] opacity-60">{item.grau}</span>}
         </div>
 
         <div className="text-right text-xs font-medium">
           <span className={item.status === "ATIVO" ? "text-green-500" : "text-muted-foreground"}>
-            {item.status || "—"}
+            {item.status || "\u2014"}
           </span>
         </div>
       </div>
 
       {expandido && temDetalhes && (
         <div className="px-4 py-3 bg-muted/5 border-b border-border/30 ml-10">
-          {item.composicao && (
-            <div className="mb-2">
-              <span className="text-xs uppercase text-muted-foreground tracking-wider">
-                {item.tipo === "EXAME" ? "Exames da Grade" : "Composicao"}
-              </span>
-              <p className="text-sm mt-1 leading-relaxed border-l-2 border-primary/30 pl-3">
-                {item.composicao.split(", ").map((c, i) => (
-                  <span key={i} className="block text-sm">{c}</span>
+          {item.tipo === "EXAME" && item.examesDetalhe && item.examesDetalhe.length > 0 ? (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs uppercase text-muted-foreground tracking-wider font-medium">
+                  Exames da Grade
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {item.totalEnriquecidos}/{item.totalExames} com dados V4
+                </span>
+              </div>
+              <div className="space-y-1">
+                {item.examesDetalhe.map((ex, i) => (
+                  <div key={i} className={`rounded-md px-3 py-2 border ${ex.enriquecido ? 'border-border/40 bg-muted/10' : 'border-border/20 bg-muted/5 opacity-70'}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-foreground min-w-[200px]">{ex.nome}</span>
+                      {ex.codigo && <code className="text-[10px] text-muted-foreground font-mono">{ex.codigo}</code>}
+                      {ex.modalidade && (
+                        <span className="text-[10px] text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded">{ex.modalidade}</span>
+                      )}
+                      {ex.materialOuSetor && (
+                        <span className="text-[10px] text-muted-foreground">{ex.materialOuSetor}</span>
+                      )}
+                      <PrioridadeBadge p={ex.prioridade} />
+                      {ex.sexoAplicavel && ex.sexoAplicavel !== "AMBOS" && (
+                        <span className="text-[10px] text-violet-400">{ex.sexoAplicavel}</span>
+                      )}
+                    </div>
+                    {ex.enriquecido && (ex.legendaRapida || ex.finalidadePrincipal) && (
+                      <div className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                        {ex.legendaRapida && <span>{ex.legendaRapida}</span>}
+                        {ex.finalidadePrincipal && !ex.legendaRapida && <span>{ex.finalidadePrincipal}</span>}
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </p>
+              </div>
             </div>
+          ) : (
+            <>
+              {item.composicao ? (
+                <div className="mb-2">
+                  <span className="text-xs uppercase text-muted-foreground tracking-wider">Composicao</span>
+                  <p className="text-sm mt-1 leading-relaxed border-l-2 border-primary/30 pl-3">
+                    {item.composicao.split(/[,\n]/).map((c, i) => (
+                      <span key={i} className="block text-sm">{c.trim()}</span>
+                    ))}
+                  </p>
+                </div>
+              ) : (item.tipo === "FORMULA" || item.tipo === "PROTOCOLO") ? (
+                <div className="mb-2">
+                  <span className="text-[11px] text-muted-foreground italic">Composicao detalhada pendente na planilha V4</span>
+                </div>
+              ) : null}
+            </>
           )}
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-2">
             {item.dosagem && <div><span className="font-medium">Dosagem:</span> {item.dosagem}</div>}
@@ -190,7 +261,7 @@ export default function ItensTerapeuticos() {
             Itens Terapeuticos
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Catalogo PADCOM V13 — {data?.total || 0} itens: Injetaveis IM/EV, Formulas, Implantes, Exames/Blocos, Protocolos
+            Catalogo PADCOM V13+V4 — {data?.total || 0} itens: Injetaveis IM/EV, Formulas, Implantes, Exames/Blocos (V4 enriquecido), Protocolos
           </p>
         </div>
 
