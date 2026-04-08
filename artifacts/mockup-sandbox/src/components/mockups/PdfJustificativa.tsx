@@ -58,22 +58,22 @@ export default function PdfJustificativa() {
         {
           num: 1,
           nome: "HEMOGRAMA",
-          justificativa: "Exame posicionado dentro do bloco oficial para compor o raciocinio clinico, a triagem e a validacao humana do caso."
+          justificativa: "O hemograma completo e solicitado como parte da avaliacao integrativa inicial para identificar alteracoes nas linhagens celulares sanguineas, permitindo detectar anemias carenciais, processos infecciosos agudos ou cronicos, alteracoes plaquetarias e sinais indiretos de inflamacao sistemica que possam impactar o plano terapeutico do paciente."
         },
         {
           num: 2,
           nome: "TSH",
-          justificativa: "Exame posicionado dentro do bloco oficial para compor o raciocinio clinico, a triagem e a validacao humana do caso."
+          justificativa: "O TSH e o marcador mais sensivel para deteccao de disfuncoes tireoidianas, sendo solicitado para investigacao de fadiga, alteracoes de peso, disturbios do humor, queda capilar e outros sintomas que possam estar relacionados a desregulacao do eixo hipotalamo-hipofise-tireoide, frequentes na pratica integrativa."
         },
         {
           num: 3,
           nome: "VITAMINA D",
-          justificativa: "Exame posicionado dentro do bloco oficial para compor o raciocinio clinico, a triagem e a validacao humana do caso."
+          justificativa: "A dosagem de vitamina D e solicitada para avaliar a suficiencia desta vitamina-hormonio, cuja deficiencia esta associada a risco aumentado de osteoporose, imunossupressao, fadiga cronica, disturbios do humor e maior suscetibilidade a infeccoes, sendo um dos pilares da avaliacao integrativa."
         },
         {
           num: 4,
           nome: "HEMOGLOBINA GLICADA",
-          justificativa: "Exame posicionado dentro do bloco oficial para compor o raciocinio clinico, a triagem e a validacao humana do caso."
+          justificativa: "A hemoglobina glicada (HbA1c) reflete a media glicemica dos ultimos 2 a 3 meses, sendo solicitada para rastreio de pre-diabetes e diabetes mellitus, bem como para monitoramento da eficacia de intervencoes dieteticas e terapeuticas na regulacao do metabolismo glicidico."
         },
       ].map((exame) => (
         <div key={exame.num} style={{
