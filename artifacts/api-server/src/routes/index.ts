@@ -15,6 +15,9 @@ import fluxosRouter from "./fluxos";
 import catalogoRouter from "./catalogo";
 import questionarioPacienteRouter from "./questionarioPaciente";
 import pedidosExameRouter from "./pedidosExame";
+import substanciasRouter from "./substancias";
+import sessoesRouter from "./sessoes";
+import rasRouter from "./rasRoute";
 
 const router: IRouter = Router();
 
@@ -34,5 +37,8 @@ router.use(fluxosRouter);
 router.use("/catalogo", catalogoRouter);
 router.use(questionarioPacienteRouter);
 router.use("/pedidos-exame", pedidosExameRouter);
+router.use(substanciasRouter);
+router.use(sessoesRouter);
+router.use(rasRouter);
 
 export default router;
