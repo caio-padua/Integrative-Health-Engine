@@ -154,19 +154,24 @@ export default function PdfVarianteD() {
           </div>
         ))}
 
-        <div style={{ marginTop: "14px", paddingTop: "8px", borderTop: "1px solid #ccc" }}>
-          <div style={{ fontSize: "9px" }}>
-            <span style={{ fontWeight: "bold" }}>HD</span>  INVESTIGACAO METABOLICA INTEGRATIVA
+        <div style={{
+          marginTop: "16px",
+          padding: "10px 14px",
+          border: "1px solid #ccc",
+          background: "#fafafa",
+        }}>
+          <div style={{ fontSize: "9px", lineHeight: "1.8" }}>
+            <span style={{ fontWeight: "bold", color: "#111", letterSpacing: "1px" }}>HD</span>{"  "}INVESTIGACAO METABOLICA INTEGRATIVA
           </div>
-          <div style={{ fontSize: "9px", marginTop: "2px" }}>
-            <span style={{ fontWeight: "bold" }}>CID</span>  Z00.0
+          <div style={{ fontSize: "9px", lineHeight: "1.8" }}>
+            <span style={{ fontWeight: "bold", color: "#111", letterSpacing: "1px" }}>CID</span>{"  "}Z00.0 + E55.9 + E61.1
           </div>
         </div>
       </div>
 
       <div style={{
         position: "absolute",
-        bottom: "115px",
+        bottom: "65px",
         left: "28px",
         right: "28px",
         textAlign: "center",
@@ -176,37 +181,6 @@ export default function PdfVarianteD() {
         <div style={{ fontSize: "8px", color: "#666" }}>MEDICINA INTERNA</div>
         <div style={{ fontSize: "8px", color: "#666" }}>CRM-SP 125475</div>
         <div style={{ fontSize: "8px", color: "#666" }}>CNS 123456789012345</div>
-      </div>
-
-      <div style={{
-        position: "absolute",
-        bottom: "60px",
-        left: "28px",
-        right: "28px",
-        display: "flex",
-        gap: "0",
-        border: "1px solid #bbb",
-        fontSize: "8px",
-      }}>
-        <div style={{ flex: 1, padding: "8px 10px", borderRight: "1px solid #bbb" }}>
-          <div style={{ fontWeight: "bold", marginBottom: "4px", fontSize: "7px", letterSpacing: "1px" }}>IDENTIFICACAO DO COMPRADOR</div>
-          <div style={{ color: "#888", lineHeight: "1.8" }}>
-            NOME<br />
-            RG<br />
-            CPF<br />
-            ENDERECO<br />
-            TELEFONE
-          </div>
-        </div>
-        <div style={{ flex: 1, padding: "8px 10px" }}>
-          <div style={{ fontWeight: "bold", fontStyle: "italic", marginBottom: "4px", fontSize: "7px", letterSpacing: "1px" }}>IDENTIFICACAO DO FORNECEDOR</div>
-          <div style={{ textAlign: "center", marginTop: "8px" }}>
-            <div style={{ borderTop: "1px solid #bbb", width: "80%", margin: "0 auto 2px" }} />
-            <div style={{ fontSize: "7px", color: "#888" }}>ASSINATURA DO FARMACEUTICO</div>
-            <div style={{ marginTop: "6px", borderTop: "1px solid #bbb", width: "50%", margin: "0 auto 2px" }} />
-            <div style={{ fontSize: "7px", color: "#888" }}>DATA</div>
-          </div>
-        </div>
       </div>
 
       <div style={{
