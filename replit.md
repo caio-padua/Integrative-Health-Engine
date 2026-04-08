@@ -49,7 +49,10 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 20. **Codigos Validacao** — Codigos alfanumericos de 6 digitos para validacao de sessoes (expiracao 1h), geracao, verificacao (VALIDO/INVALIDO/EXPIRADO/JA USADO), dashboard com stats (Total/Ativos/Usados/Expirados), input de verificacao com tracking-widest monospace
 21. **Estoque de Substancias** — Controle de estoque com quantidade/minimo, alertas visuais BAIXO (vermelho) vs OK (verde), filtro de itens abaixo do minimo, lote, validade, fornecedor, custo unitario, edicao inline, cor da substancia vinculada
 22. **Codigos Semanticos PADCOM** — 119 codigos importados da planilha Google Drive com padrao TIPO SISTEMA SUBTIPO SEQUENCIA (16 tipos: EXAM, INJE, FORM, PROC, DOEN, SINT, CIRU, DADO, TERA, FINA, DIET, PSIC, RECO, PAGA, FISC, JURI), filtros por tipo/grupo, colunas de procedimentos (Prescricao/Formula, Injetavel IM, Injetavel EV, Implante, Exame, Protocolo, Dieta) com indicadores visuais coloridos, 45 codigos com procedimentos vinculados
-23. **Configuracoes** — Usuarios, permissoes
+23. **Google Calendar** — Integracao real com OAuth via clinica.padua.agenda@gmail.com: 8 calendarios mapeados (Higienopolis, Tatuape, Bianca, Domiciliar, Guaxupe, Agenda Geral, Pessoal, Feriados BR). Sincronizacao automatica de sessoes com eventos coloridos, checklist de procedimentos (✅❌ com duracao), lista de substancias com status (🟢 DISP, 🔵 APLICADA, 🟤 PROX, ⚫ N/A), endereco completo com links. Roteamento automatico: Implante/Consulta→agenda medico, IV/IM→agenda enfermagem. Atualizacao automatica pos-confirmacao de substancias (DISP→APLICADA)
+24. **Google Drive** — Pasta automatica por paciente (CLINICA PADUA - CLIENTES / NOME - CPF XXXXX), upload de documentos (PDFs, RAS), listagem de arquivos. Campo googleDriveFolderId em pacientes
+25. **Gmail** — Emails automaticos pre-sessao (info completa: data, hora, local, endereco, procedimento, substancias) e pos-sessao (relatorio com status de cada substancia aplicada). Templates HTML profissionais com branding Clinica Padua
+26. **Configuracoes** — Usuarios, permissoes
 
 ## Estrutura do Projeto
 

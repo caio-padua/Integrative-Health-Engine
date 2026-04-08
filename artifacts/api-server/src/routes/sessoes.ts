@@ -6,6 +6,7 @@ import {
   pacientesTable, substanciasTable, unidadesTable, usuariosTable,
 } from "@workspace/db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { createCalendarEvent, updateCalendarEventDescription, type SessaoCalendarData } from "../lib/google-calendar.js";
 
 const router = Router();
 
@@ -213,6 +214,31 @@ router.post("/sessoes/:id/confirmar-substancia", async (req, res) => {
     await db.update(sessoesTable).set({ status: "concluida" }).where(eq(sessoesTable.id, Number(req.params.id)));
   } else if (algumAplicada) {
     await db.update(sessoesTable).set({ status: "parcial" }).where(eq(sessoesTable.id, Number(req.params.id)));
+  }
+
+  const [sessaoAtual] = await db
+    .select({ googleEventId: sessoesTable.googleEventId, tipoProcedimento: sessoesTable.tipoProcedimento, duracaoTotalMin: sessoesTable.duracaoTotalMin, unidadeId: sessoesTable.unidadeId })
+    .from(sessoesTable)
+    .where(eq(sessoesTable.id, Number(req.params.id)));
+
+  if (sessaoAtual?.googleEventId) {
+    try {
+      const [unidade] = await db.select({ calId: unidadesTable.googleCalendarId, endereco: unidadesTable.endereco, bairro: unidadesTable.bairro, cep: unidadesTable.cep, cidade: unidadesTable.cidade, estado: unidadesTable.estado }).from(unidadesTable).where(eq(unidadesTable.id, sessaoAtual.unidadeId!));
+      const todasAplic = await db
+        .select({ aplicacao: aplicacoesSubstanciasTable, substanciaNome: substanciasTable.nome, substanciaVia: substanciasTable.via })
+        .from(aplicacoesSubstanciasTable)
+        .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
+        .where(eq(aplicacoesSubstanciasTable.sessaoId, Number(req.params.id)));
+
+      await updateCalendarEventDescription(
+        unidade?.calId || 'primary',
+        sessaoAtual.googleEventId,
+        todasAplic.map(a => ({ nome: a.substanciaNome || '', via: a.substanciaVia || '', dose: a.aplicacao.dose || '', status: a.aplicacao.status || 'disp' })),
+        sessaoAtual.tipoProcedimento || 'CONSULTA',
+        sessaoAtual.duracaoTotalMin || 60,
+        { rua: unidade?.endereco || undefined, bairro: unidade?.bairro || undefined, cep: unidade?.cep || undefined, cidade: unidade?.cidade || undefined, estado: unidade?.estado || undefined }
+      );
+    } catch (e: any) { console.warn('[Calendar] Auto-update failed for sessao', req.params.id, e?.message); }
   }
 
   res.json(updated);

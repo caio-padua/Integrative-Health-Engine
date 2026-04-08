@@ -3,8 +3,8 @@ import { google } from 'googleapis';
 let connectionSettings: any;
 
 async function getAccessToken() {
-  if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
-    return connectionSettings.settings.access_token;
+  if (connectionSettings && connectionSettings.settings?.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
+    return connectionSettings.settings.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
   }
 
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -43,12 +43,17 @@ export async function getGmailClient() {
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }
 
+function sanitizeEmail(email: string): string {
+  return email.replace(/[\r\n]/g, '').trim();
+}
+
 function createEmailRaw(to: string, subject: string, htmlBody: string, from?: string): string {
-  const fromAddr = from || 'clinica.padua.agenda@gmail.com';
+  const fromAddr = sanitizeEmail(from || 'clinica.padua.agenda@gmail.com');
+  const toAddr = sanitizeEmail(to);
 
   const messageParts = [
     `From: CLINICA PADUA <${fromAddr}>`,
-    `To: ${to}`,
+    `To: ${toAddr}`,
     `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',

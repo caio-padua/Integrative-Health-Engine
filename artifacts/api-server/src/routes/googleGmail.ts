@@ -74,7 +74,7 @@ router.post("/google-gmail/pre-session/:sessaoId", async (req, res) => {
 
     res.json({ success: true, messageId: result.id, sentTo: toEmail });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("[Google] Error:", err.message); res.status(500).json({ error: "Erro na integracao Google" });
   }
 });
 
@@ -127,7 +127,7 @@ router.post("/google-gmail/post-session/:sessaoId", async (req, res) => {
 
     res.json({ success: true, messageId: result.id, sentTo: toEmail });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("[Google] Error:", err.message); res.status(500).json({ error: "Erro na integracao Google" });
   }
 });
 

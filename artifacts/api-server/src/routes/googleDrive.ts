@@ -31,7 +31,7 @@ router.post("/google-drive/client-folder/:pacienteId", async (req, res) => {
       paciente: paciente.nome,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("[Google] Error:", err.message); res.status(500).json({ error: "Erro na integracao Google" });
   }
 });
 
@@ -51,7 +51,7 @@ router.get("/google-drive/client-files/:pacienteId", async (req, res) => {
     const files = await listClientFiles(paciente.googleDriveFolderId);
     res.json({ files, paciente: paciente.nome });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("[Google] Error:", err.message); res.status(500).json({ error: "Erro na integracao Google" });
   }
 });
 
@@ -89,7 +89,7 @@ router.post("/google-drive/upload/:pacienteId", async (req, res) => {
       fileUrl: result.fileUrl,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("[Google] Error:", err.message); res.status(500).json({ error: "Erro na integracao Google" });
   }
 });
 

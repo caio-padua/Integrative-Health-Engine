@@ -28,7 +28,8 @@ router.get("/google-calendar/calendars", async (_req, res) => {
       backgroundColor: c.backgroundColor,
     })));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('[GoogleCalendar] listCalendars error:', err.message);
+    res.status(500).json({ error: "Erro ao listar calendarios" });
   }
 });
 
@@ -112,7 +113,8 @@ router.post("/google-calendar/sync-session/:sessaoId", async (req, res) => {
       routing: determineCalendarRouting(substancias.map(s => s.via)),
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('[GoogleCalendar] sync-session error:', err.message);
+    res.status(500).json({ error: "Erro ao sincronizar sessao com Google Calendar" });
   }
 });
 
@@ -173,7 +175,7 @@ router.post("/google-calendar/update-session/:sessaoId", async (req, res) => {
 
     res.json({ success: true, eventId: event.id });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("[Google] Error:", err.message); res.status(500).json({ error: "Erro na integracao Google" });
   }
 });
 
@@ -191,7 +193,7 @@ router.get("/google-calendar/events", async (req, res) => {
     );
     res.json(events);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("[Google] Error:", err.message); res.status(500).json({ error: "Erro na integracao Google" });
   }
 });
 
