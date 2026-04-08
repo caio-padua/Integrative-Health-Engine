@@ -18,6 +18,7 @@ import pedidosExameRouter from "./pedidosExame";
 import substanciasRouter from "./substancias";
 import sessoesRouter from "./sessoes";
 import rasRouter from "./rasRoute";
+import codigosSemanticosRouter from "./codigosSemanticos";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use("/pedidos-exame", pedidosExameRouter);
 router.use(substanciasRouter);
 router.use(sessoesRouter);
 router.use(rasRouter);
+router.use(codigosSemanticosRouter);
 
 export default router;
