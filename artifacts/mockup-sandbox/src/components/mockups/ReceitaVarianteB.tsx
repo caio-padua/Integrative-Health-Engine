@@ -164,7 +164,7 @@ export default function ReceitaVarianteB() {
 
       <div style={{
         position: "absolute",
-        bottom: "65px",
+        bottom: "130px",
         left: "28px",
         right: "28px",
         textAlign: "center",
@@ -178,31 +178,58 @@ export default function ReceitaVarianteB() {
 
       <div style={{
         position: "absolute",
-        bottom: "12px",
+        bottom: "52px",
         left: "28px",
         right: "28px",
-        borderTop: "1px solid #ccc",
-        paddingTop: "6px",
+        display: "flex",
+        border: "1px solid #ddd",
+        fontSize: "6.5px",
+        color: "#aaa",
+      }}>
+        <div style={{ flex: 1, padding: "5px 8px", borderRight: "1px solid #ddd" }}>
+          <div style={{ fontWeight: "bold", marginBottom: "2px", fontSize: "6px", letterSpacing: "0.5px", color: "#999" }}>IDENTIFICACAO DO COMPRADOR</div>
+          <div style={{ lineHeight: "1.6" }}>
+            NOME<br />RG<br />CPF<br />ENDERECO<br />TELEFONE
+          </div>
+        </div>
+        <div style={{ flex: 1, padding: "5px 8px" }}>
+          <div style={{ fontWeight: "bold", fontStyle: "italic", marginBottom: "2px", fontSize: "6px", letterSpacing: "0.5px", color: "#999" }}>IDENTIFICACAO DO FORNECEDOR</div>
+          <div style={{ textAlign: "center", marginTop: "5px" }}>
+            <div style={{ borderTop: "1px solid #ddd", width: "70%", margin: "0 auto 1px" }} />
+            <div style={{ fontSize: "5.5px", color: "#bbb" }}>ASSINATURA DO FARMACEUTICO</div>
+            <div style={{ marginTop: "4px", borderTop: "1px solid #ddd", width: "40%", margin: "0 auto 1px" }} />
+            <div style={{ fontSize: "5.5px", color: "#bbb" }}>DATA</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        position: "absolute",
+        bottom: "10px",
+        left: "28px",
+        right: "28px",
+        borderTop: "1px solid #e0e0e0",
+        paddingTop: "4px",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "flex-start",
       }}>
-        <div style={{ flex: 1, fontSize: "6px", color: "#aaa", lineHeight: "1.5" }}>
+        <div style={{ flex: 1, fontSize: "5.5px", color: "#bbb", lineHeight: "1.4" }}>
           DOCUMENTO ASSINADO DIGITALMENTE - DR CAIO HENRIQUE PADUA - CRM-SP 125475<br />
           DATA DE EMISSAO  08 DE ABRIL DE 2026<br />
           A ASSINATURA DIGITAL DESTE DOCUMENTO PODERA SER VERIFICADA EM HTTPS://VALIDAR.ITI.GOV.BR
         </div>
         <div style={{
-          width: "36px",
-          height: "36px",
-          background: "#f0f0f0",
-          border: "1px solid #ddd",
+          width: "30px",
+          height: "30px",
+          background: "#f5f5f5",
+          border: "1px solid #e0e0e0",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "5px",
-          color: "#bbb",
-          marginLeft: "8px",
+          fontSize: "4.5px",
+          color: "#ccc",
+          marginLeft: "6px",
           flexShrink: 0,
         }}>
           QR CODE
