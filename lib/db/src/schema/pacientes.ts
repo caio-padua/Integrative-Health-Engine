@@ -10,6 +10,8 @@ export const pacientesTable = pgTable("pacientes", {
   dataNascimento: date("data_nascimento"),
   telefone: text("telefone").notNull(),
   email: text("email"),
+  endereco: text("endereco"),
+  cep: text("cep"),
   unidadeId: integer("unidade_id").notNull().references(() => unidadesTable.id),
   statusAtivo: boolean("status_ativo").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),

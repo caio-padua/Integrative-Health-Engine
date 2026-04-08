@@ -137,10 +137,10 @@ router.get("/:id/pdf/solicitacao", async (req, res) => {
 
     const pedido = rows[0];
 
-    const medicoRows = await db.execute(sql`SELECT nome, email FROM usuarios WHERE id = ${pedido.medicoId}`);
-    const pacienteRows = await db.execute(sql`SELECT nome, cpf, data_nascimento FROM pacientes WHERE id = ${pedido.pacienteId}`);
+    const medicoRows = await db.execute(sql`SELECT nome, email, crm, cpf, cns, especialidade FROM usuarios WHERE id = ${pedido.medicoId}`);
+    const pacienteRows = await db.execute(sql`SELECT nome, cpf, data_nascimento, telefone, endereco, cep FROM pacientes WHERE id = ${pedido.pacienteId}`);
     const unidadeRows = pedido.unidadeId
-      ? await db.execute(sql`SELECT nome, endereco, cidade, estado FROM unidades WHERE id = ${pedido.unidadeId}`)
+      ? await db.execute(sql`SELECT nome, endereco, cidade, estado, cep, cnpj, telefone FROM unidades WHERE id = ${pedido.unidadeId}`)
       : [];
 
     const medicoData = (medicoRows as any)?.[0] || {};
@@ -151,23 +151,26 @@ router.get("/:id/pdf/solicitacao", async (req, res) => {
       nomeExame: string; corpoPedido: string; preparo: string | null; hd: string | null; cid: string | null;
     }>;
 
-    const nomeEmpresa = unidadeData?.nome || "CLINICA INTEGRATIVA PADUA";
+    const nomeEmpresa = unidadeData?.nome || "CLINICA DE MEDICINA INTEGRATIVA PADUA";
     const enderecoEmpresa = unidadeData
-      ? `${unidadeData.endereco || ""} - ${unidadeData.cidade || ""} / ${unidadeData.estado || ""}`
-      : "";
-
-    const dataNasc = pacienteData?.data_nascimento
-      ? new Date(pacienteData.data_nascimento).toLocaleDateString("pt-BR")
+      ? `${unidadeData.endereco || ""}, ${unidadeData.cidade || ""}, ${unidadeData.estado || ""}`
       : "";
 
     const pdfBuffer = await gerarPdfSolicitacao({
       nomeEmpresa,
       enderecoEmpresa,
+      cepEmpresa: unidadeData?.cep || "",
+      cnpjEmpresa: unidadeData?.cnpj || "",
+      telefoneEmpresa: unidadeData?.telefone || "",
       nomeMedico: medicoData?.nome || "Dr.",
-      crm: "CRM-SP 000000",
+      crm: medicoData?.crm || "CRM-SP 000000",
+      cpfMedico: medicoData?.cpf || "",
+      cnsMedico: medicoData?.cns || "",
+      especialidade: medicoData?.especialidade || "MEDICINA INTERNA",
       nomePaciente: pacienteData?.nome || "Paciente",
       cpfPaciente: pacienteData?.cpf || "",
-      dataNascimento: dataNasc,
+      enderecoPaciente: pacienteData?.endereco || "",
+      telefonePaciente: pacienteData?.telefone || "",
       exames: examesList,
       hipoteseDiagnostica: pedido.hipoteseDiagnostica,
       cidPrincipal: pedido.cidPrincipal,
@@ -196,10 +199,10 @@ router.get("/:id/pdf/justificativa", async (req, res) => {
     return res.status(400).json({ error: "Este pedido nao inclui justificativa" });
   }
 
-  const medicoRows = await db.execute(sql`SELECT nome FROM usuarios WHERE id = ${pedido.medicoId}`);
-  const pacienteRows = await db.execute(sql`SELECT nome, cpf FROM pacientes WHERE id = ${pedido.pacienteId}`);
+  const medicoRows = await db.execute(sql`SELECT nome, crm, cpf, cns, especialidade FROM usuarios WHERE id = ${pedido.medicoId}`);
+  const pacienteRows = await db.execute(sql`SELECT nome, cpf, telefone, endereco, cep FROM pacientes WHERE id = ${pedido.pacienteId}`);
   const unidadeRows = pedido.unidadeId
-    ? await db.execute(sql`SELECT nome, endereco, cidade, estado FROM unidades WHERE id = ${pedido.unidadeId}`)
+    ? await db.execute(sql`SELECT nome, endereco, cidade, estado, cep, cnpj, telefone FROM unidades WHERE id = ${pedido.unidadeId}`)
     : [];
 
   const medicoData = (medicoRows as any)?.[0] || {};
@@ -223,20 +226,30 @@ router.get("/:id/pdf/justificativa", async (req, res) => {
     return { nomeExame: exame.nomeExame, justificativa: just || "Justificativa nao disponivel" };
   });
 
-  const nomeEmpresa = unidadeData?.nome || "CLINICA INTEGRATIVA PADUA";
+  const nomeEmpresa = unidadeData?.nome || "CLINICA DE MEDICINA INTEGRATIVA PADUA";
   const enderecoEmpresa = unidadeData
-    ? `${unidadeData.endereco || ""} - ${unidadeData.cidade || ""} / ${unidadeData.estado || ""}`
+    ? `${unidadeData.endereco || ""}, ${unidadeData.cidade || ""}, ${unidadeData.estado || ""}`
     : "";
 
   const pdfBuffer = await gerarPdfJustificativa({
     nomeEmpresa,
     enderecoEmpresa,
+    cepEmpresa: unidadeData?.cep || "",
+    cnpjEmpresa: unidadeData?.cnpj || "",
+    telefoneEmpresa: unidadeData?.telefone || "",
     nomeMedico: medicoData?.nome || "Dr.",
-    crm: "CRM-SP 000000",
+    crm: medicoData?.crm || "CRM-SP 000000",
+    cpfMedico: medicoData?.cpf || "",
+    cnsMedico: medicoData?.cns || "",
+    especialidade: medicoData?.especialidade || "MEDICINA INTERNA",
     nomePaciente: pacienteData?.nome || "Paciente",
     cpfPaciente: pacienteData?.cpf || "",
+    enderecoPaciente: pacienteData?.endereco || "",
+    telefonePaciente: pacienteData?.telefone || "",
     exames: examesJust,
     tipoJustificativa: tipo,
+    hipoteseDiagnostica: pedido.hipoteseDiagnostica,
+    cidPrincipal: pedido.cidPrincipal,
     data: new Date().toLocaleDateString("pt-BR"),
   });
 
