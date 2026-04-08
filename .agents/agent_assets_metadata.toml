@@ -1,0 +1,26 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "GfOOjYC--b85IYK9KIAFz"
+uri = "file://screenshots/variante_a.jpg"
+type = "image"
+title = "Variante A - Header Escuro Navy + Barra Dourada"
+
+[[outputs]]
+id = "8-TK37riI9p_VyVasqQjQ"
+uri = "file://screenshots/variante_b.jpg"
+type = "image"
+title = "Variante B - Branco + Moldura Dourada + Farmacia"
+
+[[outputs]]
+id = "7RHsZyz1JWtwj8kIqzFn6"
+uri = "file://screenshots/variante_c.jpg"
+type = "image"
+title = "Variante C - Logo Dourado + Borda Superior Ouro"
+
+[[outputs]]
+id = "zot8aXzSTZMQG81v6bLXk"
+uri = "file://screenshots/variante_d.jpg"
+type = "image"
+title = "Variante D - P&B Classico (APROVADA)"
