@@ -24,3 +24,27 @@ id = "zot8aXzSTZMQG81v6bLXk"
 uri = "file://screenshots/variante_d.jpg"
 type = "image"
 title = "Variante D - P&B Classico (APROVADA)"
+
+[[outputs]]
+id = "rqRLu3pXApdO7I1xgqCFZ"
+uri = "file://screenshots/receita_variante_a.jpg"
+type = "image"
+title = "Receita A - Texto completo da farmacia + formulas em caixas"
+
+[[outputs]]
+id = "bGjEIPYtIg9znpPXGAc4I"
+uri = "file://screenshots/receita_variante_b.jpg"
+type = "image"
+title = "Receita B - Titulo A FARMACIA + formulas numeradas"
+
+[[outputs]]
+id = "74kkRtyeV_3xKN54lOHEE"
+uri = "file://screenshots/receita_variante_c.jpg"
+type = "image"
+title = "Receita C - Texto compacto + borda lateral + formulas em linha"
+
+[[outputs]]
+id = "tfsdMczjLzT-JLHiAYZWD"
+uri = "file://screenshots/receita_variante_d.jpg"
+type = "image"
+title = "Receita D - Compacto com 5 formulas + todos os campos"
