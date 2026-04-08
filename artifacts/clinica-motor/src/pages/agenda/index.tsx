@@ -75,8 +75,11 @@ interface SessaoAgenda {
     profissionalId: number | null;
     dataAgendada: string;
     horaAgendada: string | null;
+    horaFim: string | null;
     status: string;
     tipoServico: string;
+    tipoProcedimento: string | null;
+    duracaoTotalMin: number | null;
     notas: string | null;
     numeroSemana: number;
   };
@@ -91,6 +94,9 @@ interface SessaoAgenda {
   unidadeCep: string | null;
   profissionalNome: string | null;
   aplicacoes: AplicacaoSessao[];
+  tipoProcedimentoCalc: string | null;
+  duracaoTotalCalc: number | null;
+  horaFimCalc: string | null;
 }
 
 interface AgendaResponse {
@@ -99,6 +105,10 @@ interface AgendaResponse {
   dias: Record<string, SessaoAgenda[]>;
 }
 
+const VIA_LABELS: Record<string, string> = {
+  iv: "EV", ev: "EV", im: "IM", implant: "IMPL", oral: "ORAL", topico: "TOP",
+};
+
 function SessaoCard({ sessao }: { sessao: SessaoAgenda }) {
   const [expanded, setExpanded] = useState(false);
   const config = STATUS_CONFIG[sessao.sessao.status] || STATUS_CONFIG.agendada;
@@ -106,6 +116,10 @@ function SessaoCard({ sessao }: { sessao: SessaoAgenda }) {
 
   const totalSubstancias = sessao.aplicacoes?.length || 0;
   const aplicadas = sessao.aplicacoes?.filter(a => a.aplicacao.status === "aplicada").length || 0;
+
+  const tipoProcedimento = sessao.tipoProcedimentoCalc || sessao.sessao.tipoProcedimento || null;
+  const duracaoMin = sessao.duracaoTotalCalc ?? sessao.sessao.duracaoTotalMin ?? null;
+  const horaFim = sessao.horaFimCalc || sessao.sessao.horaFim || null;
 
   return (
     <div
@@ -118,20 +132,32 @@ function SessaoCard({ sessao }: { sessao: SessaoAgenda }) {
             {sessao.sessao.horaAgendada && (
               <span className="text-xs font-mono font-bold text-foreground">
                 {sessao.sessao.horaAgendada.substring(0, 5)}
+                {horaFim && (
+                  <span className="text-muted-foreground font-normal"> - {horaFim}</span>
+                )}
               </span>
             )}
-            <span className="text-sm font-semibold truncate">{sessao.pacienteNome || "Paciente"}</span>
           </div>
+          <div className="text-sm font-semibold truncate mt-0.5">{sessao.pacienteNome || "Paciente"}</div>
+
+          {tipoProcedimento && (
+            <div className="mt-1 text-[9px] font-bold tracking-wider text-primary uppercase">
+              {tipoProcedimento}
+            </div>
+          )}
+
+          {duracaoMin !== null && duracaoMin > 0 && (
+            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span className="font-mono font-semibold">{duracaoMin} min</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${config.color}`}>
               <StatusIcon className="h-3 w-3 mr-1" />
               {config.label}
             </Badge>
-            {sessao.sessao.tipoServico && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                {sessao.sessao.tipoServico.toUpperCase()}
-              </Badge>
-            )}
             {totalSubstancias > 0 && (
               <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <Syringe className="h-3 w-3" />
@@ -151,8 +177,19 @@ function SessaoCard({ sessao }: { sessao: SessaoAgenda }) {
 
       {expanded && sessao.aplicacoes && sessao.aplicacoes.length > 0 && (
         <div className="mt-3 pt-2 border-t border-border/50 space-y-1.5">
+          {tipoProcedimento && (
+            <div className="bg-primary/10 rounded-md px-2 py-1.5 mb-2">
+              <div className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                {tipoProcedimento}
+              </div>
+              <div className="text-[10px] text-muted-foreground font-mono">
+                {sessao.sessao.horaAgendada?.substring(0, 5)} → {horaFim || "?"} ({duracaoMin} min)
+              </div>
+            </div>
+          )}
           {sessao.aplicacoes.map((ap) => {
             const apStatus = ap.aplicacao.status;
+            const viaLabel = VIA_LABELS[ap.substanciaVia || ""] || ap.substanciaVia?.toUpperCase() || "";
             return (
               <div key={ap.aplicacao.id} className="flex items-center gap-2 text-xs">
                 <div
@@ -160,6 +197,11 @@ function SessaoCard({ sessao }: { sessao: SessaoAgenda }) {
                   style={{ backgroundColor: ap.substanciaCor || "#888" }}
                 />
                 <span className="flex-1 truncate">{ap.substanciaNome || "Substancia"}</span>
+                {viaLabel && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 font-mono">
+                    {viaLabel}
+                  </Badge>
+                )}
                 {ap.aplicacao.dose && (
                   <span className="text-muted-foreground">{ap.aplicacao.dose}</span>
                 )}
