@@ -21,6 +21,7 @@ export const sessoesTable = pgTable("sessoes", {
   duracaoTotalMin: integer("duracao_total_min"),
   numeroSemana: integer("numero_semana").notNull().default(1),
   notas: text("notas"),
+  googleEventId: text("google_event_id"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
 });
 

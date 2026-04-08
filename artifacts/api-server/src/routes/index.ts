@@ -19,6 +19,9 @@ import substanciasRouter from "./substancias";
 import sessoesRouter from "./sessoes";
 import rasRouter from "./rasRoute";
 import codigosSemanticosRouter from "./codigosSemanticos";
+import googleCalendarRouter from "./googleCalendar";
+import googleDriveRouter from "./googleDrive";
+import googleGmailRouter from "./googleGmail";
 
 const router: IRouter = Router();
 
@@ -42,5 +45,8 @@ router.use(substanciasRouter);
 router.use(sessoesRouter);
 router.use(rasRouter);
 router.use(codigosSemanticosRouter);
+router.use(googleCalendarRouter);
+router.use(googleDriveRouter);
+router.use(googleGmailRouter);
 
 export default router;
