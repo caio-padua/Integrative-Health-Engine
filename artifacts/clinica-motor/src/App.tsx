@@ -28,6 +28,9 @@ import PedidosExame from "@/pages/pedidos-exame";
 import Substancias from "@/pages/substancias";
 import AgendaSemanal from "@/pages/agenda";
 import CodigosSemanticos from "@/pages/codigos-semanticos";
+import RasPage from "@/pages/ras";
+import CodigosValidacaoPage from "@/pages/codigos-validacao";
+import EstoquePage from "@/pages/estoque";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +67,9 @@ function Router() {
       <Route path="/substancias" component={Substancias} />
       <Route path="/agenda" component={AgendaSemanal} />
       <Route path="/codigos-semanticos" component={CodigosSemanticos} />
+      <Route path="/ras" component={RasPage} />
+      <Route path="/codigos-validacao" component={CodigosValidacaoPage} />
+      <Route path="/estoque" component={EstoquePage} />
       <Route component={NotFound} />
     </Switch>
   );

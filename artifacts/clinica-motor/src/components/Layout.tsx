@@ -21,7 +21,10 @@ import {
   FileText,
   FlaskConical,
   CalendarDays,
-  Hash
+  Hash,
+  FileCheck,
+  KeyRound,
+  Package
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -46,6 +49,9 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Pedidos de Exame", path: "/pedidos-exame", icon: FileText, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Substancias", path: "/substancias", icon: FlaskConical, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
     { name: "Agenda Semanal", path: "/agenda", icon: CalendarDays, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
+    { name: "RAS", path: "/ras", icon: FileCheck, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
+    { name: "Codigos Validacao", path: "/codigos-validacao", icon: KeyRound, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
+    { name: "Estoque", path: "/estoque", icon: Package, roles: ["validador_mestre", "enfermeira", "validador_enfermeiro"] },
     { name: "Codigos Semanticos", path: "/codigos-semanticos", icon: Hash, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, roles: ["validador_mestre"] },
