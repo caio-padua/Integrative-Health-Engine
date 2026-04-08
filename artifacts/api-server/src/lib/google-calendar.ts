@@ -111,6 +111,13 @@ export function buildEventDescription(opts: {
     if (endereco.bairro) lines.push(`   ${endereco.bairro.toUpperCase()}`);
     if (endereco.cep) lines.push(`   CEP ${endereco.cep}`);
     if (endereco.cidade && endereco.estado) lines.push(`   ${endereco.cidade.toUpperCase()} - ${endereco.estado.toUpperCase()}`);
+    lines.push('');
+
+    const enderecoCompleto = [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep].filter(Boolean).join(', ');
+    const enderecoEncoded = encodeURIComponent(enderecoCompleto);
+    lines.push('━━━ NAVEGACAO ━━━');
+    lines.push(`🗺️ GOOGLE MAPS: https://www.google.com/maps/search/?api=1&query=${enderecoEncoded}`);
+    lines.push(`🧭 WAZE: https://waze.com/ul?q=${enderecoEncoded}&navigate=yes`);
   }
 
   return lines.join('\n');
