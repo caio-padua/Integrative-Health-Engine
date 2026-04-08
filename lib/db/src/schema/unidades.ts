@@ -8,6 +8,8 @@ export const unidadesTable = pgTable("unidades", {
   endereco: text("endereco"),
   cidade: text("cidade"),
   estado: text("estado"),
+  cep: text("cep"),
+  cnpj: text("cnpj"),
   telefone: text("telefone"),
   ativa: boolean("ativa").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
