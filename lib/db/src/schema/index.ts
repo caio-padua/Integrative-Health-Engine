@@ -20,3 +20,4 @@ export * from "./sessoes";
 export * from "./ras";
 export * from "./codigosValidacao";
 export * from "./estoque";
+export * from "./codigosSemanticos";
