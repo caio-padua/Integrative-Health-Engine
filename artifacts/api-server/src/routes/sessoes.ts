@@ -9,6 +9,83 @@ import { eq, and, gte, lte, sql } from "drizzle-orm";
 
 const router = Router();
 
+const TEMPO_POR_TIPO: Record<string, number> = {
+  im: 15,
+  iv: 30,
+  ev: 30,
+  implant: 60,
+  oral: 0,
+  topico: 0,
+  consulta: 30,
+};
+
+function calcularTipoProcedimento(vias: string[]): { descricao: string; duracaoMin: number } {
+  const viasUnicas = new Set(vias.map(v => v?.toLowerCase() || ""));
+
+  const temIM = viasUnicas.has("im");
+  const temEV = viasUnicas.has("iv") || viasUnicas.has("ev");
+  const temImplante = viasUnicas.has("implant");
+
+  const partes: string[] = [];
+  let duracaoMin = 0;
+
+  if (temIM) {
+    partes.push("APLICACAO INTRAMUSCULAR");
+    duracaoMin += TEMPO_POR_TIPO.im;
+  }
+  if (temEV) {
+    partes.push("APLICACAO ENDOVENOSA");
+    duracaoMin += TEMPO_POR_TIPO.iv;
+  }
+  if (temImplante) {
+    partes.push("IMPLANTE");
+    duracaoMin += TEMPO_POR_TIPO.implant;
+  }
+
+  if (partes.length === 0) {
+    return { descricao: "CONSULTA", duracaoMin: TEMPO_POR_TIPO.consulta };
+  }
+
+  if (partes.length === 1) {
+    return { descricao: partes[0], duracaoMin };
+  }
+
+  const ultimaParte = partes.pop()!;
+  return { descricao: partes.join(", ") + " E " + ultimaParte, duracaoMin };
+}
+
+function calcularHoraFim(horaInicio: string, duracaoMin: number): string {
+  const [h, m] = horaInicio.split(":").map(Number);
+  const totalMin = h * 60 + m + duracaoMin;
+  const fh = Math.floor(totalMin / 60) % 24;
+  const fm = totalMin % 60;
+  return `${String(fh).padStart(2, "0")}:${String(fm).padStart(2, "0")}`;
+}
+
+async function recalcularSessao(sessaoId: number) {
+  const aplicacoes = await db
+    .select({ substanciaVia: substanciasTable.via })
+    .from(aplicacoesSubstanciasTable)
+    .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
+    .where(eq(aplicacoesSubstanciasTable.sessaoId, sessaoId));
+
+  const vias = aplicacoes.map(a => a.substanciaVia || "");
+  const { descricao, duracaoMin } = calcularTipoProcedimento(vias);
+
+  const [sessao] = await db.select().from(sessoesTable).where(eq(sessoesTable.id, sessaoId));
+  if (!sessao) return null;
+
+  const horaFim = calcularHoraFim(sessao.horaAgendada, duracaoMin);
+
+  const [updated] = await db.update(sessoesTable).set({
+    tipoProcedimento: descricao,
+    duracaoTotalMin: duracaoMin,
+    horaFim,
+  }).where(eq(sessoesTable.id, sessaoId)).returning();
+
+  return updated;
+}
+
 router.get("/sessoes", async (req, res) => {
   const { pacienteId, status, profissionalId, dataFrom, dataTo, unidadeId } = req.query;
   const conditions: any[] = [];
@@ -67,6 +144,7 @@ router.get("/sessoes/:id", async (req, res) => {
       substanciaNome: substanciasTable.nome,
       substanciaCor: substanciasTable.cor,
       substanciaVia: substanciasTable.via,
+      substanciaDuracao: substanciasTable.duracaoMinutos,
     })
     .from(aplicacoesSubstanciasTable)
     .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
@@ -86,6 +164,11 @@ router.put("/sessoes/:id", async (req, res) => {
 
   const [updated] = await db.update(sessoesTable).set(updates).where(eq(sessoesTable.id, Number(req.params.id))).returning();
   if (!updated) { res.status(404).json({ error: "Sessao nao encontrada" }); return; }
+
+  if (horaAgendada !== undefined) {
+    await recalcularSessao(updated.id);
+  }
+
   res.json(updated);
 });
 
@@ -152,7 +235,126 @@ router.post("/sessoes/:id/adicionar-substancias", async (req, res) => {
       created.push(item);
     }
   }
+
+  await recalcularSessao(Number(req.params.id));
+
   res.status(201).json(created);
+});
+
+router.post("/sessoes/:id/check-in", async (req, res) => {
+  const sessaoId = Number(req.params.id);
+
+  const [sessao] = await db
+    .select({
+      sessao: sessoesTable,
+      pacienteNome: pacientesTable.nome,
+      unidadeNome: unidadesTable.nome,
+      profissionalNome: usuariosTable.nome,
+    })
+    .from(sessoesTable)
+    .leftJoin(pacientesTable, eq(sessoesTable.pacienteId, pacientesTable.id))
+    .leftJoin(unidadesTable, eq(sessoesTable.unidadeId, unidadesTable.id))
+    .leftJoin(usuariosTable, eq(sessoesTable.profissionalId, usuariosTable.id))
+    .where(eq(sessoesTable.id, sessaoId));
+
+  if (!sessao) { res.status(404).json({ error: "Sessao nao encontrada" }); return; }
+
+  if (sessao.sessao.status === "cancelada") {
+    res.status(400).json({ error: "Sessao cancelada nao pode fazer check-in", valido: false });
+    return;
+  }
+  if (sessao.sessao.status === "concluida") {
+    res.status(400).json({ error: "Sessao ja concluida", valido: false });
+    return;
+  }
+
+  const aplicacoes = await db
+    .select({
+      aplicacao: aplicacoesSubstanciasTable,
+      substanciaNome: substanciasTable.nome,
+      substanciaVia: substanciasTable.via,
+    })
+    .from(aplicacoesSubstanciasTable)
+    .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
+    .where(eq(aplicacoesSubstanciasTable.sessaoId, sessaoId));
+
+  if (aplicacoes.length === 0) {
+    res.status(400).json({ error: "Sessao sem substancias vinculadas", valido: false });
+    return;
+  }
+
+  const vias = aplicacoes.map(a => a.substanciaVia || "");
+  const { descricao, duracaoMin } = calcularTipoProcedimento(vias);
+  const horaFim = calcularHoraFim(sessao.sessao.horaAgendada, duracaoMin);
+
+  await db.update(sessoesTable).set({
+    status: "em_andamento",
+    tipoProcedimento: descricao,
+    duracaoTotalMin: duracaoMin,
+    horaFim,
+  }).where(eq(sessoesTable.id, sessaoId));
+
+  res.json({
+    valido: true,
+    sessaoId,
+    paciente: sessao.pacienteNome,
+    unidade: sessao.unidadeNome,
+    profissional: sessao.profissionalNome,
+    tipoProcedimento: descricao,
+    duracaoTotalMin: duracaoMin,
+    horaInicio: sessao.sessao.horaAgendada,
+    horaFim,
+    substancias: aplicacoes.map(a => ({
+      nome: a.substanciaNome,
+      via: a.substanciaVia,
+      dose: a.aplicacao.dose,
+      status: a.aplicacao.status,
+    })),
+    validacaoSemântica: {
+      tiposDetectados: [...new Set(vias)].filter(Boolean),
+      regrasAplicadas: descricao,
+      tempoCalculado: `${duracaoMin} minutos`,
+      blocoAgenda: `${sessao.sessao.horaAgendada} - ${horaFim}`,
+    },
+  });
+});
+
+router.get("/sessoes/:id/validar-tempo", async (req, res) => {
+  const sessaoId = Number(req.params.id);
+
+  const aplicacoes = await db
+    .select({ substanciaVia: substanciasTable.via, substanciaNome: substanciasTable.nome })
+    .from(aplicacoesSubstanciasTable)
+    .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
+    .where(eq(aplicacoesSubstanciasTable.sessaoId, sessaoId));
+
+  const [sessao] = await db.select().from(sessoesTable).where(eq(sessoesTable.id, sessaoId));
+  if (!sessao) { res.status(404).json({ error: "Sessao nao encontrada" }); return; }
+
+  const vias = aplicacoes.map(a => a.substanciaVia || "");
+  const { descricao, duracaoMin } = calcularTipoProcedimento(vias);
+  const horaFimCalculada = calcularHoraFim(sessao.horaAgendada, duracaoMin);
+
+  const tempoAtualCorreto = sessao.duracaoTotalMin === duracaoMin;
+
+  res.json({
+    sessaoId,
+    horaInicio: sessao.horaAgendada,
+    horaFimAtual: sessao.horaFim,
+    horaFimCalculada,
+    duracaoAtual: sessao.duracaoTotalMin,
+    duracaoCalculada: duracaoMin,
+    tipoProcedimentoAtual: sessao.tipoProcedimento,
+    tipoProcedimentoCalculado: descricao,
+    tempoCorreto: tempoAtualCorreto,
+    substancias: aplicacoes.map(a => ({ nome: a.substanciaNome, via: a.substanciaVia })),
+    regras: {
+      "IM (intramuscular)": "15 minutos fixo",
+      "EV/IV (endovenoso)": "30 minutos fixo",
+      "IMPLANTE": "60 minutos fixo",
+      "COMBINADO": "Soma dos tipos unicos",
+    },
+  });
 });
 
 router.get("/agenda/semanal", async (req, res) => {
@@ -201,7 +403,18 @@ router.get("/agenda/semanal", async (req, res) => {
         .from(aplicacoesSubstanciasTable)
         .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
         .where(eq(aplicacoesSubstanciasTable.sessaoId, s.sessao.id));
-      return { ...s, aplicacoes };
+
+      const vias = aplicacoes.map(a => a.substanciaVia || "");
+      const { descricao, duracaoMin } = calcularTipoProcedimento(vias);
+      const horaFim = calcularHoraFim(s.sessao.horaAgendada, duracaoMin);
+
+      return {
+        ...s,
+        aplicacoes,
+        tipoProcedimentoCalc: descricao,
+        duracaoTotalCalc: duracaoMin,
+        horaFimCalc: horaFim,
+      };
     })
   );
 
