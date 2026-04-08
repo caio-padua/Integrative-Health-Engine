@@ -60,20 +60,17 @@ export default function PdfSolicitacao() {
       </div>
 
       {[
-        { num: 1, nome: "HEMOGRAMA", corpo: "SOLICITO HEMOGRAMA", bloco: "BLOCO BASE INTEGRATIVA" },
-        { num: 2, nome: "TSH", corpo: "SOLICITO TSH", bloco: "BLOCO TIREOIDE" },
-        { num: 3, nome: "VITAMINA D", corpo: "SOLICITO VITAMINA D", bloco: "BLOCO BASE INTEGRATIVA" },
-        { num: 4, nome: "HEMOGLOBINA GLICADA", corpo: "SOLICITO HEMOGLOBINA GLICADA", bloco: "BLOCO METABOLICO" },
+        { num: 1, nome: "HEMOGRAMA" },
+        { num: 2, nome: "TSH" },
+        { num: 3, nome: "VITAMINA D" },
+        { num: 4, nome: "HEMOGLOBINA GLICADA" },
       ].map((exame) => (
         <div key={exame.num} style={{
-          marginBottom: "8px",
+          marginBottom: "6px",
           paddingLeft: "4px",
         }}>
           <div style={{ fontWeight: "bold", fontSize: "11px" }}>
-            {exame.num}. {exame.nome}
-          </div>
-          <div style={{ fontSize: "10px", color: "#333", paddingLeft: "16px" }}>
-            {exame.corpo}
+            {exame.num}  {exame.nome}
           </div>
         </div>
       ))}

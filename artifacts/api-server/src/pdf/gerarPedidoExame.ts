@@ -96,13 +96,10 @@ export function gerarPdfSolicitacao(dados: DadosPedido): Promise<Buffer> {
         addHeader(doc, dados);
       }
 
-      doc.fontSize(9).font("Helvetica-Bold").text(`${i + 1}. ${exame.nomeExame}`);
-
-      doc.fontSize(8).font("Helvetica").fillColor("#333333");
-      doc.text(`   ${exame.corpoPedido}`);
+      doc.fontSize(9).font("Helvetica-Bold").fillColor("#000000").text(`${i + 1}  ${exame.nomeExame}`);
 
       if (exame.preparo) {
-        doc.fontSize(7).fillColor("#666666").text(`   Preparo: ${exame.preparo}`);
+        doc.fontSize(7).font("Helvetica").fillColor("#666666").text(`    Preparo: ${exame.preparo}`);
       }
 
       doc.fillColor("#000000");
