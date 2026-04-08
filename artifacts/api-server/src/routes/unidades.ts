@@ -28,4 +28,24 @@ router.get("/unidades/:id", async (req, res): Promise<void> => {
   res.json(unidade);
 });
 
+router.put("/unidades/:id", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const allowedFields = [
+    "nome", "endereco", "bairro", "cidade", "estado", "cep", "cnpj",
+    "telefone", "tipo", "googleCalendarId", "googleCalendarEmail", "cor", "ativa",
+  ];
+  const updates: Record<string, any> = {};
+  for (const key of allowedFields) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Nenhum campo para atualizar" });
+    return;
+  }
+  const [updated] = await db.update(unidadesTable).set(updates).where(eq(unidadesTable.id, id)).returning();
+  if (!updated) { res.status(404).json({ error: "Unidade não encontrada" }); return; }
+  res.json(updated);
+});
+
 export default router;

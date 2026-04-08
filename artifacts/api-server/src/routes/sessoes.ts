@@ -174,6 +174,11 @@ router.get("/agenda/semanal", async (req, res) => {
       pacienteCpf: pacientesTable.cpf,
       unidadeNome: unidadesTable.nome,
       unidadeCor: unidadesTable.cor,
+      unidadeEndereco: unidadesTable.endereco,
+      unidadeBairro: unidadesTable.bairro,
+      unidadeCidade: unidadesTable.cidade,
+      unidadeEstado: unidadesTable.estado,
+      unidadeCep: unidadesTable.cep,
       profissionalNome: usuariosTable.nome,
     })
     .from(sessoesTable)

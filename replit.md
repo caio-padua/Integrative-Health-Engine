@@ -37,7 +37,7 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 8. **Protocolos** — Criação e gestão de protocolos compostos
 9. **Follow-up** — Agendamento com recorrência (diário, semanal, quinzenal, mensal, trimestral)
 10. **Financeiro** — Pagamentos, confirmação, múltiplas formas de pagamento
-11. **Unidades** — Gestão multiunidades
+11. **Unidades** — Gestao multiunidades com edicao completa: nome, endereco (rua+numero), bairro, cidade, UF, CEP (busca automatica via ViaCEP), CNPJ, telefone, tipo (clinica/enfermagem/domiciliar), cor, Google Calendar Email/ID. 5 unidades reais mapeadas dos calendarios clinica.padua.agenda@gmail.com: Higienopolis, Tatuape, Enfermagem Bianca, Enfermagem Domiciliar, Enfermagem Guaxupe
 12. **Fluxos de Aprovacao** — Fluxos parametrizados por tipo de procedimento (Consulta/Infusao/Implante) com etapas, responsaveis, condicionais e bypass — dados reais PADCOM V15.2
 13. **Permissoes** — Matriz de permissoes por perfil (10 perfis PADCOM V15.2) com flags: editar questionario, validar, bypass, emitir NF, ver outras unidades
 14. **Catalogo PADCOM** — Base completa com 688 registros: 305 injetaveis IM, 63 endovenosos, 32 implantes, 54 formulas, 11 protocolos, 49 doencas. 6 abas com busca, agrupamento por eixo, composicao expandivel, codigos PADCOM visiveis. Dados importados automaticamente de Google Sheets V13
@@ -45,8 +45,11 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 16. **Questionario do Paciente** — Subpasta do paciente: questionario de saude com perguntas do Google Sheets, historico de respostas com status (RASCUNHO/VALIDADO/APROVADO/STAND BY), estado de saude temporal (condicoes, sintomas, medicamentos, indicadores subjetivos 1-10, dados fisicos), evolucao do paciente (INICIAL/MELHORADO/ESTAVEL/PIORADO/CURADO), linha do tempo visual. Historico automatico ao registrar novo estado
 17. **Substancias PADCOM** — Catalogo unificado de substancias para sessoes (IV, IM, Implantes): 8 substancias seedadas (Glutationa, VitC, Fosfatidilcolina, NAD+, Ozone, VitD3, ComplexoB, Zinco+Selenio) com metadados de saude (beneficios, contraindicacoes, evidencia cientifica), cards expansiveis, filtros por categoria/via, estrelas de classificacao, preco, estoque
 18. **Agenda Semanal** — Visao semanal consolidada de sessoes com navegacao por semana, cores por status (agendada/confirmada/em andamento/parcial/concluida/cancelada/nao compareceu), cards expandiveis com substancias aplicadas, indicadores de progresso
-19. **Codigos Semanticos PADCOM** — 119 codigos importados da planilha Google Drive com padrao TIPO SISTEMA SUBTIPO SEQUENCIA (16 tipos: EXAM, INJE, FORM, PROC, DOEN, SINT, CIRU, DADO, TERA, FINA, DIET, PSIC, RECO, PAGA, FISC, JURI), filtros por tipo/grupo, colunas de procedimentos (Prescricao/Formula, Injetavel IM, Injetavel EV, Implante, Exame, Protocolo, Dieta) com indicadores visuais coloridos, 45 codigos com procedimentos vinculados
-20. **Configuracoes** — Usuarios, permissoes
+19. **RAS** — Registro de Atendimento em Saude: geracao automatica a partir de sessoes (puxa paciente, profissional, unidade, substancias aplicadas), tabela expandivel com detalhes completos (substancias, doses, sessao/total, status), observacoes, assinaturas paciente/profissional
+20. **Codigos Validacao** — Codigos alfanumericos de 6 digitos para validacao de sessoes (expiracao 1h), geracao, verificacao (VALIDO/INVALIDO/EXPIRADO/JA USADO), dashboard com stats (Total/Ativos/Usados/Expirados), input de verificacao com tracking-widest monospace
+21. **Estoque de Substancias** — Controle de estoque com quantidade/minimo, alertas visuais BAIXO (vermelho) vs OK (verde), filtro de itens abaixo do minimo, lote, validade, fornecedor, custo unitario, edicao inline, cor da substancia vinculada
+22. **Codigos Semanticos PADCOM** — 119 codigos importados da planilha Google Drive com padrao TIPO SISTEMA SUBTIPO SEQUENCIA (16 tipos: EXAM, INJE, FORM, PROC, DOEN, SINT, CIRU, DADO, TERA, FINA, DIET, PSIC, RECO, PAGA, FISC, JURI), filtros por tipo/grupo, colunas de procedimentos (Prescricao/Formula, Injetavel IM, Injetavel EV, Implante, Exame, Protocolo, Dieta) com indicadores visuais coloridos, 45 codigos com procedimentos vinculados
+23. **Configuracoes** — Usuarios, permissoes
 
 ## Estrutura do Projeto
 

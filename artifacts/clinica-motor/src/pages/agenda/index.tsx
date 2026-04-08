@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft, ChevronRight, Calendar, Clock, User,
   Building2, CheckCircle2, Circle, XCircle, AlertCircle,
-  Syringe
+  Syringe, MapPin
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -84,6 +84,11 @@ interface SessaoAgenda {
   pacienteCpf: string | null;
   unidadeNome: string | null;
   unidadeCor: string | null;
+  unidadeEndereco: string | null;
+  unidadeBairro: string | null;
+  unidadeCidade: string | null;
+  unidadeEstado: string | null;
+  unidadeCep: string | null;
   profissionalNome: string | null;
   aplicacoes: AplicacaoSessao[];
 }
@@ -188,6 +193,20 @@ function SessaoCard({ sessao }: { sessao: SessaoAgenda }) {
               </span>
             )}
           </div>
+
+          {sessao.unidadeEndereco && (
+            <div className="mt-2 pt-2 border-t border-border/40 text-[10px] leading-relaxed uppercase">
+              <div className="flex items-center gap-1 text-muted-foreground font-semibold mb-0.5">
+                <MapPin className="h-3 w-3" />
+                <span>ENDERECO</span>
+              </div>
+              <div className="text-foreground/80 pl-4">
+                <div>{sessao.unidadeEndereco.toUpperCase()}</div>
+                {sessao.unidadeBairro && <div>{sessao.unidadeBairro.toUpperCase()}</div>}
+                {sessao.unidadeCep && <div>{sessao.unidadeCep}</div>}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
