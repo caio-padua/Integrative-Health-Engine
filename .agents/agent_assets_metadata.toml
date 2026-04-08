@@ -48,3 +48,9 @@ id = "tfsdMczjLzT-JLHiAYZWD"
 uri = "file://screenshots/receita_variante_d.jpg"
 type = "image"
 title = "Receita D - Compacto com 5 formulas + todos os campos"
+
+[[outputs]]
+id = "gpd77JOM6cha3lKMV4xrU"
+uri = "file://screenshots/receita_variante_b_v2.jpg"
+type = "image"
+title = "Receita B v2 - Com funcao ao lado de cada formula, sem campos de farmacia no rodape"
