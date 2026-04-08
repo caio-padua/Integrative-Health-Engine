@@ -16,7 +16,7 @@ const TEMPO_POR_TIPO: Record<string, number> = {
   implant: 60,
   oral: 0,
   topico: 0,
-  consulta: 30,
+  consulta: 60,
 };
 
 function calcularTipoProcedimento(vias: string[]): { descricao: string; duracaoMin: number } {
