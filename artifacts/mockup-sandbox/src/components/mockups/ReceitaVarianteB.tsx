@@ -130,16 +130,19 @@ export default function ReceitaVarianteB() {
         {[
           {
             num: 1,
+            funcao: "SUPORTE METABOLICO E TIREOIDIANO",
             formula: "ZINCO BISGLICINATO 30MG\nSELENIO BISGLICINATO 300MCG\nBORO BISGLICINATO 1,5MG\nTIROSINA 200MG",
             posologia: "1 DOSE VO - DURANTE O CAFE DA MANHA",
           },
           {
             num: 2,
+            funcao: "MODULACAO DOPAMINERGICA E ATENCAO",
             formula: "BUPROPIONA 150MG\nCAPSULAS XR LIBERACAO ENTERICA + MATRIZ LIBERACAO LENTA\nEXCIPIENTES HPMC, ETHOCEL E CELULOSE MICROCRISTALINA",
             posologia: "1 DOSE VO - 2H ANTES DO ALMOCO - 10H\n1 DOSE VO - 2H ANTES DO JANTAR - 18H",
           },
           {
             num: 3,
+            funcao: "REGULACAO GASTROINTESTINAL E SACIEDADE",
             formula: "NALTREXONE 7MG\nBROMOPRIDA 1,5MG\nFAMOTIDINA 5MG\nCAPSULAS XR LIBERACAO ENTERICA",
             posologia: "1 DOSE VO - 2H ANTES DO ALMOCO - 10H\n1 DOSE VO - 2H ANTES DO JANTAR - 18H",
           },
@@ -149,8 +152,9 @@ export default function ReceitaVarianteB() {
             fontSize: "8px",
             lineHeight: "1.6",
           }}>
-            <div style={{ fontWeight: "bold", color: "#111", fontSize: "8.5px", marginBottom: "2px", borderBottom: "1px dotted #ddd", paddingBottom: "2px" }}>
-              FORMULA {item.num}
+            <div style={{ fontWeight: "bold", color: "#111", fontSize: "8.5px", marginBottom: "2px", borderBottom: "1px dotted #ddd", paddingBottom: "2px", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span>FORMULA {item.num}</span>
+              <span style={{ fontSize: "7px", fontWeight: "normal", color: "#666", fontStyle: "italic" }}>{item.funcao}</span>
             </div>
             <div style={{ whiteSpace: "pre-line", color: "#222", paddingLeft: "8px" }}>{item.formula}</div>
             <div style={{ whiteSpace: "pre-line", color: "#666", paddingLeft: "8px", marginTop: "2px", fontStyle: "italic", fontSize: "7.5px" }}>{item.posologia}</div>
@@ -160,7 +164,7 @@ export default function ReceitaVarianteB() {
 
       <div style={{
         position: "absolute",
-        bottom: "150px",
+        bottom: "65px",
         left: "28px",
         right: "28px",
         textAlign: "center",
@@ -170,32 +174,6 @@ export default function ReceitaVarianteB() {
         <div style={{ fontSize: "8px", color: "#666" }}>MEDICINA INTERNA</div>
         <div style={{ fontSize: "8px", color: "#666" }}>CRM-SP 125475</div>
         <div style={{ fontSize: "8px", color: "#666" }}>CNS 123456789012345</div>
-      </div>
-
-      <div style={{
-        position: "absolute",
-        bottom: "60px",
-        left: "28px",
-        right: "28px",
-        display: "flex",
-        border: "1px solid #bbb",
-        fontSize: "8px",
-      }}>
-        <div style={{ flex: 1, padding: "8px 10px", borderRight: "1px solid #bbb" }}>
-          <div style={{ fontWeight: "bold", marginBottom: "4px", fontSize: "7px", letterSpacing: "1px" }}>IDENTIFICACAO DO COMPRADOR</div>
-          <div style={{ color: "#888", lineHeight: "1.8" }}>
-            NOME<br />RG<br />CPF<br />ENDERECO<br />TELEFONE
-          </div>
-        </div>
-        <div style={{ flex: 1, padding: "8px 10px" }}>
-          <div style={{ fontWeight: "bold", fontStyle: "italic", marginBottom: "4px", fontSize: "7px", letterSpacing: "1px" }}>IDENTIFICACAO DO FORNECEDOR</div>
-          <div style={{ textAlign: "center", marginTop: "8px" }}>
-            <div style={{ borderTop: "1px solid #bbb", width: "80%", margin: "0 auto 2px" }} />
-            <div style={{ fontSize: "7px", color: "#888" }}>ASSINATURA DO FARMACEUTICO</div>
-            <div style={{ marginTop: "6px", borderTop: "1px solid #bbb", width: "50%", margin: "0 auto 2px" }} />
-            <div style={{ fontSize: "7px", color: "#888" }}>DATA</div>
-          </div>
-        </div>
       </div>
 
       <div style={{
