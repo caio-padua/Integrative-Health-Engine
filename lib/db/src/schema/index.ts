@@ -15,3 +15,8 @@ export * from "./catalogo";
 export * from "./questionarioPaciente";
 export * from "./examesV4";
 export * from "./pedidosExame";
+export * from "./substancias";
+export * from "./sessoes";
+export * from "./ras";
+export * from "./codigosValidacao";
+export * from "./estoque";
