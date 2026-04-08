@@ -5,5 +5,6 @@ export const modules: ModuleMap = {
   "./components/mockups/PdfSolicitacao.tsx": () => import("../components/mockups/PdfSolicitacao.tsx"),
   "./components/mockups/PdfVarianteA.tsx": () => import("../components/mockups/PdfVarianteA.tsx"),
   "./components/mockups/PdfVarianteB.tsx": () => import("../components/mockups/PdfVarianteB.tsx"),
-  "./components/mockups/PdfVarianteC.tsx": () => import("../components/mockups/PdfVarianteC.tsx")
+  "./components/mockups/PdfVarianteC.tsx": () => import("../components/mockups/PdfVarianteC.tsx"),
+  "./components/mockups/PdfVarianteD.tsx": () => import("../components/mockups/PdfVarianteD.tsx")
 };
