@@ -4,9 +4,9 @@ import { useListarPacientes, getListarPacientesQueryKey, useCriarPaciente, Criar
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, UserPlus } from "lucide-react";
+import { Search, UserPlus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -14,12 +14,42 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Link } from "wouter";
 
+const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
+
+function formatCpf(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0,3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6)}`;
+  return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`;
+}
+
+function formatCelular(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : '';
+  if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`;
+}
+
+function formatCep(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0,5)}-${digits.slice(5)}`;
+}
+
 const pacienteSchema = z.object({
-  nome: z.string().min(1, "Nome é obrigatório"),
+  nome: z.string().min(1, "Nome e obrigatorio"),
   cpf: z.string().optional(),
-  telefone: z.string().min(1, "Telefone é obrigatório"),
-  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
-  unidadeId: z.coerce.number().min(1, "Unidade é obrigatória"),
+  telefone: z.string().min(1, "Celular e obrigatorio"),
+  email: z.string().email("E-mail invalido").optional().or(z.literal("")),
+  cep: z.string().optional(),
+  endereco: z.string().optional(),
+  complemento: z.string().optional(),
+  bairro: z.string().optional(),
+  cidade: z.string().optional(),
+  estado: z.string().optional(),
+  pais: z.string().optional(),
+  unidadeId: z.coerce.number().min(1, "Unidade e obrigatoria"),
 });
 
 export default function Pacientes() {
@@ -34,13 +64,26 @@ export default function Pacientes() {
   const form = useForm<z.infer<typeof pacienteSchema>>({
     resolver: zodResolver(pacienteSchema),
     defaultValues: {
-      nome: "",
-      cpf: "",
-      telefone: "",
-      email: "",
-      unidadeId: 1, // default to 1 for simplicity
+      nome: "", cpf: "", telefone: "", email: "",
+      cep: "", endereco: "", complemento: "", bairro: "", cidade: "", estado: "", pais: "Brasil",
+      unidadeId: 1,
     }
   });
+
+  const buscarCep = useCallback(async (cep: string) => {
+    const digits = cep.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    try {
+      const resp = await fetch(`${BASE_URL}api/cep/${digits}`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      form.setValue("endereco", data.endereco || "");
+      form.setValue("bairro", data.bairro || "");
+      form.setValue("cidade", data.cidade || "");
+      form.setValue("estado", data.estado || "");
+      form.setValue("pais", data.pais || "Brasil");
+    } catch {}
+  }, [form]);
 
   const onSubmit = (values: z.infer<typeof pacienteSchema>) => {
     criarPaciente.mutate({ data: values }, {
@@ -64,66 +107,128 @@ export default function Pacientes() {
                 Novo Paciente
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Novo Paciente</DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="nome"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome Completo</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormField control={form.control} name="nome" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome Completo</FormLabel>
+                      <FormControl><Input {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="cpf"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>CPF</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="telefone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefone</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
+                    <FormField control={form.control} name="cpf" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>E-mail</FormLabel>
+                        <FormLabel>CPF</FormLabel>
                         <FormControl>
-                          <Input type="email" {...field} />
+                          <Input
+                            value={field.value}
+                            onChange={(e) => field.onChange(formatCpf(e.target.value))}
+                            placeholder="000.000.000-00"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
+                    )} />
+                    <FormField control={form.control} name="telefone" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Celular</FormLabel>
+                        <FormControl>
+                          <Input
+                            value={field.value}
+                            onChange={(e) => field.onChange(formatCelular(e.target.value))}
+                            placeholder="(11) 99999-9999"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>E-mail</FormLabel>
+                      <FormControl><Input type="email" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="border-t pt-4 mt-4">
+                    <p className="text-sm font-medium text-muted-foreground mb-3">Endereco</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField control={form.control} name="cep" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CEP</FormLabel>
+                          <FormControl>
+                            <Input
+                              value={field.value}
+                              onChange={(e) => {
+                                const formatted = formatCep(e.target.value);
+                                field.onChange(formatted);
+                                if (formatted.replace(/\D/g, '').length === 8) buscarCep(formatted);
+                              }}
+                              placeholder="00000-000"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <div className="col-span-2">
+                        <FormField control={form.control} name="endereco" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Endereco</FormLabel>
+                            <FormControl><Input {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-3">
+                      <FormField control={form.control} name="complemento" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Complemento</FormLabel>
+                          <FormControl><Input {...field} placeholder="Apto, Sala, Bloco..." /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="bairro" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bairro</FormLabel>
+                          <FormControl><Input {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mt-3">
+                      <FormField control={form.control} name="cidade" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cidade</FormLabel>
+                          <FormControl><Input {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="estado" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Estado</FormLabel>
+                          <FormControl><Input {...field} placeholder="SP" maxLength={2} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="pais" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Pais</FormLabel>
+                          <FormControl><Input {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                  </div>
+
                   <Button type="submit" className="w-full" disabled={criarPaciente.isPending}>
                     {criarPaciente.isPending ? "Salvando..." : "Salvar Paciente"}
                   </Button>
@@ -159,9 +264,9 @@ export default function Pacientes() {
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>CPF</TableHead>
-                      <TableHead>Telefone</TableHead>
+                      <TableHead>Celular</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      <TableHead className="text-right">Acoes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -223,7 +223,11 @@ router.post("/sessoes/:id/confirmar-substancia", async (req, res) => {
 
   if (sessaoAtual?.googleEventId) {
     try {
-      const [unidade] = await db.select({ calId: unidadesTable.googleCalendarId, endereco: unidadesTable.endereco, bairro: unidadesTable.bairro, cep: unidadesTable.cep, cidade: unidadesTable.cidade, estado: unidadesTable.estado }).from(unidadesTable).where(eq(unidadesTable.id, sessaoAtual.unidadeId!));
+      const [unidadeInfo] = await db.select({ calId: unidadesTable.googleCalendarId, nome: unidadesTable.nome, endereco: unidadesTable.endereco, bairro: unidadesTable.bairro, cep: unidadesTable.cep, cidade: unidadesTable.cidade, estado: unidadesTable.estado }).from(unidadesTable).where(eq(unidadesTable.id, sessaoAtual.unidadeId!));
+
+      const [sessaoCompleta] = await db.select({ pacienteId: sessoesTable.pacienteId, numeroSemana: sessoesTable.numeroSemana }).from(sessoesTable).where(eq(sessoesTable.id, Number(req.params.id)));
+      const [pacInfo] = sessaoCompleta?.pacienteId ? await db.select({ nome: pacientesTable.nome, cpf: pacientesTable.cpf }).from(pacientesTable).where(eq(pacientesTable.id, sessaoCompleta.pacienteId)) : [null];
+
       const todasAplic = await db
         .select({ aplicacao: aplicacoesSubstanciasTable, substanciaNome: substanciasTable.nome, substanciaVia: substanciasTable.via })
         .from(aplicacoesSubstanciasTable)
@@ -231,12 +235,13 @@ router.post("/sessoes/:id/confirmar-substancia", async (req, res) => {
         .where(eq(aplicacoesSubstanciasTable.sessaoId, Number(req.params.id)));
 
       await updateCalendarEventDescription(
-        unidade?.calId || 'primary',
+        unidadeInfo?.calId || 'primary',
         sessaoAtual.googleEventId,
         todasAplic.map(a => ({ nome: a.substanciaNome || '', via: a.substanciaVia || '', dose: a.aplicacao.dose || '', status: a.aplicacao.status || 'disp' })),
         sessaoAtual.tipoProcedimento || 'CONSULTA',
         sessaoAtual.duracaoTotalMin || 60,
-        { rua: unidade?.endereco || undefined, bairro: unidade?.bairro || undefined, cep: unidade?.cep || undefined, cidade: unidade?.cidade || undefined, estado: unidade?.estado || undefined }
+        { rua: unidadeInfo?.endereco || undefined, bairro: unidadeInfo?.bairro || undefined, cep: unidadeInfo?.cep || undefined, cidade: unidadeInfo?.cidade || undefined, estado: unidadeInfo?.estado || undefined },
+        { pacienteNome: pacInfo?.nome || '', pacienteCpf: pacInfo?.cpf || undefined, numeroMarcacao: sessaoCompleta?.numeroSemana || undefined, unidadeNome: unidadeInfo?.nome || undefined }
       );
     } catch (e: any) { console.warn('[Calendar] Auto-update failed for sessao', req.params.id, e?.message); }
   }
