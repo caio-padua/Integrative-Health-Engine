@@ -7,6 +7,7 @@ import {
   estoqueItensTable, insertEstoqueItemSchema,
 } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { gerarPdfRAS } from "../pdf/gerarRAS";
 
 const router = Router();
 
@@ -79,6 +80,186 @@ router.post("/ras", async (req, res) => {
   }).returning();
 
   res.status(201).json(created);
+});
+
+router.get("/ras/pdf/paciente/:pacienteId", async (req, res) => {
+  try {
+    const pacienteId = Number(req.params.pacienteId);
+    const protocoloId = req.query.protocoloId ? Number(req.query.protocoloId) : undefined;
+
+    const [paciente] = await db.select().from(pacientesTable).where(eq(pacientesTable.id, pacienteId));
+    if (!paciente) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+
+    const sessConditions: any[] = [eq(sessoesTable.pacienteId, pacienteId)];
+    if (protocoloId) sessConditions.push(eq(sessoesTable.protocoloId, protocoloId));
+
+    const sessoes = await db
+      .select({
+        sessao: sessoesTable,
+        profissionalNome: usuariosTable.nome,
+        profissionalCrm: usuariosTable.crm,
+        unidadeNome: unidadesTable.nome,
+        unidadeEndereco: unidadesTable.endereco,
+      })
+      .from(sessoesTable)
+      .leftJoin(usuariosTable, eq(sessoesTable.profissionalId, usuariosTable.id))
+      .leftJoin(unidadesTable, eq(sessoesTable.unidadeId, unidadesTable.id))
+      .where(and(...sessConditions))
+      .orderBy(sessoesTable.numeroSemana);
+
+    if (sessoes.length === 0) {
+      res.status(404).json({ error: "Nenhuma sessao encontrada para este paciente" });
+      return;
+    }
+
+    const sessaoIds = sessoes.map((s) => s.sessao.id);
+    const aplicacoesBySessao: Record<number, Array<{
+      aplicacao: typeof aplicacoesSubstanciasTable.$inferSelect;
+      substancia: typeof substanciasTable.$inferSelect | null;
+    }>> = {};
+
+    for (const sessaoId of sessaoIds) {
+      const apps = await db
+        .select({
+          aplicacao: aplicacoesSubstanciasTable,
+          substancia: substanciasTable,
+        })
+        .from(aplicacoesSubstanciasTable)
+        .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
+        .where(eq(aplicacoesSubstanciasTable.sessaoId, sessaoId));
+      aplicacoesBySessao[sessaoId] = apps;
+    }
+
+    const substanciaMap = new Map<number, any>();
+    for (const sessaoApps of Object.values(aplicacoesBySessao)) {
+      for (const app of sessaoApps) {
+        if (app.substancia && !substanciaMap.has(app.substancia.id)) {
+          substanciaMap.set(app.substancia.id, app.substancia);
+        }
+      }
+    }
+
+    const substanciaList = Array.from(substanciaMap.values());
+    const substanciaIndexMap = new Map<number, number>();
+    substanciaList.forEach((s, i) => substanciaIndexMap.set(s.id, i));
+
+    const firstSessao = sessoes[0];
+    const medicoNome = firstSessao.profissionalNome || "N/A";
+    const medicoCrm = firstSessao.profissionalCrm || "";
+
+    const enfermeiraNome = req.query.enfermeira ? String(req.query.enfermeira) : "N/A";
+
+    const substanciasRAS = substanciaList.map((sub) => {
+      const firstApp = Object.values(aplicacoesBySessao)
+        .flat()
+        .find((a) => a.substancia?.id === sub.id);
+
+      const totalSessoes = firstApp?.aplicacao.totalSessoes || sub.maxSessoesPorSemana || 10;
+      const firstSessaoWithSub = sessoes.find((s) => {
+        const apps = aplicacoesBySessao[s.sessao.id] || [];
+        return apps.some((a) => a.substancia?.id === sub.id);
+      });
+
+      return {
+        nome: sub.nome,
+        abreviacao: sub.abreviacao || sub.nome.substring(0, 6),
+        qtde: totalSessoes,
+        frequenciaDias: sub.intervaloDias || 7,
+        dataInicio: firstSessaoWithSub?.sessao.dataAgendada || sessoes[0].sessao.dataAgendada,
+        via: sub.via,
+        cor: sub.cor || "#3B82F6",
+        dosePadrao: sub.dosePadrao || "",
+        categoria: sub.categoria || "",
+        descricao: sub.descricao || "",
+        funcaoPrincipal: sub.funcaoPrincipal || "",
+        efeitosPercebidos: sub.efeitosPercebidos || "",
+        tempoParaEfeito: sub.tempoParaEfeito || "",
+        beneficioLongevidade: sub.beneficioLongevidade || "",
+        impactoQualidadeVida: sub.impactoQualidadeVida || "",
+        beneficioSono: sub.beneficioSono || "",
+        beneficioEnergia: sub.beneficioEnergia || "",
+        beneficioLibido: sub.beneficioLibido || "",
+        performanceFisica: sub.performanceFisica || "",
+        forcaMuscular: sub.forcaMuscular || "",
+        clarezaMental: sub.clarezaMental || "",
+        peleCabeloUnhas: sub.peleCabeloUnhas || "",
+        suporteImunologico: sub.suporteImunologico || "",
+        contraindicacoes: sub.contraindicacoes || "",
+        evidenciaCientifica: sub.evidenciaCientifica || "",
+        efeitosSistemasCorporais: (sub.efeitosSistemasCorporais as Record<string, number>) || {},
+      };
+    });
+
+    const marcacoes = [];
+    for (let i = 0; i < 20; i++) {
+      const sessao = sessoes[i];
+      const marcacao: any = {
+        numero: i + 1,
+        dataPrevista: "",
+        dataEfetiva: "",
+        statusPorSubstancia: [],
+      };
+
+      if (sessao) {
+        marcacao.dataPrevista = sessao.sessao.dataAgendada;
+        if (sessao.sessao.status === "concluida" || sessao.sessao.status === "parcial") {
+          marcacao.dataEfetiva = sessao.sessao.dataAgendada;
+        }
+
+        const apps = aplicacoesBySessao[sessao.sessao.id] || [];
+        apps.forEach((app) => {
+          if (app.substancia) {
+            const idx = substanciaIndexMap.get(app.substancia.id);
+            if (idx !== undefined) {
+              marcacao.statusPorSubstancia.push({
+                substanciaIndex: idx,
+                numeroSessao: app.aplicacao.numeroSessao,
+                totalSessoes: app.aplicacao.totalSessoes,
+                status: app.aplicacao.status,
+              });
+            }
+          }
+        });
+      } else {
+        const baseDate = new Date(sessoes[0].sessao.dataAgendada);
+        const predictedDate = new Date(baseDate);
+        predictedDate.setDate(predictedDate.getDate() + i * 7);
+        marcacao.dataPrevista = predictedDate.toISOString().split("T")[0];
+      }
+
+      marcacoes.push(marcacao);
+    }
+
+    const idade = paciente.dataNascimento
+      ? Math.floor((Date.now() - new Date(paciente.dataNascimento).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      : null;
+
+    const dadosRAS = {
+      nomePaciente: paciente.nome,
+      cpfPaciente: paciente.cpf || "",
+      celularPaciente: paciente.celular || "",
+      idadePaciente: idade,
+      medicoResponsavel: medicoNome,
+      crmMedico: medicoCrm,
+      enfermeira: enfermeiraNome,
+      agenda: firstSessao.unidadeNome || "N/A",
+      unidadeEndereco: firstSessao.unidadeEndereco || "",
+      dataAtendimento: sessoes[0].sessao.dataAgendada,
+      substancias: substanciasRAS,
+      marcacoes,
+      nomeProtocolo: "",
+    };
+
+    const pdfBuffer = await gerarPdfRAS(dadosRAS);
+
+    const nomeArquivo = `RAS_${paciente.nome.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${nomeArquivo}"`);
+    res.send(pdfBuffer);
+  } catch (err: any) {
+    console.error("Erro ao gerar RAS PDF:", err);
+    res.status(500).json({ error: "Erro ao gerar PDF do RAS", details: err.message });
+  }
 });
 
 router.get("/ras/:id", async (req, res) => {

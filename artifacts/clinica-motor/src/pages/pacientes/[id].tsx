@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { useRoute, Link } from "wouter";
 import { useObterPaciente, getObterPacienteQueryKey, useAtualizarPaciente } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Activity, Clock, Edit, HeartPulse, MapPin, Mail, Phone, Calendar } from "lucide-react";
+import { User, Activity, Clock, Edit, HeartPulse, MapPin, Mail, Phone, Calendar, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -154,6 +154,16 @@ export default function PacienteDetalhe() {
               </div>
 
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const apiBase = `${BASE_URL}api/ras/pdf/paciente/${id}`;
+                    window.open(apiBase, "_blank");
+                  }}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Gerar RAS PDF
+                </Button>
                 <Link href={`/pacientes/${id}/questionario`}>
                   <Button variant="outline">
                     <HeartPulse className="w-4 h-4 mr-2" />
