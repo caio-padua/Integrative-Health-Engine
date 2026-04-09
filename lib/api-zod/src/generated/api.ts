@@ -984,7 +984,8 @@ export const ListarPagamentosQueryParams = zod.object({
 export const ListarPagamentosResponseItem = zod.object({
   id: zod.number(),
   pacienteId: zod.number(),
-  pacienteNome: zod.string(),
+  pacienteNome: zod.string().optional(),
+  tratamentoId: zod.number().nullish(),
   valor: zod.number(),
   status: zod.enum(["pendente", "pago", "cancelado", "estornado"]),
   formaPagamento: zod
@@ -998,6 +999,9 @@ export const ListarPagamentosResponseItem = zod.object({
     ])
     .optional(),
   descricao: zod.string().optional(),
+  parcela: zod.number().nullish(),
+  totalParcelas: zod.number().nullish(),
+  observacao: zod.string().nullish(),
   unidadeId: zod.number(),
   criadoEm: zod.coerce.date(),
   paguEm: zod.coerce.date().optional(),
@@ -1020,6 +1024,10 @@ export const CriarPagamentoBody = zod.object({
   ]),
   descricao: zod.string().optional(),
   unidadeId: zod.number(),
+  tratamentoId: zod.number().optional(),
+  parcela: zod.number().optional(),
+  totalParcelas: zod.number().optional(),
+  observacao: zod.string().optional(),
 });
 
 /**
@@ -1032,7 +1040,8 @@ export const ConfirmarPagamentoParams = zod.object({
 export const ConfirmarPagamentoResponse = zod.object({
   id: zod.number(),
   pacienteId: zod.number(),
-  pacienteNome: zod.string(),
+  pacienteNome: zod.string().optional(),
+  tratamentoId: zod.number().nullish(),
   valor: zod.number(),
   status: zod.enum(["pendente", "pago", "cancelado", "estornado"]),
   formaPagamento: zod
@@ -1046,9 +1055,338 @@ export const ConfirmarPagamentoResponse = zod.object({
     ])
     .optional(),
   descricao: zod.string().optional(),
+  parcela: zod.number().nullish(),
+  totalParcelas: zod.number().nullish(),
+  observacao: zod.string().nullish(),
   unidadeId: zod.number(),
   criadoEm: zod.coerce.date(),
   paguEm: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Listar tratamentos
+ */
+export const ListarTratamentosQueryParams = zod.object({
+  pacienteId: zod.coerce.number().optional(),
+  status: zod
+    .enum(["ativo", "concluido", "cancelado", "desistencia", "suspenso"])
+    .optional(),
+});
+
+export const ListarTratamentosResponseItem = zod.object({
+  id: zod.number(),
+  pacienteId: zod.number(),
+  pacienteNome: zod.string().optional(),
+  pacienteCpf: zod.string().nullish(),
+  protocoloId: zod.number().nullish(),
+  unidadeId: zod.number().nullish(),
+  medicoId: zod.number().nullish(),
+  nome: zod.string(),
+  descricao: zod.string().nullish(),
+  valorBruto: zod.number(),
+  desconto: zod.number().optional(),
+  valorFinal: zod.number(),
+  valorPago: zod.number(),
+  saldoDevedor: zod.number(),
+  numeroParcelas: zod.number().optional(),
+  status: zod.enum([
+    "ativo",
+    "concluido",
+    "cancelado",
+    "desistencia",
+    "suspenso",
+  ]),
+  dataInicio: zod.string().nullish(),
+  dataPrevisaoFim: zod.string().nullish(),
+  criadoEm: zod.coerce.date().optional(),
+});
+export const ListarTratamentosResponse = zod.array(
+  ListarTratamentosResponseItem,
+);
+
+/**
+ * @summary Criar tratamento com itens
+ */
+export const CriarTratamentoBody = zod.object({
+  pacienteId: zod.number(),
+  protocoloId: zod.number().optional(),
+  unidadeId: zod.number().optional(),
+  medicoId: zod.number().optional(),
+  nome: zod.string(),
+  descricao: zod.string().optional(),
+  valorBruto: zod.number().optional(),
+  desconto: zod.number().optional(),
+  numeroParcelas: zod.number().optional(),
+  dataInicio: zod.string().optional(),
+  dataPrevisaoFim: zod.string().optional(),
+  condicoesPagamento: zod.object({}).passthrough().optional(),
+  observacoes: zod.string().optional(),
+  itens: zod
+    .array(
+      zod.object({
+        substanciaId: zod.number().optional(),
+        descricao: zod.string().optional(),
+        tipo: zod.string().optional(),
+        quantidade: zod.number().optional(),
+        valorUnitario: zod.number().optional(),
+        numeroSessoes: zod.number().optional(),
+        via: zod.string().optional(),
+        observacoes: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Obter tratamento com itens e pagamentos
+ */
+export const ObterTratamentoParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ObterTratamentoResponse = zod.object({
+  id: zod.number(),
+  pacienteId: zod.number(),
+  pacienteNome: zod.string().optional(),
+  pacienteCpf: zod.string().nullish(),
+  protocoloId: zod.number().nullish(),
+  unidadeId: zod.number().nullish(),
+  medicoId: zod.number().nullish(),
+  nome: zod.string(),
+  descricao: zod.string().nullish(),
+  valorBruto: zod.number(),
+  desconto: zod.number().optional(),
+  valorFinal: zod.number(),
+  valorPago: zod.number(),
+  saldoDevedor: zod.number(),
+  numeroParcelas: zod.number().optional(),
+  condicoesPagamento: zod.object({}).passthrough().nullish(),
+  status: zod.enum([
+    "ativo",
+    "concluido",
+    "cancelado",
+    "desistencia",
+    "suspenso",
+  ]),
+  dataInicio: zod.string().nullish(),
+  dataPrevisaoFim: zod.string().nullish(),
+  dataConclusao: zod.string().nullish(),
+  motivoDesistencia: zod.string().nullish(),
+  valorRetidoDesistencia: zod.number().nullish(),
+  custosInsumos: zod.number().nullish(),
+  custoReservaTecnica: zod.number().nullish(),
+  custoLogistica: zod.number().nullish(),
+  detalhesRetencao: zod.object({}).passthrough().nullish(),
+  observacoes: zod.string().nullish(),
+  criadoEm: zod.coerce.date().optional(),
+  atualizadoEm: zod.coerce.date().optional(),
+  itens: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        substanciaId: zod.number().nullish(),
+        substanciaNome: zod.string().nullish(),
+        descricao: zod.string(),
+        tipo: zod.enum([
+          "substancia",
+          "insumo",
+          "taxa_administrativa",
+          "reserva_tecnica",
+          "honorario_medico",
+          "honorario_enfermagem",
+        ]),
+        quantidade: zod.number(),
+        valorUnitario: zod.number(),
+        valorTotal: zod.number(),
+        numeroSessoes: zod.number().nullish(),
+        via: zod.string().nullish(),
+        observacoes: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  pagamentos: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        pacienteId: zod.number(),
+        pacienteNome: zod.string().optional(),
+        tratamentoId: zod.number().nullish(),
+        valor: zod.number(),
+        status: zod.enum(["pendente", "pago", "cancelado", "estornado"]),
+        formaPagamento: zod
+          .enum([
+            "dinheiro",
+            "cartao_credito",
+            "cartao_debito",
+            "pix",
+            "boleto",
+            "plano_saude",
+          ])
+          .optional(),
+        descricao: zod.string().optional(),
+        parcela: zod.number().nullish(),
+        totalParcelas: zod.number().nullish(),
+        observacao: zod.string().nullish(),
+        unidadeId: zod.number(),
+        criadoEm: zod.coerce.date(),
+        paguEm: zod.coerce.date().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Atualizar tratamento
+ */
+export const AtualizarTratamentoParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AtualizarTratamentoBody = zod.object({
+  nome: zod.string().optional(),
+  descricao: zod.string().optional(),
+  valorBruto: zod.number().optional(),
+  desconto: zod.number().optional(),
+  numeroParcelas: zod.number().optional(),
+  dataPrevisaoFim: zod.string().optional(),
+  observacoes: zod.string().optional(),
+  status: zod.string().optional(),
+});
+
+export const AtualizarTratamentoResponse = zod.object({
+  id: zod.number(),
+  pacienteId: zod.number(),
+  pacienteNome: zod.string().optional(),
+  pacienteCpf: zod.string().nullish(),
+  protocoloId: zod.number().nullish(),
+  unidadeId: zod.number().nullish(),
+  medicoId: zod.number().nullish(),
+  nome: zod.string(),
+  descricao: zod.string().nullish(),
+  valorBruto: zod.number(),
+  desconto: zod.number().optional(),
+  valorFinal: zod.number(),
+  valorPago: zod.number(),
+  saldoDevedor: zod.number(),
+  numeroParcelas: zod.number().optional(),
+  status: zod.enum([
+    "ativo",
+    "concluido",
+    "cancelado",
+    "desistencia",
+    "suspenso",
+  ]),
+  dataInicio: zod.string().nullish(),
+  dataPrevisaoFim: zod.string().nullish(),
+  criadoEm: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Registrar baixa parcial em tratamento
+ */
+export const RegistrarBaixaParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RegistrarBaixaBody = zod.object({
+  valor: zod.number(),
+  formaPagamento: zod.enum([
+    "dinheiro",
+    "cartao_credito",
+    "cartao_debito",
+    "pix",
+    "boleto",
+    "plano_saude",
+  ]),
+  observacao: zod.string().optional(),
+  parcela: zod.number().optional(),
+});
+
+/**
+ * @summary Registrar desistência com cálculo de retenção
+ */
+export const RegistrarDesistenciaParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RegistrarDesistenciaBody = zod.object({
+  motivoDesistencia: zod.string().optional(),
+});
+
+export const RegistrarDesistenciaResponse = zod.object({
+  tratamento: zod
+    .object({
+      id: zod.number(),
+      pacienteId: zod.number(),
+      pacienteNome: zod.string().optional(),
+      pacienteCpf: zod.string().nullish(),
+      protocoloId: zod.number().nullish(),
+      unidadeId: zod.number().nullish(),
+      medicoId: zod.number().nullish(),
+      nome: zod.string(),
+      descricao: zod.string().nullish(),
+      valorBruto: zod.number(),
+      desconto: zod.number().optional(),
+      valorFinal: zod.number(),
+      valorPago: zod.number(),
+      saldoDevedor: zod.number(),
+      numeroParcelas: zod.number().optional(),
+      status: zod.enum([
+        "ativo",
+        "concluido",
+        "cancelado",
+        "desistencia",
+        "suspenso",
+      ]),
+      dataInicio: zod.string().nullish(),
+      dataPrevisaoFim: zod.string().nullish(),
+      criadoEm: zod.coerce.date().optional(),
+    })
+    .optional(),
+  detalhesRetencao: zod.object({}).passthrough().optional(),
+});
+
+/**
+ * @summary Resumo financeiro do paciente
+ */
+export const ResumoFinanceiroPacienteParams = zod.object({
+  pacienteId: zod.coerce.number(),
+});
+
+export const ResumoFinanceiroPacienteResponse = zod.object({
+  pacienteId: zod.number(),
+  totalTratamentos: zod.number(),
+  tratamentosAtivos: zod.number(),
+  totalValorTratamentos: zod.number(),
+  totalPago: zod.number(),
+  totalPendente: zod.number(),
+  tratamentos: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        nome: zod.string().optional(),
+        status: zod.string().optional(),
+        valorFinal: zod.number().optional(),
+        valorPago: zod.number().optional(),
+        saldoDevedor: zod.number().optional(),
+        dataInicio: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Dashboard financeiro geral
+ */
+export const DashboardFinanceiroResponse = zod.object({
+  totalRecebido: zod.number(),
+  totalPendente: zod.number(),
+  tratamentosAtivos: zod.number(),
+  tratamentosConcluidos: zod.number().optional(),
+  desistencias: zod.number().optional(),
+  inadimplencia: zod.number().optional(),
+  totalTratamentos: zod.number(),
+  pagamentosPorForma: zod.object({}).passthrough().optional(),
 });
 
 /**

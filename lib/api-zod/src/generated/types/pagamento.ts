@@ -11,11 +11,15 @@ import type { PagamentoStatus } from "./pagamentoStatus";
 export interface Pagamento {
   id: number;
   pacienteId: number;
-  pacienteNome: string;
+  pacienteNome?: string;
+  tratamentoId?: number | null;
   valor: number;
   status: PagamentoStatus;
   formaPagamento?: PagamentoFormaPagamento;
   descricao?: string;
+  parcela?: number | null;
+  totalParcelas?: number | null;
+  observacao?: string | null;
   unidadeId: number;
   criadoEm: Date;
   paguEm?: Date;

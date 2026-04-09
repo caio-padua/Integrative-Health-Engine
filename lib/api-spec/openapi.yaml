@@ -850,6 +850,202 @@ paths:
               schema:
                 $ref: "#/components/schemas/Pagamento"
 
+  /financeiro/tratamentos:
+    get:
+      operationId: listarTratamentos
+      tags: [financeiro]
+      summary: Listar tratamentos
+      parameters:
+        - name: pacienteId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ativo, concluido, cancelado, desistencia, suspenso]
+      responses:
+        "200":
+          description: Lista de tratamentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tratamento"
+    post:
+      operationId: criarTratamento
+      tags: [financeiro]
+      summary: Criar tratamento com itens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarTratamentoBody"
+      responses:
+        "201":
+          description: Tratamento criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tratamento"
+
+  /financeiro/tratamentos/{id}:
+    get:
+      operationId: obterTratamento
+      tags: [financeiro]
+      summary: Obter tratamento com itens e pagamentos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tratamento detalhado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TratamentoDetalhado"
+    put:
+      operationId: atualizarTratamento
+      tags: [financeiro]
+      summary: Atualizar tratamento
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                descricao:
+                  type: string
+                valorBruto:
+                  type: number
+                desconto:
+                  type: number
+                numeroParcelas:
+                  type: integer
+                dataPrevisaoFim:
+                  type: string
+                observacoes:
+                  type: string
+                status:
+                  type: string
+      responses:
+        "200":
+          description: Tratamento atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tratamento"
+
+  /financeiro/tratamentos/{id}/baixa:
+    post:
+      operationId: registrarBaixa
+      tags: [financeiro]
+      summary: Registrar baixa parcial em tratamento
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrarBaixaBody"
+      responses:
+        "201":
+          description: Baixa registrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pagamento:
+                    $ref: "#/components/schemas/Pagamento"
+                  tratamento:
+                    $ref: "#/components/schemas/Tratamento"
+
+  /financeiro/tratamentos/{id}/desistencia:
+    post:
+      operationId: registrarDesistencia
+      tags: [financeiro]
+      summary: Registrar desistência com cálculo de retenção
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                motivoDesistencia:
+                  type: string
+      responses:
+        "200":
+          description: Desistência registrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tratamento:
+                    $ref: "#/components/schemas/Tratamento"
+                  detalhesRetencao:
+                    type: object
+
+  /financeiro/resumo-paciente/{pacienteId}:
+    get:
+      operationId: resumoFinanceiroPaciente
+      tags: [financeiro]
+      summary: Resumo financeiro do paciente
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resumo financeiro
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumoFinanceiroPaciente"
+
+  /financeiro/dashboard:
+    get:
+      operationId: dashboardFinanceiro
+      tags: [financeiro]
+      summary: Dashboard financeiro geral
+      responses:
+        "200":
+          description: Dados do dashboard financeiro
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardFinanceiro"
+
   # Unidades
   /unidades:
     get:
@@ -1618,6 +1814,9 @@ components:
           type: integer
         pacienteNome:
           type: string
+        tratamentoId:
+          type: integer
+          nullable: true
         valor:
           type: number
           format: float
@@ -1629,6 +1828,15 @@ components:
           enum: [dinheiro, cartao_credito, cartao_debito, pix, boleto, plano_saude]
         descricao:
           type: string
+        parcela:
+          type: integer
+          nullable: true
+        totalParcelas:
+          type: integer
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
         unidadeId:
           type: integer
         criadoEm:
@@ -1640,7 +1848,6 @@ components:
       required:
         - id
         - pacienteId
-        - pacienteNome
         - valor
         - status
         - unidadeId
@@ -1660,11 +1867,353 @@ components:
           type: string
         unidadeId:
           type: integer
+        tratamentoId:
+          type: integer
+        parcela:
+          type: integer
+        totalParcelas:
+          type: integer
+        observacao:
+          type: string
       required:
         - pacienteId
         - valor
         - formaPagamento
         - unidadeId
+
+    Tratamento:
+      type: object
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        pacienteNome:
+          type: string
+        pacienteCpf:
+          type: string
+          nullable: true
+        protocoloId:
+          type: integer
+          nullable: true
+        unidadeId:
+          type: integer
+          nullable: true
+        medicoId:
+          type: integer
+          nullable: true
+        nome:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        valorBruto:
+          type: number
+        desconto:
+          type: number
+        valorFinal:
+          type: number
+        valorPago:
+          type: number
+        saldoDevedor:
+          type: number
+        numeroParcelas:
+          type: integer
+        status:
+          type: string
+          enum: [ativo, concluido, cancelado, desistencia, suspenso]
+        dataInicio:
+          type: string
+          nullable: true
+        dataPrevisaoFim:
+          type: string
+          nullable: true
+        criadoEm:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pacienteId
+        - nome
+        - valorBruto
+        - valorFinal
+        - valorPago
+        - saldoDevedor
+        - status
+
+    TratamentoDetalhado:
+      type: object
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        pacienteNome:
+          type: string
+        pacienteCpf:
+          type: string
+          nullable: true
+        protocoloId:
+          type: integer
+          nullable: true
+        unidadeId:
+          type: integer
+          nullable: true
+        medicoId:
+          type: integer
+          nullable: true
+        nome:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        valorBruto:
+          type: number
+        desconto:
+          type: number
+        valorFinal:
+          type: number
+        valorPago:
+          type: number
+        saldoDevedor:
+          type: number
+        numeroParcelas:
+          type: integer
+        condicoesPagamento:
+          type: object
+          nullable: true
+        status:
+          type: string
+          enum: [ativo, concluido, cancelado, desistencia, suspenso]
+        dataInicio:
+          type: string
+          nullable: true
+        dataPrevisaoFim:
+          type: string
+          nullable: true
+        dataConclusao:
+          type: string
+          nullable: true
+        motivoDesistencia:
+          type: string
+          nullable: true
+        valorRetidoDesistencia:
+          type: number
+          nullable: true
+        custosInsumos:
+          type: number
+          nullable: true
+        custoReservaTecnica:
+          type: number
+          nullable: true
+        custoLogistica:
+          type: number
+          nullable: true
+        detalhesRetencao:
+          type: object
+          nullable: true
+        observacoes:
+          type: string
+          nullable: true
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+        itens:
+          type: array
+          items:
+            $ref: "#/components/schemas/TratamentoItem"
+        pagamentos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Pagamento"
+      required:
+        - id
+        - pacienteId
+        - nome
+        - valorBruto
+        - valorFinal
+        - valorPago
+        - saldoDevedor
+        - status
+
+    TratamentoItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        substanciaId:
+          type: integer
+          nullable: true
+        substanciaNome:
+          type: string
+          nullable: true
+        descricao:
+          type: string
+        tipo:
+          type: string
+          enum: [substancia, insumo, taxa_administrativa, reserva_tecnica, honorario_medico, honorario_enfermagem]
+        quantidade:
+          type: number
+        valorUnitario:
+          type: number
+        valorTotal:
+          type: number
+        numeroSessoes:
+          type: integer
+          nullable: true
+        via:
+          type: string
+          nullable: true
+        observacoes:
+          type: string
+          nullable: true
+      required:
+        - id
+        - descricao
+        - tipo
+        - quantidade
+        - valorUnitario
+        - valorTotal
+
+    CriarTratamentoBody:
+      type: object
+      properties:
+        pacienteId:
+          type: integer
+        protocoloId:
+          type: integer
+        unidadeId:
+          type: integer
+        medicoId:
+          type: integer
+        nome:
+          type: string
+        descricao:
+          type: string
+        valorBruto:
+          type: number
+        desconto:
+          type: number
+        numeroParcelas:
+          type: integer
+        dataInicio:
+          type: string
+        dataPrevisaoFim:
+          type: string
+        condicoesPagamento:
+          type: object
+        observacoes:
+          type: string
+        itens:
+          type: array
+          items:
+            type: object
+            properties:
+              substanciaId:
+                type: integer
+              descricao:
+                type: string
+              tipo:
+                type: string
+              quantidade:
+                type: number
+              valorUnitario:
+                type: number
+              numeroSessoes:
+                type: integer
+              via:
+                type: string
+              observacoes:
+                type: string
+      required:
+        - pacienteId
+        - nome
+
+    RegistrarBaixaBody:
+      type: object
+      properties:
+        valor:
+          type: number
+        formaPagamento:
+          type: string
+          enum: [dinheiro, cartao_credito, cartao_debito, pix, boleto, plano_saude]
+        observacao:
+          type: string
+        parcela:
+          type: integer
+      required:
+        - valor
+        - formaPagamento
+
+    ResumoFinanceiroPaciente:
+      type: object
+      properties:
+        pacienteId:
+          type: integer
+        totalTratamentos:
+          type: integer
+        tratamentosAtivos:
+          type: integer
+        totalValorTratamentos:
+          type: number
+        totalPago:
+          type: number
+        totalPendente:
+          type: number
+        tratamentos:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              nome:
+                type: string
+              status:
+                type: string
+              valorFinal:
+                type: number
+              valorPago:
+                type: number
+              saldoDevedor:
+                type: number
+              dataInicio:
+                type: string
+      required:
+        - pacienteId
+        - totalTratamentos
+        - tratamentosAtivos
+        - totalValorTratamentos
+        - totalPago
+        - totalPendente
+
+    DashboardFinanceiro:
+      type: object
+      properties:
+        totalRecebido:
+          type: number
+        totalPendente:
+          type: number
+        tratamentosAtivos:
+          type: integer
+        tratamentosConcluidos:
+          type: integer
+        desistencias:
+          type: integer
+        inadimplencia:
+          type: integer
+        totalTratamentos:
+          type: integer
+        pagamentosPorForma:
+          type: object
+      required:
+        - totalRecebido
+        - totalPendente
+        - tratamentosAtivos
+        - totalTratamentos
 
     Unidade:
       type: object

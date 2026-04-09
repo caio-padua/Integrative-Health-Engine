@@ -63,28 +63,41 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background">
       <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
-        <div className="h-16 flex items-center px-4 border-b border-border">
-          <Activity className="text-primary mr-2" />
-          <span className="font-bold text-lg text-sidebar-foreground tracking-tight">Motor Clínico</span>
+        <div className="h-16 flex items-center px-5 border-b border-border">
+          <div className="w-8 h-8 flex items-center justify-center bg-primary/15 border border-primary/30 mr-3">
+            <Activity className="text-primary h-4 w-4" />
+          </div>
+          <div>
+            <span className="font-bold text-sm text-sidebar-foreground tracking-tight uppercase">Motor Clínico</span>
+            <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">PADCOM V15.2</span>
+          </div>
         </div>
-        <div className="p-4 border-b border-border">
-          <div className="text-sm font-medium text-sidebar-foreground truncate">{user.nome}</div>
-          <div className="text-xs text-sidebar-foreground/60 capitalize">{user.perfil.replace('_', ' ')}</div>
+        <div className="px-5 py-3 border-b border-border">
+          <div className="text-sm font-semibold text-sidebar-foreground truncate">{user.nome}</div>
+          <div className="text-[11px] text-muted-foreground capitalize tracking-wide">{user.perfil.replace('_', ' ')}</div>
         </div>
-        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {allowedItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.startsWith(item.path);
             return (
-              <Link key={item.path} href={item.path} className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'}`}>
-                <Icon className="mr-3 h-4 w-4" />
+              <Link
+                key={item.path}
+                href={item.path}
+                className={`flex items-center px-3 py-2 text-[13px] transition-colors border-l-2 ${
+                  isActive
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-l-primary'
+                    : 'text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground border-l-transparent'
+                }`}
+              >
+                <Icon className="mr-3 h-4 w-4 flex-shrink-0" />
                 {item.name}
               </Link>
             );
           })}
         </nav>
-        <div className="p-4 border-t border-border">
-          <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground" onClick={logout}>
+        <div className="px-4 py-3 border-t border-border">
+          <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs" onClick={logout}>
             <LogOut className="mr-3 h-4 w-4" />
             Sair
           </Button>

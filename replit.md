@@ -36,7 +36,7 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 7. **Itens Terapeuticos** — Visao unificada com 490 itens reais do catalogo PADCOM V13+V4: 305 IM, 63 EV, 11 formulas agrupadas, 32 implantes, 68 blocos exames (96% enriquecidos com 58 colunas V4: modalidade, material, justificativas 3 niveis, sexo, prioridade, rastreio, recorrencia, 5 indicadores visuais, finalidade, interpretacao, legenda rapida), 11 protocolos. Expansao de blocos mostra cada exame individual com dados V4. Tabelas extras: exames_base (220), matriz_rastreio (231), regras_triagem (8), recorrencia (3), dicionario_graus (5)
 8. **Protocolos** — Criação e gestão de protocolos compostos
 9. **Follow-up** — Agendamento com recorrência (diário, semanal, quinzenal, mensal, trimestral)
-10. **Financeiro** — Pagamentos, confirmação, múltiplas formas de pagamento
+10. **Financeiro** — Modulo completo de tratamentos com billing por tratamento (nao por insumo), itens detalhados (substancia/insumo/taxa_administrativa/reserva_tecnica), baixa parcial com saldo devedor, desistencia com retencao calculada (insumos + reserva tecnica + logistica), dashboard com 4 KPIs (total recebido, total pendente, tratamentos ativos, inadimplencia), tratamentos expandiveis com historico de pagamentos
 11. **Unidades** — Gestao multiunidades com edicao completa: nome, endereco (rua+numero), bairro, cidade, UF, CEP (busca automatica via ViaCEP), CNPJ, telefone, tipo (clinica/enfermagem/domiciliar/personal), cor, Google Calendar Email/ID. 7 unidades reais mapeadas dos calendarios clinica.padua.agenda@gmail.com: Higienopolis, Tatuape, Enfermagem Bianca, Enfermagem Domiciliar, Enfermagem Guaxupe, On Line Dr Caio Fernandes, Caio Padua Pessoal
 12. **Fluxos de Aprovacao** — Fluxos parametrizados por tipo de procedimento (Consulta/Infusao/Implante) com etapas, responsaveis, condicionais e bypass — dados reais PADCOM V15.2
 13. **Permissoes** — Matriz de permissoes por perfil (10 perfis PADCOM V15.2) com flags: editar questionario, validar, bypass, emitir NF, ver outras unidades
@@ -78,6 +78,17 @@ lib/
 - `pnpm --filter @workspace/db run push` — aplicar schema no banco
 - `pnpm --filter @workspace/api-server run dev` — rodar API localmente
 - `pnpm --filter @workspace/clinica-motor run dev` — rodar frontend localmente
+
+## Design System — PADCOM V15.2
+
+- **Bordas**: radius=0px (quadradas em tudo — cards, inputs, badges, botões)
+- **Primary**: Ouro hsl(38 75% 55%) — clássico, elegante
+- **Background**: Navy profundo hsl(220 25% 8%)
+- **Sidebar**: Indicador ativo = border-left-2 primary color
+- **Tipografia**: JetBrains Mono; labels uppercase com tracking-wider
+- **Tabelas**: Bordas visíveis para TDAH (seguir com o dedo)
+- **Filosofia**: Clássico, austero, TDAH-friendly, como documento legal bem formatado
+- **RAS PDF Pagina 5**: Contrato financeiro automatico quando paciente tem tratamento ativo — itemizacao, clausula desistencia com retencao calculada, assinaturas
 
 ## Preparado para Google Sheets
 

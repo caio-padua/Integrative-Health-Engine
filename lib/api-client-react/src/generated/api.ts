@@ -22,6 +22,7 @@ import type {
   AtualizarAnamneseBody,
   AtualizarEstadoSaudeBody,
   AtualizarRespostaQuestionarioBody,
+  AtualizarTratamentoBody,
   ConcluirFollowupBody,
   CriarAnamneseBody,
   CriarEstadoSaudeBody,
@@ -31,8 +32,10 @@ import type {
   CriarPagamentoBody,
   CriarProtocoloBody,
   CriarRespostaQuestionarioBody,
+  CriarTratamentoBody,
   CriarUnidadeBody,
   CriarUsuarioBody,
+  DashboardFinanceiro,
   EstadoSaudePaciente,
   FilasOperacionais,
   Followup,
@@ -46,6 +49,7 @@ import type {
   ListarPagamentosParams,
   ListarProtocolosParams,
   ListarSugestoesParams,
+  ListarTratamentosParams,
   ListarUsuariosParams,
   LoginBody,
   LoginResponse,
@@ -61,11 +65,18 @@ import type {
   Protocolo,
   QuestionarioMasterPergunta,
   QuestionarioResposta,
+  RegistrarBaixa201,
+  RegistrarBaixaBody,
+  RegistrarDesistencia200,
+  RegistrarDesistenciaBody,
   ResultadoMotorClinico,
   ResumoDashboard,
   ResumoFilas,
+  ResumoFinanceiroPaciente,
   SugestaoClinica,
   ToggleItemBody,
+  Tratamento,
+  TratamentoDetalhado,
   Unidade,
   Usuario,
   ValidarSugestaoBody,
@@ -2985,6 +2996,708 @@ export const useConfirmarPagamento = <
 > => {
   return useMutation(getConfirmarPagamentoMutationOptions(options));
 };
+
+/**
+ * @summary Listar tratamentos
+ */
+export const getListarTratamentosUrl = (params?: ListarTratamentosParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/financeiro/tratamentos?${stringifiedParams}`
+    : `/api/financeiro/tratamentos`;
+};
+
+export const listarTratamentos = async (
+  params?: ListarTratamentosParams,
+  options?: RequestInit,
+): Promise<Tratamento[]> => {
+  return customFetch<Tratamento[]>(getListarTratamentosUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListarTratamentosQueryKey = (
+  params?: ListarTratamentosParams,
+) => {
+  return [`/api/financeiro/tratamentos`, ...(params ? [params] : [])] as const;
+};
+
+export const getListarTratamentosQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarTratamentos>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListarTratamentosParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listarTratamentos>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListarTratamentosQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarTratamentos>>
+  > = ({ signal }) => listarTratamentos(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarTratamentos>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListarTratamentosQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarTratamentos>>
+>;
+export type ListarTratamentosQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Listar tratamentos
+ */
+
+export function useListarTratamentos<
+  TData = Awaited<ReturnType<typeof listarTratamentos>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListarTratamentosParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listarTratamentos>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListarTratamentosQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Criar tratamento com itens
+ */
+export const getCriarTratamentoUrl = () => {
+  return `/api/financeiro/tratamentos`;
+};
+
+export const criarTratamento = async (
+  criarTratamentoBody: CriarTratamentoBody,
+  options?: RequestInit,
+): Promise<Tratamento> => {
+  return customFetch<Tratamento>(getCriarTratamentoUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(criarTratamentoBody),
+  });
+};
+
+export const getCriarTratamentoMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof criarTratamento>>,
+    TError,
+    { data: BodyType<CriarTratamentoBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof criarTratamento>>,
+  TError,
+  { data: BodyType<CriarTratamentoBody> },
+  TContext
+> => {
+  const mutationKey = ["criarTratamento"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof criarTratamento>>,
+    { data: BodyType<CriarTratamentoBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return criarTratamento(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CriarTratamentoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof criarTratamento>>
+>;
+export type CriarTratamentoMutationBody = BodyType<CriarTratamentoBody>;
+export type CriarTratamentoMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Criar tratamento com itens
+ */
+export const useCriarTratamento = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof criarTratamento>>,
+    TError,
+    { data: BodyType<CriarTratamentoBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof criarTratamento>>,
+  TError,
+  { data: BodyType<CriarTratamentoBody> },
+  TContext
+> => {
+  return useMutation(getCriarTratamentoMutationOptions(options));
+};
+
+/**
+ * @summary Obter tratamento com itens e pagamentos
+ */
+export const getObterTratamentoUrl = (id: number) => {
+  return `/api/financeiro/tratamentos/${id}`;
+};
+
+export const obterTratamento = async (
+  id: number,
+  options?: RequestInit,
+): Promise<TratamentoDetalhado> => {
+  return customFetch<TratamentoDetalhado>(getObterTratamentoUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getObterTratamentoQueryKey = (id: number) => {
+  return [`/api/financeiro/tratamentos/${id}`] as const;
+};
+
+export const getObterTratamentoQueryOptions = <
+  TData = Awaited<ReturnType<typeof obterTratamento>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof obterTratamento>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getObterTratamentoQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof obterTratamento>>> = ({
+    signal,
+  }) => obterTratamento(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof obterTratamento>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ObterTratamentoQueryResult = NonNullable<
+  Awaited<ReturnType<typeof obterTratamento>>
+>;
+export type ObterTratamentoQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Obter tratamento com itens e pagamentos
+ */
+
+export function useObterTratamento<
+  TData = Awaited<ReturnType<typeof obterTratamento>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof obterTratamento>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getObterTratamentoQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Atualizar tratamento
+ */
+export const getAtualizarTratamentoUrl = (id: number) => {
+  return `/api/financeiro/tratamentos/${id}`;
+};
+
+export const atualizarTratamento = async (
+  id: number,
+  atualizarTratamentoBody: AtualizarTratamentoBody,
+  options?: RequestInit,
+): Promise<Tratamento> => {
+  return customFetch<Tratamento>(getAtualizarTratamentoUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(atualizarTratamentoBody),
+  });
+};
+
+export const getAtualizarTratamentoMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof atualizarTratamento>>,
+    TError,
+    { id: number; data: BodyType<AtualizarTratamentoBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof atualizarTratamento>>,
+  TError,
+  { id: number; data: BodyType<AtualizarTratamentoBody> },
+  TContext
+> => {
+  const mutationKey = ["atualizarTratamento"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof atualizarTratamento>>,
+    { id: number; data: BodyType<AtualizarTratamentoBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return atualizarTratamento(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AtualizarTratamentoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof atualizarTratamento>>
+>;
+export type AtualizarTratamentoMutationBody = BodyType<AtualizarTratamentoBody>;
+export type AtualizarTratamentoMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Atualizar tratamento
+ */
+export const useAtualizarTratamento = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof atualizarTratamento>>,
+    TError,
+    { id: number; data: BodyType<AtualizarTratamentoBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof atualizarTratamento>>,
+  TError,
+  { id: number; data: BodyType<AtualizarTratamentoBody> },
+  TContext
+> => {
+  return useMutation(getAtualizarTratamentoMutationOptions(options));
+};
+
+/**
+ * @summary Registrar baixa parcial em tratamento
+ */
+export const getRegistrarBaixaUrl = (id: number) => {
+  return `/api/financeiro/tratamentos/${id}/baixa`;
+};
+
+export const registrarBaixa = async (
+  id: number,
+  registrarBaixaBody: RegistrarBaixaBody,
+  options?: RequestInit,
+): Promise<RegistrarBaixa201> => {
+  return customFetch<RegistrarBaixa201>(getRegistrarBaixaUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registrarBaixaBody),
+  });
+};
+
+export const getRegistrarBaixaMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registrarBaixa>>,
+    TError,
+    { id: number; data: BodyType<RegistrarBaixaBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registrarBaixa>>,
+  TError,
+  { id: number; data: BodyType<RegistrarBaixaBody> },
+  TContext
+> => {
+  const mutationKey = ["registrarBaixa"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registrarBaixa>>,
+    { id: number; data: BodyType<RegistrarBaixaBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return registrarBaixa(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegistrarBaixaMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registrarBaixa>>
+>;
+export type RegistrarBaixaMutationBody = BodyType<RegistrarBaixaBody>;
+export type RegistrarBaixaMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Registrar baixa parcial em tratamento
+ */
+export const useRegistrarBaixa = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registrarBaixa>>,
+    TError,
+    { id: number; data: BodyType<RegistrarBaixaBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registrarBaixa>>,
+  TError,
+  { id: number; data: BodyType<RegistrarBaixaBody> },
+  TContext
+> => {
+  return useMutation(getRegistrarBaixaMutationOptions(options));
+};
+
+/**
+ * @summary Registrar desistência com cálculo de retenção
+ */
+export const getRegistrarDesistenciaUrl = (id: number) => {
+  return `/api/financeiro/tratamentos/${id}/desistencia`;
+};
+
+export const registrarDesistencia = async (
+  id: number,
+  registrarDesistenciaBody: RegistrarDesistenciaBody,
+  options?: RequestInit,
+): Promise<RegistrarDesistencia200> => {
+  return customFetch<RegistrarDesistencia200>(getRegistrarDesistenciaUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registrarDesistenciaBody),
+  });
+};
+
+export const getRegistrarDesistenciaMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registrarDesistencia>>,
+    TError,
+    { id: number; data: BodyType<RegistrarDesistenciaBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registrarDesistencia>>,
+  TError,
+  { id: number; data: BodyType<RegistrarDesistenciaBody> },
+  TContext
+> => {
+  const mutationKey = ["registrarDesistencia"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registrarDesistencia>>,
+    { id: number; data: BodyType<RegistrarDesistenciaBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return registrarDesistencia(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegistrarDesistenciaMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registrarDesistencia>>
+>;
+export type RegistrarDesistenciaMutationBody =
+  BodyType<RegistrarDesistenciaBody>;
+export type RegistrarDesistenciaMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Registrar desistência com cálculo de retenção
+ */
+export const useRegistrarDesistencia = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registrarDesistencia>>,
+    TError,
+    { id: number; data: BodyType<RegistrarDesistenciaBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registrarDesistencia>>,
+  TError,
+  { id: number; data: BodyType<RegistrarDesistenciaBody> },
+  TContext
+> => {
+  return useMutation(getRegistrarDesistenciaMutationOptions(options));
+};
+
+/**
+ * @summary Resumo financeiro do paciente
+ */
+export const getResumoFinanceiroPacienteUrl = (pacienteId: number) => {
+  return `/api/financeiro/resumo-paciente/${pacienteId}`;
+};
+
+export const resumoFinanceiroPaciente = async (
+  pacienteId: number,
+  options?: RequestInit,
+): Promise<ResumoFinanceiroPaciente> => {
+  return customFetch<ResumoFinanceiroPaciente>(
+    getResumoFinanceiroPacienteUrl(pacienteId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getResumoFinanceiroPacienteQueryKey = (pacienteId: number) => {
+  return [`/api/financeiro/resumo-paciente/${pacienteId}`] as const;
+};
+
+export const getResumoFinanceiroPacienteQueryOptions = <
+  TData = Awaited<ReturnType<typeof resumoFinanceiroPaciente>>,
+  TError = ErrorType<unknown>,
+>(
+  pacienteId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof resumoFinanceiroPaciente>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getResumoFinanceiroPacienteQueryKey(pacienteId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof resumoFinanceiroPaciente>>
+  > = ({ signal }) =>
+    resumoFinanceiroPaciente(pacienteId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!pacienteId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof resumoFinanceiroPaciente>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ResumoFinanceiroPacienteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof resumoFinanceiroPaciente>>
+>;
+export type ResumoFinanceiroPacienteQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Resumo financeiro do paciente
+ */
+
+export function useResumoFinanceiroPaciente<
+  TData = Awaited<ReturnType<typeof resumoFinanceiroPaciente>>,
+  TError = ErrorType<unknown>,
+>(
+  pacienteId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof resumoFinanceiroPaciente>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getResumoFinanceiroPacienteQueryOptions(
+    pacienteId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Dashboard financeiro geral
+ */
+export const getDashboardFinanceiroUrl = () => {
+  return `/api/financeiro/dashboard`;
+};
+
+export const dashboardFinanceiro = async (
+  options?: RequestInit,
+): Promise<DashboardFinanceiro> => {
+  return customFetch<DashboardFinanceiro>(getDashboardFinanceiroUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDashboardFinanceiroQueryKey = () => {
+  return [`/api/financeiro/dashboard`] as const;
+};
+
+export const getDashboardFinanceiroQueryOptions = <
+  TData = Awaited<ReturnType<typeof dashboardFinanceiro>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof dashboardFinanceiro>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getDashboardFinanceiroQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof dashboardFinanceiro>>
+  > = ({ signal }) => dashboardFinanceiro({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof dashboardFinanceiro>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type DashboardFinanceiroQueryResult = NonNullable<
+  Awaited<ReturnType<typeof dashboardFinanceiro>>
+>;
+export type DashboardFinanceiroQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Dashboard financeiro geral
+ */
+
+export function useDashboardFinanceiro<
+  TData = Awaited<ReturnType<typeof dashboardFinanceiro>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof dashboardFinanceiro>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getDashboardFinanceiroQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Listar unidades da clínica

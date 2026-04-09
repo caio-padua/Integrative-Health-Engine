@@ -1,93 +1,228 @@
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  useListarPagamentos, getListarPagamentosQueryKey, 
-  useCriarPagamento,
-  useConfirmarPagamento,
-  CriarPagamentoBodyFormaPagamento,
-  useListarPacientes,
-  getListarPacientesQueryKey
+import {
+  useListarTratamentos, getListarTratamentosQueryKey,
+  useDashboardFinanceiro, getDashboardFinanceiroQueryKey,
+  useCriarTratamento,
+  useRegistrarBaixa,
+  useListarPacientes, getListarPacientesQueryKey,
+  RegistrarBaixaBodyFormaPagamento,
 } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, CreditCard, DollarSign, CheckCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Plus, CreditCard, DollarSign, TrendingUp, TrendingDown,
+  AlertTriangle, CheckCircle, ChevronDown, ChevronRight,
+  Receipt, ArrowDownCircle, XCircle, FileText
+} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
-const pagamentoSchema = z.object({
-  pacienteId: z.coerce.number().min(1, "Paciente é obrigatório"),
-  valor: z.coerce.number().min(0.01, "Valor deve ser maior que zero"),
-  formaPagamento: z.nativeEnum(CriarPagamentoBodyFormaPagamento),
-  descricao: z.string().optional(),
-  unidadeId: z.coerce.number().default(1),
-});
+const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
+
+const formaLabels: Record<string, string> = {
+  dinheiro: "Dinheiro",
+  cartao_credito: "Cartão Crédito",
+  cartao_debito: "Cartão Débito",
+  pix: "PIX",
+  boleto: "Boleto",
+  plano_saude: "Plano Saúde",
+};
+
+const statusColors: Record<string, string> = {
+  ativo: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  concluido: "bg-green-500/20 text-green-400 border-green-500/30",
+  cancelado: "bg-red-500/20 text-red-400 border-red-500/30",
+  desistencia: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  suspenso: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+};
+
+const statusLabels: Record<string, string> = {
+  ativo: "Ativo",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+  desistencia: "Desistência",
+  suspenso: "Suspenso",
+};
+
+function formatCurrency(value: number | null | undefined): string {
+  return `R$ ${(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function ProgressBar({ paid, total }: { paid: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, (paid / total) * 100) : 0;
+  const color = pct >= 100 ? "bg-green-500" : pct >= 50 ? "bg-blue-500" : "bg-orange-500";
+  return (
+    <div className="w-full">
+      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+        <span>{formatCurrency(paid)} pago</span>
+        <span>{pct.toFixed(0)}%</span>
+      </div>
+      <div className="w-full h-2 bg-muted rounded-sm overflow-hidden">
+        <div className={`h-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
 export default function FinanceiroPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  const { data: pagamentos, isLoading } = useListarPagamentos({}, {
-    query: { queryKey: getListarPagamentosQueryKey({}) }
+
+  const { data: dashboard, isLoading: loadingDash } = useDashboardFinanceiro({
+    query: { queryKey: getDashboardFinanceiroQueryKey() }
+  });
+
+  const { data: tratamentos, isLoading: loadingTrat } = useListarTratamentos({}, {
+    query: { queryKey: getListarTratamentosQueryKey({}) }
   });
 
   const { data: pacientes } = useListarPacientes({}, {
     query: { queryKey: getListarPacientesQueryKey({}) }
   });
-  
-  const [open, setOpen] = useState(false);
-  const criarPagamento = useCriarPagamento();
-  const confirmarPagamento = useConfirmarPagamento();
 
-  const form = useForm<z.infer<typeof pagamentoSchema>>({
-    resolver: zodResolver(pagamentoSchema),
-    defaultValues: {
-      pacienteId: 0,
-      valor: 0,
-      formaPagamento: CriarPagamentoBodyFormaPagamento.pix,
-      descricao: "",
-      unidadeId: user?.unidadeId || 1,
-    }
+  const { data: substancias } = useQuery({
+    queryKey: ["/api/substancias"],
+    queryFn: () => fetch("/api/substancias").then(r => r.json()),
   });
 
-  const onSubmit = (values: z.infer<typeof pagamentoSchema>) => {
-    criarPagamento.mutate({ data: values }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListarPagamentosQueryKey({}) });
-        setOpen(false);
-        form.reset();
-        toast({ title: "Lançamento financeiro registrado." });
-      }
-    });
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [openNovoTratamento, setOpenNovoTratamento] = useState(false);
+  const [openBaixa, setOpenBaixa] = useState(false);
+  const [selectedTratamentoId, setSelectedTratamentoId] = useState<number | null>(null);
+
+  const criarTratamento = useCriarTratamento();
+  const registrarBaixa = useRegistrarBaixa();
+
+  const [novoForm, setNovoForm] = useState({
+    pacienteId: 0,
+    nome: "",
+    descricao: "",
+    valorBruto: 0,
+    desconto: 0,
+    numeroParcelas: 1,
+    dataInicio: new Date().toISOString().split("T")[0],
+    observacoes: "",
+    itens: [] as Array<{ substanciaId?: number; descricao: string; tipo: string; quantidade: number; valorUnitario: number }>,
+  });
+
+  const [baixaForm, setBaixaForm] = useState({
+    valor: 0,
+    formaPagamento: "pix" as string,
+    observacao: "",
+  });
+
+  const [novoItemForm, setNovoItemForm] = useState({
+    substanciaId: 0,
+    descricao: "",
+    tipo: "substancia",
+    quantidade: 1,
+    valorUnitario: 0,
+  });
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: getDashboardFinanceiroQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getListarTratamentosQueryKey({}) });
   };
 
-  const handleConfirmar = (id: number) => {
-    confirmarPagamento.mutate({ id }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListarPagamentosQueryKey({}) });
-        toast({ title: "Pagamento confirmado com sucesso." });
-      }
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pago": return "bg-green-500/20 text-green-500 border-none";
-      case "cancelado": return "bg-red-500/20 text-red-500 border-none";
-      case "estornado": return "bg-orange-500/20 text-orange-500 border-none";
-      default: return "bg-yellow-500/20 text-yellow-500 border-none";
+  const handleCriarTratamento = () => {
+    if (!novoForm.pacienteId || !novoForm.nome) {
+      toast({ title: "Preencha paciente e nome do tratamento", variant: "destructive" });
+      return;
     }
+    criarTratamento.mutate({
+      data: {
+        pacienteId: novoForm.pacienteId,
+        nome: novoForm.nome,
+        descricao: novoForm.descricao || undefined,
+        valorBruto: novoForm.valorBruto,
+        desconto: novoForm.desconto,
+        numeroParcelas: novoForm.numeroParcelas,
+        dataInicio: novoForm.dataInicio,
+        observacoes: novoForm.observacoes || undefined,
+        unidadeId: user?.unidadeId || 1,
+        itens: novoForm.itens.map(i => ({
+          substanciaId: i.substanciaId || undefined,
+          descricao: i.descricao,
+          tipo: i.tipo,
+          quantidade: i.quantidade,
+          valorUnitario: i.valorUnitario,
+        })),
+      }
+    }, {
+      onSuccess: () => {
+        invalidateAll();
+        setOpenNovoTratamento(false);
+        setNovoForm({
+          pacienteId: 0, nome: "", descricao: "", valorBruto: 0, desconto: 0,
+          numeroParcelas: 1, dataInicio: new Date().toISOString().split("T")[0],
+          observacoes: "", itens: [],
+        });
+        toast({ title: "Tratamento criado com sucesso." });
+      }
+    });
+  };
+
+  const handleBaixa = () => {
+    if (!selectedTratamentoId || !baixaForm.valor || !baixaForm.formaPagamento) {
+      toast({ title: "Preencha valor e forma de pagamento", variant: "destructive" });
+      return;
+    }
+    registrarBaixa.mutate({
+      id: selectedTratamentoId,
+      data: {
+        valor: baixaForm.valor,
+        formaPagamento: baixaForm.formaPagamento as RegistrarBaixaBodyFormaPagamento,
+        observacao: baixaForm.observacao || undefined,
+      }
+    }, {
+      onSuccess: () => {
+        invalidateAll();
+        setOpenBaixa(false);
+        setBaixaForm({ valor: 0, formaPagamento: "pix", observacao: "" });
+        toast({ title: "Baixa registrada com sucesso." });
+      }
+    });
+  };
+
+  const addItem = () => {
+    if (!novoItemForm.descricao) return;
+    const sub = substancias?.find((s: any) => s.id === novoItemForm.substanciaId);
+    setNovoForm(prev => ({
+      ...prev,
+      itens: [...prev.itens, {
+        substanciaId: novoItemForm.substanciaId || undefined,
+        descricao: novoItemForm.descricao || sub?.nome || "Item",
+        tipo: novoItemForm.tipo,
+        quantidade: novoItemForm.quantidade,
+        valorUnitario: novoItemForm.valorUnitario,
+      }],
+      valorBruto: prev.valorBruto + (novoItemForm.quantidade * novoItemForm.valorUnitario),
+    }));
+    setNovoItemForm({ substanciaId: 0, descricao: "", tipo: "substancia", quantidade: 1, valorUnitario: 0 });
+  };
+
+  const removeItem = (idx: number) => {
+    setNovoForm(prev => {
+      const removed = prev.itens[idx];
+      const newItens = prev.itens.filter((_, i) => i !== idx);
+      return {
+        ...prev,
+        itens: newItens,
+        valorBruto: prev.valorBruto - (removed.quantidade * removed.valorUnitario),
+      };
+    });
   };
 
   return (
@@ -99,176 +234,449 @@ export default function FinanceiroPage() {
               <CreditCard className="h-8 w-8 text-primary" />
               Financeiro
             </h1>
-            <p className="text-muted-foreground mt-1">Gestão de pagamentos e faturamento.</p>
+            <p className="text-muted-foreground mt-1">Gestão de tratamentos, pagamentos e faturamento</p>
           </div>
-          
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={openNovoTratamento} onOpenChange={setOpenNovoTratamento}>
             <DialogTrigger asChild>
               <Button className="bg-green-600 hover:bg-green-700 text-white">
                 <Plus className="mr-2 h-4 w-4" />
-                Novo Lançamento
+                Novo Tratamento
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Novo Pagamento</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Novo Tratamento
+                </DialogTitle>
               </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="pacienteId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Paciente</FormLabel>
-                        <Select 
-                          onValueChange={(val) => field.onChange(parseInt(val))} 
-                          defaultValue={field.value ? field.value.toString() : ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um paciente..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {pacientes?.map(p => (
-                              <SelectItem key={p.id} value={p.id.toString()}>{p.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="descricao"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Descrição / Procedimento</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="valor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Valor (R$)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="formaPagamento"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Forma de Pagto</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {Object.entries(CriarPagamentoBodyFormaPagamento).map(([k, v]) => (
-                                <SelectItem key={k} value={v} className="capitalize">{k.replace('_', ' ')}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Paciente *</Label>
+                    <Select onValueChange={v => setNovoForm(f => ({ ...f, pacienteId: parseInt(v) }))}>
+                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        {pacientes?.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id.toString()}>{p.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={criarPagamento.isPending}>
-                    {criarPagamento.isPending ? "Registrando..." : "Registrar Pagamento"}
-                  </Button>
-                </form>
-              </Form>
+                  <div>
+                    <Label>Nome do Tratamento *</Label>
+                    <Input value={novoForm.nome} onChange={e => setNovoForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Protocolo Detox IV + IM" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Descrição</Label>
+                  <Textarea value={novoForm.descricao} onChange={e => setNovoForm(f => ({ ...f, descricao: e.target.value }))} rows={2} />
+                </div>
+                <div className="border border-border rounded-sm p-4 space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-primary" />
+                    Itens do Tratamento
+                  </h3>
+                  <div className="grid grid-cols-6 gap-2 items-end">
+                    <div className="col-span-2">
+                      <Label className="text-xs">Substância</Label>
+                      <Select onValueChange={v => {
+                        const sub = substancias?.find((s: any) => s.id === parseInt(v));
+                        setNovoItemForm(f => ({
+                          ...f,
+                          substanciaId: parseInt(v),
+                          descricao: sub?.nome || "",
+                          valorUnitario: sub?.precoReferencia || 0,
+                        }));
+                      }}>
+                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          {substancias?.map((s: any) => (
+                            <SelectItem key={s.id} value={s.id.toString()}>{s.nome} ({s.via})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Tipo</Label>
+                      <Select value={novoItemForm.tipo} onValueChange={v => setNovoItemForm(f => ({ ...f, tipo: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="substancia">Substância</SelectItem>
+                          <SelectItem value="insumo">Insumo</SelectItem>
+                          <SelectItem value="taxa_administrativa">Taxa Adm.</SelectItem>
+                          <SelectItem value="reserva_tecnica">Reserva Técnica</SelectItem>
+                          <SelectItem value="honorario_medico">Honorário Médico</SelectItem>
+                          <SelectItem value="honorario_enfermagem">Honorário Enf.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Qtde</Label>
+                      <Input type="number" min={1} value={novoItemForm.quantidade} onChange={e => setNovoItemForm(f => ({ ...f, quantidade: parseInt(e.target.value) || 1 }))} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Valor Unit.</Label>
+                      <Input type="number" step="0.01" value={novoItemForm.valorUnitario} onChange={e => setNovoItemForm(f => ({ ...f, valorUnitario: parseFloat(e.target.value) || 0 }))} />
+                    </div>
+                    <Button size="sm" onClick={addItem} disabled={!novoItemForm.descricao}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {novoForm.itens.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead className="text-right">Qtde</TableHead>
+                          <TableHead className="text-right">Unit.</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {novoForm.itens.map((item, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-sm">{item.descricao}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{item.tipo}</Badge></TableCell>
+                            <TableCell className="text-right font-mono">{item.quantidade}</TableCell>
+                            <TableCell className="text-right font-mono">{formatCurrency(item.valorUnitario)}</TableCell>
+                            <TableCell className="text-right font-mono font-medium">{formatCurrency(item.quantidade * item.valorUnitario)}</TableCell>
+                            <TableCell>
+                              <Button size="sm" variant="ghost" onClick={() => removeItem(idx)}>
+                                <XCircle className="h-4 w-4 text-red-400" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label>Valor Bruto</Label>
+                    <Input type="number" step="0.01" value={novoForm.valorBruto} onChange={e => setNovoForm(f => ({ ...f, valorBruto: parseFloat(e.target.value) || 0 }))} />
+                  </div>
+                  <div>
+                    <Label>Desconto (R$)</Label>
+                    <Input type="number" step="0.01" value={novoForm.desconto} onChange={e => setNovoForm(f => ({ ...f, desconto: parseFloat(e.target.value) || 0 }))} />
+                  </div>
+                  <div>
+                    <Label>Nº Parcelas</Label>
+                    <Input type="number" min={1} value={novoForm.numeroParcelas} onChange={e => setNovoForm(f => ({ ...f, numeroParcelas: parseInt(e.target.value) || 1 }))} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-sm border border-border">
+                  <span className="text-sm font-medium">Valor Final:</span>
+                  <span className="text-xl font-bold text-primary font-mono">
+                    {formatCurrency(novoForm.valorBruto - novoForm.desconto)}
+                  </span>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpenNovoTratamento(false)}>Cancelar</Button>
+                <Button onClick={handleCriarTratamento} disabled={criarTratamento.isPending} className="bg-green-600 hover:bg-green-700 text-white">
+                  {criarTratamento.isPending ? "Criando..." : "Criar Tratamento"}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
-        <Card className="bg-card">
+        {loadingDash ? (
+          <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28" />)}
+          </div>
+        ) : dashboard && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-card border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-sm bg-green-500/10">
+                    <TrendingUp className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Recebido</p>
+                    <p className="text-xl font-bold font-mono text-green-400">{formatCurrency(dashboard.totalRecebido)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-sm bg-orange-500/10">
+                    <TrendingDown className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Pendente</p>
+                    <p className="text-xl font-bold font-mono text-orange-400">{formatCurrency(dashboard.totalPendente)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-sm bg-blue-500/10">
+                    <DollarSign className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Tratamentos Ativos</p>
+                    <p className="text-xl font-bold font-mono">{dashboard.tratamentosAtivos}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-sm bg-red-500/10">
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Inadimplência</p>
+                    <p className="text-xl font-bold font-mono text-red-400">{dashboard.inadimplencia}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <FileText className="h-5 w-5 text-primary" />
+              Tratamentos
+            </CardTitle>
+          </CardHeader>
           <CardContent className="p-0">
-            {isLoading ? (
+            {loadingTrat ? (
               <div className="p-4 space-y-4">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+              </div>
+            ) : !tratamentos || tratamentos.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                Nenhum tratamento registrado. Clique em "Novo Tratamento" para começar.
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
+                    <TableHead className="w-10"></TableHead>
                     <TableHead>Paciente</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Forma</TableHead>
+                    <TableHead>Tratamento</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="text-right">Valor Final</TableHead>
+                    <TableHead className="text-right">Pago</TableHead>
+                    <TableHead className="text-right">Saldo</TableHead>
+                    <TableHead>Progresso</TableHead>
                     <TableHead className="text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pagamentos?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
-                        Nenhum pagamento registrado.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    pagamentos?.map((pag) => (
-                      <TableRow key={pag.id}>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(pag.criadoEm).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="font-medium">{pag.pacienteNome}</TableCell>
-                        <TableCell className="text-sm">{pag.descricao || "-"}</TableCell>
+                  {tratamentos.map((t: any) => (
+                    <React.Fragment key={t.id}>
+                      <TableRow className="cursor-pointer hover:bg-muted/30" onClick={() => setExpandedId(expandedId === t.id ? null : t.id)}>
                         <TableCell>
-                          <Badge variant="outline" className="capitalize text-xs">
-                            {(pag.formaPagamento || 'nd').replace('_', ' ')}
-                          </Badge>
+                          {expandedId === t.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusColor(pag.status)}>
-                            <span className="capitalize">{pag.status}</span>
+                          <div>
+                            <p className="font-medium">{t.pacienteNome}</p>
+                            {t.pacienteCpf && <p className="text-xs text-muted-foreground">{t.pacienteCpf}</p>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium text-sm">{t.nome}</p>
+                          {t.dataInicio && <p className="text-xs text-muted-foreground">Início: {t.dataInicio}</p>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`${statusColors[t.status] || ""} border text-xs`}>
+                            {statusLabels[t.status] || t.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right font-mono font-medium">
-                          R$ {pag.valor.toFixed(2)}
+                        <TableCell className="text-right font-mono font-medium">{formatCurrency(t.valorFinal)}</TableCell>
+                        <TableCell className="text-right font-mono text-green-400">{formatCurrency(t.valorPago)}</TableCell>
+                        <TableCell className="text-right font-mono text-orange-400">{formatCurrency(t.saldoDevedor)}</TableCell>
+                        <TableCell className="w-40">
+                          <ProgressBar paid={t.valorPago || 0} total={t.valorFinal || 0} />
                         </TableCell>
                         <TableCell className="text-right">
-                          {pag.status === 'pendente' && (
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="border-green-500/50 text-green-500 hover:bg-green-500/10"
-                              onClick={() => handleConfirmar(pag.id)}
-                              disabled={confirmarPagamento.isPending}
+                          {t.status === "ativo" && t.saldoDevedor > 0 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTratamentoId(t.id);
+                                setBaixaForm({ valor: 0, formaPagamento: "pix", observacao: "" });
+                                setOpenBaixa(true);
+                              }}
                             >
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Confirmar
+                              <ArrowDownCircle className="w-4 h-4 mr-1" />
+                              Baixa
                             </Button>
+                          )}
+                          {t.status === "concluido" && (
+                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30 border">
+                              <CheckCircle className="w-3 h-3 mr-1" /> Quitado
+                            </Badge>
                           )}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                      {expandedId === t.id && (
+                        <TableRow key={`${t.id}-detail`}>
+                          <TableCell colSpan={9} className="bg-muted/10 p-4">
+                            <TratamentoDetail tratamentoId={t.id} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  ))}
                 </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
+
+        <Dialog open={openBaixa} onOpenChange={setOpenBaixa}>
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowDownCircle className="h-5 w-5 text-green-500" />
+                Registrar Baixa
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedTratamentoId && (() => {
+                const t = tratamentos?.find((tr: any) => tr.id === selectedTratamentoId);
+                if (!t) return null;
+                return (
+                  <div className="p-3 bg-muted/30 rounded-sm border border-border space-y-1">
+                    <p className="text-sm font-medium">{t.nome}</p>
+                    <p className="text-xs text-muted-foreground">{t.pacienteNome}</p>
+                    <div className="flex justify-between text-sm mt-2">
+                      <span>Saldo devedor:</span>
+                      <span className="font-mono font-bold text-orange-400">{formatCurrency(t.saldoDevedor)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+              <div>
+                <Label>Valor (R$) *</Label>
+                {(() => {
+                  const t = tratamentos?.find((tr: any) => tr.id === selectedTratamentoId);
+                  const maxVal = t?.saldoDevedor || 0;
+                  return (
+                    <>
+                      <Input type="number" step="0.01" min="0.01" max={maxVal} value={baixaForm.valor} onChange={e => {
+                        const v = parseFloat(e.target.value) || 0;
+                        setBaixaForm(f => ({ ...f, valor: Math.min(v, maxVal) }));
+                      }} />
+                      {maxVal > 0 && <p className="text-xs text-muted-foreground mt-1">Máximo: {formatCurrency(maxVal)}</p>}
+                    </>
+                  );
+                })()}
+              </div>
+              <div>
+                <Label>Forma de Pagamento *</Label>
+                <Select value={baixaForm.formaPagamento} onValueChange={v => setBaixaForm(f => ({ ...f, formaPagamento: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(formaLabels).map(([k, label]) => (
+                      <SelectItem key={k} value={k}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Observação</Label>
+                <Textarea value={baixaForm.observacao} onChange={e => setBaixaForm(f => ({ ...f, observacao: e.target.value }))} rows={2} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpenBaixa(false)}>Cancelar</Button>
+              <Button onClick={handleBaixa} disabled={registrarBaixa.isPending} className="bg-green-600 hover:bg-green-700 text-white">
+                {registrarBaixa.isPending ? "Registrando..." : "Confirmar Baixa"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
+  );
+}
+
+function TratamentoDetail({ tratamentoId }: { tratamentoId: number }) {
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`/api/financeiro/tratamentos/${tratamentoId}`)
+      .then(r => r.json())
+      .then(d => { setData(d); setIsLoading(false); })
+      .catch(() => setIsLoading(false));
+  }, [tratamentoId]);
+
+  if (isLoading) return <Skeleton className="h-20 w-full" />;
+  if (!data) return <p className="text-muted-foreground text-sm">Erro ao carregar detalhes</p>;
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {data.itens && data.itens.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+            <Receipt className="h-4 w-4 text-primary" /> Itens
+          </h4>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Item</TableHead>
+                <TableHead className="text-xs">Tipo</TableHead>
+                <TableHead className="text-xs text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.itens.map((item: any) => (
+                <TableRow key={item.id}>
+                  <TableCell className="text-xs">{item.substanciaNome || item.descricao}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-[10px]">{item.tipo}</Badge></TableCell>
+                  <TableCell className="text-xs text-right font-mono">{formatCurrency(item.valorTotal)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      {data.pagamentos && data.pagamentos.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+            <DollarSign className="h-4 w-4 text-green-500" /> Pagamentos
+          </h4>
+          <div className="space-y-2">
+            {data.pagamentos.map((pag: any) => (
+              <div key={pag.id} className="flex items-center justify-between p-2 bg-muted/20 rounded-sm border border-border text-sm">
+                <div>
+                  <Badge variant="outline" className="text-[10px] mr-2">
+                    {formaLabels[pag.formaPagamento] || pag.formaPagamento}
+                  </Badge>
+                  {pag.parcela && <span className="text-xs text-muted-foreground">Parcela {pag.parcela}/{pag.totalParcelas || "?"}</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-medium text-green-400">{formatCurrency(pag.valor)}</span>
+                  {pag.paguEm && <span className="text-xs text-muted-foreground">{new Date(pag.paguEm).toLocaleDateString("pt-BR")}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

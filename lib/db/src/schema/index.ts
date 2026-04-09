@@ -21,3 +21,4 @@ export * from "./ras";
 export * from "./codigosValidacao";
 export * from "./estoque";
 export * from "./codigosSemanticos";
+export * from "./tratamentos";
