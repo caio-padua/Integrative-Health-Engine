@@ -60,3 +60,33 @@ id = "FzsGksFHUnUqsZ5B8M0lU"
 uri = "file://ras_preview.pdf"
 type = "pdf"
 title = "RAS - Registro Administracao de Substancias (4 Paginas)"
+
+[[outputs]]
+id = "XD7oQnAU-s6_Bw0vXsddH"
+uri = "file://screenshots/01-login.jpg"
+type = "image"
+title = "1. Dashboard - Visao Geral do Motor"
+
+[[outputs]]
+id = "zCLdnJogZQf7S8s_DtchE"
+uri = "file://screenshots/02-financeiro.jpg"
+type = "image"
+title = "2. Financeiro - Modulo Completo"
+
+[[outputs]]
+id = "1At_6pt0y3BKz32r2ecbL"
+uri = "file://screenshots/03-pacientes.jpg"
+type = "image"
+title = "3. Pacientes - Tabela com Bordas Claras"
+
+[[outputs]]
+id = "tKc7iFv-Z2UUG57b39N7i"
+uri = "file://screenshots/04-agenda.jpg"
+type = "image"
+title = "4. Agenda Semanal - Cards por Dia"
+
+[[outputs]]
+id = "5EF8njne0pSm_NbmYE5ol"
+uri = "file://screenshots/05-itens.jpg"
+type = "image"
+title = "5. Itens Terapeuticos - 490 Itens Catalogo"
