@@ -75,6 +75,22 @@ interface MarcacaoData {
   }>;
 }
 
+interface TratamentoFinanceiroRAS {
+  nome: string;
+  valorBruto: number;
+  desconto: number;
+  valorFinal: number;
+  numeroParcelas: number;
+  dataInicio: string;
+  itens: Array<{
+    descricao: string;
+    tipo: string;
+    quantidade: number;
+    valorUnitario: number;
+    valorTotal: number;
+  }>;
+}
+
 interface DadosRAS {
   nomePaciente: string;
   cpfPaciente: string;
@@ -89,6 +105,7 @@ interface DadosRAS {
   substancias: SubstanciaRAS[];
   marcacoes: MarcacaoData[];
   nomeProtocolo: string;
+  tratamentoFinanceiro?: TratamentoFinanceiroRAS;
 }
 
 const LEFT = 30;
@@ -641,9 +658,215 @@ Os resultados variam individualmente e nao ha garantia de resultados especificos
   return y;
 }
 
+function drawFinancialContractPage(doc: InstanceType<typeof PDFDocument>, dados: DadosRAS) {
+  const totalPages = dados.tratamentoFinanceiro ? 5 : 4;
+  let y = drawRASHeader(doc, dados, totalPages, totalPages);
+  y += 5;
+
+  const trat = dados.tratamentoFinanceiro!;
+  const fmtMoney = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  doc.save();
+  doc.rect(LEFT, y, CONTENT_WIDTH, 18).fill(COLORS.accent);
+  doc.restore();
+  doc.fontSize(9).font("Helvetica-Bold").fillColor(COLORS.white);
+  doc.text("CONTRATO FINANCEIRO E CONDICOES DO TRATAMENTO", LEFT + 8, y + 4, { width: CONTENT_WIDTH - 16 });
+  y += 24;
+
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(COLORS.textDark);
+  doc.text("1. IDENTIFICACAO DAS PARTES", LEFT + 5, y);
+  y += 12;
+
+  doc.fontSize(6.5).font("Helvetica").fillColor(COLORS.textDark);
+  const contratoPartes = [
+    `CONTRATANTE: ${clean(dados.nomePaciente)}, CPF: ${formatCPF(dados.cpfPaciente)}, Telefone: ${formatPhone(dados.celularPaciente)}`,
+    `CONTRATADA: CLINICA PADUA MEDICINA INTEGRATIVA, sob responsabilidade de ${clean(dados.medicoResponsavel)} - ${dados.crmMedico}`,
+    `TRATAMENTO: ${clean(trat.nome)} | Protocolo: ${clean(dados.nomeProtocolo)}`,
+    `DATA DE INICIO: ${formatDate(trat.dataInicio)} | UNIDADE: ${clean(dados.agenda)}`,
+  ];
+  contratoPartes.forEach(line => {
+    doc.text(line, LEFT + 10, y, { width: CONTENT_WIDTH - 20, lineGap: 1 });
+    y += 10;
+  });
+  y += 6;
+
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(COLORS.textDark);
+  doc.text("2. COMPOSICAO DO TRATAMENTO E CUSTOS", LEFT + 5, y);
+  y += 14;
+
+  const colWidths = [CONTENT_WIDTH * 0.35, CONTENT_WIDTH * 0.15, CONTENT_WIDTH * 0.12, CONTENT_WIDTH * 0.14, CONTENT_WIDTH * 0.12, CONTENT_WIDTH * 0.12];
+  const headers = ["ITEM", "TIPO", "QTDE", "VALOR UNIT.", "TOTAL", ""];
+  const tableX = LEFT + 5;
+  const rowH = 14;
+
+  doc.save();
+  doc.rect(tableX, y, CONTENT_WIDTH - 10, rowH).fill(COLORS.headerBg);
+  doc.restore();
+  doc.fontSize(6).font("Helvetica-Bold").fillColor(COLORS.white);
+  let xPos = tableX + 4;
+  headers.forEach((h, i) => {
+    if (i < colWidths.length) {
+      doc.text(h, xPos, y + 3, { width: colWidths[i] - 8 });
+      xPos += colWidths[i];
+    }
+  });
+  y += rowH;
+
+  const tipoLabels: Record<string, string> = {
+    substancia: "Substancia",
+    insumo: "Insumo",
+    taxa_administrativa: "Taxa Adm.",
+    reserva_tecnica: "Reserva Tecnica",
+    honorario_medico: "Hon. Medico",
+    honorario_enfermagem: "Hon. Enfermagem",
+  };
+
+  trat.itens.forEach((item, idx) => {
+    const bg = idx % 2 === 0 ? COLORS.white : COLORS.rowAlt;
+    doc.save();
+    doc.rect(tableX, y, CONTENT_WIDTH - 10, rowH).fill(bg);
+    doc.rect(tableX, y, CONTENT_WIDTH - 10, rowH).stroke(COLORS.gridLight);
+    doc.restore();
+
+    doc.fontSize(6).font("Helvetica").fillColor(COLORS.textDark);
+    xPos = tableX + 4;
+    const vals = [
+      clean(item.descricao),
+      tipoLabels[item.tipo] || item.tipo,
+      item.quantidade.toString(),
+      fmtMoney(item.valorUnitario),
+      fmtMoney(item.valorTotal),
+    ];
+    vals.forEach((v, i) => {
+      doc.text(v, xPos, y + 3, { width: colWidths[i] - 8 });
+      xPos += colWidths[i];
+    });
+    y += rowH;
+  });
+
+  y += 4;
+  doc.save();
+  doc.rect(tableX, y, CONTENT_WIDTH - 10, rowH + 4).fill(COLORS.labelBg);
+  doc.rect(tableX, y, CONTENT_WIDTH - 10, rowH + 4).stroke(COLORS.gridBorder);
+  doc.restore();
+
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(COLORS.textDark);
+  const sumX = tableX + colWidths[0] + colWidths[1] + colWidths[2];
+  doc.text("VALOR BRUTO:", sumX + 4, y + 3);
+  doc.text(fmtMoney(trat.valorBruto), sumX + colWidths[3] + 4, y + 3);
+
+  if (trat.desconto > 0) {
+    y += rowH + 6;
+    doc.save();
+    doc.rect(tableX, y, CONTENT_WIDTH - 10, rowH).fill(COLORS.white);
+    doc.restore();
+    doc.fontSize(6.5).font("Helvetica").fillColor(COLORS.textDark);
+    doc.text("DESCONTO:", sumX + 4, y + 3);
+    doc.text(`- ${fmtMoney(trat.desconto)}`, sumX + colWidths[3] + 4, y + 3);
+  }
+
+  y += rowH + 4;
+  doc.save();
+  doc.rect(tableX, y, CONTENT_WIDTH - 10, rowH + 6).fill(COLORS.accent);
+  doc.restore();
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(COLORS.white);
+  doc.text("VALOR FINAL DO TRATAMENTO:", sumX - 60, y + 4);
+  doc.text(fmtMoney(trat.valorFinal), sumX + colWidths[3] + 4, y + 4);
+
+  if (trat.numeroParcelas > 1) {
+    y += rowH + 8;
+    doc.fontSize(6.5).font("Helvetica").fillColor(COLORS.textDark);
+    const valorParcela = trat.valorFinal / trat.numeroParcelas;
+    doc.text(`CONDICAO DE PAGAMENTO: ${trat.numeroParcelas}x de ${fmtMoney(valorParcela)}`, tableX + 4, y + 2);
+  }
+
+  y += 20;
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(COLORS.textDark);
+  doc.text("3. CLAUSULA DE DESISTENCIA E RETENCAO", LEFT + 5, y);
+  y += 14;
+
+  const custosRetencao = trat.itens.reduce((acc, item) => {
+    if (item.tipo === "substancia" || item.tipo === "insumo") {
+      acc.insumos += item.valorTotal;
+    } else if (item.tipo === "reserva_tecnica" || item.tipo === "honorario_enfermagem") {
+      acc.reservaTecnica += item.valorTotal;
+    } else if (item.tipo === "taxa_administrativa") {
+      acc.logistica += item.valorTotal;
+    }
+    return acc;
+  }, { insumos: 0, reservaTecnica: 0, logistica: 0 });
+
+  const totalRetencao = custosRetencao.insumos + custosRetencao.reservaTecnica + custosRetencao.logistica;
+
+  const clausulas = [
+    `3.1. Em caso de desistencia do tratamento por parte do CONTRATANTE, ficam retidos os seguintes valores referentes a custos ja incorridos pela CONTRATADA:`,
+    `     a) Insumos e substancias ja adquiridos exclusivamente para o paciente: ${fmtMoney(custosRetencao.insumos)}`,
+    `     b) Reserva tecnica e honorarios de enfermagem (tempo ja reservado): ${fmtMoney(custosRetencao.reservaTecnica)}`,
+    `     c) Taxa administrativa e logistica (agendamento, preparacao, estoque): ${fmtMoney(custosRetencao.logistica)}`,
+    `     TOTAL RETIDO EM CASO DE DESISTENCIA: ${fmtMoney(totalRetencao)}`,
+    ``,
+    `3.2. Os insumos (seringas, equipos, materiais descartaveis) adquiridos exclusivamente para o tratamento do CONTRATANTE nao sao reaproveitaveis e serao descontados integralmente.`,
+    `3.3. O tempo tecnico da equipe de enfermagem ja reservado para as sessoes agendadas constitui custo operacional irreversivel.`,
+    `3.4. O estoque de substancias adquirido especificamente para o protocolo do CONTRATANTE, quando nao reutilizavel para outros pacientes, sera integralmente retido.`,
+    `3.5. O valor excedente ao total retido sera devolvido ao CONTRATANTE em ate 30 (trinta) dias uteis apos a formalizacao da desistencia.`,
+  ];
+
+  doc.fontSize(6.5).font("Helvetica").fillColor(COLORS.textDark);
+  clausulas.forEach(line => {
+    if (line.includes("TOTAL RETIDO")) {
+      doc.font("Helvetica-Bold");
+    }
+    doc.text(line, LEFT + 10, y, { width: CONTENT_WIDTH - 20, lineGap: 1.2 });
+    y += line === "" ? 4 : 9;
+    doc.font("Helvetica");
+  });
+
+  y += 6;
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(COLORS.textDark);
+  doc.text("4. DECLARACAO DO CONTRATANTE", LEFT + 5, y);
+  y += 14;
+
+  doc.fontSize(6.5).font("Helvetica").fillColor(COLORS.textDark);
+  const declaracao = `Declaro que li e compreendi todas as condicoes deste contrato, incluindo a composicao detalhada dos custos do tratamento, as condicoes de pagamento e a clausula de desistencia com os respectivos valores de retencao. Estou ciente de que a desistencia implica retencao dos custos ja incorridos pela clinica, conforme detalhado na clausula 3 acima. Assumo integral responsabilidade pelo cumprimento das obrigacoes financeiras aqui estabelecidas.`;
+  const declH = doc.heightOfString(declaracao, { width: CONTENT_WIDTH - 20, lineGap: 1.5 });
+  doc.text(declaracao, LEFT + 10, y, { width: CONTENT_WIDTH - 20, lineGap: 1.5 });
+  y += declH + 15;
+
+  if (y > PAGE_HEIGHT - 90) {
+    y = PAGE_HEIGHT - 90;
+  }
+
+  doc.fontSize(7).font("Helvetica").fillColor(COLORS.textDark);
+  doc.text(`Local: ________________________________  Data: ____/____/________`, LEFT, y);
+  y += 25;
+
+  const sigW = CONTENT_WIDTH / 2;
+  const lineW = sigW - 40;
+
+  doc.moveTo(LEFT + 10, y).lineTo(LEFT + 10 + lineW, y).stroke(COLORS.gridBorder);
+  doc.moveTo(LEFT + sigW + 10, y).lineTo(LEFT + sigW + 10 + lineW, y).stroke(COLORS.gridBorder);
+
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(COLORS.textDark);
+  doc.text("Assinatura do Contratante (Paciente)", LEFT + 10, y + 4, { width: lineW });
+  doc.text("Assinatura da Contratada (Clinica)", LEFT + sigW + 10, y + 4, { width: lineW });
+
+  doc.fontSize(6).font("Helvetica").fillColor(COLORS.textMedium);
+  doc.text(clean(dados.nomePaciente), LEFT + 10, y + 14, { width: lineW });
+  doc.text(`CPF: ${formatCPF(dados.cpfPaciente)}`, LEFT + 10, y + 22, { width: lineW });
+  doc.text(`${clean(dados.medicoResponsavel)} - ${dados.crmMedico}`, LEFT + sigW + 10, y + 14, { width: lineW });
+
+  y += 38;
+  doc.fontSize(5).font("Helvetica").fillColor(COLORS.textLight);
+  doc.text(
+    `PADCOM V15.2 - Motor Clinico | Contrato Financeiro gerado eletronicamente em ${new Date().toLocaleDateString("pt-BR")} | ${clean(dados.agenda)}`,
+    LEFT, y, { width: CONTENT_WIDTH, align: "center" }
+  );
+}
+
 export function gerarPdfRAS(dados: DadosRAS): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const totalPages = 4;
+    const hasFinanceiro = !!dados.tratamentoFinanceiro;
+    const totalPages = hasFinanceiro ? 5 : 4;
     const marcacoes1 = dados.marcacoes.slice(0, 10);
     const marcacoes2 = dados.marcacoes.slice(10, 20);
 
@@ -673,6 +896,11 @@ export function gerarPdfRAS(dados: DadosRAS): Promise<Buffer> {
 
     doc.addPage({ layout: "landscape", size: "A4" });
     drawConsentPage(doc, dados);
+
+    if (hasFinanceiro) {
+      doc.addPage({ layout: "landscape", size: "A4" });
+      drawFinancialContractPage(doc, dados);
+    }
 
     doc.end();
   });

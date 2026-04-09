@@ -5,6 +5,7 @@ import {
   pacientesTable, substanciasTable, usuariosTable, unidadesTable,
   codigosValidacaoTable, insertCodigoValidacaoSchema,
   estoqueItensTable, insertEstoqueItemSchema,
+  tratamentosTable, tratamentoItensTable,
 } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { gerarPdfRAS } from "../pdf/gerarRAS";
@@ -234,6 +235,32 @@ router.get("/ras/pdf/paciente/:pacienteId", async (req, res) => {
       ? Math.floor((Date.now() - new Date(paciente.dataNascimento).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
       : null;
 
+    let tratamentoFinanceiro = undefined;
+    const tratamentosAtivos = await db.select().from(tratamentosTable)
+      .where(and(eq(tratamentosTable.pacienteId, pacienteId), eq(tratamentosTable.status, "ativo")));
+
+    if (tratamentosAtivos.length > 0) {
+      const trat = tratamentosAtivos[0];
+      const itens = await db.select().from(tratamentoItensTable)
+        .where(eq(tratamentoItensTable.tratamentoId, trat.id));
+
+      tratamentoFinanceiro = {
+        nome: trat.nome,
+        valorBruto: trat.valorBruto,
+        desconto: trat.desconto,
+        valorFinal: trat.valorFinal,
+        numeroParcelas: trat.numeroParcelas,
+        dataInicio: trat.dataInicio || new Date().toISOString().split("T")[0],
+        itens: itens.map(i => ({
+          descricao: i.descricao,
+          tipo: i.tipo,
+          quantidade: i.quantidade,
+          valorUnitario: i.valorUnitario,
+          valorTotal: i.valorTotal,
+        })),
+      };
+    }
+
     const dadosRAS = {
       nomePaciente: paciente.nome,
       cpfPaciente: paciente.cpf || "",
@@ -248,6 +275,7 @@ router.get("/ras/pdf/paciente/:pacienteId", async (req, res) => {
       substancias: substanciasRAS,
       marcacoes,
       nomeProtocolo: "",
+      tratamentoFinanceiro,
     };
 
     const pdfBuffer = await gerarPdfRAS(dadosRAS);

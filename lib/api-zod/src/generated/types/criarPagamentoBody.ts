@@ -13,4 +13,8 @@ export interface CriarPagamentoBody {
   formaPagamento: CriarPagamentoBodyFormaPagamento;
   descricao?: string;
   unidadeId: number;
+  tratamentoId?: number;
+  parcela?: number;
+  totalParcelas?: number;
+  observacao?: string;
 }

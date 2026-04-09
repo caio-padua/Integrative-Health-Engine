@@ -46,29 +46,30 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-primary/20 bg-card">
-        <CardHeader className="space-y-2 text-center pb-6 border-b border-border/50">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Activity className="w-10 h-10 text-primary" />
+      <Card className="w-full max-w-md border-border bg-card">
+        <CardHeader className="space-y-3 text-center pb-6 border-b border-border">
+          <div className="flex justify-center mb-2">
+            <div className="w-16 h-16 flex items-center justify-center border-2 border-primary/40 bg-primary/8">
+              <Activity className="w-8 h-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Motor Clínico</CardTitle>
-          <CardDescription className="text-muted-foreground text-base">
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground uppercase">Motor Clínico</CardTitle>
+          <p className="text-[11px] text-muted-foreground tracking-[0.3em] uppercase">PADCOM V15.2 — Medicina Integrativa</p>
+          <CardDescription className="text-muted-foreground text-sm">
             Onde o caos vira fluxo.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-mail</FormLabel>
+                    <FormLabel className="text-xs uppercase tracking-wider">E-mail</FormLabel>
                     <FormControl>
-                      <Input placeholder="usuario@clinica.com" {...field} className="bg-input/50" data-testid="input-email" />
+                      <Input placeholder="usuario@clinica.com" {...field} className="bg-input/50 h-11" data-testid="input-email" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -79,15 +80,15 @@ export default function Login() {
                 name="senha"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Senha</FormLabel>
+                    <FormLabel className="text-xs uppercase tracking-wider">Senha</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="bg-input/50" data-testid="input-senha" />
+                      <Input type="password" placeholder="••••••••" {...field} className="bg-input/50 h-11" data-testid="input-senha" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full text-lg h-12 mt-4 font-bold" data-testid="button-login">
+              <Button type="submit" className="w-full h-12 mt-4 font-bold uppercase tracking-wider" data-testid="button-login">
                 Entrar no Motor
               </Button>
             </form>

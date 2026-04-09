@@ -440,11 +440,15 @@ export const PagamentoFormaPagamento = {
 export interface Pagamento {
   id: number;
   pacienteId: number;
-  pacienteNome: string;
+  pacienteNome?: string;
+  tratamentoId?: number | null;
   valor: number;
   status: PagamentoStatus;
   formaPagamento?: PagamentoFormaPagamento;
   descricao?: string;
+  parcela?: number | null;
+  totalParcelas?: number | null;
+  observacao?: string | null;
   unidadeId: number;
   criadoEm: string;
   paguEm?: string;
@@ -468,6 +472,204 @@ export interface CriarPagamentoBody {
   formaPagamento: CriarPagamentoBodyFormaPagamento;
   descricao?: string;
   unidadeId: number;
+  tratamentoId?: number;
+  parcela?: number;
+  totalParcelas?: number;
+  observacao?: string;
+}
+
+export type TratamentoStatus =
+  (typeof TratamentoStatus)[keyof typeof TratamentoStatus];
+
+export const TratamentoStatus = {
+  ativo: "ativo",
+  concluido: "concluido",
+  cancelado: "cancelado",
+  desistencia: "desistencia",
+  suspenso: "suspenso",
+} as const;
+
+export interface Tratamento {
+  id: number;
+  pacienteId: number;
+  pacienteNome?: string;
+  pacienteCpf?: string | null;
+  protocoloId?: number | null;
+  unidadeId?: number | null;
+  medicoId?: number | null;
+  nome: string;
+  descricao?: string | null;
+  valorBruto: number;
+  desconto?: number;
+  valorFinal: number;
+  valorPago: number;
+  saldoDevedor: number;
+  numeroParcelas?: number;
+  status: TratamentoStatus;
+  dataInicio?: string | null;
+  dataPrevisaoFim?: string | null;
+  criadoEm?: string;
+}
+
+export type TratamentoDetalhadoCondicoesPagamento = {
+  [key: string]: unknown;
+} | null;
+
+export type TratamentoDetalhadoStatus =
+  (typeof TratamentoDetalhadoStatus)[keyof typeof TratamentoDetalhadoStatus];
+
+export const TratamentoDetalhadoStatus = {
+  ativo: "ativo",
+  concluido: "concluido",
+  cancelado: "cancelado",
+  desistencia: "desistencia",
+  suspenso: "suspenso",
+} as const;
+
+export type TratamentoDetalhadoDetalhesRetencao = {
+  [key: string]: unknown;
+} | null;
+
+export type TratamentoItemTipo =
+  (typeof TratamentoItemTipo)[keyof typeof TratamentoItemTipo];
+
+export const TratamentoItemTipo = {
+  substancia: "substancia",
+  insumo: "insumo",
+  taxa_administrativa: "taxa_administrativa",
+  reserva_tecnica: "reserva_tecnica",
+  honorario_medico: "honorario_medico",
+  honorario_enfermagem: "honorario_enfermagem",
+} as const;
+
+export interface TratamentoItem {
+  id: number;
+  substanciaId?: number | null;
+  substanciaNome?: string | null;
+  descricao: string;
+  tipo: TratamentoItemTipo;
+  quantidade: number;
+  valorUnitario: number;
+  valorTotal: number;
+  numeroSessoes?: number | null;
+  via?: string | null;
+  observacoes?: string | null;
+}
+
+export interface TratamentoDetalhado {
+  id: number;
+  pacienteId: number;
+  pacienteNome?: string;
+  pacienteCpf?: string | null;
+  protocoloId?: number | null;
+  unidadeId?: number | null;
+  medicoId?: number | null;
+  nome: string;
+  descricao?: string | null;
+  valorBruto: number;
+  desconto?: number;
+  valorFinal: number;
+  valorPago: number;
+  saldoDevedor: number;
+  numeroParcelas?: number;
+  condicoesPagamento?: TratamentoDetalhadoCondicoesPagamento;
+  status: TratamentoDetalhadoStatus;
+  dataInicio?: string | null;
+  dataPrevisaoFim?: string | null;
+  dataConclusao?: string | null;
+  motivoDesistencia?: string | null;
+  valorRetidoDesistencia?: number | null;
+  custosInsumos?: number | null;
+  custoReservaTecnica?: number | null;
+  custoLogistica?: number | null;
+  detalhesRetencao?: TratamentoDetalhadoDetalhesRetencao;
+  observacoes?: string | null;
+  criadoEm?: string;
+  atualizadoEm?: string;
+  itens?: TratamentoItem[];
+  pagamentos?: Pagamento[];
+}
+
+export type CriarTratamentoBodyCondicoesPagamento = { [key: string]: unknown };
+
+export type CriarTratamentoBodyItensItem = {
+  substanciaId?: number;
+  descricao?: string;
+  tipo?: string;
+  quantidade?: number;
+  valorUnitario?: number;
+  numeroSessoes?: number;
+  via?: string;
+  observacoes?: string;
+};
+
+export interface CriarTratamentoBody {
+  pacienteId: number;
+  protocoloId?: number;
+  unidadeId?: number;
+  medicoId?: number;
+  nome: string;
+  descricao?: string;
+  valorBruto?: number;
+  desconto?: number;
+  numeroParcelas?: number;
+  dataInicio?: string;
+  dataPrevisaoFim?: string;
+  condicoesPagamento?: CriarTratamentoBodyCondicoesPagamento;
+  observacoes?: string;
+  itens?: CriarTratamentoBodyItensItem[];
+}
+
+export type RegistrarBaixaBodyFormaPagamento =
+  (typeof RegistrarBaixaBodyFormaPagamento)[keyof typeof RegistrarBaixaBodyFormaPagamento];
+
+export const RegistrarBaixaBodyFormaPagamento = {
+  dinheiro: "dinheiro",
+  cartao_credito: "cartao_credito",
+  cartao_debito: "cartao_debito",
+  pix: "pix",
+  boleto: "boleto",
+  plano_saude: "plano_saude",
+} as const;
+
+export interface RegistrarBaixaBody {
+  valor: number;
+  formaPagamento: RegistrarBaixaBodyFormaPagamento;
+  observacao?: string;
+  parcela?: number;
+}
+
+export type ResumoFinanceiroPacienteTratamentosItem = {
+  id?: number;
+  nome?: string;
+  status?: string;
+  valorFinal?: number;
+  valorPago?: number;
+  saldoDevedor?: number;
+  dataInicio?: string;
+};
+
+export interface ResumoFinanceiroPaciente {
+  pacienteId: number;
+  totalTratamentos: number;
+  tratamentosAtivos: number;
+  totalValorTratamentos: number;
+  totalPago: number;
+  totalPendente: number;
+  tratamentos?: ResumoFinanceiroPacienteTratamentosItem[];
+}
+
+export type DashboardFinanceiroPagamentosPorForma = { [key: string]: unknown };
+
+export interface DashboardFinanceiro {
+  totalRecebido: number;
+  totalPendente: number;
+  tratamentosAtivos: number;
+  tratamentosConcluidos?: number;
+  desistencias?: number;
+  inadimplencia?: number;
+  totalTratamentos: number;
+  pagamentosPorForma?: DashboardFinanceiroPagamentosPorForma;
 }
 
 export interface Unidade {
@@ -836,6 +1038,51 @@ export const ListarPagamentosStatus = {
   cancelado: "cancelado",
   estornado: "estornado",
 } as const;
+
+export type ListarTratamentosParams = {
+  pacienteId?: number;
+  status?: ListarTratamentosStatus;
+};
+
+export type ListarTratamentosStatus =
+  (typeof ListarTratamentosStatus)[keyof typeof ListarTratamentosStatus];
+
+export const ListarTratamentosStatus = {
+  ativo: "ativo",
+  concluido: "concluido",
+  cancelado: "cancelado",
+  desistencia: "desistencia",
+  suspenso: "suspenso",
+} as const;
+
+export type AtualizarTratamentoBody = {
+  nome?: string;
+  descricao?: string;
+  valorBruto?: number;
+  desconto?: number;
+  numeroParcelas?: number;
+  dataPrevisaoFim?: string;
+  observacoes?: string;
+  status?: string;
+};
+
+export type RegistrarBaixa201 = {
+  pagamento?: Pagamento;
+  tratamento?: Tratamento;
+};
+
+export type RegistrarDesistenciaBody = {
+  motivoDesistencia?: string;
+};
+
+export type RegistrarDesistencia200DetalhesRetencao = {
+  [key: string]: unknown;
+};
+
+export type RegistrarDesistencia200 = {
+  tratamento?: Tratamento;
+  detalhesRetencao?: RegistrarDesistencia200DetalhesRetencao;
+};
 
 export type ListarUsuariosParams = {
   perfil?: ListarUsuariosPerfil;
