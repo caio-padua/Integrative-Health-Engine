@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import {
   createCalendarEvent,
   updateCalendarEventDescription,
+  deleteCalendarEvent,
   listCalendarEvents,
   listCalendars,
   buildEventDescription,
@@ -41,6 +42,7 @@ router.post("/google-calendar/sync-session/:sessaoId", async (req, res) => {
       .select({
         sessao: sessoesTable,
         pacienteNome: pacientesTable.nome,
+        pacienteCpf: pacientesTable.cpf,
         pacienteEmail: pacientesTable.email,
         unidadeNome: unidadesTable.nome,
         unidadeCalendarId: unidadesTable.googleCalendarId,
@@ -79,9 +81,16 @@ router.post("/google-calendar/sync-session/:sessaoId", async (req, res) => {
       status: a.aplicacao.status || 'disp',
     }));
 
+    if (sessaoData.sessao.googleEventId) {
+      try {
+        await deleteCalendarEvent(sessaoData.unidadeCalendarId || 'primary', sessaoData.sessao.googleEventId);
+      } catch (e: any) { console.warn('[Calendar] Could not delete old event:', e?.message); }
+    }
+
     const calendarData: SessaoCalendarData = {
       sessaoId,
       pacienteNome: sessaoData.pacienteNome || 'SEM NOME',
+      pacienteCpf: sessaoData.pacienteCpf || undefined,
       profissionalNome: sessaoData.profissionalNome || '',
       tipoProcedimento: sessaoData.sessao.tipoProcedimento || 'CONSULTA',
       duracaoMin: sessaoData.sessao.duracaoTotalMin || 60,
@@ -89,6 +98,8 @@ router.post("/google-calendar/sync-session/:sessaoId", async (req, res) => {
       horaAgendada: sessaoData.sessao.horaAgendada,
       horaFim: sessaoData.sessao.horaFim || sessaoData.sessao.horaAgendada,
       calendarId: sessaoData.unidadeCalendarId || 'primary',
+      numeroMarcacao: sessaoData.sessao.numeroSemana || undefined,
+      unidadeNome: sessaoData.unidadeNome || undefined,
       substancias,
       endereco: {
         rua: sessaoData.unidadeEndereco || undefined,
@@ -125,6 +136,9 @@ router.post("/google-calendar/update-session/:sessaoId", async (req, res) => {
     const [sessaoData] = await db
       .select({
         sessao: sessoesTable,
+        pacienteNome: pacientesTable.nome,
+        pacienteCpf: pacientesTable.cpf,
+        unidadeNome: unidadesTable.nome,
         unidadeCalendarId: unidadesTable.googleCalendarId,
         unidadeEndereco: unidadesTable.endereco,
         unidadeBairro: unidadesTable.bairro,
@@ -133,6 +147,7 @@ router.post("/google-calendar/update-session/:sessaoId", async (req, res) => {
         unidadeEstado: unidadesTable.estado,
       })
       .from(sessoesTable)
+      .leftJoin(pacientesTable, eq(sessoesTable.pacienteId, pacientesTable.id))
       .leftJoin(unidadesTable, eq(sessoesTable.unidadeId, unidadesTable.id))
       .where(eq(sessoesTable.id, sessaoId));
 
@@ -170,6 +185,12 @@ router.post("/google-calendar/update-session/:sessaoId", async (req, res) => {
         cep: sessaoData.unidadeCep || undefined,
         cidade: sessaoData.unidadeCidade || undefined,
         estado: sessaoData.unidadeEstado || undefined,
+      },
+      {
+        pacienteNome: sessaoData.pacienteNome || '',
+        pacienteCpf: sessaoData.pacienteCpf || undefined,
+        numeroMarcacao: sessaoData.sessao.numeroSemana || undefined,
+        unidadeNome: sessaoData.unidadeNome || undefined,
       },
     );
 

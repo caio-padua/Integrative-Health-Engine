@@ -16,6 +16,13 @@ export interface Paciente {
   dataNascimento?: string;
   telefone: string;
   email?: string;
+  cep?: string;
+  endereco?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  pais?: string;
   unidadeId: number;
   statusAtivo: boolean;
   criadoEm: string;
@@ -28,6 +35,13 @@ export interface CriarPacienteBody {
   dataNascimento?: string;
   telefone: string;
   email?: string;
+  cep?: string;
+  endereco?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  pais?: string;
   unidadeId: number;
 }
 

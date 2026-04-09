@@ -10,18 +10,7 @@ router.get("/pacientes", async (req, res): Promise<void> => {
   const busca = req.query.busca as string | undefined;
 
   let query = db
-    .select({
-      id: pacientesTable.id,
-      nome: pacientesTable.nome,
-      cpf: pacientesTable.cpf,
-      dataNascimento: pacientesTable.dataNascimento,
-      telefone: pacientesTable.telefone,
-      email: pacientesTable.email,
-      unidadeId: pacientesTable.unidadeId,
-      statusAtivo: pacientesTable.statusAtivo,
-      criadoEm: pacientesTable.criadoEm,
-      atualizadoEm: pacientesTable.atualizadoEm,
-    })
+    .select()
     .from(pacientesTable);
 
   const pacientes = await query;
@@ -69,6 +58,26 @@ router.put("/pacientes/:id", async (req, res): Promise<void> => {
   const [paciente] = await db.update(pacientesTable).set(parsed.data).where(eq(pacientesTable.id, id)).returning();
   if (!paciente) { res.status(404).json({ error: "Paciente não encontrado" }); return; }
   res.json(paciente);
+});
+
+router.get("/cep/:cep", async (req, res): Promise<void> => {
+  const cep = req.params.cep.replace(/\D/g, '');
+  if (cep.length !== 8) { res.status(400).json({ error: "CEP invalido" }); return; }
+  try {
+    const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await resp.json();
+    if (data.erro) { res.status(404).json({ error: "CEP nao encontrado" }); return; }
+    res.json({
+      cep: data.cep,
+      endereco: data.logradouro,
+      bairro: data.bairro,
+      cidade: data.localidade,
+      estado: data.uf,
+      pais: "Brasil",
+    });
+  } catch {
+    res.status(500).json({ error: "Erro ao consultar CEP" });
+  }
 });
 
 export default router;

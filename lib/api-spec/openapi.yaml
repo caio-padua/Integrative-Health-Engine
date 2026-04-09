@@ -1070,6 +1070,20 @@ components:
           type: string
         email:
           type: string
+        cep:
+          type: string
+        endereco:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+        cidade:
+          type: string
+        estado:
+          type: string
+        pais:
+          type: string
         unidadeId:
           type: integer
         statusAtivo:
@@ -1102,6 +1116,20 @@ components:
         telefone:
           type: string
         email:
+          type: string
+        cep:
+          type: string
+        endereco:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+        cidade:
+          type: string
+        estado:
+          type: string
+        pais:
           type: string
         unidadeId:
           type: integer

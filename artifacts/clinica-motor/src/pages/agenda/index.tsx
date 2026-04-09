@@ -231,7 +231,7 @@ function SessaoCard({ sessao }: { sessao: SessaoAgenda }) {
             {sessao.sessao.numeroSemana && (
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                Semana {sessao.sessao.numeroSemana}
+                Marcacao {sessao.sessao.numeroSemana}
               </span>
             )}
           </div>

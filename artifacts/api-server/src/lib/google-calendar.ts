@@ -68,7 +68,34 @@ function statusDot(status: string): string {
   }
 }
 
+function formatCpf(cpf: string | undefined): string {
+  if (!cpf) return '';
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length === 11) {
+    return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`;
+  }
+  return cpf;
+}
+
+function determineSessionStatus(substancias: SubstanciaEvento[]): { label: string; dot: string } {
+  if (!substancias.length) return { label: 'A REALIZAR', dot: '🟡' };
+
+  const hasAplicada = substancias.some(s => s.status === 'aplicada');
+  const allDone = substancias.every(s => s.status === 'aplicada' || s.status === 'nao_aplicada');
+  const hasNaoAplicada = substancias.some(s => s.status === 'nao_aplicada');
+
+  if (allDone && hasAplicada && !hasNaoAplicada) return { label: 'REALIZADO', dot: '🔵' };
+  if (allDone && hasNaoAplicada && !hasAplicada) return { label: 'NAO REALIZADO', dot: '⚫' };
+  if (allDone) return { label: 'REALIZADO', dot: '🔵' };
+  return { label: 'A REALIZAR', dot: '🟡' };
+}
+
 export function buildEventDescription(opts: {
+  pacienteNome: string;
+  pacienteCpf?: string;
+  numeroMarcacao?: number;
+  totalMarcacoes?: number;
+  unidadeNome?: string;
   substancias: SubstanciaEvento[];
   tipoProcedimento: string;
   duracaoMin: number;
@@ -80,7 +107,7 @@ export function buildEventDescription(opts: {
     estado?: string;
   };
 }): string {
-  const { substancias, tipoProcedimento, duracaoMin, endereco } = opts;
+  const { pacienteNome, pacienteCpf, numeroMarcacao, totalMarcacoes, unidadeNome, substancias, tipoProcedimento, duracaoMin, endereco } = opts;
 
   const vias = new Set(substancias.map(s => s.via?.toLowerCase()));
   const temIM = vias.has('im');
@@ -90,19 +117,39 @@ export function buildEventDescription(opts: {
 
   const lines: string[] = [];
 
-  lines.push('━━━ CHECKLIST DE PROCEDIMENTOS ━━━');
-  lines.push(`${temEV ? '✅' : '❌'} APLICACAO ENDOVENOSA - DURACAO: 30 MINUTOS`);
-  lines.push(`${temIM ? '✅' : '❌'} APLICACAO INTRAMUSCULAR - DURACAO: 15 MINUTOS`);
-  lines.push(`${temImplante ? '✅' : '❌'} IMPLANTE - DURACAO: 60 MINUTOS`);
-  lines.push(`${temConsulta ? '✅' : '❌'} CONSULTA - DURACAO: 60 MINUTOS`);
+  lines.push('PADCOM - PROTOCOLOS INJETAVEIS');
+  lines.push('');
+  lines.push(pacienteNome.toUpperCase());
+  if (pacienteCpf) lines.push(`CPF ${formatCpf(pacienteCpf)}`);
+  if (numeroMarcacao) lines.push(`Marcacao ${numeroMarcacao}${totalMarcacoes ? '/' + totalMarcacoes : ''}`);
+  if (unidadeNome) lines.push(`Unidade ${unidadeNome}`);
+  lines.push('');
+
+  lines.push('PROCEDIMENTO:');
+  lines.push(`CONSULTA - DURACAO: 60 MINUTOS ${temConsulta ? '✅' : '❎'}`);
+  lines.push(`APLICACAO ENDOVENOSA - DURACAO: 30 MINUTOS ${temEV ? '✅' : '❎'}`);
+  lines.push(`APLICACAO INTRAMUSCULAR - DURACAO: 15 MINUTOS ${temIM ? '✅' : '❎'}`);
+  lines.push(`IMPLANTE - DURACAO: 60 MINUTOS ${temImplante ? '✅' : '❎'}`);
   lines.push('');
   lines.push(`DURACAO TOTAL: ${duracaoMin} MINUTOS`);
   lines.push('');
 
-  lines.push('━━━ SUBSTANCIAS ━━━');
+  const sessionStatus = determineSessionStatus(substancias);
+  lines.push(`STATUS: ${sessionStatus.label} ${sessionStatus.dot}`);
+  lines.push('');
+
+  lines.push('SUBSTANCIAS DO PROTOCOLO:');
   for (const s of substancias) {
-    lines.push(`${statusDot(s.status)} | ${s.nome.toUpperCase()} (${s.via?.toUpperCase() || '-'}) - ${s.dose}`);
+    lines.push(`${statusDot(s.status)} ${s.nome.toUpperCase()} (${s.via?.toUpperCase() || '-'}) - ${s.dose}`);
   }
+  lines.push('');
+
+  lines.push('---');
+  lines.push('LEGENDA');
+  lines.push('🟢 DISP - DISPONIVEL PARA APLICACAO HOJE');
+  lines.push('🔵 APLICADA - SUBSTANCIA JA APLICADA');
+  lines.push('🟤 PROX - PROXIMA SESSAO');
+  lines.push('⚫ N/A - NAO APLICAVEL');
   lines.push('');
 
   if (endereco && endereco.rua) {
@@ -134,6 +181,7 @@ export function determineCalendarRouting(vias: string[]): 'medico' | 'enfermagem
 export interface SessaoCalendarData {
   sessaoId: number;
   pacienteNome: string;
+  pacienteCpf?: string;
   profissionalNome: string;
   tipoProcedimento: string;
   duracaoMin: number;
@@ -141,6 +189,9 @@ export interface SessaoCalendarData {
   horaAgendada: string;
   horaFim: string;
   calendarId: string;
+  numeroMarcacao?: number;
+  totalMarcacoes?: number;
+  unidadeNome?: string;
   substancias: SubstanciaEvento[];
   endereco?: {
     rua?: string;
@@ -172,6 +223,11 @@ export async function createCalendarEvent(data: SessaoCalendarData): Promise<any
   const endDateTime = `${data.dataAgendada}T${data.horaFim}:00`;
 
   const description = buildEventDescription({
+    pacienteNome: data.pacienteNome,
+    pacienteCpf: data.pacienteCpf,
+    numeroMarcacao: data.numeroMarcacao,
+    totalMarcacoes: data.totalMarcacoes,
+    unidadeNome: data.unidadeNome,
     substancias: data.substancias,
     tipoProcedimento: data.tipoProcedimento,
     duracaoMin: data.duracaoMin,
@@ -206,11 +262,17 @@ export async function updateCalendarEventDescription(
   substancias: SubstanciaEvento[],
   tipoProcedimento: string,
   duracaoMin: number,
-  endereco?: SessaoCalendarData['endereco']
+  endereco?: SessaoCalendarData['endereco'],
+  extra?: { pacienteNome?: string; pacienteCpf?: string; numeroMarcacao?: number; totalMarcacoes?: number; unidadeNome?: string }
 ): Promise<any> {
   const calendar = await getCalendarClient();
 
   const description = buildEventDescription({
+    pacienteNome: extra?.pacienteNome || '',
+    pacienteCpf: extra?.pacienteCpf,
+    numeroMarcacao: extra?.numeroMarcacao,
+    totalMarcacoes: extra?.totalMarcacoes,
+    unidadeNome: extra?.unidadeNome,
     substancias,
     tipoProcedimento,
     duracaoMin,
@@ -224,6 +286,14 @@ export async function updateCalendarEventDescription(
   });
 
   return response.data;
+}
+
+export async function deleteCalendarEvent(calendarId: string, eventId: string): Promise<void> {
+  const calendar = await getCalendarClient();
+  await calendar.events.delete({
+    calendarId: calendarId || 'primary',
+    eventId,
+  });
 }
 
 export async function listCalendarEvents(calendarId: string, timeMin: string, timeMax: string): Promise<any[]> {
