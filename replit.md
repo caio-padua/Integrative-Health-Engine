@@ -82,8 +82,9 @@ lib/
 ## Design System — PADCOM V15.2
 
 - **Bordas**: radius=0px (quadradas em tudo — cards, inputs, badges, botões)
-- **Primary**: Ouro hsl(38 75% 55%) — clássico, elegante
-- **Background**: Navy profundo hsl(220 25% 8%)
+- **Primary**: Azul pastel hsl(210 45% 65%) — clássico, elegante, identidade DP
+- **Background**: Navy profundo hsl(215 28% 9%)
+- **Logo**: Logotipo DP (Clinica Padua) em public/logo-dp.png, fundo transparente
 - **Sidebar**: Indicador ativo = border-left-2 primary color
 - **Tipografia**: JetBrains Mono; labels uppercase com tracking-wider
 - **Tabelas**: Bordas visíveis para TDAH (seguir com o dedo)

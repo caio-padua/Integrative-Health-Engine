@@ -52,7 +52,6 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "RAS", path: "/ras", icon: FileCheck, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
     { name: "Codigos Validacao", path: "/codigos-validacao", icon: KeyRound, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
     { name: "Estoque", path: "/estoque", icon: Package, roles: ["validador_mestre", "enfermeira", "validador_enfermeiro"] },
-    { name: "Codigos Semanticos", path: "/codigos-semanticos", icon: Hash, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, roles: ["validador_mestre"] },
     { name: "Configuracoes", path: "/configuracoes", icon: Settings, roles: ["validador_mestre"] },
@@ -64,8 +63,8 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex bg-background">
       <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
         <div className="h-16 flex items-center px-5 border-b border-border">
-          <div className="w-8 h-8 flex items-center justify-center bg-primary/15 border border-primary/30 mr-3">
-            <Activity className="text-primary h-4 w-4" />
+          <div className="w-9 h-9 flex items-center justify-center bg-white/90 border border-border mr-3 p-1">
+            <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain invert-0" />
           </div>
           <div>
             <span className="font-bold text-sm text-sidebar-foreground tracking-tight uppercase">Motor Clínico</span>
