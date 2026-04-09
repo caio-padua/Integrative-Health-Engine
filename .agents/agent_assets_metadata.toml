@@ -54,3 +54,9 @@ id = "gpd77JOM6cha3lKMV4xrU"
 uri = "file://screenshots/receita_variante_b_v2.jpg"
 type = "image"
 title = "Receita B v2 - Com funcao ao lado de cada formula, sem campos de farmacia no rodape"
+
+[[outputs]]
+id = "FzsGksFHUnUqsZ5B8M0lU"
+uri = "file://ras_preview.pdf"
+type = "pdf"
+title = "RAS - Registro Administracao de Substancias (4 Paginas)"
