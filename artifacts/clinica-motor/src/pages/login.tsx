@@ -49,8 +49,8 @@ export default function Login() {
       <Card className="w-full max-w-md border-border bg-card">
         <CardHeader className="space-y-3 text-center pb-6 border-b border-border">
           <div className="flex justify-center mb-2">
-            <div className="w-16 h-16 flex items-center justify-center border-2 border-primary/40 bg-primary/8">
-              <Activity className="w-8 h-8 text-primary" />
+            <div className="w-20 h-20 flex items-center justify-center border-2 border-primary/30 bg-white/90 p-2">
+              <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain" />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight text-foreground uppercase">Motor Clínico</CardTitle>

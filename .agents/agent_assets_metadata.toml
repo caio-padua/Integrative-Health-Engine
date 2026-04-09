@@ -90,3 +90,39 @@ id = "5EF8njne0pSm_NbmYE5ol"
 uri = "file://screenshots/05-itens.jpg"
 type = "image"
 title = "5. Itens Terapeuticos - 490 Itens Catalogo"
+
+[[outputs]]
+id = "TYT9cdDnMFD7nqAmSsYZb"
+uri = "file://screenshots/v2-01-dashboard.jpg"
+type = "image"
+title = "1. Dashboard - Azul Pastel + Logo DP"
+
+[[outputs]]
+id = "SDIkwx-hpVx2rXjBu3AV7"
+uri = "file://screenshots/v2-02-financeiro.jpg"
+type = "image"
+title = "2. Financeiro - Modulo Completo"
+
+[[outputs]]
+id = "EmwVWzBHhrB-TsV_FxBA5"
+uri = "file://screenshots/v2-03-substancias.jpg"
+type = "image"
+title = "3. Substancias - Codigos PADCOM Discretos"
+
+[[outputs]]
+id = "9CRzNmaoU35Uv9_NFQtCh"
+uri = "file://screenshots/v2-04-agenda.jpg"
+type = "image"
+title = "4. Agenda Semanal"
+
+[[outputs]]
+id = "u9DgMXJyS3axJN2EvtsG2"
+uri = "file://screenshots/v2-05-pacientes.jpg"
+type = "image"
+title = "5. Pacientes - Tabela com Bordas"
+
+[[outputs]]
+id = "lAYErHFrWVON7G-2Zer1p"
+uri = "file://screenshots/v2-06-itens.jpg"
+type = "image"
+title = "6. Itens Terapeuticos - 490 Itens"
