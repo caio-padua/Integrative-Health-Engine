@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, ChevronDown, ChevronRight, Syringe, Droplets, CircleDot, FlaskConical, Stethoscope, Brain } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Syringe, Droplets, CircleDot, FlaskConical, Stethoscope, Brain, Microscope } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
-type TabKey = "injetaveis" | "endovenosos" | "implantes" | "formulas" | "protocolos" | "doencas";
+type TabKey = "injetaveis" | "endovenosos" | "implantes" | "formulas" | "protocolos" | "exames" | "doencas";
 
 const TABS: { key: TabKey; label: string; icon: typeof Syringe }[] = [
   { key: "injetaveis", label: "Injetaveis IM", icon: Syringe },
@@ -15,6 +15,7 @@ const TABS: { key: TabKey; label: string; icon: typeof Syringe }[] = [
   { key: "implantes", label: "Implantes", icon: CircleDot },
   { key: "formulas", label: "Formulas", icon: FlaskConical },
   { key: "protocolos", label: "Protocolos", icon: Stethoscope },
+  { key: "exames", label: "Exames", icon: Microscope },
   { key: "doencas", label: "Doencas", icon: Brain },
 ];
 
@@ -488,6 +489,91 @@ function DoencasTab() {
   );
 }
 
+function ExamesTab() {
+  const [search, setSearch] = useState("");
+  const [expandedGrupo, setExpandedGrupo] = useState<string | null>(null);
+  const { data = [], isLoading } = useQuery({
+    queryKey: ["catalogo-exames-base"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE_URL}api/catalogo/exames-base`);
+      return res.json();
+    },
+  });
+
+  const filtered = data.filter((e: any) =>
+    !search || e.codigoExame?.toLowerCase().includes(search.toLowerCase()) ||
+    e.nomeExame?.toLowerCase().includes(search.toLowerCase()) ||
+    e.grupoPrincipal?.toLowerCase().includes(search.toLowerCase()) ||
+    e.blocoOficial?.toLowerCase().includes(search.toLowerCase()) ||
+    e.modalidade?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const grouped: Record<string, any[]> = {};
+  filtered.forEach((e: any) => {
+    const g = e.grupoPrincipal || "OUTROS";
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push(e);
+  });
+
+  if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar exame por codigo, nome, grupo, bloco ou modalidade..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} exames</Badge>
+      </div>
+      <div className="space-y-3">
+        {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([grupo, items]) => (
+          <div key={grupo} className="border rounded-lg">
+            <button
+              onClick={() => setExpandedGrupo(expandedGrupo === grupo ? null : grupo)}
+              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {expandedGrupo === grupo ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <span className="font-semibold text-sm uppercase tracking-wider">{grupo}</span>
+                <Badge variant="secondary" className="text-xs">{items.length}</Badge>
+              </div>
+            </button>
+            {expandedGrupo === grupo && (
+              <div className="border-t">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/30 text-left">
+                      <th className="px-4 py-2 font-medium text-muted-foreground">Codigo</th>
+                      <th className="px-4 py-2 font-medium text-muted-foreground">Nome</th>
+                      <th className="px-4 py-2 font-medium text-muted-foreground">Modalidade</th>
+                      <th className="px-4 py-2 font-medium text-muted-foreground">Bloco</th>
+                      <th className="px-4 py-2 font-medium text-muted-foreground">Grau</th>
+                      <th className="px-4 py-2 font-medium text-muted-foreground">Prioridade</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((ex: any) => (
+                      <tr key={ex.id} className="border-t hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-2.5 font-mono text-xs text-primary font-medium">{ex.codigoExame}</td>
+                        <td className="px-4 py-2.5 font-medium">{ex.nomeExame}</td>
+                        <td className="px-4 py-2.5"><Badge variant="outline" className="text-xs">{ex.modalidade}</Badge></td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">{ex.blocoOficial}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">{ex.grauDoBloco}</td>
+                        <td className="px-4 py-2.5"><Badge variant={ex.prioridade === "ALTA" ? "destructive" : "secondary"} className="text-xs">{ex.prioridade}</Badge></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CatalogoPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("injetaveis");
 
@@ -499,12 +585,22 @@ export default function CatalogoPage() {
     },
   });
 
+  const { data: examesCount } = useQuery({
+    queryKey: ["catalogo-exames-count"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE_URL}api/catalogo/exames-base`);
+      const data = await res.json();
+      return data.length;
+    },
+  });
+
   const tabCounts: Record<TabKey, number> = {
     injetaveis: resumo?.injetaveis ?? 0,
     endovenosos: resumo?.endovenosos ?? 0,
     implantes: resumo?.implantes ?? 0,
     formulas: resumo?.formulas ?? 0,
     protocolos: resumo?.protocolos ?? 0,
+    exames: examesCount ?? 0,
     doencas: resumo?.doencas ?? 0,
   };
 
@@ -544,6 +640,7 @@ export default function CatalogoPage() {
       {activeTab === "implantes" && <ImplantesTab />}
       {activeTab === "formulas" && <FormulasTab />}
       {activeTab === "protocolos" && <ProtocolosTab />}
+      {activeTab === "exames" && <ExamesTab />}
       {activeTab === "doencas" && <DoencasTab />}
     </Layout>
   );
