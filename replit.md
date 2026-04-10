@@ -51,15 +51,20 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 22. **Codigos Semanticos PADCOM** — 119 codigos importados da planilha Google Drive com padrao TIPO SISTEMA SUBTIPO SEQUENCIA (16 tipos: EXAM, INJE, FORM, PROC, DOEN, SINT, CIRU, DADO, TERA, FINA, DIET, PSIC, RECO, PAGA, FISC, JURI), filtros por tipo/grupo, colunas de procedimentos (Prescricao/Formula, Injetavel IM, Injetavel EV, Implante, Exame, Protocolo, Dieta) com indicadores visuais coloridos, 45 codigos com procedimentos vinculados
 23. **Google Calendar** — Integracao real com OAuth via clinica.padua.agenda@gmail.com: 8 calendarios mapeados. Descricao do evento: NOME sem prefixo, CPF formatado, Marcacao X/Y (nao "Semana"), Unidade, procedimentos com emojis ❎✅ a DIREITA, STATUS (🟡 A REALIZAR / 🔵 REALIZADO / ⚫ NAO REALIZADO), substancias com status (🟢 DISP → 🔵 APLICADA ao confirmar). Reagendar = excluir evento antigo + criar novo. Maps+Waze links
 24. **Google Drive** — Estrutura completa de 15 subpastas por paciente: CADASTRO (com CADASTROS ANTIGOS sandbox), PATOLOGIAS, EXAMES, AVALIACOES, RECEITAS, PROTOCOLOS, FINANCEIRO, CONTRATOS, ATESTADOS, LAUDOS, TERMOS, FOTO PERFIL, IMAGENS, PESQUISA, OUVIDORIA. Nomenclatura padronizada YYYY.MM.DD TIPO NOME_PACIENTE.pdf. Sandbox automatico de cadastro (antigo→CADASTROS ANTIGOS, so fica o atual). Upload por subpasta, listagem por subpasta, compartilhamento com paciente como visualizador. Campo googleDriveFolderId em pacientes
-25. **Gmail** — Emails automaticos pre-sessao (info completa: data, hora, local, endereco, procedimento, substancias) e pos-sessao (relatorio com status de cada substancia aplicada). Templates HTML profissionais com branding Clinica Padua
-26. **Configuracoes** — Usuarios, permissoes
+25. **Gmail** — Emails automaticos pre-sessao e pos-sessao com branding Clinica Padua. **Pre-sessao 1a sessao**: detalhes completos de cada substancia (funcao, efeitos esperados, tempo para efeito, beneficios, contraindicacoes), orientacoes para primeira sessao (alimentacao, documentos, roupas, hidratacao). **Pre-sessao seguintes**: info resumida (data, hora, local, substancias). **Pos-sessao**: relatorio com status aplicada/nao-aplicada, barra de progresso do protocolo (sessao X de Y), aderencia % com cor (verde>=80%, laranja>=50%, vermelho<50%), proxima sessao agendada
+26. **Avaliacao de Enfermagem** — Registro de sinais vitais (PA, FC, peso — sempre visiveis), composicao corporal com 7 dobras cutaneas + 8 circunferencias (toggle), alertas clinicos (verde=log, amarelo=1 task card->enfermeira 36h, vermelho=2 task cards->enfermeira+medico imediato)
+27. **Task Cards** — Cards de alerta gerados automaticamente pelas avaliacoes de enfermagem, filtros por status (Pendente/Em Andamento/Concluido), role e cor, atribuicao por perfil
+28. **RAS Evolutivo** — Acompanhamento longitudinal de sessoes com progresso, aderencia e tolerancia, gerado automaticamente ao concluir sessao
+29. **Portal do Cliente** — Pagina publica (sem login) para pacientes: identificacao por CPF + data nascimento, upload de arquivos por categoria, protegido por LGPD (Lei 13.709/2018)
+30. **TCLE Dinamico** — Termo de Consentimento no PDF gerado dinamicamente conforme vias presentes no protocolo: clausulas especificas para IV (com sub-clausulas G6PD para Vitamina C e NAD+), IM, SC, Implante, Oral/Topica. Secoes fixas: Identificacao, Finalidade, Riscos, Contraindicacoes, LGPD, Armazenamento Digital, Declaracao Final
+31. **Configuracoes** — Usuarios, permissoes
 
 ## Estrutura do Projeto
 
 ```
 artifacts/
   api-server/          # Backend Express 5
-    src/routes/        # Rotas: anamnese, motorClinico, filas, followup, financeiro, dashboard...
+    src/routes/        # Rotas: anamnese, motorClinico, filas, followup, financeiro, dashboard, avaliacaoEnfermagem, taskCards, rasEvolutivo, avaliacoesCliente, portalCliente, googleGmail, googleCalendar, googleDrive...
   clinica-motor/       # Frontend React + Vite
     src/pages/         # Todas as páginas da aplicação
     src/components/    # Componentes reutilizáveis

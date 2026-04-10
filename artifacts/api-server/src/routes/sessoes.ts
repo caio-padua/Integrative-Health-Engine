@@ -459,4 +459,143 @@ router.get("/agenda/semanal", async (req, res) => {
   res.json({ dataFrom, dataTo, dias: porDia });
 });
 
+function buildIcsEvent(sessao: any, pacienteNome: string, pacienteCpf: string, unidadeNome: string, substancias: any[]): string {
+  const date = (sessao.dataAgendada || "").replace(/-/g, "");
+  const time = (sessao.horaAgendada || "09:00").replace(":", "") + "00";
+  const durMin = sessao.duracaoTotalMin || 60;
+  const [h, m] = (sessao.horaAgendada || "09:00").split(":").map(Number);
+  const endTotal = h * 60 + m + durMin;
+  const endH = String(Math.floor(endTotal / 60) % 24).padStart(2, "0");
+  const endM = String(endTotal % 60).padStart(2, "0");
+  const endTime = `${endH}${endM}00`;
+
+  const substList = substancias.map(s => {
+    const st = s.status === "aplicada" ? "APLICADA" : s.disponibilidade === "disp" ? "DISP" : "PROX";
+    return `${st} - ${s.nome} ${s.dose} (${s.numeroSessao}/${s.totalSessoes})`;
+  }).join("\\n");
+
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//PADCOM//MotorClinico//PT",
+    "BEGIN:VEVENT",
+    `UID:padcom-sessao-${sessao.id}@motorclinico`,
+    `DTSTART:${date}T${time}`,
+    `DTEND:${date}T${endTime}`,
+    `SUMMARY:${pacienteNome} - ${pacienteCpf || ""}`,
+    `DESCRIPTION:Substancias:\\n${substList}`,
+    `LOCATION:${unidadeNome || ""}`,
+    `STATUS:${sessao.status === "concluida" ? "COMPLETED" : "CONFIRMED"}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+router.get("/sessoes/:id/ics", async (req, res) => {
+  const sessaoId = Number(req.params.id);
+  const [sessaoData] = await db
+    .select({ sessao: sessoesTable, pacienteNome: pacientesTable.nome, pacienteCpf: pacientesTable.cpf, unidadeNome: unidadesTable.nome })
+    .from(sessoesTable)
+    .leftJoin(pacientesTable, eq(sessoesTable.pacienteId, pacientesTable.id))
+    .leftJoin(unidadesTable, eq(sessoesTable.unidadeId, unidadesTable.id))
+    .where(eq(sessoesTable.id, sessaoId));
+
+  if (!sessaoData) { res.status(404).json({ error: "Sessao nao encontrada" }); return; }
+
+  const aplicacoes = await db
+    .select({ substanciaNome: substanciasTable.nome, dose: aplicacoesSubstanciasTable.dose, status: aplicacoesSubstanciasTable.status, disponibilidade: aplicacoesSubstanciasTable.disponibilidade, numeroSessao: aplicacoesSubstanciasTable.numeroSessao, totalSessoes: aplicacoesSubstanciasTable.totalSessoes })
+    .from(aplicacoesSubstanciasTable)
+    .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
+    .where(eq(aplicacoesSubstanciasTable.sessaoId, sessaoId));
+
+  const substList = aplicacoes.map(a => ({ nome: a.substanciaNome || "", dose: a.dose, status: a.status, disponibilidade: a.disponibilidade, numeroSessao: a.numeroSessao, totalSessoes: a.totalSessoes }));
+
+  const ics = buildIcsEvent(sessaoData.sessao, sessaoData.pacienteNome || "", sessaoData.pacienteCpf || "", sessaoData.unidadeNome || "", substList);
+
+  res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="sessao-${sessaoId}.ics"`);
+  res.send(ics);
+});
+
+router.get("/sessoes/ics-semana", async (req, res) => {
+  const { dataFrom, dataTo } = req.query;
+  if (!dataFrom || !dataTo) { res.status(400).json({ error: "dataFrom e dataTo obrigatorios" }); return; }
+
+  const sessoes = await db
+    .select({ sessao: sessoesTable, pacienteNome: pacientesTable.nome, pacienteCpf: pacientesTable.cpf, unidadeNome: unidadesTable.nome })
+    .from(sessoesTable)
+    .leftJoin(pacientesTable, eq(sessoesTable.pacienteId, pacientesTable.id))
+    .leftJoin(unidadesTable, eq(sessoesTable.unidadeId, unidadesTable.id))
+    .where(and(gte(sessoesTable.dataAgendada, String(dataFrom)), lte(sessoesTable.dataAgendada, String(dataTo))))
+    .orderBy(sessoesTable.dataAgendada, sessoesTable.horaAgendada);
+
+  let events = "";
+  for (const s of sessoes) {
+    const aplicacoes = await db
+      .select({ substanciaNome: substanciasTable.nome, dose: aplicacoesSubstanciasTable.dose, status: aplicacoesSubstanciasTable.status, disponibilidade: aplicacoesSubstanciasTable.disponibilidade, numeroSessao: aplicacoesSubstanciasTable.numeroSessao, totalSessoes: aplicacoesSubstanciasTable.totalSessoes })
+      .from(aplicacoesSubstanciasTable)
+      .leftJoin(substanciasTable, eq(aplicacoesSubstanciasTable.substanciaId, substanciasTable.id))
+      .where(eq(aplicacoesSubstanciasTable.sessaoId, s.sessao.id));
+
+    const substList = aplicacoes.map(a => ({ nome: a.substanciaNome || "", dose: a.dose, status: a.status, disponibilidade: a.disponibilidade, numeroSessao: a.numeroSessao, totalSessoes: a.totalSessoes }));
+    const icsContent = buildIcsEvent(s.sessao, s.pacienteNome || "", s.pacienteCpf || "", s.unidadeNome || "", substList);
+    const eventBlock = icsContent.split("BEGIN:VEVENT")[1]?.split("END:VEVENT")[0];
+    if (eventBlock) events += "BEGIN:VEVENT" + eventBlock + "END:VEVENT\r\n";
+  }
+
+  const fullIcs = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//PADCOM//MotorClinico//PT\r\n${events}END:VCALENDAR`;
+
+  res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="agenda-semana.ics"`);
+  res.send(fullIcs);
+});
+
+router.get("/sessoes/:id/whatsapp-lembrete", async (req, res) => {
+  const sessaoId = Number(req.params.id);
+  const [sessaoData] = await db
+    .select({ sessao: sessoesTable, pacienteNome: pacientesTable.nome, pacienteTelefone: pacientesTable.telefone, unidadeNome: unidadesTable.nome })
+    .from(sessoesTable)
+    .leftJoin(pacientesTable, eq(sessoesTable.pacienteId, pacientesTable.id))
+    .leftJoin(unidadesTable, eq(sessoesTable.unidadeId, unidadesTable.id))
+    .where(eq(sessoesTable.id, sessaoId));
+
+  if (!sessaoData) { res.status(404).json({ error: "Sessao nao encontrada" }); return; }
+
+  const primeiroNome = (sessaoData.pacienteNome || "").split(" ")[0];
+  const dataFormatada = (sessaoData.sessao.dataAgendada || "").split("-").reverse().join("/");
+  const telefone = (sessaoData.pacienteTelefone || "").replace(/\D/g, "");
+  const telefoneInt = telefone.startsWith("55") ? telefone : `55${telefone}`;
+
+  const mensagem = `Ola ${primeiroNome}! 👋\n\nLembramos que voce tem uma sessao agendada:\n\n📅 *${dataFormatada}* as *${sessaoData.sessao.horaAgendada}*\n📍 ${sessaoData.unidadeNome || "Clinica PADCOM"}\n\nQualquer duvida, estamos a disposicao. ✨`;
+
+  const waUrl = `https://wa.me/${telefoneInt}?text=${encodeURIComponent(mensagem)}`;
+
+  res.json({ url: waUrl, mensagem, telefone: telefoneInt });
+});
+
+router.get("/sessoes/:id/whatsapp-codigo", async (req, res) => {
+  const sessaoId = Number(req.params.id);
+  const { codigo } = req.query;
+  if (!codigo) { res.status(400).json({ error: "codigo obrigatorio" }); return; }
+
+  const [sessaoData] = await db
+    .select({ sessao: sessoesTable, pacienteNome: pacientesTable.nome, pacienteTelefone: pacientesTable.telefone })
+    .from(sessoesTable)
+    .leftJoin(pacientesTable, eq(sessoesTable.pacienteId, pacientesTable.id))
+    .where(eq(sessoesTable.id, sessaoId));
+
+  if (!sessaoData) { res.status(404).json({ error: "Sessao nao encontrada" }); return; }
+
+  const primeiroNome = (sessaoData.pacienteNome || "").split(" ")[0];
+  const dataFormatada = (sessaoData.sessao.dataAgendada || "").split("-").reverse().join("/");
+  const telefone = (sessaoData.pacienteTelefone || "").replace(/\D/g, "");
+  const telefoneInt = telefone.startsWith("55") ? telefone : `55${telefone}`;
+
+  const mensagem = `Clinica Padua | ${sessaoData.sessao.tipoProcedimento || "Sessao"} | ${codigo}\n\nOla ${primeiroNome}!\n\nSeu codigo de validacao para a sessao de ${dataFormatada} e:\n\n🔑 *${codigo}*\n\nApresente este codigo a enfermeira no momento da aplicacao.\n\nClinica Padua — Protocolos Injetaveis`;
+
+  const waUrl = `https://wa.me/${telefoneInt}?text=${encodeURIComponent(mensagem)}`;
+
+  res.json({ url: waUrl, mensagem, telefone: telefoneInt });
+});
+
 export default router;

@@ -22,6 +22,11 @@ import codigosSemanticosRouter from "./codigosSemanticos";
 import googleCalendarRouter from "./googleCalendar";
 import googleDriveRouter from "./googleDrive";
 import googleGmailRouter from "./googleGmail";
+import avaliacaoEnfermagemRouter from "./avaliacaoEnfermagem";
+import taskCardsRouter from "./taskCards";
+import rasEvolutivoRouter from "./rasEvolutivo";
+import avaliacoesClienteRouter from "./avaliacoesCliente";
+import portalClienteRouter from "./portalCliente";
 
 const router: IRouter = Router();
 
@@ -48,5 +53,10 @@ router.use(codigosSemanticosRouter);
 router.use(googleCalendarRouter);
 router.use(googleDriveRouter);
 router.use(googleGmailRouter);
+router.use(avaliacaoEnfermagemRouter);
+router.use(taskCardsRouter);
+router.use(rasEvolutivoRouter);
+router.use(avaliacoesClienteRouter);
+router.use(portalClienteRouter);
 
 export default router;
