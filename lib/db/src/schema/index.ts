@@ -22,3 +22,7 @@ export * from "./codigosValidacao";
 export * from "./estoque";
 export * from "./codigosSemanticos";
 export * from "./tratamentos";
+export * from "./avaliacaoEnfermagem";
+export * from "./taskCards";
+export * from "./rasEvolutivo";
+export * from "./avaliacoesCliente";

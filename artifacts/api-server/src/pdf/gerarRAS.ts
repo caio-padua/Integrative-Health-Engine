@@ -560,6 +560,18 @@ function drawSubstanciaInfoPage(doc: InstanceType<typeof PDFDocument>, dados: Da
 function drawConsentPage(doc: InstanceType<typeof PDFDocument>, dados: DadosRAS) {
   let y = TOP;
 
+  const normalizeVia = (v: string): string => {
+    const lower = v.toLowerCase().trim();
+    if (['iv', 'ev', 'endovenosa', 'endovenoso', 'intravenosa'].includes(lower)) return 'iv';
+    if (['im', 'intramuscular'].includes(lower)) return 'im';
+    if (['sc', 'subcutanea', 'subcutaneo'].includes(lower)) return 'sc';
+    if (['implante', 'implant', 'pellet', 'pellets'].includes(lower)) return 'implante';
+    if (['oral'].includes(lower)) return 'oral';
+    if (['topica', 'topico', 'topical'].includes(lower)) return 'topica';
+    return lower;
+  };
+  const viasPresentes = new Set(dados.substancias.map(s => normalizeVia(s.via || '')));
+
   doc.save();
   doc.rect(LEFT, y, CONTENT_WIDTH, 22).fill(COLORS.headerBg);
   doc.restore();
@@ -567,42 +579,89 @@ function drawConsentPage(doc: InstanceType<typeof PDFDocument>, dados: DadosRAS)
   doc.text("TERMO DE CONSENTIMENTO LIVRE E ESCLARECIDO", LEFT + 8, y + 6);
   y += 30;
 
-  const sections = [
-    {
-      title: "1. CONSENTIMENTO PARA TERAPIA ENDOVENOSA (IV)",
-      text: `Eu, ${clean(dados.nomePaciente)}, portador(a) do CPF ${formatCPF(dados.cpfPaciente)}, declaro que fui devidamente informado(a) pelo(a) Dr(a). ${clean(dados.medicoResponsavel)} (${dados.crmMedico}) sobre os procedimentos de terapia endovenosa (IV) aos quais serei submetido(a), incluindo a administracao de substancias por via intravenosa.
+  let sectionNum = 0;
 
-Estou ciente de que a terapia endovenosa consiste na infusao direta de substancias terapeuticas na corrente sanguinea, e que os beneficios esperados incluem maior biodisponibilidade, efeito terapeutico mais rapido e eficaz. Fui informado(a) sobre os possiveis efeitos colaterais, que podem incluir: dor ou desconforto no local da puncao, hematoma, flebite (inflamacao da veia), reacoes alergicas, alteracoes na pressao arterial, tontura, nauseas, e em casos raros, reacoes anafilaticas.
+  const sections: { title: string; text: string }[] = [];
 
-Compreendo que o profissional de saude responsavel pela aplicacao tomara todas as medidas de seguranca necessarias, incluindo avaliacao previa, monitoramento durante o procedimento e orientacoes pos-aplicacao.`,
-    },
-    {
-      title: "2. CONSENTIMENTO PARA TERAPIA INTRAMUSCULAR (IM)",
-      text: `Declaro ter sido informado(a) sobre os procedimentos de aplicacao intramuscular das substancias prescritas no protocolo terapeutico personalizado. A via intramuscular permite a administracao de substancias no tecido muscular, proporcionando absorcao gradual e sustentada.
+  sections.push({
+    title: `${++sectionNum}. IDENTIFICACAO E CONSENTIMENTO`,
+    text: `Eu, ${clean(dados.nomePaciente)}, portador(a) do CPF ${formatCPF(dados.cpfPaciente)}, declaro que fui devidamente informado(a) pelo(a) Dr(a). ${clean(dados.medicoResponsavel)} (${dados.crmMedico}) sobre os procedimentos terapeuticos aos quais serei submetido(a), conforme protocolo personalizado prescrito.
 
-Os possiveis efeitos colaterais incluem: dor no local da aplicacao, nodulacao, hematoma, raramente abscesso ou reacao alergica local. Estou ciente de que devo informar imediatamente a equipe medica em caso de qualquer reacao adversa, dor intensa ou sinais de infeccao no local da aplicacao.`,
-    },
-    {
-      title: "3. CONSENTIMENTO PARA FORMULACOES ORAIS E TOPICAS",
-      text: `Fui orientado(a) sobre as formulacoes magistrais prescritas para uso oral e/ou topico, incluindo suas indicacoes, posologia, possíveis interacoes medicamentosas e efeitos colaterais. Compreendo que as formulacoes sao personalizadas e preparadas em farmacia de manipulacao conforme prescricao medica individualizada.
+Autorizo a administracao das seguintes substancias: ${dados.substancias.map(s => clean(s.nome)).join(', ')}. Estou ciente de que os procedimentos injetaveis podem incluir aplicacoes por via ${Array.from(viasPresentes).map(v => v.toUpperCase()).join(', ')}.`,
+  });
 
-Comprometo-me a seguir rigorosamente as orientacoes de uso, armazenamento e posologia, e a comunicar imediatamente ao medico responsavel qualquer efeito adverso ou intercorrencia.`,
-    },
-    {
-      title: "4. CONSENTIMENTO PARA IMPLANTES HORMONAIS E TERAPEUTICOS",
-      text: `Declaro ter sido esclarecido(a) sobre o procedimento de implantacao subcutanea de pellets/implantes terapeuticos, incluindo: a natureza do procedimento cirurgico (minimamente invasivo), os riscos inerentes (infeccao, extracao, encapsulamento, deslocamento do implante), o tempo de liberacao gradual das substancias, a necessidade de acompanhamento laboratorial periodico, e os beneficios terapeuticos esperados.
+  sections.push({
+    title: `${++sectionNum}. FINALIDADE TERAPEUTICA`,
+    text: `Fui informado(a) de que o protocolo prescrito tem como finalidade a suplementacao de micronutrientes, modulacao bioquimica, terapia antioxidante, reposicao hormonal e/ou outras abordagens da medicina integrativa, conforme avaliacao clinica individualizada.`,
+  });
 
-Estou ciente de que os implantes sao inseridos mediante anestesia local e que o procedimento requer cuidados pos-operatorios especificos que me foram detalhadamente explicados.`,
-    },
-    {
-      title: "5. DECLARACAO GERAL",
-      text: `Declaro que todas as informacoes sobre meu historico de saude, alergias, medicamentos em uso e condicoes preexistentes foram por mim fornecidas de forma veridica e completa. Autorizo a equipe medica a realizar os procedimentos descritos neste protocolo e estou ciente de que posso revogar este consentimento a qualquer momento, mediante comunicacao escrita ao medico responsavel.
+  sections.push({
+    title: `${++sectionNum}. RISCOS E EFEITOS ADVERSOS GERAIS`,
+    text: `Fui informado(a) sobre os possiveis efeitos adversos gerais, que podem incluir: dor e/ou hematoma no local da aplicacao, reacoes alergicas, rubor facial, cefaleia, nausea, hipotensao transitoria e, em casos raros, reacoes anafilaticas. Compreendo que o profissional responsavel tomara todas as medidas de seguranca necessarias.`,
+  });
 
-Declaro ainda que recebi copia deste documento, que todas as minhas duvidas foram esclarecidas, e que consinto de forma livre, voluntaria e esclarecida com a realizacao do tratamento proposto.
+  if (viasPresentes.has('iv')) {
+    const hasVitC = dados.substancias.some(s => s.nome.toLowerCase().includes('vitamina c') || s.nome.toLowerCase().includes('vit c'));
+    const hasNAD = dados.substancias.some(s => s.nome.toLowerCase().includes('nad'));
+    let ivExtra = '';
+    if (hasVitC) ivExtra += `\n\nNo caso de Vitamina C endovenosa em alta dose (acima de 10g), declaro ciencia da necessidade de dosagem previa de G6PD (glicose-6-fosfato desidrogenase). A deficiencia desta enzima pode causar anemia hemolitica grave.`;
+    if (hasNAD) ivExtra += `\n\nNo caso de NAD+, fui orientado(a) sobre a velocidade de infusao adequada e possiveis desconfortos como sensacao de calor, nausea ou cefaleia transitoria.`;
 
-Os resultados variam individualmente e nao ha garantia de resultados especificos. O acompanhamento medico regular e fundamental para a seguranca e eficacia do tratamento.`,
-    },
-  ];
+    sections.push({
+      title: `${++sectionNum}. CONSENTIMENTO PARA TERAPIA ENDOVENOSA (IV)`,
+      text: `Autorizo procedimentos por via endovenosa. Fui informado(a) que infusoes IV requerem acesso venoso periferico, podendo ocorrer dor no local da puncao, hematoma, flebite (inflamacao da veia) e, raramente, infiltracao. A terapia endovenosa consiste na infusao direta de substancias terapeuticas na corrente sanguinea, proporcionando maior biodisponibilidade e efeito terapeutico mais rapido.${ivExtra}`,
+    });
+  }
+
+  if (viasPresentes.has('im')) {
+    sections.push({
+      title: `${++sectionNum}. CONSENTIMENTO PARA TERAPIA INTRAMUSCULAR (IM)`,
+      text: `Autorizo procedimentos por via intramuscular. Estou ciente de que aplicacoes IM podem causar dor local, hematoma, nodulacao transitoria e, em raros casos, lesao nervosa periferica. A via intramuscular permite a administracao de substancias no tecido muscular, proporcionando absorcao gradual e sustentada.`,
+    });
+  }
+
+  if (viasPresentes.has('sc')) {
+    sections.push({
+      title: `${++sectionNum}. CONSENTIMENTO PARA TERAPIA SUBCUTANEA (SC)`,
+      text: `Autorizo procedimentos por via subcutanea. Fui informado(a) que aplicacoes SC podem resultar em nodulos locais, eritema, prurido e dor no ponto de aplicacao. A absorcao e gradual e a via subcutanea e indicada para substancias que requerem liberacao lenta e sustentada.`,
+    });
+  }
+
+  if (viasPresentes.has('implante')) {
+    sections.push({
+      title: `${++sectionNum}. CONSENTIMENTO PARA IMPLANTES HORMONAIS E TERAPEUTICOS`,
+      text: `Autorizo a realizacao de implante subcutaneo. Estou ciente dos riscos especificos incluindo: necessidade de pequeno procedimento cirurgico (minimamente invasivo), possibilidade de infeccao local, extrusao do implante, formacao de cicatriz, encapsulamento, deslocamento do implante, e necessidade de retorno para remocao ao final do periodo terapeutico. Os implantes sao inseridos mediante anestesia local e o procedimento requer cuidados pos-operatorios especificos que me foram detalhadamente explicados.`,
+    });
+  }
+
+  if (viasPresentes.has('oral') || viasPresentes.has('topica')) {
+    sections.push({
+      title: `${++sectionNum}. CONSENTIMENTO PARA FORMULACOES ORAIS E TOPICAS`,
+      text: `Fui orientado(a) sobre as formulacoes magistrais prescritas para uso oral e/ou topico, incluindo suas indicacoes, posologia, possiveis interacoes medicamentosas e efeitos colaterais. Compreendo que as formulacoes sao personalizadas e preparadas em farmacia de manipulacao conforme prescricao medica individualizada. Comprometo-me a seguir rigorosamente as orientacoes de uso, armazenamento e posologia.`,
+    });
+  }
+
+  sections.push({
+    title: `${++sectionNum}. CONTRAINDICACOES INFORMADAS`,
+    text: `Declaro ter sido informado(a) sobre as contraindicacoes gerais, incluindo: gestacao ou suspeita de gravidez, amamentacao, uso de anticoagulantes, doencas renais, hepaticas ou cardiacas descompensadas, alergias conhecidas as substancias do protocolo, e outras condicoes que possam interferir na seguranca do tratamento.`,
+  });
+
+  sections.push({
+    title: `${++sectionNum}. LGPD — LEI GERAL DE PROTECAO DE DADOS`,
+    text: `Em conformidade com a Lei n. 13.709/2018 (LGPD), autorizo a coleta, armazenamento e processamento dos meus dados pessoais e dados sensiveis de saude exclusivamente para fins de acompanhamento clinico, geracao de relatorios medicos (RAS), comunicacao sobre agendamentos e resultados, e cumprimento de obrigacoes legais e regulatorias.`,
+  });
+
+  sections.push({
+    title: `${++sectionNum}. ARMAZENAMENTO DIGITAL`,
+    text: `Autorizo o armazenamento digital de todos os registros de atendimento, incluindo RAS, TCLE, laudos e exames, no sistema PADCOM e, quando aplicavel, em ambiente de nuvem seguro (Google Drive), com compartilhamento exclusivo ao meu e-mail cadastrado, em modo somente leitura.`,
+  });
+
+  sections.push({
+    title: `${++sectionNum}. DECLARACAO FINAL`,
+    text: `Declaro que todas as informacoes sobre meu historico de saude, alergias, medicamentos em uso e condicoes preexistentes foram por mim fornecidas de forma veridica e completa. Autorizo a equipe medica a realizar os procedimentos descritos neste protocolo e estou ciente de que posso revogar este consentimento a qualquer momento, mediante comunicacao escrita ao medico responsavel.
+
+Declaro ter lido e compreendido integralmente o presente termo, que todas as minhas duvidas foram esclarecidas, e que consinto de forma livre, voluntaria e esclarecida com a realizacao do tratamento proposto. Os resultados variam individualmente e nao ha garantia de resultados especificos. O acompanhamento medico regular e fundamental para a seguranca e eficacia do tratamento.`,
+  });
 
   sections.forEach((section) => {
     if (y > PAGE_HEIGHT - 120) {

@@ -31,6 +31,10 @@ import CodigosSemanticos from "@/pages/codigos-semanticos";
 import RasPage from "@/pages/ras";
 import CodigosValidacaoPage from "@/pages/codigos-validacao";
 import EstoquePage from "@/pages/estoque";
+import TaskCardsPage from "@/pages/task-cards";
+import AvaliacaoEnfermagemPage from "@/pages/avaliacao-enfermagem";
+import RasEvolutivoPage from "@/pages/ras-evolutivo";
+import PortalClientePage from "@/pages/portal";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +74,10 @@ function Router() {
       <Route path="/ras" component={RasPage} />
       <Route path="/codigos-validacao" component={CodigosValidacaoPage} />
       <Route path="/estoque" component={EstoquePage} />
+      <Route path="/task-cards" component={TaskCardsPage} />
+      <Route path="/avaliacao-enfermagem" component={AvaliacaoEnfermagemPage} />
+      <Route path="/ras-evolutivo" component={RasEvolutivoPage} />
+      <Route path="/portal" component={PortalClientePage} />
       <Route component={NotFound} />
     </Switch>
   );

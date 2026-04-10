@@ -24,7 +24,12 @@ import {
   Hash,
   FileCheck,
   KeyRound,
-  Package
+  Package,
+  ClipboardCheck,
+  AlertTriangle,
+  BarChart3,
+  Star,
+  Upload
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -52,6 +57,9 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "RAS", path: "/ras", icon: FileCheck, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
     { name: "Codigos Validacao", path: "/codigos-validacao", icon: KeyRound, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
     { name: "Estoque", path: "/estoque", icon: Package, roles: ["validador_mestre", "enfermeira", "validador_enfermeiro"] },
+    { name: "Aval. Enfermagem", path: "/avaliacao-enfermagem", icon: ClipboardCheck, roles: ["enfermeira", "validador_enfermeiro", "validador_mestre"] },
+    { name: "Task Cards", path: "/task-cards", icon: AlertTriangle, roles: ["enfermeira", "validador_enfermeiro", "medico_tecnico", "validador_mestre"] },
+    { name: "RAS Evolutivo", path: "/ras-evolutivo", icon: BarChart3, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
     { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, roles: ["validador_mestre"] },
     { name: "Configuracoes", path: "/configuracoes", icon: Settings, roles: ["validador_mestre"] },
