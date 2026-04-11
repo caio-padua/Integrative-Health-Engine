@@ -132,3 +132,9 @@ id = "zc5cFGoYnHEsdoaz-VI7o"
 uri = "file://.local/briefing-staff.md"
 type = "text"
 title = "Briefing Staff — Próximos Passos PADCOM V15.2"
+
+[[outputs]]
+id = "VYvUJD9YqHnDVF7o22EmO"
+uri = "file://exports/codigo_completo_padcom_v15.txt"
+type = "text"
+title = "Codigo Completo PADCOM V15.2 - Para Validacao"
