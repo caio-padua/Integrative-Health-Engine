@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   BarChart3,
   Star,
-  Upload
+  Upload,
+  Shield
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -41,6 +42,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const menuItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["validador_mestre"] },
+    { name: "Governanca", path: "/governanca", icon: Shield, roles: ["validador_mestre", "medico_tecnico"] },
     { name: "Anamnese", path: "/anamnese", icon: ClipboardList, roles: ["enfermeira", "validador_enfermeiro", "medico_tecnico", "validador_mestre"] },
     { name: "Validação", path: "/validacao", icon: CheckSquare, roles: ["validador_enfermeiro", "medico_tecnico", "validador_mestre"] },
     { name: "Filas", path: "/filas", icon: ListOrdered, roles: ["enfermeira", "validador_enfermeiro", "validador_mestre"] },
