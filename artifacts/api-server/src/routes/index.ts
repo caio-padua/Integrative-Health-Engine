@@ -33,6 +33,10 @@ import auditoriaCascataRouter from "./auditoriaCascata";
 import alertasRouter from "./alertas";
 import governancaRouter from "./governanca";
 import examesInteligenteRouter from "./examesInteligente";
+import monitoramentoPacienteRouter from "./monitoramentoPaciente";
+import alertaPacienteRouter from "./alertaPaciente";
+import direcaoExameRouter from "./direcaoExame";
+import formulaBlendRouter from "./formulaBlend";
 
 const router: IRouter = Router();
 
@@ -70,5 +74,9 @@ router.use(auditoriaCascataRouter);
 router.use(alertasRouter);
 router.use(governancaRouter);
 router.use(examesInteligenteRouter);
+router.use(monitoramentoPacienteRouter);
+router.use(alertaPacienteRouter);
+router.use(direcaoExameRouter);
+router.use(formulaBlendRouter);
 
 export default router;

@@ -170,6 +170,12 @@ export default function PacienteDetalhe() {
                     Questionario de Saude
                   </Button>
                 </Link>
+                <Link href={`/pacientes/${id}/monitoramento`}>
+                  <Button variant="outline">
+                    <Activity className="w-4 h-4 mr-2" />
+                    Monitoramento
+                  </Button>
+                </Link>
                 <Dialog open={open} onOpenChange={setOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline">

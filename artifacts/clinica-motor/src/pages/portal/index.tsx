@@ -5,27 +5,62 @@ import { Label } from "@/components/ui/label";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Upload, FileCheck, User, Calendar, FolderOpen, Shield
+  Upload, FileCheck, User, Calendar, Shield,
+  Activity, Brain, Pill, AlertTriangle, FolderOpen,
+  Heart, ChevronLeft
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
-const CATEGORIAS = [
+const CATEGORIAS_UPLOAD = [
   "EXAME DE SANGUE", "ULTRASSOM", "COMPROVANTE DE PAGAMENTO",
   "FOTO / IMAGEM", "RECEITA", "LAUDO", "ATESTADO", "CONTRATO", "OUTRO"
 ];
 
 const FORMATOS_ACEITOS = ".pdf,.jpg,.jpeg,.png,.heic,.heif,.doc,.docx";
 
+const TIPOS_ALERTA = [
+  { value: "PRESSAO_ALTA", label: "Pressao Alta", icon: "🔴" },
+  { value: "PRESSAO_BAIXA", label: "Pressao Baixa", icon: "🔵" },
+  { value: "GLICEMIA_ALTA", label: "Glicemia Alta", icon: "🟠" },
+  { value: "GLICEMIA_BAIXA", label: "Glicemia Baixa", icon: "🟡" },
+  { value: "EFEITO_COLATERAL", label: "Efeito Colateral", icon: "⚠️" },
+  { value: "DOR_AGUDA", label: "Dor Aguda", icon: "🔴" },
+  { value: "MAL_ESTAR", label: "Mal Estar", icon: "🟠" },
+  { value: "DUVIDA_MEDICACAO", label: "Duvida sobre Medicacao", icon: "❓" },
+  { value: "ESQUECEU_DOSE", label: "Esqueceu uma Dose", icon: "⏰" },
+  { value: "OUTRO", label: "Outro", icon: "📝" },
+];
+
+const INDICADORES_SINAIS = [
+  { key: "PA_SISTOLICA", label: "PA Sistolica", unidade: "mmHg" },
+  { key: "PA_DIASTOLICA", label: "PA Diastolica", unidade: "mmHg" },
+  { key: "FREQUENCIA_CARDIACA", label: "Freq. Cardiaca", unidade: "bpm" },
+  { key: "GLICEMIA_JEJUM", label: "Glicemia Jejum", unidade: "mg/dL" },
+  { key: "PESO", label: "Peso", unidade: "kg" },
+  { key: "CINTURA", label: "Cintura", unidade: "cm" },
+];
+
+const INDICADORES_SINTOMAS = [
+  "Sono", "Energia", "Disposicao", "Atividade Fisica", "Foco",
+  "Concentracao", "Libido", "Forca", "Emagrecimento", "Hipertrofia",
+  "Definicao", "Resistencia", "Massa Magra", "Estresse", "Humor"
+];
+
+const INDICADORES_KEYS = [
+  "sono", "energia", "disposicao", "atividadeFisica", "foco",
+  "concentracao", "libido", "forca", "emagrecimento", "hipertrofia",
+  "definicao", "resistencia", "massaMagra", "estresse", "humor"
+];
+
+type Section = "menu" | "sinais" | "sintomas" | "formulas" | "alertas" | "upload";
+
 export default function PortalClientePage() {
-  const [step, setStep] = useState<"identificacao" | "upload" | "sucesso">("identificacao");
+  const [step, setStep] = useState<"identificacao" | "portal" | "sucesso">("identificacao");
+  const [section, setSection] = useState<Section>("menu");
   const [cpf, setCpf] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [paciente, setPaciente] = useState<{ id: number; nome: string } | null>(null);
-  const [categoria, setCategoria] = useState("");
-  const [arquivo, setArquivo] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const formatCPF = (value: string) => {
@@ -54,76 +89,22 @@ export default function PortalClientePage() {
       }
       const data = await res.json();
       setPaciente({ id: data.id, nome: data.nome });
-      setStep("upload");
+      setStep("portal");
+      setSection("menu");
     } catch {
       toast({ title: "Erro de conexao", variant: "destructive" });
     }
   };
 
-  const handleUpload = async () => {
-    if (!arquivo || !categoria || !paciente) {
-      toast({ title: "Selecione categoria e arquivo", variant: "destructive" });
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const res = await fetch(`${BASE_URL}api/portal/upload/${paciente.id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            categoria,
-            arquivo: base64,
-            nomeArquivo: arquivo.name,
-            mimeType: arquivo.type,
-          }),
-        });
-        if (!res.ok) {
-          toast({ title: "Erro ao enviar arquivo", variant: "destructive" });
-          setUploading(false);
-          return;
-        }
-
-        const uploadResult = await res.json();
-        if (uploadResult.driveUploadUrl) {
-          const driveRes = await fetch(`${BASE_URL}${uploadResult.driveUploadUrl.replace("/api/", "api/")}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: base64,
-              customFileName: arquivo.name,
-              mimeType: arquivo.type,
-            }),
-          });
-          if (!driveRes.ok) {
-            toast({ title: "Erro ao enviar para Google Drive", variant: "destructive" });
-            setUploading(false);
-            return;
-          }
-        }
-
-        setStep("sucesso");
-        setUploading(false);
-      };
-      reader.readAsDataURL(arquivo);
-    } catch {
-      toast({ title: "Erro ao processar arquivo", variant: "destructive" });
-      setUploading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[hsl(215,28%,9%)] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-lg">
         <div className="text-center mb-6">
           <div className="w-16 h-16 mx-auto mb-3 flex items-center justify-center bg-white/90 border border-border p-2">
             <img src={`${BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-lg font-bold text-white tracking-tight uppercase">Portal do Cliente</h1>
-          <p className="text-xs text-muted-foreground mt-1">PADCOM — Protocolos Injetaveis</p>
+          <p className="text-xs text-muted-foreground mt-1">PADCOM — Acompanhamento Clinico</p>
         </div>
 
         {step === "identificacao" && (
@@ -145,8 +126,7 @@ export default function PortalClientePage() {
                   <Calendar className="h-3 w-3" />Data de Nascimento
                 </Label>
                 <Input type="date" value={dataNascimento}
-                  onChange={e => setDataNascimento(e.target.value)}
-                  className="mt-1" />
+                  onChange={e => setDataNascimento(e.target.value)} className="mt-1" />
               </div>
               <Button className="w-full" onClick={handleIdentificar}>Entrar</Button>
               <div className="text-[9px] text-center text-muted-foreground flex items-center justify-center gap-1">
@@ -156,79 +136,552 @@ export default function PortalClientePage() {
           </Card>
         )}
 
-        {step === "upload" && paciente && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Upload className="h-4 w-4" />Enviar Documento
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">Ola, {paciente.nome.split(" ")[0]}!</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                  <FolderOpen className="h-3 w-3" />Tipo de Documento
-                </Label>
-                <select className="w-full bg-card border border-border text-sm px-3 py-2 mt-1"
-                  value={categoria} onChange={e => setCategoria(e.target.value)}>
-                  <option value="">Selecione a categoria...</option>
-                  {CATEGORIAS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Arquivo</Label>
-                <div
-                  className="mt-1 border-2 border-dashed border-border/60 p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => fileRef.current?.click()}
-                >
-                  {arquivo ? (
-                    <div className="text-sm">
-                      <FileCheck className="h-6 w-6 mx-auto mb-1 text-green-400" />
-                      <span className="font-medium">{arquivo.name}</span>
-                      <div className="text-[10px] text-muted-foreground mt-1">
-                        {(arquivo.size / 1024).toFixed(0)} KB
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-muted-foreground text-sm">
-                      <Upload className="h-6 w-6 mx-auto mb-1" />
-                      Clique para selecionar arquivo
-                      <div className="text-[9px] mt-1">PDF, JPG, PNG, DOC (max 10MB)</div>
-                    </div>
-                  )}
-                </div>
-                <input ref={fileRef} type="file" className="hidden" accept={FORMATOS_ACEITOS}
-                  onChange={e => setArquivo(e.target.files?.[0] || null)} />
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => { setStep("identificacao"); setPaciente(null); }}>
-                  Voltar
-                </Button>
-                <Button className="flex-1" onClick={handleUpload} disabled={uploading || !arquivo || !categoria}>
-                  {uploading ? "Enviando..." : "Enviar"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {step === "sucesso" && (
-          <Card className="border-green-500/30">
-            <CardContent className="p-6 text-center">
-              <FileCheck className="h-12 w-12 mx-auto mb-3 text-green-400" />
-              <h2 className="text-lg font-bold">Arquivo Enviado!</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Seu documento foi recebido e sera processado pela equipe.
-              </p>
-              <Button className="mt-4" onClick={() => { setStep("upload"); setArquivo(null); setCategoria(""); }}>
-                Enviar Outro Documento
+        {step === "portal" && paciente && (
+          <>
+            {section !== "menu" && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground mb-2"
+                onClick={() => setSection("menu")}>
+                <ChevronLeft className="h-4 w-4 mr-1" />Voltar ao Menu
               </Button>
-            </CardContent>
-          </Card>
+            )}
+
+            {section === "menu" && <PortalMenu paciente={paciente} onSelect={setSection} onLogout={() => { setStep("identificacao"); setPaciente(null); }} />}
+            {section === "sinais" && <SinaisVitaisForm pacienteId={paciente.id} />}
+            {section === "sintomas" && <SintomasForm pacienteId={paciente.id} />}
+            {section === "formulas" && <FormulasForm pacienteId={paciente.id} />}
+            {section === "alertas" && <AlertasForm pacienteId={paciente.id} />}
+            {section === "upload" && <UploadForm pacienteId={paciente.id} pacienteNome={paciente.nome} />}
+          </>
         )}
       </div>
     </div>
+  );
+}
+
+function PortalMenu({ paciente, onSelect, onLogout }: { paciente: { id: number; nome: string }; onSelect: (s: Section) => void; onLogout: () => void }) {
+  const menuItems = [
+    { key: "sinais" as Section, icon: Activity, label: "Mapa de Sinais Vitais", desc: "PA, glicemia, peso, cintura", color: "text-red-400" },
+    { key: "sintomas" as Section, icon: Brain, label: "Sintomas e Bem-Estar", desc: "Sono, energia, foco, humor...", color: "text-blue-400" },
+    { key: "formulas" as Section, icon: Pill, label: "Formulas em Uso", desc: "Aderencia e efeitos colaterais", color: "text-green-400" },
+    { key: "alertas" as Section, icon: AlertTriangle, label: "Enviar Alerta", desc: "Sinais de alerta para a equipe", color: "text-yellow-400" },
+    { key: "upload" as Section, icon: Upload, label: "Enviar Documentos", desc: "Exames, comprovantes, laudos", color: "text-purple-400" },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <Card className="border-primary/30">
+        <CardContent className="p-4 flex items-center gap-3">
+          <Heart className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-sm font-medium text-white">Ola, {paciente.nome.split(" ")[0]}!</p>
+            <p className="text-[10px] text-muted-foreground">Selecione o que deseja registrar</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {menuItems.map(item => (
+        <Card key={item.key} className="cursor-pointer hover:border-primary/40 transition-colors"
+          onClick={() => onSelect(item.key)}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <item.icon className={`h-6 w-6 ${item.color}`} />
+            <div className="flex-1">
+              <p className="text-sm font-medium">{item.label}</p>
+              <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+            </div>
+            <ChevronLeft className="h-4 w-4 text-muted-foreground rotate-180" />
+          </CardContent>
+        </Card>
+      ))}
+
+      <Button variant="outline" size="sm" className="w-full mt-4" onClick={onLogout}>Sair</Button>
+    </div>
+  );
+}
+
+function SinaisVitaisForm({ pacienteId }: { pacienteId: number }) {
+  const [dataRegistro, setDataRegistro] = useState(new Date().toISOString().split("T")[0]);
+  const [valores, setValores] = useState<Record<string, { valor: string; horario: string }[]>>(() => {
+    const init: Record<string, { valor: string; horario: string }[]> = {};
+    INDICADORES_SINAIS.forEach(ind => {
+      init[ind.key] = Array.from({ length: 4 }, () => ({ valor: "", horario: "" }));
+    });
+    return init;
+  });
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const indicadores = [];
+      for (const ind of INDICADORES_SINAIS) {
+        const slots = valores[ind.key];
+        const hasData = slots.some(s => s.valor !== "");
+        if (!hasData) continue;
+
+        const registro: any = { indicador: ind.key, origem: "PACIENTE" };
+        slots.forEach((s, i) => {
+          if (s.valor) {
+            registro[`hora${i + 1}Valor`] = parseFloat(s.valor);
+            registro[`hora${i + 1}Horario`] = s.horario || undefined;
+          }
+        });
+        indicadores.push(registro);
+      }
+
+      if (indicadores.length === 0) {
+        toast({ title: "Preencha pelo menos um valor", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}api/monitoramento/sinais-vitais/lote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pacienteId, dataRegistro, indicadores }),
+      });
+
+      if (!res.ok) throw new Error("Erro ao salvar");
+      toast({ title: "Sinais vitais registrados!" });
+    } catch {
+      toast({ title: "Erro ao salvar", variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Activity className="h-4 w-4 text-red-400" />Mapa de Sinais Vitais
+        </CardTitle>
+        <p className="text-[10px] text-muted-foreground">Registre ate 4 medicoes por dia</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Data</Label>
+          <Input type="date" value={dataRegistro} onChange={e => setDataRegistro(e.target.value)} className="mt-1" />
+        </div>
+
+        {INDICADORES_SINAIS.map(ind => (
+          <div key={ind.key} className="space-y-2">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {ind.label} ({ind.unidade})
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              {valores[ind.key].map((slot, i) => (
+                <div key={i} className="flex gap-1">
+                  <Input
+                    type="number"
+                    placeholder={`Med ${i + 1}`}
+                    value={slot.valor}
+                    onChange={e => {
+                      const copy = { ...valores };
+                      copy[ind.key] = [...copy[ind.key]];
+                      copy[ind.key][i] = { ...copy[ind.key][i], valor: e.target.value };
+                      setValores(copy);
+                    }}
+                    className="flex-1 text-xs"
+                  />
+                  <Input
+                    type="time"
+                    value={slot.horario}
+                    onChange={e => {
+                      const copy = { ...valores };
+                      copy[ind.key] = [...copy[ind.key]];
+                      copy[ind.key][i] = { ...copy[ind.key][i], horario: e.target.value };
+                      setValores(copy);
+                    }}
+                    className="w-24 text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <Button className="w-full" onClick={handleSave} disabled={saving}>
+          {saving ? "Salvando..." : "Registrar Sinais"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SintomasForm({ pacienteId }: { pacienteId: number }) {
+  const [dataSemana, setDataSemana] = useState(new Date().toISOString().split("T")[0]);
+  const [valores, setValores] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    INDICADORES_KEYS.forEach(k => { init[k] = 5; });
+    return init;
+  });
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const getColor = (key: string, value: number) => {
+    const isInvertido = key === "estresse";
+    if (isInvertido) {
+      if (value > 7) return "bg-red-500";
+      if (value > 5) return "bg-yellow-500";
+      if (value > 3) return "bg-blue-400";
+      return "bg-green-500";
+    }
+    if (value >= 7) return "bg-green-500";
+    if (value >= 5) return "bg-blue-400";
+    if (value >= 3) return "bg-yellow-500";
+    return "bg-red-500";
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/monitoramento/tracking-sintomas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pacienteId, dataSemana, ...valores, origem: "PACIENTE" }),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar");
+      toast({ title: "Sintomas registrados!" });
+    } catch {
+      toast({ title: "Erro ao salvar", variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Brain className="h-4 w-4 text-blue-400" />Sintomas e Bem-Estar
+        </CardTitle>
+        <p className="text-[10px] text-muted-foreground">Avalie de 0 (pessimo) a 10 (excelente). Estresse: 0 = sem estresse</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana de referencia</Label>
+          <Input type="date" value={dataSemana} onChange={e => setDataSemana(e.target.value)} className="mt-1" />
+        </div>
+
+        {INDICADORES_KEYS.map((key, i) => (
+          <div key={key} className="flex items-center gap-3">
+            <span className="text-xs w-28 text-muted-foreground">{INDICADORES_SINTOMAS[i]}</span>
+            <input
+              type="range"
+              min="0" max="10" step="0.5"
+              value={valores[key]}
+              onChange={e => setValores({ ...valores, [key]: parseFloat(e.target.value) })}
+              className="flex-1 accent-primary"
+            />
+            <span className={`text-xs font-mono w-8 text-center px-1 py-0.5 ${getColor(key, valores[key])} text-white`}>
+              {valores[key]}
+            </span>
+          </div>
+        ))}
+
+        <Button className="w-full" onClick={handleSave} disabled={saving}>
+          {saving ? "Salvando..." : "Registrar Sintomas"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FormulasForm({ pacienteId }: { pacienteId: number }) {
+  const [nomeBlend, setNomeBlend] = useState("");
+  const [aderencia, setAderencia] = useState("ALTA");
+  const [bemEstar, setBemEstar] = useState(true);
+  const [senteResultado, setSenteResultado] = useState("SIM");
+  const [efeitoColateral1, setEfeitoColateral1] = useState("NENHUM");
+  const [efeitoColateral2, setEfeitoColateral2] = useState("NENHUM");
+  const [observacao, setObservacao] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!nomeBlend) {
+      toast({ title: "Informe o nome da formula", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/monitoramento/acompanhamento-formula`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pacienteId, nomeBlend, aderencia, bemEstar, senteResultado,
+          efeitoColateral1, efeitoColateral2, observacao, origem: "PACIENTE",
+        }),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar");
+      toast({ title: "Feedback registrado!" });
+      setNomeBlend(""); setObservacao("");
+    } catch {
+      toast({ title: "Erro ao salvar", variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Pill className="h-4 w-4 text-green-400" />Feedback das Formulas
+        </CardTitle>
+        <p className="text-[10px] text-muted-foreground">Nos conte como voce esta se sentindo com as formulas</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Nome da Formula / Blend</Label>
+          <Input placeholder="Ex: Blend Sono Noite" value={nomeBlend} onChange={e => setNomeBlend(e.target.value)} className="mt-1" />
+        </div>
+
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Aderencia</Label>
+          <select className="w-full bg-card border border-border text-sm px-3 py-2 mt-1"
+            value={aderencia} onChange={e => setAderencia(e.target.value)}>
+            <option value="ALTA">Alta - Tomo todos os dias</option>
+            <option value="MEDIA">Media - Esqueco as vezes</option>
+            <option value="BAIXA">Baixa - Esqueco frequentemente</option>
+          </select>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Bem-estar</Label>
+            <select className="w-full bg-card border border-border text-sm px-3 py-2 mt-1"
+              value={bemEstar ? "SIM" : "NAO"} onChange={e => setBemEstar(e.target.value === "SIM")}>
+              <option value="SIM">Sim</option>
+              <option value="NAO">Nao</option>
+            </select>
+          </div>
+          <div className="flex-1">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Sente resultado?</Label>
+            <select className="w-full bg-card border border-border text-sm px-3 py-2 mt-1"
+              value={senteResultado} onChange={e => setSenteResultado(e.target.value)}>
+              <option value="SIM">Sim</option>
+              <option value="PARCIAL">Parcial</option>
+              <option value="NAO">Nao</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Efeito Colateral 1</Label>
+            <Input placeholder="Nenhum" value={efeitoColateral1} onChange={e => setEfeitoColateral1(e.target.value)} className="mt-1" />
+          </div>
+          <div className="flex-1">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Efeito Colateral 2</Label>
+            <Input placeholder="Nenhum" value={efeitoColateral2} onChange={e => setEfeitoColateral2(e.target.value)} className="mt-1" />
+          </div>
+        </div>
+
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Observacao</Label>
+          <textarea className="w-full bg-card border border-border text-sm px-3 py-2 mt-1 min-h-[60px]"
+            placeholder="Algo que queira nos contar..." value={observacao} onChange={e => setObservacao(e.target.value)} />
+        </div>
+
+        <Button className="w-full" onClick={handleSave} disabled={saving}>
+          {saving ? "Enviando..." : "Enviar Feedback"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AlertasForm({ pacienteId }: { pacienteId: number }) {
+  const [tipoAlerta, setTipoAlerta] = useState("");
+  const [gravidade, setGravidade] = useState("LEVE");
+  const [descricao, setDescricao] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!tipoAlerta) {
+      toast({ title: "Selecione o tipo de alerta", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/alerta-paciente`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pacienteId, tipoAlerta, gravidade, descricao }),
+      });
+      if (!res.ok) throw new Error("Erro ao enviar");
+      setEnviado(true);
+    } catch {
+      toast({ title: "Erro ao enviar alerta", variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  if (enviado) {
+    return (
+      <Card className="border-yellow-500/30">
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="h-12 w-12 mx-auto mb-3 text-yellow-400" />
+          <h2 className="text-lg font-bold">Alerta Enviado!</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Nossa equipe recebeu seu alerta e entrara em contato em breve.
+          </p>
+          <Button className="mt-4" onClick={() => { setEnviado(false); setTipoAlerta(""); setDescricao(""); }}>
+            Enviar Outro Alerta
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-yellow-400" />Enviar Alerta
+        </CardTitle>
+        <p className="text-[10px] text-muted-foreground">Selecione o tipo e nossa equipe sera notificada</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          {TIPOS_ALERTA.map(tipo => (
+            <div
+              key={tipo.value}
+              className={`border p-3 cursor-pointer text-center transition-colors ${
+                tipoAlerta === tipo.value ? "border-yellow-500 bg-yellow-500/10" : "border-border hover:border-border/80"
+              }`}
+              onClick={() => setTipoAlerta(tipo.value)}
+            >
+              <span className="text-lg">{tipo.icon}</span>
+              <p className="text-[10px] mt-1">{tipo.label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Gravidade</Label>
+          <select className="w-full bg-card border border-border text-sm px-3 py-2 mt-1"
+            value={gravidade} onChange={e => setGravidade(e.target.value)}>
+            <option value="LEVE">Leve - Nao urgente</option>
+            <option value="MODERADO">Moderado - Preciso de orientacao</option>
+            <option value="GRAVE">Grave - Preciso de atencao urgente</option>
+          </select>
+        </div>
+
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Descreva o que esta sentindo</Label>
+          <textarea className="w-full bg-card border border-border text-sm px-3 py-2 mt-1 min-h-[80px]"
+            placeholder="Descreva com suas palavras..." value={descricao} onChange={e => setDescricao(e.target.value)} />
+        </div>
+
+        <Button className="w-full bg-yellow-600 hover:bg-yellow-700" onClick={handleSave} disabled={saving || !tipoAlerta}>
+          {saving ? "Enviando..." : "Enviar Alerta para a Equipe"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function UploadForm({ pacienteId, pacienteNome }: { pacienteId: number; pacienteNome: string }) {
+  const [categoria, setCategoria] = useState("");
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [sucesso, setSucesso] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleUpload = async () => {
+    if (!arquivo || !categoria) {
+      toast({ title: "Selecione categoria e arquivo", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const res = await fetch(`${BASE_URL}api/portal/upload/${pacienteId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ categoria, arquivo: base64, nomeArquivo: arquivo.name, mimeType: arquivo.type }),
+        });
+        if (!res.ok) {
+          toast({ title: "Erro ao enviar arquivo", variant: "destructive" });
+          setUploading(false);
+          return;
+        }
+        setSucesso(true);
+        setUploading(false);
+      };
+      reader.readAsDataURL(arquivo);
+    } catch {
+      toast({ title: "Erro ao processar arquivo", variant: "destructive" });
+      setUploading(false);
+    }
+  };
+
+  if (sucesso) {
+    return (
+      <Card className="border-green-500/30">
+        <CardContent className="p-6 text-center">
+          <FileCheck className="h-12 w-12 mx-auto mb-3 text-green-400" />
+          <h2 className="text-lg font-bold">Arquivo Enviado!</h2>
+          <p className="text-sm text-muted-foreground mt-1">Seu documento foi recebido e sera processado pela equipe.</p>
+          <Button className="mt-4" onClick={() => { setSucesso(false); setArquivo(null); setCategoria(""); }}>
+            Enviar Outro Documento
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Upload className="h-4 w-4 text-purple-400" />Enviar Documento
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">Ola, {pacienteNome.split(" ")[0]}!</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <FolderOpen className="h-3 w-3" />Tipo de Documento
+          </Label>
+          <select className="w-full bg-card border border-border text-sm px-3 py-2 mt-1"
+            value={categoria} onChange={e => setCategoria(e.target.value)}>
+            <option value="">Selecione a categoria...</option>
+            {CATEGORIAS_UPLOAD.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Arquivo</Label>
+          <div className="mt-1 border-2 border-dashed border-border/60 p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => fileRef.current?.click()}>
+            {arquivo ? (
+              <div className="text-sm">
+                <FileCheck className="h-6 w-6 mx-auto mb-1 text-green-400" />
+                <span className="font-medium">{arquivo.name}</span>
+                <div className="text-[10px] text-muted-foreground mt-1">{(arquivo.size / 1024).toFixed(0)} KB</div>
+              </div>
+            ) : (
+              <div className="text-muted-foreground text-sm">
+                <Upload className="h-6 w-6 mx-auto mb-1" />
+                Clique para selecionar arquivo
+                <div className="text-[9px] mt-1">PDF, JPG, PNG, DOC (max 10MB)</div>
+              </div>
+            )}
+          </div>
+          <input ref={fileRef} type="file" className="hidden" accept={FORMATOS_ACEITOS}
+            onChange={e => setArquivo(e.target.files?.[0] || null)} />
+        </div>
+
+        <Button className="w-full" onClick={handleUpload} disabled={uploading || !arquivo || !categoria}>
+          {uploading ? "Enviando..." : "Enviar"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
