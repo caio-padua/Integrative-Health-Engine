@@ -13,6 +13,12 @@ import {
   Bell,
   Activity,
   RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  TestTube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -53,6 +59,41 @@ interface FilaStats {
   expirados: number;
 }
 
+interface ExamesSemaforoGeral {
+  semaforo: "VERDE" | "AMARELO" | "VERMELHO";
+  total: number;
+  verdes: number;
+  amarelos: number;
+  vermelhos: number;
+}
+
+interface ExamePaciente {
+  id: number;
+  nome_exame: string;
+  categoria: string | null;
+  valor: number;
+  unidade: string | null;
+  valor_minimo: number;
+  valor_maximo: number;
+  terco: number | null;
+  classificacao_automatica: string | null;
+  classificacao_manual: string | null;
+  tendencia: string | null;
+  delta_percentual: number | null;
+  formula_vigente: string | null;
+  data_coleta: string | null;
+  laboratorio: string | null;
+  criado_em: string;
+  corFinal: string;
+}
+
+interface DashboardExamesPaciente {
+  pacienteId: number;
+  semaforoGeral: "VERDE" | "AMARELO" | "VERMELHO";
+  resumo: { verdes: number; amarelos: number; vermelhos: number; total: number };
+  exames: ExamePaciente[];
+}
+
 const corDeFundo: Record<string, string> = {
   VERDE: "bg-emerald-500/15 border-emerald-500/40",
   AMARELO: "bg-amber-500/15 border-amber-500/40",
@@ -75,6 +116,12 @@ const corDeSemaforoApagado: Record<string, string> = {
   VERDE: "bg-emerald-900/30",
   AMARELO: "bg-amber-900/30",
   VERMELHO: "bg-red-900/30",
+};
+
+const corDeBarra: Record<string, string> = {
+  VERDE: "bg-emerald-500",
+  AMARELO: "bg-amber-500",
+  VERMELHO: "bg-red-500",
 };
 
 const baseUrl = import.meta.env.BASE_URL || "/";
@@ -118,18 +165,26 @@ function KpiCard({
   status,
   descricao,
   icon: Icon,
+  onClick,
 }: {
   titulo: string;
   valor: number;
   status: "VERDE" | "AMARELO" | "VERMELHO";
   descricao: string;
   icon: typeof Shield;
+  onClick?: () => void;
 }) {
   return (
-    <Card className={`border ${corDeFundo[status]} rounded-none`}>
+    <Card
+      className={`border ${corDeFundo[status]} rounded-none ${onClick ? "cursor-pointer hover:brightness-110 transition-all" : ""}`}
+      onClick={onClick}
+    >
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
         <CardTitle className="text-sm font-medium text-muted-foreground">{titulo}</CardTitle>
-        <Icon className={`w-5 h-5 ${corDeTexto[status]}`} />
+        <div className="flex items-center gap-1">
+          {onClick && <ChevronDown className="w-3 h-3 text-muted-foreground" />}
+          <Icon className={`w-5 h-5 ${corDeTexto[status]}`} />
+        </div>
       </CardHeader>
       <CardContent>
         <div className={`text-4xl font-bold tracking-tighter ${corDeTexto[status]}`}>{valor}</div>
@@ -221,28 +276,210 @@ function FilaPreceptorStats({ stats }: { stats: FilaStats | null }) {
   );
 }
 
+function TendenciaIcon({ tendencia, delta }: { tendencia: string | null; delta: number | null }) {
+  if (!tendencia || tendencia === "ESTAVEL") {
+    return <Minus className="w-4 h-4 text-muted-foreground" />;
+  }
+  if (tendencia === "SUBINDO") {
+    return (
+      <span className="flex items-center gap-1 text-xs text-amber-400">
+        <TrendingUp className="w-4 h-4" />
+        {delta !== null && <span>+{delta}%</span>}
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 text-xs text-sky-400">
+      <TrendingDown className="w-4 h-4" />
+      {delta !== null && <span>{delta}%</span>}
+    </span>
+  );
+}
+
+function BarraVisualTerco({ valor, min, max, cor }: { valor: number; min: number; max: number; cor: string }) {
+  const range = max - min;
+  const clamped = Math.max(min, Math.min(max, valor));
+  const percent = range > 0 ? ((clamped - min) / range) * 100 : 50;
+
+  return (
+    <div className="relative w-full h-3 bg-zinc-800 rounded-none border border-border">
+      <div className="absolute top-0 left-[33%] w-px h-full bg-zinc-600" />
+      <div className="absolute top-0 left-[66%] w-px h-full bg-zinc-600" />
+      <div
+        className={`absolute top-0 left-0 h-full ${corDeBarra[cor] || "bg-zinc-500"} transition-all duration-500`}
+        style={{ width: `${percent}%` }}
+      />
+      <div
+        className="absolute top-[-2px] w-2 h-[calc(100%+4px)] bg-white/80 rounded-none"
+        style={{ left: `calc(${percent}% - 4px)` }}
+      />
+    </div>
+  );
+}
+
+function SubDashboardExames({
+  pacienteId,
+  aberto,
+  onFechar,
+}: {
+  pacienteId: number;
+  aberto: boolean;
+  onFechar: () => void;
+}) {
+  const [dados, setDados] = useState<DashboardExamesPaciente | null>(null);
+  const [exameExpandido, setExameExpandido] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(false);
+
+  useEffect(() => {
+    if (aberto && pacienteId > 0) {
+      setCarregando(true);
+      fetchApi<DashboardExamesPaciente>(`/pacientes/${pacienteId}/exames/dashboard`)
+        .then(setDados)
+        .catch(console.error)
+        .finally(() => setCarregando(false));
+    }
+  }, [aberto, pacienteId]);
+
+  if (!aberto) return null;
+
+  return (
+    <Card className="rounded-none border-border border-t-2 border-t-primary">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <TestTube className="w-4 h-4 text-primary" />
+            Exames do Paciente #{pacienteId} — Sub-Dashboard
+          </CardTitle>
+          <Button variant="ghost" size="sm" onClick={onFechar} className="rounded-none">
+            <ChevronUp className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {carregando && (
+          <div className="text-center py-6 text-muted-foreground text-sm animate-pulse">
+            Carregando exames...
+          </div>
+        )}
+
+        {!carregando && dados && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 p-3 bg-card border border-border rounded-none">
+              <div className={`w-4 h-4 rounded-full ${corDeSemaforo[dados.semaforoGeral]}`} />
+              <span className={`text-sm font-bold ${corDeTexto[dados.semaforoGeral]}`}>
+                {dados.semaforoGeral === "VERDE" ? "Todos exames normais" : dados.semaforoGeral === "AMARELO" ? "Exames requerem atencao" : "Exames criticos detectados"}
+              </span>
+              <div className="flex-1" />
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-emerald-400">{dados.resumo.verdes} verdes</span>
+                <span className="text-amber-400">{dados.resumo.amarelos} amarelos</span>
+                <span className="text-red-400">{dados.resumo.vermelhos} vermelhos</span>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              {dados.exames.map((exame) => {
+                const expandido = exameExpandido === exame.nome_exame;
+                return (
+                  <div key={exame.id} className="border border-border rounded-none">
+                    <button
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors text-left"
+                      onClick={() => setExameExpandido(expandido ? null : exame.nome_exame)}
+                    >
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${corDeSemaforo[exame.corFinal]}`} />
+                      <span className="text-sm font-medium text-foreground flex-1">{exame.nome_exame}</span>
+                      <span className="text-sm font-bold text-foreground">{exame.valor}</span>
+                      <span className="text-xs text-muted-foreground">{exame.unidade}</span>
+                      <TendenciaIcon tendencia={exame.tendencia} delta={exame.delta_percentual} />
+                      {expandido ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
+                    </button>
+
+                    {expandido && (
+                      <div className="px-3 pb-3 pt-1 bg-muted/10 border-t border-border space-y-3">
+                        <BarraVisualTerco
+                          valor={exame.valor}
+                          min={exame.valor_minimo}
+                          max={exame.valor_maximo}
+                          cor={exame.corFinal}
+                        />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Min: {exame.valor_minimo}</span>
+                          <span className="text-[10px]">T1 | T2 | T3</span>
+                          <span>Max: {exame.valor_maximo}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">Categoria:</span>{" "}
+                            <span className="text-foreground">{exame.categoria || "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Laboratorio:</span>{" "}
+                            <span className="text-foreground">{exame.laboratorio || "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Data Coleta:</span>{" "}
+                            <span className="text-foreground">{exame.data_coleta || "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Terco:</span>{" "}
+                            <span className={`font-bold ${corDeTexto[exame.corFinal]}`}>
+                              {exame.terco === 1 ? "Inferior" : exame.terco === 2 ? "Medio" : exame.terco === 3 ? "Superior" : exame.terco === 0 ? "Abaixo min" : exame.terco === 4 ? "Acima max" : "—"}
+                            </span>
+                          </div>
+                          {exame.formula_vigente && (
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">Formula Vigente:</span>{" "}
+                              <span className="text-foreground font-mono text-[11px]">{exame.formula_vigente}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {dados.exames.length === 0 && (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  Nenhum exame registrado para este paciente
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Governanca() {
   const { user } = useAuth();
   const [painel, setPainel] = useState<PainelData | null>(null);
   const [semaforo, setSemaforo] = useState<SemaforoData | null>(null);
   const [timeline, setTimeline] = useState<EventoTimeline[]>([]);
   const [filaStats, setFilaStats] = useState<FilaStats | null>(null);
+  const [examesSemaforo, setExamesSemaforo] = useState<ExamesSemaforoGeral | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
+  const [subDashboardPacienteId, setSubDashboardPacienteId] = useState<number>(0);
+  const [subDashboardAberto, setSubDashboardAberto] = useState(false);
+  const [pacienteIdInput, setPacienteIdInput] = useState("");
 
   const carregarDados = async () => {
     setCarregando(true);
     try {
-      const [painelRes, semaforoRes, timelineRes, filaRes] = await Promise.all([
+      const [painelRes, semaforoRes, timelineRes, filaRes, examesRes] = await Promise.all([
         fetchApi<PainelData>("/governanca/painel"),
         fetchApi<SemaforoData>("/governanca/semaforo"),
         fetchApi<{ eventos: EventoTimeline[] }>("/governanca/timeline?limite=15"),
         fetchApi<FilaStats>("/fila-preceptor/stats"),
+        fetchApi<ExamesSemaforoGeral>("/exames/semaforo-geral"),
       ]);
       setPainel(painelRes);
       setSemaforo(semaforoRes);
       setTimeline(timelineRes.eventos);
       setFilaStats(filaRes);
+      setExamesSemaforo(examesRes);
       setUltimaAtualizacao(new Date());
     } catch (e) {
       console.error("Erro ao carregar governanca:", e);
@@ -261,7 +498,17 @@ export default function Governanca() {
     return () => clearInterval(intervalo);
   }, [user]);
 
+  const abrirSubDashboardExames = () => {
+    const id = parseInt(pacienteIdInput, 10);
+    if (id > 0) {
+      setSubDashboardPacienteId(id);
+      setSubDashboardAberto(true);
+    }
+  };
+
   if (!user) return null;
+
+  const examesKpiStatus: "VERDE" | "AMARELO" | "VERMELHO" = examesSemaforo?.semaforo || "VERDE";
 
   return (
     <Layout>
@@ -292,7 +539,7 @@ export default function Governanca() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-4">
+        <div className="grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-1">
             <SemaforoGrande status={semaforo?.semaforo || painel?.statusGeral || "VERDE"} />
             {semaforo && (
@@ -302,7 +549,7 @@ export default function Governanca() {
             )}
           </div>
 
-          <div className="lg:col-span-3 grid gap-4 md:grid-cols-3">
+          <div className="lg:col-span-4 grid gap-4 md:grid-cols-4">
             {painel && (
               <>
                 <KpiCard
@@ -328,8 +575,62 @@ export default function Governanca() {
                 />
               </>
             )}
+            <KpiCard
+              titulo="Exames Inteligentes"
+              valor={examesSemaforo?.total || 0}
+              status={examesKpiStatus}
+              descricao={`${examesSemaforo?.verdes || 0}V ${examesSemaforo?.amarelos || 0}A ${examesSemaforo?.vermelhos || 0}R`}
+              icon={TestTube}
+            />
           </div>
         </div>
+
+        <Card className="rounded-none border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <TestTube className="w-4 h-4 text-primary" />
+              Consulta Rapida — Exames por Paciente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                placeholder="ID do Paciente"
+                value={pacienteIdInput}
+                onChange={(e) => setPacienteIdInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && abrirSubDashboardExames()}
+                className="w-40 px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={abrirSubDashboardExames}
+                className="rounded-none border-border"
+                disabled={!pacienteIdInput || parseInt(pacienteIdInput, 10) <= 0}
+              >
+                <TestTube className="w-4 h-4 mr-2" />
+                Ver Exames
+              </Button>
+              {subDashboardAberto && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSubDashboardAberto(false)}
+                  className="rounded-none"
+                >
+                  Fechar
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <SubDashboardExames
+          pacienteId={subDashboardPacienteId}
+          aberto={subDashboardAberto}
+          onFechar={() => setSubDashboardAberto(false)}
+        />
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="rounded-none border-border">
