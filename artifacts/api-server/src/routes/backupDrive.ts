@@ -431,6 +431,65 @@ async function deleteFileFromDrive(connectors: ReplitConnectors, fileId: string)
   }
 }
 
+const SUBPASTA_ANTIGOS_NOME = "BANCO CODIGOS REPLIT (ANTIGOS)";
+
+async function getOrCreateSubpastaAntigos(connectors: ReplitConnectors): Promise<string> {
+  const searchResponse = await connectors.proxy(
+    "google-drive",
+    `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+name='${SUBPASTA_ANTIGOS_NOME}'+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)`,
+    { method: "GET" }
+  );
+  const searchData = await searchResponse.json();
+  if (searchData.files && searchData.files.length > 0) {
+    return searchData.files[0].id;
+  }
+
+  const createResponse = await connectors.proxy(
+    "google-drive",
+    "/drive/v3/files",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: SUBPASTA_ANTIGOS_NOME,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [DRIVE_FOLDER_ID],
+      }),
+    }
+  );
+  if (!createResponse.ok) {
+    throw new Error(`Falha ao criar subpasta: status ${createResponse.status}`);
+  }
+  const created = await createResponse.json();
+  console.log(`Subpasta criada: ${SUBPASTA_ANTIGOS_NOME} (${created.id})`);
+  return created.id;
+}
+
+async function moveFilesToSubpasta(connectors: ReplitConnectors, subpastaId: string): Promise<number> {
+  const listResponse = await connectors.proxy(
+    "google-drive",
+    `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+mimeType!='application/vnd.google-apps.folder'+and+trashed=false&pageSize=100&fields=files(id,name)`,
+    { method: "GET" }
+  );
+  const listData = await listResponse.json();
+  const files = listData.files || [];
+
+  let movidos = 0;
+  for (const file of files) {
+    const moveResponse = await connectors.proxy(
+      "google-drive",
+      `/drive/v3/files/${file.id}?addParents=${subpastaId}&removeParents=${DRIVE_FOLDER_ID}`,
+      { method: "PATCH" }
+    );
+    if (moveResponse.ok) {
+      movidos++;
+    } else {
+      console.error(`Falha ao mover arquivo ${file.name} (${file.id}): status ${moveResponse.status}`);
+    }
+  }
+  return movidos;
+}
+
 router.post("/backup-drive", async (req, res) => {
   try {
     const { resumo } = req.body;
@@ -439,6 +498,11 @@ router.post("/backup-drive", async (req, res) => {
     }
 
     const connectors = new ReplitConnectors();
+
+    const subpastaId = await getOrCreateSubpastaAntigos(connectors);
+    const movidos = await moveFilesToSubpasta(connectors, subpastaId);
+    console.log(`${movidos} arquivo(s) antigo(s) movido(s) para subpasta`);
+
     const { data, hora } = getTimestamp();
     const resumoClean = sanitizeFileName(resumo.trim()).slice(0, 60);
     const baseFileName = `${data} ${hora} CODIGO REPLIT ${resumoClean}`;
@@ -458,9 +522,10 @@ router.post("/backup-drive", async (req, res) => {
 
     res.json({
       sucesso: true,
-      mensagem: "Backup enviado com sucesso para Google Drive",
+      mensagem: `Backup enviado! ${movidos > 0 ? `${movidos} arquivo(s) antigo(s) arquivado(s).` : "Nenhum backup anterior encontrado."}`,
       pasta: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}`,
       arquivos: resultados,
+      arquivados: movidos,
     });
   } catch (err: any) {
     console.error("Erro backup drive:", err);
@@ -492,7 +557,7 @@ router.delete("/backup-drive/limpar", async (_req, res) => {
     const connectors = new ReplitConnectors();
     const response = await connectors.proxy(
       "google-drive",
-      `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents&pageSize=100&fields=files(id,name)`,
+      `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+mimeType!='application/vnd.google-apps.folder'+and+trashed=false&pageSize=100&fields=files(id,name)`,
       { method: "GET" }
     );
     const data = await response.json();
@@ -506,7 +571,7 @@ router.delete("/backup-drive/limpar", async (_req, res) => {
 
     res.json({
       sucesso: true,
-      mensagem: `${deletados} arquivo(s) removido(s) da pasta`,
+      mensagem: `${deletados} arquivo(s) removido(s) da pasta (subpasta ANTIGOS preservada)`,
     });
   } catch (err: any) {
     console.error("Erro limpar backup:", err);
