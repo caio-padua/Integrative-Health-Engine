@@ -37,6 +37,7 @@ import monitoramentoPacienteRouter from "./monitoramentoPaciente";
 import alertaPacienteRouter from "./alertaPaciente";
 import direcaoExameRouter from "./direcaoExame";
 import formulaBlendRouter from "./formulaBlend";
+import backupDriveRouter from "./backupDrive";
 
 const router: IRouter = Router();
 
@@ -78,5 +79,6 @@ router.use(monitoramentoPacienteRouter);
 router.use(alertaPacienteRouter);
 router.use(direcaoExameRouter);
 router.use(formulaBlendRouter);
+router.use(backupDriveRouter);
 
 export default router;

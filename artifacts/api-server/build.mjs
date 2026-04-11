@@ -100,6 +100,7 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      "@replit/connectors-sdk",
       "pdfkit",
       "fontkit",
       "linebreak",
