@@ -1,5 +1,7 @@
 import { db, whatsappConfigTable, whatsappMensagensLogTable, alertasNotificacaoTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { decryptCredential } from "./credentialEncryption";
+import { TEMPLATES_DISPONIVEIS, type TemplateDados } from "./whatsappTemplates";
 
 export interface EnvioResult {
   sucesso: boolean;
@@ -16,14 +18,24 @@ interface WebhookUpdateData {
   erroDetalhes?: string;
 }
 
+function decryptConfig(config: WhatsappConfig): WhatsappConfig {
+  return {
+    ...config,
+    authToken: config.authToken ? decryptCredential(config.authToken) : null,
+    apiKey: config.apiKey ? decryptCredential(config.apiKey) : null,
+    accountSid: config.accountSid ? decryptCredential(config.accountSid) : null,
+  };
+}
+
 async function enviarViaTwilio(
   config: WhatsappConfig,
   telefone: string,
   mensagem: string,
 ): Promise<EnvioResult> {
   try {
+    const decrypted = decryptConfig(config);
     const Twilio = (await import("twilio")).default;
-    const client = Twilio(config.accountSid!, config.authToken!);
+    const client = Twilio(decrypted.accountSid!, decrypted.authToken!);
 
     const msg = await client.messages.create({
       body: mensagem,
@@ -45,6 +57,7 @@ async function enviarViaGupshup(
   mensagem: string,
 ): Promise<EnvioResult> {
   try {
+    const decrypted = decryptConfig(config);
     const params = new URLSearchParams({
       channel: "whatsapp",
       source: config.numeroRemetente,
@@ -57,7 +70,7 @@ async function enviarViaGupshup(
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "apikey": config.apiKey || "",
+        "apikey": decrypted.apiKey || "",
       },
       body: params.toString(),
     });
@@ -165,6 +178,27 @@ export async function enviarWhatsapp(
   };
 }
 
+export async function enviarComTemplate(
+  telefone: string,
+  templateNome: string,
+  dados: TemplateDados,
+  options?: {
+    unidadeId?: number;
+    alertaNotificacaoId?: number;
+  },
+): Promise<EnvioResult & { logId?: number }> {
+  const template = TEMPLATES_DISPONIVEIS.find(t => t.nome === templateNome);
+  if (!template) {
+    return { sucesso: false, erro: `Template '${templateNome}' nao encontrado` };
+  }
+
+  const mensagem = template.fn(dados);
+  return enviarWhatsapp(telefone, mensagem, {
+    ...options,
+    templateNome,
+  });
+}
+
 export async function atualizarStatusWebhook(
   provedorMsgId: string,
   novoStatus: "ENTREGUE" | "LIDO" | "FALHOU",
@@ -198,12 +232,13 @@ export async function testarConexaoWhatsapp(configId: number): Promise<{
   }
 
   const config = configs[0];
+  const decrypted = decryptConfig(config);
 
   if (config.provedor === "TWILIO") {
     try {
       const Twilio = (await import("twilio")).default;
-      const client = Twilio(config.accountSid!, config.authToken!);
-      await client.api.accounts(config.accountSid!).fetch();
+      const client = Twilio(decrypted.accountSid!, decrypted.authToken!);
+      await client.api.accounts(decrypted.accountSid!).fetch();
       return { sucesso: true, provedor: "TWILIO" };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -212,7 +247,7 @@ export async function testarConexaoWhatsapp(configId: number): Promise<{
   } else {
     try {
       const response = await fetch("https://api.gupshup.io/wa/api/v1/wallet/balance", {
-        headers: { "apikey": config.apiKey || "" },
+        headers: { "apikey": decrypted.apiKey || "" },
       });
       if (response.ok) {
         return { sucesso: true, provedor: "GUPSHUP" };
@@ -224,4 +259,17 @@ export async function testarConexaoWhatsapp(configId: number): Promise<{
       return { sucesso: false, provedor: "GUPSHUP", erro: message };
     }
   }
+}
+
+export async function obterAuthTokenParaValidacao(provedor: "TWILIO" | "GUPSHUP"): Promise<string | null> {
+  const configs = await db
+    .select()
+    .from(whatsappConfigTable)
+    .where(eq(whatsappConfigTable.provedor, provedor))
+    .limit(1);
+
+  if (configs.length === 0) return null;
+
+  const decrypted = decryptConfig(configs[0]);
+  return provedor === "TWILIO" ? decrypted.authToken : decrypted.apiKey;
 }

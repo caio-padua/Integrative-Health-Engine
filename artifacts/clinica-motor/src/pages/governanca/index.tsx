@@ -19,6 +19,10 @@ import {
   TrendingDown,
   Minus,
   TestTube,
+  MessageSquare,
+  Check,
+  CheckCheck,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -464,22 +468,34 @@ export default function Governanca() {
   const [subDashboardPacienteId, setSubDashboardPacienteId] = useState<number>(0);
   const [subDashboardAberto, setSubDashboardAberto] = useState(false);
   const [pacienteIdInput, setPacienteIdInput] = useState("");
+  const [whatsappMensagens, setWhatsappMensagens] = useState<{
+    id: number;
+    telefoneDestino: string;
+    templateNome: string | null;
+    mensagem: string;
+    status: string;
+    provedor: string;
+    erroDetalhes: string | null;
+    criadoEm: string;
+  }[]>([]);
 
   const carregarDados = async () => {
     setCarregando(true);
     try {
-      const [painelRes, semaforoRes, timelineRes, filaRes, examesRes] = await Promise.all([
+      const [painelRes, semaforoRes, timelineRes, filaRes, examesRes, whatsappRes] = await Promise.all([
         fetchApi<PainelData>("/governanca/painel"),
         fetchApi<SemaforoData>("/governanca/semaforo"),
         fetchApi<{ eventos: EventoTimeline[] }>("/governanca/timeline?limite=15"),
         fetchApi<FilaStats>("/fila-preceptor/stats"),
         fetchApi<ExamesSemaforoGeral>("/exames/semaforo-geral"),
+        fetchApi<typeof whatsappMensagens>("/whatsapp/mensagens?limite=10").catch(() => []),
       ]);
       setPainel(painelRes);
       setSemaforo(semaforoRes);
       setTimeline(timelineRes.eventos);
       setFilaStats(filaRes);
       setExamesSemaforo(examesRes);
+      setWhatsappMensagens(whatsappRes);
       setUltimaAtualizacao(new Date());
     } catch (e) {
       console.error("Erro ao carregar governanca:", e);
@@ -662,6 +678,57 @@ export default function Governanca() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="rounded-none border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              WhatsApp — Status de Entregas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {whatsappMensagens.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                Nenhuma mensagem WhatsApp enviada recentemente
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {whatsappMensagens.map((msg) => {
+                  const statusConfig: Record<string, { icon: typeof Check; cor: string; label: string }> = {
+                    PENDENTE: { icon: Clock, cor: "text-muted-foreground", label: "Pendente" },
+                    ENVIADO: { icon: Check, cor: "text-muted-foreground", label: "Enviado" },
+                    ENTREGUE: { icon: CheckCheck, cor: "text-muted-foreground", label: "Entregue" },
+                    LIDO: { icon: CheckCheck, cor: "text-blue-400", label: "Lido" },
+                    FALHOU: { icon: X, cor: "text-red-400", label: "Falhou" },
+                  };
+                  const cfg = statusConfig[msg.status] || statusConfig.PENDENTE;
+                  const StatusIcon = cfg.icon;
+                  return (
+                    <div key={msg.id} className="flex items-center gap-3 px-3 py-2 bg-card/50 border border-border">
+                      <StatusIcon className={`w-4 h-4 flex-shrink-0 ${cfg.cor}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-muted-foreground">{msg.telefoneDestino}</span>
+                          {msg.templateNome && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20">{msg.templateNome}</span>
+                          )}
+                          <span className={`text-[10px] font-semibold ${cfg.cor}`}>{cfg.label}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{msg.mensagem}</p>
+                        {msg.erroDetalhes && (
+                          <p className="text-[10px] text-red-400 mt-0.5">{msg.erroDetalhes}</p>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                        {new Date(msg.criadoEm).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

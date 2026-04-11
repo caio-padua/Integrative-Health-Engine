@@ -5,11 +5,27 @@ import {
 } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import {
-  enviarWhatsapp, atualizarStatusWebhook, testarConexaoWhatsapp,
+  enviarWhatsapp, enviarComTemplate, atualizarStatusWebhook, testarConexaoWhatsapp,
+  obterAuthTokenParaValidacao,
 } from "../services/whatsappService";
 import { TEMPLATES_DISPONIVEIS } from "../services/whatsappTemplates";
+import { encryptCredential, isEncrypted } from "../services/credentialEncryption";
 
 type WhatsappMensagemStatus = "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
+
+function encryptConfigFields(data: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...data };
+  if (typeof result.authToken === "string" && result.authToken && !isEncrypted(result.authToken)) {
+    result.authToken = encryptCredential(result.authToken);
+  }
+  if (typeof result.apiKey === "string" && result.apiKey && !isEncrypted(result.apiKey)) {
+    result.apiKey = encryptCredential(result.apiKey);
+  }
+  if (typeof result.accountSid === "string" && result.accountSid && !isEncrypted(result.accountSid)) {
+    result.accountSid = encryptCredential(result.accountSid);
+  }
+  return result;
+}
 
 const router = Router();
 
@@ -23,7 +39,7 @@ router.get("/whatsapp/config", async (_req, res): Promise<void> => {
     ...c,
     authToken: c.authToken ? "***configurado***" : null,
     apiKey: c.apiKey ? "***configurado***" : null,
-    accountSid: c.accountSid ? c.accountSid.substring(0, 8) + "..." : null,
+    accountSid: c.accountSid ? "***configurado***" : null,
   }));
 
   res.json(safe);
@@ -36,11 +52,13 @@ router.post("/whatsapp/config", async (req, res): Promise<void> => {
     return;
   }
 
-  const [config] = await db.insert(whatsappConfigTable).values(parsed.data).returning();
+  const encryptedData = encryptConfigFields(parsed.data as Record<string, unknown>);
+  const [config] = await db.insert(whatsappConfigTable).values(encryptedData as typeof parsed.data).returning();
   res.status(201).json({
     ...config,
     authToken: config.authToken ? "***configurado***" : null,
     apiKey: config.apiKey ? "***configurado***" : null,
+    accountSid: config.accountSid ? "***configurado***" : null,
   });
 });
 
@@ -52,9 +70,9 @@ router.put("/whatsapp/config/:id", async (req, res): Promise<void> => {
 
   const updateData: Partial<typeof whatsappConfigTable.$inferInsert> = {};
   if (provedor !== undefined) updateData.provedor = provedor;
-  if (accountSid !== undefined) updateData.accountSid = accountSid;
-  if (authToken !== undefined) updateData.authToken = authToken;
-  if (apiKey !== undefined) updateData.apiKey = apiKey;
+  if (accountSid !== undefined) updateData.accountSid = isEncrypted(accountSid) ? accountSid : encryptCredential(accountSid);
+  if (authToken !== undefined) updateData.authToken = isEncrypted(authToken) ? authToken : encryptCredential(authToken);
+  if (apiKey !== undefined) updateData.apiKey = isEncrypted(apiKey) ? apiKey : encryptCredential(apiKey);
   if (numeroRemetente !== undefined) updateData.numeroRemetente = numeroRemetente;
   if (nomeExibicao !== undefined) updateData.nomeExibicao = nomeExibicao;
   if (ativo !== undefined) updateData.ativo = ativo;
@@ -72,6 +90,7 @@ router.put("/whatsapp/config/:id", async (req, res): Promise<void> => {
     ...updated,
     authToken: updated.authToken ? "***configurado***" : null,
     apiKey: updated.apiKey ? "***configurado***" : null,
+    accountSid: updated.accountSid ? "***configurado***" : null,
   });
 });
 
@@ -97,18 +116,29 @@ router.post("/whatsapp/config/:id/testar", async (req, res): Promise<void> => {
 });
 
 router.post("/whatsapp/enviar", async (req, res): Promise<void> => {
-  const { telefone, mensagem, unidadeId, templateNome, alertaNotificacaoId } = req.body;
+  const { telefone, mensagem, unidadeId, templateNome, alertaNotificacaoId, templateDados } = req.body;
 
-  if (!telefone || !mensagem) {
-    res.status(400).json({ erro: "telefone e mensagem sao obrigatorios" });
+  if (!telefone) {
+    res.status(400).json({ erro: "telefone e obrigatorio" });
     return;
   }
 
-  const resultado = await enviarWhatsapp(telefone, mensagem, {
-    unidadeId,
-    templateNome,
-    alertaNotificacaoId,
-  });
+  let resultado;
+  if (templateNome && templateDados) {
+    resultado = await enviarComTemplate(telefone, templateNome, templateDados, {
+      unidadeId,
+      alertaNotificacaoId,
+    });
+  } else if (mensagem) {
+    resultado = await enviarWhatsapp(telefone, mensagem, {
+      unidadeId,
+      templateNome,
+      alertaNotificacaoId,
+    });
+  } else {
+    res.status(400).json({ erro: "mensagem ou (templateNome + templateDados) sao obrigatorios" });
+    return;
+  }
 
   if (resultado.sucesso) {
     res.json(resultado);
@@ -140,11 +170,16 @@ router.post("/whatsapp/enviar-teste", async (req, res): Promise<void> => {
   const telefoneFormatado = telefone.replace(/\D/g, "");
   const telefoneInt = telefoneFormatado.startsWith("55") ? telefoneFormatado : `55${telefoneFormatado}`;
 
+  const { decryptCredential } = await import("../services/credentialEncryption");
+
   let resultado: { sucesso: boolean; provedorMsgId?: string; erro?: string };
   if (config.provedor === "TWILIO") {
     try {
       const Twilio = (await import("twilio")).default;
-      const client = Twilio(config.accountSid!, config.authToken!);
+      const client = Twilio(
+        decryptCredential(config.accountSid!),
+        decryptCredential(config.authToken!),
+      );
       const msg = await client.messages.create({
         body: mensagemTeste,
         from: `whatsapp:${config.numeroRemetente}`,
@@ -166,7 +201,10 @@ router.post("/whatsapp/enviar-teste", async (req, res): Promise<void> => {
       });
       const response = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", "apikey": config.apiKey || "" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "apikey": decryptCredential(config.apiKey || ""),
+        },
         body: params.toString(),
       });
       const data = await response.json();
@@ -250,14 +288,23 @@ router.get("/whatsapp/mensagens/stats", async (_req, res): Promise<void> => {
 router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
   const body = req.body;
 
-  const twilioSignature = req.headers["x-twilio-signature"];
-  if (twilioSignature) {
+  const isTwilioPayload = !!(body.MessageSid || body.SmsStatus);
+  const isGupshupPayload = !!(body.type === "message-event" || body.payload);
+
+  if (isTwilioPayload) {
+    const twilioSignature = req.headers["x-twilio-signature"];
+    if (!twilioSignature) {
+      console.warn("[WhatsApp/Webhook] Callback Twilio sem assinatura — rejeitando");
+      res.sendStatus(403);
+      return;
+    }
+
     try {
-      const configs = await db.select().from(whatsappConfigTable).where(eq(whatsappConfigTable.provedor, "TWILIO")).limit(1);
-      if (configs.length > 0 && configs[0].authToken) {
+      const authToken = await obterAuthTokenParaValidacao("TWILIO");
+      if (authToken) {
         const { validateRequest } = await import("twilio");
         const webhookUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-        const isValid = validateRequest(configs[0].authToken, String(twilioSignature), webhookUrl, body);
+        const isValid = validateRequest(authToken, String(twilioSignature), webhookUrl, body);
         if (!isValid) {
           console.warn("[WhatsApp/Webhook] Assinatura Twilio invalida — rejeitando");
           res.sendStatus(403);
@@ -270,9 +317,7 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
       res.sendStatus(403);
       return;
     }
-  }
 
-  if (body.MessageSid || body.SmsStatus) {
     const msgId = body.MessageSid;
     const twilioStatus = body.MessageStatus || body.SmsStatus;
 
@@ -306,7 +351,21 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
     return;
   }
 
-  if (body.type === "message-event" || body.payload) {
+  if (isGupshupPayload) {
+    const gupshupApiKey = req.headers["apikey"] || req.headers["x-api-key"];
+    if (!gupshupApiKey) {
+      console.warn("[WhatsApp/Webhook] Callback Gupshup sem apikey — rejeitando");
+      res.sendStatus(403);
+      return;
+    }
+
+    const storedApiKey = await obterAuthTokenParaValidacao("GUPSHUP");
+    if (storedApiKey && String(gupshupApiKey) !== storedApiKey) {
+      console.warn("[WhatsApp/Webhook] Apikey Gupshup invalida — rejeitando");
+      res.sendStatus(403);
+      return;
+    }
+
     const payload = body.payload || body;
     const msgId = payload.id || payload.gsId;
     const gupshupType = payload.type || body.type;
@@ -340,7 +399,8 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
     return;
   }
 
-  res.sendStatus(200);
+  console.warn("[WhatsApp/Webhook] Payload nao reconhecido — rejeitando");
+  res.sendStatus(400);
 });
 
 export default router;
