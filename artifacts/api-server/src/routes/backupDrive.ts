@@ -617,4 +617,78 @@ router.delete("/backup-drive/limpar", async (_req, res) => {
   }
 });
 
+router.get("/backup-drive/atual/txt", async (_req, res) => {
+  try {
+    const dataHoje = getDataHoje();
+    const plainText = generatePlainTextContent("LEITURA ATUAL DO PROJETO", dataHoje, "ATUAL");
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", `inline; filename="PADCOM_ATUAL.txt"`);
+    res.send(plainText);
+  } catch (err: any) {
+    console.error("Erro gerar txt atual:", err);
+    res.status(500).send("Erro interno");
+  }
+});
+
+router.get("/backup-drive/atual/md", async (_req, res) => {
+  try {
+    const dataHoje = getDataHoje();
+    const mdContent = generateMdContent("LEITURA ATUAL DO PROJETO", dataHoje, "ATUAL");
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Content-Disposition", `inline; filename="PADCOM_ATUAL.md"`);
+    res.send(mdContent);
+  } catch (err: any) {
+    console.error("Erro gerar md atual:", err);
+    res.status(500).send("Erro interno");
+  }
+});
+
+router.get("/backup-drive/atual/json", async (_req, res) => {
+  try {
+    const dataHoje = getDataHoje();
+    const gitLog = getGitLog();
+    const fileTree = getFileTree();
+    const sourceEntries: { arquivo: string; conteudo: string }[] = [];
+    for (const relPath of ARQUIVOS_CHAVE) {
+      const fullPath = path.join(WORKSPACE, relPath);
+      try {
+        if (!fs.existsSync(fullPath)) continue;
+        const content = fs.readFileSync(fullPath, "utf-8");
+        if (content.trim().length === 0) continue;
+        sourceEntries.push({ arquivo: relPath, conteudo: content });
+      } catch {
+        continue;
+      }
+    }
+    res.json({
+      projeto: `${PROJETO_NOME} V15.2 MOTOR CLINICO`,
+      data: dataHoje,
+      stack: "REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM",
+      ambiente: "REPLIT",
+      branchGithub: "REPLIT-AGENT",
+      linkReplit: "https://replit.com/@caioregister/Integrative-Health-Engine",
+      designSystem: {
+        borderRadius: "0px",
+        corPrimaria: "hsl(210 45% 65%)",
+        background: "hsl(215 28% 9%)",
+        sidebar: "border-left-2 primary",
+        ui: "TDAH-FRIENDLY SUB-DASHBOARDS MACRO > DETAIL > MICRO",
+      },
+      usuariosDemo: [
+        { email: "caio@clinica.com", perfil: "validador_mestre", papel: "Diretor Clinico", senha: "senha123" },
+        { email: "helena@clinica.com", perfil: "medico_tecnico", papel: "Medica", senha: "senha123" },
+        { email: "ana@clinica.com", perfil: "enfermeira", papel: "Enfermagem", senha: "senha123" },
+        { email: "carlos@clinica.com", perfil: "validador_enfermeiro", papel: "Enfermeiro Validador", senha: "senha123" },
+      ],
+      ultimosCommits: gitLog,
+      arvoreArquivos: fileTree.split("\n"),
+      totalArquivosFonte: sourceEntries.length,
+      arquivosFonte: sourceEntries,
+    });
+  } catch (err: any) {
+    console.error("Erro gerar json atual:", err);
+    res.status(500).json({ erro: "Erro interno" });
+  }
+});
+
 export default router;
