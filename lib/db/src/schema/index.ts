@@ -30,3 +30,4 @@ export * from "./cavaloClinical";
 export * from "./soberaniaClinical";
 export * from "./auditoriaCascata";
 export * from "./alertasNotificacao";
+export * from "./monitoramentoPaciente";

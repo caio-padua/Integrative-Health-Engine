@@ -36,6 +36,7 @@ import AvaliacaoEnfermagemPage from "@/pages/avaliacao-enfermagem";
 import RasEvolutivoPage from "@/pages/ras-evolutivo";
 import PortalClientePage from "@/pages/portal";
 import GovernancaPage from "@/pages/governanca";
+import MonitoramentoPacientePage from "@/pages/pacientes/monitoramento";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +79,7 @@ function Router() {
       <Route path="/task-cards" component={TaskCardsPage} />
       <Route path="/avaliacao-enfermagem" component={AvaliacaoEnfermagemPage} />
       <Route path="/ras-evolutivo" component={RasEvolutivoPage} />
+      <Route path="/pacientes/:id/monitoramento" component={MonitoramentoPacientePage} />
       <Route path="/portal" component={PortalClientePage} />
       <Route path="/governanca" component={GovernancaPage} />
       <Route component={NotFound} />

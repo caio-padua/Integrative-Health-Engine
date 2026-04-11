@@ -37,3 +37,24 @@ Key architectural decisions and features include:
 - **Orval:** OpenAPI-first code generation tool for API clients and Zod schemas.
 - **Recharts:** For data visualization within dashboards.
 - **Tailwind CSS & shadcn/ui:** Frontend styling and UI component library.
+
+## Módulos V22 (Implementação 9)
+
+### Schema: `monitoramentoPaciente.ts`
+- **`direcao_favoravel_exame`** — GAP A: Tabela de referência dizendo se cada exame é SUBIR_BOM ou DESCER_BOM. 46 exames seedados da V22. Função `interpretarTendenciaExame()` converte tendência + direção → MELHORA/PIORA/ESTAVEL.
+- **`formula_blend` + `formula_blend_ativo`** — GAP B: Blends compostos com ativos filhos (ordem, componente, dosagem, unidade). 4 blends V22 seedados (Sono 7 ativos, Foco 6, Metabólico 5, Hepático 6).
+- **`registro_substancia_uso`** — GAP C: Visão consolidada blend + medicação por paciente com status ATIVO/PAUSADO/CONCLUIDO/CANCELADO.
+- **`acompanhamento_formula`** — GAP D: Tracking rico de aderência (ALTA/MEDIA/BAIXA), bem-estar, resultado (SIM/PARCIAL/NAO), efeitos colaterais (até 2), observação. Origem PACIENTE ou PROFISSIONAL.
+- **`monitoramento_sinais_vitais`** — GAP E: 6 indicadores × 6 slots/dia (hora1-hora6 valor+horário). Indicadores: PA_SISTOLICA, PA_DIASTOLICA, FREQUENCIA_CARDIACA, GLICEMIA_JEJUM, PESO, CINTURA.
+- **`tracking_sintomas`** — 15 indicadores (sono, energia, disposicao, atividadeFisica, foco, concentracao, libido, forca, emagrecimento, hipertrofia, definicao, resistencia, massaMagra, estresse, humor). Estresse é INVERTIDO (alto=ruim). Classificação automática: PREOCUPANTE/BAIXO/MEDIANO/OTIMO.
+- **`alerta_paciente`** — Card tipo Trello: paciente cria alerta (10 tipos) → assistente responde (texto + flag contato telefônico) → status ABERTO→EM_ATENDIMENTO→RESPONDIDO→FECHADO.
+
+### Rotas Backend
+- `monitoramentoPaciente.ts` — POST sinais vitais (unitário/lote), GET sinais por paciente, POST tracking sintomas, GET sintomas+gráfico por paciente, POST acompanhamento fórmula, GET acompanhamentos por paciente
+- `alertaPaciente.ts` — CRUD alertas, PATCH responder/fechar, GET stats por status+gravidade
+- `direcaoExame.ts` — GET/POST direção favorável, POST seed (46 exames V22)
+- `formulaBlend.ts` — GET/POST blends com ativos, POST seed V22, CRUD registro substâncias uso
+
+### Frontend
+- **Portal do Cliente** (`/portal`) — Hub self-service com 5 seções: Sinais Vitais (até 4 medições/dia), Sintomas (15 sliders 0-10), Fórmulas (feedback aderência/efeitos), Alertas (card para equipe), Upload documentos
+- **Monitoramento do Paciente** (`/pacientes/:id/monitoramento`) — Dashboard médico com 4 KPIs + grid sinais vitais (replica V22) + tracking sintomas com classificação + alertas com resposta inline
