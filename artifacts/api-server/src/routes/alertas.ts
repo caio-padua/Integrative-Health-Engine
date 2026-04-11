@@ -3,20 +3,47 @@ import {
   db, alertasNotificacaoTable, usuariosTable,
   criarAlerta, calcularTempoRestante,
 } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, type SQL } from "drizzle-orm";
+import { enviarWhatsapp } from "../services/whatsappService";
 
 const router = Router();
 
 router.post("/alertas", async (req, res): Promise<void> => {
-  const { tipo, destinatarioId, mensagem, linkAcao, horasExpiracao } = req.body;
+  const { tipo, destinatarioId, mensagem, linkAcao, horasExpiracao, canal, telefoneDestino } = req.body;
 
   if (!tipo || !destinatarioId || !mensagem) {
     res.status(400).json({ error: "tipo, destinatarioId e mensagem sao obrigatorios" });
     return;
   }
 
-  const dados = criarAlerta(tipo, destinatarioId, mensagem, linkAcao, horasExpiracao);
+  const canalFinal = canal || "SISTEMA";
+  const dados = criarAlerta(tipo, destinatarioId, mensagem, linkAcao, horasExpiracao, canalFinal);
+
+  if (canalFinal === "WHATSAPP" && telefoneDestino) {
+    dados.telefoneDestino = telefoneDestino;
+  }
+
   const [alerta] = await db.insert(alertasNotificacaoTable).values(dados).returning();
+
+  if (canalFinal === "WHATSAPP" && telefoneDestino) {
+    const resultado = await enviarWhatsapp(telefoneDestino, mensagem, {
+      alertaNotificacaoId: alerta.id,
+      templateNome: tipo,
+    });
+
+    if (!resultado.sucesso) {
+      console.warn(`[Alertas] Falha ao enviar WhatsApp para alerta ${alerta.id}: ${resultado.erro}`);
+    }
+
+    const alertaAtualizado = await db
+      .select()
+      .from(alertasNotificacaoTable)
+      .where(eq(alertasNotificacaoTable.id, alerta.id))
+      .limit(1);
+
+    res.status(201).json(alertaAtualizado[0] || alerta);
+    return;
+  }
 
   res.status(201).json(alerta);
 });
@@ -29,10 +56,13 @@ router.get("/alertas", async (req, res): Promise<void> => {
     return;
   }
 
-  const conditions: any[] = [
+  const conditions: SQL[] = [
     eq(alertasNotificacaoTable.destinatarioId, Number(destinatarioId)),
   ];
-  if (status) conditions.push(eq(alertasNotificacaoTable.status, String(status) as any));
+  if (status) {
+    const statusStr = String(status) as typeof alertasNotificacaoTable.$inferSelect.status;
+    conditions.push(eq(alertasNotificacaoTable.status, statusStr));
+  }
 
   const alertas = await db
     .select({
