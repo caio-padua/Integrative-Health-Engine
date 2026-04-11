@@ -1,0 +1,68 @@
+name: Auto Merge replit-agent to main
+
+on:
+  push:
+    branches:
+      - replit-agent
+
+jobs:
+  count-and-merge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Count commits ahead of main
+        id: count
+        run: |
+          git fetch origin main
+          AHEAD=$(git rev-list --count origin/main..origin/replit-agent)
+          echo "commits_ahead=$AHEAD" >> $GITHUB_OUTPUT
+          echo "Commits ahead of main: $AHEAD"
+
+      - name: Check last merge tag
+        id: last_merge
+        run: |
+          LAST_TAG=$(git tag -l "v*" --sort=-v:refname | head -1)
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS_SINCE_TAG=999
+            NEXT_VERSION="v1.0"
+          else
+            COMMITS_SINCE_TAG=$(git rev-list --count $LAST_TAG..origin/replit-agent)
+            MAJOR=$(echo $LAST_TAG | sed 's/v//' | cut -d'.' -f1)
+            MINOR=$(echo $LAST_TAG | sed 's/v//' | cut -d'.' -f2)
+            NEXT_MINOR=$((MINOR + 1))
+            NEXT_VERSION="v${MAJOR}.${NEXT_MINOR}"
+          fi
+          echo "commits_since_tag=$COMMITS_SINCE_TAG" >> $GITHUB_OUTPUT
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          echo "Commits since last tag: $COMMITS_SINCE_TAG"
+          echo "Next version: $NEXT_VERSION"
+
+      - name: Merge to main and tag
+        if: steps.last_merge.outputs.commits_since_tag >= 5 || steps.count.outputs.commits_ahead >= 5
+        run: |
+          git config user.name "Dr. Git (Automacao PADCOM)"
+          git config user.email "auto@padcom.dev"
+          
+          git checkout main
+          git merge origin/replit-agent --no-edit -m "Consolidar replit-agent em main — ${{ steps.last_merge.outputs.next_version }}"
+          
+          git tag -a ${{ steps.last_merge.outputs.next_version }} -m "PADCOM ${{ steps.last_merge.outputs.next_version }} — Consolidacao automatica"
+          
+          git push origin main
+          git push origin ${{ steps.last_merge.outputs.next_version }}
+          
+          echo "Merge concluido! Versao: ${{ steps.last_merge.outputs.next_version }}"
+
+      - name: Skip merge (not enough commits)
+        if: steps.last_merge.outputs.commits_since_tag < 5 && steps.count.outputs.commits_ahead < 5
+        run: |
+          echo "Apenas ${{ steps.last_merge.outputs.commits_since_tag }} commits desde ultima tag. Aguardando 5 para consolidar."
