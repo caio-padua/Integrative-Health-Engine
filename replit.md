@@ -170,3 +170,26 @@ Quando renomear uma tabela ou campo, SEMPRE:
 | medico_tecnico | Supervisor / Assistente | Medio |
 | validador_enfermeiro | Consultor | Base |
 | enfermeira | Enfermeira | Operacional |
+
+## Sistema de Versionamento (Arquitetura Dr. Caio)
+
+### Branches
+| Branch | Funcao | Atualizacao |
+|--------|--------|-------------|
+| `replit-agent` | Braco operacional — recebe codigo em tempo real | Automatico a cada checkpoint |
+| `main` | Versao oficial consolidada | Automatico a cada 5 ciclos de atualizacao |
+
+### Tags de Versao
+| Tag | Conteudo | Data |
+|-----|----------|------|
+| v1.0 | Base inicial — 37 modulos, 66 tabelas, 5 Gaps, governanca | 11/04/2026 |
+
+### Fluxo Automatizado (GitHub Action)
+```
+Dr. Replit codifica → checkpoint → push automatico → replit-agent (GitHub)
+                                                          ↓ (a cada 5 pushes)
+                                                     merge → main + Tag vX.Y
+```
+
+### Arquivo de configuracao
+`.github/workflows/auto-merge-main.yml` — GitHub Action que conta pushes e consolida automaticamente
