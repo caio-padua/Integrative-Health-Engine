@@ -8,9 +8,9 @@ import {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, Users, ShieldAlert, CloudUpload, FileText, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
+import { Plus, Settings, Users, ShieldAlert, CloudUpload, FileText, Loader2, CheckCircle2, ExternalLink, MessageSquare, Phone, Check, CheckCheck, X, Send, TestTube } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -47,6 +47,144 @@ export default function ConfiguracoesPage() {
   const [backupResumo, setBackupResumo] = useState("");
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupResult, setBackupResult] = useState<any>(null);
+
+  const [waConfigs, setWaConfigs] = useState<any[]>([]);
+  const [waLoading, setWaLoading] = useState(false);
+  const [waDialogOpen, setWaDialogOpen] = useState(false);
+  const [waTestLoading, setWaTestLoading] = useState<number | null>(null);
+  const [waTestResult, setWaTestResult] = useState<any>(null);
+  const [waMensagens, setWaMensagens] = useState<any[]>([]);
+  const [waStats, setWaStats] = useState<any>(null);
+  const [waNewConfig, setWaNewConfig] = useState({
+    provedor: "TWILIO" as "TWILIO" | "GUPSHUP",
+    accountSid: "",
+    authToken: "",
+    apiKey: "",
+    numeroRemetente: "",
+    nomeExibicao: "Clinica PADCOM",
+    unidadeId: undefined as number | undefined,
+  });
+  const [waSavingConfig, setWaSavingConfig] = useState(false);
+  const [waTesteSendOpen, setWaTesteSendOpen] = useState(false);
+  const [waTesteTelefone, setWaTesteTelefone] = useState("");
+  const [waTesteEnviando, setWaTesteEnviando] = useState(false);
+
+  const baseUrl = import.meta.env.BASE_URL || "/";
+  const apiBase = `${window.location.origin}${baseUrl}api`.replace(/\/+/g, "/").replace(":/", "://");
+
+  const fetchWaConfigs = async () => {
+    setWaLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/whatsapp/config`);
+      if (res.ok) setWaConfigs(await res.json());
+    } catch {}
+    setWaLoading(false);
+  };
+
+  const fetchWaMensagens = async () => {
+    try {
+      const res = await fetch(`${apiBase}/whatsapp/mensagens?limite=10`);
+      if (res.ok) setWaMensagens(await res.json());
+    } catch {}
+  };
+
+  const fetchWaStats = async () => {
+    try {
+      const res = await fetch(`${apiBase}/whatsapp/mensagens/stats`);
+      if (res.ok) setWaStats(await res.json());
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchWaConfigs();
+    fetchWaMensagens();
+    fetchWaStats();
+  }, []);
+
+  const handleSaveWaConfig = async () => {
+    setWaSavingConfig(true);
+    try {
+      const res = await fetch(`${apiBase}/whatsapp/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(waNewConfig),
+      });
+      if (res.ok) {
+        toast({ title: "Configuracao WhatsApp salva com sucesso!" });
+        setWaDialogOpen(false);
+        setWaNewConfig({ provedor: "TWILIO", accountSid: "", authToken: "", apiKey: "", numeroRemetente: "", nomeExibicao: "Clinica PADCOM", unidadeId: undefined });
+        fetchWaConfigs();
+      } else {
+        const data = await res.json();
+        toast({ title: data.erro || "Erro ao salvar", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexao", variant: "destructive" });
+    }
+    setWaSavingConfig(false);
+  };
+
+  const handleTestWaConfig = async (configId: number) => {
+    setWaTestLoading(configId);
+    setWaTestResult(null);
+    try {
+      const res = await fetch(`${apiBase}/whatsapp/config/${configId}/testar`, { method: "POST" });
+      const data = await res.json();
+      setWaTestResult(data);
+      toast({ title: data.sucesso ? "Conexao OK!" : `Falha: ${data.erro}`, variant: data.sucesso ? "default" : "destructive" });
+    } catch {
+      toast({ title: "Erro ao testar", variant: "destructive" });
+    }
+    setWaTestLoading(null);
+  };
+
+  const handleEnviarTeste = async (configId: number) => {
+    if (!waTesteTelefone.trim()) {
+      toast({ title: "Informe o telefone", variant: "destructive" });
+      return;
+    }
+    setWaTesteEnviando(true);
+    try {
+      const res = await fetch(`${apiBase}/whatsapp/enviar-teste`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ configId, telefone: waTesteTelefone.trim() }),
+      });
+      const data = await res.json();
+      toast({ title: data.sucesso ? "Mensagem de teste enviada!" : `Falha: ${data.erro}`, variant: data.sucesso ? "default" : "destructive" });
+      if (data.sucesso) {
+        setWaTesteSendOpen(false);
+        setWaTesteTelefone("");
+        fetchWaMensagens();
+        fetchWaStats();
+      }
+    } catch {
+      toast({ title: "Erro ao enviar", variant: "destructive" });
+    }
+    setWaTesteEnviando(false);
+  };
+
+  const handleDeleteWaConfig = async (id: number) => {
+    try {
+      const res = await fetch(`${apiBase}/whatsapp/config/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Configuracao removida" });
+        fetchWaConfigs();
+      }
+    } catch {
+      toast({ title: "Erro ao remover", variant: "destructive" });
+    }
+  };
+
+  const statusIcone = (status: string) => {
+    switch (status) {
+      case "ENVIADO": return <Check className="w-3 h-3 text-muted-foreground" />;
+      case "ENTREGUE": return <CheckCheck className="w-3 h-3 text-muted-foreground" />;
+      case "LIDO": return <CheckCheck className="w-3 h-3 text-blue-400" />;
+      case "FALHOU": return <X className="w-3 h-3 text-red-400" />;
+      default: return <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />;
+    }
+  };
 
   const handleBackup = async () => {
     if (backupResumo.trim().length < 5) {
@@ -346,6 +484,238 @@ export default function ConfiguracoesPage() {
                   <ExternalLink className="w-3 h-3" />
                   Abrir pasta no Google Drive
                 </a>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-green-500" />
+              WhatsApp — Integracao
+            </CardTitle>
+            <Dialog open={waDialogOpen} onOpenChange={setWaDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nova Configuracao
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Configurar Provedor WhatsApp</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Provedor</label>
+                    <Select
+                      value={waNewConfig.provedor}
+                      onValueChange={(v) => setWaNewConfig({ ...waNewConfig, provedor: v as "TWILIO" | "GUPSHUP" })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="TWILIO">Twilio</SelectItem>
+                        <SelectItem value="GUPSHUP">Gupshup</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {waNewConfig.provedor === "TWILIO" ? (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium">Account SID</label>
+                        <Input
+                          value={waNewConfig.accountSid}
+                          onChange={(e) => setWaNewConfig({ ...waNewConfig, accountSid: e.target.value })}
+                          placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Auth Token</label>
+                        <Input
+                          type="password"
+                          value={waNewConfig.authToken}
+                          onChange={(e) => setWaNewConfig({ ...waNewConfig, authToken: e.target.value })}
+                          placeholder="Token secreto"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <label className="text-sm font-medium">API Key</label>
+                      <Input
+                        type="password"
+                        value={waNewConfig.apiKey}
+                        onChange={(e) => setWaNewConfig({ ...waNewConfig, apiKey: e.target.value })}
+                        placeholder="Chave da API Gupshup"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-sm font-medium">Numero Remetente (com DDI)</label>
+                    <Input
+                      value={waNewConfig.numeroRemetente}
+                      onChange={(e) => setWaNewConfig({ ...waNewConfig, numeroRemetente: e.target.value })}
+                      placeholder="+5511999999999"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Nome de Exibicao</label>
+                    <Input
+                      value={waNewConfig.nomeExibicao}
+                      onChange={(e) => setWaNewConfig({ ...waNewConfig, nomeExibicao: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Unidade (opcional)</label>
+                    <Select
+                      value={waNewConfig.unidadeId?.toString() || ""}
+                      onValueChange={(v) => setWaNewConfig({ ...waNewConfig, unidadeId: v ? parseInt(v) : undefined })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Global (todas)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Global (todas)</SelectItem>
+                        {unidades?.map(u => (
+                          <SelectItem key={u.id} value={u.id.toString()}>{u.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button onClick={handleSaveWaConfig} className="w-full" disabled={waSavingConfig || !waNewConfig.numeroRemetente}>
+                    {waSavingConfig ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : "Salvar Configuracao"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Integra envio real de mensagens via WhatsApp usando Twilio ou Gupshup.
+              Quando configurado, o sistema envia lembretes, codigos e alertas automaticamente.
+            </p>
+
+            {waStats && (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded border border-border p-3 text-center">
+                  <div className="text-2xl font-bold text-primary">{waStats.totalHoje ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">Mensagens hoje</div>
+                </div>
+                <div className="rounded border border-border p-3 text-center">
+                  <div className="text-2xl font-bold text-green-500">
+                    {waStats.porStatus?.find((s: any) => s.status === "ENTREGUE")?.total ?? 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Entregues</div>
+                </div>
+                <div className="rounded border border-border p-3 text-center">
+                  <div className="text-2xl font-bold text-red-500">
+                    {waStats.porStatus?.find((s: any) => s.status === "FALHOU")?.total ?? 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Falhas</div>
+                </div>
+              </div>
+            )}
+
+            {waLoading ? (
+              <Skeleton className="h-20 w-full" />
+            ) : waConfigs.length === 0 ? (
+              <div className="rounded border border-dashed border-border p-6 text-center text-muted-foreground">
+                <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>Nenhum provedor configurado.</p>
+                <p className="text-xs mt-1">Clique em "Nova Configuracao" para conectar Twilio ou Gupshup.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {waConfigs.map((cfg) => (
+                  <div key={cfg.id} className="rounded border border-border p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className={cfg.ativo ? "bg-green-500/10 text-green-500 border-green-500/30" : "bg-red-500/10 text-red-500 border-red-500/30"}>
+                          {cfg.provedor}
+                        </Badge>
+                        <span className="text-sm font-medium">{cfg.nomeExibicao}</span>
+                        <span className="text-xs text-muted-foreground">
+                          <Phone className="w-3 h-3 inline mr-1" />
+                          {cfg.numeroRemetente}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleTestWaConfig(cfg.id)}
+                          disabled={waTestLoading === cfg.id}
+                        >
+                          {waTestLoading === cfg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <TestTube className="h-3 w-3" />}
+                          <span className="ml-1">Testar</span>
+                        </Button>
+                        <Dialog open={waTesteSendOpen} onOpenChange={setWaTesteSendOpen}>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              <Send className="h-3 w-3 mr-1" />
+                              Enviar Teste
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[400px]">
+                            <DialogHeader>
+                              <DialogTitle>Enviar Mensagem de Teste</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-sm font-medium">Telefone (com DDD)</label>
+                                <Input
+                                  value={waTesteTelefone}
+                                  onChange={(e) => setWaTesteTelefone(e.target.value)}
+                                  placeholder="11999999999"
+                                />
+                              </div>
+                              <Button
+                                onClick={() => handleEnviarTeste(cfg.id)}
+                                className="w-full"
+                                disabled={waTesteEnviando}
+                              >
+                                {waTesteEnviando ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</> : "Enviar Mensagem de Teste"}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300" onClick={() => handleDeleteWaConfig(cfg.id)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    {cfg.accountSid && <span className="text-xs text-muted-foreground">SID: {cfg.accountSid}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {waMensagens.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Ultimas Mensagens
+                </h4>
+                <div className="space-y-1">
+                  {waMensagens.map((msg) => (
+                    <div key={msg.id} className="flex items-center gap-3 text-sm py-1.5 border-b border-border/50 last:border-0">
+                      <span className="flex items-center gap-1">{statusIcone(msg.status)}</span>
+                      <span className="text-muted-foreground text-xs w-20">{msg.provedor}</span>
+                      <span className="text-muted-foreground text-xs w-28">
+                        <Phone className="w-3 h-3 inline mr-1" />
+                        {msg.telefoneDestino}
+                      </span>
+                      <span className="flex-1 truncate text-xs">{msg.mensagem?.substring(0, 60)}...</span>
+                      <span className="text-xs text-muted-foreground">
+                        {msg.criadoEm ? new Date(msg.criadoEm).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>

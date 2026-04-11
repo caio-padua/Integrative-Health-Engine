@@ -552,6 +552,8 @@ router.get("/sessoes/ics-semana", async (req, res) => {
 
 router.get("/sessoes/:id/whatsapp-lembrete", async (req, res) => {
   const sessaoId = Number(req.params.id);
+  const enviarApi = req.query.enviar === "true";
+
   const [sessaoData] = await db
     .select({ sessao: sessoesTable, pacienteNome: pacientesTable.nome, pacienteTelefone: pacientesTable.telefone, unidadeNome: unidadesTable.nome })
     .from(sessoesTable)
@@ -570,12 +572,24 @@ router.get("/sessoes/:id/whatsapp-lembrete", async (req, res) => {
 
   const waUrl = `https://wa.me/${telefoneInt}?text=${encodeURIComponent(mensagem)}`;
 
+  if (enviarApi && telefoneInt) {
+    try {
+      const { enviarWhatsapp } = await import("../services/whatsappService");
+      const resultado = await enviarWhatsapp(telefoneInt, mensagem, {
+        unidadeId: sessaoData.sessao.unidadeId ?? undefined,
+        templateNome: "LEMBRETE_SESSAO",
+      });
+      res.json({ url: waUrl, mensagem, telefone: telefoneInt, envioApi: resultado });
+      return;
+    } catch { /* fallback to wa.me link */ }
+  }
+
   res.json({ url: waUrl, mensagem, telefone: telefoneInt });
 });
 
 router.get("/sessoes/:id/whatsapp-codigo", async (req, res) => {
   const sessaoId = Number(req.params.id);
-  const { codigo } = req.query;
+  const { codigo, enviar } = req.query;
   if (!codigo) { res.status(400).json({ error: "codigo obrigatorio" }); return; }
 
   const [sessaoData] = await db
@@ -594,6 +608,18 @@ router.get("/sessoes/:id/whatsapp-codigo", async (req, res) => {
   const mensagem = `Clinica Padua | ${sessaoData.sessao.tipoProcedimento || "Sessao"} | ${codigo}\n\nOla ${primeiroNome}!\n\nSeu codigo de validacao para a sessao de ${dataFormatada} e:\n\n🔑 *${codigo}*\n\nApresente este codigo a enfermeira no momento da aplicacao.\n\nClinica Padua — Protocolos Injetaveis`;
 
   const waUrl = `https://wa.me/${telefoneInt}?text=${encodeURIComponent(mensagem)}`;
+
+  if (enviar === "true" && telefoneInt) {
+    try {
+      const { enviarWhatsapp } = await import("../services/whatsappService");
+      const resultado = await enviarWhatsapp(telefoneInt, mensagem, {
+        unidadeId: sessaoData.sessao.unidadeId ?? undefined,
+        templateNome: "CODIGO_VALIDACAO",
+      });
+      res.json({ url: waUrl, mensagem, telefone: telefoneInt, envioApi: resultado });
+      return;
+    } catch { /* fallback to wa.me link */ }
+  }
 
   res.json({ url: waUrl, mensagem, telefone: telefoneInt });
 });

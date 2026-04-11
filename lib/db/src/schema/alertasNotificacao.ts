@@ -19,6 +19,9 @@ export const alertasNotificacaoTable = pgTable("alertas_notificacao", {
   confirmadoPorId: integer("confirmado_por_id").references(() => usuariosTable.id),
   expiraEm: timestamp("expira_em", { withTimezone: true }).notNull(),
   enviadoEm: timestamp("enviado_em", { withTimezone: true }).notNull().defaultNow(),
+  provedorMsgId: text("provedor_msg_id"),
+  erroEnvio: text("erro_envio"),
+  telefoneDestino: text("telefone_destino"),
 });
 
 export const insertAlertaNotificacaoSchema = createInsertSchema(alertasNotificacaoTable).omit({ id: true, enviadoEm: true });
