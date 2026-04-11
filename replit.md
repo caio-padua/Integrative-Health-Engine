@@ -61,7 +61,7 @@ Key architectural decisions and features include:
 
 ## Backup Google Drive (com CODIGO-FONTE COMPLETO)
 - **Endpoint**: `POST /api/backup-drive` — Envia 3 arquivos para pasta BANCO CODIGOS REPLIT GITHUB
-- **Formato nomes**: `yy.mm.dd hh:mm CODIGO REPLIT [RESUMO SEM ACENTOS MAIUSCULO]` (data+hora primeiro para ordenação cronológica)
+- **Formato nomes**: `yy.mm.dd V01 CODIGO REPLIT [RESUMO SEM ACENTOS MAIUSCULO]` (versão sequencial contínua, nunca reseta no mesmo projeto)
 - **3 arquivos por backup**: Google Doc nativo (IA lê direto), TXT, MD (Markdown formatado)
 - **Conteúdo COMPLETO**: Resumo, data/hora, últimos 20 commits, árvore de arquivos, info do projeto, design system, usuários demo, **CODIGO-FONTE de ~100 arquivos-chave** (schema banco, rotas backend, páginas frontend, configurações). Qualquer IA (ChatGPT, Claude, Manus, Gemini) consegue ler e entender o projeto inteiro.
 - **Arquivamento automático**: Antes de subir novo backup, os 3 arquivos antigos são **movidos** para a subpasta `BANCO CODIGOS REPLIT (ANTIGOS)`. Na raiz ficam sempre apenas os 3 mais recentes.
