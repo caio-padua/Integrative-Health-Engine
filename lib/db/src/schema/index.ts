@@ -27,3 +27,4 @@ export * from "./taskCards";
 export * from "./rasEvolutivo";
 export * from "./avaliacoesCliente";
 export * from "./cavaloClinical";
+export * from "./soberaniaClinical";

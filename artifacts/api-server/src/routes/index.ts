@@ -27,6 +27,8 @@ import taskCardsRouter from "./taskCards";
 import rasEvolutivoRouter from "./rasEvolutivo";
 import avaliacoesClienteRouter from "./avaliacoesCliente";
 import portalClienteRouter from "./portalCliente";
+import cavaloClinicalRouter from "./cavaloClinical";
+import soberaniaRouter from "./soberania";
 
 const router: IRouter = Router();
 
@@ -58,5 +60,7 @@ router.use(taskCardsRouter);
 router.use(rasEvolutivoRouter);
 router.use(avaliacoesClienteRouter);
 router.use(portalClienteRouter);
+router.use(cavaloClinicalRouter);
+router.use(soberaniaRouter);
 
 export default router;
