@@ -126,3 +126,9 @@ id = "lAYErHFrWVON7G-2Zer1p"
 uri = "file://screenshots/v2-06-itens.jpg"
 type = "image"
 title = "6. Itens Terapeuticos - 490 Itens"
+
+[[outputs]]
+id = "zc5cFGoYnHEsdoaz-VI7o"
+uri = "file://.local/briefing-staff.md"
+type = "text"
+title = "Briefing Staff — Próximos Passos PADCOM V15.2"
