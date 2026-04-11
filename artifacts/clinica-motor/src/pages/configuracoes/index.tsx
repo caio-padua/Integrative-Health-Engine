@@ -573,12 +573,12 @@ export default function ConfiguracoesPage() {
                   <div>
                     <label className="text-sm font-medium">Unidade (opcional)</label>
                     <Select
-                      value={waNewConfig.unidadeId?.toString() || ""}
-                      onValueChange={(v) => setWaNewConfig({ ...waNewConfig, unidadeId: v ? parseInt(v) : undefined })}
+                      value={waNewConfig.unidadeId?.toString() || "GLOBAL"}
+                      onValueChange={(v) => setWaNewConfig({ ...waNewConfig, unidadeId: v === "GLOBAL" ? undefined : parseInt(v) })}
                     >
                       <SelectTrigger><SelectValue placeholder="Global (todas)" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Global (todas)</SelectItem>
+                        <SelectItem value="GLOBAL">Global (todas)</SelectItem>
                         {unidades?.map(u => (
                           <SelectItem key={u.id} value={u.id.toString()}>{u.nome}</SelectItem>
                         ))}

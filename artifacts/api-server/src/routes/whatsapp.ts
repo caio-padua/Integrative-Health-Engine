@@ -300,7 +300,7 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
     }
 
     try {
-      const authToken = await obterAuthTokenParaValidacao("TWILIO");
+      const authToken = await obterAuthTokenParaValidacao("TWILIO", body.MessageSid);
       if (authToken) {
         const { validateRequest } = await import("twilio");
         const webhookUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -359,16 +359,17 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
       return;
     }
 
-    const storedApiKey = await obterAuthTokenParaValidacao("GUPSHUP");
+    const gupshupPayload = body.payload || body;
+    const gupshupMsgId = gupshupPayload.id || gupshupPayload.gsId;
+    const storedApiKey = await obterAuthTokenParaValidacao("GUPSHUP", gupshupMsgId);
     if (storedApiKey && String(gupshupApiKey) !== storedApiKey) {
       console.warn("[WhatsApp/Webhook] Apikey Gupshup invalida — rejeitando");
       res.sendStatus(403);
       return;
     }
 
-    const payload = body.payload || body;
-    const msgId = payload.id || payload.gsId;
-    const gupshupType = payload.type || body.type;
+    const msgId = gupshupMsgId;
+    const gupshupType = gupshupPayload.type || body.type;
 
     let novoStatus: "ENTREGUE" | "LIDO" | "FALHOU" | undefined;
     if (gupshupType === "delivered") novoStatus = "ENTREGUE";
@@ -376,7 +377,7 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
     else if (gupshupType === "failed" || gupshupType === "error") novoStatus = "FALHOU";
 
     if (novoStatus && msgId) {
-      await atualizarStatusWebhook(msgId, novoStatus, payload.failedReason);
+      await atualizarStatusWebhook(msgId, novoStatus, gupshupPayload.failedReason);
 
       const logs = await db
         .select()

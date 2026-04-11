@@ -5,7 +5,10 @@ const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
 function getEncryptionKey(): Buffer {
-  const secret = process.env.SESSION_SECRET || "padcom-default-key-change-in-production";
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error("SESSION_SECRET env var is required for credential encryption. Set it before using WhatsApp integration.");
+  }
   return scryptSync(secret, "whatsapp-credentials-salt", 32);
 }
 
