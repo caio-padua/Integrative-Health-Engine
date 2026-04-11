@@ -1,5 +1,5 @@
 import { db, whatsappConfigTable, whatsappMensagensLogTable, alertasNotificacaoTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { decryptCredential } from "./credentialEncryption";
 import { TEMPLATES_DISPONIVEIS, type TemplateDados } from "./whatsappTemplates";
 
@@ -95,27 +95,29 @@ function formatarTelefone(telefone: string): string {
 }
 
 export async function obterConfigWhatsapp(unidadeId?: number): Promise<WhatsappConfig | null> {
-  const conditions = [eq(whatsappConfigTable.ativo, true)];
   if (unidadeId) {
-    conditions.push(eq(whatsappConfigTable.unidadeId, unidadeId));
-  }
-
-  const configs = await db
-    .select()
-    .from(whatsappConfigTable)
-    .where(and(...conditions))
-    .limit(1);
-
-  if (configs.length === 0 && unidadeId) {
-    const globalConfigs = await db
+    const unitConfigs = await db
       .select()
       .from(whatsappConfigTable)
-      .where(eq(whatsappConfigTable.ativo, true))
+      .where(and(
+        eq(whatsappConfigTable.ativo, true),
+        eq(whatsappConfigTable.unidadeId, unidadeId),
+      ))
       .limit(1);
-    return globalConfigs[0] || null;
+
+    if (unitConfigs.length > 0) return unitConfigs[0];
   }
 
-  return configs[0] || null;
+  const globalConfigs = await db
+    .select()
+    .from(whatsappConfigTable)
+    .where(and(
+      eq(whatsappConfigTable.ativo, true),
+      sql`${whatsappConfigTable.unidadeId} IS NULL`,
+    ))
+    .limit(1);
+
+  return globalConfigs[0] || null;
 }
 
 export async function enviarWhatsapp(
@@ -261,7 +263,31 @@ export async function testarConexaoWhatsapp(configId: number): Promise<{
   }
 }
 
-export async function obterAuthTokenParaValidacao(provedor: "TWILIO" | "GUPSHUP"): Promise<string | null> {
+export async function obterAuthTokenParaValidacao(
+  provedor: "TWILIO" | "GUPSHUP",
+  provedorMsgId?: string,
+): Promise<string | null> {
+  if (provedorMsgId) {
+    const logs = await db
+      .select({ configId: whatsappMensagensLogTable.configId })
+      .from(whatsappMensagensLogTable)
+      .where(eq(whatsappMensagensLogTable.provedorMsgId, provedorMsgId))
+      .limit(1);
+
+    if (logs.length > 0 && logs[0].configId) {
+      const configs = await db
+        .select()
+        .from(whatsappConfigTable)
+        .where(eq(whatsappConfigTable.id, logs[0].configId))
+        .limit(1);
+
+      if (configs.length > 0) {
+        const decrypted = decryptConfig(configs[0]);
+        return provedor === "TWILIO" ? decrypted.authToken : decrypted.apiKey;
+      }
+    }
+  }
+
   const configs = await db
     .select()
     .from(whatsappConfigTable)
