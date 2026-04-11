@@ -67,6 +67,7 @@ Key architectural decisions and features include:
 - **Arquivamento automático**: Antes de subir novo backup, os 3 arquivos antigos são **movidos** para a subpasta `BANCO CODIGOS REPLIT (ANTIGOS)`. Na raiz ficam sempre apenas os 3 mais recentes.
 - **Arquivos-chave incluídos**: Todo `lib/db/src/schema/*.ts`, todo `artifacts/api-server/src/routes/*.ts`, todo `artifacts/clinica-motor/src/pages/**/*.tsx`, `App.tsx`, `main.tsx`, `auth.tsx`, `vite.config.ts`, `build.mjs`, `package.json`, `replit.md`
 - **Status**: `GET /api/backup-drive/status` — Lista últimos 20 backups na pasta
+- **Leitura ao vivo (para outras IAs)**: `GET /api/backup-drive/atual/txt` (texto plano), `GET /api/backup-drive/atual/md` (Markdown), `GET /api/backup-drive/atual/json` (JSON estruturado com 115 arquivos-fonte). URLs acessíveis por qualquer IA sem precisar do Drive.
 - **Limpar**: `DELETE /api/backup-drive/limpar` — Remove arquivos da raiz (preserva subpasta ANTIGOS)
 - **UI**: Card na página `/configuracoes` com campo de resumo e botão "Enviar Backup"
 - **Pasta Drive**: `1LfolNE3KgJSrnKwxp0WNXTRIRvSS_i7f`
