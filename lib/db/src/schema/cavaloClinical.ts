@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, real, boolean, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, real, boolean, timestamp, date, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { pacientesTable } from "./pacientes";
@@ -33,6 +33,13 @@ export const examesEvolucaoTable = pgTable("exames_evolucao", {
   valorMinimo: real("valor_minimo"),
   valorMaximo: real("valor_maximo"),
   classificacao: text("classificacao", { enum: ["PREOCUPANTE", "BAIXO", "MEDIANO", "OTIMO", "ALERTA"] }),
+  terco: integer("terco"),
+  classificacaoAutomatica: text("classificacao_automatica", { enum: ["VERDE", "AMARELO", "VERMELHO"] }),
+  classificacaoManual: text("classificacao_manual", { enum: ["VERDE", "AMARELO", "VERMELHO"] }),
+  tendencia: text("tendencia", { enum: ["SUBINDO", "DESCENDO", "ESTAVEL"] }),
+  deltaPercentual: real("delta_percentual"),
+  formulaVigente: text("formula_vigente"),
+  justificativaPrescricao: text("justificativa_prescricao"),
   dataColeta: date("data_coleta"),
   laboratorio: text("laboratorio"),
   registradoPorId: integer("registrado_por_id").references(() => usuariosTable.id),
@@ -43,6 +50,60 @@ export const examesEvolucaoTable = pgTable("exames_evolucao", {
 export const insertExamesEvolucaoSchema = createInsertSchema(examesEvolucaoTable).omit({ id: true, criadoEm: true });
 export type InsertExamesEvolucao = z.infer<typeof insertExamesEvolucaoSchema>;
 export type ExamesEvolucao = typeof examesEvolucaoTable.$inferSelect;
+
+export function classificarExame(
+  valor: number,
+  min: number,
+  max: number,
+  valorAnterior?: number,
+): {
+  terco: number;
+  classificacao: "VERDE" | "AMARELO" | "VERMELHO";
+  tendencia: "SUBINDO" | "DESCENDO" | "ESTAVEL";
+  deltaPercentual: number | null;
+} {
+  let terco = 3;
+  let classificacao: "VERDE" | "AMARELO" | "VERMELHO" = "VERMELHO";
+
+  if (valor < min) {
+    terco = 0;
+    classificacao = "VERMELHO";
+  } else if (valor > max) {
+    terco = 4;
+    classificacao = "VERMELHO";
+  } else {
+    const range = max - min;
+    const tercoInferior = min + range / 3;
+    const tercoSuperior = min + (2 * range) / 3;
+    if (valor <= tercoInferior) {
+      terco = 1;
+      classificacao = "AMARELO";
+    } else if (valor <= tercoSuperior) {
+      terco = 2;
+      classificacao = "VERDE";
+    } else {
+      terco = 3;
+      classificacao = "AMARELO";
+    }
+  }
+
+  let tendencia: "SUBINDO" | "DESCENDO" | "ESTAVEL" = "ESTAVEL";
+  let deltaPercentual: number | null = null;
+
+  if (valorAnterior && valorAnterior !== 0) {
+    deltaPercentual = ((valor - valorAnterior) / valorAnterior) * 100;
+    deltaPercentual = Math.round(deltaPercentual * 10) / 10;
+    if (Math.abs(deltaPercentual) < 2) {
+      tendencia = "ESTAVEL";
+    } else if (valor > valorAnterior) {
+      tendencia = "SUBINDO";
+    } else {
+      tendencia = "DESCENDO";
+    }
+  }
+
+  return { terco, classificacao, tendencia, deltaPercentual };
+}
 
 export const feedbackFormulasTable = pgTable("feedback_formulas", {
   id: serial("id").primaryKey(),
@@ -104,6 +165,8 @@ export const arquivosExamesTable = pgTable("arquivos_exames", {
   dataExame: date("data_exame"),
   status: text("status", { enum: ["RECEBIDO", "PROCESSADO"] }).notNull().default("RECEBIDO"),
   processadoPorId: integer("processado_por_id").references(() => usuariosTable.id),
+  valoresExtraidos: jsonb("valores_extraidos"),
+  processadoComOcr: boolean("processado_com_ocr").default(false),
   origem: text("origem", { enum: ["OPERACIONAL", "AUTONOMA"] }).notNull().default("OPERACIONAL"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -111,6 +174,31 @@ export const arquivosExamesTable = pgTable("arquivos_exames", {
 export const insertArquivosExamesSchema = createInsertSchema(arquivosExamesTable).omit({ id: true, criadoEm: true });
 export type InsertArquivosExames = z.infer<typeof insertArquivosExamesSchema>;
 export type ArquivosExames = typeof arquivosExamesTable.$inferSelect;
+
+export const padroesFormulaExameTable = pgTable("padroes_formula_exame", {
+  id: serial("id").primaryKey(),
+  formulaId: integer("formula_id").references(() => formulasMasterTable.id),
+  codigoPadcom: text("codigo_padcom"),
+  nomeExame: text("nome_exame").notNull(),
+  unidade: text("unidade"),
+  mediaAntes: real("media_antes"),
+  mediaDepois: real("media_depois"),
+  deltaMedio: real("delta_medio"),
+  melhoriaPercentual: real("melhoria_percentual"),
+  pacientesTotal: integer("pacientes_total"),
+  pacientesComMelhora: integer("pacientes_com_melhora"),
+  periodoAnaliseDias: integer("periodo_analise_dias"),
+  confianca: real("confianca"),
+  origem: text("origem", { enum: ["OPERACIONAL", "AUTONOMA"] }).notNull().default("OPERACIONAL"),
+  versaoSchema: integer("versao_schema").notNull().default(1),
+  arquivadoEm: timestamp("arquivado_em", { withTimezone: true }),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertPadroesFormulaExameSchema = createInsertSchema(padroesFormulaExameTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
+export type InsertPadroesFormulaExame = z.infer<typeof insertPadroesFormulaExameSchema>;
+export type PadroesFormulaExame = typeof padroesFormulaExameTable.$inferSelect;
 
 export const formulasMasterTable = pgTable("formulas_master", {
   id: serial("id").primaryKey(),

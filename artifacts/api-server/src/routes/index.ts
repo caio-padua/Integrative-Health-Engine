@@ -32,6 +32,7 @@ import soberaniaRouter from "./soberania";
 import auditoriaCascataRouter from "./auditoriaCascata";
 import alertasRouter from "./alertas";
 import governancaRouter from "./governanca";
+import examesInteligenteRouter from "./examesInteligente";
 
 const router: IRouter = Router();
 
@@ -68,5 +69,6 @@ router.use(soberaniaRouter);
 router.use(auditoriaCascataRouter);
 router.use(alertasRouter);
 router.use(governancaRouter);
+router.use(examesInteligenteRouter);
 
 export default router;
