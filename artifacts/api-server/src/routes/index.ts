@@ -29,6 +29,9 @@ import avaliacoesClienteRouter from "./avaliacoesCliente";
 import portalClienteRouter from "./portalCliente";
 import cavaloClinicalRouter from "./cavaloClinical";
 import soberaniaRouter from "./soberania";
+import auditoriaCascataRouter from "./auditoriaCascata";
+import alertasRouter from "./alertas";
+import governancaRouter from "./governanca";
 
 const router: IRouter = Router();
 
@@ -62,5 +65,8 @@ router.use(avaliacoesClienteRouter);
 router.use(portalClienteRouter);
 router.use(cavaloClinicalRouter);
 router.use(soberaniaRouter);
+router.use(auditoriaCascataRouter);
+router.use(alertasRouter);
+router.use(governancaRouter);
 
 export default router;
