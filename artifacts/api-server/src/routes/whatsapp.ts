@@ -9,6 +9,8 @@ import {
 } from "../services/whatsappService";
 import { TEMPLATES_DISPONIVEIS } from "../services/whatsappTemplates";
 
+type WhatsappMensagemStatus = "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
+
 const router = Router();
 
 router.get("/whatsapp/config", async (_req, res): Promise<void> => {
@@ -48,7 +50,7 @@ router.put("/whatsapp/config/:id", async (req, res): Promise<void> => {
 
   const { provedor, accountSid, authToken, apiKey, numeroRemetente, nomeExibicao, ativo, unidadeId } = req.body;
 
-  const updateData: Record<string, any> = {};
+  const updateData: Partial<typeof whatsappConfigTable.$inferInsert> = {};
   if (provedor !== undefined) updateData.provedor = provedor;
   if (accountSid !== undefined) updateData.accountSid = accountSid;
   if (authToken !== undefined) updateData.authToken = authToken;
@@ -138,7 +140,7 @@ router.post("/whatsapp/enviar-teste", async (req, res): Promise<void> => {
   const telefoneFormatado = telefone.replace(/\D/g, "");
   const telefoneInt = telefoneFormatado.startsWith("55") ? telefoneFormatado : `55${telefoneFormatado}`;
 
-  let resultado;
+  let resultado: { sucesso: boolean; provedorMsgId?: string; erro?: string };
   if (config.provedor === "TWILIO") {
     try {
       const Twilio = (await import("twilio")).default;
@@ -149,8 +151,9 @@ router.post("/whatsapp/enviar-teste", async (req, res): Promise<void> => {
         to: `whatsapp:+${telefoneInt}`,
       });
       resultado = { sucesso: true, provedorMsgId: msg.sid };
-    } catch (err: any) {
-      resultado = { sucesso: false, erro: err.message };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      resultado = { sucesso: false, erro: message };
     }
   } else {
     try {
@@ -170,8 +173,9 @@ router.post("/whatsapp/enviar-teste", async (req, res): Promise<void> => {
       resultado = response.ok && data.status === "submitted"
         ? { sucesso: true, provedorMsgId: data.messageId }
         : { sucesso: false, erro: data.message || JSON.stringify(data) };
-    } catch (err: any) {
-      resultado = { sucesso: false, erro: err.message };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      resultado = { sucesso: false, erro: message };
     }
   }
 
@@ -197,8 +201,11 @@ router.get("/whatsapp/templates", async (_req, res): Promise<void> => {
 router.get("/whatsapp/mensagens", async (req, res): Promise<void> => {
   const { limite = "50", offset = "0", status } = req.query;
 
-  const conditions: any[] = [];
-  if (status) conditions.push(eq(whatsappMensagensLogTable.status, String(status) as any));
+  const conditions = [];
+  if (status) {
+    const statusStr = String(status) as WhatsappMensagemStatus;
+    conditions.push(eq(whatsappMensagensLogTable.status, statusStr));
+  }
 
   const mensagens = await db
     .select()
@@ -257,8 +264,11 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
           return;
         }
       }
-    } catch (err: any) {
-      console.warn("[WhatsApp/Webhook] Erro ao validar assinatura Twilio:", err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[WhatsApp/Webhook] Erro ao validar assinatura Twilio:", message);
+      res.sendStatus(403);
+      return;
     }
   }
 
@@ -284,7 +294,10 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
         const alertaStatus = novoStatus === "FALHOU" ? "EXPIRADO" : novoStatus === "LIDO" ? "LIDO" : "ENTREGUE";
         await db
           .update(alertasNotificacaoTable)
-          .set({ status: alertaStatus })
+          .set({
+            status: alertaStatus,
+            provedorMsgId: msgId,
+          })
           .where(eq(alertasNotificacaoTable.id, logs[0].alertaNotificacaoId));
       }
     }
@@ -315,7 +328,10 @@ router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
         const alertaStatus = novoStatus === "FALHOU" ? "EXPIRADO" : novoStatus === "LIDO" ? "LIDO" : "ENTREGUE";
         await db
           .update(alertasNotificacaoTable)
-          .set({ status: alertaStatus })
+          .set({
+            status: alertaStatus,
+            provedorMsgId: msgId,
+          })
           .where(eq(alertasNotificacaoTable.id, logs[0].alertaNotificacaoId));
       }
     }

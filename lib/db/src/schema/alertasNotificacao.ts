@@ -34,11 +34,12 @@ export function criarAlerta(
   mensagem: string,
   linkAcao?: string,
   horasExpiracao: number = 24,
+  canal: InsertAlertaNotificacao["canal"] = "SISTEMA",
 ): InsertAlertaNotificacao {
   return {
     tipo,
     destinatarioId,
-    canal: "SISTEMA",
+    canal: canal ?? "SISTEMA",
     mensagem,
     linkAcao,
     status: "ENVIADO",

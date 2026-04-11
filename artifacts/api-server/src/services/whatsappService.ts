@@ -1,4 +1,4 @@
-import { db, whatsappConfigTable, whatsappMensagensLogTable } from "@workspace/db";
+import { db, whatsappConfigTable, whatsappMensagensLogTable, alertasNotificacaoTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 export interface EnvioResult {
@@ -7,8 +7,17 @@ export interface EnvioResult {
   erro?: string;
 }
 
+type WhatsappConfig = typeof whatsappConfigTable.$inferSelect;
+
+interface WebhookUpdateData {
+  status: "ENTREGUE" | "LIDO" | "FALHOU";
+  entregueEm?: Date;
+  lidoEm?: Date;
+  erroDetalhes?: string;
+}
+
 async function enviarViaTwilio(
-  config: typeof whatsappConfigTable.$inferSelect,
+  config: WhatsappConfig,
   telefone: string,
   mensagem: string,
 ): Promise<EnvioResult> {
@@ -23,14 +32,15 @@ async function enviarViaTwilio(
     });
 
     return { sucesso: true, provedorMsgId: msg.sid };
-  } catch (err: any) {
-    console.error("[WhatsApp/Twilio] Erro ao enviar:", err.message);
-    return { sucesso: false, erro: err.message };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[WhatsApp/Twilio] Erro ao enviar:", message);
+    return { sucesso: false, erro: message };
   }
 }
 
 async function enviarViaGupshup(
-  config: typeof whatsappConfigTable.$inferSelect,
+  config: WhatsappConfig,
   telefone: string,
   mensagem: string,
 ): Promise<EnvioResult> {
@@ -59,9 +69,10 @@ async function enviarViaGupshup(
     }
 
     return { sucesso: false, erro: data.message || JSON.stringify(data) };
-  } catch (err: any) {
-    console.error("[WhatsApp/Gupshup] Erro ao enviar:", err.message);
-    return { sucesso: false, erro: err.message };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[WhatsApp/Gupshup] Erro ao enviar:", message);
+    return { sucesso: false, erro: message };
   }
 }
 
@@ -70,7 +81,7 @@ function formatarTelefone(telefone: string): string {
   return limpo.startsWith("55") ? limpo : `55${limpo}`;
 }
 
-export async function obterConfigWhatsapp(unidadeId?: number) {
+export async function obterConfigWhatsapp(unidadeId?: number): Promise<WhatsappConfig | null> {
   const conditions = [eq(whatsappConfigTable.ativo, true)];
   if (unidadeId) {
     conditions.push(eq(whatsappConfigTable.unidadeId, unidadeId));
@@ -106,6 +117,12 @@ export async function enviarWhatsapp(
   const config = await obterConfigWhatsapp(options?.unidadeId);
 
   if (!config) {
+    if (options?.alertaNotificacaoId) {
+      await db
+        .update(alertasNotificacaoTable)
+        .set({ erroEnvio: "Nenhuma configuracao WhatsApp ativa encontrada" })
+        .where(eq(alertasNotificacaoTable.id, options.alertaNotificacaoId));
+    }
     return { sucesso: false, erro: "Nenhuma configuracao WhatsApp ativa encontrada" };
   }
 
@@ -131,6 +148,17 @@ export async function enviarWhatsapp(
     enviadoEm: resultado.sucesso ? new Date() : null,
   }).returning();
 
+  if (options?.alertaNotificacaoId) {
+    await db
+      .update(alertasNotificacaoTable)
+      .set({
+        provedorMsgId: resultado.provedorMsgId || null,
+        erroEnvio: resultado.erro || null,
+        telefoneDestino: telefoneFormatado,
+      })
+      .where(eq(alertasNotificacaoTable.id, options.alertaNotificacaoId));
+  }
+
   return {
     ...resultado,
     logId: log.id,
@@ -142,7 +170,7 @@ export async function atualizarStatusWebhook(
   novoStatus: "ENTREGUE" | "LIDO" | "FALHOU",
   erroDetalhes?: string,
 ): Promise<boolean> {
-  const updateData: Record<string, any> = { status: novoStatus };
+  const updateData: WebhookUpdateData = { status: novoStatus };
   if (novoStatus === "ENTREGUE") updateData.entregueEm = new Date();
   if (novoStatus === "LIDO") updateData.lidoEm = new Date();
   if (erroDetalhes) updateData.erroDetalhes = erroDetalhes;
@@ -177,8 +205,9 @@ export async function testarConexaoWhatsapp(configId: number): Promise<{
       const client = Twilio(config.accountSid!, config.authToken!);
       await client.api.accounts(config.accountSid!).fetch();
       return { sucesso: true, provedor: "TWILIO" };
-    } catch (err: any) {
-      return { sucesso: false, provedor: "TWILIO", erro: err.message };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { sucesso: false, provedor: "TWILIO", erro: message };
     }
   } else {
     try {
@@ -190,8 +219,9 @@ export async function testarConexaoWhatsapp(configId: number): Promise<{
       }
       const data = await response.json();
       return { sucesso: false, provedor: "GUPSHUP", erro: data.message || "Falha na autenticacao" };
-    } catch (err: any) {
-      return { sucesso: false, provedor: "GUPSHUP", erro: err.message };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { sucesso: false, provedor: "GUPSHUP", erro: message };
     }
   }
 }
