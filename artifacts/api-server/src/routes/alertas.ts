@@ -53,7 +53,7 @@ router.get("/alertas", async (req, res): Promise<void> => {
   res.json(resultado);
 });
 
-router.post("/alertas/:id/ack", async (req, res): Promise<void> => {
+router.post("/alertas/:id/confirmar", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   const { confirmadoPorId } = req.body;
 
