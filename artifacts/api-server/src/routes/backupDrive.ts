@@ -2,11 +2,132 @@ import { Router } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { execSync } from "child_process";
 import fs from "fs";
+import path from "path";
 
 const router = Router();
 
 const DRIVE_FOLDER_ID = "1LfolNE3KgJSrnKwxp0WNXTRIRvSS_i7f";
 const PROJETO_NOME = "PADCOM";
+const WORKSPACE = "/home/runner/workspace";
+
+const ARQUIVOS_CHAVE = [
+  "lib/db/src/schema/index.ts",
+  "lib/db/src/schema/usuarios.ts",
+  "lib/db/src/schema/pacientes.ts",
+  "lib/db/src/schema/anamneses.ts",
+  "lib/db/src/schema/examesV4.ts",
+  "lib/db/src/schema/substancias.ts",
+  "lib/db/src/schema/itensTerapeuticos.ts",
+  "lib/db/src/schema/catalogo.ts",
+  "lib/db/src/schema/protocolos.ts",
+  "lib/db/src/schema/tratamentos.ts",
+  "lib/db/src/schema/sugestoes.ts",
+  "lib/db/src/schema/regrasMotor.ts",
+  "lib/db/src/schema/blocos.ts",
+  "lib/db/src/schema/alertasNotificacao.ts",
+  "lib/db/src/schema/codigosSemanticos.ts",
+  "lib/db/src/schema/codigosValidacao.ts",
+  "lib/db/src/schema/soberaniaClinical.ts",
+  "lib/db/src/schema/cavaloClinical.ts",
+  "lib/db/src/schema/auditoriaCascata.ts",
+  "lib/db/src/schema/monitoramentoPaciente.ts",
+  "lib/db/src/schema/taskCards.ts",
+  "lib/db/src/schema/filas.ts",
+  "lib/db/src/schema/fluxos.ts",
+  "lib/db/src/schema/sessoes.ts",
+  "lib/db/src/schema/unidades.ts",
+  "lib/db/src/schema/pagamentos.ts",
+  "lib/db/src/schema/pedidosExame.ts",
+  "lib/db/src/schema/estoque.ts",
+  "lib/db/src/schema/followups.ts",
+  "lib/db/src/schema/avaliacaoEnfermagem.ts",
+  "lib/db/src/schema/avaliacoesCliente.ts",
+  "lib/db/src/schema/questionarioPaciente.ts",
+  "lib/db/src/schema/ras.ts",
+  "lib/db/src/schema/rasEvolutivo.ts",
+  "artifacts/api-server/src/routes/index.ts",
+  "artifacts/api-server/src/routes/motorClinico.ts",
+  "artifacts/api-server/src/routes/anamnese.ts",
+  "artifacts/api-server/src/routes/pacientes.ts",
+  "artifacts/api-server/src/routes/usuarios.ts",
+  "artifacts/api-server/src/routes/examesInteligente.ts",
+  "artifacts/api-server/src/routes/direcaoExame.ts",
+  "artifacts/api-server/src/routes/formulaBlend.ts",
+  "artifacts/api-server/src/routes/catalogo.ts",
+  "artifacts/api-server/src/routes/protocolos.ts",
+  "artifacts/api-server/src/routes/substancias.ts",
+  "artifacts/api-server/src/routes/blocos.ts",
+  "artifacts/api-server/src/routes/alertas.ts",
+  "artifacts/api-server/src/routes/alertaPaciente.ts",
+  "artifacts/api-server/src/routes/monitoramentoPaciente.ts",
+  "artifacts/api-server/src/routes/portalCliente.ts",
+  "artifacts/api-server/src/routes/dashboard.ts",
+  "artifacts/api-server/src/routes/governanca.ts",
+  "artifacts/api-server/src/routes/soberania.ts",
+  "artifacts/api-server/src/routes/cavaloClinical.ts",
+  "artifacts/api-server/src/routes/auditoriaCascata.ts",
+  "artifacts/api-server/src/routes/codigosSemanticos.ts",
+  "artifacts/api-server/src/routes/taskCards.ts",
+  "artifacts/api-server/src/routes/filas.ts",
+  "artifacts/api-server/src/routes/fluxos.ts",
+  "artifacts/api-server/src/routes/sessoes.ts",
+  "artifacts/api-server/src/routes/financeiro.ts",
+  "artifacts/api-server/src/routes/unidades.ts",
+  "artifacts/api-server/src/routes/pedidosExame.ts",
+  "artifacts/api-server/src/routes/avaliacaoEnfermagem.ts",
+  "artifacts/api-server/src/routes/avaliacoesCliente.ts",
+  "artifacts/api-server/src/routes/questionarioPaciente.ts",
+  "artifacts/api-server/src/routes/rasRoute.ts",
+  "artifacts/api-server/src/routes/rasEvolutivo.ts",
+  "artifacts/api-server/src/routes/followup.ts",
+  "artifacts/api-server/src/routes/googleCalendar.ts",
+  "artifacts/api-server/src/routes/googleDrive.ts",
+  "artifacts/api-server/src/routes/googleGmail.ts",
+  "artifacts/api-server/src/routes/backupDrive.ts",
+  "artifacts/api-server/src/routes/health.ts",
+  "artifacts/api-server/src/index.ts",
+  "artifacts/api-server/build.mjs",
+  "artifacts/clinica-motor/src/pages/dashboard.tsx",
+  "artifacts/clinica-motor/src/pages/login.tsx",
+  "artifacts/clinica-motor/src/pages/configuracoes/index.tsx",
+  "artifacts/clinica-motor/src/pages/pacientes/index.tsx",
+  "artifacts/clinica-motor/src/pages/pacientes/[id].tsx",
+  "artifacts/clinica-motor/src/pages/pacientes/monitoramento.tsx",
+  "artifacts/clinica-motor/src/pages/pacientes/questionario.tsx",
+  "artifacts/clinica-motor/src/pages/portal/index.tsx",
+  "artifacts/clinica-motor/src/pages/anamnese/index.tsx",
+  "artifacts/clinica-motor/src/pages/anamnese/nova.tsx",
+  "artifacts/clinica-motor/src/pages/anamnese/[id].tsx",
+  "artifacts/clinica-motor/src/pages/catalogo/index.tsx",
+  "artifacts/clinica-motor/src/pages/substancias/index.tsx",
+  "artifacts/clinica-motor/src/pages/itens-terapeuticos/index.tsx",
+  "artifacts/clinica-motor/src/pages/protocolos/index.tsx",
+  "artifacts/clinica-motor/src/pages/ras/index.tsx",
+  "artifacts/clinica-motor/src/pages/ras-evolutivo/index.tsx",
+  "artifacts/clinica-motor/src/pages/governanca/index.tsx",
+  "artifacts/clinica-motor/src/pages/validacao/index.tsx",
+  "artifacts/clinica-motor/src/pages/permissoes/index.tsx",
+  "artifacts/clinica-motor/src/pages/task-cards/index.tsx",
+  "artifacts/clinica-motor/src/pages/filas/index.tsx",
+  "artifacts/clinica-motor/src/pages/fluxos/index.tsx",
+  "artifacts/clinica-motor/src/pages/financeiro/index.tsx",
+  "artifacts/clinica-motor/src/pages/unidades/index.tsx",
+  "artifacts/clinica-motor/src/pages/estoque/index.tsx",
+  "artifacts/clinica-motor/src/pages/pedidos-exame/index.tsx",
+  "artifacts/clinica-motor/src/pages/codigos-validacao/index.tsx",
+  "artifacts/clinica-motor/src/pages/codigos-semanticos/index.tsx",
+  "artifacts/clinica-motor/src/pages/agenda/index.tsx",
+  "artifacts/clinica-motor/src/pages/avaliacao-enfermagem/index.tsx",
+  "artifacts/clinica-motor/src/pages/followup/index.tsx",
+  "artifacts/clinica-motor/src/App.tsx",
+  "artifacts/clinica-motor/src/main.tsx",
+  "artifacts/clinica-motor/src/lib/auth.tsx",
+  "artifacts/clinica-motor/vite.config.ts",
+  "lib/db/drizzle.config.ts",
+  "lib/db/package.json",
+  "package.json",
+  "replit.md",
+];
 
 function sanitizeText(text: string): string {
   return text
@@ -38,7 +159,7 @@ function getGitLog(): string {
   try {
     return execSync(
       'git log --oneline -20 --format="%h %s (%cr)"',
-      { cwd: "/home/runner/workspace", encoding: "utf-8" }
+      { cwd: WORKSPACE, encoding: "utf-8" }
     ).trim();
   } catch {
     return "GIT LOG INDISPONIVEL";
@@ -57,11 +178,30 @@ function getFileTree(): string {
   }
 }
 
+function readSourceFiles(): string {
+  const sections: string[] = [];
+  for (const relPath of ARQUIVOS_CHAVE) {
+    const fullPath = path.join(WORKSPACE, relPath);
+    try {
+      if (!fs.existsSync(fullPath)) continue;
+      const content = fs.readFileSync(fullPath, "utf-8");
+      if (content.trim().length === 0) continue;
+      sections.push(
+        `\n${"=".repeat(80)}\nARQUIVO: ${relPath}\n${"=".repeat(80)}\n${content}`
+      );
+    } catch {
+      continue;
+    }
+  }
+  return sections.join("\n");
+}
+
 function generatePlainTextContent(resumo: string): string {
   const { data, hora } = getTimestamp();
   const gitLog = getGitLog();
   const fileTree = getFileTree();
   const resumoClean = sanitizeText(resumo);
+  const sourceCode = readSourceFiles();
 
   return `CODIGO REPLIT ${PROJETO_NOME} ${data} ${hora}
 ${resumoClean}
@@ -77,17 +217,13 @@ ULTIMOS 20 COMMITS
 ${gitLog}
 
 ========================================
-ARVORE DE ARQUIVOS DO PROJETO
-========================================
-${fileTree}
-
-========================================
 INFORMACOES DO PROJETO
 ========================================
 PROJETO: ${PROJETO_NOME} V15.2 MOTOR CLINICO
 STACK: REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM
 AMBIENTE: REPLIT
 BRANCH GITHUB: REPLIT-AGENT
+LINK REPLIT: https://replit.com/@caioregister/Integrative-Health-Engine
 
 ========================================
 MODULOS PRINCIPAIS
@@ -95,6 +231,33 @@ MODULOS PRINCIPAIS
 ARTIFACTS/CLINICA-MOTOR - FRONTEND REACT (MOTOR CLINICO)
 ARTIFACTS/API-SERVER - BACKEND EXPRESS API
 LIB/DB - SCHEMA POSTGRESQL (DRIZZLE ORM)
+
+========================================
+DESIGN SYSTEM
+========================================
+BORDER-RADIUS: 0PX (QUADRADO)
+COR PRIMARIA: BLUE PASTEL HSL(210 45% 65%)
+BACKGROUND: NAVY HSL(215 28% 9%)
+SIDEBAR: BORDER-LEFT-2 PRIMARY
+UI: TDAH-FRIENDLY COM SUB-DASHBOARDS (MACRO > DETAIL > MICRO)
+
+========================================
+USUARIOS DEMO (SENHA: SENHA123)
+========================================
+CAIO@CLINICA.COM - VALIDADOR_MESTRE / DIRETOR CLINICO
+HELENA@CLINICA.COM - MEDICO_TECNICO
+ANA@CLINICA.COM - ENFERMEIRA
+CARLOS@CLINICA.COM - VALIDADOR_ENFERMEIRO
+
+========================================
+ARVORE DE ARQUIVOS DO PROJETO
+========================================
+${fileTree}
+
+========================================
+CODIGO-FONTE DOS ARQUIVOS PRINCIPAIS
+========================================
+${sourceCode}
 
 ========================================
 BACKUP AUTOMATICO GERADO VIA MOTOR CLINICO PADCOM V15.2
@@ -106,6 +269,7 @@ function generateMdContent(resumo: string): string {
   const gitLog = getGitLog();
   const fileTree = getFileTree();
   const resumoClean = sanitizeText(resumo);
+  const sourceCode = readSourceFiles();
 
   return `# ${data} ${hora} CODIGO REPLIT
 ## ${resumoClean}
@@ -118,25 +282,65 @@ ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
 ${gitLog}
 \`\`\`
 
+### INFORMACOES DO PROJETO
+- **PROJETO**: ${PROJETO_NOME} V15.2 MOTOR CLINICO
+- **STACK**: REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM
+- **AMBIENTE**: REPLIT
+- **BRANCH GITHUB**: REPLIT-AGENT
+- **LINK REPLIT**: https://replit.com/@caioregister/Integrative-Health-Engine
+
+### DESIGN SYSTEM
+- **BORDER-RADIUS**: 0PX (QUADRADO)
+- **COR PRIMARIA**: BLUE PASTEL HSL(210 45% 65%)
+- **BACKGROUND**: NAVY HSL(215 28% 9%)
+- **SIDEBAR**: BORDER-LEFT-2 PRIMARY
+- **UI**: TDAH-FRIENDLY COM SUB-DASHBOARDS (MACRO > DETAIL > MICRO)
+
+### USUARIOS DEMO (SENHA: SENHA123)
+| EMAIL | PERFIL | PAPEL |
+|-------|--------|-------|
+| CAIO@CLINICA.COM | VALIDADOR_MESTRE | DIRETOR CLINICO |
+| HELENA@CLINICA.COM | MEDICO_TECNICO | MEDICA |
+| ANA@CLINICA.COM | ENFERMEIRA | ENFERMAGEM |
+| CARLOS@CLINICA.COM | VALIDADOR_ENFERMEIRO | ENFERMEIRO VALIDADOR |
+
+### MODULOS PRINCIPAIS
+- **ARTIFACTS/CLINICA-MOTOR** - FRONTEND REACT (MOTOR CLINICO)
+- **ARTIFACTS/API-SERVER** - BACKEND EXPRESS API
+- **LIB/DB** - SCHEMA POSTGRESQL (DRIZZLE ORM)
+
 ### ARVORE DE ARQUIVOS DO PROJETO
 \`\`\`
 ${fileTree}
 \`\`\`
 
-### INFORMACOES DO PROJETO
-- PROJETO: ${PROJETO_NOME} V15.2 MOTOR CLINICO
-- STACK: REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM
-- AMBIENTE: REPLIT
-- BRANCH GITHUB: REPLIT-AGENT
+---
 
-### MODULOS PRINCIPAIS
-- ARTIFACTS/CLINICA-MOTOR - FRONTEND REACT (MOTOR CLINICO)
-- ARTIFACTS/API-SERVER - BACKEND EXPRESS API
-- LIB/DB - SCHEMA POSTGRESQL (DRIZZLE ORM)
+### CODIGO-FONTE DOS ARQUIVOS PRINCIPAIS
+
+${formatSourceForMd(sourceCode)}
 
 ---
 *BACKUP AUTOMATICO GERADO VIA MOTOR CLINICO PADCOM V15.2*
 `;
+}
+
+function formatSourceForMd(sourceCode: string): string {
+  const blocks = sourceCode.split(/={80}/);
+  const result: string[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i].trim();
+    if (block.startsWith("ARQUIVO:")) {
+      const fileName = block.replace("ARQUIVO:", "").trim();
+      const ext = fileName.split(".").pop() || "ts";
+      const codeBlock = (blocks[i + 1] || "").trim();
+      if (codeBlock) {
+        result.push(`#### \`${fileName}\`\n\`\`\`${ext}\n${codeBlock}\n\`\`\``);
+        i++;
+      }
+    }
+  }
+  return result.join("\n\n");
 }
 
 async function uploadSmallFile(

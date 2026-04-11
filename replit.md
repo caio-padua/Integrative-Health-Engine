@@ -59,11 +59,12 @@ Key architectural decisions and features include:
 - **Portal do Cliente** (`/portal`) — Hub self-service com 5 seções: Sinais Vitais (até 4 medições/dia), Sintomas (15 sliders 0-10), Fórmulas (feedback aderência/efeitos), Alertas (card para equipe), Upload documentos
 - **Monitoramento do Paciente** (`/pacientes/:id/monitoramento`) — Dashboard médico com 4 KPIs + grid sinais vitais (replica V22) + tracking sintomas com classificação + alertas com resposta inline
 
-## Backup Google Drive
+## Backup Google Drive (com CODIGO-FONTE COMPLETO)
 - **Endpoint**: `POST /api/backup-drive` — Envia 3 arquivos para pasta BANCO CODIGOS REPLIT GITHUB
-- **Formato nomes**: `CODIGO REPLIT PADCOM yy.mm.dd hh:mm RESUMO SEM ACENTOS MAIUSCULO` (hora define versao)
-- **3 arquivos por backup**: Google Doc nativo (IA le direto), PDF, TXT
-- **Conteúdo**: Resumo, data/hora, últimos 20 commits, árvore de arquivos, info do projeto — tudo MAIUSCULO sem acentos
+- **Formato nomes**: `yy.mm.dd hh:mm CODIGO REPLIT [RESUMO SEM ACENTOS MAIUSCULO]` (data+hora primeiro para ordenação cronológica)
+- **3 arquivos por backup**: Google Doc nativo (IA lê direto), TXT, MD (Markdown formatado)
+- **Conteúdo COMPLETO**: Resumo, data/hora, últimos 20 commits, árvore de arquivos, info do projeto, design system, usuários demo, **CODIGO-FONTE de ~100 arquivos-chave** (schema banco, rotas backend, páginas frontend, configurações). Qualquer IA (ChatGPT, Claude, Manus, Gemini) consegue ler e entender o projeto inteiro.
+- **Arquivos-chave incluídos**: Todo `lib/db/src/schema/*.ts`, todo `artifacts/api-server/src/routes/*.ts`, todo `artifacts/clinica-motor/src/pages/**/*.tsx`, `App.tsx`, `main.tsx`, `auth.tsx`, `vite.config.ts`, `build.mjs`, `package.json`, `replit.md`
 - **Status**: `GET /api/backup-drive/status` — Lista últimos 20 backups na pasta
 - **Limpar**: `DELETE /api/backup-drive/limpar` — Remove todos os arquivos da pasta
 - **UI**: Card na página `/configuracoes` com campo de resumo e botão "Enviar Backup"

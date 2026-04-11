@@ -298,9 +298,10 @@ export default function ConfiguracoesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Envia 3 arquivos para a pasta BANCO CODIGOS REPLIT GITHUB no Google Drive:
-              Google Doc (leitura direta por IA), PDF e TXT. Nomenclatura: CODIGO REPLIT PADCOM [DATA] [HORA] [RESUMO].
-              Codigo fonte versionado no GitHub (branch replit-agent).
+              Envia 3 arquivos com CODIGO-FONTE COMPLETO para a pasta BANCO CODIGOS REPLIT GITHUB no Google Drive:
+              Google Doc (leitura direta por IA), TXT e MD (Markdown formatado). Inclui schema do banco, rotas backend,
+              paginas frontend, design system, usuarios demo. Qualquer IA (ChatGPT, Claude, Manus) consegue ler e entender
+              o projeto inteiro abrindo qualquer um dos 3 arquivos.
             </p>
             <div className="flex gap-3">
               <Input
