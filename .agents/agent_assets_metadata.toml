@@ -138,3 +138,9 @@ id = "VYvUJD9YqHnDVF7o22EmO"
 uri = "file://exports/codigo_completo_padcom_v15.txt"
 type = "text"
 title = "Codigo Completo PADCOM V15.2 - Para Validacao"
+
+[[outputs]]
+id = "QlsN_Rfr1Aw-tMtp9mEYz"
+uri = "file://exports/PARECER_ESTRATEGICO_10_PASSOS.md"
+type = "text"
+title = "Parecer Estrategico — 10 Passos a Frente (Para todos os Doutores)"
