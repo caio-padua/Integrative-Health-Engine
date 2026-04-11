@@ -60,10 +60,12 @@ Key architectural decisions and features include:
 - **Monitoramento do Paciente** (`/pacientes/:id/monitoramento`) — Dashboard médico com 4 KPIs + grid sinais vitais (replica V22) + tracking sintomas com classificação + alertas com resposta inline
 
 ## Backup Google Drive
-- **Endpoint**: `POST /api/backup-drive` — Envia MD + PDF de resumo para pasta BANCO CODIGOS REPLIT GITHUB no Google Drive
-- **Formato nomes**: `yy.mm.dd hh.mm CODIGO REPLIT "PADCOM V15.2 Motor Clinico" "Resumo da melhoria"`
-- **Conteúdo MD/PDF**: Resumo, data/hora, últimos 20 commits, árvore de arquivos, info do projeto
-- **Status**: `GET /api/backup-drive/status` — Lista últimos 10 backups na pasta
+- **Endpoint**: `POST /api/backup-drive` — Envia 3 arquivos para pasta BANCO CODIGOS REPLIT GITHUB
+- **Formato nomes**: `CODIGO REPLIT PADCOM yy.mm.dd hh:mm RESUMO SEM ACENTOS MAIUSCULO` (hora define versao)
+- **3 arquivos por backup**: Google Doc nativo (IA le direto), PDF, TXT
+- **Conteúdo**: Resumo, data/hora, últimos 20 commits, árvore de arquivos, info do projeto — tudo MAIUSCULO sem acentos
+- **Status**: `GET /api/backup-drive/status` — Lista últimos 20 backups na pasta
+- **Limpar**: `DELETE /api/backup-drive/limpar` — Remove todos os arquivos da pasta
 - **UI**: Card na página `/configuracoes` com campo de resumo e botão "Enviar Backup"
 - **Pasta Drive**: `1LfolNE3KgJSrnKwxp0WNXTRIRvSS_i7f`
-- **Código fonte**: Versionado automaticamente no GitHub branch `replit-agent` (não vai no Drive por limite de tamanho do proxy)
+- **Código fonte**: Versionado automaticamente no GitHub branch `replit-agent`

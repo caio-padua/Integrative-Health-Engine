@@ -298,8 +298,9 @@ export default function ConfiguracoesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Envia resumo da melhoria (MD + PDF) para a pasta BANCO CODIGOS REPLIT GITHUB no Google Drive.
-              O codigo fonte completo fica versionado automaticamente no GitHub (branch replit-agent).
+              Envia 3 arquivos para a pasta BANCO CODIGOS REPLIT GITHUB no Google Drive:
+              Google Doc (leitura direta por IA), PDF e TXT. Nomenclatura: CODIGO REPLIT PADCOM [DATA] [HORA] [RESUMO].
+              Codigo fonte versionado no GitHub (branch replit-agent).
             </p>
             <div className="flex gap-3">
               <Input
