@@ -28,3 +28,5 @@ export * from "./rasEvolutivo";
 export * from "./avaliacoesCliente";
 export * from "./cavaloClinical";
 export * from "./soberaniaClinical";
+export * from "./auditoriaCascata";
+export * from "./alertasNotificacao";
