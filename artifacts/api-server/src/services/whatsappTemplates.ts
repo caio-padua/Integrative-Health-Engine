@@ -1,44 +1,48 @@
 export interface TemplateDados {
   pacienteNome: string;
-  [key: string]: any;
+  data?: string;
+  hora?: string;
+  unidade?: string;
+  codigo?: string;
+  procedimento?: string;
+  exame?: string;
+  valor?: string;
+  referencia?: string;
+  tipoCard?: string;
+  mesAno?: string;
+  tipoAlerta?: string;
+  descricao?: string;
+  gravidade?: string;
 }
 
 function primeiroNome(nome: string): string {
   return (nome || "").split(" ")[0];
 }
 
-export function templateLembreteSessao(dados: TemplateDados & {
-  data: string;
-  hora: string;
-  unidade: string;
-}): string {
+export function templateLembreteSessao(dados: TemplateDados): string {
   return [
     `Ola ${primeiroNome(dados.pacienteNome)}! 👋`,
     "",
     "Lembramos que voce tem uma sessao agendada:",
     "",
-    `📅 *${dados.data}* as *${dados.hora}*`,
-    `📍 ${dados.unidade}`,
+    `📅 *${dados.data || ""}* as *${dados.hora || ""}*`,
+    `📍 ${dados.unidade || ""}`,
     "",
-    "Qualquer duvida, estamos a disposicao. ✨",
+    "Qualquer duvida, estamos a disposicao.",
     "",
     "Clinica Padua — Medicina Integrativa",
   ].join("\n");
 }
 
-export function templateCodigoValidacao(dados: TemplateDados & {
-  codigo: string;
-  data: string;
-  procedimento: string;
-}): string {
+export function templateCodigoValidacao(dados: TemplateDados): string {
   return [
-    `Clinica Padua | ${dados.procedimento} | ${dados.codigo}`,
+    `Clinica Padua | ${dados.procedimento || ""} | ${dados.codigo || ""}`,
     "",
     `Ola ${primeiroNome(dados.pacienteNome)}!`,
     "",
-    `Seu codigo de validacao para a sessao de ${dados.data} e:`,
+    `Seu codigo de validacao para a sessao de ${dados.data || ""} e:`,
     "",
-    `🔑 *${dados.codigo}*`,
+    `🔑 *${dados.codigo || ""}*`,
     "",
     "Apresente este codigo a enfermeira no momento da aplicacao.",
     "",
@@ -46,18 +50,14 @@ export function templateCodigoValidacao(dados: TemplateDados & {
   ].join("\n");
 }
 
-export function templateAlertaExameCritico(dados: TemplateDados & {
-  exame: string;
-  valor: string;
-  referencia: string;
-}): string {
+export function templateAlertaExameCritico(dados: TemplateDados): string {
   return [
     `⚠️ *ALERTA CLINICO* — Exame Fora do Padrao`,
     "",
     `Paciente: *${dados.pacienteNome}*`,
-    `Exame: *${dados.exame}*`,
-    `Valor: *${dados.valor}*`,
-    `Referencia: ${dados.referencia}`,
+    `Exame: *${dados.exame || ""}*`,
+    `Valor: *${dados.valor || ""}*`,
+    `Referencia: ${dados.referencia || ""}`,
     "",
     "Favor verificar e tomar as providencias necessarias.",
     "",
@@ -65,16 +65,13 @@ export function templateAlertaExameCritico(dados: TemplateDados & {
   ].join("\n");
 }
 
-export function templateCardMensalPendente(dados: TemplateDados & {
-  tipoCard: string;
-  mesAno: string;
-}): string {
+export function templateCardMensalPendente(dados: TemplateDados): string {
   return [
     `📋 *Card Mensal Pendente*`,
     "",
     `Paciente: *${dados.pacienteNome}*`,
-    `Tipo: ${dados.tipoCard}`,
-    `Periodo: ${dados.mesAno}`,
+    `Tipo: ${dados.tipoCard || ""}`,
+    `Periodo: ${dados.mesAno || ""}`,
     "",
     "Ha um card de acompanhamento pendente de resposta.",
     "Acesse o sistema para responder.",
@@ -83,18 +80,14 @@ export function templateCardMensalPendente(dados: TemplateDados & {
   ].join("\n");
 }
 
-export function templateAlertaClinicoUrgente(dados: TemplateDados & {
-  tipoAlerta: string;
-  descricao: string;
-  gravidade: string;
-}): string {
+export function templateAlertaClinicoUrgente(dados: TemplateDados): string {
   const icone = dados.gravidade === "GRAVE" ? "🔴" : dados.gravidade === "MODERADO" ? "🟡" : "🟢";
   return [
-    `${icone} *ALERTA CLINICO ${dados.gravidade}*`,
+    `${icone} *ALERTA CLINICO ${dados.gravidade || ""}*`,
     "",
     `Paciente: *${dados.pacienteNome}*`,
-    `Tipo: ${dados.tipoAlerta}`,
-    `Descricao: ${dados.descricao}`,
+    `Tipo: ${dados.tipoAlerta || ""}`,
+    `Descricao: ${dados.descricao || ""}`,
     "",
     "Verifique o sistema para mais detalhes.",
     "",
@@ -102,12 +95,7 @@ export function templateAlertaClinicoUrgente(dados: TemplateDados & {
   ].join("\n");
 }
 
-export function templateConfirmacaoAgendamento(dados: TemplateDados & {
-  data: string;
-  hora: string;
-  procedimento: string;
-  unidade: string;
-}): string {
+export function templateConfirmacaoAgendamento(dados: TemplateDados): string {
   return [
     `✅ *Agendamento Confirmado*`,
     "",
@@ -115,9 +103,9 @@ export function templateConfirmacaoAgendamento(dados: TemplateDados & {
     "",
     "Seu agendamento foi confirmado:",
     "",
-    `📅 *${dados.data}* as *${dados.hora}*`,
-    `💊 ${dados.procedimento}`,
-    `📍 ${dados.unidade}`,
+    `📅 *${dados.data || ""}* as *${dados.hora || ""}*`,
+    `💊 ${dados.procedimento || ""}`,
+    `📍 ${dados.unidade || ""}`,
     "",
     "Caso precise remarcar, entre em contato conosco.",
     "",
