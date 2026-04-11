@@ -2,7 +2,6 @@ import { Router } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { execSync } from "child_process";
 import fs from "fs";
-import PDFDocument from "pdfkit";
 
 const router = Router();
 
@@ -102,46 +101,42 @@ BACKUP AUTOMATICO GERADO VIA MOTOR CLINICO PADCOM V15.2
 `;
 }
 
-function generatePdfBuffer(resumo: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
-    const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
+function generateMdContent(resumo: string): string {
+  const { data, hora } = getTimestamp();
+  const gitLog = getGitLog();
+  const fileTree = getFileTree();
+  const resumoClean = sanitizeText(resumo);
 
-    const { data, hora } = getTimestamp();
-    const gitLog = getGitLog();
-    const resumoClean = sanitizeText(resumo);
+  return `# ${data} ${hora} CODIGO REPLIT
+## ${resumoClean}
 
-    doc.fontSize(18).font("Helvetica-Bold").text(`CODIGO REPLIT - ${PROJETO_NOME} V15.2`, { align: "center" });
-    doc.fontSize(12).font("Helvetica").text(`${data} ${hora}`, { align: "center" });
-    doc.moveDown();
-    doc.fontSize(14).font("Helvetica-Bold").text("RESUMO DA MELHORIA");
-    doc.fontSize(11).font("Helvetica").text(resumoClean);
-    doc.moveDown();
-    doc.fontSize(14).font("Helvetica-Bold").text("INFORMACOES DO PROJETO");
-    doc.fontSize(11).font("Helvetica");
-    doc.text(`PROJETO: ${PROJETO_NOME} V15.2 MOTOR CLINICO`);
-    doc.text("STACK: REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM");
-    doc.text("AMBIENTE: REPLIT");
-    doc.text("BRANCH GITHUB: REPLIT-AGENT");
-    doc.moveDown();
-    doc.fontSize(14).font("Helvetica-Bold").text("MODULOS PRINCIPAIS");
-    doc.fontSize(11).font("Helvetica");
-    doc.text("- ARTIFACTS/CLINICA-MOTOR - FRONTEND REACT");
-    doc.text("- ARTIFACTS/API-SERVER - BACKEND EXPRESS API");
-    doc.text("- LIB/DB - SCHEMA POSTGRESQL (DRIZZLE ORM)");
-    doc.moveDown();
-    doc.fontSize(14).font("Helvetica-Bold").text("ULTIMOS 20 COMMITS");
-    doc.fontSize(9).font("Courier");
-    for (const line of gitLog.split("\n").slice(0, 20)) {
-      doc.text(line);
-    }
-    doc.moveDown();
-    doc.fontSize(8).font("Helvetica").text("BACKUP AUTOMATICO GERADO VIA MOTOR CLINICO PADCOM V15.2", { align: "center" });
-    doc.end();
-  });
+### DATA/HORA DO BACKUP
+${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+
+### ULTIMOS 20 COMMITS
+\`\`\`
+${gitLog}
+\`\`\`
+
+### ARVORE DE ARQUIVOS DO PROJETO
+\`\`\`
+${fileTree}
+\`\`\`
+
+### INFORMACOES DO PROJETO
+- PROJETO: ${PROJETO_NOME} V15.2 MOTOR CLINICO
+- STACK: REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM
+- AMBIENTE: REPLIT
+- BRANCH GITHUB: REPLIT-AGENT
+
+### MODULOS PRINCIPAIS
+- ARTIFACTS/CLINICA-MOTOR - FRONTEND REACT (MOTOR CLINICO)
+- ARTIFACTS/API-SERVER - BACKEND EXPRESS API
+- LIB/DB - SCHEMA POSTGRESQL (DRIZZLE ORM)
+
+---
+*BACKUP AUTOMATICO GERADO VIA MOTOR CLINICO PADCOM V15.2*
+`;
 }
 
 async function uploadSmallFile(
@@ -242,7 +237,7 @@ router.post("/backup-drive", async (req, res) => {
     const connectors = new ReplitConnectors();
     const { data, hora } = getTimestamp();
     const resumoClean = sanitizeFileName(resumo.trim()).slice(0, 60);
-    const baseFileName = `CODIGO REPLIT ${PROJETO_NOME} ${data} ${hora} ${resumoClean}`;
+    const baseFileName = `${data} ${hora} CODIGO REPLIT ${resumoClean}`;
     const resultados: any[] = [];
 
     const plainText = generatePlainTextContent(resumo.trim());
@@ -250,12 +245,12 @@ router.post("/backup-drive", async (req, res) => {
     const gdocResult = await uploadAsGoogleDoc(connectors, baseFileName, plainText);
     resultados.push({ tipo: "GOOGLE DOC", id: gdocResult.id, nome: gdocResult.name });
 
-    const pdfBuffer = await generatePdfBuffer(resumo.trim());
-    const pdfResult = await uploadSmallFile(connectors, `${baseFileName}.pdf`, pdfBuffer, "application/pdf");
-    resultados.push({ tipo: "PDF", id: pdfResult.id, nome: pdfResult.name });
-
     const txtResult = await uploadSmallFile(connectors, `${baseFileName}.txt`, plainText, "text/plain");
     resultados.push({ tipo: "TXT", id: txtResult.id, nome: txtResult.name });
+
+    const mdContent = generateMdContent(resumo.trim());
+    const mdResult = await uploadSmallFile(connectors, `${baseFileName}.md`, mdContent, "text/markdown");
+    resultados.push({ tipo: "MD", id: mdResult.id, nome: mdResult.name });
 
     res.json({
       sucesso: true,
