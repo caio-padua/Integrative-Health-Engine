@@ -193,3 +193,33 @@ Dr. Replit codifica → checkpoint → push automatico → replit-agent (GitHub)
 
 ### Arquivo de configuracao
 `.github/workflows/auto-merge-main.yml` — GitHub Action que conta pushes e consolida automaticamente
+
+## Template Obrigatorio para Schemas Novos (Protecao Craniana)
+
+Todo schema novo criado a partir de 11/04/2026 DEVE incluir estes 3 campos:
+
+```typescript
+origem: text("origem", { enum: ["OPERACIONAL", "AUTONOMA"] }).notNull().default("OPERACIONAL"),
+versaoSchema: integer("versao_schema").notNull().default(1),
+arquivadoEm: timestamp("arquivado_em", { withTimezone: true }),
+```
+
+| Campo | Para que serve | Quando vai ser usado |
+|-------|---------------|---------------------|
+| `origem` | Distingue acao humana vs IA autonoma | Quando a IA entrar (Passo 9) |
+| `versaoSchema` | Migrar dados sem quebrar ao evoluir schema | Quando schemas mudarem |
+| `arquivadoEm` | Nunca deletar dados clinicos, so arquivar (LGPD) | Quando precisar "apagar" dados |
+
+NOTA: NAO alterar tabelas existentes que ja funcionam. Apenas schemas NOVOS.
+
+## Modulo de Exames com Classificacao por Tercos (Planejado)
+
+Tabela `exames_evolucao` ja existe com: valor, valorMinimo, valorMaximo, classificacao.
+Logica de tercos a implementar:
+- Abaixo do minimo: PREOCUPANTE (vermelho)
+- Terco inferior (min a min+33%): BAIXO (amarelo)
+- Terco medio (33% a 66%): MEDIANO/OTIMO (verde)
+- Terco superior (66% a max): ALERTA (amarelo)
+- Acima do maximo: PREOCUPANTE (vermelho)
+Recebimento: upload PDF ou digitacao manual, a cada 2-3 meses, sem urgencia.
+Avaliacao: em consulta medica (online ou presencial) pela equipe hierarquica.
