@@ -298,10 +298,10 @@ export default function ConfiguracoesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Envia 3 arquivos com CODIGO-FONTE COMPLETO para a pasta BANCO CODIGOS REPLIT GITHUB no Google Drive:
-              Google Doc (leitura direta por IA), TXT e MD (Markdown formatado). Inclui schema do banco, rotas backend,
-              paginas frontend, design system, usuarios demo. Qualquer IA (ChatGPT, Claude, Manus) consegue ler e entender
-              o projeto inteiro abrindo qualquer um dos 3 arquivos.
+              Envia 3 arquivos com CODIGO-FONTE COMPLETO para o Google Drive (Google Doc + TXT + MD).
+              Backups anteriores sao movidos automaticamente para a subpasta BANCO CODIGOS REPLIT (ANTIGOS).
+              Na raiz ficam sempre apenas os 3 arquivos mais recentes. Qualquer IA (ChatGPT, Claude, Manus, Gemini)
+              consegue ler e entender o projeto inteiro abrindo qualquer um dos 3 arquivos.
             </p>
             <div className="flex gap-3">
               <Input
