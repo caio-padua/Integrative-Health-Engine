@@ -145,14 +145,52 @@ function sanitizeFileName(text: string): string {
     .toUpperCase();
 }
 
-function getTimestamp() {
-  const now = new Date();
+function getDataHoje(): string {
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   const yy = String(now.getFullYear()).slice(2);
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
-  const hh = String(now.getHours()).padStart(2, "0");
-  const min = String(now.getMinutes()).padStart(2, "0");
-  return { data: `${yy}.${mm}.${dd}`, hora: `${hh}:${min}` };
+  return `${yy}.${mm}.${dd}`;
+}
+
+async function getNextVersion(connectors: ReplitConnectors): Promise<string> {
+  let maxVersion = 0;
+
+  const mainResponse = await connectors.proxy(
+    "google-drive",
+    `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false&pageSize=100&fields=files(name)`,
+    { method: "GET" }
+  );
+  const mainData = await mainResponse.json();
+  const allFiles = [...(mainData.files || [])];
+
+  const subResponse = await connectors.proxy(
+    "google-drive",
+    `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id)`,
+    { method: "GET" }
+  );
+  const subData = await subResponse.json();
+  if (subData.files && subData.files.length > 0) {
+    const subId = subData.files[0].id;
+    const subFilesResponse = await connectors.proxy(
+      "google-drive",
+      `/drive/v3/files?q='${subId}'+in+parents+and+trashed=false&pageSize=200&fields=files(name)`,
+      { method: "GET" }
+    );
+    const subFilesData = await subFilesResponse.json();
+    allFiles.push(...(subFilesData.files || []));
+  }
+
+  const pattern = /V(\d+)/;
+  for (const file of allFiles) {
+    const match = file.name?.match(pattern);
+    if (match) {
+      const v = parseInt(match[1], 10);
+      if (v > maxVersion) maxVersion = v;
+    }
+  }
+
+  return `V${String(maxVersion + 1).padStart(2, "0")}`;
 }
 
 function getGitLog(): string {
@@ -196,14 +234,13 @@ function readSourceFiles(): string {
   return sections.join("\n");
 }
 
-function generatePlainTextContent(resumo: string): string {
-  const { data, hora } = getTimestamp();
+function generatePlainTextContent(resumo: string, dataHoje: string, versao: string): string {
   const gitLog = getGitLog();
   const fileTree = getFileTree();
   const resumoClean = sanitizeText(resumo);
   const sourceCode = readSourceFiles();
 
-  return `CODIGO REPLIT ${PROJETO_NOME} ${data} ${hora}
+  return `CODIGO REPLIT ${PROJETO_NOME} ${dataHoje} ${versao}
 ${resumoClean}
 
 ========================================
@@ -264,14 +301,13 @@ BACKUP AUTOMATICO GERADO VIA MOTOR CLINICO PADCOM V15.2
 `;
 }
 
-function generateMdContent(resumo: string): string {
-  const { data, hora } = getTimestamp();
+function generateMdContent(resumo: string, dataHoje: string, versao: string): string {
   const gitLog = getGitLog();
   const fileTree = getFileTree();
   const resumoClean = sanitizeText(resumo);
   const sourceCode = readSourceFiles();
 
-  return `# ${data} ${hora} CODIGO REPLIT
+  return `# ${dataHoje} ${versao} CODIGO REPLIT
 ## ${resumoClean}
 
 ### DATA/HORA DO BACKUP
@@ -499,16 +535,18 @@ router.post("/backup-drive", async (req, res) => {
 
     const connectors = new ReplitConnectors();
 
+    const versao = await getNextVersion(connectors);
+    const dataHoje = getDataHoje();
+
     const subpastaId = await getOrCreateSubpastaAntigos(connectors);
     const movidos = await moveFilesToSubpasta(connectors, subpastaId);
     console.log(`${movidos} arquivo(s) antigo(s) movido(s) para subpasta`);
 
-    const { data, hora } = getTimestamp();
     const resumoClean = sanitizeFileName(resumo.trim()).slice(0, 60);
-    const baseFileName = `${data} ${hora} CODIGO REPLIT ${resumoClean}`;
+    const baseFileName = `${dataHoje} ${versao} CODIGO REPLIT ${resumoClean}`;
     const resultados: any[] = [];
 
-    const plainText = generatePlainTextContent(resumo.trim());
+    const plainText = generatePlainTextContent(resumo.trim(), dataHoje, versao);
 
     const gdocResult = await uploadAsGoogleDoc(connectors, baseFileName, plainText);
     resultados.push({ tipo: "GOOGLE DOC", id: gdocResult.id, nome: gdocResult.name });
@@ -516,7 +554,7 @@ router.post("/backup-drive", async (req, res) => {
     const txtResult = await uploadSmallFile(connectors, `${baseFileName}.txt`, plainText, "text/plain");
     resultados.push({ tipo: "TXT", id: txtResult.id, nome: txtResult.name });
 
-    const mdContent = generateMdContent(resumo.trim());
+    const mdContent = generateMdContent(resumo.trim(), dataHoje, versao);
     const mdResult = await uploadSmallFile(connectors, `${baseFileName}.md`, mdContent, "text/markdown");
     resultados.push({ tipo: "MD", id: mdResult.id, nome: mdResult.name });
 
