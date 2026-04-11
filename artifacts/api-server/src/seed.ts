@@ -70,6 +70,10 @@ async function seed() {
       perfil: "validador_mestre",
       unidadeId: unidade1.id,
       ativo: true,
+      podeValidar: true,
+      podeAssinar: true,
+      podeBypass: true,
+      nuncaOpera: true,
     },
     {
       nome: "Dra Helena Martins Rocha",
@@ -78,6 +82,10 @@ async function seed() {
       perfil: "medico_tecnico",
       unidadeId: unidade2.id,
       ativo: true,
+      podeValidar: true,
+      podeAssinar: true,
+      podeBypass: false,
+      nuncaOpera: false,
     },
     {
       nome: "Ana Lima",
@@ -86,6 +94,10 @@ async function seed() {
       perfil: "enfermeira",
       unidadeId: unidade1.id,
       ativo: true,
+      podeValidar: false,
+      podeAssinar: false,
+      podeBypass: false,
+      nuncaOpera: false,
     },
     {
       nome: "Carlos Menezes",
@@ -94,6 +106,10 @@ async function seed() {
       perfil: "validador_enfermeiro",
       unidadeId: unidade1.id,
       ativo: true,
+      podeValidar: false,
+      podeAssinar: false,
+      podeBypass: false,
+      nuncaOpera: false,
     },
   ]).returning();
 
