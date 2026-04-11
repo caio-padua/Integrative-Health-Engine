@@ -59,6 +59,17 @@ Key architectural decisions and features include:
 - **Portal do Cliente** (`/portal`) — Hub self-service com 5 seções: Sinais Vitais (até 4 medições/dia), Sintomas (15 sliders 0-10), Fórmulas (feedback aderência/efeitos), Alertas (card para equipe), Upload documentos
 - **Monitoramento do Paciente** (`/pacientes/:id/monitoramento`) — Dashboard médico com 4 KPIs + grid sinais vitais (replica V22) + tracking sintomas com classificação + alertas com resposta inline
 
+## Integracao WhatsApp (Twilio + Gupshup)
+- **Schema**: `whatsappConfig.ts` — Tabelas `whatsapp_config` (provedor, credenciais, numero remetente, unidade) e `whatsapp_mensagens_log` (log completo de mensagens com status tracking)
+- **Servico**: `whatsappService.ts` — Interface unificada para envio via Twilio ou Gupshup com retry, log automatico, e funcoes `enviarWhatsapp()`, `atualizarStatusWebhook()`, `testarConexaoWhatsapp()`
+- **Templates**: 6 templates clinicos: LEMBRETE_SESSAO, CODIGO_VALIDACAO, ALERTA_EXAME_CRITICO, CARD_MENSAL_PENDENTE, ALERTA_CLINICO_URGENTE, CONFIRMACAO_AGENDAMENTO
+- **Rotas Backend** (`whatsapp.ts`): CRUD config, POST enviar, POST enviar-teste, GET templates, GET mensagens+stats, POST webhook status (Twilio e Gupshup)
+- **Webhook**: `POST /api/webhooks/whatsapp/status` — Recebe callbacks de Twilio (MessageSid/SmsStatus) e Gupshup (message-event/payload), atualiza status no log e no alerta_notificacao
+- **Integracao sessoes**: Rotas `/sessoes/:id/whatsapp-lembrete` e `/sessoes/:id/whatsapp-codigo` agora suportam `?enviar=true` para envio real via API (fallback para wa.me link)
+- **Campos adicionados em alertas_notificacao**: `provedor_msg_id`, `erro_envio`, `telefone_destino`
+- **UI**: Card na pagina `/configuracoes` com configuracao de provedor, teste de conexao, envio de mensagem de teste, stats (mensagens hoje/entregues/falhas), e log das ultimas mensagens com icones de status (✓ ✓✓ ✓✓azul ✗)
+- **Pacote**: `twilio` instalado e adicionado ao external list do esbuild
+
 ## Backup Google Drive (com CODIGO-FONTE COMPLETO)
 - **Endpoint**: `POST /api/backup-drive` — Envia 3 arquivos para pasta BANCO CODIGOS REPLIT GITHUB
 - **Formato nomes**: `yy.mm.dd V01 CODIGO REPLIT [RESUMO SEM ACENTOS MAIUSCULO]` (versão sequencial contínua, nunca reseta no mesmo projeto)

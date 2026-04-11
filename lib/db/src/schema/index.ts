@@ -31,3 +31,4 @@ export * from "./soberaniaClinical";
 export * from "./auditoriaCascata";
 export * from "./alertasNotificacao";
 export * from "./monitoramentoPaciente";
+export * from "./whatsappConfig";

@@ -38,6 +38,7 @@ import alertaPacienteRouter from "./alertaPaciente";
 import direcaoExameRouter from "./direcaoExame";
 import formulaBlendRouter from "./formulaBlend";
 import backupDriveRouter from "./backupDrive";
+import whatsappRouter from "./whatsapp";
 
 const router: IRouter = Router();
 
@@ -80,5 +81,6 @@ router.use(alertaPacienteRouter);
 router.use(direcaoExameRouter);
 router.use(formulaBlendRouter);
 router.use(backupDriveRouter);
+router.use(whatsappRouter);
 
 export default router;

@@ -102,6 +102,7 @@ async function buildAll() {
       "electron",
       "@replit/connectors-sdk",
       "pdfkit",
+      "twilio",
       "fontkit",
       "linebreak",
       "png-js",
