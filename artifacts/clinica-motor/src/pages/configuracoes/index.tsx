@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, Users, ShieldAlert } from "lucide-react";
+import { Plus, Settings, Users, ShieldAlert, CloudUpload, FileText, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -44,6 +44,44 @@ export default function ConfiguracoesPage() {
   
   const [open, setOpen] = useState(false);
   const criarUsuario = useCriarUsuario();
+  const [backupResumo, setBackupResumo] = useState("");
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupResult, setBackupResult] = useState<any>(null);
+
+  const handleBackup = async () => {
+    if (backupResumo.trim().length < 5) {
+      toast({ title: "Informe um resumo com pelo menos 5 caracteres", variant: "destructive" });
+      return;
+    }
+    setBackupLoading(true);
+    setBackupResult(null);
+    try {
+      const baseUrl = import.meta.env.BASE_URL || "/";
+      const apiUrl = `${window.location.origin}${baseUrl}api/backup-drive`.replace(/\/+/g, "/").replace(":/", "://");
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumo: backupResumo.trim() }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ erro: `Erro do servidor (${res.status})` }));
+        toast({ title: errorData.erro || `Erro ${res.status}`, variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      if (data.sucesso) {
+        setBackupResult(data);
+        setBackupResumo("");
+        toast({ title: "Backup enviado com sucesso para o Google Drive!" });
+      } else {
+        toast({ title: data.erro || "Erro ao enviar backup", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexao com o servidor", variant: "destructive" });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
 
   const form = useForm<z.infer<typeof usuarioSchema>>({
     resolver: zodResolver(usuarioSchema),
@@ -248,6 +286,65 @@ export default function ConfiguracoesPage() {
                   )}
                 </TableBody>
               </Table>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CloudUpload className="w-5 h-5 text-primary" />
+              Backup para Google Drive
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Envia resumo da melhoria (MD + PDF) para a pasta BANCO CODIGOS REPLIT GITHUB no Google Drive.
+              O codigo fonte completo fica versionado automaticamente no GitHub (branch replit-agent).
+            </p>
+            <div className="flex gap-3">
+              <Input
+                placeholder="Descreva a melhoria implementada..."
+                value={backupResumo}
+                onChange={(e) => setBackupResumo(e.target.value)}
+                className="flex-1"
+                disabled={backupLoading}
+              />
+              <Button
+                onClick={handleBackup}
+                disabled={backupLoading || backupResumo.trim().length < 5}
+              >
+                {backupLoading ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</>
+                ) : (
+                  <><CloudUpload className="mr-2 h-4 w-4" /> Enviar Backup</>
+                )}
+              </Button>
+            </div>
+
+            {backupResult && (
+              <div className="rounded border border-green-500/30 bg-green-500/5 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-green-400 font-medium">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Backup enviado com sucesso!
+                </div>
+                <div className="space-y-1">
+                  {backupResult.arquivos?.map((arq: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="w-3 h-3" />
+                      <span>{arq.tipo}: {arq.nome}</span>
+                    </div>
+                  ))}
+                </div>
+                <a
+                  href={backupResult.pasta}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Abrir pasta no Google Drive
+                </a>
+              </div>
             )}
           </CardContent>
         </Card>

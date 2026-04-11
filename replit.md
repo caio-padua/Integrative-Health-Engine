@@ -58,3 +58,12 @@ Key architectural decisions and features include:
 ### Frontend
 - **Portal do Cliente** (`/portal`) — Hub self-service com 5 seções: Sinais Vitais (até 4 medições/dia), Sintomas (15 sliders 0-10), Fórmulas (feedback aderência/efeitos), Alertas (card para equipe), Upload documentos
 - **Monitoramento do Paciente** (`/pacientes/:id/monitoramento`) — Dashboard médico com 4 KPIs + grid sinais vitais (replica V22) + tracking sintomas com classificação + alertas com resposta inline
+
+## Backup Google Drive
+- **Endpoint**: `POST /api/backup-drive` — Envia MD + PDF de resumo para pasta BANCO CODIGOS REPLIT GITHUB no Google Drive
+- **Formato nomes**: `yy.mm.dd hh.mm CODIGO REPLIT "PADCOM V15.2 Motor Clinico" "Resumo da melhoria"`
+- **Conteúdo MD/PDF**: Resumo, data/hora, últimos 20 commits, árvore de arquivos, info do projeto
+- **Status**: `GET /api/backup-drive/status` — Lista últimos 10 backups na pasta
+- **UI**: Card na página `/configuracoes` com campo de resumo e botão "Enviar Backup"
+- **Pasta Drive**: `1LfolNE3KgJSrnKwxp0WNXTRIRvSS_i7f`
+- **Código fonte**: Versionado automaticamente no GitHub branch `replit-agent` (não vai no Drive por limite de tamanho do proxy)
