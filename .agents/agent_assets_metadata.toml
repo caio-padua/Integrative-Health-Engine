@@ -144,3 +144,9 @@ id = "QlsN_Rfr1Aw-tMtp9mEYz"
 uri = "file://exports/PARECER_ESTRATEGICO_10_PASSOS.md"
 type = "text"
 title = "Parecer Estrategico — 10 Passos a Frente (Para todos os Doutores)"
+
+[[outputs]]
+id = "Q6rqaKcwxBwpqSrCRDymO"
+uri = "file://exports/PARECER_DR_REPLIT_PROXIMOS_PASSOS.md"
+type = "text"
+title = "Parecer Dr. Replit — Proximos Passos (Para o Staff)"
