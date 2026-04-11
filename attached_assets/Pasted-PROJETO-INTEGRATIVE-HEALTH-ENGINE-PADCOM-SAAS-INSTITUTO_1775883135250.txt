@@ -1,0 +1,204 @@
+PROJETO: INTEGRATIVE HEALTH ENGINE — PADCOM SAAS
+INSTITUTO PÁDUA — DR. CAIO HENRIQUE FERNANDES PÁDUA
+
+CONTEXTO:
+O projeto já tem 375 arquivos TypeScript, 9.352 linhas de backend.
+NÃO MODIFICAR NADA EXISTENTE.
+Estratégia: ADDITIVE-ONLY.
+
+═══════════════════════════════════════
+MÓDULO: CAVALO DE ACOMPANHAMENTO LONGITUDINAL
+═══════════════════════════════════════
+
+FASE 1 — SCHEMAS NOVOS (criar arquivo novo)
+Arquivo: lib/db/src/schema/cavaloClinical.ts
+
+Criar EXATAMENTE estas tabelas:
+
+1. acompanhamento_cavalo (já descrita pelo Manus — manter)
+
+2. exames_evolucao (já descrita pelo Manus — manter)
+
+3. feedback_formulas (já descrita pelo Manus — manter)
+
+4. NOVA — dados_visita_clinica:
+{
+  id, pacienteId, coletadoPorId,
+  dataVisita: timestamp,
+  peso_kg: decimal, altura_cm: decimal,
+  imc: decimal (calculado),
+  pressao_sistolica: integer, pressao_diastolica: integer,
+  frequencia_cardiaca: integer,
+  // Bioimpedância (toggle — opcional)
+  bf_percentual: decimal,    // % gordura
+  massa_gorda_kg: decimal,
+  massa_muscular_kg: decimal,
+  // Adipômetro (toggle — opcional)
+  adipometro_biceps: decimal,
+  adipometro_triceps: decimal,
+  adipometro_subescapular: decimal,
+  adipometro_suprailiaco: decimal,
+  percentual_gordura_dobras: decimal,
+  // Classificação da visita
+  classificacao_alerta: 'VERDE' | 'AMARELO' | 'VERMELHO',
+  relato_paciente: text,
+  observacao_enfermeira: text,
+  adesao_percebida: 'ALTA' | 'MEDIA' | 'BAIXA',
+  origem: 'OPERACIONAL' | 'AUTONOMA'
+}
+
+5. NOVA — arquivos_exames:
+{
+  id, pacienteId,
+  tipo: 'SANGUE' | 'ULTRASSOM' | 'RESSONANCIA' | 
+        'TOMOGRAFIA' | 'DENSITOMETRIA' | 'OUTRO',
+  nome_exame: text,        // quando OUTRO
+  area_corpo: text,        // Joelho, Tórax, Abdômen...
+  arquivo_url: text,       // URL Google Drive
+  nome_arquivo: text,      // formato: AAAA.MM.DD [TIPO] [AREA]
+  data_exame: date,
+  status: 'RECEBIDO' | 'PROCESSADO',
+  processadoPorId: integer,
+  origem: 'OPERACIONAL' | 'AUTONOMA'
+}
+
+6. NOVA — formulas_master:
+{
+  id, codigoPadcom: text unique,
+  nome: text, categoria: text,
+  via: 'ORAL' | 'IM' | 'EV' | 'TOPICA' | 'SUBLINGUAL',
+  composicao: text,
+  dose_padrao: text,
+  funcao_principal: text,
+  efeitos_esperados: text[],
+  efeitos_colaterais_possiveis: text[],
+  contraindicacoes: text[],
+  ativo: boolean
+}
+
+7. NOVA — cascata_validacao_config:
+{
+  id, ativa: boolean,
+  requer_enfermeira03: boolean,
+  requer_consultor03: boolean,
+  requer_medico03: boolean,
+  requer_medico_senior: boolean,
+  certificado_a1_obrigatorio: boolean,
+  atualizadoPorId: integer,
+  atualizadoEm: timestamp
+}
+
+8. NOVA — validacoes_cascata:
+{
+  id, entidadeTipo: text,  // 'ANAMNESE' | 'EXAME' | 'FORMULA'
+  entidadeId: integer,
+  pacienteId: integer,
+  etapa: 'ENFERMEIRA03' | 'CONSULTOR03' | 'MEDICO03' | 'MEDICO_SENIOR',
+  status: 'PENDENTE' | 'APROVADO' | 'REJEITADO',
+  validadoPorId: integer,
+  observacao: text,
+  validadoEm: timestamp,
+  assinatura_a1: text     // hash do certificado quando aplicável
+}
+
+═══════════════════════════════════════
+FASE 2 — ROTAS NOVAS
+Arquivo: artifacts/api-server/src/routes/cavaloClinical.ts
+═══════════════════════════════════════
+
+ENTRADA OPERACIONAL (equipe da clínica):
+POST /entrada/operacional/visita
+  → Salva dados_visita_clinica
+  → Se AMARELO: cria task_card para ENFERMEIRA02
+  → Se VERMELHO: cria task_card PRIORITARIO + notifica médico
+
+POST /entrada/operacional/exames
+  → Salva arquivos_exames com origem=OPERACIONAL
+  → Organiza no Google Drive: /Pacientes/[Nome]/Exames/Recebidos/
+
+POST /entrada/operacional/exames-valores
+  → Salva exames_evolucao com classificação por terços
+  → Ativa motor clínico automaticamente
+
+ENTRADA AUTÔNOMA (paciente externo via site):
+POST /entrada/autonoma/checkin
+  → Salva com status AGUARDANDO_VALIDACAO
+  → origem=AUTONOMA
+  → Verifica cascata_validacao_config.ativa
+  → Se cascata ATIVA: cria validacoes_cascata na sequência
+  → Se cascata INATIVA: ativa motor diretamente após 1 aprovação
+
+POST /entrada/autonoma/upload-exame
+  → Recebe arquivo via multipart/form-data
+  → Salva arquivos_exames com origem=AUTONOMA
+  → Nomeia automaticamente: AAAA.MM.DD [TIPO] [AREA ou NOME]
+
+VALIDAÇÃO DA CASCATA:
+PATCH /validacao/:validacaoId/aprovar
+  → Requer autenticação por role
+  → Registra assinatura A1 se configurado
+  → Avança para próxima etapa da cascata
+  → Quando última etapa aprovada: ativa motor clínico
+
+ADMIN:
+GET  /admin/cascata/config
+PATCH /admin/cascata/config
+  → Apenas médico senior pode alterar
+  → Liga/desliga cada etapa individualmente
+
+LÓGICA DOS TERÇOS (função reutilizável):
+function classificarExame(valor, minimo, maximo):
+  if valor < minimo → "PREOCUPANTE"
+  if valor > maximo → "ALERTA"
+  terco = (maximo - minimo) / 3
+  if valor <= minimo + terco → "BAIXO"
+  if valor <= minimo + (2 * terco) → "MEDIANO"
+  else → "ÓTIMO"
+
+HIERARQUIA DE NOTIFICAÇÕES:
+VERDE → histórico + PDF evolutivo (sem card)
+AMARELO → card ENFERMEIRA (prioridade ALTA)
+         + card MEDICO_ASSISTENTE (prioridade MEDIA)
+         + card DR_CAIO (prioridade BAIXA)
+VERMELHO → card PRIORITARIO todos os níveis
+          + notificação imediata médico responsável
+
+═══════════════════════════════════════
+FASE 3 — SEED DE DADOS
+═══════════════════════════════════════
+
+Inserir configuração padrão da cascata:
+cascata_validacao_config: {
+  ativa: false,  // Dr. Caio decide quando ligar
+  requer_enfermeira03: true,
+  requer_consultor03: true,
+  requer_medico03: true,
+  requer_medico_senior: true,
+  certificado_a1_obrigatorio: false
+}
+
+═══════════════════════════════════════
+FASE 4 — TESTES OBRIGATÓRIOS
+═══════════════════════════════════════
+
+Manter todos os testes do Manus (semânticos + N5).
+
+Adicionar:
+- Teste da cascata ativa vs inativa
+- Teste de upload e nomeação automática de arquivo
+- Teste da lógica de notificações por cor
+- Teste de bloqueio por role (só médico senior 
+  altera config da cascata)
+
+═══════════════════════════════════════
+REGRAS ABSOLUTAS
+═══════════════════════════════════════
+
+1. ZERO modificações em arquivos existentes
+2. Confirmar cada FASE antes de iniciar a próxima
+3. Nomenclatura em português (codigoPadcom, pacienteId, etc.)
+4. Toda entrada autônoma começa com status AGUARDANDO_VALIDACAO
+5. A cascata é configurável — nunca hardcoded
+6. Logs de auditoria em toda ação de validação
+7. A cor nunca fica no valor numérico do exame — 
+   apenas na célula CLASSIFICACAO
