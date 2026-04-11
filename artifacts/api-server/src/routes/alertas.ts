@@ -9,7 +9,7 @@ import { enviarWhatsapp } from "../services/whatsappService";
 const router = Router();
 
 router.post("/alertas", async (req, res): Promise<void> => {
-  const { tipo, destinatarioId, mensagem, linkAcao, horasExpiracao, canal, telefoneDestino } = req.body;
+  const { tipo, destinatarioId, mensagem, linkAcao, horasExpiracao, canal, telefoneDestino, unidadeId } = req.body;
 
   if (!tipo || !destinatarioId || !mensagem) {
     res.status(400).json({ error: "tipo, destinatarioId e mensagem sao obrigatorios" });
@@ -29,6 +29,7 @@ router.post("/alertas", async (req, res): Promise<void> => {
     const resultado = await enviarWhatsapp(telefoneDestino, mensagem, {
       alertaNotificacaoId: alerta.id,
       templateNome: tipo,
+      unidadeId: unidadeId ? Number(unidadeId) : undefined,
     });
 
     if (!resultado.sucesso) {
