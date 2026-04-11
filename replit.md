@@ -61,6 +61,11 @@ Sistema SaaS de motor clínico para clínica médica integrativa multiunidades. 
 32. **Cavalo de Acompanhamento Longitudinal** — 8 tabelas + rotas CRUD completas para os Cavalos 4 e 5 do Motor Clinico: acompanhamento_cavalo (checkins mensais, visitas, retornos, intercorrencias com classificacao Verde/Amarelo/Vermelho), exames_evolucao (valores com classificacao PREOCUPANTE/BAIXO/MEDIANO/OTIMO/ALERTA), feedback_formulas (MELHORA/SEM_EFEITO/PIORA/EFEITO_COLATERAL), dados_visita_clinica (antropometria completa), arquivos_exames (upload com tipo), formulas_master (catalogo com arrays), cascata_validacao_config (toggles), validacoes_cascata (ENFERMEIRA03→CONSULTOR03→MEDICO03→MEDICO_SENIOR com controle hierarquico de perfil). Rotas: /cavalo/* (8 endpoints GET/POST/PATCH). Origem OPERACIONAL vs AUTONOMA
 33. **Toggle de Soberania Medica** — Implementacao 8 do manifesto Claude: 4 tabelas novas (soberania_config, profissional_confianca, fila_preceptor, eventos_clinicos). Toggle global: quando ATIVADO, casos passam pela Fila do Preceptor para homologacao do Diretor (48h configuravel); quando DESATIVADO, supervisor escalado e soberano. Confianca delegada por profissional: Diretor pode isentar profissionais da fila. Motor de decisao: POST /soberania/verificar-fluxo (3 caminhos). Fila do Preceptor: AGUARDANDO→HOMOLOGADO/DEVOLVIDO/VENCIDO. Auditoria obrigatoria de TODAS as alteracoes em eventos_clinicos. Regras: (1) So validador_mestre altera soberania, (2) So validador_mestre delega confianca, (3) Validacao paralela dentro do mesmo nivel — 1 validou = validado, (4) Carimbo medico obrigatorio para toda conduta, (5) Medicos tem peso igual (sem hierarquia entre si). 103 testes semanticos passando (ZERO falhas)
 
+34. **Auditoria da Cascata** — Tabela auditoria_cascata para log completo de TODAS as alteracoes nos toggles da cascata de validacao (LIGOU/DESLIGOU/ALTEROU por etapa). Rotas: GET /auditoria-cascata (historico com filtros), POST /auditoria-cascata/toggle (altera etapa com auditoria automatica, so validador_mestre), GET /auditoria-cascata/stats (contagem por acao/etapa + ultima alteracao)
+35. **Alertas e Notificacoes** — Tabela alertas_notificacao para sistema de alertas internos (FILA_PENDENTE, CASCATA_ALTERADA, EXAME_RECEBIDO, ALERTA_CLINICO, PRAZO_EXPIRANDO). Canal SISTEMA (expansivel para WHATSAPP/EMAIL). Rotas: POST /alertas (criar), GET /alertas?destinatarioId= (listar com tempo restante), POST /alertas/:id/ack (confirmar), GET /alertas/stats (contagem por status + expirados), POST /alertas/limpar-expirados (marcar expirados)
+36. **Governanca e Semaforo** — Painel unificado de governanca clinica com 3 KPIs semaforo (fila pendente, validacoes cascata, alertas abertos). Rotas: GET /governanca/painel (dashboard completo com status VERDE/AMARELO/VERMELHO), GET /governanca/semaforo (semaforo critico da fila preceptor com prazo), GET /governanca/timeline (ultimos eventos clinicos), GET /fila-preceptor/stats (contagem por status + expirados)
+37. **Hierarquia de Permissoes** — 4 colunas booleanas adicionadas em usuarios: pode_validar, pode_assinar, pode_bypass, nunca_opera. Campo perfil MANTIDO como autoridade principal. Mapeamento por perfil exportado como PERMISSOES_POR_PERFIL. Helper verificarPodeOperar() e verificarPodeValidar()
+
 ## Estrutura do Projeto
 
 ```
@@ -110,3 +115,58 @@ A base de dados está estruturada para receber dados consolidados das planilhas 
 | ana@clinica.com | senha123 | Enfermeira |
 | carlos@clinica.com | senha123 | Validador Enfermeiro |
 | marina@clinica.com | senha123 | Médico Técnico |
+
+## Constituicao de Nomenclatura — PADCOM V15.2
+
+Regras permanentes para TODO o codigo deste projeto. Qualquer IA, humano ou ferramenta que trabalhe neste codebase DEVE seguir estas regras.
+
+### 1. Nomes completos e semanticos — NUNCA abreviar
+- CORRETO: `auditoria_cascata`, `alertas_notificacao`, `governanca`
+- ERRADO: `aud_cascata`, `alert_notif`, `gov`
+- O nome deve ser compreensivel sem contexto. Se alguem ler o nome isolado, deve entender o que e
+
+### 2. Campo de perfil de usuario — NUNCA usar "role"
+- O campo de perfil do usuario e `perfil` (NAO `role`)
+- Motivo TDAH: `role` confunde visualmente com `router`, `route`, `Router` — palavras que aparecem em TODA rota Express
+- Valores validos de perfil: `enfermeira`, `validador_enfermeiro`, `medico_tecnico`, `validador_mestre`
+- PROIBIDO criar campo `role` em qualquer tabela
+
+### 3. Convencoes de nomes por camada
+| Camada | Convencao | Exemplo |
+|--------|-----------|---------|
+| Tabela no banco (pgTable) | snake_case completo | `auditoria_cascata`, `alertas_notificacao` |
+| Nome do arquivo schema | camelCase completo | `auditoriaCascata.ts`, `alertasNotificacao.ts` |
+| Export da table | camelCase + Table | `auditoriaCascataTable`, `alertasNotificacaoTable` |
+| Nome do arquivo rota | camelCase completo | `auditoriaCascata.ts`, `alertas.ts` |
+| Path da rota (URL) | kebab-case completo | `/auditoria-cascata`, `/alertas-notificacao` |
+| Import do router | camelCase + Router | `auditoriaCascataRouter`, `alertasRouter` |
+| Colunas no banco | snake_case | `pode_validar`, `nunca_opera`, `realizado_por_id` |
+| Campos Drizzle (TS) | camelCase | `podeValidar`, `nuncaOpera`, `realizadoPorId` |
+
+### 4. Prefixos semanticos (quando necessario)
+| Prefixo | Significado | Exemplo |
+|---------|-------------|---------|
+| pode_ | Permissao booleana | `pode_validar`, `pode_assinar`, `pode_bypass` |
+| nunca_ | Restricao permanente | `nunca_opera` |
+| requer_ | Condicao obrigatoria | `requer_enfermeira03`, `requer_medico03` |
+
+### 5. Alias de seguranca
+Quando renomear uma tabela ou campo, SEMPRE:
+1. Renomear no banco via ALTER TABLE RENAME (nao dropar/recriar)
+2. Manter referencia ao nome antigo em comentario no schema
+3. Testar que todas as rotas ainda funcionam apos rename
+
+### 6. Proibicoes absolutas
+- NUNCA usar `role` como campo (confunde com Router/route)
+- NUNCA abreviar nomes de tabelas ou campos
+- NUNCA substituir schema de tabela existente (sempre ADD COLUMN IF NOT EXISTS)
+- NUNCA dropar tabela que tenha dados
+- NUNCA usar prefixos curtos sem significado (ex: `aud_`, `gov_`, `alrt_`)
+
+### 7. Mapeamento de soberania (termos de negocio)
+| Perfil tecnico | Termo clinico | Nivel |
+|---------------|---------------|-------|
+| validador_mestre | Diretor Clinico | Maximo |
+| medico_tecnico | Supervisor / Assistente | Medio |
+| validador_enfermeiro | Consultor | Base |
+| enfermeira | Enfermeira | Operacional |
