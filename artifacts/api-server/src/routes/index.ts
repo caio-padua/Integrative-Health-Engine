@@ -41,6 +41,7 @@ import backupDriveRouter from "./backupDrive";
 import whatsappRouter from "./whatsapp";
 import seedSemanticoRouter from "./seedSemantico";
 import semanticoRouter from "./semantico";
+import segurancaRouter from "./seguranca";
 
 const router: IRouter = Router();
 
@@ -86,5 +87,6 @@ router.use(backupDriveRouter);
 router.use(whatsappRouter);
 router.use("/seed-semantico", seedSemanticoRouter);
 router.use("/semantico", semanticoRouter);
+router.use(segurancaRouter);
 
 export default router;
