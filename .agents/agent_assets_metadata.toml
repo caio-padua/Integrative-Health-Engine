@@ -150,3 +150,21 @@ id = "Q6rqaKcwxBwpqSrCRDymO"
 uri = "file://exports/PARECER_DR_REPLIT_PROXIMOS_PASSOS.md"
 type = "text"
 title = "Parecer Dr. Replit — Proximos Passos (Para o Staff)"
+
+[[outputs]]
+id = "yEg81RU7sqdZhHxiMV-pX"
+uri = "file://screenshots/q013-with-selections.jpg"
+type = "image"
+title = "Q013 - Patologias com DX e POT selecionadas"
+
+[[outputs]]
+id = "qX_XcITpnWpwSaSeNbe-H"
+uri = "file://screenshots/q013-diagnosticadas-filter.jpg"
+type = "image"
+title = "Q013 - Filtro DIAGNOSTICADAS (apenas DX)"
+
+[[outputs]]
+id = "_f1dHQRBDcGG0VTZBepSq"
+uri = "file://screenshots/q013-potenciais-filter.jpg"
+type = "image"
+title = "Q013 - Filtro POTENCIAIS (apenas POT)"
