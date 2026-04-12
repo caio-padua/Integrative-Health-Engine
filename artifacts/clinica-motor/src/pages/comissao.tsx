@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -203,9 +204,11 @@ function ConsultorView({ userId }: { userId: number }) {
 }
 
 function GestorView() {
+  const { unidadeSelecionada } = useClinic();
+  const qp = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
   const { data, isLoading } = useQuery({
-    queryKey: ["comissao-gestor"],
-    queryFn: () => fetch(`${API}/comissao/painel-gestor`).then(r => r.json()),
+    queryKey: ["comissao-gestor", unidadeSelecionada],
+    queryFn: () => fetch(`${API}/comissao/painel-gestor${qp}`).then(r => r.json()),
   });
 
   if (isLoading) return <div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div>;

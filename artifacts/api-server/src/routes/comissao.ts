@@ -102,12 +102,14 @@ router.get("/comissao/consultor/:id", async (req: Request, res: Response) => {
 router.get("/comissao/painel-gestor", async (req: Request, res: Response) => {
   const mes = req.query.mes ? parseInt(req.query.mes as string, 10) : new Date().getMonth() + 1;
   const ano = req.query.ano ? parseInt(req.query.ano as string, 10) : new Date().getFullYear();
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
 
   const consultores = await db.select({ id: usuariosTable.id, nome: usuariosTable.nome, escopo: usuariosTable.escopo })
     .from(usuariosTable)
     .where(eq(usuariosTable.escopo, "consultor_campo"));
 
-  const todasDemandas = await db.select().from(demandasServicoTable);
+  let todasDemandas = await db.select().from(demandasServicoTable);
+  if (unidadeId) todasDemandas = todasDemandas.filter(d => d.unidadeId === unidadeId);
 
   const unidades = await db.select({ id: unidadesTable.id, nome: unidadesTable.nome, cor: unidadesTable.cor }).from(unidadesTable);
   const unidadeMap = new Map(unidades.map(u => [u.id, { nome: u.nome, cor: u.cor }]));

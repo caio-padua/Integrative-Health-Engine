@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable, unidadesTable, delegacoesTable } from "@workspace/db";
+import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable, unidadesTable, delegacoesTable, demandasServicoTable, CUSTO_POR_COMPLEXIDADE, REMUNERACAO_CONSULTOR, PLANOS_ACOMPANHAMENTO } from "@workspace/db";
 import { eq, and, gte, lt, sum, count, desc, sql, ne, inArray } from "drizzle-orm";
 
 const router = Router();
@@ -314,6 +314,113 @@ router.get("/dashboard/consultoria", async (req, res): Promise<void> => {
   } catch (err) {
     console.error("Erro dashboard consultoria:", err);
     res.status(500).json({ error: "Erro ao carregar dashboard consultoria" });
+  }
+});
+
+router.get("/dashboard/dono-clinica/:unidadeId", async (req, res): Promise<void> => {
+  try {
+    const unidadeId = parseInt(req.params.unidadeId, 10);
+
+    const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, unidadeId));
+    if (!unidade) { res.status(404).json({ error: "Clinica nao encontrada" }); return; }
+
+    const pacientes = await db.select().from(pacientesTable).where(eq(pacientesTable.unidadeId, unidadeId));
+    const ativos = pacientes.filter(p => p.statusAtivo);
+    const distribuicaoPlanos = {
+      diamante: ativos.filter(p => p.planoAcompanhamento === "diamante").length,
+      ouro: ativos.filter(p => p.planoAcompanhamento === "ouro").length,
+      prata: ativos.filter(p => p.planoAcompanhamento === "prata").length,
+      cobre: ativos.filter(p => !p.planoAcompanhamento || p.planoAcompanhamento === "cobre").length,
+    };
+
+    const delegacoes = await db.select().from(delegacoesTable).where(eq(delegacoesTable.unidadeId, unidadeId));
+    const agora = new Date();
+    const delegPendentes = delegacoes.filter(d => d.status === "pendente").length;
+    const delegEmAndamento = delegacoes.filter(d => d.status === "em_andamento").length;
+    const delegConcluidas = delegacoes.filter(d => d.status === "concluido").length;
+    const delegAtrasadas = delegacoes.filter(d => {
+      if (d.status === "atrasado") return true;
+      if ((d.status === "pendente" || d.status === "em_andamento") && d.dataLimite && new Date(d.dataLimite) < agora) return true;
+      return false;
+    }).length;
+    const taxaResolucao = delegacoes.length > 0 ? Math.round((delegConcluidas / delegacoes.length) * 100) : 0;
+
+    const demandas = await db.select().from(demandasServicoTable).where(eq(demandasServicoTable.unidadeId, unidadeId));
+    const demandasConcluidas = demandas.filter(d => d.status === "concluida");
+    const demandasAbertas = demandas.filter(d => d.status === "aberta");
+    const demandasEmAtendimento = demandas.filter(d => d.status === "em_atendimento");
+
+    const custoBase = 50;
+    const custoTotal = demandas.reduce((acc, d) => {
+      const mult = CUSTO_POR_COMPLEXIDADE[d.complexidade as keyof typeof CUSTO_POR_COMPLEXIDADE]?.multiplicador || 1;
+      return acc + (custoBase * mult);
+    }, 0);
+
+    const porComplexidade = {
+      verde: demandas.filter(d => d.complexidade === "verde").length,
+      amarela: demandas.filter(d => d.complexidade === "amarela").length,
+      vermelha: demandas.filter(d => d.complexidade === "vermelha").length,
+    };
+
+    const tempoTotalMin = demandas.reduce((a, d) => a + (d.tempoGastoMin || 0), 0);
+
+    const filas = await db.select().from(filasTable).where(eq(filasTable.unidadeId, unidadeId));
+    const filasResumo = {
+      anamnese: filas.filter(f => f.tipo === "anamnese").length,
+      validacao: filas.filter(f => f.tipo === "validacao").length,
+      procedimento: filas.filter(f => f.tipo === "procedimento").length,
+      urgentes: filas.filter(f => f.prioridade === "urgente").length,
+    };
+
+    const anamneses = await db.select().from(anamnesesTable);
+    const anamnesesClinica = anamneses.filter(a => {
+      const pac = pacientes.find(p => p.id === a.pacienteId);
+      return !!pac;
+    });
+    const anamnesesPendentes = anamnesesClinica.filter(a => a.status === "pendente").length;
+
+    const demandasRecentes = demandas
+      .sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime())
+      .slice(0, 5)
+      .map(d => ({
+        id: d.id,
+        titulo: d.titulo,
+        complexidade: d.complexidade,
+        status: d.status,
+        tipo: d.tipo,
+      }));
+
+    res.json({
+      clinica: { id: unidade.id, nome: unidade.nome, cor: unidade.cor },
+      pacientes: {
+        total: pacientes.length,
+        ativos: ativos.length,
+        distribuicaoPlanos,
+      },
+      delegacoes: {
+        total: delegacoes.length,
+        pendentes: delegPendentes,
+        emAndamento: delegEmAndamento,
+        concluidas: delegConcluidas,
+        atrasadas: delegAtrasadas,
+        taxaResolucao,
+      },
+      demandas: {
+        total: demandas.length,
+        abertas: demandasAbertas.length,
+        emAtendimento: demandasEmAtendimento.length,
+        concluidas: demandasConcluidas.length,
+        porComplexidade,
+        custoTotal: Math.round(custoTotal * 100) / 100,
+        tempoTotalMin,
+        recentes: demandasRecentes,
+      },
+      filas: filasResumo,
+      anamnesesPendentes,
+    });
+  } catch (err) {
+    console.error("Erro dashboard dono clinica:", err);
+    res.status(500).json({ error: "Erro ao carregar dashboard dono clinica" });
   }
 });
 

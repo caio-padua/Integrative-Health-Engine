@@ -7,6 +7,8 @@ interface UnidadeVinculada {
   unidadeCor: string;
 }
 
+type ModoVisao = "arquiteto_mestre" | "dono_clinica" | "consultor" | "operacional";
+
 interface ClinicContextType {
   unidadeSelecionada: number | null;
   setUnidadeSelecionada: (id: number | null) => void;
@@ -15,6 +17,8 @@ interface ClinicContextType {
   corUnidadeSelecionada: string | null;
   isTodasClinicas: boolean;
   escopo: string;
+  modoVisao: ModoVisao;
+  modoLabel: string;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -58,6 +62,22 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
   const corUnidadeSelecionada = selecionada?.unidadeCor || null;
   const isTodasClinicas = unidadeSelecionada === null;
 
+  const modoVisao: ModoVisao = (() => {
+    if (escopo === "consultoria_master" && isTodasClinicas) return "arquiteto_mestre";
+    if (escopo === "consultoria_master" && !isTodasClinicas) return "dono_clinica";
+    if (escopo === "consultor_campo") return "consultor";
+    return "operacional";
+  })();
+
+  const modoLabel = (() => {
+    switch (modoVisao) {
+      case "arquiteto_mestre": return "Arquiteto Mestre";
+      case "dono_clinica": return `Dono da Clinica`;
+      case "consultor": return "Consultor";
+      case "operacional": return "Operacional";
+    }
+  })();
+
   return (
     <ClinicContext.Provider value={{
       unidadeSelecionada,
@@ -67,6 +87,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       corUnidadeSelecionada,
       isTodasClinicas,
       escopo,
+      modoVisao,
+      modoLabel,
     }}>
       {children}
     </ClinicContext.Provider>
