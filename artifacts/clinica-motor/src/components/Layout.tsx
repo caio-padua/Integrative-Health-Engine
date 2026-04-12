@@ -1,6 +1,7 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { 
   LayoutDashboard, 
   ClipboardList, 
@@ -33,9 +34,64 @@ import {
   Shield,
   Lock,
   Radar,
-  Send
+  Send,
+  ChevronDown,
+  Globe
 } from "lucide-react";
 import { Button } from "./ui/button";
+
+function ClinicSwitcher() {
+  const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, escopo } = useClinic();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const canSwitch = escopo === "consultoria_master" || (escopo === "consultor_campo" && unidadesDisponiveis.length > 1);
+  if (unidadesDisponiveis.length === 0) return null;
+
+  return (
+    <div ref={ref} className="px-3 py-2 border-b border-border relative">
+      <button
+        onClick={() => canSwitch && setOpen(!open)}
+        className={`w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors rounded ${canSwitch ? "hover:bg-sidebar-accent/50 cursor-pointer" : "cursor-default"}`}
+      >
+        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: corUnidadeSelecionada || "hsl(210, 45%, 65%)" }} />
+        <span className="text-[12px] font-medium text-sidebar-foreground truncate flex-1">{nomeUnidadeSelecionada}</span>
+        {canSwitch && <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />}
+      </button>
+      {open && (
+        <div className="absolute left-2 right-2 top-full mt-1 bg-card border border-border rounded shadow-lg z-50 py-1 max-h-60 overflow-y-auto">
+          {(escopo === "consultoria_master" || escopo === "consultor_campo") && (
+            <button
+              onClick={() => { setUnidadeSelecionada(null); setOpen(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-sidebar-accent/50 transition-colors ${isTodasClinicas ? "bg-primary/10 text-primary font-semibold" : "text-sidebar-foreground"}`}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              Todas as Clínicas
+            </button>
+          )}
+          {unidadesDisponiveis.map(u => (
+            <button
+              key={u.unidadeId}
+              onClick={() => { setUnidadeSelecionada(u.unidadeId); setOpen(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-sidebar-accent/50 transition-colors ${unidadeSelecionada === u.unidadeId ? "bg-primary/10 font-semibold" : "text-sidebar-foreground"}`}
+            >
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: u.unidadeCor || "#6B7280" }} />
+              {u.unidadeNome}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -122,6 +178,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="text-[11px] text-muted-foreground capitalize tracking-wide">{user.perfil.replace('_', ' ')}</div>
           <div className="text-[9px] text-primary/70 uppercase tracking-widest mt-0.5">{escopoLabel}</div>
         </div>
+        <ClinicSwitcher />
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {allowedItems.map((item) => {
             const Icon = item.icon;

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable } from "@workspace/db";
+import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable, unidadesTable, delegacoesTable } from "@workspace/db";
 import { eq, and, gte, lt, sum, count, desc, sql, ne, inArray } from "drizzle-orm";
 
 const router = Router();
@@ -260,6 +260,60 @@ router.get("/dashboard/comando", async (req, res): Promise<void> => {
   } catch (err) {
     console.error("Erro dashboard comando:", err);
     res.status(500).json({ error: "Erro ao carregar painel de comando" });
+  }
+});
+
+router.get("/dashboard/consultoria", async (req, res): Promise<void> => {
+  try {
+    const unidades = await db.select().from(unidadesTable);
+    const delegacoes = await db.select().from(delegacoesTable);
+    const pacientes = await db.select().from(pacientesTable);
+
+    const agora = new Date();
+    const porClinica = unidades.map(u => {
+      const delegacoesClinica = delegacoes.filter(d => d.unidadeId === u.id);
+      const pacientesClinica = pacientes.filter(p => p.unidadeId === u.id);
+      const pendentes = delegacoesClinica.filter(d => d.status === "pendente").length;
+      const emAndamento = delegacoesClinica.filter(d => d.status === "em_andamento").length;
+      const concluidas = delegacoesClinica.filter(d => d.status === "concluido").length;
+      const atrasadas = delegacoesClinica.filter(d => {
+        if (d.status === "atrasado") return true;
+        if ((d.status === "pendente" || d.status === "em_andamento") && d.dataLimite && new Date(d.dataLimite) < agora) return true;
+        return false;
+      }).length;
+      const total = delegacoesClinica.length;
+      const taxaResolucao = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+
+      return {
+        unidadeId: u.id,
+        unidadeNome: u.nome,
+        unidadeCor: u.cor,
+        totalPacientes: pacientesClinica.length,
+        delegacoes: { total, pendentes, emAndamento, concluidas, atrasadas },
+        taxaResolucao,
+      };
+    });
+
+    const totalGeral = {
+      clinicas: unidades.length,
+      pacientes: pacientes.length,
+      delegacoesTotal: delegacoes.length,
+      delegacoesPendentes: delegacoes.filter(d => d.status === "pendente").length,
+      delegacoesAtrasadas: delegacoes.filter(d => {
+        if (d.status === "atrasado") return true;
+        if ((d.status === "pendente" || d.status === "em_andamento") && d.dataLimite && new Date(d.dataLimite) < agora) return true;
+        return false;
+      }).length,
+      delegacoesConcluidas: delegacoes.filter(d => d.status === "concluido").length,
+      taxaResolucaoGeral: delegacoes.length > 0
+        ? Math.round((delegacoes.filter(d => d.status === "concluido").length / delegacoes.length) * 100)
+        : 0,
+    };
+
+    res.json({ totalGeral, porClinica });
+  } catch (err) {
+    console.error("Erro dashboard consultoria:", err);
+    res.status(500).json({ error: "Erro ao carregar dashboard consultoria" });
   }
 });
 

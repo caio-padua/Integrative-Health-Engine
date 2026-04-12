@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -11,12 +12,16 @@ import {
   getObterAtividadeRecenteQueryKey,
   getObterResumoFilasQueryKey
 } from "@workspace/api-client-react";
-import { Activity, Users, ClipboardList, CheckSquare, TrendingUp, AlertTriangle, Clock } from "lucide-react";
+import { Activity, Users, ClipboardList, CheckSquare, TrendingUp, AlertTriangle, Clock, Building2, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+
+const API_BASE = "/api";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { isTodasClinicas, escopo, unidadeSelecionada, nomeUnidadeSelecionada } = useClinic();
 
   const { data: dashboard, isLoading: loadingDash } = useObterResumoDashboard({
     query: { enabled: !!user, queryKey: getObterResumoDashboardQueryKey() }
@@ -32,6 +37,16 @@ export default function Dashboard() {
 
   const { data: filas, isLoading: loadingFilas } = useObterResumoFilas({
     query: { enabled: !!user, queryKey: getObterResumoFilasQueryKey() }
+  });
+
+  const { data: consultoria, isLoading: loadingConsultoria } = useQuery({
+    queryKey: ["dashboard-consultoria"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/dashboard/consultoria`);
+      if (!res.ok) throw new Error("Erro ao carregar consultoria");
+      return res.json();
+    },
+    enabled: !!user && isTodasClinicas && escopo === "consultoria_master",
   });
 
   const StatCard = ({ title, value, icon: Icon, colorClass, subtitle, loading }: any) => (
@@ -53,17 +68,132 @@ export default function Dashboard() {
     </Card>
   );
 
+  if (isTodasClinicas && escopo === "consultoria_master") {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Painel da Consultoria</h1>
+              <p className="text-sm text-muted-foreground mt-1">Visão consolidada de todas as clínicas</p>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+              </span>
+              Modo Consultoria
+            </div>
+          </div>
+
+          {loadingConsultoria ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 w-full" />)}
+            </div>
+          ) : consultoria ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Clínicas Ativas" value={consultoria.totalGeral.clinicas} icon={Building2} colorClass="text-blue-500" loading={false} />
+                <StatCard title="Total Pacientes" value={consultoria.totalGeral.pacientes} icon={Users} colorClass="text-green-500" loading={false} />
+                <StatCard title="Delegações Pendentes" value={consultoria.totalGeral.delegacoesPendentes} icon={ClipboardList} colorClass="text-orange-500" loading={false} />
+                <StatCard title="Taxa Resolução Geral" value={`${consultoria.totalGeral.taxaResolucaoGeral}%`} icon={TrendingUp} colorClass="text-emerald-500" loading={false} />
+              </div>
+
+              {consultoria.totalGeral.delegacoesAtrasadas > 0 && (
+                <Card className="bg-red-950/30 border-red-500/30">
+                  <CardContent className="py-4 flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                    <span className="text-sm font-medium text-red-400">
+                      {consultoria.totalGeral.delegacoesAtrasadas} delegações atrasadas no total
+                    </span>
+                  </CardContent>
+                </Card>
+              )}
+
+              <h2 className="text-lg font-semibold text-foreground">Saúde por Clínica</h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {consultoria.porClinica.map((c: any) => (
+                  <Card key={c.unidadeId} className="bg-card border-border/50 relative overflow-hidden">
+                    <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: c.unidadeCor || "#6B7280" }} />
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.unidadeCor || "#6B7280" }} />
+                        <CardTitle className="text-sm font-semibold">{c.unidadeNome}</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Pacientes</div>
+                          <div className="text-xl font-bold">{c.totalPacientes}</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Resolução</div>
+                          <div className="text-xl font-bold flex items-center gap-1">
+                            {c.taxaResolucao}%
+                            {c.taxaResolucao >= 70 ? (
+                              <ArrowUpRight className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <ArrowDownRight className="w-4 h-4 text-red-500" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 text-[11px]">
+                        <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 rounded">{c.delegacoes.pendentes} pendentes</span>
+                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded">{c.delegacoes.emAndamento} em andamento</span>
+                        {c.delegacoes.atrasadas > 0 && (
+                          <span className="px-2 py-0.5 bg-red-500/10 text-red-400 rounded">{c.delegacoes.atrasadas} atrasadas</span>
+                        )}
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${c.taxaResolucao}%`, backgroundColor: c.unidadeCor || "#6B7280" }} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <Card className="bg-card border-border/50">
+                <CardHeader>
+                  <CardTitle>Delegações por Clínica</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={consultoria.porClinica} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <XAxis dataKey="unidadeNome" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                      <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }} />
+                      <Bar dataKey="delegacoes.total" name="Total" radius={[4, 4, 0, 0]}>
+                        {consultoria.porClinica.map((c: any, i: number) => (
+                          <Cell key={`cell-${i}`} fill={c.unidadeCor || "hsl(var(--primary))"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Visão Geral do Motor</h1>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Visão Geral do Motor</h1>
+            {unidadeSelecionada && <p className="text-sm text-muted-foreground mt-1">{nomeUnidadeSelecionada}</p>}
+          </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
             </span>
-            Sistema Operante
+            {unidadeSelecionada ? "Modo Operação" : "Sistema Operante"}
           </div>
         </div>
 
