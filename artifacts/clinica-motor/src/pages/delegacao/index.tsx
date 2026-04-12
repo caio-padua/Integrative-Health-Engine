@@ -21,6 +21,9 @@ interface Delegacao {
   concluidoEm: string | null;
   notaQualidade: number | null;
   criadoEm: string;
+  unidadeNome: string | null;
+  unidadeCor: string | null;
+  unidadeId: number | null;
 }
 
 interface Scoring {
@@ -79,21 +82,24 @@ export default function DelegacaoPage() {
   const [feedbackResumo, setFeedbackResumo] = useState<FeedbackResumo | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [usuarios, setUsuarios] = useState<{ id: number; nome: string; perfil: string }[]>([]);
+  const [unidades, setUnidades] = useState<{ id: number; nome: string; cor: string }[]>([]);
+  const [filtroUnidade, setFiltroUnidade] = useState<number | null>(null);
   const [form, setForm] = useState({
     titulo: "", descricao: "", prioridade: "media", prazo: "48h",
-    categoria: "administrativo", responsavelId: 0,
+    categoria: "administrativo", responsavelId: 0, unidadeId: 0,
   });
 
   const fetchAll = useCallback(async () => {
-    const [dRes, sRes, fRes, frRes, uRes] = await Promise.all([
+    const [dRes, sRes, fRes, frRes, uRes, unRes] = await Promise.all([
       fetch(API), fetch(`${API}/scoring`), fetch(`${API}/feedback`),
-      fetch(`${API}/feedback/resumo`), fetch("/api/usuarios"),
+      fetch(`${API}/feedback/resumo`), fetch("/api/usuarios"), fetch("/api/unidades"),
     ]);
     if (dRes.ok) setDelegacoes(await dRes.json());
     if (sRes.ok) setScoring(await sRes.json());
     if (fRes.ok) setFeedbacks(await fRes.json());
     if (frRes.ok) setFeedbackResumo(await frRes.json());
     if (uRes.ok) setUsuarios(await uRes.json());
+    if (unRes.ok) setUnidades(await unRes.json());
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -102,11 +108,11 @@ export default function DelegacaoPage() {
     const res = await fetch(API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, delegadoPorId: 1 }),
+      body: JSON.stringify({ ...form, delegadoPorId: 1, unidadeId: form.unidadeId || undefined }),
     });
     if (res.ok) {
       setShowForm(false);
-      setForm({ titulo: "", descricao: "", prioridade: "media", prazo: "48h", categoria: "administrativo", responsavelId: 0 });
+      setForm({ titulo: "", descricao: "", prioridade: "media", prazo: "48h", categoria: "administrativo", responsavelId: 0, unidadeId: 0 });
       fetchAll();
     }
   };
@@ -165,6 +171,36 @@ export default function DelegacaoPage() {
           ))}
         </div>
 
+        {(() => {
+          const unidadesComDelegacao = unidades.filter(u => delegacoes.some(d => d.unidadeId === u.id));
+          return unidadesComDelegacao.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Filtrar por Clinica:</span>
+              <button
+                onClick={() => setFiltroUnidade(null)}
+                className={`text-[10px] font-bold px-3 py-1 border transition-all ${
+                  filtroUnidade === null ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/10 text-muted-foreground border-border/30 hover:bg-muted/20"
+                }`}
+              >
+                Todas
+              </button>
+              {unidadesComDelegacao.map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => setFiltroUnidade(u.id)}
+                  className={`text-[10px] font-bold px-3 py-1 border transition-all flex items-center gap-1.5 ${
+                    filtroUnidade === u.id ? "bg-primary/20 border-primary/40" : "bg-muted/10 border-border/30 hover:bg-muted/20"
+                  }`}
+                  style={{ color: filtroUnidade === u.id ? u.cor : undefined, borderColor: filtroUnidade === u.id ? u.cor : undefined }}
+                >
+                  <span className="w-2 h-2 flex-shrink-0" style={{ backgroundColor: u.cor }} />
+                  {u.nome}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+
         {showForm && (
           <div className="border border-primary/20 bg-primary/5 p-4 space-y-3">
             <h3 className="text-sm font-bold">Nova Delegacao</h3>
@@ -188,6 +224,16 @@ export default function DelegacaoPage() {
               >
                 <option value={0}>Responsavel...</option>
                 {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome} ({u.perfil})</option>)}
+              </select>
+              <select
+                value={form.unidadeId}
+                onChange={e => setForm({ ...form, unidadeId: Number(e.target.value) })}
+                className="bg-background border border-border/40 px-3 py-2 text-xs"
+              >
+                <option value={0}>Clinica destino...</option>
+                {unidades.map(u => (
+                  <option key={u.id} value={u.id}>{u.nome}</option>
+                ))}
               </select>
               <select
                 value={form.prazo}
@@ -241,7 +287,7 @@ export default function DelegacaoPage() {
             {COLUNAS_BOARD.map(col => {
               const config = STATUS_CONFIG[col];
               const Icon = config.icon;
-              const itens = delegacoes.filter(d => d.status === col);
+              const itens = delegacoes.filter(d => d.status === col && (filtroUnidade === null || d.unidadeId === filtroUnidade));
 
               return (
                 <div key={col} className={`border ${config.colCor} bg-muted/5`}>
@@ -257,7 +303,22 @@ export default function DelegacaoPage() {
                       <div className="text-center py-8 text-muted-foreground/40 text-xs">Vazio</div>
                     )}
                     {itens.map(d => (
-                      <div key={d.id} className="border border-border/30 bg-background/50 p-3 space-y-2 hover:border-primary/30 transition-all">
+                      <div
+                        key={d.id}
+                        className="border border-border/30 bg-background/50 p-3 space-y-2 hover:border-primary/30 transition-all"
+                        style={{ borderLeftWidth: "4px", borderLeftColor: d.unidadeCor || "#666" }}
+                      >
+                        {d.unidadeNome && (
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span
+                              className="w-2 h-2 flex-shrink-0"
+                              style={{ backgroundColor: d.unidadeCor || "#666", borderRadius: "0px" }}
+                            />
+                            <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: d.unidadeCor || "#999" }}>
+                              {d.unidadeNome}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-start justify-between">
                           <span className="text-xs font-bold leading-tight">{d.titulo}</span>
                           <Badge className={`text-[8px] px-1.5 py-0 border ${PRIORIDADE_COR[d.prioridade]}`}>

@@ -43,6 +43,7 @@ import seedSemanticoRouter from "./seedSemantico";
 import semanticoRouter from "./semantico";
 import segurancaRouter from "./seguranca";
 import delegacaoRouter from "./delegacao";
+import seedConsultoriaRouter from "./seedConsultoria";
 
 const router: IRouter = Router();
 
@@ -90,5 +91,6 @@ router.use("/seed-semantico", seedSemanticoRouter);
 router.use("/semantico", semanticoRouter);
 router.use(segurancaRouter);
 router.use("/delegacao", delegacaoRouter);
+router.use("/seed-consultoria", seedConsultoriaRouter);
 
 export default router;

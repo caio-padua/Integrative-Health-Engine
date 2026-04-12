@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { useRoute, Link } from "wouter";
 import { useObterPaciente, getObterPacienteQueryKey, useAtualizarPaciente } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Activity, Clock, Edit, HeartPulse, MapPin, Mail, Phone, Calendar, FileText } from "lucide-react";
+import { User, Activity, Clock, Edit, HeartPulse, MapPin, Mail, Phone, Calendar, FileText, Camera, Upload } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -123,6 +123,33 @@ export default function PacienteDetalhe() {
   const p = paciente as any;
   const enderecoCompleto = p ? [p.endereco, p.complemento, p.bairro, p.cidade, p.estado].filter(Boolean).join(', ') : '';
 
+  const fotoRostoRef = useRef<HTMLInputElement>(null);
+  const fotoCorpoRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handlePhotoUpload = async (tipo: "fotoRosto" | "fotoCorpo", file: File) => {
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      try {
+        const res = await fetch(`${BASE_URL}api/pacientes/${id}/fotos`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [tipo]: base64 }),
+        });
+        if (res.ok) {
+          queryClient.invalidateQueries({ queryKey: getObterPacienteQueryKey(id) });
+          toast({ title: tipo === "fotoRosto" ? "Foto do rosto salva" : "Foto do corpo salva" });
+        }
+      } catch {
+        toast({ title: "Erro ao salvar foto", variant: "destructive" });
+      }
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -135,8 +162,25 @@ export default function PacienteDetalhe() {
           <>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                  <User className="w-8 h-8" />
+                <div
+                  className="w-16 h-16 bg-primary/20 flex items-center justify-center text-primary cursor-pointer relative overflow-hidden group"
+                  onClick={() => fotoRostoRef.current?.click()}
+                >
+                  {p?.fotoRosto ? (
+                    <img src={p.fotoRosto} alt="Rosto" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8" />
+                  )}
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="w-4 h-4 text-white" />
+                  </div>
+                  <input
+                    ref={fotoRostoRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => { if (e.target.files?.[0]) handlePhotoUpload("fotoRosto", e.target.files[0]); }}
+                  />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
@@ -315,33 +359,93 @@ export default function PacienteDetalhe() {
             </div>
             </div>
 
-            <Card className="bg-card border-border/50">
-              <CardHeader>
-                <CardTitle>Informacoes</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3 text-sm">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span>{paciente?.telefone}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span>{paciente?.email || "Nao informado"}</span>
-                </div>
-                {p?.dataNascimento && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="md:col-span-2 bg-card border-border/50">
+                <CardHeader>
+                  <CardTitle>Informacoes</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   <div className="flex items-center gap-3 text-sm">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span>{p.dataNascimento}</span>
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <span>{paciente?.telefone}</span>
                   </div>
-                )}
-                {enderecoCompleto && (
                   <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span>{enderecoCompleto}{p?.cep ? ` - CEP ${p.cep}` : ''}</span>
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <span>{paciente?.email || "Nao informado"}</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  {p?.dataNascimento && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span>{p.dataNascimento}</span>
+                    </div>
+                  )}
+                  {enderecoCompleto && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <span>{enderecoCompleto}{p?.cep ? ` - CEP ${p.cep}` : ''}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card border-border/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Camera className="w-4 h-4" /> Fotos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Rosto</p>
+                      <div
+                        className="w-full aspect-square bg-muted/20 border border-dashed border-border/40 flex items-center justify-center cursor-pointer relative overflow-hidden group"
+                        onClick={() => fotoRostoRef.current?.click()}
+                      >
+                        {p?.fotoRosto ? (
+                          <img src={p.fotoRosto} alt="Rosto" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-center">
+                            <Upload className="w-5 h-5 mx-auto text-muted-foreground/40 mb-1" />
+                            <span className="text-[9px] text-muted-foreground/40">Clique para enviar</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Camera className="w-5 h-5 text-white" />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Corpo</p>
+                      <div
+                        className="w-full aspect-square bg-muted/20 border border-dashed border-border/40 flex items-center justify-center cursor-pointer relative overflow-hidden group"
+                        onClick={() => fotoCorpoRef.current?.click()}
+                      >
+                        {p?.fotoCorpo ? (
+                          <img src={p.fotoCorpo} alt="Corpo" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-center">
+                            <Upload className="w-5 h-5 mx-auto text-muted-foreground/40 mb-1" />
+                            <span className="text-[9px] text-muted-foreground/40">Clique para enviar</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Camera className="w-5 h-5 text-white" />
+                        </div>
+                      </div>
+                      <input
+                        ref={fotoCorpoRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => { if (e.target.files?.[0]) handlePhotoUpload("fotoCorpo", e.target.files[0]); }}
+                      />
+                    </div>
+                  </div>
+                  {uploading && <p className="text-[10px] text-primary animate-pulse">Enviando foto...</p>}
+                </CardContent>
+              </Card>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="md:col-span-2 bg-card border-border/50">

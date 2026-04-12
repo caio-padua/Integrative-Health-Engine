@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usuariosTable, unidadesTable } from "@workspace/db";
+import { db, usuariosTable, unidadesTable, consultorUnidadesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { CriarUsuarioBody, LoginUsuarioBody } from "@workspace/api-zod";
 
@@ -60,7 +60,17 @@ router.post("/usuarios/login", async (req, res): Promise<void> => {
     return;
   }
   const { senha: _senha, ...safeUsuario } = usuario;
-  res.json({ token: `token-${usuario.id}-${Date.now()}`, usuario: safeUsuario });
+
+  const vinculosConsultor = await db
+    .select({ unidadeId: consultorUnidadesTable.unidadeId, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor })
+    .from(consultorUnidadesTable)
+    .leftJoin(unidadesTable, eq(consultorUnidadesTable.unidadeId, unidadesTable.id))
+    .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
+
+  res.json({
+    token: `token-${usuario.id}-${Date.now()}`,
+    usuario: { ...safeUsuario, unidadesVinculadas: vinculosConsultor },
+  });
 });
 
 router.get("/usuarios/perfil-atual", async (_req, res): Promise<void> => {
@@ -70,7 +80,9 @@ router.get("/usuarios/perfil-atual", async (_req, res): Promise<void> => {
       nome: usuariosTable.nome,
       email: usuariosTable.email,
       perfil: usuariosTable.perfil,
+      escopo: usuariosTable.escopo,
       unidadeId: usuariosTable.unidadeId,
+      consultoriaId: usuariosTable.consultoriaId,
       unidadeNome: unidadesTable.nome,
       ativo: usuariosTable.ativo,
       criadoEm: usuariosTable.criadoEm,
@@ -83,7 +95,14 @@ router.get("/usuarios/perfil-atual", async (_req, res): Promise<void> => {
     res.status(404).json({ error: "Nenhum usuário encontrado" });
     return;
   }
-  res.json(usuario);
+
+  const vinculosConsultor = await db
+    .select({ unidadeId: consultorUnidadesTable.unidadeId, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor })
+    .from(consultorUnidadesTable)
+    .leftJoin(unidadesTable, eq(consultorUnidadesTable.unidadeId, unidadesTable.id))
+    .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
+
+  res.json({ ...usuario, unidadesVinculadas: vinculosConsultor });
 });
 
 export default router;

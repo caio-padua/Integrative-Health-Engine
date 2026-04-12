@@ -10,7 +10,7 @@ export const usuariosTable = pgTable("usuarios", {
   email: text("email").notNull().unique(),
   senha: text("senha").notNull(),
   perfil: text("perfil", { enum: ["enfermeira", "validador_enfermeiro", "medico_tecnico", "validador_mestre"] }).notNull(),
-  escopo: text("escopo", { enum: ["consultoria_master", "clinica_medico", "clinica_enfermeira", "clinica_admin"] }).notNull().default("clinica_enfermeira"),
+  escopo: text("escopo", { enum: ["consultoria_master", "consultor_campo", "clinica_medico", "clinica_enfermeira", "clinica_admin"] }).notNull().default("clinica_enfermeira"),
   unidadeId: integer("unidade_id").references(() => unidadesTable.id),
   consultoriaId: integer("consultoria_id").references(() => consultoriasTable.id),
   fotoRosto: text("foto_rosto"),
