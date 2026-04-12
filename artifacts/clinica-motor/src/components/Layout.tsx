@@ -38,7 +38,8 @@ import {
   ChevronDown,
   Globe,
   Diamond,
-  DollarSign
+  DollarSign,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -113,7 +114,7 @@ export function Layout({ children }: { children: ReactNode }) {
       "financeiro", "unidades", "fluxos", "pedidos-exame", "substancias",
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
       "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
-      "configuracoes", "delegacao", "acompanhamento", "comissao"
+      "configuracoes", "delegacao", "acompanhamento", "comissao", "comercial"
     ],
     consultor_campo: [
       "delegacao", "pacientes", "anamnese", "followup", "agenda",
@@ -162,6 +163,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Delegacao", path: "/delegacao", icon: Send, slug: "delegacao" },
     { name: "Acompanhamento", path: "/acompanhamento", icon: Diamond, slug: "acompanhamento" },
     { name: "Comissao & Metas", path: "/comissao", icon: DollarSign, slug: "comissao" },
+    { name: "Comercial", path: "/comercial", icon: TrendingUp, slug: "comercial" },
     { name: "Configuracoes", path: "/configuracoes", icon: Settings, slug: "configuracoes" },
   ];
 

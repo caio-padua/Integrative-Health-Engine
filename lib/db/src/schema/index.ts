@@ -35,3 +35,4 @@ export * from "./alertasNotificacao";
 export * from "./monitoramentoPaciente";
 export * from "./whatsappConfig";
 export * from "./acompanhamento";
+export * from "./comercial";
