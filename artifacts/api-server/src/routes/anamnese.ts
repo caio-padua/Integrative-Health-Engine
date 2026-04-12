@@ -199,8 +199,16 @@ router.post("/anamnese/:id/ativar-motor", async (req, res): Promise<void> => {
   const sintomas = respostasClincias.Q012 as string[] || [];
   sintomas.forEach(s => sinais.push(s.toUpperCase()));
 
-  const doencas = respostasClincias.Q013 as string[] || [];
-  doencas.forEach(d => sinais.push(d.toUpperCase()));
+  const rawQ013 = respostasClincias.Q013 || respostasClincias.Q013_legacy || [];
+  let doencasNomes: string[] = [];
+  if (Array.isArray(rawQ013) && rawQ013.length > 0) {
+    if (typeof rawQ013[0] === "string") {
+      doencasNomes = rawQ013 as string[];
+    } else {
+      doencasNomes = (rawQ013 as Array<{ nome: string; status: string }>).map(d => d.nome);
+    }
+  }
+  doencasNomes.forEach(d => sinais.push(d.toUpperCase()));
 
   const historicoFamiliar = respostasClincias.Q014 as string[] || [];
   historicoFamiliar.forEach(h => sinais.push(h.toUpperCase()));

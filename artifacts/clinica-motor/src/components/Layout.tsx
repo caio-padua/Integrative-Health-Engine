@@ -118,7 +118,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </div>
