@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "@workspace/db";
-import { consultoriasTable, consultorUnidadesTable, unidadesTable, usuariosTable, delegacoesTable } from "@workspace/db";
+import { consultoriasTable, consultorUnidadesTable, unidadesTable, usuariosTable, delegacoesTable, demandasServicoTable, pacientesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router = Router();
@@ -130,11 +130,54 @@ router.post("/", async (_req: Request, res: Response) => {
     }
   }
 
+  const demandasExistentes = await db.select().from(demandasServicoTable);
+  if (demandasExistentes.length === 0) {
+    const DEMANDAS_SEED = [
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Orientacao dieta pos-consulta", tempoMin: 15, unidadeIdx: 0, plano: "diamante" },
+      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Follow-up semanal paciente VIP", tempoMin: 20, unidadeIdx: 0, plano: "diamante" },
+      { tipo: "orientacao_equipe", complexidade: "amarela", titulo: "Treinamento protocolo acolhimento", tempoMin: 60, unidadeIdx: 1, plano: null },
+      { tipo: "revisao_prontuario", complexidade: "amarela", titulo: "Revisao prontuarios pendentes semana", tempoMin: 45, unidadeIdx: 0, plano: null },
+      { tipo: "avaliacao_presencial", complexidade: "vermelha", titulo: "Avaliacao fisioterapia pos-cirurgia", tempoMin: 90, unidadeIdx: 2, plano: "ouro" },
+      { tipo: "relatorio", complexidade: "amarela", titulo: "Relatorio mensal de atividades", tempoMin: 120, unidadeIdx: 1, plano: null },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Duvida sobre horario de medicamento", tempoMin: 10, unidadeIdx: 2, plano: "prata" },
+      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Confirmacao adesao ao tratamento", tempoMin: 15, unidadeIdx: 0, plano: "ouro" },
+      { tipo: "treinamento", complexidade: "vermelha", titulo: "Capacitacao equipe em protocolo IV", tempoMin: 180, unidadeIdx: 1, plano: null },
+      { tipo: "resposta_paciente", complexidade: "amarela", titulo: "Ajuste de dosagem com medico", tempoMin: 30, unidadeIdx: 2, plano: "diamante" },
+    ];
+
+    const pacientes = await db.select({ id: pacientesTable.id }).from(pacientesTable).limit(5);
+    const statuses = ["concluida", "concluida", "concluida", "em_atendimento", "aberta", "concluida", "aberta", "em_atendimento", "concluida", "aberta"];
+
+    for (let i = 0; i < DEMANDAS_SEED.length; i++) {
+      const d = DEMANDAS_SEED[i];
+      await db.insert(demandasServicoTable).values({
+        consultorId: mariaId,
+        pacienteId: pacientes[i % pacientes.length]?.id || null,
+        unidadeId: unidadeIds[d.unidadeIdx],
+        tipo: d.tipo as any,
+        complexidade: d.complexidade as any,
+        titulo: d.titulo,
+        tempoGastoMin: d.tempoMin,
+        planoOrigem: d.plano as any,
+        status: statuses[i] as any,
+        concluidaEm: statuses[i] === "concluida" ? new Date() : null,
+      });
+    }
+  }
+
+  const pacientesParaPlano = await db.select({ id: pacientesTable.id, planoAcompanhamento: pacientesTable.planoAcompanhamento }).from(pacientesTable).limit(15);
+  const planos = ["diamante", "ouro", "ouro", "prata", "prata", "prata", "cobre", "cobre", "cobre", "cobre", "diamante", "prata", "ouro", "cobre", "cobre"];
+  for (let i = 0; i < pacientesParaPlano.length; i++) {
+    if (!pacientesParaPlano[i].planoAcompanhamento || pacientesParaPlano[i].planoAcompanhamento === "cobre") {
+      await db.update(pacientesTable).set({ planoAcompanhamento: planos[i] as any }).where(eq(pacientesTable.id, pacientesParaPlano[i].id));
+    }
+  }
+
   res.json({
     consultoriaId,
     unidades: unidadeIds,
     consultora: { id: mariaId, nome: "Maria Silva Fisioterapeuta", unidades: unidadeIds },
-    message: "Seed multi-clinica executado com sucesso",
+    message: "Seed multi-clinica executado com sucesso (com demandas e planos)",
   });
 });
 

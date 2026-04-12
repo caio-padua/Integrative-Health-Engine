@@ -36,7 +36,8 @@ import {
   Radar,
   Send,
   ChevronDown,
-  Globe
+  Globe,
+  Diamond
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -106,11 +107,11 @@ export function Layout({ children }: { children: ReactNode }) {
       "financeiro", "unidades", "fluxos", "pedidos-exame", "substancias",
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
       "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
-      "configuracoes", "delegacao"
+      "configuracoes", "delegacao", "acompanhamento"
     ],
     consultor_campo: [
       "delegacao", "pacientes", "anamnese", "followup", "agenda",
-      "task-cards", "filas", "avaliacao-enfermagem", "estoque"
+      "task-cards", "filas", "avaliacao-enfermagem", "estoque", "acompanhamento"
     ],
     clinica_medico: [
       "anamnese", "validacao", "pacientes", "itens-terapeuticos",
@@ -153,6 +154,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
     { name: "Seguranca", path: "/seguranca", icon: Lock, slug: "seguranca" },
     { name: "Delegacao", path: "/delegacao", icon: Send, slug: "delegacao" },
+    { name: "Acompanhamento", path: "/acompanhamento", icon: Diamond, slug: "acompanhamento" },
     { name: "Configuracoes", path: "/configuracoes", icon: Settings, slug: "configuracoes" },
   ];
 
