@@ -96,13 +96,20 @@ router.get("/usuarios/perfil-atual", async (_req, res): Promise<void> => {
     return;
   }
 
-  const vinculosConsultor = await db
-    .select({ unidadeId: consultorUnidadesTable.unidadeId, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor })
-    .from(consultorUnidadesTable)
-    .leftJoin(unidadesTable, eq(consultorUnidadesTable.unidadeId, unidadesTable.id))
-    .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
+  let unidadesVinculadas: { unidadeId: number; unidadeNome: string | null; unidadeCor: string | null }[];
 
-  res.json({ ...usuario, unidadesVinculadas: vinculosConsultor });
+  if (usuario.escopo === "consultoria_master") {
+    const todasUnidades = await db.select({ unidadeId: unidadesTable.id, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor }).from(unidadesTable);
+    unidadesVinculadas = todasUnidades;
+  } else {
+    unidadesVinculadas = await db
+      .select({ unidadeId: consultorUnidadesTable.unidadeId, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor })
+      .from(consultorUnidadesTable)
+      .leftJoin(unidadesTable, eq(consultorUnidadesTable.unidadeId, unidadesTable.id))
+      .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
+  }
+
+  res.json({ ...usuario, unidadesVinculadas });
 });
 
 export default router;

@@ -5,11 +5,17 @@ import { eq, desc, and, sql, count, avg, lte, gte } from "drizzle-orm";
 
 const router = Router();
 
-router.get("/", async (_req: Request, res: Response) => {
-  const delegacoes = await db
+router.get("/", async (req: Request, res: Response) => {
+  const unidadeIdFilter = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
+
+  let query = db
     .select()
     .from(delegacoesTable)
     .orderBy(desc(delegacoesTable.criadoEm));
+
+  const delegacoes = unidadeIdFilter
+    ? await db.select().from(delegacoesTable).where(eq(delegacoesTable.unidadeId, unidadeIdFilter)).orderBy(desc(delegacoesTable.criadoEm))
+    : await query;
 
   const unidades = await db.select().from(unidadesTable);
   const unidadeMap = new Map(unidades.map(u => [u.id, { nome: u.nome, cor: u.cor }]));
