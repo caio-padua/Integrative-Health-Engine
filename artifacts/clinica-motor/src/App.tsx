@@ -37,6 +37,7 @@ import RasEvolutivoPage from "@/pages/ras-evolutivo";
 import PortalClientePage from "@/pages/portal";
 import GovernancaPage from "@/pages/governanca";
 import MonitoramentoPacientePage from "@/pages/pacientes/monitoramento";
+import SegurancaPage from "@/pages/seguranca";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ function Router() {
       <Route path="/pacientes/:id/monitoramento" component={MonitoramentoPacientePage} />
       <Route path="/portal" component={PortalClientePage} />
       <Route path="/governanca" component={GovernancaPage} />
+      <Route path="/seguranca" component={SegurancaPage} />
       <Route component={NotFound} />
     </Switch>
   );

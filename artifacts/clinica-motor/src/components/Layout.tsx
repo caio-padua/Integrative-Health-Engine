@@ -30,7 +30,8 @@ import {
   BarChart3,
   Star,
   Upload,
-  Shield
+  Shield,
+  Lock
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -64,6 +65,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "RAS Evolutivo", path: "/ras-evolutivo", icon: BarChart3, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
     { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, roles: ["validador_mestre"] },
+    { name: "Seguranca", path: "/seguranca", icon: Lock, roles: ["validador_mestre"] },
     { name: "Configuracoes", path: "/configuracoes", icon: Settings, roles: ["validador_mestre"] },
   ];
 
