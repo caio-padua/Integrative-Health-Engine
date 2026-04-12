@@ -45,6 +45,7 @@ import segurancaRouter from "./seguranca";
 import delegacaoRouter from "./delegacao";
 import seedConsultoriaRouter from "./seedConsultoria";
 import acompanhamentoRouter from "./acompanhamento";
+import comissaoRouter from "./comissao";
 
 const router: IRouter = Router();
 
@@ -94,5 +95,6 @@ router.use(segurancaRouter);
 router.use("/delegacao", delegacaoRouter);
 router.use("/seed-consultoria", seedConsultoriaRouter);
 router.use(acompanhamentoRouter);
+router.use(comissaoRouter);
 
 export default router;

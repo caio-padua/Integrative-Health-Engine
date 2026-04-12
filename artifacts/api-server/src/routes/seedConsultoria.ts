@@ -133,20 +133,39 @@ router.post("/", async (_req: Request, res: Response) => {
   const demandasExistentes = await db.select().from(demandasServicoTable);
   if (demandasExistentes.length === 0) {
     const DEMANDAS_SEED = [
-      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Orientacao dieta pos-consulta", tempoMin: 15, unidadeIdx: 0, plano: "diamante" },
-      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Follow-up semanal paciente VIP", tempoMin: 20, unidadeIdx: 0, plano: "diamante" },
-      { tipo: "orientacao_equipe", complexidade: "amarela", titulo: "Treinamento protocolo acolhimento", tempoMin: 60, unidadeIdx: 1, plano: null },
-      { tipo: "revisao_prontuario", complexidade: "amarela", titulo: "Revisao prontuarios pendentes semana", tempoMin: 45, unidadeIdx: 0, plano: null },
-      { tipo: "avaliacao_presencial", complexidade: "vermelha", titulo: "Avaliacao fisioterapia pos-cirurgia", tempoMin: 90, unidadeIdx: 2, plano: "ouro" },
-      { tipo: "relatorio", complexidade: "amarela", titulo: "Relatorio mensal de atividades", tempoMin: 120, unidadeIdx: 1, plano: null },
-      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Duvida sobre horario de medicamento", tempoMin: 10, unidadeIdx: 2, plano: "prata" },
-      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Confirmacao adesao ao tratamento", tempoMin: 15, unidadeIdx: 0, plano: "ouro" },
-      { tipo: "treinamento", complexidade: "vermelha", titulo: "Capacitacao equipe em protocolo IV", tempoMin: 180, unidadeIdx: 1, plano: null },
-      { tipo: "resposta_paciente", complexidade: "amarela", titulo: "Ajuste de dosagem com medico", tempoMin: 30, unidadeIdx: 2, plano: "diamante" },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Orientacao dieta pos-consulta", tempoMin: 15, unidadeIdx: 0, plano: "diamante", status: "concluida" },
+      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Follow-up semanal paciente VIP", tempoMin: 20, unidadeIdx: 0, plano: "diamante", status: "concluida" },
+      { tipo: "orientacao_equipe", complexidade: "amarela", titulo: "Treinamento protocolo acolhimento", tempoMin: 60, unidadeIdx: 1, plano: null, status: "concluida" },
+      { tipo: "revisao_prontuario", complexidade: "amarela", titulo: "Revisao prontuarios pendentes semana", tempoMin: 45, unidadeIdx: 0, plano: null, status: "concluida" },
+      { tipo: "avaliacao_presencial", complexidade: "vermelha", titulo: "Avaliacao fisioterapia pos-cirurgia", tempoMin: 90, unidadeIdx: 2, plano: "ouro", status: "concluida" },
+      { tipo: "relatorio", complexidade: "amarela", titulo: "Relatorio mensal de atividades", tempoMin: 120, unidadeIdx: 1, plano: null, status: "concluida" },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Duvida sobre horario de medicamento", tempoMin: 10, unidadeIdx: 2, plano: "prata", status: "concluida" },
+      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Confirmacao adesao ao tratamento", tempoMin: 15, unidadeIdx: 0, plano: "ouro", status: "concluida" },
+      { tipo: "treinamento", complexidade: "vermelha", titulo: "Capacitacao equipe em protocolo IV", tempoMin: 180, unidadeIdx: 1, plano: null, status: "concluida" },
+      { tipo: "resposta_paciente", complexidade: "amarela", titulo: "Ajuste de dosagem com medico", tempoMin: 30, unidadeIdx: 2, plano: "diamante", status: "concluida" },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Orientacao exercicios respiratorios", tempoMin: 12, unidadeIdx: 0, plano: "ouro", status: "concluida" },
+      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Checagem pos-alta hospitalar", tempoMin: 18, unidadeIdx: 1, plano: "diamante", status: "concluida" },
+      { tipo: "orientacao_equipe", complexidade: "amarela", titulo: "Alinhamento com equipe de nutricao", tempoMin: 40, unidadeIdx: 2, plano: null, status: "concluida" },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Esclarecimento sobre exames laboratoriais", tempoMin: 8, unidadeIdx: 0, plano: "prata", status: "concluida" },
+      { tipo: "avaliacao_presencial", complexidade: "vermelha", titulo: "Avaliacao neurologica complexa", tempoMin: 120, unidadeIdx: 1, plano: "diamante", status: "concluida" },
+      { tipo: "relatorio", complexidade: "amarela", titulo: "Relatorio semanal de evolucao", tempoMin: 50, unidadeIdx: 0, plano: null, status: "concluida" },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Duvida sobre interacao medicamentosa", tempoMin: 10, unidadeIdx: 2, plano: "ouro", status: "concluida" },
+      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Lembranca retorno agendado", tempoMin: 5, unidadeIdx: 0, plano: "prata", status: "concluida" },
+      { tipo: "orientacao_equipe", complexidade: "amarela", titulo: "Revisao protocolo de higienizacao", tempoMin: 35, unidadeIdx: 1, plano: null, status: "concluida" },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Orientacao sobre jejum pre-exame", tempoMin: 7, unidadeIdx: 2, plano: "cobre", status: "concluida" },
+      { tipo: "treinamento", complexidade: "vermelha", titulo: "Workshop gestao de dor cronica", tempoMin: 150, unidadeIdx: 0, plano: null, status: "concluida" },
+      { tipo: "resposta_paciente", complexidade: "amarela", titulo: "Revisao prescricao com especialista", tempoMin: 25, unidadeIdx: 1, plano: "ouro", status: "concluida" },
+      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Acompanhamento reacao vacinal", tempoMin: 12, unidadeIdx: 2, plano: "diamante", status: "concluida" },
+      { tipo: "revisao_prontuario", complexidade: "amarela", titulo: "Auditoria prontuarios mes anterior", tempoMin: 90, unidadeIdx: 0, plano: null, status: "concluida" },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Esclarecimento sobre efeitos colaterais", tempoMin: 8, unidadeIdx: 1, plano: "prata", status: "concluida" },
+      { tipo: "avaliacao_presencial", complexidade: "vermelha", titulo: "Reavaliacao paciente oncologico", tempoMin: 100, unidadeIdx: 2, plano: "diamante", status: "em_atendimento" },
+      { tipo: "resposta_paciente", complexidade: "verde", titulo: "Informacao horario coleta sangue", tempoMin: 5, unidadeIdx: 0, plano: "cobre", status: "aberta" },
+      { tipo: "orientacao_equipe", complexidade: "amarela", titulo: "Padronizacao documentacao clinica", tempoMin: 55, unidadeIdx: 1, plano: null, status: "aberta" },
+      { tipo: "ligacao_followup", complexidade: "verde", titulo: "Check-in semanal paciente geriatrico", tempoMin: 15, unidadeIdx: 2, plano: "ouro", status: "aberta" },
+      { tipo: "relatorio", complexidade: "amarela", titulo: "Consolidacao indicadores do trimestre", tempoMin: 180, unidadeIdx: 0, plano: null, status: "em_atendimento" },
     ];
 
-    const pacientes = await db.select({ id: pacientesTable.id }).from(pacientesTable).limit(5);
-    const statuses = ["concluida", "concluida", "concluida", "em_atendimento", "aberta", "concluida", "aberta", "em_atendimento", "concluida", "aberta"];
+    const pacientes = await db.select({ id: pacientesTable.id }).from(pacientesTable).limit(10);
 
     for (let i = 0; i < DEMANDAS_SEED.length; i++) {
       const d = DEMANDAS_SEED[i];
@@ -159,8 +178,8 @@ router.post("/", async (_req: Request, res: Response) => {
         titulo: d.titulo,
         tempoGastoMin: d.tempoMin,
         planoOrigem: d.plano as any,
-        status: statuses[i] as any,
-        concluidaEm: statuses[i] === "concluida" ? new Date() : null,
+        status: d.status as any,
+        concluidaEm: d.status === "concluida" ? new Date() : null,
       });
     }
   }
