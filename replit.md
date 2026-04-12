@@ -83,3 +83,63 @@ Key architectural decisions and features include:
 - **UI**: Card na página `/configuracoes` com campo de resumo e botão "Enviar Backup"
 - **Pasta Drive**: `1LfolNE3KgJSrnKwxp0WNXTRIRvSS_i7f`
 - **Código fonte**: Versionado automaticamente no GitHub branch `replit-agent`
+
+## Sistema Semântico V15.2 (Dr. Manus)
+
+### Código Semântico — Formato `B1 B2 B3 B4 SEQ`
+- **B1** (4 chars): Tipo → EXAM, INJE, IMPL, ENDO, FORM, DOEN, SINT, CIRU, DIET, BLCO
+- **B2** (4 chars): Abreviação do bloco → BINT, TIRE, GLIC, HEPA, CARD, GONA, PROS, ADRE, SALA, DABS, TROM, COAG, ONCO, RENA, GRAV, DSTX, AUTO, GENE, FARM, TOXI, VITA, MINE, SHOM, ULTR, TOMO, RESS, CIMG, NDSC, RAIO, MAMO, DENS
+- **B3** (4 chars): Grade → GBAS (básica), GINT (intermediária), GAMP (ampliada), GSOF (sofisticada), SGRD (sem grade)
+- **B4** (4 chars): Mnemônico do item (abreviação única do procedimento)
+- **SEQ** (4 dígitos): Sequencial (0001, 0002...)
+
+### Regras do Motor Clínico (Blocos + Grades)
+1. **1 exame pertence a exatamente 1 bloco e 1 grade** (regra fundamental)
+2. Quando o motor sugere um exame, **todos os exames da mesma grade no mesmo bloco são sugeridos**
+3. O médico valida e pode incluir/excluir/adicionar exames manualmente
+4. Blocos de imagem (BLK024-BLK031) **não usam grades** (SGRD)
+5. A sequência é auto-incrementada dentro do grupo B1+B2+B3+B4
+
+### Dados Catalogados (JSON Dr. Manus)
+- **Exames**: 233 (em 31 blocos × 4 grades)
+- **Injetáveis**: 162 (EV/IM/SC/ID)
+- **Implantes**: 32 (subcutâneos)
+- **Endovenosos**: 11 (soros terapêuticos)
+- **Fórmulas**: 11 (manipuladas)
+- **Doenças**: 49 (com eixo clínico e blocos_motor)
+- **Sintomas**: 10 (nova tabela `sintomas`)
+- **Cirurgias**: 3 (nova tabela `cirurgias`)
+- **Dietas**: 12 (4 modelos × 3 faixas calóricas)
+- **Blocos**: 31 (cada com código semântico BLCO)
+
+### Tabelas Novas/Alteradas
+- `sintomas` — Nova tabela (10 sintomas com código semântico)
+- `cirurgias` — Nova tabela (3 cirurgias com código semântico)
+- `blocos` — Adicionado: codigo_semantico, b1, b2, b3, b4, seq
+- `exames_base` — Adicionado: codigo_semantico, b1, b2, b3, b4, seq
+- `injetaveis` — Adicionado: codigo_semantico, b1, b2, b3, b4, seq, substancia_base
+- `endovenosos` — Adicionado: codigo_semantico, b1, b2, b3, b4, seq
+- `implantes` — Adicionado: codigo_semantico, b1, b2, b3, b4, seq
+- `formulas` — Adicionado: codigo_semantico, b1, b2, b3, b4, seq
+- `doencas` — Adicionado: codigo_semantico, b1, b2, b3, b4, seq, blocos_motor, codigo_v14
+- `dietas` — Adicionado: codigo_semantico, b1, b2, b3, b4, seq
+
+### Rotas Semânticas
+- `GET /api/semantico/regras` — Documentação das regras de código semântico
+- `GET /api/semantico/blocos` — Lista todos os blocos com códigos semânticos
+- `GET /api/semantico/blocos/:blocoId/grades` — Exames organizados por grade dentro de um bloco
+- `GET /api/semantico/graus` — Dicionário de graus disponíveis
+- `POST /api/semantico/gerar-codigo` — Gerador automático de código semântico
+- `GET /api/semantico/motor-sugestao/:codigoExame` — Simulação do motor: dado um exame, retorna todos da mesma grade
+- `GET /api/semantico/sintomas` — Lista sintomas catalogados
+- `GET /api/semantico/cirurgias` — Lista cirurgias catalogadas
+- `POST /api/seed-semantico/executar` — Aplica todos os códigos do JSON Dr. Manus
+- `GET /api/seed-semantico/status` — Status de cobertura dos códigos semânticos
+- `GET /api/seed-semantico/exames-por-bloco/:blocoId` — Exames de um bloco organizados por grade
+
+### Engine de Geração de Código (`semanticCodeEngine.ts`)
+- `generateSemanticCode()` — Gera código B1 B2 B3 B4 SEQ automaticamente
+- `getNextSequence()` — Calcula próximo SEQ disponível no banco
+- `generateAbreviacao()` — Cria abreviação de 4 chars a partir do nome
+- `parseSemanticCode()` / `buildSemanticCode()` — Parse e montagem
+- `getSemanticCodeRules()` — Documentação completa das regras

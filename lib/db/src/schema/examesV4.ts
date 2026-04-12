@@ -5,6 +5,12 @@ import { z } from "zod/v4";
 export const examesBaseTable = pgTable("exames_base", {
   id: serial("id").primaryKey(),
   codigoExame: text("codigo_exame").notNull().unique(),
+  codigoSemantico: text("codigo_semantico"),
+  b1: text("b1"),
+  b2: text("b2"),
+  b3: text("b3"),
+  b4: text("b4"),
+  seq: text("seq"),
   ativo: boolean("ativo").notNull().default(true),
   grupoPrincipal: text("grupo_principal").notNull(),
   subgrupo: text("subgrupo"),
