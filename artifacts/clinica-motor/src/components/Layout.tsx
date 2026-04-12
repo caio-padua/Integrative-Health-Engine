@@ -68,7 +68,7 @@ function ClinicSwitcher() {
         <div className="flex-1 min-w-0">
           <span className="text-[12px] font-medium text-sidebar-foreground truncate block">{nomeUnidadeSelecionada}</span>
           <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: isTodasClinicas ? "hsl(210, 45%, 65%)" : corUnidadeSelecionada || "#6B7280" }}>
-            {isTodasClinicas ? "Arquiteto Mestre" : "Dono da Clinica"}
+            {isTodasClinicas ? "Visao Global" : "Visao Local"}
           </span>
         </div>
         {canSwitch && <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />}

@@ -99,8 +99,12 @@ router.get("/usuarios/perfil-atual", async (_req, res): Promise<void> => {
   let unidadesVinculadas: { unidadeId: number; unidadeNome: string | null; unidadeCor: string | null }[];
 
   if (usuario.escopo === "consultoria_master") {
+    const vinculos = await db.selectDistinct({ unidadeId: consultorUnidadesTable.unidadeId }).from(consultorUnidadesTable);
+    const idsConsultoria = vinculos.map(v => v.unidadeId);
     const todasUnidades = await db.select({ unidadeId: unidadesTable.id, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor }).from(unidadesTable);
-    unidadesVinculadas = todasUnidades;
+    unidadesVinculadas = idsConsultoria.length > 0
+      ? todasUnidades.filter(u => idsConsultoria.includes(u.unidadeId))
+      : todasUnidades;
   } else {
     unidadesVinculadas = await db
       .select({ unidadeId: consultorUnidadesTable.unidadeId, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor })

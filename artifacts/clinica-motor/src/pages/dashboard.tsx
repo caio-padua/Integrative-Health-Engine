@@ -100,7 +100,7 @@ export default function Dashboard() {
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }} />
               <div>
                 <h1 className="text-3xl font-bold tracking-tight text-foreground">{nomeUnidadeSelecionada}</h1>
-                <p className="text-sm text-muted-foreground mt-1">Painel do Dono da Clinica</p>
+                <p className="text-sm text-muted-foreground mt-1">Dashboard Local da Unidade</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm" style={{ color: corUnidadeSelecionada || "#6B7280" }}>
@@ -108,7 +108,7 @@ export default function Dashboard() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }}></span>
                 <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }}></span>
               </span>
-              Dono da Clinica
+              Visao Local
             </div>
           </div>
 
@@ -290,15 +290,15 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Painel da Consultoria</h1>
-              <p className="text-sm text-muted-foreground mt-1">Visao consolidada de todas as clinicas</p>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Global</h1>
+              <p className="text-sm text-muted-foreground mt-1">Visao consolidada do ecossistema</p>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="relative flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
               </span>
-              Arquiteto Mestre
+              Visao Global
             </div>
           </div>
 
@@ -326,7 +326,7 @@ export default function Dashboard() {
                 </Card>
               )}
 
-              <h2 className="text-lg font-semibold text-foreground">Saude por Clinica</h2>
+              <h2 className="text-lg font-semibold text-foreground">Clinicas do Ecossistema</h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {consultoria.porClinica.map((c: any) => (
                   <Card key={c.unidadeId} className="bg-card border-border/50 relative overflow-hidden">

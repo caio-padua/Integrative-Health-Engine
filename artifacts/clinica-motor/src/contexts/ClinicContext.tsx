@@ -71,8 +71,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
 
   const modoLabel = (() => {
     switch (modoVisao) {
-      case "arquiteto_mestre": return "Arquiteto Mestre";
-      case "dono_clinica": return `Dono da Clinica`;
+      case "arquiteto_mestre": return "Visao Global";
+      case "dono_clinica": return "Visao Local";
       case "consultor": return "Consultor";
       case "operacional": return "Operacional";
     }
