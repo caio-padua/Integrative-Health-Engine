@@ -168,3 +168,15 @@ id = "_f1dHQRBDcGG0VTZBepSq"
 uri = "file://screenshots/q013-potenciais-filter.jpg"
 type = "image"
 title = "Q013 - Filtro POTENCIAIS (apenas POT)"
+
+[[outputs]]
+id = "STCo6lBYoRQwCbwB7pLRr"
+uri = "file://screenshots/q013-diax-potx-new-colors.jpg"
+type = "image"
+title = "Q013 - Nova nomenclatura DIAX / POTX (estado vazio)"
+
+[[outputs]]
+id = "_ceVpfjTn0b_Fs9ivTn7U"
+uri = "file://screenshots/q013-final-diax-potx.jpg"
+type = "image"
+title = "Q013 - DIAX (violeta) e POTX (vermelho) com seleções ativas"

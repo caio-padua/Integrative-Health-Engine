@@ -323,7 +323,7 @@ export default function AnamneseDetalhe() {
                       <div className="space-y-3">
                         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Q013 — Patologias do Paciente</Label>
                         <p className="text-[11px] text-muted-foreground -mt-1">
-                          Selecione as doencas por categoria. Use DX (diagnosticada) ou POT (potencial de desenvolvimento). O funil ao lado mostra o resumo filtrado.
+                          Selecione as doencas por categoria. Use DIAX (diagnostico concluido) ou POTX (doenca potencial). O funil ao lado mostra o resumo filtrado.
                         </p>
                         <DoencaSelector selecionados={Q013} onChange={setQ013} />
                       </div>

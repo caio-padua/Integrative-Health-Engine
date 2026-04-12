@@ -169,9 +169,9 @@ export function DoencaSelector({ selecionados, onChange, legacySelecionados }: D
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
         <span>{effectiveSelecionados.length} selecionada{effectiveSelecionados.length !== 1 ? 's' : ''}</span>
         <span className="w-px h-3 bg-border" />
-        <span className="text-emerald-400">{diagnosticadas.length} diagnosticada{diagnosticadas.length !== 1 ? 's' : ''}</span>
+        <span className="text-violet-400">{diagnosticadas.length} diagnosticada{diagnosticadas.length !== 1 ? 's' : ''}</span>
         <span className="w-px h-3 bg-border" />
-        <span className="text-amber-400">{potenciais.length} potencial{potenciais.length !== 1 ? '' : ''}</span>
+        <span className="text-red-400">{potenciais.length} potencial{potenciais.length !== 1 ? '' : ''}</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -213,8 +213,8 @@ export function DoencaSelector({ selecionados, onChange, legacySelecionados }: D
                           className={`flex items-center justify-between px-3 py-1.5 cursor-pointer transition-all text-xs border ${
                             selected
                               ? status === "DIAGNOSTICADA"
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                                : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                                ? "bg-violet-500/10 border-violet-500/30 text-violet-300"
+                                : "bg-red-500/10 border-red-500/30 text-red-300"
                               : "bg-muted/20 border-border/30 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                           }`}
                         >
@@ -222,8 +222,8 @@ export function DoencaSelector({ selecionados, onChange, legacySelecionados }: D
                             <div className={`w-3 h-3 border flex items-center justify-center ${
                               selected
                                 ? status === "DIAGNOSTICADA"
-                                  ? "border-emerald-400 bg-emerald-500"
-                                  : "border-amber-400 bg-amber-500"
+                                  ? "border-violet-400 bg-violet-500"
+                                  : "border-red-400 bg-red-500"
                                 : "border-muted-foreground/40"
                             }`}>
                               {selected && <span className="text-[8px] text-white font-bold">✓</span>}
@@ -237,12 +237,12 @@ export function DoencaSelector({ selecionados, onChange, legacySelecionados }: D
                               onClick={(e) => cycleStatus(doenca, e)}
                               className={`text-[9px] font-bold px-2 py-0.5 border uppercase tracking-wider transition-all ${
                                 status === "DIAGNOSTICADA"
-                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-amber-500/20 hover:text-amber-400 hover:border-amber-500/30"
-                                  : "bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/30"
+                                  ? "bg-violet-500/20 text-violet-300 border-violet-500/30 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30"
+                                  : "bg-red-500/20 text-red-300 border-red-500/30 hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-500/30"
                               }`}
-                              title={status === "DIAGNOSTICADA" ? "Clique para mudar para POTENCIAL" : "Clique para mudar para DIAGNOSTICADA"}
+                              title={status === "DIAGNOSTICADA" ? "Clique para mudar para DOENCA POTENCIAL" : "Clique para mudar para DIAGNOSTICO CONCLUIDO"}
                             >
-                              {status === "DIAGNOSTICADA" ? "DX" : "POT"}
+                              {status === "DIAGNOSTICADA" ? "DIAX" : "POTX"}
                             </button>
                           )}
                         </div>
@@ -272,13 +272,13 @@ export function DoencaSelector({ selecionados, onChange, legacySelecionados }: D
                 onClick={() => setFiltroFunil(f)}
                 className={`text-[9px] font-bold px-2 py-1 uppercase tracking-wider transition-all ${
                   filtroFunil === f
-                    ? f === "DIAGNOSTICADA" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                    : f === "POTENCIAL" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                    ? f === "DIAGNOSTICADA" ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                    : f === "POTENCIAL" ? "bg-red-500/20 text-red-300 border border-red-500/30"
                     : "bg-primary/20 text-primary border border-primary/30"
                     : "bg-muted/20 text-muted-foreground border border-transparent hover:text-foreground"
                 }`}
               >
-                {f === "TODOS" ? "Todos" : f === "DIAGNOSTICADA" ? "Diagnosticadas" : "Potenciais"}
+                {f === "TODOS" ? "Todos" : f === "DIAGNOSTICADA" ? "DIAX" : "POTX"}
               </button>
             ))}
           </div>
@@ -301,8 +301,8 @@ export function DoencaSelector({ selecionados, onChange, legacySelecionados }: D
                     key={sel.nome}
                     className={`flex items-center gap-2 px-3 py-2 border transition-all ${
                       sel.status === "DIAGNOSTICADA"
-                        ? "bg-emerald-500/5 border-emerald-500/20"
-                        : "bg-amber-500/5 border-amber-500/20"
+                        ? "bg-violet-500/5 border-violet-500/20"
+                        : "bg-red-500/5 border-red-500/20"
                     }`}
                   >
                     <Icon className={`w-3.5 h-3.5 ${cor} flex-shrink-0`} />
@@ -312,10 +312,10 @@ export function DoencaSelector({ selecionados, onChange, legacySelecionados }: D
                     </div>
                     <Badge className={`text-[8px] px-1.5 py-0 border flex-shrink-0 ${
                       sel.status === "DIAGNOSTICADA"
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                        ? "bg-violet-500/20 text-violet-300 border-violet-500/30"
+                        : "bg-red-500/20 text-red-300 border-red-500/30"
                     }`}>
-                      {sel.status === "DIAGNOSTICADA" ? "DX" : "POTENCIAL"}
+                      {sel.status === "DIAGNOSTICADA" ? "DIAX" : "POTX"}
                     </Badge>
                   </div>
                 );
@@ -329,13 +329,13 @@ export function DoencaSelector({ selecionados, onChange, legacySelecionados }: D
                 <span>Resumo Clinico</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-center">
-                  <div className="text-lg font-bold text-emerald-400">{diagnosticadas.length}</div>
-                  <div className="text-[9px] text-emerald-400/70 uppercase">Diagnosticadas</div>
+                <div className="p-2 bg-violet-500/10 border border-violet-500/20 text-center">
+                  <div className="text-lg font-bold text-violet-400">{diagnosticadas.length}</div>
+                  <div className="text-[9px] text-violet-400/70 uppercase">DIAX</div>
                 </div>
-                <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-center">
-                  <div className="text-lg font-bold text-amber-400">{potenciais.length}</div>
-                  <div className="text-[9px] text-amber-400/70 uppercase">Potenciais</div>
+                <div className="p-2 bg-red-500/10 border border-red-500/20 text-center">
+                  <div className="text-lg font-bold text-red-400">{potenciais.length}</div>
+                  <div className="text-[9px] text-red-400/70 uppercase">POTX</div>
                 </div>
               </div>
             </div>
