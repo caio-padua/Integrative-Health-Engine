@@ -65,7 +65,12 @@ function ClinicSwitcher() {
         className={`w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors rounded ${canSwitch ? "hover:bg-sidebar-accent/50 cursor-pointer" : "cursor-default"}`}
       >
         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: corUnidadeSelecionada || "hsl(210, 45%, 65%)" }} />
-        <span className="text-[12px] font-medium text-sidebar-foreground truncate flex-1">{nomeUnidadeSelecionada}</span>
+        <div className="flex-1 min-w-0">
+          <span className="text-[12px] font-medium text-sidebar-foreground truncate block">{nomeUnidadeSelecionada}</span>
+          <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: isTodasClinicas ? "hsl(210, 45%, 65%)" : corUnidadeSelecionada || "#6B7280" }}>
+            {isTodasClinicas ? "Arquiteto Mestre" : "Dono da Clinica"}
+          </span>
+        </div>
         {canSwitch && <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />}
       </button>
       {open && (
