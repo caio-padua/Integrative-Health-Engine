@@ -32,7 +32,8 @@ import {
   Upload,
   Shield,
   Lock,
-  Radar
+  Radar,
+  Send
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -68,6 +69,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, roles: ["medico_tecnico", "validador_mestre"] },
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, roles: ["validador_mestre"] },
     { name: "Seguranca", path: "/seguranca", icon: Lock, roles: ["validador_mestre"] },
+    { name: "Delegacao", path: "/delegacao", icon: Send, roles: ["validador_mestre"] },
     { name: "Configuracoes", path: "/configuracoes", icon: Settings, roles: ["validador_mestre"] },
   ];
 

@@ -1,6 +1,7 @@
-import { pgTable, serial, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { consultoriasTable } from "./consultorias";
 
 export const unidadesTable = pgTable("unidades", {
   id: serial("id").primaryKey(),
@@ -13,6 +14,8 @@ export const unidadesTable = pgTable("unidades", {
   cnpj: text("cnpj"),
   telefone: text("telefone"),
   tipo: text("tipo").notNull().default("clinic"),
+  consultoriaId: integer("consultoria_id").references(() => consultoriasTable.id),
+  codigoInterno: text("codigo_interno"),
   googleCalendarId: text("google_calendar_id"),
   googleCalendarEmail: text("google_calendar_email"),
   cor: text("cor").notNull().default("#3B82F6"),
