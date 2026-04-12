@@ -6,10 +6,12 @@ import {
 import { eq, desc, and, sql } from "drizzle-orm";
 import {
   enviarWhatsapp, enviarComTemplate, atualizarStatusWebhook, testarConexaoWhatsapp,
-  obterAuthTokenParaValidacao,
+  obterAuthTokenParaValidacao, obterConfigWhatsapp,
 } from "../services/whatsappService";
 import { TEMPLATES_DISPONIVEIS } from "../services/whatsappTemplates";
 import { encryptCredential, isEncrypted } from "../services/credentialEncryption";
+import { decryptCredential } from "../services/credentialEncryption";
+import { gerarPdfRAS } from "../pdf/gerarRAS";
 
 type WhatsappMensagemStatus = "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
 
@@ -230,6 +232,186 @@ router.post("/whatsapp/enviar-teste", async (req, res): Promise<void> => {
   });
 
   res.json(resultado);
+});
+
+router.get("/whatsapp/demo-ras.pdf", async (_req, res): Promise<void> => {
+  try {
+    const dadosDemo = {
+      nomePaciente: "Maria Helena Oliveira Santos",
+      cpfPaciente: "123.456.789-00",
+      celularPaciente: "11946554000",
+      idadePaciente: 42,
+      medicoResponsavel: "Dr. Caio Padua",
+      crmMedico: "CRM-SP 123456",
+      enfermeira: "Ana Paula Ribeiro",
+      agenda: "Clinica Padua — Unidade Jardins",
+      unidadeEndereco: "Rua Oscar Freire, 1234 — Jardins, Sao Paulo/SP",
+      dataAtendimento: "2026-04-12",
+      nomeProtocolo: "Protocolo Anti-aging Premium",
+      substancias: [
+        {
+          nome: "Vitamina C", abreviacao: "VIT C", qtde: 10, frequenciaDias: 7,
+          dataInicio: "2026-04-12", via: "iv", cor: "#FF6B35", dosePadrao: "25g",
+          categoria: "Antioxidante", descricao: "Acido ascorbico endovenoso em alta dose",
+          funcaoPrincipal: "Antioxidante potente, estimula producao de colageno",
+          efeitosPercebidos: "Mais energia, pele mais luminosa, menos gripes",
+          tempoParaEfeito: "2-3 semanas", beneficioLongevidade: "Alto",
+          impactoQualidadeVida: "Significativo", beneficioSono: "Moderado",
+          beneficioEnergia: "Alto", beneficioLibido: "Leve",
+          performanceFisica: "Moderado", forcaMuscular: "Leve",
+          clarezaMental: "Moderado", peleCabeloUnhas: "Alto",
+          suporteImunologico: "Muito Alto", contraindicacoes: "Deficiencia de G6PD, insuficiencia renal",
+          evidenciaCientifica: "Nivel A — Meta-analises disponiveis",
+          efeitosSistemasCorporais: { cardiovascular: 15, neurologico: 10, metabolismo: 25, imunologico: 40, endocrino: 5, dermatologico: 35 },
+        },
+        {
+          nome: "Glutationa", abreviacao: "GLUT", qtde: 10, frequenciaDias: 7,
+          dataInicio: "2026-04-12", via: "iv", cor: "#4ECDC4", dosePadrao: "600mg",
+          categoria: "Detoxificante", descricao: "Master antioxidante endovenoso",
+          funcaoPrincipal: "Detoxificacao hepatica, antioxidante master",
+          efeitosPercebidos: "Pele mais clara, mais disposicao, melhor digestao",
+          tempoParaEfeito: "3-4 semanas", beneficioLongevidade: "Muito Alto",
+          impactoQualidadeVida: "Alto", beneficioSono: "Moderado",
+          beneficioEnergia: "Alto", beneficioLibido: "Moderado",
+          performanceFisica: "Moderado", forcaMuscular: "Leve",
+          clarezaMental: "Alto", peleCabeloUnhas: "Muito Alto",
+          suporteImunologico: "Alto", contraindicacoes: "Hipersensibilidade conhecida",
+          evidenciaCientifica: "Nivel B — Estudos clinicos robustos",
+          efeitosSistemasCorporais: { cardiovascular: 10, neurologico: 20, metabolismo: 30, imunologico: 25, hepatico: 45, dermatologico: 40 },
+        },
+        {
+          nome: "NAD+", abreviacao: "NAD+", qtde: 8, frequenciaDias: 14,
+          dataInicio: "2026-04-12", via: "iv", cor: "#7B68EE", dosePadrao: "250mg",
+          categoria: "Longevidade", descricao: "Nicotinamida adenina dinucleotideo",
+          funcaoPrincipal: "Reparo celular, anti-envelhecimento, energia mitocondrial",
+          efeitosPercebidos: "Clareza mental, mais energia, melhor recuperacao",
+          tempoParaEfeito: "1-2 semanas", beneficioLongevidade: "Excepcional",
+          impactoQualidadeVida: "Muito Alto", beneficioSono: "Alto",
+          beneficioEnergia: "Muito Alto", beneficioLibido: "Moderado",
+          performanceFisica: "Alto", forcaMuscular: "Moderado",
+          clarezaMental: "Excepcional", peleCabeloUnhas: "Moderado",
+          suporteImunologico: "Moderado", contraindicacoes: "Infusao lenta obrigatoria",
+          evidenciaCientifica: "Nivel A — Estudos de longevidade",
+          efeitosSistemasCorporais: { cardiovascular: 20, neurologico: 45, metabolismo: 35, imunologico: 15, endocrino: 20, musculoesqueletico: 25 },
+        },
+        {
+          nome: "Complexo B", abreviacao: "CX B", qtde: 10, frequenciaDias: 7,
+          dataInicio: "2026-04-12", via: "im", cor: "#2196F3", dosePadrao: "2mL",
+          categoria: "Neurotropico", descricao: "Complexo vitaminico B1, B6, B12",
+          funcaoPrincipal: "Suporte neurologico, energia celular",
+          efeitosPercebidos: "Menos cansaco, melhor humor, formigamento reduzido",
+          tempoParaEfeito: "1 semana", beneficioLongevidade: "Moderado",
+          impactoQualidadeVida: "Alto", beneficioSono: "Moderado",
+          beneficioEnergia: "Alto", beneficioLibido: "Leve",
+          performanceFisica: "Moderado", forcaMuscular: "Leve",
+          clarezaMental: "Alto", peleCabeloUnhas: "Moderado",
+          suporteImunologico: "Moderado", contraindicacoes: "Alergia a cobalamina",
+          evidenciaCientifica: "Nivel A — Amplamente documentado",
+          efeitosSistemasCorporais: { cardiovascular: 10, neurologico: 40, metabolismo: 20, imunologico: 15, endocrino: 10, musculoesqueletico: 10 },
+        },
+      ],
+      marcacoes: Array.from({ length: 20 }, (_, i) => {
+        const baseDate = new Date("2026-04-12");
+        const prevDate = new Date(baseDate);
+        prevDate.setDate(prevDate.getDate() + i * 7);
+        const isCompleted = i < 3;
+        return {
+          numero: i + 1,
+          dataPrevista: prevDate.toISOString().split("T")[0],
+          dataEfetiva: isCompleted ? prevDate.toISOString().split("T")[0] : "",
+          statusPorSubstancia: [
+            { substanciaIndex: 0, numeroSessao: i + 1, totalSessoes: 10, status: isCompleted ? "aplicada" : "pendente" },
+            { substanciaIndex: 1, numeroSessao: i + 1, totalSessoes: 10, status: isCompleted ? "aplicada" : "pendente" },
+            ...(i % 2 === 0 ? [{ substanciaIndex: 2, numeroSessao: Math.floor(i / 2) + 1, totalSessoes: 8, status: isCompleted ? "aplicada" : "pendente" }] : []),
+            { substanciaIndex: 3, numeroSessao: i + 1, totalSessoes: 10, status: isCompleted ? "aplicada" : "pendente" },
+          ],
+        };
+      }),
+      tratamentoFinanceiro: {
+        nome: "Protocolo Anti-aging Premium — 10 semanas",
+        valorBruto: 18500.00,
+        desconto: 1850.00,
+        valorFinal: 16650.00,
+        numeroParcelas: 6,
+        dataInicio: "2026-04-12",
+        itens: [
+          { descricao: "Vitamina C 25g — 10 sessoes IV", tipo: "substancia", quantidade: 10, valorUnitario: 350.00, valorTotal: 3500.00 },
+          { descricao: "Glutationa 600mg — 10 sessoes IV", tipo: "substancia", quantidade: 10, valorUnitario: 420.00, valorTotal: 4200.00 },
+          { descricao: "NAD+ 250mg — 8 sessoes IV", tipo: "substancia", quantidade: 8, valorUnitario: 650.00, valorTotal: 5200.00 },
+          { descricao: "Complexo B — 10 sessoes IM", tipo: "substancia", quantidade: 10, valorUnitario: 80.00, valorTotal: 800.00 },
+          { descricao: "Kit insumos descartaveis (seringas, equipos, scalps)", tipo: "insumo", quantidade: 10, valorUnitario: 85.00, valorTotal: 850.00 },
+          { descricao: "Honorarios de enfermagem — sala de infusao", tipo: "honorario_enfermagem", quantidade: 10, valorUnitario: 150.00, valorTotal: 1500.00 },
+          { descricao: "Taxa administrativa e logistica", tipo: "taxa_administrativa", quantidade: 1, valorUnitario: 950.00, valorTotal: 950.00 },
+          { descricao: "Reserva tecnica e emergencia", tipo: "reserva_tecnica", quantidade: 1, valorUnitario: 1500.00, valorTotal: 1500.00 },
+        ],
+      },
+    };
+
+    const pdfBuffer = await gerarPdfRAS(dadosDemo);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'inline; filename="RAS_DEMO_Maria_Helena_2026-04-12.pdf"');
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.send(pdfBuffer);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[WhatsApp] Erro ao gerar RAS demo:", message);
+    res.status(500).json({ erro: "Erro ao gerar PDF demo", detalhes: message });
+  }
+});
+
+router.post("/whatsapp/enviar-pdf", async (req, res): Promise<void> => {
+  const { telefone, mediaUrl, mensagem, unidadeId } = req.body;
+  if (!telefone || !mediaUrl) {
+    res.status(400).json({ erro: "telefone e mediaUrl sao obrigatorios" });
+    return;
+  }
+
+  const config = await obterConfigWhatsapp(unidadeId ? Number(unidadeId) : undefined);
+  if (!config) {
+    res.status(404).json({ erro: "Nenhuma configuracao WhatsApp ativa" });
+    return;
+  }
+
+  try {
+    const decrypted = {
+      accountSid: config.accountSid ? decryptCredential(config.accountSid) : null,
+      authToken: config.authToken ? decryptCredential(config.authToken) : null,
+    };
+
+    const telefoneFormatado = telefone.replace(/\D/g, "").startsWith("55")
+      ? telefone.replace(/\D/g, "")
+      : `55${telefone.replace(/\D/g, "")}`;
+
+    if (config.provedor === "TWILIO") {
+      const Twilio = (await import("twilio")).default;
+      const client = Twilio(decrypted.accountSid!, decrypted.authToken!);
+      const msg = await client.messages.create({
+        body: mensagem || "Documento — Clinica Padua PADCOM",
+        from: `whatsapp:${config.numeroRemetente}`,
+        to: `whatsapp:+${telefoneFormatado}`,
+        mediaUrl: [mediaUrl],
+      });
+
+      await db.insert(whatsappMensagensLogTable).values({
+        configId: config.id,
+        provedor: config.provedor,
+        provedorMsgId: msg.sid,
+        telefoneDestino: telefoneFormatado,
+        templateNome: "PDF_DOCUMENTO",
+        mensagem: mensagem || "Documento PDF enviado",
+        status: "ENVIADO",
+        enviadoEm: new Date(),
+      });
+
+      res.json({ sucesso: true, provedorMsgId: msg.sid });
+    } else {
+      res.status(400).json({ erro: "Envio de PDF via Gupshup nao implementado ainda" });
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[WhatsApp] Erro ao enviar PDF:", message);
+    res.status(500).json({ sucesso: false, erro: message });
+  }
 });
 
 router.get("/whatsapp/templates", async (_req, res): Promise<void> => {
