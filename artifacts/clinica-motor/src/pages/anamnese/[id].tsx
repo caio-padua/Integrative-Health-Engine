@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { DoencaSelector, type DoencaSelecionada, doencasSelecionadasToLegacy, legacyToDoencasSelecionadas } from "@/components/DoencaSelector";
 
 const SINTOMAS = [
   "FADIGA", "CONSTIPACAO", "INSONIA", "ANSIEDADE", "GANHO DE PESO",
@@ -28,14 +29,6 @@ const SINTOMAS = [
   "BAIXA LIBIDO", "RETENCAO DE LIQUIDO", "SUDORESE NOTURNA",
   "FRIO NAS EXTREMIDADES", "DEPRESSAO", "DIFICULDADE DE CONCENTRACAO",
   "DORES DE CABECA", "DISTENSAO ABDOMINAL", "GASES", "REFLUXO",
-];
-
-const DOENCAS = [
-  "HIPOTIREOIDISMO", "HIPERTIREOIDISMO", "HASHIMOTO", "DIABETES",
-  "RESISTENCIA INSULINICA", "ENDOMETRIOSE", "SINDROME DO OVARIO POLICISTICO",
-  "HIPERTENSAO", "COLESTEROL ALTO", "FIBROMIALGIA", "LUPUS",
-  "ARTRITE REUMATOIDE", "DEPRESSAO", "ANSIEDADE GENERALIZADA",
-  "TDAH", "DOENCA HEPATICA", "DOENCA RENAL",
 ];
 
 const HISTORICO_FAMILIAR = [
@@ -151,7 +144,7 @@ export default function AnamneseDetalhe() {
   const [Q010, setQ010] = useState("");
   const [Q011, setQ011] = useState("");
   const [Q012, setQ012] = useState<string[]>([]);
-  const [Q013, setQ013] = useState<string[]>([]);
+  const [Q013, setQ013] = useState<DoencaSelecionada[]>([]);
   const [Q014, setQ014] = useState<string[]>([]);
   const [Q015, setQ015] = useState("");
   const [Q016, setQ016] = useState("");
@@ -171,7 +164,16 @@ export default function AnamneseDetalhe() {
       setQ010(String(clinico.Q010 || ""));
       setQ011(String(clinico.Q011 || ""));
       setQ012((clinico.Q012 as string[]) || []);
-      setQ013((clinico.Q013 as string[]) || []);
+      const rawQ013 = clinico.Q013;
+      if (Array.isArray(rawQ013) && rawQ013.length > 0) {
+        if (typeof rawQ013[0] === "string") {
+          setQ013(legacyToDoencasSelecionadas(rawQ013 as string[]));
+        } else {
+          setQ013(rawQ013 as DoencaSelecionada[]);
+        }
+      } else {
+        setQ013([]);
+      }
       setQ014((clinico.Q014 as string[]) || []);
       setQ015(String(clinico.Q015 || ""));
       setQ016(String(clinico.Q016 || ""));
@@ -189,7 +191,7 @@ export default function AnamneseDetalhe() {
     atualizarAnamnese.mutate({
       id,
       data: {
-        respostasClincias: { Q010, Q011, Q012, Q013, Q014, Q015, Q016, Q017 },
+        respostasClincias: { Q010, Q011, Q012, Q013, Q013_legacy: doencasSelecionadasToLegacy(Q013), Q014, Q015, Q016, Q017 },
         respostasPreferencias: { Q030, Q031, Q032, Q033 },
         respostasFinanceiras: { Q040, Q041 },
         status: AtualizarAnamneseBodyStatus.concluida,
@@ -318,9 +320,12 @@ export default function AnamneseDetalhe() {
                         )}
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Q013 — Doencas Diagnosticadas</Label>
-                        <MultiCheckbox opcoes={DOENCAS} selecionados={Q013} onChange={setQ013} />
+                      <div className="space-y-3">
+                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Q013 — Patologias do Paciente</Label>
+                        <p className="text-[11px] text-muted-foreground -mt-1">
+                          Selecione as doencas por categoria. Use DX (diagnosticada) ou POT (potencial de desenvolvimento). O funil ao lado mostra o resumo filtrado.
+                        </p>
+                        <DoencaSelector selecionados={Q013} onChange={setQ013} />
                       </div>
 
                       <div className="space-y-2">
