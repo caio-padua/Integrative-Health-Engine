@@ -29,6 +29,13 @@ Key architectural decisions and features:
 - **WhatsApp Integration:** Unified service for sending messages via Twilio or Gupshup, with templated clinical messages and status tracking.
 - **Google Drive Backup:** Automated full source code backup to Google Drive, including all key project files in multiple formats (Google Doc, TXT, MD) and an accessible JSON endpoint for AI consumption.
 - **Painel de Comando:** Real-time command dashboard with micro-matrices showing: substance usage tracking (who uses Vit D, Glutationa, etc.), session status breakdown (agendadas/concluídas/faltas), clinical alerts with severity badges (GRAVE/MODERADO/LEVE), and no-show tracking. Four tabs: Visão Geral, "Quem usa o que?", Sessões da Semana, Alertas Clínicos. API endpoint at `/api/dashboard/comando`.
+- **Multi-Clinic Consultancy Model:** Architecture supports a consultancy company (`consultorias` table) managing multiple client clinics (`unidades`). Users have an `escopo` field (consultoria_master, clinica_medico, clinica_enfermeira, clinica_admin) that controls visibility. Clinic staff sees only operational views; consultoria_master sees everything. This enables selling the system as an invisible operational consultancy service.
+- **Delegation System (Trello-style):** Board with 4 columns (Pendente, Em Andamento, Concluído, Atrasado). Cards include: título, descrição, prioridade (urgente/alta/média/baixa), prazo (24h/36h/48h/72h/1_semana), categoria, responsável. Auto-detects overdue tasks. API at `/api/delegacao`.
+- **Colaborador Scoring:** Ranking of team members by resolution rate, on-time completion, and quality score. Visible in the Resolutividade tab of the Delegation page.
+- **Patient Feedback (0-5):** Star-based feedback from patients via WhatsApp/presencial/email/telefone. Summary dashboard with distribution chart, average scores, and per-channel analytics. Stored in `feedback_pacientes` table.
+- **Patient Photos:** Schema supports `foto_rosto` and `foto_corpo` fields on both `pacientes` and `usuarios` tables for face and body photo storage.
+- **Q013 Disease Selector:** Categorized disease selector with 12 medical categories, DIAX (Diagnóstico Concluído, red) and POTX (Doença Potencial, orange-red) status badges, and a Funil do Paciente panel for filtered views.
+- **100% Semantic Code Coverage:** All 48 dietas codified with B1 B2 B3 B4 SEQ format (DIET KETO/CARN/HPRO/LOWC GBAS/GINT/GAMP CAFM/ALMO/JANT/LANC NNNN). Total coverage now at 100%.
 
 ## External Dependencies
 

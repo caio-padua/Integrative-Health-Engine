@@ -1,5 +1,7 @@
+export * from "./consultorias";
 export * from "./unidades";
 export * from "./usuarios";
+export * from "./delegacao";
 export * from "./pacientes";
 export * from "./anamneses";
 export * from "./itensTerapeuticos";

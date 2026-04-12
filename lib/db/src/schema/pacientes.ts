@@ -21,6 +21,8 @@ export const pacientesTable = pgTable("pacientes", {
   statusAtivo: boolean("status_ativo").notNull().default(true),
   googleDriveFolderId: text("google_drive_folder_id"),
   senhaValidacao: text("senha_validacao"),
+  fotoRosto: text("foto_rosto"),
+  fotoCorpo: text("foto_corpo"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
