@@ -43,6 +43,7 @@ import PainelComandoPage from "@/pages/painel-comando";
 import DelegacaoPage from "@/pages/delegacao";
 import AcompanhamentoPage from "@/pages/acompanhamento";
 import ComissaoPage from "@/pages/comissao";
+import ComercialPage from "@/pages/comercial";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -93,6 +94,7 @@ function Router() {
       <Route path="/delegacao" component={DelegacaoPage} />
       <Route path="/acompanhamento" component={AcompanhamentoPage} />
       <Route path="/comissao" component={ComissaoPage} />
+      <Route path="/comercial" component={ComercialPage} />
       <Route component={NotFound} />
     </Switch>
   );
