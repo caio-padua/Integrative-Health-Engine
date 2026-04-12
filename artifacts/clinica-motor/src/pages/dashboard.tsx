@@ -12,7 +12,7 @@ import {
   getObterAtividadeRecenteQueryKey,
   getObterResumoFilasQueryKey
 } from "@workspace/api-client-react";
-import { Activity, Users, ClipboardList, CheckSquare, TrendingUp, AlertTriangle, Clock, Building2, ArrowUpRight, ArrowDownRight, Diamond, Award, Shield, Coins, FileText, DollarSign, Target, Zap } from "lucide-react";
+import { Activity, Users, ClipboardList, CheckSquare, TrendingUp, AlertTriangle, Clock, Building2, ArrowUpRight, ArrowDownRight, Diamond, Award, Shield, Coins, FileText, DollarSign, Target, Zap, Search, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { useQuery } from "@tanstack/react-query";
@@ -34,7 +34,7 @@ const COMPLEX_CORES: Record<string, { cor: string; label: string }> = {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { isTodasClinicas, escopo, unidadeSelecionada, nomeUnidadeSelecionada, corUnidadeSelecionada, modoVisao } = useClinic();
+  const { isTodasClinicas, escopo, unidadeSelecionada, nomeUnidadeSelecionada, corUnidadeSelecionada, modoVisao, setUnidadeSelecionada } = useClinic();
 
   const { data: dashboard, isLoading: loadingDash } = useObterResumoDashboard({
     query: { enabled: !!user, queryKey: getObterResumoDashboardQueryKey() }
@@ -97,10 +97,19 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }} />
+              {escopo === "consultoria_master" && (
+                <button
+                  onClick={() => setUnidadeSelecionada(null)}
+                  className="p-2 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+                  title="Voltar ao Dashboard Global"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              )}
+              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }} />
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">{nomeUnidadeSelecionada}</h1>
-                <p className="text-sm text-muted-foreground mt-1">Dashboard Local da Unidade</p>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Unidade</h1>
+                <p className="text-sm mt-1" style={{ color: corUnidadeSelecionada || "#6B7280" }}>{nomeUnidadeSelecionada}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm" style={{ color: corUnidadeSelecionada || "#6B7280" }}>
@@ -329,12 +338,19 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold text-foreground">Clinicas do Ecossistema</h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {consultoria.porClinica.map((c: any) => (
-                  <Card key={c.unidadeId} className="bg-card border-border/50 relative overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: c.unidadeCor || "#6B7280" }} />
+                  <Card
+                    key={c.unidadeId}
+                    className="bg-card border-border/50 relative overflow-hidden cursor-pointer hover:border-border transition-all hover:shadow-lg hover:shadow-black/20 group"
+                    onClick={() => setUnidadeSelecionada(c.unidadeId)}
+                  >
+                    <div className="absolute left-0 top-0 bottom-0 w-1 transition-all group-hover:w-1.5" style={{ backgroundColor: c.unidadeCor || "#6B7280" }} />
                     <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.unidadeCor || "#6B7280" }} />
-                        <CardTitle className="text-sm font-semibold">{c.unidadeNome}</CardTitle>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.unidadeCor || "#6B7280" }} />
+                          <CardTitle className="text-sm font-semibold">{c.unidadeNome}</CardTitle>
+                        </div>
+                        <Search className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
