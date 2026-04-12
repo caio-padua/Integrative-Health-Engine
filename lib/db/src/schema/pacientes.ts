@@ -19,6 +19,7 @@ export const pacientesTable = pgTable("pacientes", {
   pais: text("pais").default("Brasil"),
   unidadeId: integer("unidade_id").notNull().references(() => unidadesTable.id),
   statusAtivo: boolean("status_ativo").notNull().default(true),
+  planoAcompanhamento: text("plano_acompanhamento", { enum: ["diamante", "ouro", "prata", "cobre"] }).default("cobre"),
   googleDriveFolderId: text("google_drive_folder_id"),
   senhaValidacao: text("senha_validacao"),
   fotoRosto: text("foto_rosto"),

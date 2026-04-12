@@ -34,3 +34,4 @@ export * from "./auditoriaCascata";
 export * from "./alertasNotificacao";
 export * from "./monitoramentoPaciente";
 export * from "./whatsappConfig";
+export * from "./acompanhamento";

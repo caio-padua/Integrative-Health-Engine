@@ -41,6 +41,7 @@ import MonitoramentoPacientePage from "@/pages/pacientes/monitoramento";
 import SegurancaPage from "@/pages/seguranca";
 import PainelComandoPage from "@/pages/painel-comando";
 import DelegacaoPage from "@/pages/delegacao";
+import AcompanhamentoPage from "@/pages/acompanhamento";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/seguranca" component={SegurancaPage} />
       <Route path="/painel-comando" component={PainelComandoPage} />
       <Route path="/delegacao" component={DelegacaoPage} />
+      <Route path="/acompanhamento" component={AcompanhamentoPage} />
       <Route component={NotFound} />
     </Switch>
   );
