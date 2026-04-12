@@ -160,6 +160,9 @@ importers:
       '@replit/connectors-sdk':
         specifier: ^0.4.0
         version: 0.4.0
+      pdfkit:
+        specifier: ^0.18.0
+        version: 0.18.0
       tsx:
         specifier: 'catalog:'
         version: 4.21.0

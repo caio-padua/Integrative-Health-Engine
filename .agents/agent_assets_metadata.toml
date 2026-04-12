@@ -186,3 +186,9 @@ id = "_HcNZF2oykrFRJMe-5ZEz"
 uri = "file://screenshots/q013-diax-red-potx-orange.jpg"
 type = "image"
 title = "Q013 Final - DIAX (vermelho) e POTX (laranja avermelhado)"
+
+[[outputs]]
+id = "FMiKHZbWObFwuQC287XC2"
+uri = "file://exports/Simulacao_Faturamento_PADCOM.pdf"
+type = "pdf"
+title = "Simulação de Faturamento PADCOM V15.2"
