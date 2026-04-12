@@ -39,6 +39,8 @@ import direcaoExameRouter from "./direcaoExame";
 import formulaBlendRouter from "./formulaBlend";
 import backupDriveRouter from "./backupDrive";
 import whatsappRouter from "./whatsapp";
+import seedSemanticoRouter from "./seedSemantico";
+import semanticoRouter from "./semantico";
 
 const router: IRouter = Router();
 
@@ -82,5 +84,7 @@ router.use(direcaoExameRouter);
 router.use(formulaBlendRouter);
 router.use(backupDriveRouter);
 router.use(whatsappRouter);
+router.use("/seed-semantico", seedSemanticoRouter);
+router.use("/semantico", semanticoRouter);
 
 export default router;
