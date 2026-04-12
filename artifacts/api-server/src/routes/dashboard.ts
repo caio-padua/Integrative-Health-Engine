@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable, unidadesTable, delegacoesTable, demandasServicoTable, CUSTO_POR_COMPLEXIDADE, REMUNERACAO_CONSULTOR, PLANOS_ACOMPANHAMENTO } from "@workspace/db";
+import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable, unidadesTable, delegacoesTable, demandasServicoTable, CUSTO_POR_COMPLEXIDADE, REMUNERACAO_CONSULTOR, PLANOS_ACOMPANHAMENTO, consultorUnidadesTable } from "@workspace/db";
 import { eq, and, gte, lt, sum, count, desc, sql, ne, inArray } from "drizzle-orm";
 
 const router = Router();
@@ -265,9 +265,13 @@ router.get("/dashboard/comando", async (req, res): Promise<void> => {
 
 router.get("/dashboard/consultoria", async (req, res): Promise<void> => {
   try {
-    const unidades = await db.select().from(unidadesTable);
+    const todasUnidades = await db.select().from(unidadesTable);
     const delegacoes = await db.select().from(delegacoesTable);
     const pacientes = await db.select().from(pacientesTable);
+
+    const vinculosConsultor = await db.select({ unidadeId: consultorUnidadesTable.unidadeId }).from(consultorUnidadesTable);
+    const idsConsultoria = new Set(vinculosConsultor.map(v => v.unidadeId));
+    const unidades = todasUnidades.filter(u => idsConsultoria.has(u.id));
 
     const agora = new Date();
     const porClinica = unidades.map(u => {
