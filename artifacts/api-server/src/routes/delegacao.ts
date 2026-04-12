@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "@workspace/db";
-import { delegacoesTable, feedbackPacienteTable, usuariosTable } from "@workspace/db";
+import { delegacoesTable, feedbackPacienteTable, usuariosTable, unidadesTable } from "@workspace/db";
 import { eq, desc, and, sql, count, avg, lte, gte } from "drizzle-orm";
 
 const router = Router();
@@ -10,6 +10,9 @@ router.get("/", async (_req: Request, res: Response) => {
     .select()
     .from(delegacoesTable)
     .orderBy(desc(delegacoesTable.criadoEm));
+
+  const unidades = await db.select().from(unidadesTable);
+  const unidadeMap = new Map(unidades.map(u => [u.id, { nome: u.nome, cor: u.cor }]));
 
   const enriched = await Promise.all(
     delegacoes.map(async (d) => {
@@ -25,11 +28,15 @@ router.get("/", async (_req: Request, res: Response) => {
         }
       }
 
+      const unidade = d.unidadeId ? unidadeMap.get(d.unidadeId) : null;
+
       return {
         ...d,
         status: statusEfetivo,
         delegadoPorNome: delegadoPor?.nome || "—",
         responsavelNome: responsavel?.nome || "—",
+        unidadeNome: unidade?.nome || null,
+        unidadeCor: unidade?.cor || null,
       };
     })
   );

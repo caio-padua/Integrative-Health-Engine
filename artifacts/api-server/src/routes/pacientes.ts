@@ -60,6 +60,37 @@ router.put("/pacientes/:id", async (req, res): Promise<void> => {
   res.json(paciente);
 });
 
+router.patch("/pacientes/:id/fotos", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const { fotoRosto, fotoCorpo } = req.body;
+  const updates: Record<string, string | null> = {};
+
+  const validarBase64 = (v: unknown): boolean => {
+    if (v === null) return true;
+    if (typeof v !== "string") return false;
+    if (!v.startsWith("data:image/")) return false;
+    if (v.length > 5 * 1024 * 1024) return false;
+    return true;
+  };
+
+  if (fotoRosto !== undefined) {
+    if (!validarBase64(fotoRosto)) { res.status(400).json({ error: "Formato de foto de rosto invalido" }); return; }
+    updates.fotoRosto = fotoRosto;
+  }
+  if (fotoCorpo !== undefined) {
+    if (!validarBase64(fotoCorpo)) { res.status(400).json({ error: "Formato de foto de corpo invalido" }); return; }
+    updates.fotoCorpo = fotoCorpo;
+  }
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Nenhuma foto fornecida" });
+    return;
+  }
+  const [paciente] = await db.update(pacientesTable).set(updates).where(eq(pacientesTable.id, id)).returning();
+  if (!paciente) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+  res.json(paciente);
+});
+
 router.get("/cep/:cep", async (req, res): Promise<void> => {
   const cep = req.params.cep.replace(/\D/g, '');
   if (cep.length !== 8) { res.status(400).json({ error: "CEP invalido" }); return; }

@@ -33,7 +33,11 @@ Key architectural decisions and features:
 - **Delegation System (Trello-style):** Board with 4 columns (Pendente, Em Andamento, Concluído, Atrasado). Cards include: título, descrição, prioridade (urgente/alta/média/baixa), prazo (24h/36h/48h/72h/1_semana), categoria, responsável. Auto-detects overdue tasks. API at `/api/delegacao`.
 - **Colaborador Scoring:** Ranking of team members by resolution rate, on-time completion, and quality score. Visible in the Resolutividade tab of the Delegation page.
 - **Patient Feedback (0-5):** Star-based feedback from patients via WhatsApp/presencial/email/telefone. Summary dashboard with distribution chart, average scores, and per-channel analytics. Stored in `feedback_pacientes` table.
-- **Patient Photos:** Schema supports `foto_rosto` and `foto_corpo` fields on both `pacientes` and `usuarios` tables for face and body photo storage.
+- **Patient Photos:** Schema supports `foto_rosto` and `foto_corpo` fields on both `pacientes` and `usuarios` tables. Upload UI on patient detail page (`/pacientes/:id`). Photos stored as base64 data URLs via `PATCH /api/pacientes/:id/fotos`. Validation: must be `data:image/*`, max 5MB.
+- **Consultor Campo Scope:** New `consultor_campo` escopo for field consultants (e.g., Maria fisioterapeuta) who serve multiple clinics via `consultor_unidades` junction table. They see delegation, patients, anamnese, followup, agenda, task-cards, filas, avaliacao-enfermagem, estoque.
+- **consultor_unidades Junction Table:** Many-to-many between usuarios and unidades. Enables one consultant to serve 3-20 clinics simultaneously. Seeded via `POST /api/seed-consultoria`.
+- **Color-coded Delegation Cards:** Cards show clinic name + colored left border using `unidade.cor`. Filter bar at top allows filtering by clinic. 3 demo clinics: Vitallis Centro (#3B82F6 blue), Bem Estar Alphaville (#10B981 green), Saude Integral Campinas (#F59E0B amber).
+- **Escopo-based Sidebar:** Menu items filtered by `escopo` field using `VISIBILIDADE_POR_ESCOPO` map instead of old `perfil`-based filtering. Sidebar shows escopo label (Master, Consultor, etc.) below user name.
 - **Q013 Disease Selector:** Categorized disease selector with 12 medical categories, DIAX (Diagnóstico Concluído, red) and POTX (Doença Potencial, orange-red) status badges, and a Funil do Paciente panel for filtered views.
 - **100% Semantic Code Coverage:** All 48 dietas codified with B1 B2 B3 B4 SEQ format (DIET KETO/CARN/HPRO/LOWC GBAS/GINT/GAMP CAFM/ALMO/JANT/LANC NNNN). Total coverage now at 100%.
 

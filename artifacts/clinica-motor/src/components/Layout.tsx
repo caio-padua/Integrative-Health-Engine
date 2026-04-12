@@ -43,37 +43,67 @@ export function Layout({ children }: { children: ReactNode }) {
 
   if (!user) return <>{children}</>;
 
+  const VISIBILIDADE_POR_ESCOPO: Record<string, string[]> = {
+    consultoria_master: [
+      "dashboard", "painel-comando", "governanca", "anamnese", "validacao",
+      "filas", "pacientes", "itens-terapeuticos", "protocolos", "followup",
+      "financeiro", "unidades", "fluxos", "pedidos-exame", "substancias",
+      "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
+      "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
+      "configuracoes", "delegacao"
+    ],
+    consultor_campo: [
+      "delegacao", "pacientes", "anamnese", "followup", "agenda",
+      "task-cards", "filas", "avaliacao-enfermagem", "estoque"
+    ],
+    clinica_medico: [
+      "anamnese", "validacao", "pacientes", "itens-terapeuticos",
+      "pedidos-exame", "agenda", "ras", "ras-evolutivo", "followup", "delegacao"
+    ],
+    clinica_enfermeira: [
+      "anamnese", "filas", "pacientes", "followup", "agenda",
+      "estoque", "avaliacao-enfermagem", "task-cards", "delegacao"
+    ],
+    clinica_admin: [
+      "anamnese", "filas", "pacientes", "followup", "agenda",
+      "estoque", "avaliacao-enfermagem", "task-cards", "financeiro", "delegacao"
+    ],
+  };
+
   const menuItems = [
-    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["validador_mestre"] },
-    { name: "Painel de Comando", path: "/painel-comando", icon: Radar, roles: ["validador_mestre", "medico_tecnico"] },
-    { name: "Governanca", path: "/governanca", icon: Shield, roles: ["validador_mestre", "medico_tecnico"] },
-    { name: "Anamnese", path: "/anamnese", icon: ClipboardList, roles: ["enfermeira", "validador_enfermeiro", "medico_tecnico", "validador_mestre"] },
-    { name: "Validação", path: "/validacao", icon: CheckSquare, roles: ["validador_enfermeiro", "medico_tecnico", "validador_mestre"] },
-    { name: "Filas", path: "/filas", icon: ListOrdered, roles: ["enfermeira", "validador_enfermeiro", "validador_mestre"] },
-    { name: "Pacientes", path: "/pacientes", icon: Users, roles: ["enfermeira", "validador_mestre"] },
-    { name: "Itens Terapêuticos", path: "/itens-terapeuticos", icon: Pill, roles: ["medico_tecnico", "validador_mestre"] },
-    { name: "Protocolos", path: "/protocolos", icon: BookOpen, roles: ["medico_tecnico", "validador_mestre"] },
-    { name: "Follow-up", path: "/followup", icon: CalendarClock, roles: ["enfermeira", "validador_enfermeiro", "validador_mestre"] },
-    { name: "Financeiro", path: "/financeiro", icon: CreditCard, roles: ["validador_mestre"] },
-    { name: "Unidades", path: "/unidades", icon: Building2, roles: ["validador_mestre"] },
-    { name: "Fluxos Aprovacao", path: "/fluxos", icon: GitBranch, roles: ["validador_mestre", "medico_tecnico"] },
-    { name: "Pedidos de Exame", path: "/pedidos-exame", icon: FileText, roles: ["medico_tecnico", "validador_mestre"] },
-    { name: "Substancias", path: "/substancias", icon: FlaskConical, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
-    { name: "Agenda Semanal", path: "/agenda", icon: CalendarDays, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
-    { name: "RAS", path: "/ras", icon: FileCheck, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
-    { name: "Codigos Validacao", path: "/codigos-validacao", icon: KeyRound, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
-    { name: "Estoque", path: "/estoque", icon: Package, roles: ["validador_mestre", "enfermeira", "validador_enfermeiro"] },
-    { name: "Aval. Enfermagem", path: "/avaliacao-enfermagem", icon: ClipboardCheck, roles: ["enfermeira", "validador_enfermeiro", "validador_mestre"] },
-    { name: "Task Cards", path: "/task-cards", icon: AlertTriangle, roles: ["enfermeira", "validador_enfermeiro", "medico_tecnico", "validador_mestre"] },
-    { name: "RAS Evolutivo", path: "/ras-evolutivo", icon: BarChart3, roles: ["medico_tecnico", "validador_mestre", "enfermeira", "validador_enfermeiro"] },
-    { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, roles: ["medico_tecnico", "validador_mestre"] },
-    { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, roles: ["validador_mestre"] },
-    { name: "Seguranca", path: "/seguranca", icon: Lock, roles: ["validador_mestre"] },
-    { name: "Delegacao", path: "/delegacao", icon: Send, roles: ["validador_mestre"] },
-    { name: "Configuracoes", path: "/configuracoes", icon: Settings, roles: ["validador_mestre"] },
+    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, slug: "dashboard" },
+    { name: "Painel de Comando", path: "/painel-comando", icon: Radar, slug: "painel-comando" },
+    { name: "Governanca", path: "/governanca", icon: Shield, slug: "governanca" },
+    { name: "Anamnese", path: "/anamnese", icon: ClipboardList, slug: "anamnese" },
+    { name: "Validação", path: "/validacao", icon: CheckSquare, slug: "validacao" },
+    { name: "Filas", path: "/filas", icon: ListOrdered, slug: "filas" },
+    { name: "Pacientes", path: "/pacientes", icon: Users, slug: "pacientes" },
+    { name: "Itens Terapêuticos", path: "/itens-terapeuticos", icon: Pill, slug: "itens-terapeuticos" },
+    { name: "Protocolos", path: "/protocolos", icon: BookOpen, slug: "protocolos" },
+    { name: "Follow-up", path: "/followup", icon: CalendarClock, slug: "followup" },
+    { name: "Financeiro", path: "/financeiro", icon: CreditCard, slug: "financeiro" },
+    { name: "Unidades", path: "/unidades", icon: Building2, slug: "unidades" },
+    { name: "Fluxos Aprovacao", path: "/fluxos", icon: GitBranch, slug: "fluxos" },
+    { name: "Pedidos de Exame", path: "/pedidos-exame", icon: FileText, slug: "pedidos-exame" },
+    { name: "Substancias", path: "/substancias", icon: FlaskConical, slug: "substancias" },
+    { name: "Agenda Semanal", path: "/agenda", icon: CalendarDays, slug: "agenda" },
+    { name: "RAS", path: "/ras", icon: FileCheck, slug: "ras" },
+    { name: "Codigos Validacao", path: "/codigos-validacao", icon: KeyRound, slug: "codigos-validacao" },
+    { name: "Estoque", path: "/estoque", icon: Package, slug: "estoque" },
+    { name: "Aval. Enfermagem", path: "/avaliacao-enfermagem", icon: ClipboardCheck, slug: "avaliacao-enfermagem" },
+    { name: "Task Cards", path: "/task-cards", icon: AlertTriangle, slug: "task-cards" },
+    { name: "RAS Evolutivo", path: "/ras-evolutivo", icon: BarChart3, slug: "ras-evolutivo" },
+    { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, slug: "catalogo" },
+    { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
+    { name: "Seguranca", path: "/seguranca", icon: Lock, slug: "seguranca" },
+    { name: "Delegacao", path: "/delegacao", icon: Send, slug: "delegacao" },
+    { name: "Configuracoes", path: "/configuracoes", icon: Settings, slug: "configuracoes" },
   ];
 
-  const allowedItems = menuItems.filter(item => item.roles.includes(user.perfil));
+  const escopo = (user as any).escopo || "consultoria_master";
+  const modulosPermitidos = VISIBILIDADE_POR_ESCOPO[escopo] || VISIBILIDADE_POR_ESCOPO.consultoria_master;
+  const allowedItems = menuItems.filter(item => modulosPermitidos.includes(item.slug));
+  const escopoLabel = escopo === "consultoria_master" ? "Master" : escopo === "consultor_campo" ? "Consultor" : escopo.replace("clinica_", "").replace("_", " ");
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -90,6 +120,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="px-5 py-3 border-b border-border">
           <div className="text-sm font-semibold text-sidebar-foreground truncate">{user.nome}</div>
           <div className="text-[11px] text-muted-foreground capitalize tracking-wide">{user.perfil.replace('_', ' ')}</div>
+          <div className="text-[9px] text-primary/70 uppercase tracking-widest mt-0.5">{escopoLabel}</div>
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {allowedItems.map((item) => {
