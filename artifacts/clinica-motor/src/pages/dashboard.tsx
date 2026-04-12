@@ -12,18 +12,18 @@ import {
   getObterAtividadeRecenteQueryKey,
   getObterResumoFilasQueryKey
 } from "@workspace/api-client-react";
-import { Activity, Users, ClipboardList, CheckSquare, TrendingUp, AlertTriangle, Clock, Building2, ArrowUpRight, ArrowDownRight, Diamond, Award, Shield, Coins, FileText, DollarSign, Target, Zap, Search, ArrowLeft } from "lucide-react";
+import { Activity, Users, ClipboardList, CheckSquare, TrendingUp, AlertTriangle, Clock, Building2, ArrowUpRight, ArrowDownRight, Diamond, Award, Shield, Coins, FileText, DollarSign, Target, Zap, Search, ArrowLeft, BarChart3, Gauge, CircleDollarSign, Flame, Trophy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 
 const API_BASE = "/api";
 
-const PLANO_CORES: Record<string, { cor: string; icon: any; label: string }> = {
-  diamante: { cor: "#B9F2FF", icon: Diamond, label: "Diamante" },
-  ouro: { cor: "#FFD700", icon: Award, label: "Ouro" },
-  prata: { cor: "#C0C0C0", icon: Shield, label: "Prata" },
-  cobre: { cor: "#B87333", icon: Coins, label: "Cobre" },
+const PLANO_CORES: Record<string, { cor: string; icon: any; label: string; sla: string }> = {
+  diamante: { cor: "#B9F2FF", icon: Diamond, label: "Diamante", sla: "4h" },
+  ouro: { cor: "#FFD700", icon: Award, label: "Ouro", sla: "12h" },
+  prata: { cor: "#C0C0C0", icon: Shield, label: "Prata", sla: "24h" },
+  cobre: { cor: "#B87333", icon: Coins, label: "Cobre", sla: "72h" },
 };
 
 const COMPLEX_CORES: Record<string, { cor: string; label: string }> = {
@@ -31,6 +31,14 @@ const COMPLEX_CORES: Record<string, { cor: string; label: string }> = {
   amarela: { cor: "#EAB308", label: "Moderada" },
   vermelha: { cor: "#EF4444", label: "Complexa" },
 };
+
+const MODELO_LABEL: Record<string, { label: string; cor: string }> = {
+  full: { label: "Full", cor: "#3B82F6" },
+  pacote: { label: "Pacote", cor: "#A855F7" },
+  por_demanda: { label: "Demanda", cor: "#22C55E" },
+};
+
+const R = (v: number) => `R$ ${v.toLocaleString("pt-BR")}`;
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -57,6 +65,16 @@ export default function Dashboard() {
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/dashboard/consultoria`);
       if (!res.ok) throw new Error("Erro ao carregar consultoria");
+      return res.json();
+    },
+    enabled: !!user && isTodasClinicas && escopo === "consultoria_master",
+  });
+
+  const { data: cockpit, isLoading: loadingCockpit } = useQuery({
+    queryKey: ["dashboard-cockpit"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/dashboard/cockpit`);
+      if (!res.ok) throw new Error("Erro ao carregar cockpit");
       return res.json();
     },
     enabled: !!user && isTodasClinicas && escopo === "consultoria_master",
@@ -294,13 +312,14 @@ export default function Dashboard() {
   }
 
   if (isTodasClinicas && escopo === "consultoria_master") {
+    const isLoadingGlobal = loadingConsultoria || loadingCockpit;
     return (
       <Layout>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Global</h1>
-              <p className="text-sm text-muted-foreground mt-1">Visao consolidada do ecossistema</p>
+              <p className="text-sm text-muted-foreground mt-1">Cockpit operacional do ecossistema</p>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="relative flex h-3 w-3">
@@ -311,33 +330,256 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {loadingConsultoria ? (
+          {isLoadingGlobal ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 w-full" />)}
+              {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-28 w-full" />)}
             </div>
-          ) : consultoria ? (
+          ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatCard title="Clinicas Ativas" value={consultoria.totalGeral.clinicas} icon={Building2} colorClass="text-blue-500" loading={false} />
-                <StatCard title="Total Pacientes" value={consultoria.totalGeral.pacientes} icon={Users} colorClass="text-green-500" loading={false} />
-                <StatCard title="Delegacoes Pendentes" value={consultoria.totalGeral.delegacoesPendentes} icon={ClipboardList} colorClass="text-orange-500" loading={false} />
-                <StatCard title="Taxa Resolucao Geral" value={`${consultoria.totalGeral.taxaResolucaoGeral}%`} icon={TrendingUp} colorClass="text-emerald-500" loading={false} />
+              <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+                <Card className="bg-card border-border/50 border-l-4 border-l-green-500">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Receita</span>
+                      <CircleDollarSign className="w-4 h-4 text-green-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-green-400">{cockpit ? R(cockpit.financeiro.receitaMes) : "---"}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{cockpit?.financeiro.contratosAtivos || 0} contratos ativos</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card border-border/50 border-l-4 border-l-emerald-500">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Lucro</span>
+                      <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-emerald-400">{cockpit ? R(cockpit.financeiro.lucroMes) : "---"}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Margem {cockpit?.financeiro.margemLucro || 0}%</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card border-border/50 border-l-4 border-l-blue-500">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Clinicas</span>
+                      <Building2 className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-blue-400">{cockpit?.totalClinicas || 0}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{cockpit?.totalPacientes || 0} pacientes</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card border-border/50 border-l-4 border-l-orange-500">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Demandas</span>
+                      <Flame className="w-4 h-4 text-orange-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-orange-400">{cockpit?.demandas.abertas || 0}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{cockpit?.demandas.total || 0} total | {cockpit?.demandas.concluidas || 0} concl.</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card border-border/50 border-l-4 border-l-yellow-500">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Resolucao</span>
+                      <Gauge className="w-4 h-4 text-yellow-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-yellow-400">{consultoria?.totalGeral.taxaResolucaoGeral || 0}%</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{consultoria?.totalGeral.delegacoesConcluidas || 0}/{consultoria?.totalGeral.delegacoesTotal || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card className={`bg-card border-border/50 border-l-4 ${(cockpit?.delegacoesAtrasadas || 0) > 0 ? "border-l-red-500" : "border-l-green-500"}`}>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Atrasadas</span>
+                      <AlertTriangle className={`w-4 h-4 ${(cockpit?.delegacoesAtrasadas || 0) > 0 ? "text-red-500" : "text-green-500"}`} />
+                    </div>
+                    <p className={`text-2xl font-bold ${(cockpit?.delegacoesAtrasadas || 0) > 0 ? "text-red-400" : "text-green-400"}`}>{cockpit?.delegacoesAtrasadas || 0}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">delegacoes vencidas</p>
+                  </CardContent>
+                </Card>
               </div>
 
-              {consultoria.totalGeral.delegacoesAtrasadas > 0 && (
-                <Card className="bg-red-950/30 border-red-500/30">
-                  <CardContent className="py-4 flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                    <span className="text-sm font-medium text-red-400">
-                      {consultoria.totalGeral.delegacoesAtrasadas} delegacoes atrasadas no total
-                    </span>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card className="border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-green-400" />
+                      Pipeline de Demandas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {[
+                        { label: "Abertas", value: cockpit?.demandas.abertas || 0, cor: "#F59E0B" },
+                        { label: "Em Atendimento", value: cockpit?.demandas.emAtendimento || 0, cor: "#3B82F6" },
+                        { label: "Concluidas", value: cockpit?.demandas.concluidas || 0, cor: "#22C55E" },
+                      ].map(item => {
+                        const total = cockpit?.demandas.total || 1;
+                        const pct = Math.round((item.value / total) * 100);
+                        return (
+                          <div key={item.label} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
+                                <span className="text-sm">{item.label}</span>
+                              </div>
+                              <span className="text-sm font-bold">{item.value}</span>
+                            </div>
+                            <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: item.cor }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-border/50">
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2">Complexidade</p>
+                      <div className="flex gap-3">
+                        {Object.entries(cockpit?.demandas.porComplexidade || { verde: 0, amarela: 0, vermelha: 0 }).map(([key, val]) => {
+                          const cfg = COMPLEX_CORES[key];
+                          if (!cfg) return null;
+                          return (
+                            <div key={key} className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.cor }} />
+                              <span className="text-xs text-muted-foreground">{cfg.label}</span>
+                              <span className="text-xs font-bold">{val as number}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Trophy className="w-4 h-4 text-yellow-400" />
+                      Consultores — Ranking
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {cockpit?.consultores?.length > 0 ? (
+                      <div className="space-y-3">
+                        {cockpit.consultores.map((c: any, idx: number) => (
+                          <div key={c.id} className="p-3 bg-muted/30 rounded border border-border/50">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center ${idx === 0 ? "bg-yellow-500/20 text-yellow-400" : idx === 1 ? "bg-gray-400/20 text-gray-300" : "bg-orange-700/20 text-orange-500"}`}>
+                                  {idx + 1}
+                                </span>
+                                <span className="text-sm font-medium truncate">{c.nome}</span>
+                              </div>
+                              <span className="text-xs font-bold text-green-400">{R(c.comissao)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <div className="flex-1 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${c.progressoMeta}%`,
+                                    backgroundColor: c.progressoMeta >= 100 ? "#22C55E" : c.progressoMeta >= 75 ? "#EAB308" : c.progressoMeta >= 50 ? "#F59E0B" : "#EF4444",
+                                  }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground w-8 text-right">{c.progressoMeta}%</span>
+                            </div>
+                            <div className="flex gap-2 text-[10px]">
+                              <span className="text-green-400">{c.verdes}V</span>
+                              <span className="text-yellow-400">{c.amarelas}A</span>
+                              <span className="text-red-400">{c.vermelhas}R</span>
+                              <span className="text-muted-foreground ml-auto">{c.total}/40 meta</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Nenhum consultor registrado</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Diamond className="w-4 h-4 text-cyan-300" />
+                      Saude SLA — Planos
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {Object.entries(cockpit?.sla || { diamante: 0, ouro: 0, prata: 0, cobre: 0 }).map(([key, val]) => {
+                        const cfg = PLANO_CORES[key];
+                        if (!cfg) return null;
+                        const Icon = cfg.icon;
+                        const totalPac = Object.values(cockpit?.sla || {}).reduce((a: number, b: any) => a + (b as number), 0) as number;
+                        const pct = totalPac > 0 ? Math.round(((val as number) / totalPac) * 100) : 0;
+                        return (
+                          <div key={key} className="flex items-center gap-3 p-3 bg-muted/30 rounded border border-border/50">
+                            <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.cor }} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">{cfg.label}</span>
+                                <span className="text-lg font-bold" style={{ color: cfg.cor }}>{val as number}</span>
+                              </div>
+                              <div className="flex items-center justify-between mt-0.5">
+                                <span className="text-[10px] text-muted-foreground">SLA {cfg.sla}</span>
+                                <span className="text-[10px] text-muted-foreground">{pct}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {cockpit?.porClinicaFinanceiro?.length > 0 && (
+                <Card className="border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-400" />
+                      Receita por Clinica
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {cockpit.porClinicaFinanceiro.map((c: any) => {
+                        const maxReceita = Math.max(...cockpit.porClinicaFinanceiro.map((x: any) => x.receita));
+                        const pct = maxReceita > 0 ? Math.round((c.receita / maxReceita) * 100) : 0;
+                        const modeloCfg = MODELO_LABEL[c.modelo] || { label: c.modelo, cor: "#6B7280" };
+                        return (
+                          <div key={c.unidadeId} className="p-3 bg-muted/30 rounded border border-border/50">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.cor }} />
+                                <span className="text-sm font-medium">{c.nome}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: `${modeloCfg.cor}15`, color: modeloCfg.cor }}>{modeloCfg.label}</span>
+                              </div>
+                              <span className="text-sm font-bold text-green-400">{R(c.receita)}</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-2">
+                              <span>Lucro: <span className="text-emerald-400 font-medium">{R(c.lucro)}</span></span>
+                              <span>{c.demandas} demandas</span>
+                            </div>
+                            <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.cor }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </CardContent>
                 </Card>
               )}
 
-              <h2 className="text-lg font-semibold text-foreground">Clinicas do Ecossistema</h2>
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-blue-400" />
+                Clinicas do Ecossistema
+              </h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {consultoria.porClinica.map((c: any) => (
+                {consultoria?.porClinica?.map((c: any) => (
                   <Card
                     key={c.unidadeId}
                     className="bg-card border-border/50 relative overflow-hidden cursor-pointer hover:border-border transition-all hover:shadow-lg hover:shadow-black/20 group"
@@ -392,12 +634,12 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={consultoria.porClinica} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <BarChart data={consultoria?.porClinica || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                       <XAxis dataKey="unidadeNome" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
                       <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                       <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }} />
                       <Bar dataKey="delegacoes.total" name="Total" radius={[4, 4, 0, 0]}>
-                        {consultoria.porClinica.map((c: any, i: number) => (
+                        {(consultoria?.porClinica || []).map((c: any, i: number) => (
                           <Cell key={`cell-${i}`} fill={c.unidadeCor || "hsl(var(--primary))"} />
                         ))}
                       </Bar>
@@ -406,7 +648,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </>
-          ) : null}
+          )}
         </div>
       </Layout>
     );
@@ -420,149 +662,48 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Visao Geral do Motor</h1>
             {unidadeSelecionada && <p className="text-sm text-muted-foreground mt-1">{nomeUnidadeSelecionada}</p>}
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-            </span>
-            {unidadeSelecionada ? "Modo Operacao" : "Sistema Operante"}
-          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Pacientes" value={dashboard?.totalPacientes ?? "..."} icon={Users} colorClass="text-blue-500" loading={loadingDash} subtitle="total cadastrados" />
+          <StatCard title="Anamneses Pendentes" value={dashboard?.anamnesesPendentes ?? "..."} icon={ClipboardList} colorClass="text-orange-500" loading={loadingDash} />
+          <StatCard title="Validacoes" value={dashboard?.sugestoesPendentesValidacao ?? "..."} icon={CheckSquare} colorClass="text-green-500" loading={loadingDash} subtitle="aguardando validacao" />
+          <StatCard title="Follow-ups Atrasados" value={dashboard?.followupAtrasados ?? "..."} icon={Clock} colorClass="text-red-500" loading={loadingDash} />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard 
-            title="Pacientes Ativos" 
-            value={dashboard?.totalPacientes || 0} 
-            icon={Users} 
-            colorClass="text-blue-500" 
-            loading={loadingDash} 
-          />
-          <StatCard 
-            title="Anamneses Pendentes" 
-            value={dashboard?.anamnesesPendentes || 0} 
-            icon={ClipboardList} 
-            colorClass="text-orange-500" 
-            loading={loadingDash} 
-          />
-          <StatCard 
-            title="Aguardando Validacao" 
-            value={dashboard?.sugestoesPendentesValidacao || 0} 
-            icon={CheckSquare} 
-            colorClass="text-red-500" 
-            loading={loadingDash} 
-            subtitle="Sugestoes do motor"
-          />
-          <StatCard 
-            title="Taxa de Validacao" 
-            value={`${metricas?.taxaValidacao || 0}%`} 
-            icon={TrendingUp} 
-            colorClass="text-green-500" 
-            loading={loadingMetricas} 
-          />
+          <StatCard title="Procedimentos Hoje" value={dashboard?.procedimentosHoje ?? "..."} icon={Activity} colorClass="text-purple-500" loading={loadingDash} />
+          <StatCard title="Receita Hoje" value={`R$ ${(dashboard?.receitaHoje ?? 0).toFixed(2)}`} icon={DollarSign} colorClass="text-green-500" loading={loadingDash} />
+          <StatCard title="Taxa Validacao" value={`${metricas?.taxaValidacao ?? 0}%`} icon={TrendingUp} colorClass="text-emerald-500" loading={loadingMetricas} subtitle={`${metricas?.sugestoesValidadas ?? 0} de ${metricas?.totalSugestoes ?? 0}`} />
+          <StatCard title="Pagamentos Pendentes" value={dashboard?.pagamentosPendentes ?? "..."} icon={AlertTriangle} colorClass="text-yellow-500" loading={loadingDash} />
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4 bg-card border-border/50">
-            <CardHeader>
-              <CardTitle>Sugestoes por Tipo</CardTitle>
-            </CardHeader>
-            <CardContent className="pl-0 h-[300px]">
-              {loadingMetricas ? (
-                <div className="h-full flex items-center justify-center"><Activity className="animate-spin text-primary" /></div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={metricas?.sugestoesPorTipo || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <XAxis dataKey="tipo" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                    <RechartsTooltip cursor={{fill: 'rgba(255, 255, 255, 0.1)'}} contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6'}} />
-                    <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                      {metricas?.sugestoesPorTipo?.map((_entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill="hsl(var(--primary))" />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="col-span-3 bg-card border-border/50 flex flex-col">
-            <CardHeader>
-              <CardTitle>Filas Operacionais</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-auto">
-              {loadingFilas ? (
-                 <div className="space-y-4">
-                 {[1,2,3,4].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-               </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border">
-                    <div className="flex items-center gap-3">
-                      <ClipboardList className="text-orange-500 w-5 h-5" />
-                      <span className="font-medium">Anamnese</span>
-                    </div>
-                    <span className="text-xl font-bold">{filas?.anamnese || 0}</span>
+        {filas && (
+          <Card className="bg-card border-border/50">
+            <CardHeader><CardTitle>Filas Operacionais</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {[
+                  { label: "Anamnese", value: filas.anamnese, color: "text-blue-400" },
+                  { label: "Validacao", value: filas.validacao, color: "text-green-400" },
+                  { label: "Procedimento", value: filas.procedimento, color: "text-purple-400" },
+                  { label: "Follow-up", value: filas.followup, color: "text-orange-400" },
+                  { label: "Pagamento", value: filas.pagamento, color: "text-emerald-400" },
+                ].map(f => (
+                  <div key={f.label} className="text-center p-3 bg-muted/30 rounded border border-border/50">
+                    <p className={`text-2xl font-bold ${f.color}`}>{f.value}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{f.label}</p>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border">
-                    <div className="flex items-center gap-3">
-                      <CheckSquare className="text-red-500 w-5 h-5" />
-                      <span className="font-medium">Validacao</span>
-                    </div>
-                    <span className="text-xl font-bold">{filas?.validacao || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border">
-                    <div className="flex items-center gap-3">
-                      <Activity className="text-blue-500 w-5 h-5" />
-                      <span className="font-medium">Procedimento</span>
-                    </div>
-                    <span className="text-xl font-bold">{filas?.procedimento || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-red-900/20 rounded-lg border border-red-500/50">
-                    <div className="flex items-center gap-3">
-                      <AlertTriangle className="text-red-500 w-5 h-5" />
-                      <span className="font-medium text-red-500">Urgencias Totais</span>
-                    </div>
-                    <span className="text-xl font-bold text-red-500">{filas?.totalUrgente || 0}</span>
-                  </div>
+                ))}
+              </div>
+              {(filas.totalUrgente ?? 0) > 0 && (
+                <div className="mt-3 flex items-center gap-2 text-red-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm font-medium">{filas.totalUrgente} urgencia(s) na fila</span>
                 </div>
               )}
             </CardContent>
           </Card>
-        </div>
-
-        <Card className="bg-card border-border/50">
-          <CardHeader>
-            <CardTitle>Atividade Recente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loadingAtiv ? (
-              <div className="space-y-4">
-                {[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {atividade?.map((item) => (
-                  <div key={item.id} className="flex items-start gap-4 p-3 hover:bg-muted/30 transition-colors rounded-lg">
-                    <div className="mt-1 p-2 bg-primary/10 rounded-full">
-                      <Clock className="w-4 h-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{item.descricao}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.pacienteNome && <span className="mr-2">Paciente: {item.pacienteNome}</span>}
-                        {item.usuarioNome && <span>Por: {item.usuarioNome}</span>}
-                      </p>
-                    </div>
-                    <div className="ml-auto text-xs text-muted-foreground">
-                      {new Date(item.criadoEm).toLocaleTimeString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        )}
       </div>
     </Layout>
   );

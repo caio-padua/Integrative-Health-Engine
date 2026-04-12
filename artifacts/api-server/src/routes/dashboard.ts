@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable, unidadesTable, delegacoesTable, demandasServicoTable, CUSTO_POR_COMPLEXIDADE, REMUNERACAO_CONSULTOR, PLANOS_ACOMPANHAMENTO, consultorUnidadesTable } from "@workspace/db";
+import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable, unidadesTable, delegacoesTable, demandasServicoTable, CUSTO_POR_COMPLEXIDADE, REMUNERACAO_CONSULTOR, PLANOS_ACOMPANHAMENTO, consultorUnidadesTable, faturamentoMensalTable, contratoClinicaTable, usuariosTable } from "@workspace/db";
 import { eq, and, gte, lt, sum, count, desc, sql, ne, inArray } from "drizzle-orm";
 
 const router = Router();
@@ -425,6 +425,120 @@ router.get("/dashboard/dono-clinica/:unidadeId", async (req, res): Promise<void>
   } catch (err) {
     console.error("Erro dashboard dono clinica:", err);
     res.status(500).json({ error: "Erro ao carregar dashboard dono clinica" });
+  }
+});
+
+router.get("/dashboard/cockpit", async (req, res): Promise<void> => {
+  try {
+    const vinculosConsultor = await db.select({ unidadeId: consultorUnidadesTable.unidadeId }).from(consultorUnidadesTable);
+    const idsConsultoria = new Set(vinculosConsultor.map(v => v.unidadeId));
+    const todasUnidades = await db.select().from(unidadesTable);
+    const unidades = todasUnidades.filter(u => idsConsultoria.has(u.id));
+    const unidadeMap = new Map(unidades.map(u => [u.id, u]));
+
+    const mes = new Date().getMonth() + 1;
+    const ano = new Date().getFullYear();
+
+    const faturas = await db.select().from(faturamentoMensalTable);
+    const faturasMes = faturas.filter(f => f.mes === mes && f.ano === ano);
+    const receitaMes = faturasMes.reduce((a, f) => a + parseFloat(f.valorTotal as string), 0);
+    const custoMes = faturasMes.reduce((a, f) => a + parseFloat(f.custoConsultores as string), 0);
+    const lucroMes = faturasMes.reduce((a, f) => a + parseFloat(f.lucroEstimado as string), 0);
+    const margemLucro = receitaMes > 0 ? Math.round((lucroMes / receitaMes) * 100) : 0;
+
+    const contratos = await db.select().from(contratoClinicaTable);
+    const contratosAtivos = contratos.filter(c => c.status === "ativo").length;
+
+    const demandas = await db.select().from(demandasServicoTable);
+    const demandasAbertas = demandas.filter(d => d.status === "aberta").length;
+    const demandasEmAtendimento = demandas.filter(d => d.status === "em_atendimento").length;
+    const demandasConcluidas = demandas.filter(d => d.status === "concluida").length;
+    const demandasTotal = demandas.length;
+    const porComplexidade = {
+      verde: demandas.filter(d => d.complexidade === "verde").length,
+      amarela: demandas.filter(d => d.complexidade === "amarela").length,
+      vermelha: demandas.filter(d => d.complexidade === "vermelha").length,
+    };
+
+    const consultores = await db.select().from(usuariosTable).where(eq(usuariosTable.escopo, "consultor_campo"));
+    const metaMensal = 40;
+    const rankingConsultores = consultores.map(c => {
+      const demandasConsultor = demandas.filter(d => d.consultorId === c.id && d.status === "concluida");
+      const verdes = demandasConsultor.filter(d => d.complexidade === "verde").length;
+      const amarelas = demandasConsultor.filter(d => d.complexidade === "amarela").length;
+      const vermelhas = demandasConsultor.filter(d => d.complexidade === "vermelha").length;
+      const total = demandasConsultor.length;
+      const comissao = verdes * REMUNERACAO_CONSULTOR.comissaoPorComplexidade.verde + amarelas * REMUNERACAO_CONSULTOR.comissaoPorComplexidade.amarela + vermelhas * REMUNERACAO_CONSULTOR.comissaoPorComplexidade.vermelha;
+      const progressoMeta = Math.min(100, Math.round((total / metaMensal) * 100));
+
+      return {
+        id: c.id,
+        nome: c.nome,
+        total,
+        verdes,
+        amarelas,
+        vermelhas,
+        comissao,
+        progressoMeta,
+      };
+    }).sort((a, b) => b.total - a.total);
+
+    const delegacoes = await db.select().from(delegacoesTable);
+    const agora = new Date();
+    const delegAtrasadas = delegacoes.filter(d => {
+      if (d.status === "atrasado") return true;
+      if ((d.status === "pendente" || d.status === "em_andamento") && d.dataLimite && new Date(d.dataLimite) < agora) return true;
+      return false;
+    }).length;
+
+    const pacientes = await db.select().from(pacientesTable);
+    const pacientesAtivos = pacientes.filter(p => p.statusAtivo);
+    const slaResumo = {
+      diamante: pacientesAtivos.filter(p => p.planoAcompanhamento === "diamante").length,
+      ouro: pacientesAtivos.filter(p => p.planoAcompanhamento === "ouro").length,
+      prata: pacientesAtivos.filter(p => p.planoAcompanhamento === "prata").length,
+      cobre: pacientesAtivos.filter(p => !p.planoAcompanhamento || p.planoAcompanhamento === "cobre").length,
+    };
+
+    const porClinicaFinanceiro = faturasMes.map(f => {
+      const unidade = unidadeMap.get(f.unidadeId);
+      const contrato = contratos.find(c => c.id === f.contratoId);
+      return {
+        unidadeId: f.unidadeId,
+        nome: unidade?.nome || "Desconhecida",
+        cor: unidade?.cor || "#6B7280",
+        receita: parseFloat(f.valorTotal as string),
+        lucro: parseFloat(f.lucroEstimado as string),
+        modelo: contrato?.modeloCobranca || "por_demanda",
+        demandas: f.totalDemandasVerdes + f.totalDemandasAmarelas + f.totalDemandasVermelhas,
+      };
+    });
+
+    res.json({
+      financeiro: {
+        receitaMes: Math.round(receitaMes),
+        custoMes: Math.round(custoMes),
+        lucroMes: Math.round(lucroMes),
+        margemLucro,
+        contratosAtivos,
+      },
+      demandas: {
+        total: demandasTotal,
+        abertas: demandasAbertas,
+        emAtendimento: demandasEmAtendimento,
+        concluidas: demandasConcluidas,
+        porComplexidade,
+      },
+      consultores: rankingConsultores,
+      sla: slaResumo,
+      delegacoesAtrasadas: delegAtrasadas,
+      porClinicaFinanceiro,
+      totalPacientes: pacientes.length,
+      totalClinicas: unidades.length,
+    });
+  } catch (err) {
+    console.error("Erro dashboard cockpit:", err);
+    res.status(500).json({ error: "Erro ao carregar cockpit" });
   }
 });
 
