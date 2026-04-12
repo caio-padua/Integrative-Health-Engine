@@ -180,3 +180,9 @@ id = "_ceVpfjTn0b_Fs9ivTn7U"
 uri = "file://screenshots/q013-final-diax-potx.jpg"
 type = "image"
 title = "Q013 - DIAX (violeta) e POTX (vermelho) com seleções ativas"
+
+[[outputs]]
+id = "_HcNZF2oykrFRJMe-5ZEz"
+uri = "file://screenshots/q013-diax-red-potx-orange.jpg"
+type = "image"
+title = "Q013 Final - DIAX (vermelho) e POTX (laranja avermelhado)"
