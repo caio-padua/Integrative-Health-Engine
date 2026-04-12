@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable } from "@workspace/db";
-import { eq, and, gte, lt, sum, count } from "drizzle-orm";
+import { db, pacientesTable, anamnesesTable, sugestoesTable, followupsTable, pagamentosTable, filasTable, sessoesTable, registroSubstanciaUsoTable, alertaPacienteTable, trackingSintomasTable, monitoramentoSinaisVitaisTable } from "@workspace/db";
+import { eq, and, gte, lt, sum, count, desc, sql, ne, inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -111,6 +111,156 @@ router.get("/dashboard/filas-resumo", async (req, res): Promise<void> => {
   const totalUrgente = filtradas.filter(f => f.prioridade === "urgente").length;
 
   res.json({ anamnese, validacao, procedimento, followup, pagamento, totalUrgente });
+});
+
+router.get("/dashboard/comando", async (req, res): Promise<void> => {
+  try {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const inicioSemana = new Date(hoje);
+    inicioSemana.setDate(inicioSemana.getDate() - 7);
+
+    const [totalPac] = await db.select({ count: count() }).from(pacientesTable);
+
+    const sessoesAll = await db.select({
+      id: sessoesTable.id,
+      pacienteId: sessoesTable.pacienteId,
+      status: sessoesTable.status,
+      dataAgendada: sessoesTable.dataAgendada,
+      tipoServico: sessoesTable.tipoServico,
+    }).from(sessoesTable);
+
+    const sessoesSemana = sessoesAll.filter(s => {
+      const d = new Date(s.dataAgendada);
+      return d >= inicioSemana && d <= hoje;
+    });
+    const sessoesHoje = sessoesAll.filter(s => {
+      const d = new Date(s.dataAgendada);
+      return d.toDateString() === hoje.toDateString();
+    });
+    const sessoesAmanha = sessoesAll.filter(s => {
+      const amanha = new Date(hoje);
+      amanha.setDate(amanha.getDate() + 1);
+      const d = new Date(s.dataAgendada);
+      return d.toDateString() === amanha.toDateString();
+    });
+    const faltas = sessoesAll.filter(s => s.status === "faltou");
+    const faltasSemana = faltas.filter(s => {
+      const d = new Date(s.dataAgendada);
+      return d >= inicioSemana;
+    });
+
+    const substUso = await db.select({
+      id: registroSubstanciaUsoTable.id,
+      pacienteId: registroSubstanciaUsoTable.pacienteId,
+      substanciaNome: registroSubstanciaUsoTable.substanciaNome,
+      tipo: registroSubstanciaUsoTable.tipo,
+      dose: registroSubstanciaUsoTable.dose,
+      status: registroSubstanciaUsoTable.status,
+      dataInicio: registroSubstanciaUsoTable.dataInicio,
+    }).from(registroSubstanciaUsoTable);
+
+    const substanciaMap: Record<string, { total: number; ativos: number; pausados: number; pacientes: string[] }> = {};
+    for (const u of substUso) {
+      if (!substanciaMap[u.substanciaNome]) {
+        substanciaMap[u.substanciaNome] = { total: 0, ativos: 0, pausados: 0, pacientes: [] };
+      }
+      substanciaMap[u.substanciaNome].total++;
+      if (u.status === "ATIVO") substanciaMap[u.substanciaNome].ativos++;
+      if (u.status === "PAUSADO") substanciaMap[u.substanciaNome].pausados++;
+      substanciaMap[u.substanciaNome].pacientes.push(String(u.pacienteId));
+    }
+    const substanciasResumo = Object.entries(substanciaMap).map(([nome, data]) => ({
+      nome,
+      ...data,
+      pacientesUnicos: [...new Set(data.pacientes)].length,
+    })).sort((a, b) => b.ativos - a.ativos);
+
+    const alertas = await db.select({
+      id: alertaPacienteTable.id,
+      pacienteId: alertaPacienteTable.pacienteId,
+      tipoAlerta: alertaPacienteTable.tipoAlerta,
+      descricao: alertaPacienteTable.descricao,
+      gravidade: alertaPacienteTable.gravidade,
+      status: alertaPacienteTable.status,
+      criadoEm: alertaPacienteTable.criadoEm,
+    }).from(alertaPacienteTable).orderBy(desc(alertaPacienteTable.criadoEm));
+
+    const alertasAbertos = alertas.filter(a => a.status === "ABERTO");
+    const alertasGraves = alertasAbertos.filter(a => a.gravidade === "GRAVE");
+
+    const pacientesIds = [...new Set([
+      ...sessoesAll.map(s => s.pacienteId),
+      ...substUso.map(s => s.pacienteId),
+      ...alertas.map(a => a.pacienteId),
+    ])].filter(Boolean);
+
+    let pacientesNomes: Record<number, string> = {};
+    if (pacientesIds.length > 0) {
+      const pacs = await db.select({
+        id: pacientesTable.id,
+        nome: pacientesTable.nome,
+      }).from(pacientesTable);
+      for (const p of pacs) {
+        pacientesNomes[p.id] = p.nome;
+      }
+    }
+
+    const faltasDetalhes = faltasSemana.map(s => ({
+      pacienteId: s.pacienteId,
+      pacienteNome: pacientesNomes[s.pacienteId!] || `Paciente ${s.pacienteId}`,
+      data: s.dataAgendada,
+      tipo: s.tipoServico,
+    }));
+
+    const alertasDetalhes = alertasAbertos.map(a => ({
+      id: a.id,
+      pacienteId: a.pacienteId,
+      pacienteNome: pacientesNomes[a.pacienteId!] || `Paciente ${a.pacienteId}`,
+      tipo: a.tipoAlerta,
+      descricao: a.descricao,
+      gravidade: a.gravidade,
+      criadoEm: a.criadoEm,
+    }));
+
+    const sessoesUltimaSemana = sessoesSemana.map(s => ({
+      pacienteId: s.pacienteId,
+      pacienteNome: pacientesNomes[s.pacienteId!] || `Paciente ${s.pacienteId}`,
+      status: s.status,
+      data: s.dataAgendada,
+      tipo: s.tipoServico,
+    }));
+
+    const statusSessoes = {
+      total: sessoesAll.length,
+      agendadas: sessoesAll.filter(s => s.status === "agendada").length,
+      confirmadas: sessoesAll.filter(s => s.status === "confirmada").length,
+      concluidas: sessoesAll.filter(s => s.status === "concluida").length,
+      faltas: faltas.length,
+      canceladas: sessoesAll.filter(s => s.status === "cancelada").length,
+    };
+
+    res.json({
+      resumoGeral: {
+        totalPacientes: totalPac.count,
+        sessoesHoje: sessoesHoje.length,
+        sessoesAmanha: sessoesAmanha.length,
+        sessoesSemana: sessoesSemana.length,
+        faltasSemana: faltasSemana.length,
+        alertasAbertos: alertasAbertos.length,
+        alertasGraves: alertasGraves.length,
+        substanciasEmUso: substUso.filter(s => s.status === "ATIVO").length,
+      },
+      statusSessoes,
+      substanciasResumo,
+      alertasDetalhes,
+      faltasDetalhes,
+      sessoesUltimaSemana,
+    });
+  } catch (err) {
+    console.error("Erro dashboard comando:", err);
+    res.status(500).json({ error: "Erro ao carregar painel de comando" });
+  }
 });
 
 export default router;

@@ -38,6 +38,7 @@ import PortalClientePage from "@/pages/portal";
 import GovernancaPage from "@/pages/governanca";
 import MonitoramentoPacientePage from "@/pages/pacientes/monitoramento";
 import SegurancaPage from "@/pages/seguranca";
+import PainelComandoPage from "@/pages/painel-comando";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +85,7 @@ function Router() {
       <Route path="/portal" component={PortalClientePage} />
       <Route path="/governanca" component={GovernancaPage} />
       <Route path="/seguranca" component={SegurancaPage} />
+      <Route path="/painel-comando" component={PainelComandoPage} />
       <Route component={NotFound} />
     </Switch>
   );

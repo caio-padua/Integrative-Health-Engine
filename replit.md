@@ -28,6 +28,7 @@ Key architectural decisions and features:
 - **Patient Monitoring:** Includes schemas and routes for tracking vital signs, symptoms, formula adherence, and patient-created alerts.
 - **WhatsApp Integration:** Unified service for sending messages via Twilio or Gupshup, with templated clinical messages and status tracking.
 - **Google Drive Backup:** Automated full source code backup to Google Drive, including all key project files in multiple formats (Google Doc, TXT, MD) and an accessible JSON endpoint for AI consumption.
+- **Painel de Comando:** Real-time command dashboard with micro-matrices showing: substance usage tracking (who uses Vit D, Glutationa, etc.), session status breakdown (agendadas/concluídas/faltas), clinical alerts with severity badges (GRAVE/MODERADO/LEVE), and no-show tracking. Four tabs: Visão Geral, "Quem usa o que?", Sessões da Semana, Alertas Clínicos. API endpoint at `/api/dashboard/comando`.
 
 ## External Dependencies
 
