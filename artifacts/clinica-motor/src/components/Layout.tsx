@@ -31,7 +31,8 @@ import {
   Star,
   Upload,
   Shield,
-  Lock
+  Lock,
+  Radar
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -43,6 +44,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const menuItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["validador_mestre"] },
+    { name: "Painel de Comando", path: "/painel-comando", icon: Radar, roles: ["validador_mestre", "medico_tecnico"] },
     { name: "Governanca", path: "/governanca", icon: Shield, roles: ["validador_mestre", "medico_tecnico"] },
     { name: "Anamnese", path: "/anamnese", icon: ClipboardList, roles: ["enfermeira", "validador_enfermeiro", "medico_tecnico", "validador_mestre"] },
     { name: "Validação", path: "/validacao", icon: CheckSquare, roles: ["validador_enfermeiro", "medico_tecnico", "validador_mestre"] },
