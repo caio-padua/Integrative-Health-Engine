@@ -10,6 +10,8 @@ import {
   listClientFiles,
   listSubfolderContents,
   formatFileName,
+  getDriveClient,
+  escapeDriveQuery,
   CLIENT_SUBFOLDERS,
   type ClientSubfolder,
 } from "../lib/google-drive.js";
@@ -196,6 +198,52 @@ router.post("/google-drive/sandbox-cadastro/:pacienteId", async (req, res) => {
 
 router.get("/google-drive/subfolders", (_req, res) => {
   res.json({ subfolders: CLIENT_SUBFOLDERS });
+});
+
+router.get("/google-drive/search", async (req, res) => {
+  try {
+    const { name, folderId, mimeType } = req.query;
+    const drive = await getDriveClient();
+    const conditions: string[] = ['trashed=false'];
+    if (name) conditions.push(`name contains '${escapeDriveQuery(String(name))}'`);
+    if (folderId) conditions.push(`'${String(folderId)}' in parents`);
+    if (mimeType) conditions.push(`mimeType='${String(mimeType)}'`);
+    const result = await drive.files.list({
+      q: conditions.join(' and '),
+      fields: 'files(id, name, mimeType, modifiedTime, size, webViewLink)',
+      spaces: 'drive',
+      pageSize: 100,
+      orderBy: 'name',
+    });
+    res.json(result.data.files || []);
+  } catch (err: any) {
+    console.error('[Drive] search error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/google-drive/export-text/:fileId", async (req, res) => {
+  try {
+    const drive = await getDriveClient();
+    const fileId = req.params.fileId;
+    const meta = await drive.files.get({ fileId, fields: 'mimeType,name' });
+    const mime = meta.data.mimeType || '';
+    let text = '';
+    const isNativeGoogle = mime.includes('google-apps.');
+    if (isNativeGoogle && mime.includes('spreadsheet')) {
+      const exp = await drive.files.export({ fileId, mimeType: 'text/csv' });
+      text = String(exp.data);
+    } else if (isNativeGoogle) {
+      const exp = await drive.files.export({ fileId, mimeType: 'text/plain' });
+      text = String(exp.data);
+    } else {
+      text = `[Arquivo binario: ${meta.data.name}] — mimeType: ${mime} — Nao e possivel exportar como texto. Use webViewLink para visualizar.`;
+    }
+    res.json({ name: meta.data.name, mimeType: mime, text });
+  } catch (err: any) {
+    console.error('[Drive] export error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;
