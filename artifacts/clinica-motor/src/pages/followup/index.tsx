@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { useClinic } from "@/contexts/ClinicContext";
 
 const followupSchema = z.object({
   pacienteId: z.coerce.number().min(1, "Paciente é obrigatório"),
@@ -40,14 +41,16 @@ const followupSchema = z.object({
 export default function FollowupPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { unidadeSelecionada } = useClinic();
   const queryClient = useQueryClient();
   
-  const { data: followups, isLoading } = useListarFollowups({}, {
-    query: { queryKey: getListarFollowupsQueryKey({}) }
+  const clinicFilter = unidadeSelecionada ? { unidadeId: unidadeSelecionada } : {};
+  const { data: followups, isLoading } = useListarFollowups(clinicFilter, {
+    query: { queryKey: getListarFollowupsQueryKey(clinicFilter) }
   });
 
-  const { data: pacientes } = useListarPacientes({}, {
-    query: { queryKey: getListarPacientesQueryKey({}) }
+  const { data: pacientes } = useListarPacientes(clinicFilter, {
+    query: { queryKey: getListarPacientesQueryKey(clinicFilter) }
   });
   
   const [open, setOpen] = useState(false);

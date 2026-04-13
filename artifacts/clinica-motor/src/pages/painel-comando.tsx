@@ -10,6 +10,7 @@ import {
   Flame, Eye, ChevronRight, Shield
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
+import { useClinic } from "@/contexts/ClinicContext";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
@@ -148,17 +149,20 @@ function MicroMatriz({ title, icon: Icon, items, emptyText, renderItem }: {
 }
 
 export default function PainelComando() {
+  const { unidadeSelecionada, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas } = useClinic();
   const [data, setData] = useState<DashboardComando | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSubstancia, setSelectedSubstancia] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("visao-geral");
 
   useEffect(() => {
-    fetch(`${API_BASE}/dashboard/comando`)
+    setLoading(true);
+    const params = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
+    fetch(`${API_BASE}/dashboard/comando${params}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [unidadeSelecionada]);
 
   if (loading) {
     return (
@@ -212,7 +216,10 @@ export default function PainelComando() {
               Painel de Comando
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Visao em tempo real de toda a operacao clinica
+              {isTodasClinicas
+                ? "Visao em tempo real de toda a operacao clinica"
+                : <span>Operacao clinica — <span style={{ color: corUnidadeSelecionada || "#6B7280" }} className="font-medium">{nomeUnidadeSelecionada}</span></span>
+              }
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

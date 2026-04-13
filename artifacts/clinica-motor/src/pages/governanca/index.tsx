@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from "react";
@@ -458,6 +459,7 @@ function SubDashboardExames({
 
 export default function Governanca() {
   const { user } = useAuth();
+  const { unidadeSelecionada } = useClinic();
   const [painel, setPainel] = useState<PainelData | null>(null);
   const [semaforo, setSemaforo] = useState<SemaforoData | null>(null);
   const [timeline, setTimeline] = useState<EventoTimeline[]>([]);
@@ -481,14 +483,16 @@ export default function Governanca() {
 
   const carregarDados = async () => {
     setCarregando(true);
+    const uf = unidadeSelecionada ? `unidadeId=${unidadeSelecionada}` : "";
+    const q = (base: string) => base.includes("?") ? `${base}&${uf}` : `${base}?${uf}`;
     try {
       const [painelRes, semaforoRes, timelineRes, filaRes, examesRes, whatsappRes] = await Promise.all([
-        fetchApi<PainelData>("/governanca/painel"),
-        fetchApi<SemaforoData>("/governanca/semaforo"),
-        fetchApi<{ eventos: EventoTimeline[] }>("/governanca/timeline?limite=15"),
-        fetchApi<FilaStats>("/fila-preceptor/stats"),
-        fetchApi<ExamesSemaforoGeral>("/exames/semaforo-geral"),
-        fetchApi<typeof whatsappMensagens>("/whatsapp/mensagens?limite=10").catch(() => []),
+        fetchApi<PainelData>(uf ? q("/governanca/painel") : "/governanca/painel"),
+        fetchApi<SemaforoData>(uf ? q("/governanca/semaforo") : "/governanca/semaforo"),
+        fetchApi<{ eventos: EventoTimeline[] }>(uf ? q("/governanca/timeline?limite=15") : "/governanca/timeline?limite=15"),
+        fetchApi<FilaStats>(uf ? q("/fila-preceptor/stats") : "/fila-preceptor/stats"),
+        fetchApi<ExamesSemaforoGeral>(uf ? q("/exames/semaforo-geral") : "/exames/semaforo-geral"),
+        fetchApi<typeof whatsappMensagens>(uf ? q("/whatsapp/mensagens?limite=10") : "/whatsapp/mensagens?limite=10").catch(() => []),
       ]);
       setPainel(painelRes);
       setSemaforo(semaforoRes);
@@ -506,13 +510,13 @@ export default function Governanca() {
 
   useEffect(() => {
     if (user) carregarDados();
-  }, [user]);
+  }, [user, unidadeSelecionada]);
 
   useEffect(() => {
     if (!user) return;
     const intervalo = setInterval(carregarDados, 60000);
     return () => clearInterval(intervalo);
-  }, [user]);
+  }, [user, unidadeSelecionada]);
 
   const abrirSubDashboardExames = () => {
     const id = parseInt(pacienteIdInput, 10);
