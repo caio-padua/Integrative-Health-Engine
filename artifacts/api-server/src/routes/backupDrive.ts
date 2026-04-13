@@ -3,6 +3,7 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { getDriveClient } from "../lib/google-drive.js";
 
 const router = Router();
 
@@ -377,83 +378,33 @@ function formatSourceForMd(sourceCode: string): string {
   return result.join("\n\n");
 }
 
-async function uploadSmallFile(
-  connectors: ReplitConnectors,
+async function uploadFileDirect(
   fileName: string,
-  content: Buffer | string,
-  mimeType: string
+  content: string,
+  mimeType: string,
+  convertToGoogleDoc: boolean = false
 ): Promise<any> {
-  const boundary = "----BackupBoundary" + Date.now();
-  const metadata = JSON.stringify({ name: fileName, parents: [DRIVE_FOLDER_CODIGOS] });
-  const fileBuffer = Buffer.isBuffer(content) ? content : Buffer.from(content, "utf-8");
+  const drive = await getDriveClient();
+  const { Readable } = await import("stream");
 
-  const body = Buffer.concat([
-    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`),
-    Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
-    fileBuffer,
-    Buffer.from(`\r\n--${boundary}--\r\n`),
-  ]);
-
-  const response = await connectors.proxy("google-drive", "/upload/drive/v3/files?uploadType=multipart", {
-    method: "POST",
-    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
-    body,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Drive upload falhou (${response.status}):`, errorText.slice(0, 300));
-    throw new Error(`Upload falhou com status ${response.status}`);
-  }
-
-  const text = await response.text();
-  const parsed = JSON.parse(text);
-  if (!parsed.id || !parsed.name) {
-    console.error("Drive retornou resposta incompleta:", text.slice(0, 300));
-    throw new Error("Upload retornou resposta incompleta do Drive");
-  }
-  return parsed;
-}
-
-async function uploadAsGoogleDoc(
-  connectors: ReplitConnectors,
-  fileName: string,
-  plainTextContent: string
-): Promise<any> {
-  const boundary = "----BackupBoundary" + Date.now();
-  const metadata = JSON.stringify({
+  const requestBody: any = {
     name: fileName,
     parents: [DRIVE_FOLDER_CODIGOS],
-    mimeType: "application/vnd.google-apps.document",
-  });
-  const textBuffer = Buffer.from(plainTextContent, "utf-8");
-
-  const body = Buffer.concat([
-    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`),
-    Buffer.from(`--${boundary}\r\nContent-Type: text/plain\r\n\r\n`),
-    textBuffer,
-    Buffer.from(`\r\n--${boundary}--\r\n`),
-  ]);
-
-  const response = await connectors.proxy("google-drive", "/upload/drive/v3/files?uploadType=multipart", {
-    method: "POST",
-    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
-    body,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Drive Google Doc upload falhou (${response.status}):`, errorText.slice(0, 300));
-    throw new Error(`Google Doc upload falhou com status ${response.status}`);
+  };
+  if (convertToGoogleDoc) {
+    requestBody.mimeType = "application/vnd.google-apps.document";
   }
 
-  const text = await response.text();
-  const parsed = JSON.parse(text);
-  if (!parsed.id || !parsed.name) {
-    console.error("Drive retornou resposta incompleta:", text.slice(0, 300));
-    throw new Error("Upload retornou resposta incompleta do Drive");
-  }
-  return parsed;
+  const res = await drive.files.create({
+    requestBody,
+    media: {
+      mimeType,
+      body: Readable.from(Buffer.from(content, "utf-8")),
+    },
+    fields: "id, name",
+  });
+
+  return { id: res.data.id, name: res.data.name };
 }
 
 async function deleteFileFromDrive(connectors: ReplitConnectors, fileId: string): Promise<void> {
@@ -511,14 +462,14 @@ router.post("/backup-drive", async (req, res) => {
 
     const plainText = generatePlainTextContent(resumo.trim(), dataHoje, versao);
 
-    const gdocResult = await uploadAsGoogleDoc(connectors, baseFileName, plainText);
+    const gdocResult = await uploadFileDirect(baseFileName, plainText, "text/plain", true);
     resultados.push({ tipo: "GOOGLE DOC", id: gdocResult.id, nome: gdocResult.name });
 
-    const txtResult = await uploadSmallFile(connectors, `${baseFileName}.txt`, plainText, "text/plain");
+    const txtResult = await uploadFileDirect(`${baseFileName}.txt`, plainText, "text/plain");
     resultados.push({ tipo: "TXT", id: txtResult.id, nome: txtResult.name });
 
     const mdContent = generateMdContent(resumo.trim(), dataHoje, versao);
-    const mdResult = await uploadSmallFile(connectors, `${baseFileName}.md`, mdContent, "text/markdown");
+    const mdResult = await uploadFileDirect(`${baseFileName}.md`, mdContent, "text/markdown");
     resultados.push({ tipo: "MD", id: mdResult.id, nome: mdResult.name });
 
     res.json({
