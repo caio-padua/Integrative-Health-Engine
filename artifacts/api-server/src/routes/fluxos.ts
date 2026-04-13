@@ -61,6 +61,66 @@ router.get("/permissoes", async (_req, res) => {
   }
 });
 
+// CRUD Fluxos
+router.post("/fluxos", async (req, res) => {
+  try {
+    const { id: _id, ...body } = req.body;
+    const [created] = await db.insert(fluxosAprovacoesTable).values(body).returning();
+    res.status(201).json(created);
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro ao criar etapa" }); }
+});
+
+router.put("/fluxos/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: "ID invalido" });
+    const { id: _id, ...body } = req.body;
+    const [updated] = await db.update(fluxosAprovacoesTable).set(body).where(eq(fluxosAprovacoesTable.id, id)).returning();
+    if (!updated) return res.status(404).json({ error: "Nao encontrado" });
+    res.json(updated);
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro ao atualizar" }); }
+});
+
+router.delete("/fluxos/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: "ID invalido" });
+    const [deleted] = await db.delete(fluxosAprovacoesTable).where(eq(fluxosAprovacoesTable.id, id)).returning();
+    if (!deleted) return res.status(404).json({ error: "Nao encontrado" });
+    res.json({ ok: true });
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro ao excluir" }); }
+});
+
+// CRUD Permissoes
+router.post("/permissoes", async (req, res) => {
+  try {
+    const { id: _id, ...body } = req.body;
+    const [created] = await db.insert(perfisPermissoesTable).values(body).returning();
+    res.status(201).json(created);
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro ao criar perfil" }); }
+});
+
+router.put("/permissoes/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: "ID invalido" });
+    const { id: _id, ...body } = req.body;
+    const [updated] = await db.update(perfisPermissoesTable).set(body).where(eq(perfisPermissoesTable.id, id)).returning();
+    if (!updated) return res.status(404).json({ error: "Nao encontrado" });
+    res.json(updated);
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro ao atualizar" }); }
+});
+
+router.delete("/permissoes/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: "ID invalido" });
+    const [deleted] = await db.delete(perfisPermissoesTable).where(eq(perfisPermissoesTable.id, id)).returning();
+    if (!deleted) return res.status(404).json({ error: "Nao encontrado" });
+    res.json({ ok: true });
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro ao excluir" }); }
+});
+
 // GET /mapa-blocos — lista exames do mapa bloco→exame
 router.get("/mapa-blocos", async (req, res) => {
   try {

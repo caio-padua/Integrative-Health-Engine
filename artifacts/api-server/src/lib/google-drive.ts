@@ -61,6 +61,7 @@ const CLIENT_SUBFOLDERS = [
   'IMAGENS',
   'PESQUISA',
   'OUVIDORIA',
+  'JURIDICO',
 ] as const;
 
 export type ClientSubfolder = typeof CLIENT_SUBFOLDERS[number];
