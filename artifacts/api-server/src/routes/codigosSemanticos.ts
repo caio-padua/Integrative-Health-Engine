@@ -70,6 +70,14 @@ router.put("/codigos-semanticos/:id", async (req, res) => {
   res.json(updated);
 });
 
+router.delete("/codigos-semanticos/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID deve ser numerico" }); return; }
+  const [deleted] = await db.delete(codigosSemanticosTable).where(eq(codigosSemanticosTable.id, id)).returning();
+  if (!deleted) { res.status(404).json({ error: "Codigo nao encontrado" }); return; }
+  res.json({ ok: true });
+});
+
 router.post("/codigos-semanticos/seed", async (_req, res) => {
   const count = await db.select({ count: sql<number>`count(*)` }).from(codigosSemanticosTable);
   if (Number(count[0].count) > 0) {
