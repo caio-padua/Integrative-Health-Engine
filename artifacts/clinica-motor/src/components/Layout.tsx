@@ -41,7 +41,8 @@ import {
   DollarSign,
   TrendingUp,
   Scale,
-  Grid3X3
+  Grid3X3,
+  UserCheck
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -117,24 +118,24 @@ export function Layout({ children }: { children: ReactNode }) {
       "financeiro", "unidades", "fluxos", "pedidos-exame", "substancias",
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
       "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
-      "configuracoes", "delegacao", "acompanhamento", "comissao", "comercial"
+      "configuracoes", "delegacao", "colaboradores", "acompanhamento", "comissao", "comercial"
     ],
     consultor_campo: [
-      "delegacao", "pacientes", "anamnese", "followup", "agenda",
+      "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
       "task-cards", "filas", "avaliacao-enfermagem", "estoque", "acompanhamento", "comissao",
       "justificativas"
     ],
     clinica_medico: [
       "anamnese", "validacao", "pacientes", "itens-terapeuticos",
-      "pedidos-exame", "agenda", "ras", "ras-evolutivo", "followup", "delegacao"
+      "pedidos-exame", "agenda", "ras", "ras-evolutivo", "followup", "delegacao", "colaboradores"
     ],
     clinica_enfermeira: [
       "anamnese", "filas", "pacientes", "followup", "agenda",
-      "estoque", "avaliacao-enfermagem", "task-cards", "delegacao"
+      "estoque", "avaliacao-enfermagem", "task-cards", "delegacao", "colaboradores"
     ],
     clinica_admin: [
       "anamnese", "filas", "pacientes", "followup", "agenda",
-      "estoque", "avaliacao-enfermagem", "task-cards", "financeiro", "delegacao"
+      "estoque", "avaliacao-enfermagem", "task-cards", "financeiro", "delegacao", "colaboradores"
     ],
   };
 
@@ -168,6 +169,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
     { name: "Seguranca", path: "/seguranca", icon: Lock, slug: "seguranca" },
     { name: "Delegacao", path: "/delegacao", icon: Send, slug: "delegacao" },
+    { name: "Colaboradores & RH", path: "/colaboradores", icon: UserCheck, slug: "colaboradores" },
     { name: "Acompanhamento", path: "/acompanhamento", icon: Diamond, slug: "acompanhamento" },
     { name: "Comissao & Metas", path: "/comissao", icon: DollarSign, slug: "comissao" },
     { name: "Comercial", path: "/comercial", icon: TrendingUp, slug: "comercial" },

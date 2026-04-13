@@ -41,6 +41,7 @@ import MonitoramentoPacientePage from "@/pages/pacientes/monitoramento";
 import SegurancaPage from "@/pages/seguranca";
 import PainelComandoPage from "@/pages/painel-comando";
 import DelegacaoPage from "@/pages/delegacao";
+import ColaboradoresPage from "@/pages/colaboradores";
 import AcompanhamentoPage from "@/pages/acompanhamento";
 import ComissaoPage from "@/pages/comissao";
 import ComercialPage from "@/pages/comercial";
@@ -95,6 +96,7 @@ function Router() {
       <Route path="/seguranca" component={SegurancaPage} />
       <Route path="/painel-comando" component={PainelComandoPage} />
       <Route path="/delegacao" component={DelegacaoPage} />
+      <Route path="/colaboradores" component={ColaboradoresPage} />
       <Route path="/acompanhamento" component={AcompanhamentoPage} />
       <Route path="/comissao" component={ComissaoPage} />
       <Route path="/comercial" component={ComercialPage} />
