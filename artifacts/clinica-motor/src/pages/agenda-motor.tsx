@@ -247,19 +247,22 @@ function BookingModal({ slot, onClose, onBooked }: { slot: any; onClose: () => v
 function RulesModal({ onClose }: { onClose: () => void }) {
   const [rules, setRules] = useState<any[]>([]);
   const [profissionais, setProfissionais] = useState<any[]>([]);
+  const [subAgendaOptions, setSubAgendaOptions] = useState<SubAgenda[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ profissionalId: "", unidadeId: "1", diaSemana: "1", horaInicio: "08:00", horaFim: "12:00", duracaoSlotMin: "30", tipoProcedimento: "CONSULTA_30_PRESENCIAL" });
+  const [form, setForm] = useState({ profissionalId: "", unidadeId: "1", diaSemana: "1", horaInicio: "08:00", horaFim: "12:00", duracaoSlotMin: "30", tipoProcedimento: "CONSULTA_30_PRESENCIAL", subAgendaId: "" });
   const [saving, setSaving] = useState(false);
 
   const fetchRules = useCallback(async () => {
     setLoading(true);
     try {
-      const [rulesRes, profRes] = await Promise.all([
+      const [rulesRes, profRes, subRes] = await Promise.all([
         fetch(`${API_BASE}/agenda-motor/availability-rules`).then(r => r.json()),
         fetch(`${API_BASE}/usuarios`).then(r => r.json()),
+        fetch(`${API_BASE}/agenda-motor/sub-agendas`).then(r => r.json()),
       ]);
       setRules(rulesRes);
       setProfissionais(profRes);
+      setSubAgendaOptions(subRes);
     } catch (err) {
       console.error(err);
     } finally {
@@ -279,6 +282,7 @@ function RulesModal({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({
           profissionalId: Number(form.profissionalId),
           unidadeId: Number(form.unidadeId),
+          subAgendaId: form.subAgendaId ? Number(form.subAgendaId) : null,
           diaSemana: Number(form.diaSemana),
           horaInicio: form.horaInicio,
           horaFim: form.horaFim,
@@ -334,6 +338,13 @@ function RulesModal({ onClose }: { onClose: () => void }) {
             <select value={form.tipoProcedimento} onChange={e => setForm({...form, tipoProcedimento: e.target.value})}
               className="bg-background border border-border px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none">
               {Object.entries(TIPO_CORES).map(([k]) => <option key={k} value={k}>{k.split("_").join(" ")}</option>)}
+            </select>
+            <select value={form.subAgendaId} onChange={e => setForm({...form, subAgendaId: e.target.value})}
+              className="bg-background border border-border px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none">
+              <option value="">Sub-Agenda (opcional)</option>
+              {subAgendaOptions.filter(s => s.ativa).map(s => (
+                <option key={s.id} value={s.id}>{s.emoji || ""} {s.nome}</option>
+              ))}
             </select>
           </div>
           <Button size="sm" className="text-xs h-7" onClick={handleAdd} disabled={!form.profissionalId || saving}>
@@ -479,10 +490,10 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
   ];
 
   const fetchSubAgendas = useCallback(async () => {
-    if (!unidadeId) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/agenda-motor/sub-agendas?unidadeId=${unidadeId}`);
+      const params = unidadeId ? `?unidadeId=${unidadeId}` : "";
+      const res = await fetch(`${API_BASE}/agenda-motor/sub-agendas${params}`);
       const data = await res.json();
       setSubAgendas(data);
     } catch (err) {
@@ -495,13 +506,13 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
   useEffect(() => { fetchSubAgendas(); }, [fetchSubAgendas]);
 
   const handleSeed = async () => {
-    if (!unidadeId) return;
+    const seedUnidadeId = unidadeId || 1;
     setSeeding(true);
     try {
       await fetch(`${API_BASE}/agenda-motor/sub-agendas/seed`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unidadeId }),
+        body: JSON.stringify({ unidadeId: seedUnidadeId }),
       });
       await fetchSubAgendas();
       onSeedDone();
@@ -513,13 +524,14 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
   };
 
   const handleCreate = async () => {
-    if (!unidadeId || !newNome.trim()) return;
+    if (!newNome.trim()) return;
+    const createUnidadeId = unidadeId || 1;
     try {
       await fetch(`${API_BASE}/agenda-motor/sub-agendas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          unidadeId, nome: newNome.trim(), cor: newCor,
+          unidadeId: createUnidadeId, nome: newNome.trim(), cor: newCor,
           emoji: newEmoji || null, tipo: newTipo,
           modalidade: newModalidade, salaOuLocal: newSala || null,
         }),
@@ -732,8 +744,8 @@ export default function AgendaMotorPage() {
   }, []);
 
   useEffect(() => {
-    if (!unidadeSelecionada) return;
-    fetch(`${API_BASE}/agenda-motor/sub-agendas?unidadeId=${unidadeSelecionada}`)
+    const params = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
+    fetch(`${API_BASE}/agenda-motor/sub-agendas${params}`)
       .then(r => r.json())
       .then((subs: SubAgenda[]) => {
         setActiveSubAgendaIds(new Set(subs.filter(s => s.ativa).map(s => s.id)));
@@ -916,6 +928,10 @@ export default function AgendaMotorPage() {
             {data.days.map((day: any) => {
               const isToday = day.data === today;
               const isWeekend = day.diaSemana === 0 || day.diaSemana === 6;
+              const filteredSlots = activeSubAgendaIds.size > 0
+                ? day.slots.filter((s: any) => !s.subAgendaId || activeSubAgendaIds.has(s.subAgendaId))
+                : day.slots;
+              const filteredAppointments = day.appointments;
               return (
                 <div key={day.data} className={`border border-border ${isToday ? "ring-1 ring-primary" : ""} ${isWeekend ? "bg-muted/10" : ""}`}>
                   <div className={`px-2 py-1.5 border-b border-border ${isToday ? "bg-primary/10" : "bg-muted/20"}`}>
@@ -926,18 +942,18 @@ export default function AgendaMotorPage() {
                       {day.data.slice(8, 10)}/{day.data.slice(5, 7)}
                     </div>
                     <div className="text-[9px] text-muted-foreground">
-                      {day.slots.length}s • {day.appointments.length}a
+                      {filteredSlots.length}s • {filteredAppointments.length}a
                     </div>
                   </div>
                   <div className="divide-y divide-border/30 max-h-[500px] overflow-y-auto">
-                    {day.slots.length === 0 && day.appointments.length === 0 ? (
+                    {filteredSlots.length === 0 && filteredAppointments.length === 0 ? (
                       <div className="p-3 text-center text-[10px] text-muted-foreground/30">—</div>
                     ) : (
-                      day.slots.map((slot: any) => (
+                      filteredSlots.map((slot: any) => (
                         <SlotCell
                           key={slot.id}
                           slot={slot}
-                          appointments={day.appointments}
+                          appointments={filteredAppointments}
                           onBook={setBookingSlot}
                           onBlock={handleBlock}
                           onUnblock={handleUnblock}
