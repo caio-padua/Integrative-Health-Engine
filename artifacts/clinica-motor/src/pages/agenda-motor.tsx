@@ -7,7 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock,
   Settings2, RefreshCw, X, User, Phone, ArrowRightLeft,
-  Lock, Unlock, Trash2, CloudUpload, Layers, AlertTriangle
+  Lock, Unlock, Trash2, CloudUpload, Layers, AlertTriangle,
+  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Palette, Check
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -438,6 +439,274 @@ function GenerateSlotsModal({ onClose, onGenerated }: { onClose: () => void; onG
   );
 }
 
+interface SubAgenda {
+  id: number;
+  nome: string;
+  cor: string;
+  emoji: string | null;
+  tipo: string;
+  profissionalId: number | null;
+  profissionalNome: string | null;
+  modalidade: string;
+  salaOuLocal: string | null;
+  ativa: boolean;
+  ordem: number;
+}
+
+function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
+  unidadeId: number | null;
+  activeIds: Set<number>;
+  onToggle: (id: number) => void;
+  onSeedDone: () => void;
+}) {
+  const [subAgendas, setSubAgendas] = useState<SubAgenda[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editCor, setEditCor] = useState("");
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newNome, setNewNome] = useState("");
+  const [newCor, setNewCor] = useState("#3B82F6");
+  const [newEmoji, setNewEmoji] = useState("");
+  const [newTipo, setNewTipo] = useState("medico");
+  const [newModalidade, setNewModalidade] = useState("presencial");
+  const [newSala, setNewSala] = useState("");
+
+  const PRESET_CORES = [
+    "#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444",
+    "#EC4899", "#06B6D4", "#F97316", "#64748B", "#84CC16",
+    "#14B8A6", "#A855F7", "#D946EF", "#0EA5E9",
+  ];
+
+  const fetchSubAgendas = useCallback(async () => {
+    if (!unidadeId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/agenda-motor/sub-agendas?unidadeId=${unidadeId}`);
+      const data = await res.json();
+      setSubAgendas(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [unidadeId]);
+
+  useEffect(() => { fetchSubAgendas(); }, [fetchSubAgendas]);
+
+  const handleSeed = async () => {
+    if (!unidadeId) return;
+    setSeeding(true);
+    try {
+      await fetch(`${API_BASE}/agenda-motor/sub-agendas/seed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unidadeId }),
+      });
+      await fetchSubAgendas();
+      onSeedDone();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!unidadeId || !newNome.trim()) return;
+    try {
+      await fetch(`${API_BASE}/agenda-motor/sub-agendas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unidadeId, nome: newNome.trim(), cor: newCor,
+          emoji: newEmoji || null, tipo: newTipo,
+          modalidade: newModalidade, salaOuLocal: newSala || null,
+        }),
+      });
+      setNewNome(""); setNewEmoji(""); setNewSala(""); setShowNewForm(false);
+      await fetchSubAgendas();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateCor = async (id: number, cor: string) => {
+    try {
+      await fetch(`${API_BASE}/agenda-motor/sub-agendas/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cor }),
+      });
+      setEditingId(null);
+      await fetchSubAgendas();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleAtiva = async (sub: SubAgenda) => {
+    try {
+      await fetch(`${API_BASE}/agenda-motor/sub-agendas/${sub.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ativa: !sub.ativa }),
+      });
+      await fetchSubAgendas();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const allActive = subAgendas.filter(s => s.ativa).every(s => activeIds.has(s.id));
+
+  return (
+    <div className="w-56 shrink-0 border-r border-border bg-card/50 overflow-y-auto">
+      <div className="p-3 border-b border-border">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">Sub-Agendas</div>
+        {subAgendas.length > 0 && (
+          <button
+            onClick={() => {
+              const activeFiltered = subAgendas.filter(s => s.ativa);
+              if (allActive) {
+                activeFiltered.forEach(s => { if (activeIds.has(s.id)) onToggle(s.id); });
+              } else {
+                activeFiltered.forEach(s => { if (!activeIds.has(s.id)) onToggle(s.id); });
+              }
+            }}
+            className="text-[9px] text-primary hover:underline mb-1"
+          >
+            {allActive ? "Desmarcar todas" : "Marcar todas"}
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="p-3 space-y-2">
+          {[1,2,3].map(i => <Skeleton key={i} className="h-8" />)}
+        </div>
+      ) : subAgendas.length === 0 ? (
+        <div className="p-3 space-y-3">
+          <p className="text-[10px] text-muted-foreground text-center">Nenhuma sub-agenda cadastrada</p>
+          <Button size="sm" className="w-full text-xs h-7" onClick={handleSeed} disabled={seeding}>
+            {seeding ? "Criando..." : "Criar Sub-Agendas Padrao"}
+          </Button>
+        </div>
+      ) : (
+        <div className="divide-y divide-border/30">
+          {subAgendas.map(sub => (
+            <div key={sub.id} className={`group relative ${!sub.ativa ? "opacity-40" : ""}`}>
+              <div
+                className="flex items-center gap-2 px-3 py-2 hover:bg-muted/20 cursor-pointer"
+                onClick={() => sub.ativa && onToggle(sub.id)}
+              >
+                <div
+                  className="w-4 h-4 border-2 flex items-center justify-center shrink-0 transition-colors"
+                  style={{
+                    borderColor: sub.cor,
+                    backgroundColor: activeIds.has(sub.id) ? sub.cor : "transparent",
+                  }}
+                >
+                  {activeIds.has(sub.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-semibold text-foreground truncate flex items-center gap-1">
+                    {sub.emoji && <span>{sub.emoji}</span>}
+                    {sub.nome.replace(/^AGENDA\s+/, "").replace(/\s*—\s*/, " ")}
+                  </div>
+                  <div className="text-[9px] text-muted-foreground truncate">
+                    {sub.modalidade} {sub.salaOuLocal ? `• ${sub.salaOuLocal}` : ""}
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditingId(editingId === sub.id ? null : sub.id); setEditCor(sub.cor); }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                >
+                  <Palette className="w-3 h-3 text-muted-foreground" />
+                </button>
+              </div>
+
+              {editingId === sub.id && (
+                <div className="px-3 pb-2 space-y-1.5">
+                  <div className="flex flex-wrap gap-1">
+                    {PRESET_CORES.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => handleUpdateCor(sub.id, c)}
+                        className="w-5 h-5 border border-border/50 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => handleToggleAtiva(sub)}
+                    className="text-[9px] text-red-400 hover:underline flex items-center gap-1"
+                  >
+                    {sub.ativa ? <><EyeOff className="w-2.5 h-2.5" /> Desativar</> : <><Eye className="w-2.5 h-2.5" /> Ativar</>}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="p-3 border-t border-border">
+        {showNewForm ? (
+          <div className="space-y-2">
+            <input
+              type="text" value={newNome} onChange={e => setNewNome(e.target.value)}
+              placeholder="Nome da sub-agenda"
+              className="w-full bg-background border border-border px-2 py-1.5 text-[11px] text-foreground focus:border-primary focus:outline-none"
+            />
+            <div className="grid grid-cols-2 gap-1.5">
+              <input
+                type="text" value={newEmoji} onChange={e => setNewEmoji(e.target.value)}
+                placeholder="Emoji"
+                className="bg-background border border-border px-2 py-1.5 text-[11px] text-foreground focus:border-primary focus:outline-none"
+              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="color" value={newCor} onChange={e => setNewCor(e.target.value)}
+                  className="w-6 h-6 border-0 bg-transparent cursor-pointer"
+                />
+                <span className="text-[9px] text-muted-foreground">Cor</span>
+              </div>
+            </div>
+            <select value={newTipo} onChange={e => setNewTipo(e.target.value)}
+              className="w-full bg-background border border-border px-2 py-1.5 text-[11px] text-foreground focus:border-primary focus:outline-none">
+              <option value="medico">Medico</option>
+              <option value="enfermagem">Enfermagem</option>
+              <option value="exames">Exames</option>
+              <option value="administrativo">Administrativo</option>
+            </select>
+            <select value={newModalidade} onChange={e => setNewModalidade(e.target.value)}
+              className="w-full bg-background border border-border px-2 py-1.5 text-[11px] text-foreground focus:border-primary focus:outline-none">
+              <option value="presencial">Presencial</option>
+              <option value="online">Online</option>
+              <option value="domiciliar">Domiciliar</option>
+              <option value="remoto">Remoto</option>
+            </select>
+            <input
+              type="text" value={newSala} onChange={e => setNewSala(e.target.value)}
+              placeholder="Sala / Local"
+              className="w-full bg-background border border-border px-2 py-1.5 text-[11px] text-foreground focus:border-primary focus:outline-none"
+            />
+            <div className="flex gap-1.5">
+              <Button size="sm" className="flex-1 text-[10px] h-6" onClick={handleCreate} disabled={!newNome.trim()}>Criar</Button>
+              <Button variant="outline" size="sm" className="flex-1 text-[10px] h-6" onClick={() => setShowNewForm(false)}>Cancelar</Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" className="w-full text-[10px] h-7 gap-1" onClick={() => setShowNewForm(true)}>
+            <Plus className="w-3 h-3" /> Nova Sub-Agenda
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AgendaMotorPage() {
   const { unidadeSelecionada } = useClinic();
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
@@ -449,6 +718,29 @@ export default function AgendaMotorPage() {
   const [profissionalFilter, setProfissionalFilter] = useState("");
   const [processandoFaltas, setProcessandoFaltas] = useState(false);
   const [processandoLiberacao, setProcessandoLiberacao] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeSubAgendaIds, setActiveSubAgendaIds] = useState<Set<number>>(new Set());
+  const [subAgendasLoaded, setSubAgendasLoaded] = useState(false);
+
+  const handleToggleSubAgenda = useCallback((id: number) => {
+    setActiveSubAgendaIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!unidadeSelecionada) return;
+    fetch(`${API_BASE}/agenda-motor/sub-agendas?unidadeId=${unidadeSelecionada}`)
+      .then(r => r.json())
+      .then((subs: SubAgenda[]) => {
+        setActiveSubAgendaIds(new Set(subs.filter(s => s.ativa).map(s => s.id)));
+        setSubAgendasLoaded(true);
+      })
+      .catch(console.error);
+  }, [unidadeSelecionada]);
 
   const processarLiberacao = async () => {
     setProcessandoLiberacao(true);
@@ -533,15 +825,30 @@ export default function AgendaMotorPage() {
 
   return (
     <Layout>
-      <div className="space-y-4">
+      <div className="flex h-[calc(100vh-4rem)]">
+        {sidebarOpen && (
+          <SubAgendaSidebar
+            unidadeId={unidadeSelecionada}
+            activeIds={activeSubAgendaIds}
+            onToggle={handleToggleSubAgenda}
+            onSeedDone={fetchData}
+          />
+        )}
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h1 className="text-lg font-bold uppercase tracking-tight text-foreground flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5" /> Motor de Agenda
-            </h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Slots transacionais com lock • Booking com conflito • Google Calendar bidirecional
-            </p>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="p-1 h-7 w-7" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+            </Button>
+            <div>
+              <h1 className="text-lg font-bold uppercase tracking-tight text-foreground flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5" /> Motor de Agenda
+              </h1>
+              <p className="text-xs text-muted-foreground mt-1">
+                Slots transacionais com lock • Booking com conflito • Google Calendar bidirecional
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => setShowRules(true)}>
@@ -651,6 +958,7 @@ export default function AgendaMotorPage() {
               {tipo.split("_").slice(0, 2).join(" ")}
             </div>
           ))}
+        </div>
         </div>
       </div>
 
