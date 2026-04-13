@@ -2,12 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Upload, FileCheck, User, Calendar, Shield,
   Activity, Brain, Pill, AlertTriangle, FolderOpen,
-  Heart, ChevronLeft
+  Heart, ChevronLeft, CalendarDays, Clock, RefreshCw,
+  Lock, Eye, EyeOff, CheckCircle
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -53,13 +54,17 @@ const INDICADORES_KEYS = [
   "definicao", "resistencia", "massaMagra", "estresse", "humor"
 ];
 
-type Section = "menu" | "sinais" | "sintomas" | "formulas" | "alertas" | "upload";
+type Section = "menu" | "sinais" | "sintomas" | "formulas" | "alertas" | "upload" | "agendamentos";
 
 export default function PortalClientePage() {
-  const [step, setStep] = useState<"identificacao" | "portal" | "sucesso">("identificacao");
+  const [step, setStep] = useState<"identificacao" | "senha" | "definir_senha" | "portal">("identificacao");
   const [section, setSection] = useState<Section>("menu");
   const [cpf, setCpf] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
+  const [senha, setSenha] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [showSenha, setShowSenha] = useState(false);
   const [paciente, setPaciente] = useState<{ id: number; nome: string } | null>(null);
   const { toast } = useToast();
 
@@ -88,7 +93,63 @@ export default function PortalClientePage() {
         return;
       }
       const data = await res.json();
+      if (data.temSenha) {
+        setStep("senha");
+      } else {
+        setStep("definir_senha");
+      }
       setPaciente({ id: data.id, nome: data.nome });
+    } catch {
+      toast({ title: "Erro de conexao", variant: "destructive" });
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!senha) {
+      toast({ title: "Informe sua senha", variant: "destructive" });
+      return;
+    }
+    try {
+      const res = await fetch(`${BASE_URL}api/portal/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf, senha }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast({ title: err.error || "Senha incorreta", variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      setPaciente({ id: data.id, nome: data.nome });
+      setStep("portal");
+      setSection("menu");
+    } catch {
+      toast({ title: "Erro de conexao", variant: "destructive" });
+    }
+  };
+
+  const handleDefinirSenha = async () => {
+    if (!novaSenha || novaSenha.length < 6) {
+      toast({ title: "Senha deve ter no minimo 6 caracteres", variant: "destructive" });
+      return;
+    }
+    if (novaSenha !== confirmarSenha) {
+      toast({ title: "As senhas nao conferem", variant: "destructive" });
+      return;
+    }
+    try {
+      const res = await fetch(`${BASE_URL}api/portal/definir-senha`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf, dataNascimento, senha: novaSenha }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast({ title: err.error || "Erro ao definir senha", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Senha definida com sucesso!" });
       setStep("portal");
       setSection("menu");
     } catch {
@@ -128,10 +189,69 @@ export default function PortalClientePage() {
                 <Input type="date" value={dataNascimento}
                   onChange={e => setDataNascimento(e.target.value)} className="mt-1" />
               </div>
-              <Button className="w-full" onClick={handleIdentificar}>Entrar</Button>
+              <Button className="w-full" onClick={handleIdentificar}>Continuar</Button>
               <div className="text-[9px] text-center text-muted-foreground flex items-center justify-center gap-1">
                 <Shield className="h-3 w-3" />Seus dados estao protegidos pela LGPD (Lei 13.709/2018)
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === "senha" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Lock className="h-4 w-4" />Senha
+              </CardTitle>
+              {paciente && <p className="text-xs text-muted-foreground">Ola, {paciente.nome.split(" ")[0]}</p>}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Sua Senha</Label>
+                <div className="relative mt-1">
+                  <Input type={showSenha ? "text" : "password"} value={senha}
+                    onChange={e => setSenha(e.target.value)} placeholder="Digite sua senha"
+                    onKeyDown={e => e.key === "Enter" && handleLogin()} />
+                  <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowSenha(!showSenha)}>
+                    {showSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <Button className="w-full" onClick={handleLogin}>Entrar</Button>
+              <Button variant="ghost" size="sm" className="w-full text-muted-foreground"
+                onClick={() => { setStep("identificacao"); setSenha(""); }}>
+                <ChevronLeft className="h-4 w-4 mr-1" />Voltar
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === "definir_senha" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Lock className="h-4 w-4" />Primeiro Acesso
+              </CardTitle>
+              {paciente && <p className="text-xs text-muted-foreground">Ola, {paciente.nome.split(" ")[0]}! Crie uma senha para acessar o portal.</p>}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Nova Senha</Label>
+                <Input type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)}
+                  placeholder="Minimo 6 caracteres" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Confirmar Senha</Label>
+                <Input type="password" value={confirmarSenha} onChange={e => setConfirmarSenha(e.target.value)}
+                  placeholder="Repita a senha" className="mt-1"
+                  onKeyDown={e => e.key === "Enter" && handleDefinirSenha()} />
+              </div>
+              <Button className="w-full" onClick={handleDefinirSenha}>Criar Senha e Entrar</Button>
+              <Button variant="ghost" size="sm" className="w-full text-muted-foreground"
+                onClick={() => { setStep("identificacao"); setNovaSenha(""); setConfirmarSenha(""); }}>
+                <ChevronLeft className="h-4 w-4 mr-1" />Voltar
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -145,7 +265,8 @@ export default function PortalClientePage() {
               </Button>
             )}
 
-            {section === "menu" && <PortalMenu paciente={paciente} onSelect={setSection} onLogout={() => { setStep("identificacao"); setPaciente(null); }} />}
+            {section === "menu" && <PortalMenu paciente={paciente} onSelect={setSection} onLogout={() => { setStep("identificacao"); setPaciente(null); setSenha(""); }} />}
+            {section === "agendamentos" && <AgendamentosSection pacienteId={paciente.id} pacienteNome={paciente.nome} />}
             {section === "sinais" && <SinaisVitaisForm pacienteId={paciente.id} />}
             {section === "sintomas" && <SintomasForm pacienteId={paciente.id} />}
             {section === "formulas" && <FormulasForm pacienteId={paciente.id} />}
@@ -160,6 +281,7 @@ export default function PortalClientePage() {
 
 function PortalMenu({ paciente, onSelect, onLogout }: { paciente: { id: number; nome: string }; onSelect: (s: Section) => void; onLogout: () => void }) {
   const menuItems = [
+    { key: "agendamentos" as Section, icon: CalendarDays, label: "Meus Agendamentos", desc: "Consultas, reagendamentos", color: "text-cyan-400" },
     { key: "sinais" as Section, icon: Activity, label: "Mapa de Sinais Vitais", desc: "PA, glicemia, peso, cintura", color: "text-red-400" },
     { key: "sintomas" as Section, icon: Brain, label: "Sintomas e Bem-Estar", desc: "Sono, energia, foco, humor...", color: "text-blue-400" },
     { key: "formulas" as Section, icon: Pill, label: "Formulas em Uso", desc: "Aderencia e efeitos colaterais", color: "text-green-400" },
@@ -680,6 +802,289 @@ function UploadForm({ pacienteId, pacienteNome }: { pacienteId: number; paciente
 
         <Button className="w-full" onClick={handleUpload} disabled={uploading || !arquivo || !categoria}>
           {uploading ? "Enviando..." : "Enviar"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+type Agendamento = {
+  id: number;
+  slotId: number;
+  data: string;
+  horaInicio: string;
+  horaFim: string;
+  duracaoMin: number;
+  tipoProcedimento: string;
+  tipoProcedimentoLabel: string;
+  tipoProcedimentoCor: string;
+  status: string;
+  profissionalNome: string | null;
+  unidadeNome: string | null;
+  podeReagendar: boolean;
+  reagendamentoAutomaticoDeId: number | null;
+  observacoes: string | null;
+};
+
+type SlotDisponivel = {
+  id: number;
+  data: string;
+  horaInicio: string;
+  horaFim: string;
+  duracaoMin: number;
+  tipoProcedimento: string;
+  profissionalId: number;
+  profissionalNome: string | null;
+};
+
+function AgendamentosSection({ pacienteId, pacienteNome }: { pacienteId: number; pacienteNome: string }) {
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reagendando, setReagendando] = useState<Agendamento | null>(null);
+  const [slotsDisponiveis, setSlotsDisponiveis] = useState<SlotDisponivel[]>([]);
+  const [slotSelecionado, setSlotSelecionado] = useState<number | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const fetchAgendamentos = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/portal/meus-agendamentos/${pacienteId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAgendamentos(data);
+      }
+    } catch {
+      toast({ title: "Erro ao carregar agendamentos", variant: "destructive" });
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchAgendamentos(); }, [pacienteId]);
+
+  const handleReagendar = async (appt: Agendamento) => {
+    setReagendando(appt);
+    setSlotSelecionado(null);
+    setMotivo("");
+    setLoadingSlots(true);
+
+    try {
+      const hoje = new Date();
+      const dataFim = new Date(hoje);
+      dataFim.setDate(dataFim.getDate() + 30);
+      const params = new URLSearchParams({
+        dataInicio: hoje.toISOString().split("T")[0],
+        dataFim: dataFim.toISOString().split("T")[0],
+        tipoProcedimento: appt.tipoProcedimento,
+      });
+
+      const res = await fetch(`${BASE_URL}api/portal/slots-disponiveis?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSlotsDisponiveis(data);
+      }
+    } catch {
+      toast({ title: "Erro ao buscar horarios", variant: "destructive" });
+    }
+    setLoadingSlots(false);
+  };
+
+  const confirmarReagendamento = async () => {
+    if (!reagendando || !slotSelecionado) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/portal/reagendar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId: reagendando.id,
+          novoSlotId: slotSelecionado,
+          pacienteId,
+          motivo: motivo || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast({ title: err.error || "Erro ao reagendar", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      const data = await res.json();
+      toast({ title: data.mensagem || "Reagendado com sucesso!" });
+      setReagendando(null);
+      fetchAgendamentos();
+    } catch {
+      toast({ title: "Erro ao reagendar", variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const formatDate = (d: string) => {
+    const [y, m, day] = d.split("-");
+    return `${day}/${m}/${y}`;
+  };
+
+  const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+  const getDiaSemana = (d: string) => {
+    const date = new Date(d + "T12:00:00");
+    return diasSemana[date.getDay()];
+  };
+
+  const statusLabel: Record<string, { text: string; color: string }> = {
+    agendado: { text: "AGENDADO", color: "bg-blue-500/20 text-blue-400" },
+    confirmado: { text: "CONFIRMADO", color: "bg-green-500/20 text-green-400" },
+    cancelado: { text: "CANCELADO", color: "bg-gray-500/20 text-gray-400" },
+    faltou: { text: "FALTOU", color: "bg-red-500/20 text-red-400" },
+    realizado: { text: "REALIZADO", color: "bg-emerald-500/20 text-emerald-400" },
+  };
+
+  if (reagendando) {
+    const slotsPorDia = slotsDisponiveis.reduce<Record<string, SlotDisponivel[]>>((acc, s) => {
+      if (!acc[s.data]) acc[s.data] = [];
+      acc[s.data].push(s);
+      return acc;
+    }, {});
+
+    return (
+      <div className="space-y-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-cyan-400" />Reagendar Consulta
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground">
+              Agendamento atual: {formatDate(reagendando.data)} ({getDiaSemana(reagendando.data)}) as {reagendando.horaInicio} — {reagendando.tipoProcedimentoLabel}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Motivo (opcional)</Label>
+              <Input placeholder="Ex: compromisso pessoal" value={motivo} onChange={e => setMotivo(e.target.value)} className="mt-1" />
+            </div>
+
+            {loadingSlots ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">Buscando horarios disponiveis...</div>
+            ) : slotsDisponiveis.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">Nenhum horario disponivel nos proximos 30 dias. Entre em contato com a clinica.</div>
+            ) : (
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {Object.entries(slotsPorDia).map(([dia, slots]) => (
+                  <div key={dia}>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-bold">
+                      {getDiaSemana(dia)} — {formatDate(dia)}
+                    </p>
+                    <div className="grid grid-cols-3 gap-1">
+                      {slots.map(s => (
+                        <button
+                          key={s.id}
+                          className={`p-2 border text-xs text-center transition-colors ${
+                            slotSelecionado === s.id
+                              ? "border-primary bg-primary/20 text-white"
+                              : "border-border hover:border-primary/40"
+                          }`}
+                          onClick={() => setSlotSelecionado(s.id)}
+                        >
+                          <span className="font-mono">{s.horaInicio}</span>
+                          <span className="block text-[9px] text-muted-foreground">{s.profissionalNome?.split(" ")[0]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setReagendando(null)}>Cancelar</Button>
+              <Button className="flex-1" onClick={confirmarReagendamento}
+                disabled={saving || !slotSelecionado}>
+                {saving ? "Reagendando..." : "Confirmar Reagendamento"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-cyan-400" />Meus Agendamentos
+        </CardTitle>
+        <p className="text-[10px] text-muted-foreground">Ola, {pacienteNome.split(" ")[0]}! Seus proximos agendamentos:</p>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="text-center py-6 text-muted-foreground text-sm">Carregando...</div>
+        ) : agendamentos.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground text-sm">Nenhum agendamento encontrado.</div>
+        ) : (
+          <div className="space-y-2">
+            {agendamentos.map(appt => {
+              const st = statusLabel[appt.status] || { text: appt.status.toUpperCase(), color: "bg-gray-500/20 text-gray-400" };
+              return (
+                <div key={appt.id} className="border border-border p-3 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-bold">
+                        {getDiaSemana(appt.data)} — {formatDate(appt.data)}
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />{appt.horaInicio} - {appt.horaFim}
+                      </p>
+                    </div>
+                    <span className={`text-[9px] px-2 py-0.5 font-bold tracking-wider ${st.color}`}>
+                      {st.text}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2" style={{ backgroundColor: appt.tipoProcedimentoCor }} />
+                    <span className="text-xs">{appt.tipoProcedimentoLabel}</span>
+                  </div>
+
+                  {appt.profissionalNome && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Profissional: {appt.profissionalNome}
+                    </p>
+                  )}
+
+                  {appt.unidadeNome && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Unidade: {appt.unidadeNome}
+                    </p>
+                  )}
+
+                  {appt.reagendamentoAutomaticoDeId && (
+                    <p className="text-[9px] text-yellow-400 flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3" />Reagendamento automatico (falta anterior)
+                    </p>
+                  )}
+
+                  {appt.podeReagendar && (
+                    <Button size="sm" variant="outline" className="w-full text-xs mt-1"
+                      onClick={() => handleReagendar(appt)}>
+                      <RefreshCw className="h-3 w-3 mr-1" />Reagendar
+                    </Button>
+                  )}
+
+                  {!appt.podeReagendar && (appt.status === "agendado" || appt.status === "confirmado") && (
+                    <p className="text-[9px] text-muted-foreground italic">
+                      Reagendamento indisponivel — entre em contato com a clinica
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <Button variant="ghost" size="sm" className="w-full mt-3 text-muted-foreground" onClick={fetchAgendamentos}>
+          <RefreshCw className="h-3 w-3 mr-1" />Atualizar
         </Button>
       </CardContent>
     </Card>

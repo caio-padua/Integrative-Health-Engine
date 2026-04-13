@@ -34,6 +34,8 @@ export const agendaSlotsTable = pgTable("agenda_slots", {
   tipoProcedimento: text("tipo_procedimento").notNull(),
   status: text("status").notNull().default("disponivel"),
   bloqueadoMotivo: text("bloqueado_motivo"),
+  turno: text("turno").default("manha"),
+  liberado: boolean("liberado").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("uq_slot_profissional_horario").on(table.profissionalId, table.data, table.horaInicio, table.horaFim),
@@ -65,6 +67,8 @@ export const appointmentsTable = pgTable("appointments", {
   googleCalendarId: text("google_calendar_id"),
   observacoes: text("observacoes"),
   origemAgendamento: text("origem_agendamento").notNull().default("sistema"),
+  reagendamentoAutomaticoDeId: integer("reagendamento_automatico_de_id"),
+  motivoFalta: text("motivo_falta"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -127,6 +131,24 @@ export type InsertAgendaAuditEvent = z.infer<typeof insertAgendaAuditEventSchema
 
 export const insertAgendaBlockSchema = createInsertSchema(agendaBlocksTable).omit({ id: true, criadoEm: true });
 export type InsertAgendaBlock = z.infer<typeof insertAgendaBlockSchema>;
+
+export const smartReleaseConfigTable = pgTable("smart_release_config", {
+  id: serial("id").primaryKey(),
+  unidadeId: integer("unidade_id").notNull().references(() => unidadesTable.id),
+  profissionalId: integer("profissional_id").references(() => usuariosTable.id),
+  turnoManhaInicio: text("turno_manha_inicio").notNull().default("08:00"),
+  turnoManhaFim: text("turno_manha_fim").notNull().default("12:00"),
+  turnoTardeInicio: text("turno_tarde_inicio").notNull().default("13:00"),
+  turnoTardeFim: text("turno_tarde_fim").notNull().default("18:00"),
+  limiarLiberacaoPercent: integer("limiar_liberacao_percent").notNull().default(60),
+  ativa: boolean("ativa").notNull().default(true),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertSmartReleaseConfigSchema = createInsertSchema(smartReleaseConfigTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
+export type InsertSmartReleaseConfig = z.infer<typeof insertSmartReleaseConfigSchema>;
+export type SmartReleaseConfig = typeof smartReleaseConfigTable.$inferSelect;
 
 export const TIPOS_PROCEDIMENTO = {
   CONSULTA_30_PRESENCIAL: { label: "Consulta Presencial", duracaoMin: 30, cor: "#3B82F6" },
