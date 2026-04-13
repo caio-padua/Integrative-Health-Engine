@@ -112,7 +112,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const VISIBILIDADE_POR_ESCOPO: Record<string, string[]> = {
     consultoria_master: [
       "dashboard", "painel-comando", "governanca", "justificativas", "matriz-analitica",
-      "anamnese", "validacao",
+      "agenda-motor", "anamnese", "validacao",
       "filas", "pacientes", "itens-terapeuticos", "protocolos", "followup",
       "financeiro", "unidades", "fluxos", "pedidos-exame", "substancias",
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
@@ -144,6 +144,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Governanca", path: "/governanca", icon: Shield, slug: "governanca" },
     { name: "SLA Justificativas", path: "/justificativas", icon: Scale, slug: "justificativas" },
     { name: "Matriz Analitica", path: "/matriz-analitica", icon: Grid3X3, slug: "matriz-analitica" },
+    { name: "Motor de Agenda", path: "/agenda-motor", icon: CalendarDays, slug: "agenda-motor" },
     { name: "Anamnese", path: "/anamnese", icon: ClipboardList, slug: "anamnese" },
     { name: "Validação", path: "/validacao", icon: CheckSquare, slug: "validacao" },
     { name: "Filas", path: "/filas", icon: ListOrdered, slug: "filas" },
@@ -199,7 +200,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {allowedItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.startsWith(item.path);
+            const isActive = location === item.path || location.startsWith(item.path + "/");
             return (
               <Link
                 key={item.path}

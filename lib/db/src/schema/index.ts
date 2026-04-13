@@ -36,3 +36,4 @@ export * from "./monitoramentoPaciente";
 export * from "./whatsappConfig";
 export * from "./acompanhamento";
 export * from "./comercial";
+export * from "./agenda";

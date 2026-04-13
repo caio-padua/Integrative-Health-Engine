@@ -2,7 +2,7 @@
 
 ## Overview
 
-Motor Clínico is a SaaS clinical engine platform designed for multi-unit integrative medical clinics. It streamlines clinic operations, enhances patient care through data-driven suggestions, and improves administrative efficiency. The platform's core functionality involves patient anamnesis, which triggers a clinical engine to generate suggestions for exams, formulas, injectables (IM/EV), implants, and treatment protocols. Key capabilities include a TDAH-friendly dashboard with operational queues, medical validation workflows, and dedicated modules for follow-up and financial management, all aimed at improving clinical and administrative processes.
+Motor Clínico is a SaaS clinical engine platform designed for multi-unit integrative medical clinics. It aims to streamline operations, enhance patient care through data-driven suggestions, and improve administrative efficiency. The platform's core functionality includes patient anamnesis, which triggers a clinical engine to generate suggestions for exams, formulas, injectables, implants, and treatment protocols. Key capabilities include TDAH-friendly dashboards with operational queues, medical validation workflows, and dedicated modules for follow-up and financial management, all contributing to improved clinical and administrative processes. The business vision is to provide an invisible operational consultancy service through a highly efficient and scalable platform, with a comprehensive monetization system for modules and services, targeting multi-unit clinics and consultancy companies.
 
 ## User Preferences
 
@@ -10,60 +10,33 @@ The user prefers that all names be complete and semantic, never abbreviated. For
 
 ## System Architecture
 
-The system is built as a monorepo using `pnpm workspaces`, Node.js 24, TypeScript 5.9. The frontend uses React, Vite, Tailwind CSS, and shadcn/ui, while the backend is Express 5. PostgreSQL is the database, managed with Drizzle ORM and validated using Zod (v4). API codegen uses Orval, charts use Recharts, and routing uses Wouter.
+The system is built as a monorepo using `pnpm workspaces`, Node.js 24, and TypeScript 5.9. The frontend utilizes React, Vite, Tailwind CSS, and shadcn/ui, while the backend is powered by Express 5. PostgreSQL serves as the database, managed with Drizzle ORM and validated using Zod. API code generation is handled by Orval, charts by Recharts, and routing by Wouter.
 
-Key architectural decisions and features:
-- **UI/UX Design (PADCOM V15.2):** Features 0px border-radius, pastel blue primary color (hsl(210 45% 65%)), deep navy background (hsl(215 28% 9%)), and JetBrains Mono typography. The design emphasizes a classic, austere, and TDAH-friendly aesthetic, resembling a well-formatted legal document. Tables have visible borders for improved navigation.
-- **Access Control:** Role-based access for `enfermeira`, `validador_enfermeiro`, `medico_tecnico`, and `validador_mestre`.
-- **Clinical Engine:** Automates suggestions for therapeutic items based on semantic analysis of anamnesis.
-- **Operational Queues:** Manages workflow for anamnesis, validation, procedures, follow-up, and payments.
-- **Unified Therapeutic Items Catalog (PADCOM V13+V4):** A catalog of 490 real therapeutic items with detailed metadata, classified using the `B1 B2 B3 B4 SEQ` semantic coding system.
-- **Multi-unit Management:** Supports full management and configuration of multiple clinic units.
-- **Approval Flows:** Parameterized approval processes for different procedure types with stages and conditional bypasses.
-- **Dynamic Permissions:** A matrix of permissions per profile with specific flags for various actions and cross-unit visibility.
-- **Automated RAS (Registro de Atendimento em Saúde):** Generates detailed, multi-page PDF health records.
-- **Sovereignty Toggle:** Activates a preceptor queue for case homologation by a director to ensure medical governance and auditing.
-- **Smart Exams (Modulo 38):** Automated classification of exam results into terciles with a traffic light system and trend analysis.
-- **Mandatory Schema Fields:** All new database schemas must include `origem`, `versaoSchema`, and `arquivadoEm` for auditability and LGPD compliance.
-- **Patient Monitoring:** Includes schemas and routes for tracking vital signs, symptoms, formula adherence, and patient-created alerts.
-- **WhatsApp Integration:** Unified service for sending messages via Twilio or Gupshup, with templated clinical messages and status tracking.
-- **Google Drive Backup:** Automated full source code backup to Google Drive, including all key project files in multiple formats (Google Doc, TXT, MD) and an accessible JSON endpoint for AI consumption.
-- **Painel de Comando:** Real-time command dashboard with micro-matrices showing: substance usage tracking (who uses Vit D, Glutationa, etc.), session status breakdown (agendadas/concluídas/faltas), clinical alerts with severity badges (GRAVE/MODERADO/LEVE), and no-show tracking. Four tabs: Visão Geral, "Quem usa o que?", Sessões da Semana, Alertas Clínicos. API endpoint at `/api/dashboard/comando`.
-- **Multi-Clinic Consultancy Model:** Architecture supports a consultancy company (`consultorias` table) managing multiple client clinics (`unidades`). Users have an `escopo` field (consultoria_master, clinica_medico, clinica_enfermeira, clinica_admin) that controls visibility. Clinic staff sees only operational views; consultoria_master sees everything. This enables selling the system as an invisible operational consultancy service.
-- **Delegation System (Trello-style):** Board with 4 columns (Pendente, Em Andamento, Concluído, Atrasado). Cards include: título, descrição, prioridade (urgente/alta/média/baixa), prazo (24h/36h/48h/72h/1_semana), categoria, responsável. Auto-detects overdue tasks. API at `/api/delegacao`.
-- **Colaborador Scoring:** Ranking of team members by resolution rate, on-time completion, and quality score. Visible in the Resolutividade tab of the Delegation page.
-- **Patient Feedback (0-5):** Star-based feedback from patients via WhatsApp/presencial/email/telefone. Summary dashboard with distribution chart, average scores, and per-channel analytics. Stored in `feedback_pacientes` table.
-- **Patient Photos:** Schema supports `foto_rosto` and `foto_corpo` fields on both `pacientes` and `usuarios` tables. Upload UI on patient detail page (`/pacientes/:id`). Photos stored as base64 data URLs via `PATCH /api/pacientes/:id/fotos`. Validation: must be `data:image/*`, max 5MB.
-- **Consultor Campo Scope:** New `consultor_campo` escopo for field consultants (e.g., Maria fisioterapeuta) who serve multiple clinics via `consultor_unidades` junction table. They see delegation, patients, anamnese, followup, agenda, task-cards, filas, avaliacao-enfermagem, estoque.
-- **consultor_unidades Junction Table:** Many-to-many between usuarios and unidades. Enables one consultant to serve 3-20 clinics simultaneously. Seeded via `POST /api/seed-consultoria`.
-- **Color-coded Delegation Cards:** Cards show clinic name + colored left border using `unidade.cor`. Filter bar at top allows filtering by clinic. 3 demo clinics: Vitallis Centro (#3B82F6 blue), Bem Estar Alphaville (#10B981 green), Saude Integral Campinas (#F59E0B amber).
-- **Escopo-based Sidebar:** Menu items filtered by `escopo` field using `VISIBILIDADE_POR_ESCOPO` map instead of old `perfil`-based filtering. Sidebar shows escopo label (Master, Consultor, etc.) below user name.
-- **Context Switcher (Seletor de Contexto):** Dropdown in sidebar below user info. For `consultoria_master`: shows only consultoria-linked clinics (filtered by `consultor_unidades` table — no agendas). For `consultor_campo`: shows linked clinics. For `clinica_*`: locked to their unit. Stored in `ClinicContext.tsx`. Exposes `modoVisao` (arquiteto_mestre | dono_clinica | consultor | operacional) and `modoLabel` ("Visao Global" | "Visao Local"). Shows mode label below clinic name in switcher.
-- **Dashboard Global (Ecossistema):** Title "Dashboard Global", subtitle "Visao consolidada do ecossistema", indicator "Visao Global". KPIs: Clínicas Ativas, Total Pacientes, Delegações Pendentes, Taxa Resolução Geral. Section "Clinicas do Ecossistema" with clickable drill-down cards (hover shows lupa icon). Clicking a clinic card navigates to Dashboard Unidade. Bar chart of delegations per clinic. API: `GET /api/dashboard/consultoria`.
-- **Dashboard Unidade (Visao Local):** Title "Dashboard Unidade", subtitle = clinic name in clinic color, indicator "Visao Local". Back arrow button returns to Dashboard Global (only for consultoria_master). Clinic-specific data: Pacientes Ativos, Demandas Abertas, Taxa Resolução, Custo Demandas (R$). Sections: Distribuição de Planos, Demandas por Complexidade, Delegações (grid 2x2), Filas Operacionais, Últimas Demandas. API: `GET /api/dashboard/dono-clinica/:unidadeId`.
-- **Backend Data Isolation:** Delegacao GET supports `?unidadeId=N` query param to filter by clinic. Pacientes GET already supports `?unidadeId=N`. Dashboard resumo + filas also support it.
-- **Planos de Acompanhamento:** 4 tiers (Diamante/Ouro/Prata/Cobre) no campo `plano_acompanhamento` da tabela `pacientes`. Cada tier define SLA de resposta (4h/12h/24h/72h), ligação diária, atendimento semanal online, e follow-up ativo. Dropdown para trocar plano direto na lista de pacientes.
-- **Demandas de Serviço:** Tabela `demandas_servico` rastreia cada ação do consultor: tipo (resposta_paciente, ligacao_followup, orientacao_equipe, treinamento, etc.), complexidade (verde=1x, amarela=1.5x, vermelha=2.5x), tempo gasto, plano de origem, status. Custo estimado = R$50 × multiplicador de complexidade.
-- **Faturamento por Demanda:** Aba de faturamento mostra custo estimado total, produtividade por consultor (verdes/amarelas/vermelhas), faturamento por clínica, e demandas por plano de origem. Permite cobrar a clínica-cliente por demanda de serviço.
-- **Dashboard Global Cockpit:** Tela principal do consultoria_master é agora um cockpit operacional completo. 6 KPIs no topo: Receita, Lucro, Clínicas, Demandas, Resolução, Atrasadas. 3 painéis centrais: Pipeline de Demandas (abertas/em atendimento/concluídas + complexidade), Consultores Ranking (posição, comissão, progresso meta 40/mês, V/A/R breakdown), Saúde SLA (Diamante 4h / Ouro 12h / Prata 24h / Cobre 72h com contagem e percentual). Receita por Clínica com modelo de cobrança (Full/Pacote/Demanda). Cards de clínicas com drill-down mantidos. API: `GET /api/dashboard/cockpit` (endpoint agregado que puxa dados de faturamento, demandas, consultores, SLA, delegações).
-- **Motor Comercial (Monetizacao):** Sistema completo de monetização. 3 modelos de cobrança: Full (mensalidade fixa), Pacote (créditos de demandas), Por Demanda (pay-per-use). 8 módulos vendáveis (WhatsApp, Consultor Remoto, Follow-up Ativo, Validação Motor, Treinamento, Estoque, Relatórios BI, Agenda Inteligente). Tabelas: `modulos_sistema` (catálogo), `contrato_clinica` (contratos por clínica), `modulos_contratados` (módulos ativos por contrato), `faturamento_mensal` (faturas automáticas). Precificação por demanda para clínicas: verde R$50, amarela R$75, vermelha R$125. Dashboard financeiro com Receita/Custo/Lucro/Margem por clínica e acumulado. Página `/comercial` com 3 abas: Faturamento, Contratos, Módulos. API: `GET /api/comercial/modulos`, `GET /api/comercial/contratos`, `GET /api/comercial/faturamento`, `GET /api/comercial/dashboard-financeiro`, `POST /api/comercial/gerar-faturamento`, `POST /api/comercial/seed`. Visível apenas para `consultoria_master`.
-- **Comissão & Metas dos Consultores:** Modelo de remuneração: salário fixo R$1.412 + comissão por demanda (verde R$15, amarela R$25, vermelha R$50) + bônus por faixa de meta (25%=Bronze +5%, 50%=Prata +10%, 75%=Ouro +20%, 100%=Diamante +35%). Meta mensal: 40 demandas. Dashboard do consultor mostra remuneração estimada, progresso visual nas faixas, comissão por complexidade. Painel do gestor mostra ranking de consultores, custo total bruto, configuração de remuneração. Tabela `metas_consultor` criada para futuro tracking mensal persistido. Página: `/comissao`. API: `GET /api/comissao/consultor/:id`, `GET /api/comissao/painel-gestor`, `GET /api/comissao/config`.
-- **SLA Justificativa Obrigatória (Fase 1):** Fila unificada de SLA com semáforo (VERMELHO/AMARELO/VERDE) para task_cards e followups. Justificativa obrigatória com motivos padronizados + texto livre + próxima ação. Escalonamento para SUPERVISOR/DIRETOR/FILA_PRECEPTOR. Audit trail via eventos_clinicos. Tabelas: `task_card_justificativas`, `task_card_escalations`. API: `GET /api/sla/queue`, `POST /api/sla/justify`, `POST /api/sla/escalate`, `PATCH /api/sla/justify/:id/avaliar`, `POST /api/sla/escalate/:id/resolver`. Página: `/justificativas`.
-- **Matriz Analítica Cross-Filter (Fase 1):** Análise cruzada substância × via × status × faltas × dias sem retorno. Filtros laterais com facets dinâmicos (contagem). Paginação server-side. Export CSV com todos os filtros aplicados (sem SSRF — lógica compartilhada via função interna). API: `GET /api/matrix/therapy-facts`, `GET /api/matrix/export`. Página: `/matriz-analitica`.
-- **Clinic-Aware Filtering:** All major pages (Painel de Comando, Pacientes, Filas, Follow-up, Governança, Dashboard, Comercial, Acompanhamento, Comissão) now use `useClinic()` context to pass `?unidadeId=X` to backend fetches. When user switches clinic in the sidebar dropdown, all pages automatically re-fetch filtered data. Backend endpoints support `?unidadeId` param for data isolation.
-- **Q013 Disease Selector:** Categorized disease selector with 12 medical categories, DIAX (Diagnóstico Concluído, red) and POTX (Doença Potencial, orange-red) status badges, and a Funil do Paciente panel for filtered views.
-- **100% Semantic Code Coverage:** All 48 dietas codified with B1 B2 B3 B4 SEQ format (DIET KETO/CARN/HPRO/LOWC GBAS/GINT/GAMP CAFM/ALMO/JANT/LANC NNNN). Total coverage now at 100%.
+Key architectural decisions and features include:
+
+-   **UI/UX Design (PADCOM V15.2):** Emphasizes a classic, austere, and TDAH-friendly aesthetic with 0px border-radius, pastel blue primary color, deep navy background, and JetBrains Mono typography, resembling a well-formatted legal document.
+-   **Access Control & Multi-unit Management:** Role-based access (e.g., `enfermeira`, `medico_tecnico`) and dynamic permissions with a matrix per profile. Supports full management and configuration of multiple clinic units and a multi-clinic consultancy model with `escopo`-based visibility (e.g., `consultoria_master`, `consultor_campo`, `clinica_medico`).
+-   **Clinical Engine:** Automates suggestions for therapeutic items based on semantic analysis of anamnesis, utilizing a Unified Therapeutic Items Catalog (PADCOM V13+V4) with 490 classified items.
+-   **Operational Workflow:** Manages workflows through operational queues (anamnesis, validation, procedures, follow-up, payments) and includes parameterized approval flows with conditional bypasses.
+-   **Data Management & Auditability:** All new database schemas must include `origem`, `versaoSchema`, and `arquivadoEm` for auditability and LGPD compliance. Patient monitoring includes tracking vital signs, symptoms, and formula adherence.
+-   **Reporting & Dashboards:** Generates automated RAS (Registro de Atendimento em Saúde) PDFs. Features a TDAH-friendly dashboard with real-time operational queues, a "Painel de Comando" for substance usage and session status, and comprehensive global/unit dashboards with KPIs for consultoria_master and clinic owners.
+-   **Monetization & Commission System:** Implements a "Motor Comercial" with three charging models (Full, Pacote, Por Demanda) and eight sellable modules. Includes a "Comissão & Metas dos Consultores" system for tracking consultant remuneration and progress.
+-   **Delegation System:** A Trello-style board with tasks, priorities, deadlines, and responsibilities, supporting Colaborador Scoring based on resolution rate and completion.
+-   **SLA Management:** Unified SLA queue with a traffic light system for task cards and follow-ups, requiring mandatory justifications for overdue items with escalation procedures.
+-   **Advanced Analytics:** A "Matriz Analítica Cross-Filter" for detailed cross-analysis of clinical data with dynamic facets and server-side pagination.
+-   **Motor de Agenda (Fase 2):** Complete scheduling engine with transactional slot management. Tables: `availability_rules`, `agenda_slots` (unique constraint on professional+date+time), `slot_locks`, `appointments` (SELECT FOR UPDATE booking), `appointment_reschedules`, `agenda_audit_events`, `agenda_blocks`. 12 semantic procedure types (e.g., CONSULTA_30_PRESENCIAL, INFUSAO_LONGA_180_PRESENCIAL). Slot generation from availability rules. Transactional booking with conflict detection (409). Cancel/reschedule with history. Bidirectional Google Calendar sync (push on book, pull external events). Weekly view API. Page: `/agenda-motor`. API: `/api/agenda-motor/*`.
+-   **Clinic-Aware Filtering:** All major pages dynamically filter data based on the selected clinic using a `useClinic()` context and `?unidadeId` query parameters.
+-   **Semantic Code Coverage:** 100% semantic code coverage for dietary plans using the `B1 B2 B3 B4 SEQ` format.
 
 ## External Dependencies
 
-- **PostgreSQL:** Primary database.
-- **Drizzle ORM:** Database interaction.
-- **ViaCEP API:** Address lookup.
-- **Google Calendar API:** Clinic schedule management.
-- **Google Drive API:** Structured document storage and source code backup.
-- **Gmail API:** Automated email sending.
-- **Orval:** OpenAPI-first code generation.
-- **Recharts:** Data visualization.
-- **Tailwind CSS & shadcn/ui:** Frontend styling and UI components.
-- **Twilio:** WhatsApp messaging provider.
-- **Gupshup:** WhatsApp messaging provider.
+-   **PostgreSQL:** Primary database.
+-   **Drizzle ORM:** Database interaction layer.
+-   **ViaCEP API:** Brazilian address lookup service.
+-   **Google Calendar API:** Clinic schedule management.
+-   **Google Drive API:** Structured document storage and source code backup.
+-   **Gmail API:** Automated email sending.
+-   **Orval:** OpenAPI-first code generation tool.
+-   **Recharts:** JavaScript charting library.
+-   **Twilio:** WhatsApp messaging service.
+-   **Gupshup:** WhatsApp messaging service.
