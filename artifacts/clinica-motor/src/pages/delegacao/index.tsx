@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import {
   Plus, Clock, CheckCircle, AlertTriangle, XCircle, ArrowRight,
-  User, BarChart3, Star, TrendingUp, MessageSquare, Filter
+  User, BarChart3, Star, TrendingUp, MessageSquare, Filter, RefreshCw
 } from "lucide-react";
 
 interface Delegacao {
@@ -88,6 +88,8 @@ export default function DelegacaoPage() {
     titulo: "", descricao: "", prioridade: "media", prazo: "48h",
     categoria: "administrativo", responsavelId: 0, unidadeId: 0,
   });
+  const [trelloStatus, setTrelloStatus] = useState<{ configurado: boolean; boardId: string | null } | null>(null);
+  const [syncingTrello, setSyncingTrello] = useState(false);
 
   const fetchAll = useCallback(async () => {
     const [dRes, sRes, fRes, frRes, uRes, unRes] = await Promise.all([
@@ -102,7 +104,28 @@ export default function DelegacaoPage() {
     if (unRes.ok) setUnidades(await unRes.json());
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    fetchAll();
+    fetch(`${API}/trello/status`).then(r => r.ok ? r.json() : null).then(d => d && setTrelloStatus(d)).catch(() => {});
+  }, [fetchAll]);
+
+  const syncTrello = async (direction: "push" | "pull") => {
+    setSyncingTrello(true);
+    try {
+      const endpoint = direction === "push" ? `${API}/sync-trello` : `${API}/pull-trello`;
+      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" } });
+      const json = await res.json();
+      if (res.ok) {
+        alert(json.mensagem);
+        fetchAll();
+      } else {
+        alert(json.error || "Erro ao sincronizar");
+      }
+    } catch {
+      alert("Erro de conexao");
+    }
+    setSyncingTrello(false);
+  };
 
   const criarDelegacao = async () => {
     const res = await fetch(API, {
@@ -143,12 +166,41 @@ export default function DelegacaoPage() {
             <h1 className="text-xl font-bold">Central de Delegacao</h1>
             <p className="text-xs text-muted-foreground mt-1">Gerencie tarefas, acompanhe resolutividade e feedback</p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 bg-primary text-primary-foreground text-xs font-bold px-4 py-2 hover:bg-primary/90 transition-all"
-          >
-            <Plus className="w-3.5 h-3.5" /> Nova Delegacao
-          </button>
+          <div className="flex items-center gap-2">
+            {trelloStatus && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => syncTrello("push")}
+                  disabled={syncingTrello || !trelloStatus.configurado}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 transition-all border ${
+                    trelloStatus.configurado
+                      ? "border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                      : "border-border/30 text-muted-foreground/50 cursor-not-allowed"
+                  }`}
+                  title={trelloStatus.configurado ? "Enviar delegacoes ao Trello" : "Configure TRELLO_API_KEY, TRELLO_TOKEN e TRELLO_BOARD_ID"}
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncingTrello ? "animate-spin" : ""}`} />
+                  {syncingTrello ? "Sincronizando..." : "Sync Trello"}
+                </button>
+                {trelloStatus.configurado && (
+                  <button
+                    onClick={() => syncTrello("pull")}
+                    disabled={syncingTrello}
+                    className="flex items-center gap-1.5 text-xs px-2 py-2 border border-blue-500/20 text-blue-400/70 hover:bg-blue-500/10 transition-all"
+                    title="Puxar atualizacoes do Trello"
+                  >
+                    Pull
+                  </button>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center gap-2 bg-primary text-primary-foreground text-xs font-bold px-4 py-2 hover:bg-primary/90 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" /> Nova Delegacao
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-1 border-b border-border/30 pb-1">

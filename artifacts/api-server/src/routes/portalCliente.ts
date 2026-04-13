@@ -1,7 +1,17 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { pacientesTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import {
+  pacientesTable,
+  appointmentsTable,
+  agendaSlotsTable,
+  appointmentReschedulesTable,
+  agendaAuditEventsTable,
+  usuariosTable,
+  unidadesTable,
+  TIPOS_PROCEDIMENTO,
+} from "@workspace/db/schema";
+import { eq, and, gte, or, desc, inArray } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 const router = Router();
 
@@ -53,8 +63,286 @@ router.post("/portal/identificar", async (req, res) => {
   res.json({
     id: paciente.id,
     nome: paciente.nome,
+    temSenha: !!paciente.senhaPortal,
     categorias: Object.keys(CATEGORIAS_UPLOAD),
   });
+});
+
+router.post("/portal/definir-senha", async (req, res) => {
+  const { cpf, dataNascimento, senha } = req.body;
+  if (!cpf || !dataNascimento || !senha) {
+    res.status(400).json({ error: "CPF, data de nascimento e senha obrigatorios" });
+    return;
+  }
+
+  if (senha.length < 6) {
+    res.status(400).json({ error: "Senha deve ter no minimo 6 caracteres" });
+    return;
+  }
+
+  const cpfLimpo = cpf.replace(/\D/g, "");
+  const pacientes = await db.select().from(pacientesTable);
+  const paciente = pacientes.find(p => {
+    const pCpfLimpo = (p.cpf || "").replace(/\D/g, "");
+    return pCpfLimpo === cpfLimpo;
+  });
+
+  if (!paciente) {
+    res.status(401).json({ error: "Dados nao conferem" });
+    return;
+  }
+
+  if (paciente.dataNascimento) {
+    if (String(paciente.dataNascimento) !== String(dataNascimento)) {
+      res.status(401).json({ error: "Dados nao conferem" });
+      return;
+    }
+  }
+
+  const hash = await bcrypt.hash(senha, 10);
+  await db.update(pacientesTable).set({ senhaPortal: hash }).where(eq(pacientesTable.id, paciente.id));
+
+  res.json({ success: true, mensagem: "Senha definida com sucesso" });
+});
+
+router.post("/portal/login", async (req, res) => {
+  const { cpf, senha } = req.body;
+  if (!cpf || !senha) {
+    res.status(400).json({ error: "CPF e senha obrigatorios" });
+    return;
+  }
+
+  const cpfLimpo = cpf.replace(/\D/g, "");
+  const pacientes = await db.select().from(pacientesTable);
+  const paciente = pacientes.find(p => {
+    const pCpfLimpo = (p.cpf || "").replace(/\D/g, "");
+    return pCpfLimpo === cpfLimpo;
+  });
+
+  if (!paciente || !paciente.senhaPortal) {
+    res.status(401).json({ error: "CPF ou senha incorretos" });
+    return;
+  }
+
+  const senhaValida = await bcrypt.compare(senha, paciente.senhaPortal);
+  if (!senhaValida) {
+    res.status(401).json({ error: "CPF ou senha incorretos" });
+    return;
+  }
+
+  res.json({
+    id: paciente.id,
+    nome: paciente.nome,
+    categorias: Object.keys(CATEGORIAS_UPLOAD),
+  });
+});
+
+router.get("/portal/meus-agendamentos/:pacienteId", async (req, res) => {
+  try {
+    const pacienteId = Number(req.params.pacienteId);
+    const hoje = new Date().toISOString().split("T")[0];
+
+    const agendamentos = await db
+      .select({
+        id: appointmentsTable.id,
+        slotId: appointmentsTable.slotId,
+        data: appointmentsTable.data,
+        horaInicio: appointmentsTable.horaInicio,
+        horaFim: appointmentsTable.horaFim,
+        duracaoMin: appointmentsTable.duracaoMin,
+        tipoProcedimento: appointmentsTable.tipoProcedimento,
+        status: appointmentsTable.status,
+        observacoes: appointmentsTable.observacoes,
+        origemAgendamento: appointmentsTable.origemAgendamento,
+        reagendamentoAutomaticoDeId: appointmentsTable.reagendamentoAutomaticoDeId,
+        profissionalNome: usuariosTable.nome,
+        unidadeNome: unidadesTable.nome,
+      })
+      .from(appointmentsTable)
+      .leftJoin(usuariosTable, eq(appointmentsTable.profissionalId, usuariosTable.id))
+      .leftJoin(unidadesTable, eq(appointmentsTable.unidadeId, unidadesTable.id))
+      .where(
+        and(
+          eq(appointmentsTable.pacienteId, pacienteId),
+          or(
+            gte(appointmentsTable.data, hoje),
+            inArray(appointmentsTable.status, ["agendado", "confirmado"])
+          )
+        )
+      )
+      .orderBy(appointmentsTable.data, appointmentsTable.horaInicio);
+
+    const agendamentosComInfo = agendamentos.map(a => {
+      const tipoInfo = TIPOS_PROCEDIMENTO[a.tipoProcedimento as keyof typeof TIPOS_PROCEDIMENTO];
+      const dataAppt = new Date(a.data + "T00:00:00");
+      const agora = new Date();
+      const meiaNoiteAnterior = new Date(dataAppt);
+      meiaNoiteAnterior.setHours(0, 0, 0, 0);
+      const podeReagendar = (a.status === "agendado" || a.status === "confirmado") && agora < meiaNoiteAnterior;
+
+      return {
+        ...a,
+        tipoProcedimentoLabel: tipoInfo?.label || a.tipoProcedimento,
+        tipoProcedimentoCor: tipoInfo?.cor || "#6B7280",
+        podeReagendar,
+      };
+    });
+
+    res.json(agendamentosComInfo);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/portal/slots-disponiveis", async (req, res) => {
+  try {
+    const { profissionalId, tipoProcedimento, dataInicio, dataFim } = req.query;
+
+    if (!dataInicio || !dataFim) {
+      res.status(400).json({ error: "dataInicio e dataFim obrigatorios" });
+      return;
+    }
+
+    const conditions: any[] = [
+      eq(agendaSlotsTable.status, "disponivel"),
+      eq(agendaSlotsTable.liberado, true),
+      gte(agendaSlotsTable.data, String(dataInicio)),
+    ];
+
+    if (dataFim) {
+      const { lte: lteFn } = await import("drizzle-orm");
+      conditions.push(lteFn(agendaSlotsTable.data, String(dataFim)));
+    }
+
+    if (profissionalId) {
+      conditions.push(eq(agendaSlotsTable.profissionalId, Number(profissionalId)));
+    }
+    if (tipoProcedimento) {
+      conditions.push(eq(agendaSlotsTable.tipoProcedimento, String(tipoProcedimento)));
+    }
+
+    const slots = await db
+      .select({
+        id: agendaSlotsTable.id,
+        data: agendaSlotsTable.data,
+        horaInicio: agendaSlotsTable.horaInicio,
+        horaFim: agendaSlotsTable.horaFim,
+        duracaoMin: agendaSlotsTable.duracaoMin,
+        tipoProcedimento: agendaSlotsTable.tipoProcedimento,
+        profissionalId: agendaSlotsTable.profissionalId,
+        profissionalNome: usuariosTable.nome,
+      })
+      .from(agendaSlotsTable)
+      .leftJoin(usuariosTable, eq(agendaSlotsTable.profissionalId, usuariosTable.id))
+      .where(and(...conditions))
+      .orderBy(agendaSlotsTable.data, agendaSlotsTable.horaInicio)
+      .limit(100);
+
+    const hoje = new Date().toISOString().split("T")[0];
+    const slotsValidos = slots.filter(s => s.data >= hoje);
+
+    res.json(slotsValidos);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/portal/reagendar", async (req, res) => {
+  try {
+    const { appointmentId, novoSlotId, pacienteId, motivo } = req.body;
+
+    if (!appointmentId || !novoSlotId || !pacienteId) {
+      res.status(400).json({ error: "appointmentId, novoSlotId e pacienteId obrigatorios" });
+      return;
+    }
+
+    const [appointment] = await db
+      .select()
+      .from(appointmentsTable)
+      .where(and(
+        eq(appointmentsTable.id, Number(appointmentId)),
+        eq(appointmentsTable.pacienteId, Number(pacienteId))
+      ));
+
+    if (!appointment) {
+      res.status(404).json({ error: "Agendamento nao encontrado" });
+      return;
+    }
+
+    if (appointment.status !== "agendado" && appointment.status !== "confirmado") {
+      res.status(400).json({ error: "Agendamento nao pode ser reagendado neste status" });
+      return;
+    }
+
+    const dataAppt = new Date(appointment.data + "T00:00:00");
+    const agora = new Date();
+    const meiaNoiteAnterior = new Date(dataAppt);
+    meiaNoiteAnterior.setHours(0, 0, 0, 0);
+
+    if (agora >= meiaNoiteAnterior) {
+      res.status(400).json({
+        error: "Reagendamento so e permitido ate 00:00 do dia do agendamento. Entre em contato com a clinica.",
+      });
+      return;
+    }
+
+    const [novoSlot] = await db
+      .select()
+      .from(agendaSlotsTable)
+      .where(eq(agendaSlotsTable.id, Number(novoSlotId)));
+
+    if (!novoSlot || novoSlot.status !== "disponivel") {
+      res.status(409).json({ error: "Slot nao disponivel. Escolha outro horario." });
+      return;
+    }
+
+    await db.insert(appointmentReschedulesTable).values({
+      appointmentId: appointment.id,
+      slotAnteriorId: appointment.slotId,
+      slotNovoId: novoSlot.id,
+      dataAnterior: appointment.data,
+      horaAnterior: appointment.horaInicio,
+      dataNova: novoSlot.data,
+      horaNova: novoSlot.horaInicio,
+      motivo: motivo || "Reagendado pelo paciente via portal",
+      origemReagendamento: "portal_paciente",
+    });
+
+    await db.update(agendaSlotsTable).set({ status: "disponivel" }).where(eq(agendaSlotsTable.id, appointment.slotId));
+    await db.update(agendaSlotsTable).set({ status: "ocupado" }).where(eq(agendaSlotsTable.id, novoSlot.id));
+
+    await db.update(appointmentsTable).set({
+      slotId: novoSlot.id,
+      data: novoSlot.data,
+      horaInicio: novoSlot.horaInicio,
+      horaFim: novoSlot.horaFim,
+      duracaoMin: novoSlot.duracaoMin,
+    }).where(eq(appointmentsTable.id, appointment.id));
+
+    await db.insert(agendaAuditEventsTable).values({
+      entidadeTipo: "appointment",
+      entidadeId: appointment.id,
+      acao: "reagendamento_portal_paciente",
+      detalhes: {
+        slotAnteriorId: appointment.slotId,
+        slotNovoId: novoSlot.id,
+        dataAnterior: appointment.data,
+        dataNova: novoSlot.data,
+        horaAnterior: appointment.horaInicio,
+        horaNova: novoSlot.horaInicio,
+        motivo: motivo || "Reagendado pelo paciente via portal",
+      },
+    });
+
+    res.json({
+      success: true,
+      mensagem: `Agendamento reagendado para ${novoSlot.data} as ${novoSlot.horaInicio}`,
+      novaData: novoSlot.data,
+      novaHora: novoSlot.horaInicio,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post("/portal/upload/:pacienteId", async (req, res) => {

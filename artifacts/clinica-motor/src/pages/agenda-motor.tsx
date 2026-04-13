@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock,
   Settings2, RefreshCw, X, User, Phone, ArrowRightLeft,
-  Lock, Unlock, Trash2, CloudUpload, Layers
+  Lock, Unlock, Trash2, CloudUpload, Layers, AlertTriangle
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -66,6 +66,8 @@ function SlotCell({ slot, appointments, onBook, onBlock, onUnblock }: {
           <span className={`text-[9px] px-1 py-0.5 uppercase font-bold ${
             appointment.status === "agendado" ? "text-blue-400 bg-blue-400/10" :
             appointment.status === "confirmado" ? "text-emerald-400 bg-emerald-400/10" :
+            appointment.status === "faltou" ? "text-red-400 bg-red-400/10" :
+            appointment.status === "realizado" ? "text-green-400 bg-green-400/10" :
             "text-muted-foreground bg-muted/50"
           }`}>{appointment.status}</span>
         </div>
@@ -82,18 +84,35 @@ function SlotCell({ slot, appointments, onBook, onBlock, onUnblock }: {
     );
   }
 
+  const isLiberado = slot.liberado !== false;
+  const turnoLabel = slot.turno === "manha" ? "M" : slot.turno === "tarde" ? "T" : null;
+
   return (
-    <div className="px-2 py-1.5 border border-border/30 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer group relative"
-      onClick={() => onBook(slot)}
+    <div className={`px-2 py-1.5 border transition-all group relative ${
+      isLiberado
+        ? "border-border/30 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+        : "border-border/20 bg-muted/10 opacity-50 cursor-not-allowed"
+    }`}
+      onClick={() => isLiberado && onBook(slot)}
     >
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-muted-foreground">{slot.horaInicio}-{slot.horaFim}</span>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={(e) => { e.stopPropagation(); onBlock(slot); }} title="Bloquear">
-            <Lock className="w-3 h-3 text-red-400" />
-          </button>
-          <Plus className="w-3 h-3 text-primary" />
-        </div>
+        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+          {slot.horaInicio}-{slot.horaFim}
+          {turnoLabel && (
+            <span className={`text-[8px] font-bold px-1 rounded ${
+              slot.turno === "manha" ? "bg-amber-500/20 text-amber-400" : "bg-indigo-500/20 text-indigo-400"
+            }`}>{turnoLabel}</span>
+          )}
+          {!isLiberado && <Lock className="w-2.5 h-2.5 text-muted-foreground/40" />}
+        </span>
+        {isLiberado && (
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={(e) => { e.stopPropagation(); onBlock(slot); }} title="Bloquear">
+              <Lock className="w-3 h-3 text-red-400" />
+            </button>
+            <Plus className="w-3 h-3 text-primary" />
+          </div>
+        )}
       </div>
       <div className="text-[9px] text-muted-foreground/50 mt-0.5 flex items-center gap-1">
         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cor }} />
@@ -428,6 +447,46 @@ export default function AgendaMotorPage() {
   const [showRules, setShowRules] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
   const [profissionalFilter, setProfissionalFilter] = useState("");
+  const [processandoFaltas, setProcessandoFaltas] = useState(false);
+  const [processandoLiberacao, setProcessandoLiberacao] = useState(false);
+
+  const processarLiberacao = async () => {
+    setProcessandoLiberacao(true);
+    try {
+      const res = await fetch(`${API_BASE}/agenda-motor/smart-release`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        alert(`${json.mensagem}`);
+        fetchData();
+      } else {
+        alert(json.error || "Erro ao processar liberacao");
+      }
+    } catch {
+      alert("Erro de conexao");
+    }
+    setProcessandoLiberacao(false);
+  };
+
+  const processarFaltas = async () => {
+    setProcessandoFaltas(true);
+    try {
+      const res = await fetch(`${API_BASE}/agenda-motor/processar-faltas`, { method: "POST" });
+      const json = await res.json();
+      if (res.ok) {
+        alert(`${json.processados} falta(s) processada(s). ${json.detalhes?.filter((d: any) => d.autoReagendado).length || 0} auto-reagendamento(s).`);
+        fetchData();
+      } else {
+        alert(json.error || "Erro ao processar faltas");
+      }
+    } catch {
+      alert("Erro de conexao");
+    }
+    setProcessandoFaltas(false);
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -490,6 +549,14 @@ export default function AgendaMotorPage() {
             </Button>
             <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => setShowGenerate(true)}>
               <Layers className="w-3 h-3" /> Gerar Slots
+            </Button>
+            <Button variant="outline" size="sm" className="text-xs gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+              onClick={processarLiberacao} disabled={processandoLiberacao}>
+              <Unlock className="w-3 h-3" /> {processandoLiberacao ? "Liberando..." : "Liberar Vagas"}
+            </Button>
+            <Button variant="outline" size="sm" className="text-xs gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
+              onClick={processarFaltas} disabled={processandoFaltas}>
+              <AlertTriangle className="w-3 h-3" /> {processandoFaltas ? "Processando..." : "Processar Faltas"}
             </Button>
             <Button variant="outline" size="sm" className="text-xs gap-1" onClick={fetchData}>
               <RefreshCw className="w-3 h-3" /> Atualizar

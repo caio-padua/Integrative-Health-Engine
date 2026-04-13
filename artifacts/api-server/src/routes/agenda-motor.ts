@@ -11,6 +11,9 @@ import {
   pacientesTable,
   usuariosTable,
   unidadesTable,
+  taskCardsTable,
+  rasTable,
+  smartReleaseConfigTable,
   TIPOS_PROCEDIMENTO,
 } from "@workspace/db";
 import { eq, and, sql, or, desc, gte, lte, inArray, between, isNull } from "drizzle-orm";
@@ -328,6 +331,10 @@ router.post("/agenda-motor/book", async (req, res) => {
 
       if (slot.status !== "disponivel") {
         throw new Error(`Slot nao disponivel (status: ${slot.status})`);
+      }
+
+      if (slot.liberado === false) {
+        throw new Error("Slot ainda nao liberado para agendamento (turno da tarde aguardando limiar)");
       }
 
       const existingLock = await tx
@@ -836,6 +843,8 @@ router.get("/agenda-motor/weekly-view", async (req, res) => {
         duracaoMin: agendaSlotsTable.duracaoMin,
         tipoProcedimento: agendaSlotsTable.tipoProcedimento,
         status: agendaSlotsTable.status,
+        turno: agendaSlotsTable.turno,
+        liberado: agendaSlotsTable.liberado,
       })
       .from(agendaSlotsTable)
       .where(and(...slotConditions))
@@ -844,7 +853,7 @@ router.get("/agenda-motor/weekly-view", async (req, res) => {
     const apptConditions: any[] = [
       gte(appointmentsTable.data, dataInicio as string),
       lte(appointmentsTable.data, dataFim),
-      or(eq(appointmentsTable.status, "agendado"), eq(appointmentsTable.status, "confirmado"), eq(appointmentsTable.status, "em_andamento")),
+      inArray(appointmentsTable.status, ["agendado", "confirmado", "em_andamento", "faltou", "realizado"]),
     ];
     if (profissionalId) apptConditions.push(eq(appointmentsTable.profissionalId, Number(profissionalId)));
     if (unidadeId) apptConditions.push(eq(appointmentsTable.unidadeId, Number(unidadeId)));
@@ -971,5 +980,358 @@ function getGCalColorId(tipo: string): string {
   };
   return map[tipo] || "1";
 }
+
+router.get("/agenda-motor/smart-release-config", async (req, res) => {
+  try {
+    const { unidadeId } = req.query;
+    const conditions: any[] = [];
+    if (unidadeId) conditions.push(eq(smartReleaseConfigTable.unidadeId, Number(unidadeId)));
+
+    const configs = await db
+      .select({
+        id: smartReleaseConfigTable.id,
+        unidadeId: smartReleaseConfigTable.unidadeId,
+        unidadeNome: unidadesTable.nome,
+        profissionalId: smartReleaseConfigTable.profissionalId,
+        profissionalNome: usuariosTable.nome,
+        turnoManhaInicio: smartReleaseConfigTable.turnoManhaInicio,
+        turnoManhaFim: smartReleaseConfigTable.turnoManhaFim,
+        turnoTardeInicio: smartReleaseConfigTable.turnoTardeInicio,
+        turnoTardeFim: smartReleaseConfigTable.turnoTardeFim,
+        limiarLiberacaoPercent: smartReleaseConfigTable.limiarLiberacaoPercent,
+        ativa: smartReleaseConfigTable.ativa,
+      })
+      .from(smartReleaseConfigTable)
+      .leftJoin(unidadesTable, eq(smartReleaseConfigTable.unidadeId, unidadesTable.id))
+      .leftJoin(usuariosTable, eq(smartReleaseConfigTable.profissionalId, usuariosTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    res.json(configs);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/agenda-motor/smart-release-config", async (req, res) => {
+  try {
+    const { unidadeId, profissionalId, turnoManhaInicio, turnoManhaFim, turnoTardeInicio, turnoTardeFim, limiarLiberacaoPercent, ativa } = req.body;
+    if (!unidadeId) {
+      res.status(400).json({ error: "unidadeId obrigatorio" });
+      return;
+    }
+
+    const [config] = await db.insert(smartReleaseConfigTable).values({
+      unidadeId: Number(unidadeId),
+      profissionalId: profissionalId ? Number(profissionalId) : null,
+      turnoManhaInicio: turnoManhaInicio || "08:00",
+      turnoManhaFim: turnoManhaFim || "12:00",
+      turnoTardeInicio: turnoTardeInicio || "13:00",
+      turnoTardeFim: turnoTardeFim || "18:00",
+      limiarLiberacaoPercent: limiarLiberacaoPercent ?? 60,
+      ativa: ativa !== false,
+    }).returning();
+
+    res.status(201).json(config);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/agenda-motor/smart-release-config/:id", async (req, res) => {
+  try {
+    await db.delete(smartReleaseConfigTable).where(eq(smartReleaseConfigTable.id, Number(req.params.id)));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/agenda-motor/smart-release", async (req, res) => {
+  try {
+    const { dataInicio, dataFim } = req.body;
+    const hoje = new Date().toISOString().split("T")[0];
+    const inicio = dataInicio || hoje;
+    const fim = dataFim || (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split("T")[0]; })();
+
+    const configs = await db.select().from(smartReleaseConfigTable).where(eq(smartReleaseConfigTable.ativa, true));
+
+    if (configs.length === 0) {
+      res.json({ mensagem: "Nenhuma configuracao de liberacao inteligente ativa", liberados: 0, detalhes: [] });
+      return;
+    }
+
+    const resultados: any[] = [];
+
+    for (const config of configs) {
+      const slotConditions: any[] = [
+        eq(agendaSlotsTable.unidadeId, config.unidadeId),
+        gte(agendaSlotsTable.data, inicio),
+        lte(agendaSlotsTable.data, fim),
+      ];
+      if (config.profissionalId) {
+        slotConditions.push(eq(agendaSlotsTable.profissionalId, config.profissionalId));
+      }
+
+      const allSlots = await db.select().from(agendaSlotsTable).where(and(...slotConditions));
+
+      const slotsPorDia: Record<string, typeof allSlots> = {};
+      for (const s of allSlots) {
+        if (!slotsPorDia[s.data]) slotsPorDia[s.data] = [];
+        slotsPorDia[s.data].push(s);
+      }
+
+      for (const [dia, slots] of Object.entries(slotsPorDia)) {
+        const slotsManha = slots.filter(s => s.horaInicio >= config.turnoManhaInicio && s.horaInicio < config.turnoManhaFim);
+        const slotsTarde = slots.filter(s => s.horaInicio >= config.turnoTardeInicio && s.horaInicio < config.turnoTardeFim);
+
+        for (const s of slotsManha) {
+          if (!s.liberado) {
+            await db.update(agendaSlotsTable).set({ liberado: true, turno: "manha" }).where(eq(agendaSlotsTable.id, s.id));
+          } else if (s.turno !== "manha") {
+            await db.update(agendaSlotsTable).set({ turno: "manha" }).where(eq(agendaSlotsTable.id, s.id));
+          }
+        }
+
+        for (const s of slotsTarde) {
+          if (s.turno !== "tarde") {
+            await db.update(agendaSlotsTable).set({ turno: "tarde" }).where(eq(agendaSlotsTable.id, s.id));
+          }
+        }
+
+        const manhaOcupados = slotsManha.filter(s => s.status === "ocupado").length;
+        const manhaTotal = slotsManha.length;
+        const percentOcupado = manhaTotal > 0 ? Math.round((manhaOcupados / manhaTotal) * 100) : 0;
+
+        let tardeLiberados = 0;
+        if (percentOcupado >= config.limiarLiberacaoPercent) {
+          for (const s of slotsTarde) {
+            if (!s.liberado) {
+              await db.update(agendaSlotsTable).set({ liberado: true }).where(eq(agendaSlotsTable.id, s.id));
+              tardeLiberados++;
+            }
+          }
+        } else {
+          for (const s of slotsTarde) {
+            if (s.liberado && s.status === "disponivel") {
+              await db.update(agendaSlotsTable).set({ liberado: false }).where(eq(agendaSlotsTable.id, s.id));
+            }
+          }
+        }
+
+        resultados.push({
+          dia,
+          unidadeId: config.unidadeId,
+          profissionalId: config.profissionalId,
+          manhaTotal,
+          manhaOcupados,
+          percentOcupado,
+          limiar: config.limiarLiberacaoPercent,
+          tardeLiberada: percentOcupado >= config.limiarLiberacaoPercent,
+          tardeLiberados,
+          tardeTotal: slotsTarde.length,
+        });
+      }
+    }
+
+    const totalLiberados = resultados.reduce((sum, r) => sum + r.tardeLiberados, 0);
+
+    await auditLog("smart_release", 0, "liberacao_inteligente", { resultados, totalLiberados });
+
+    res.json({
+      mensagem: `Liberacao inteligente processada: ${totalLiberados} slot(s) de tarde liberados`,
+      liberados: totalLiberados,
+      detalhes: resultados,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/agenda-motor/slots-liberados", async (req, res) => {
+  try {
+    const { profissionalId, unidadeId, dataInicio, dataFim, tipoProcedimento } = req.query;
+
+    const conditions: any[] = [
+      eq(agendaSlotsTable.liberado, true),
+      eq(agendaSlotsTable.status, "disponivel"),
+    ];
+
+    if (profissionalId) conditions.push(eq(agendaSlotsTable.profissionalId, Number(profissionalId)));
+    if (unidadeId) conditions.push(eq(agendaSlotsTable.unidadeId, Number(unidadeId)));
+    if (dataInicio) conditions.push(gte(agendaSlotsTable.data, String(dataInicio)));
+    if (dataFim) conditions.push(lte(agendaSlotsTable.data, String(dataFim)));
+    if (tipoProcedimento) conditions.push(eq(agendaSlotsTable.tipoProcedimento, String(tipoProcedimento)));
+
+    const slots = await db
+      .select({
+        id: agendaSlotsTable.id,
+        data: agendaSlotsTable.data,
+        horaInicio: agendaSlotsTable.horaInicio,
+        horaFim: agendaSlotsTable.horaFim,
+        turno: agendaSlotsTable.turno,
+        tipoProcedimento: agendaSlotsTable.tipoProcedimento,
+        profissionalId: agendaSlotsTable.profissionalId,
+        profissionalNome: usuariosTable.nome,
+        unidadeId: agendaSlotsTable.unidadeId,
+      })
+      .from(agendaSlotsTable)
+      .leftJoin(usuariosTable, eq(agendaSlotsTable.profissionalId, usuariosTable.id))
+      .where(and(...conditions))
+      .orderBy(agendaSlotsTable.data, agendaSlotsTable.horaInicio);
+
+    res.json(slots);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/agenda-motor/processar-faltas", async (req, res) => {
+  try {
+    const hoje = new Date().toISOString().split("T")[0];
+
+    const agendamentosPassados = await db
+      .select({
+        id: appointmentsTable.id,
+        slotId: appointmentsTable.slotId,
+        pacienteId: appointmentsTable.pacienteId,
+        profissionalId: appointmentsTable.profissionalId,
+        unidadeId: appointmentsTable.unidadeId,
+        tipoProcedimento: appointmentsTable.tipoProcedimento,
+        data: appointmentsTable.data,
+        horaInicio: appointmentsTable.horaInicio,
+        horaFim: appointmentsTable.horaFim,
+        duracaoMin: appointmentsTable.duracaoMin,
+        status: appointmentsTable.status,
+        pacienteNome: pacientesTable.nome,
+        profissionalNome: usuariosTable.nome,
+        unidadeNome: unidadesTable.nome,
+      })
+      .from(appointmentsTable)
+      .leftJoin(pacientesTable, eq(appointmentsTable.pacienteId, pacientesTable.id))
+      .leftJoin(usuariosTable, eq(appointmentsTable.profissionalId, usuariosTable.id))
+      .leftJoin(unidadesTable, eq(appointmentsTable.unidadeId, unidadesTable.id))
+      .where(
+        and(
+          inArray(appointmentsTable.status, ["agendado", "confirmado"]),
+          lte(appointmentsTable.data, hoje)
+        )
+      );
+
+    const ontem = new Date();
+    ontem.setDate(ontem.getDate() - 1);
+    const ontemStr = ontem.toISOString().split("T")[0];
+    const faltasProcessadas = agendamentosPassados.filter(a => a.data <= ontemStr);
+
+    const resultados: any[] = [];
+
+    for (const appt of faltasProcessadas) {
+      await db.update(appointmentsTable).set({
+        status: "faltou",
+        motivoFalta: "Paciente nao compareceu - marcado automaticamente",
+      }).where(eq(appointmentsTable.id, appt.id));
+
+      await db.update(agendaSlotsTable).set({ status: "disponivel" }).where(eq(agendaSlotsTable.id, appt.slotId));
+
+      await auditLog("appointment", appt.id, "faltou_automatico", {
+        pacienteId: appt.pacienteId,
+        data: appt.data,
+        horaInicio: appt.horaInicio,
+      });
+
+      let autoReagendamentoId: number | null = null;
+      try {
+        const dataOriginal = new Date(appt.data + "T00:00:00");
+        const proximaSemana = new Date(dataOriginal);
+        proximaSemana.setDate(proximaSemana.getDate() + 7);
+        const proximaSemanaStr = proximaSemana.toISOString().split("T")[0];
+
+        const [slotProximaSemana] = await db
+          .select()
+          .from(agendaSlotsTable)
+          .where(
+            and(
+              eq(agendaSlotsTable.profissionalId, appt.profissionalId),
+              eq(agendaSlotsTable.data, proximaSemanaStr),
+              eq(agendaSlotsTable.horaInicio, appt.horaInicio),
+              eq(agendaSlotsTable.status, "disponivel")
+            )
+          )
+          .limit(1);
+
+        if (slotProximaSemana) {
+          const [novoAgendamento] = await db.insert(appointmentsTable).values({
+            slotId: slotProximaSemana.id,
+            pacienteId: appt.pacienteId,
+            profissionalId: appt.profissionalId,
+            unidadeId: appt.unidadeId,
+            tipoProcedimento: appt.tipoProcedimento,
+            data: slotProximaSemana.data,
+            horaInicio: slotProximaSemana.horaInicio,
+            horaFim: slotProximaSemana.horaFim,
+            duracaoMin: slotProximaSemana.duracaoMin,
+            status: "agendado",
+            origemAgendamento: "sistema_auto_falta",
+            reagendamentoAutomaticoDeId: appt.id,
+            observacoes: `Auto-reagendamento por falta em ${appt.data}`,
+          }).returning();
+
+          await db.update(agendaSlotsTable).set({ status: "ocupado" }).where(eq(agendaSlotsTable.id, slotProximaSemana.id));
+          autoReagendamentoId = novoAgendamento.id;
+
+          await auditLog("appointment", novoAgendamento.id, "auto_reagendamento_falta", {
+            appointmentOriginalId: appt.id,
+            dataOriginal: appt.data,
+            dataNova: slotProximaSemana.data,
+          });
+        }
+      } catch (autoErr: any) {
+        console.error(`Erro ao auto-reagendar appointment ${appt.id}:`, autoErr.message);
+      }
+
+      try {
+        await db.insert(taskCardsTable).values({
+          pacienteId: appt.pacienteId,
+          assignedRole: "enfermeira",
+          titulo: `FALTA: ${appt.pacienteNome || "Paciente"} - ${appt.data}`,
+          descricao: `Paciente ${appt.pacienteNome || ""} faltou ao agendamento de ${appt.tipoProcedimento} em ${appt.data} as ${appt.horaInicio} com ${appt.profissionalNome || "profissional"}. ${autoReagendamentoId ? "Auto-reagendado para proxima semana." : "Nao foi possivel reagendar automaticamente - sem slot disponivel."}`,
+          prioridade: "alta",
+          corAlerta: "vermelha",
+          prazoHoras: 24,
+          status: "pendente",
+        });
+
+        await db.insert(taskCardsTable).values({
+          pacienteId: appt.pacienteId,
+          assignedRole: "clinica_admin",
+          titulo: `FALTA: ${appt.pacienteNome || "Paciente"} - ${appt.data}`,
+          descricao: `Paciente ${appt.pacienteNome || ""} faltou ao agendamento de ${appt.tipoProcedimento} em ${appt.data} as ${appt.horaInicio}. ${autoReagendamentoId ? "Auto-reagendado para proxima semana." : "Reagendamento automatico indisponivel."}`,
+          prioridade: "alta",
+          corAlerta: "vermelha",
+          prazoHoras: 48,
+          status: "pendente",
+        });
+      } catch (cardErr: any) {
+        console.error(`Erro ao criar task cards para appointment ${appt.id}:`, cardErr.message);
+      }
+
+      resultados.push({
+        appointmentId: appt.id,
+        paciente: appt.pacienteNome,
+        data: appt.data,
+        hora: appt.horaInicio,
+        autoReagendamentoId,
+        autoReagendado: !!autoReagendamentoId,
+      });
+    }
+
+    res.json({
+      processados: resultados.length,
+      detalhes: resultados,
+      mensagem: `${resultados.length} falta(s) processada(s)`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 export default router;

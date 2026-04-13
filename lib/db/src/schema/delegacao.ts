@@ -19,6 +19,9 @@ export const delegacoesTable = pgTable("delegacoes", {
   concluidoEm: timestamp("concluido_em", { withTimezone: true }),
   observacaoFinal: text("observacao_final"),
   notaQualidade: integer("nota_qualidade"),
+  trelloCardId: text("trello_card_id"),
+  trelloListId: text("trello_list_id"),
+  trelloLastSync: timestamp("trello_last_sync", { withTimezone: true }),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

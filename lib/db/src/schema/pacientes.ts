@@ -22,6 +22,7 @@ export const pacientesTable = pgTable("pacientes", {
   planoAcompanhamento: text("plano_acompanhamento", { enum: ["diamante", "ouro", "prata", "cobre"] }).default("cobre"),
   googleDriveFolderId: text("google_drive_folder_id"),
   senhaValidacao: text("senha_validacao"),
+  senhaPortal: text("senha_portal"),
   fotoRosto: text("foto_rosto"),
   fotoCorpo: text("foto_corpo"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),

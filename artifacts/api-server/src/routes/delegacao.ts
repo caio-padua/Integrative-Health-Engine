@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import { db } from "@workspace/db";
 import { delegacoesTable, feedbackPacienteTable, usuariosTable, unidadesTable } from "@workspace/db";
-import { eq, desc, and, sql, count, avg, lte, gte } from "drizzle-orm";
+import { eq, desc, and, sql, count, avg, lte, gte, isNull, isNotNull } from "drizzle-orm";
+import { isTrelloConfigured, createTrelloCard, updateTrelloCard, getTrelloBoardLists, getTrelloListCards, TRELLO_STATUS_MAP } from "../lib/trello";
 
 const router = Router();
 
@@ -185,6 +186,156 @@ router.get("/feedback/resumo", async (_req: Request, res: Response) => {
   });
 
   res.json({ total, mediaGeral, distribuicao, porCanal });
+});
+
+router.get("/trello/status", async (_req: Request, res: Response) => {
+  res.json({
+    configurado: isTrelloConfigured(),
+    boardId: process.env.TRELLO_BOARD_ID || null,
+  });
+});
+
+router.post("/sync-trello", async (req: Request, res: Response) => {
+  try {
+    if (!isTrelloConfigured()) {
+      res.status(400).json({ error: "Trello nao configurado. Defina TRELLO_API_KEY, TRELLO_TOKEN e TRELLO_BOARD_ID nas variaveis de ambiente." });
+      return;
+    }
+
+    const boardId = process.env.TRELLO_BOARD_ID;
+    if (!boardId) {
+      res.status(400).json({ error: "TRELLO_BOARD_ID nao definido" });
+      return;
+    }
+
+    const lists = await getTrelloBoardLists(boardId);
+    const listMap: Record<string, string> = {};
+    for (const list of lists) {
+      const normalizedName = list.name.toLowerCase().replace(/\s+/g, "_");
+      for (const [status, label] of Object.entries(TRELLO_STATUS_MAP)) {
+        if (normalizedName.includes(status) || list.name.toLowerCase().includes(label.toLowerCase())) {
+          listMap[status] = list.id;
+        }
+      }
+    }
+
+    if (Object.keys(listMap).length === 0 && lists.length > 0) {
+      listMap["pendente"] = lists[0]?.id;
+      if (lists[1]) listMap["em_andamento"] = lists[1].id;
+      if (lists[2]) listMap["concluido"] = lists[2].id;
+    }
+
+    const delegacoes = await db.select().from(delegacoesTable);
+    const usuarios = await db.select().from(usuariosTable);
+    const usuarioMap = new Map(usuarios.map(u => [u.id, u.nome]));
+
+    let criados = 0;
+    let atualizados = 0;
+
+    for (const d of delegacoes) {
+      const targetListId = listMap[d.status] || listMap["pendente"];
+      if (!targetListId) continue;
+
+      const responsavelNome = usuarioMap.get(d.responsavelId) || "N/A";
+      const cardName = `[${d.prioridade.toUpperCase()}] ${d.titulo}`;
+      const cardDesc = `${d.descricao || ""}\n\nResponsavel: ${responsavelNome}\nCategoria: ${d.categoria}\nPrazo: ${d.prazo}\nStatus: ${d.status}`;
+
+      if (!d.trelloCardId) {
+        try {
+          const card = await createTrelloCard(targetListId, cardName, cardDesc);
+          await db.update(delegacoesTable).set({
+            trelloCardId: card.id,
+            trelloListId: targetListId,
+            trelloLastSync: new Date(),
+          }).where(eq(delegacoesTable.id, d.id));
+          criados++;
+        } catch (err: any) {
+          console.error(`Erro ao criar card Trello para delegacao ${d.id}:`, err.message);
+        }
+      } else {
+        try {
+          await updateTrelloCard(d.trelloCardId, {
+            name: cardName,
+            desc: cardDesc,
+            idList: targetListId,
+          });
+          await db.update(delegacoesTable).set({
+            trelloListId: targetListId,
+            trelloLastSync: new Date(),
+          }).where(eq(delegacoesTable.id, d.id));
+          atualizados++;
+        } catch (err: any) {
+          console.error(`Erro ao atualizar card Trello para delegacao ${d.id}:`, err.message);
+        }
+      }
+    }
+
+    res.json({
+      mensagem: `Sync Trello concluido: ${criados} criados, ${atualizados} atualizados`,
+      criados,
+      atualizados,
+      totalDelegacoes: delegacoes.length,
+      listasEncontradas: Object.keys(listMap),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/pull-trello", async (req: Request, res: Response) => {
+  try {
+    if (!isTrelloConfigured()) {
+      res.status(400).json({ error: "Trello nao configurado" });
+      return;
+    }
+
+    const boardId = process.env.TRELLO_BOARD_ID;
+    if (!boardId) {
+      res.status(400).json({ error: "TRELLO_BOARD_ID nao definido" });
+      return;
+    }
+
+    const lists = await getTrelloBoardLists(boardId);
+    const reverseMap: Record<string, string> = {};
+
+    for (const list of lists) {
+      const normalizedName = list.name.toLowerCase().replace(/\s+/g, "_");
+      for (const [status, label] of Object.entries(TRELLO_STATUS_MAP)) {
+        if (normalizedName.includes(status) || list.name.toLowerCase().includes(label.toLowerCase())) {
+          reverseMap[list.id] = status;
+        }
+      }
+    }
+
+    let atualizados = 0;
+
+    for (const list of lists) {
+      const statusLocal = reverseMap[list.id];
+      if (!statusLocal) continue;
+
+      const cards = await getTrelloListCards(list.id);
+      for (const card of cards) {
+        const [delegacao] = await db.select().from(delegacoesTable)
+          .where(eq(delegacoesTable.trelloCardId, card.id));
+
+        if (delegacao && delegacao.status !== statusLocal) {
+          const updates: any = { status: statusLocal, trelloLastSync: new Date() };
+          if (statusLocal === "concluido" && !delegacao.concluidoEm) {
+            updates.concluidoEm = new Date();
+          }
+          await db.update(delegacoesTable).set(updates).where(eq(delegacoesTable.id, delegacao.id));
+          atualizados++;
+        }
+      }
+    }
+
+    res.json({
+      mensagem: `Pull Trello concluido: ${atualizados} delegacoes atualizadas`,
+      atualizados,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;
