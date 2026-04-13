@@ -41,3 +41,4 @@ export * from "./colaboradores";
 export * from "./agentesVirtuais";
 export * from "./eventoStart";
 export * from "./cadernosDocumentais";
+export * from "./rasxRevo";

@@ -10,6 +10,21 @@ import { resolverCadernos, type ModalidadesAtivas } from "../lib/motor-toggles";
 
 const router = Router();
 
+router.get("/tratamentos", async (req, res): Promise<void> => {
+  const pacienteId = req.query.pacienteId ? Number(req.query.pacienteId) : null;
+  if (pacienteId) {
+    const tratamentos = await db.select().from(tratamentosTable)
+      .where(eq(tratamentosTable.pacienteId, pacienteId))
+      .orderBy(desc(tratamentosTable.criadoEm));
+    res.json(tratamentos);
+  } else {
+    const tratamentos = await db.select().from(tratamentosTable)
+      .orderBy(desc(tratamentosTable.criadoEm))
+      .limit(100);
+    res.json(tratamentos);
+  }
+});
+
 router.get("/ras/cadernos/:pacienteId", async (req, res): Promise<void> => {
   const pacienteId = Number(req.params.pacienteId);
   if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
@@ -172,6 +187,36 @@ router.get("/ras/evento-start/:pacienteId", async (req, res): Promise<void> => {
     .orderBy(desc(eventoStartTable.criadoEm));
 
   res.json({ eventos });
+});
+
+router.patch("/ras/cadernos/:cadernoId/status", async (req, res): Promise<void> => {
+  const cadernoId = Number(req.params.cadernoId);
+  if (isNaN(cadernoId)) { res.status(400).json({ error: "ID invalido" }); return; }
+
+  const { status } = req.body;
+  const validStatuses = ["pendente", "gerado", "assinado", "enviado", "arquivado", "erro"];
+  if (!validStatuses.includes(status)) {
+    res.status(400).json({ error: `Status invalido. Validos: ${validStatuses.join(", ")}` });
+    return;
+  }
+
+  const [caderno] = await db.select().from(cadernosDocumentaisTable)
+    .where(eq(cadernosDocumentaisTable.id, cadernoId))
+    .limit(1);
+
+  if (!caderno) { res.status(404).json({ error: "Caderno nao encontrado" }); return; }
+
+  const updates: any = { status };
+  if (status === "gerado") updates.geradoEm = new Date();
+  if (status === "assinado") updates.assinadoEm = new Date();
+  if (status === "enviado") updates.enviadoEm = new Date();
+
+  const [updated] = await db.update(cadernosDocumentaisTable)
+    .set(updates)
+    .where(eq(cadernosDocumentaisTable.id, cadernoId))
+    .returning();
+
+  res.json(updated);
 });
 
 router.get("/ras/siglas-referencia", async (_req, res): Promise<void> => {
