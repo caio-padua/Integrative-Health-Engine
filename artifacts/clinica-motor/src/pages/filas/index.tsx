@@ -14,10 +14,13 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { useClinic } from "@/contexts/ClinicContext";
 
 export default function Filas() {
-  const { data: filas, isLoading } = useObterFilasOperacionais({}, {
-    query: { queryKey: getObterFilasOperacionaisQueryKey({}) }
+  const { unidadeSelecionada } = useClinic();
+  const queryParams = unidadeSelecionada ? { unidadeId: unidadeSelecionada } : {};
+  const { data: filas, isLoading } = useObterFilasOperacionais(queryParams, {
+    query: { queryKey: getObterFilasOperacionaisQueryKey(queryParams) }
   });
   
   const moverItemFila = useMoverItemFila();

@@ -13,6 +13,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Link } from "wouter";
+import { useClinic } from "@/contexts/ClinicContext";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
@@ -53,9 +54,11 @@ const pacienteSchema = z.object({
 });
 
 export default function Pacientes() {
+  const { unidadeSelecionada } = useClinic();
   const [busca, setBusca] = useState("");
-  const { data: pacientes, isLoading } = useListarPacientes({ busca }, {
-    query: { queryKey: getListarPacientesQueryKey({ busca }) }
+  const queryParams = { busca, ...(unidadeSelecionada ? { unidadeId: unidadeSelecionada } : {}) };
+  const { data: pacientes, isLoading } = useListarPacientes(queryParams, {
+    query: { queryKey: getListarPacientesQueryKey(queryParams) }
   });
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();

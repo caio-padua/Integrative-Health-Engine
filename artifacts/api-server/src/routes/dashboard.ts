@@ -115,20 +115,30 @@ router.get("/dashboard/filas-resumo", async (req, res): Promise<void> => {
 
 router.get("/dashboard/comando", async (req, res): Promise<void> => {
   try {
+    const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const inicioSemana = new Date(hoje);
     inicioSemana.setDate(inicioSemana.getDate() - 7);
 
-    const [totalPac] = await db.select({ count: count() }).from(pacientesTable);
+    const allPacientes = await db.select({ id: pacientesTable.id, nome: pacientesTable.nome, unidadeId: pacientesTable.unidadeId }).from(pacientesTable);
+    const pacientesFiltrados = unidadeId ? allPacientes.filter(p => p.unidadeId === unidadeId) : allPacientes;
+    const pacienteIdsSet = new Set(pacientesFiltrados.map(p => p.id));
 
-    const sessoesAll = await db.select({
+    let pacientesNomes: Record<number, string> = {};
+    for (const p of pacientesFiltrados) {
+      pacientesNomes[p.id] = p.nome;
+    }
+
+    const sessoesAllRaw = await db.select({
       id: sessoesTable.id,
       pacienteId: sessoesTable.pacienteId,
       status: sessoesTable.status,
       dataAgendada: sessoesTable.dataAgendada,
       tipoServico: sessoesTable.tipoServico,
+      unidadeId: sessoesTable.unidadeId,
     }).from(sessoesTable);
+    const sessoesAll = unidadeId ? sessoesAllRaw.filter(s => s.unidadeId === unidadeId) : sessoesAllRaw;
 
     const sessoesSemana = sessoesAll.filter(s => {
       const d = new Date(s.dataAgendada);
@@ -150,7 +160,7 @@ router.get("/dashboard/comando", async (req, res): Promise<void> => {
       return d >= inicioSemana;
     });
 
-    const substUso = await db.select({
+    const substUsoRaw = await db.select({
       id: registroSubstanciaUsoTable.id,
       pacienteId: registroSubstanciaUsoTable.pacienteId,
       substanciaNome: registroSubstanciaUsoTable.substanciaNome,
@@ -159,6 +169,7 @@ router.get("/dashboard/comando", async (req, res): Promise<void> => {
       status: registroSubstanciaUsoTable.status,
       dataInicio: registroSubstanciaUsoTable.dataInicio,
     }).from(registroSubstanciaUsoTable);
+    const substUso = unidadeId ? substUsoRaw.filter(s => pacienteIdsSet.has(s.pacienteId)) : substUsoRaw;
 
     const substanciaMap: Record<string, { total: number; ativos: number; pausados: number; pacientes: string[] }> = {};
     for (const u of substUso) {
@@ -176,7 +187,7 @@ router.get("/dashboard/comando", async (req, res): Promise<void> => {
       pacientesUnicos: [...new Set(data.pacientes)].length,
     })).sort((a, b) => b.ativos - a.ativos);
 
-    const alertas = await db.select({
+    const alertasRaw = await db.select({
       id: alertaPacienteTable.id,
       pacienteId: alertaPacienteTable.pacienteId,
       tipoAlerta: alertaPacienteTable.tipoAlerta,
@@ -185,26 +196,10 @@ router.get("/dashboard/comando", async (req, res): Promise<void> => {
       status: alertaPacienteTable.status,
       criadoEm: alertaPacienteTable.criadoEm,
     }).from(alertaPacienteTable).orderBy(desc(alertaPacienteTable.criadoEm));
+    const alertas = unidadeId ? alertasRaw.filter(a => pacienteIdsSet.has(a.pacienteId)) : alertasRaw;
 
     const alertasAbertos = alertas.filter(a => a.status === "ABERTO");
     const alertasGraves = alertasAbertos.filter(a => a.gravidade === "GRAVE");
-
-    const pacientesIds = [...new Set([
-      ...sessoesAll.map(s => s.pacienteId),
-      ...substUso.map(s => s.pacienteId),
-      ...alertas.map(a => a.pacienteId),
-    ])].filter(Boolean);
-
-    let pacientesNomes: Record<number, string> = {};
-    if (pacientesIds.length > 0) {
-      const pacs = await db.select({
-        id: pacientesTable.id,
-        nome: pacientesTable.nome,
-      }).from(pacientesTable);
-      for (const p of pacs) {
-        pacientesNomes[p.id] = p.nome;
-      }
-    }
 
     const faltasDetalhes = faltasSemana.map(s => ({
       pacienteId: s.pacienteId,
@@ -242,7 +237,7 @@ router.get("/dashboard/comando", async (req, res): Promise<void> => {
 
     res.json({
       resumoGeral: {
-        totalPacientes: totalPac.count,
+        totalPacientes: pacientesFiltrados.length,
         sessoesHoje: sessoesHoje.length,
         sessoesAmanha: sessoesAmanha.length,
         sessoesSemana: sessoesSemana.length,
