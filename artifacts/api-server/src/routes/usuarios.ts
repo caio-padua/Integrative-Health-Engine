@@ -116,4 +116,33 @@ router.get("/usuarios/perfil-atual", async (_req, res): Promise<void> => {
   res.json({ ...usuario, unidadesVinculadas });
 });
 
+router.put("/usuarios/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID invalido" }); return; }
+  const allowedFields = ["nome", "email", "perfil", "unidadeId", "ativo", "escopo", "consultoriaId"];
+  const updateData: Record<string, any> = {};
+  for (const key of allowedFields) {
+    if (req.body[key] !== undefined) updateData[key] = req.body[key];
+  }
+  if (req.body.senha && req.body.senha.trim().length >= 6) {
+    updateData.senha = req.body.senha;
+  }
+  try {
+    const [updated] = await db.update(usuariosTable).set(updateData).where(eq(usuariosTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ error: "Usuario nao encontrado" }); return; }
+    const { senha: _s, ...safe } = updated;
+    res.json(safe);
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro interno" }); }
+});
+
+router.delete("/usuarios/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID invalido" }); return; }
+  try {
+    const [deleted] = await db.delete(usuariosTable).where(eq(usuariosTable.id, id)).returning();
+    if (!deleted) { res.status(404).json({ error: "Usuario nao encontrado" }); return; }
+    res.json({ ok: true });
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro interno" }); }
+});
+
 export default router;

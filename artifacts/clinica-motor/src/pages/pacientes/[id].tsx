@@ -2,7 +2,9 @@ import { Layout } from "@/components/Layout";
 import { useRoute, Link } from "wouter";
 import { useObterPaciente, getObterPacienteQueryKey, useAtualizarPaciente } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Activity, Clock, Edit, HeartPulse, MapPin, Mail, Phone, Calendar, FileText, Camera, Upload } from "lucide-react";
+import { User, Activity, Clock, Edit, HeartPulse, MapPin, Mail, Phone, Calendar, FileText, Camera, Upload, Shield } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +46,10 @@ const pacienteSchema = z.object({
   cpf: z.string().optional(),
   telefone: z.string().min(1, "Celular e obrigatorio"),
   email: z.string().email("E-mail invalido").optional().or(z.literal("")),
+  dataNascimento: z.string().optional(),
+  statusAtivo: z.boolean().optional(),
+  planoAcompanhamento: z.enum(["diamante", "ouro", "prata", "cobre"]).optional(),
+  googleDriveFolderId: z.string().optional(),
   cep: z.string().optional(),
   endereco: z.string().optional(),
   complemento: z.string().optional(),
@@ -70,7 +76,8 @@ export default function PacienteDetalhe() {
   const form = useForm<z.infer<typeof pacienteSchema>>({
     resolver: zodResolver(pacienteSchema),
     defaultValues: {
-      nome: "", cpf: "", telefone: "", email: "",
+      nome: "", cpf: "", telefone: "", email: "", dataNascimento: "",
+      statusAtivo: true, planoAcompanhamento: "cobre" as any, googleDriveFolderId: "",
       cep: "", endereco: "", complemento: "", bairro: "", cidade: "", estado: "", pais: "Brasil",
       unidadeId: 1,
     }
@@ -83,6 +90,10 @@ export default function PacienteDetalhe() {
         cpf: paciente.cpf || "",
         telefone: paciente.telefone,
         email: paciente.email || "",
+        dataNascimento: p?.dataNascimento ? String(p.dataNascimento).slice(0, 10) : "",
+        statusAtivo: paciente.statusAtivo ?? true,
+        planoAcompanhamento: (p?.planoAcompanhamento || "cobre") as any,
+        googleDriveFolderId: p?.googleDriveFolderId || "",
         cep: (paciente as any).cep || "",
         endereco: (paciente as any).endereco || "",
         complemento: (paciente as any).complemento || "",
@@ -110,14 +121,27 @@ export default function PacienteDetalhe() {
     } catch {}
   }, [form]);
 
-  const onSubmit = (values: z.infer<typeof pacienteSchema>) => {
-    atualizarPaciente.mutate({ id, data: values }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getObterPacienteQueryKey(id) });
-        setOpen(false);
-        toast({ title: "Paciente atualizado com sucesso." });
+  const [saving, setSaving] = useState(false);
+  const onSubmit = async (values: z.infer<typeof pacienteSchema>) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/pacientes/${id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao salvar" }));
+        toast({ title: err.error || "Erro ao salvar", variant: "destructive" });
+        setSaving(false);
+        return;
       }
-    });
+      queryClient.invalidateQueries({ queryKey: getObterPacienteQueryKey(id) });
+      setOpen(false);
+      toast({ title: "Paciente atualizado com sucesso." });
+    } catch {
+      toast({ title: "Erro de conexao", variant: "destructive" });
+    }
+    setSaving(false);
   };
 
   const p = paciente as any;
@@ -278,6 +302,53 @@ export default function PacienteDetalhe() {
                         </FormItem>
                       )} />
 
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="dataNascimento" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Data de Nascimento</FormLabel>
+                            <FormControl><Input type="date" {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="planoAcompanhamento" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Plano de Acompanhamento</FormLabel>
+                            <Select value={field.value || "cobre"} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="diamante">Diamante</SelectItem>
+                                <SelectItem value="ouro">Ouro</SelectItem>
+                                <SelectItem value="prata">Prata</SelectItem>
+                                <SelectItem value="cobre">Cobre</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="statusAtivo" render={({ field }) => (
+                          <FormItem className="flex items-center gap-3 space-y-0 pt-2">
+                            <FormControl>
+                              <Switch checked={field.value ?? true} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <FormLabel>Paciente Ativo</FormLabel>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="googleDriveFolderId" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Google Drive Folder ID</FormLabel>
+                            <FormControl><Input {...field} placeholder="ID da pasta no Drive" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+
                       <div className="border-t pt-4 mt-4">
                         <p className="text-sm font-medium text-muted-foreground mb-3">Endereco</p>
                         <div className="grid grid-cols-3 gap-4">
@@ -349,8 +420,8 @@ export default function PacienteDetalhe() {
                         </div>
                       </div>
 
-                      <Button type="submit" className="w-full" disabled={atualizarPaciente.isPending}>
-                        {atualizarPaciente.isPending ? "Salvando..." : "Salvar Alteracoes"}
+                      <Button type="submit" className="w-full" disabled={saving}>
+                        {saving ? "Salvando..." : "Salvar Alteracoes"}
                       </Button>
                     </form>
                   </Form>
@@ -385,6 +456,10 @@ export default function PacienteDetalhe() {
                       <span>{enderecoCompleto}{p?.cep ? ` - CEP ${p.cep}` : ''}</span>
                     </div>
                   )}
+                  <div className="flex items-center gap-3 text-sm">
+                    <Shield className="w-4 h-4 text-muted-foreground" />
+                    <span>Plano: <Badge variant="outline" className="ml-1">{(p?.planoAcompanhamento || "cobre").toUpperCase()}</Badge></span>
+                  </div>
                 </CardContent>
               </Card>
 

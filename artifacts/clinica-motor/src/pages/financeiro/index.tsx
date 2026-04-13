@@ -16,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus, CreditCard, DollarSign, TrendingUp, TrendingDown,
   AlertTriangle, CheckCircle, ChevronDown, ChevronRight,
-  Receipt, ArrowDownCircle, XCircle, FileText
+  Receipt, ArrowDownCircle, XCircle, FileText, Pencil, X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -130,6 +130,44 @@ export default function FinanceiroPage() {
     quantidade: 1,
     valorUnitario: 0,
   });
+
+  const [editingTrat, setEditingTrat] = useState<any>(null);
+  const [editTratForm, setEditTratForm] = useState<any>({});
+  const [editTratSaving, setEditTratSaving] = useState(false);
+
+  const openEditTrat = (t: any) => {
+    setEditTratForm({
+      nome: t.nome || "",
+      descricao: t.descricao || "",
+      valorBruto: t.valorBruto || 0,
+      desconto: t.desconto || 0,
+      numeroParcelas: t.numeroParcelas || 1,
+      dataPrevisaoFim: t.dataPrevisaoFim || "",
+      observacoes: t.observacoes || "",
+      status: t.status || "ativo",
+    });
+    setEditingTrat(t);
+  };
+
+  const saveEditTrat = async () => {
+    if (!editingTrat) return;
+    setEditTratSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/financeiro/tratamentos/${editingTrat.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editTratForm),
+      });
+      if (res.ok) {
+        toast({ title: "Tratamento atualizado" });
+        invalidateAll();
+        setEditingTrat(null);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: d.error || "Erro ao salvar", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setEditTratSaving(false);
+  };
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: getDashboardFinanceiroQueryKey() });
@@ -480,7 +518,7 @@ export default function FinanceiroPage() {
                 <TableBody>
                   {tratamentos.map((t: any) => (
                     <React.Fragment key={t.id}>
-                      <TableRow className="cursor-pointer hover:bg-muted/30" onClick={() => setExpandedId(expandedId === t.id ? null : t.id)}>
+                      <TableRow className="cursor-pointer hover:bg-muted/30 group" onClick={() => setExpandedId(expandedId === t.id ? null : t.id)}>
                         <TableCell>
                           {expandedId === t.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         </TableCell>
@@ -506,27 +544,38 @@ export default function FinanceiroPage() {
                           <ProgressBar paid={t.valorPago || 0} total={t.valorFinal || 0} />
                         </TableCell>
                         <TableCell className="text-right">
-                          {t.status === "ativo" && t.saldoDevedor > 0 && (
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="border-green-500/50 text-green-400 hover:bg-green-500/10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedTratamentoId(t.id);
-                                setBaixaForm({ valor: 0, formaPagamento: "pix", observacao: "" });
-                                setOpenBaixa(true);
-                              }}
+                              variant="ghost"
+                              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 hover:bg-primary/10"
+                              onClick={(e) => { e.stopPropagation(); openEditTrat(t); }}
+                              title="Editar tratamento"
                             >
-                              <ArrowDownCircle className="w-4 h-4 mr-1" />
-                              Baixa
+                              <Pencil className="w-3.5 h-3.5" />
                             </Button>
-                          )}
-                          {t.status === "concluido" && (
-                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30 border">
-                              <CheckCircle className="w-3 h-3 mr-1" /> Quitado
-                            </Badge>
-                          )}
+                            {t.status === "ativo" && t.saldoDevedor > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedTratamentoId(t.id);
+                                  setBaixaForm({ valor: 0, formaPagamento: "pix", observacao: "" });
+                                  setOpenBaixa(true);
+                                }}
+                              >
+                                <ArrowDownCircle className="w-4 h-4 mr-1" />
+                                Baixa
+                              </Button>
+                            )}
+                            {t.status === "concluido" && (
+                              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 border">
+                                <CheckCircle className="w-3 h-3 mr-1" /> Quitado
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                       {expandedId === t.id && (
@@ -607,6 +656,65 @@ export default function FinanceiroPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {editingTrat && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setEditingTrat(null)}>
+            <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Tratamento</h3>
+                <button onClick={() => setEditingTrat(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
+              </div>
+              <div className="text-sm text-muted-foreground">Paciente: <strong>{editingTrat.pacienteNome}</strong></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Nome</Label>
+                  <Input value={editTratForm.nome} onChange={e => setEditTratForm({...editTratForm, nome: e.target.value})} />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Descricao</Label>
+                  <Textarea value={editTratForm.descricao} onChange={e => setEditTratForm({...editTratForm, descricao: e.target.value})} rows={2} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Status</Label>
+                  <Select value={editTratForm.status} onValueChange={v => setEditTratForm({...editTratForm, status: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(statusLabels).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Parcelas</Label>
+                  <Input type="number" min="1" value={editTratForm.numeroParcelas} onChange={e => setEditTratForm({...editTratForm, numeroParcelas: parseInt(e.target.value) || 1})} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Valor Bruto (R$)</Label>
+                  <Input type="number" step="0.01" min="0" value={editTratForm.valorBruto} onChange={e => setEditTratForm({...editTratForm, valorBruto: parseFloat(e.target.value) || 0})} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Desconto (R$)</Label>
+                  <Input type="number" step="0.01" min="0" value={editTratForm.desconto} onChange={e => setEditTratForm({...editTratForm, desconto: parseFloat(e.target.value) || 0})} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Previsao Fim</Label>
+                  <Input type="date" value={editTratForm.dataPrevisaoFim} onChange={e => setEditTratForm({...editTratForm, dataPrevisaoFim: e.target.value})} />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Observacoes</Label>
+                  <Textarea value={editTratForm.observacoes} onChange={e => setEditTratForm({...editTratForm, observacoes: e.target.value})} rows={2} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Button className="flex-1 text-xs h-9" onClick={saveEditTrat} disabled={editTratSaving}>
+                  {editTratSaving ? "Salvando..." : "Salvar Alteracoes"}
+                </Button>
+                <Button variant="outline" className="text-xs h-9" onClick={() => setEditingTrat(null)}>Cancelar</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

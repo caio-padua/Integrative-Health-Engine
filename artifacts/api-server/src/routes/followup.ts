@@ -66,4 +66,40 @@ router.post("/followup/:id/concluir", async (req, res): Promise<void> => {
   res.json(followup);
 });
 
+router.put("/followup/:id", async (req, res): Promise<void> => {
+  try {
+    const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = parseInt(raw, 10);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalido" }); return; }
+    const body = req.body;
+    const allowed: Record<string, any> = {};
+    const whitelist = ["tipo", "status", "dataAgendada", "observacoes", "recorrencia", "responsavelId", "unidadeId"];
+    for (const k of whitelist) {
+      if (body[k] !== undefined) allowed[k] = body[k];
+    }
+    if (allowed.dataAgendada && typeof allowed.dataAgendada === "string") {
+      allowed.dataAgendada = new Date(allowed.dataAgendada);
+    }
+    if (Object.keys(allowed).length === 0) { res.status(400).json({ error: "Nenhum campo para atualizar" }); return; }
+    const [followup] = await db.update(followupsTable).set(allowed).where(eq(followupsTable.id, id)).returning();
+    if (!followup) { res.status(404).json({ error: "Follow-up nao encontrado" }); return; }
+    res.json(followup);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Erro interno" });
+  }
+});
+
+router.delete("/followup/:id", async (req, res): Promise<void> => {
+  try {
+    const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = parseInt(raw, 10);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalido" }); return; }
+    const [deleted] = await db.delete(followupsTable).where(eq(followupsTable.id, id)).returning();
+    if (!deleted) { res.status(404).json({ error: "Follow-up nao encontrado" }); return; }
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Erro interno" });
+  }
+});
+
 export default router;
