@@ -51,6 +51,7 @@ import slaRouter from "./sla";
 import matrixRouter from "./matrix";
 import agendaMotorRouter from "./agenda-motor";
 import colaboradoresRouter from "./colaboradores";
+import agentesVirtuaisRouter from "./agentesVirtuais";
 
 const router: IRouter = Router();
 
@@ -106,5 +107,6 @@ router.use(slaRouter);
 router.use(matrixRouter);
 router.use(agendaMotorRouter);
 router.use("/colaboradores", colaboradoresRouter);
+router.use("/agentes-virtuais", agentesVirtuaisRouter);
 
 export default router;
