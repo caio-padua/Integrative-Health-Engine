@@ -115,6 +115,8 @@ export const revoMedicamentosTable = pgTable("revo_medicamentos", {
 
   nome: text("nome").notNull(),
   dose: text("dose"),
+  medicamentoDoseInline: text("medicamento_dose_inline"),
+  posologia: text("posologia"),
   motivoUso: text("motivo_uso"),
   tempoUso: text("tempo_uso"),
 
@@ -122,12 +124,78 @@ export const revoMedicamentosTable = pgTable("revo_medicamentos", {
     enum: ["em_uso", "reduzido", "suspenso", "substituido"]
   }).notNull().default("em_uso"),
 
+  dataInicioUso: timestamp("data_inicio_uso", { withTimezone: true }),
+  dataReducao: timestamp("data_reducao", { withTimezone: true }),
+  dataSuspensao: timestamp("data_suspensao", { withTimezone: true }),
+
   criterioReducao: text("criterio_reducao"),
   substituicaoNatural: text("substituicao_natural"),
   evidenciaMelhora: text("evidencia_melhora"),
 
+  indicacaoClinica: text("indicacao_clinica"),
+
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const revoEventosMedicacaoTable = pgTable("revo_eventos_medicacao", {
+  id: serial("id").primaryKey(),
+  medicamentoId: integer("medicamento_id").notNull().references(() => revoMedicamentosTable.id, { onDelete: "cascade" }),
+  pacienteId: integer("paciente_id").notNull().references(() => pacientesTable.id),
+
+  data: timestamp("data", { withTimezone: true }).notNull().defaultNow(),
+  apresentacao: text("apresentacao").notNull(),
+  posologia: text("posologia"),
+  status: text("status", {
+    enum: ["ATIVO", "REDUZIDO", "SUSPENSO", "SUBSTITUIDO"]
+  }).notNull().default("ATIVO"),
+
+  substituicaoNatural: text("substituicao_natural"),
+  leituraClinica: text("leitura_clinica"),
+
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const rasxAuditLogTable = pgTable("rasx_audit_log", {
+  id: serial("id").primaryKey(),
+  pacienteId: integer("paciente_id").references(() => pacientesTable.id),
+
+  userId: integer("user_id"),
+  entidade: text("entidade").notNull(),
+  entidadeId: integer("entidade_id"),
+  acao: text("acao", {
+    enum: ["criar", "editar", "excluir", "override", "gerar_pdf", "validar"]
+  }).notNull(),
+
+  campo: text("campo"),
+  valorAnterior: text("valor_anterior"),
+  valorNovo: text("valor_novo"),
+  justificativa: text("justificativa"),
+
+  hashDocumental: text("hash_documental"),
+  metadados: jsonb("metadados").default({}),
+
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const revoProximaEtapaTable = pgTable("revo_proxima_etapa", {
+  id: serial("id").primaryKey(),
+  pacienteId: integer("paciente_id").notNull().references(() => pacientesTable.id),
+
+  tipo: text("tipo", {
+    enum: ["exame", "meta", "lembrete", "atencao"]
+  }).notNull(),
+
+  descricao: text("descricao").notNull(),
+  dataPrevista: timestamp("data_prevista", { withTimezone: true }),
+  prioridade: text("prioridade", {
+    enum: ["baixa", "media", "alta", "urgente"]
+  }).default("media"),
+
+  concluido: boolean("concluido").notNull().default(false),
+  concluidoEm: timestamp("concluido_em", { withTimezone: true }),
+
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertRevoSnapshotSchema = createInsertSchema(revoSnapshotsTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
@@ -149,3 +217,104 @@ export type RevoOrgao = typeof revoOrgaosTable.$inferSelect;
 export const insertRevoMedicamentoSchema = createInsertSchema(revoMedicamentosTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 export type InsertRevoMedicamento = z.infer<typeof insertRevoMedicamentoSchema>;
 export type RevoMedicamento = typeof revoMedicamentosTable.$inferSelect;
+
+export const insertRevoEventoMedicacaoSchema = createInsertSchema(revoEventosMedicacaoTable).omit({ id: true, criadoEm: true });
+export type InsertRevoEventoMedicacao = z.infer<typeof insertRevoEventoMedicacaoSchema>;
+export type RevoEventoMedicacao = typeof revoEventosMedicacaoTable.$inferSelect;
+
+export const insertRasxAuditLogSchema = createInsertSchema(rasxAuditLogTable).omit({ id: true, criadoEm: true });
+export type InsertRasxAuditLog = z.infer<typeof insertRasxAuditLogSchema>;
+export type RasxAuditLog = typeof rasxAuditLogTable.$inferSelect;
+
+export const insertRevoProximaEtapaSchema = createInsertSchema(revoProximaEtapaTable).omit({ id: true, criadoEm: true });
+export type InsertRevoProximaEtapa = z.infer<typeof insertRevoProximaEtapaSchema>;
+export type RevoProximaEtapa = typeof revoProximaEtapaTable.$inferSelect;
+
+export interface RasxArquMaster {
+  patientId: number;
+  protocolId?: number;
+  snapshotInicial: EstadoSaudeSnapshot | null;
+  snapshotAtual: EstadoSaudeSnapshot | null;
+  linhasMedicacao: LinhaMedicacao[];
+  curvas: { doenca: SerieTemporal[]; saude: SerieTemporal[] };
+  cadernos: RasxCaderno[];
+  versao: "V5";
+}
+
+export interface EstadoSaudeSnapshot {
+  patologiasDiagnosticas: PatologiaItem[];
+  patologiasPotenciais: PatologiaPotencialItem[];
+  orgaosAfetados: OrgaoImpactado[];
+  medicamentosAtuais: MedicacaoAtualItem[];
+  substituicoesNaturais: SubstituicaoItem[];
+  scoreSistemico: SistemaScore[];
+}
+
+export interface PatologiaItem {
+  nome: string;
+  cid10?: string;
+  orgaoSistema?: string;
+  intensidade: string;
+  semaforo: string;
+  medicacao?: string;
+  leituraClinica?: string;
+}
+
+export interface PatologiaPotencialItem {
+  nome: string;
+  risco: string;
+  baseadoEm: string;
+}
+
+export interface OrgaoImpactado {
+  orgaoSistema: string;
+  intensidade: string;
+  riscoPrognostico: string;
+  patologias: string[];
+}
+
+export interface MedicacaoAtualItem {
+  medicamento: string;
+  posologia: string;
+  indicacaoClinica?: string;
+  dataInicioUso?: string;
+}
+
+export interface SubstituicaoItem {
+  medicamentoOriginal: string;
+  substituicaoNatural: string;
+  evidenciaMelhora?: string;
+}
+
+export interface SistemaScore {
+  sistema: string;
+  score: number;
+  status: string;
+}
+
+export interface LinhaMedicacao {
+  medicamentoBase: string;
+  eventos: {
+    data: string;
+    apresentacao: string;
+    posologia: string;
+    status: "ATIVO" | "REDUZIDO" | "SUSPENSO" | "SUBSTITUIDO";
+    substituicaoNatural?: string;
+    leituraClinica?: string;
+  }[];
+}
+
+export interface SerieTemporal {
+  indicador: string;
+  valor: number;
+  data: string;
+  unidade?: string;
+}
+
+export interface RasxCaderno {
+  codigo: string;
+  titulo: string;
+  orientacao: "retrato" | "paisagem";
+  obrigatorio: boolean;
+  conteudo: any;
+}

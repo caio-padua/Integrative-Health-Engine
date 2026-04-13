@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   Activity, Heart, Pill, ArrowDown, ArrowUp, Plus, Edit, Trash2,
-  Loader2, RefreshCw, Zap, Brain, ChevronDown, ChevronRight, Save, X
+  Loader2, RefreshCw, Zap, Brain, ChevronDown, ChevronRight, Save, X,
+  Download, Clock, FileText, History, Target, CheckCircle2, AlertTriangle
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -56,6 +57,21 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const [editingPat, setEditingPat] = useState<any>(null);
   const [editingMed, setEditingMed] = useState<any>(null);
+
+  const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const [etapasExpanded, setEtapasExpanded] = useState(false);
+  const [auditExpanded, setAuditExpanded] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
+  const [showNewEvento, setShowNewEvento] = useState(false);
+  const [newEvento, setNewEvento] = useState({ medicamentoId: "", data: "", apresentacao: "", posologia: "", status: "ATIVO", substituicaoNatural: "", leituraClinica: "" });
+  const [addingEvento, setAddingEvento] = useState(false);
+
+  const [showNewEtapa, setShowNewEtapa] = useState(false);
+  const [newEtapa, setNewEtapa] = useState({ tipo: "exame", descricao: "", dataPrevista: "", prioridade: "media" });
+  const [addingEtapa, setAddingEtapa] = useState(false);
+
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -205,6 +221,94 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
     } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
   };
 
+  const handleAddEvento = async () => {
+    if (!newEvento.medicamentoId || !newEvento.apresentacao) { toast({ title: "Medicamento e apresentacao sao obrigatorios", variant: "destructive" }); return; }
+    setAddingEvento(true);
+    try {
+      const res = await fetch(`${apiBase}/rasx/${pacienteId}/evento-medicacao`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...newEvento, medicamentoId: Number(newEvento.medicamentoId) }),
+      });
+      if (res.ok) {
+        toast({ title: "Evento de medicacao adicionado" });
+        setShowNewEvento(false);
+        setNewEvento({ medicamentoId: "", data: "", apresentacao: "", posologia: "", status: "ATIVO", substituicaoNatural: "", leituraClinica: "" });
+        fetchData();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: d.error || "Erro ao adicionar evento", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setAddingEvento(false);
+  };
+
+  const handleDeleteEvento = async (id: number) => {
+    try {
+      const res = await fetch(`${apiBase}/rasx/evento-medicacao/${id}`, { method: "DELETE" });
+      if (res.ok) { toast({ title: "Evento removido" }); fetchData(); }
+    } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
+  };
+
+  const handleAddEtapa = async () => {
+    if (!newEtapa.descricao) { toast({ title: "Descricao obrigatoria", variant: "destructive" }); return; }
+    setAddingEtapa(true);
+    try {
+      const res = await fetch(`${apiBase}/rasx/${pacienteId}/proxima-etapa`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEtapa),
+      });
+      if (res.ok) {
+        toast({ title: "Proxima etapa adicionada" });
+        setShowNewEtapa(false);
+        setNewEtapa({ tipo: "exame", descricao: "", dataPrevista: "", prioridade: "media" });
+        fetchData();
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setAddingEtapa(false);
+  };
+
+  const handleConcluirEtapa = async (id: number) => {
+    try {
+      const res = await fetch(`${apiBase}/rasx/proxima-etapa/${id}/concluir`, { method: "PUT" });
+      if (res.ok) { toast({ title: "Etapa concluida" }); fetchData(); }
+    } catch { toast({ title: "Erro", variant: "destructive" }); }
+  };
+
+  const handleDeleteEtapa = async (id: number) => {
+    try {
+      const res = await fetch(`${apiBase}/rasx/proxima-etapa/${id}`, { method: "DELETE" });
+      if (res.ok) { toast({ title: "Etapa removida" }); fetchData(); }
+      else toast({ title: "Erro ao remover etapa", variant: "destructive" });
+    } catch { toast({ title: "Erro", variant: "destructive" }); }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const res = await fetch(`${apiBase}/rasx/${pacienteId}/arqu/pdf`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `RASX_${data?.paciente?.nome || "paciente"}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: "PDF RASX gerado com sucesso" });
+      } else {
+        toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setDownloadingPdf(false);
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      const res = await fetch(`${apiBase}/rasx/${pacienteId}/audit-log`);
+      if (res.ok) setAuditLogs(await res.json());
+    } catch {}
+  };
+
   if (loading) {
     return (
       <Card className="bg-card border-border/50">
@@ -259,7 +363,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
         <div className="flex items-center gap-3">
           <Activity className="w-5 h-5 text-green-400" />
           <h2 className="text-lg font-semibold">RASX REVO — Estado Evolutivo de Saude</h2>
-          <Badge variant="outline" className="text-[10px]">V2</Badge>
+          <Badge variant="outline" className="text-[10px]">V5</Badge>
         </div>
         <Button variant="outline" size="sm" onClick={fetchData}>
           <RefreshCw className="w-3 h-3 mr-1" /> Atualizar
@@ -505,6 +609,210 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
               </div>
             </CardContent>
           )}
+        </Card>
+      )}
+
+      <Card className="bg-card border-border/50">
+        <CardHeader className="pb-2 cursor-pointer" onClick={() => setTimelineExpanded(!timelineExpanded)}>
+          <CardTitle className="flex items-center gap-2 text-base">
+            {timelineExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <Clock className="w-4 h-4 text-yellow-400" />
+            <span>Linha Temporal de Medicacao</span>
+            <Badge variant="outline" className="text-[10px] ml-2">{data?.eventosMedicacao?.length || 0}</Badge>
+            <Button size="sm" variant="outline" className="ml-auto" onClick={(e) => { e.stopPropagation(); setShowNewEvento(true); setTimelineExpanded(true); }}>
+              <Plus className="w-3 h-3 mr-1" /> Evento
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        {timelineExpanded && (
+          <CardContent className="pt-0 space-y-3">
+            {showNewEvento && (
+              <div className="border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-2">
+                <p className="text-xs font-medium text-yellow-400">Novo Evento de Medicacao</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <select value={newEvento.medicamentoId} onChange={e => setNewEvento(ev => ({ ...ev, medicamentoId: e.target.value }))}
+                    className="bg-background border border-border px-2 py-1.5 text-sm">
+                    <option value="">Selecione medicamento...</option>
+                    {meds.map((m: any) => <option key={m.id} value={m.id}>{m.nome} {m.dose || ""}</option>)}
+                  </select>
+                  <Input type="date" value={newEvento.data} onChange={e => setNewEvento(ev => ({ ...ev, data: e.target.value }))} />
+                  <Input placeholder="Apresentacao (ex: Caprio 25mg)" value={newEvento.apresentacao} onChange={e => setNewEvento(ev => ({ ...ev, apresentacao: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <Input placeholder="Posologia" value={newEvento.posologia} onChange={e => setNewEvento(ev => ({ ...ev, posologia: e.target.value }))} />
+                  <select value={newEvento.status} onChange={e => setNewEvento(ev => ({ ...ev, status: e.target.value }))}
+                    className="bg-background border border-border px-2 py-1.5 text-sm">
+                    <option value="ATIVO">Ativo</option>
+                    <option value="REDUZIDO">Reduzido</option>
+                    <option value="SUSPENSO">Suspenso</option>
+                    <option value="SUBSTITUIDO">Substituido</option>
+                  </select>
+                  <Input placeholder="Substituicao natural" value={newEvento.substituicaoNatural} onChange={e => setNewEvento(ev => ({ ...ev, substituicaoNatural: e.target.value }))} />
+                  <Input placeholder="Leitura clinica" value={newEvento.leituraClinica} onChange={e => setNewEvento(ev => ({ ...ev, leituraClinica: e.target.value }))} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setShowNewEvento(false)}>Cancelar</Button>
+                  <Button size="sm" onClick={handleAddEvento} disabled={addingEvento}>
+                    {addingEvento ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plus className="w-3 h-3 mr-1" />} Adicionar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {(data?.eventosMedicacao || []).length === 0 ? (
+              <p className="text-center text-muted-foreground text-xs py-4">Nenhum evento registrado. Adicione eventos para rastrear a cronologia de cada medicamento.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border/30 text-muted-foreground">
+                      <th className="text-left py-1.5 px-2 font-medium">DATA</th>
+                      <th className="text-left py-1.5 px-2 font-medium">MEDICAMENTO</th>
+                      <th className="text-left py-1.5 px-2 font-medium">POSOLOGIA</th>
+                      <th className="text-left py-1.5 px-2 font-medium">EVENTO</th>
+                      <th className="text-left py-1.5 px-2 font-medium">SUBSTITUICAO</th>
+                      <th className="text-left py-1.5 px-2 font-medium">LEITURA CLINICA</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data?.eventosMedicacao || []).map((ev: any, i: number) => (
+                      <tr key={ev.id} className={`border-b border-border/10 hover:bg-muted/5 group ${i % 2 === 0 ? "bg-muted/3" : ""}`}>
+                        <td className="py-1.5 px-2 font-mono">{ev.data ? new Date(ev.data).toLocaleDateString("pt-BR") : "—"}</td>
+                        <td className="py-1.5 px-2 font-medium">{ev.apresentacao}</td>
+                        <td className="py-1.5 px-2">{ev.posologia || "—"}</td>
+                        <td className="py-1.5 px-2">
+                          <Badge variant="outline" className={`text-[9px] ${ev.status === "ATIVO" ? "text-blue-400" : ev.status === "REDUZIDO" ? "text-yellow-400" : ev.status === "SUSPENSO" ? "text-green-400" : "text-purple-400"}`}>
+                            {ev.status}
+                          </Badge>
+                        </td>
+                        <td className="py-1.5 px-2 text-green-400">{ev.substituicaoNatural || "—"}</td>
+                        <td className="py-1.5 px-2 text-muted-foreground">{ev.leituraClinica || "—"}</td>
+                        <td className="py-1.5 px-1">
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-red-400 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteEvento(ev.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
+      <Card className="bg-card border-border/50">
+        <CardHeader className="pb-2 cursor-pointer" onClick={() => setEtapasExpanded(!etapasExpanded)}>
+          <CardTitle className="flex items-center gap-2 text-base">
+            {etapasExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <Target className="w-4 h-4 text-blue-400" />
+            <span>Proxima Etapa</span>
+            <Badge variant="outline" className="text-[10px] ml-2">{data?.proximasEtapas?.length || 0}</Badge>
+            <Button size="sm" variant="outline" className="ml-auto" onClick={(e) => { e.stopPropagation(); setShowNewEtapa(true); setEtapasExpanded(true); }}>
+              <Plus className="w-3 h-3 mr-1" /> Etapa
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        {etapasExpanded && (
+          <CardContent className="pt-0 space-y-2">
+            {showNewEtapa && (
+              <div className="border border-blue-500/30 bg-blue-500/5 p-3 space-y-2">
+                <p className="text-xs font-medium text-blue-400">Nova Etapa</p>
+                <div className="grid grid-cols-4 gap-2">
+                  <select value={newEtapa.tipo} onChange={e => setNewEtapa(et => ({ ...et, tipo: e.target.value }))}
+                    className="bg-background border border-border px-2 py-1.5 text-sm">
+                    <option value="exame">Exame</option>
+                    <option value="meta">Meta</option>
+                    <option value="lembrete">Lembrete</option>
+                    <option value="atencao">Atencao</option>
+                  </select>
+                  <Input placeholder="Descricao" className="col-span-2" value={newEtapa.descricao} onChange={e => setNewEtapa(et => ({ ...et, descricao: e.target.value }))} />
+                  <Input type="date" value={newEtapa.dataPrevista} onChange={e => setNewEtapa(et => ({ ...et, dataPrevista: e.target.value }))} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setShowNewEtapa(false)}>Cancelar</Button>
+                  <Button size="sm" onClick={handleAddEtapa} disabled={addingEtapa}>
+                    {addingEtapa ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plus className="w-3 h-3 mr-1" />} Adicionar
+                  </Button>
+                </div>
+              </div>
+            )}
+            {(data?.proximasEtapas || []).length === 0 ? (
+              <p className="text-center text-muted-foreground text-xs py-4">Nenhuma proxima etapa registrada.</p>
+            ) : (
+              <div className="divide-y divide-border/20">
+                {(data?.proximasEtapas || []).map((et: any) => (
+                  <div key={et.id} className="flex items-center justify-between py-2 group">
+                    <div className="flex items-center gap-3">
+                      {et.concluido ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <AlertTriangle className="w-4 h-4 text-yellow-400" />}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[9px]">{et.tipo}</Badge>
+                          <span className={`text-sm ${et.concluido ? "line-through text-muted-foreground" : ""}`}>{et.descricao}</span>
+                        </div>
+                        {et.dataPrevista && <span className="text-[10px] text-muted-foreground">Previsto: {new Date(et.dataPrevista).toLocaleDateString("pt-BR")}</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {!et.concluido && (
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-green-400 text-xs" onClick={() => handleConcluirEtapa(et.id)}>
+                          <CheckCircle2 className="w-3 h-3 mr-1" /> Concluir
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-400" onClick={() => handleDeleteEtapa(et.id)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
+      <div className="flex gap-2">
+        <Button onClick={handleDownloadPdf} disabled={downloadingPdf} className="flex-1">
+          {downloadingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+          Gerar PDF RASX Completo
+        </Button>
+        <Button variant="outline" onClick={() => { setAuditExpanded(!auditExpanded); if (!auditExpanded) fetchAuditLogs(); }}>
+          <History className="w-4 h-4 mr-2" /> Audit Log
+        </Button>
+      </div>
+
+      {auditExpanded && (
+        <Card className="bg-card border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="w-4 h-4 text-orange-400" />
+              Historico de Auditoria
+              <Badge variant="outline" className="text-[10px] ml-2">{auditLogs.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {auditLogs.length === 0 ? (
+              <p className="text-center text-muted-foreground text-xs py-4">Nenhum registro de auditoria.</p>
+            ) : (
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {auditLogs.map((log: any) => (
+                  <div key={log.id} className="flex items-center gap-3 py-1.5 border-b border-border/10 text-xs">
+                    <span className="font-mono text-muted-foreground w-28 shrink-0">{new Date(log.criadoEm).toLocaleString("pt-BR")}</span>
+                    <Badge variant="outline" className={`text-[9px] shrink-0 ${log.acao === "override" ? "text-orange-400" : log.acao === "gerar_pdf" ? "text-blue-400" : log.acao === "excluir" ? "text-red-400" : "text-green-400"}`}>
+                      {log.acao}
+                    </Badge>
+                    <span className="text-muted-foreground">{log.entidade}</span>
+                    {log.campo && <span>campo: <span className="font-medium">{log.campo}</span></span>}
+                    {log.valorAnterior && <span className="text-red-400/60">{log.valorAnterior}</span>}
+                    {log.valorNovo && <span className="text-green-400">→ {log.valorNovo}</span>}
+                    {log.justificativa && <span className="text-yellow-400 italic">{log.justificativa}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
         </Card>
       )}
 
