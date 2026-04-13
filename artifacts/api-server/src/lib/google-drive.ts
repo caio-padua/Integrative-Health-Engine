@@ -67,7 +67,7 @@ export type ClientSubfolder = typeof CLIENT_SUBFOLDERS[number];
 
 const CADASTRO_SANDBOX = 'CADASTROS ANTIGOS';
 
-function escapeDriveQuery(str: string): string {
+export function escapeDriveQuery(str: string): string {
   return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
