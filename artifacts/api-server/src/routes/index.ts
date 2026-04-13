@@ -52,6 +52,9 @@ import matrixRouter from "./matrix";
 import agendaMotorRouter from "./agenda-motor";
 import colaboradoresRouter from "./colaboradores";
 import agentesVirtuaisRouter from "./agentesVirtuais";
+import rasDistribuirRouter from "./rasDistribuir";
+import consultoriasRouter from "./consultoriasRoute";
+import contratosRouter from "./contratosRoute";
 
 const router: IRouter = Router();
 
@@ -108,5 +111,8 @@ router.use(matrixRouter);
 router.use(agendaMotorRouter);
 router.use("/colaboradores", colaboradoresRouter);
 router.use("/agentes-virtuais", agentesVirtuaisRouter);
+router.use(rasDistribuirRouter);
+router.use(consultoriasRouter);
+router.use(contratosRouter);
 
 export default router;
