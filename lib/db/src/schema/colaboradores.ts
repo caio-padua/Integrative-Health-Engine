@@ -11,9 +11,15 @@ export const teamPositionsTable = pgTable("team_positions", {
   modalidade: varchar("modalidade", { length: 50 }).notNull().default("presencial"),
   slaDefault: varchar("sla_default", { length: 100 }),
   reportaA: varchar("reporta_a", { length: 50 }),
+  quandoReporta: text("quando_reporta"),
   descricaoFuncao: text("descricao_funcao"),
   objetivos: text("objetivos"),
   metasPrincipais: jsonb("metas_principais").$type<string[]>(),
+  direitos: jsonb("direitos").$type<string[]>(),
+  deveres: jsonb("deveres").$type<string[]>(),
+  advertenciaTriggers: jsonb("advertencia_triggers").$type<string[]>(),
+  demissaoTriggers: jsonb("demissao_triggers").$type<string[]>(),
+  justaCausaTriggers: jsonb("justa_causa_triggers").$type<string[]>(),
   permissoes: jsonb("permissoes").$type<Record<string, boolean>>(),
   podeSupervisionarOutros: boolean("pode_supervisionar_outros").default(false),
   podeAuditarCards: boolean("pode_auditar_cards").default(false),
@@ -98,12 +104,49 @@ export const disciplinaryEventsTable = pgTable("disciplinary_events", {
   criadoEm: timestamp("criado_em").defaultNow(),
 });
 
+export const agentActionsTable = pgTable("agent_actions", {
+  id: serial("id").primaryKey(),
+  agentType: varchar("agent_type", { length: 50 }).notNull(),
+  actionType: varchar("action_type", { length: 100 }).notNull(),
+  targetTable: varchar("target_table", { length: 100 }),
+  targetId: integer("target_id"),
+  unidadeId: integer("unidade_id").references(() => unidadesTable.id),
+  membroId: integer("membro_id").references(() => teamMembersTable.id),
+  inputData: jsonb("input_data").$type<Record<string, any>>(),
+  outputData: jsonb("output_data").$type<Record<string, any>>(),
+  status: varchar("status", { length: 30 }).notNull().default("pendente"),
+  prioridade: varchar("prioridade", { length: 20 }).notNull().default("normal"),
+  erro: text("erro"),
+  tempoExecucaoMs: integer("tempo_execucao_ms"),
+  criadoEm: timestamp("criado_em").defaultNow(),
+  executadoEm: timestamp("executado_em"),
+});
+
+export const slaMonitoringTable = pgTable("sla_monitoring", {
+  id: serial("id").primaryKey(),
+  membroId: integer("membro_id").references(() => teamMembersTable.id).notNull(),
+  unidadeId: integer("unidade_id").references(() => unidadesTable.id),
+  tipoSla: varchar("tipo_sla", { length: 100 }).notNull(),
+  prazoHoras: integer("prazo_horas").notNull(),
+  inicioEm: timestamp("inicio_em").defaultNow(),
+  venceEm: timestamp("vence_em").notNull(),
+  resolvidoEm: timestamp("resolvido_em"),
+  status: varchar("status", { length: 30 }).notNull().default("ativo"),
+  taskCardId: integer("task_card_id"),
+  escalonadoPara: varchar("escalonado_para", { length: 50 }),
+  alertaAmareloEnviado: boolean("alerta_amarelo_enviado").default(false),
+  alertaVermelhoEnviado: boolean("alerta_vermelho_enviado").default(false),
+  criadoEm: timestamp("criado_em").defaultNow(),
+});
+
 export const insertTeamPositionSchema = createInsertSchema(teamPositionsTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembersTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 export const insertTaskAttemptSchema = createInsertSchema(taskAttemptsTable).omit({ id: true, criadoEm: true });
 export const insertTaskValidationSchema = createInsertSchema(taskValidationsTable).omit({ id: true, criadoEm: true });
 export const insertCommissionEventSchema = createInsertSchema(commissionEventsTable).omit({ id: true, criadoEm: true });
 export const insertDisciplinaryEventSchema = createInsertSchema(disciplinaryEventsTable).omit({ id: true, criadoEm: true });
+export const insertAgentActionSchema = createInsertSchema(agentActionsTable).omit({ id: true, criadoEm: true });
+export const insertSlaMonitoringSchema = createInsertSchema(slaMonitoringTable).omit({ id: true, criadoEm: true });
 
 export type TeamPosition = typeof teamPositionsTable.$inferSelect;
 export type TeamMember = typeof teamMembersTable.$inferSelect;
@@ -111,3 +154,5 @@ export type TaskAttempt = typeof taskAttemptsTable.$inferSelect;
 export type TaskValidation = typeof taskValidationsTable.$inferSelect;
 export type CommissionEvent = typeof commissionEventsTable.$inferSelect;
 export type DisciplinaryEvent = typeof disciplinaryEventsTable.$inferSelect;
+export type AgentAction = typeof agentActionsTable.$inferSelect;
+export type SlaMonitoring = typeof slaMonitoringTable.$inferSelect;
