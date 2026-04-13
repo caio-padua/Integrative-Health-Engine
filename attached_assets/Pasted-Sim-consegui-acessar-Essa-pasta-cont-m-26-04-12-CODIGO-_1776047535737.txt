@@ -1,0 +1,213 @@
+Sim, consegui acessar.
+
+Essa pasta contém:
+	•	26.04.12 CODIGO V03 (FILTRO CLINICA NOMENCLATURA) em Google Doc
+	•	a versão .md
+	•	a versão .txt
+	•	e a subpasta CODIGOS (ANTIGOS)
+
+Então, do ponto de vista de acesso, está acessível e organizado por versão.
+
+Sobre a parte mais importante: a sua dor de agenda, marcação, sessões, multi-clínicas e remarcação.
+
+Sim, eu consigo ajudar o Dr. Replit nisso.
+E vou ser bem objetivo:
+
+O problema real
+
+Você não precisa de “agenda”.
+Você precisa de um motor de engenharia de agendamento clínico multiunidade.
+
+Porque o seu cenário não é agenda simples.
+Você tem, ao mesmo tempo:
+	•	consulta médica
+	•	retorno médico
+	•	sessão intramuscular
+	•	sessão endovenosa
+	•	implante
+	•	enfermagem local
+	•	enfermagem domiciliar
+	•	médico por unidade
+	•	médico online
+	•	disponibilidade por clínica
+	•	recursos físicos por clínica
+	•	equipe diferente por clínica
+	•	possibilidade de expansão/redução
+	•	reagendamento sem perder histórico
+	•	reaproveitamento de vaga liberada
+	•	e governança sobre quem alterou o quê
+
+Então o sistema precisa tratar agenda como motor operacional, não como calendário bonito.
+
+Minha posição
+
+Sim, o agendamento deve funcionar localmente por clínica.
+Mas com uma camada global de governança.
+
+Ou seja:
+	•	cada clínica opera sua própria agenda local
+	•	mas o dono/supervisor enxerga tudo de forma agregada
+	•	e o sistema nunca perde o histórico original de alteração
+
+Como deve ser a arquitetura
+
+Eu dividiria em 5 camadas.
+
+1. Contexto de clínica
+
+Toda marcação precisa carregar:
+	•	clinic_id
+	•	resource_type
+	•	resource_id
+	•	professional_id
+	•	appointment_type
+
+Sem isso, vira bagunça multiunidade.
+
+2. Tipos de agenda
+
+O sistema deve separar agendas por natureza:
+	•	agenda médica presencial
+	•	agenda médica online
+	•	agenda enfermagem clínica
+	•	agenda enfermagem domiciliar
+	•	agenda de procedimento EV
+	•	agenda de procedimento IM
+	•	agenda de implante
+	•	agenda administrativa/bloqueios
+	•	agenda pessoal bloqueadora
+
+Não é para misturar tudo como se fosse o mesmo tipo de slot.
+
+3. Entidade central: SLOT OPERACIONAL
+
+O que o Replit deve modelar não é só “evento”.
+É um slot_operacional.
+
+Campos mínimos:
+	•	id
+	•	clinic_id
+	•	calendar_id
+	•	professional_id
+	•	resource_type
+ex.: medico, enfermagem, sala, cadeira-infusão, leito, domiciliar
+	•	resource_id
+	•	slot_start
+	•	slot_end
+	•	slot_status
+	•	appointment_type
+	•	patient_id
+	•	protocol_id
+	•	origin
+	•	created_by
+	•	updated_by
+	•	previous_slot_id
+	•	reschedule_group_id
+	•	audit_version
+
+4. Status em vez de exclusão
+
+Aqui eu concordo com você:
+não deve excluir.
+
+O correto é usar estados.
+
+Estados que eu sugiro:
+	•	DISPONIVEL
+	•	RESERVADO
+	•	CONFIRMADO
+	•	CHECKIN_REALIZADO
+	•	EM_ATENDIMENTO
+	•	CONCLUIDO
+	•	NAO_COMPARECEU
+	•	CANCELADO_PACIENTE
+	•	CANCELADO_CLINICA
+	•	REMARCADO
+	•	LIBERADO_REAGENDAMENTO
+	•	BLOQUEADO_OPERACIONAL
+	•	BLOQUEADO_PESSOAL
+
+Ou seja:
+quando remarcar, o antigo não some.
+Ele vira REMARCADO, e o novo carrega referência ao anterior.
+
+5. Linha de auditoria
+
+Toda alteração deve registrar:
+	•	quem alterou
+	•	quando alterou
+	•	de qual clínica
+	•	motivo da alteração
+	•	slot original
+	•	slot novo
+	•	se houve liberação automática da vaga
+	•	se o paciente foi notificado
+	•	se a equipe foi notificada
+
+⸻
+
+Regras que eu recomendo para remarcação
+
+Aqui entra a parte cirúrgica.
+
+Regra 1 — até determinado horário, a vaga volta ao pool
+
+Sua ideia é boa.
+
+Minha sugestão operacional:
+
+Consultas médicas
+	•	remarcação permitida pelo paciente até 23:59 do dia anterior
+	•	no mesmo dia, só via staff/autorização
+	•	se remarcar até 23:59 do dia anterior:
+	•	slot antigo vira REMARCADO
+	•	novo slot é criado
+	•	slot antigo é reaberto como DISPONIVEL
+	•	entra no pool para outro paciente
+
+Sessões IM/EV/enfermagem
+
+Aqui eu seria mais rígido, porque envolve insumo, equipe e cadeira.
+
+Sugestão:
+	•	remarcação livre até 20:00 do dia anterior
+	•	após isso:
+	•	vira SOLICITACAO_REAGENDAMENTO_TARDIO
+	•	precisa de validação da clínica
+	•	o slot não volta imediatamente ao pool
+	•	só volta se a clínica liberar manualmente ou houver regra automática específica
+
+Porque IM e EV têm custo de operação maior que consulta.
+
+Implantes / procedimentos maiores
+	•	remarcação livre até 48h antes
+	•	depois disso, só staff
+	•	com justificativa obrigatória
+
+Isso reduz buracos na agenda de alto valor.
+
+⸻
+
+Como o lote deve ser tratado
+
+Você falou do “lote” ficar livre para outro paciente marcar.
+
+Concordo, mas com regra de segurança.
+
+Para agenda funcionar bem, precisa existir:
+
+slot_inventory_policy
+
+Uma política por tipo de procedimento:
+	•	consulta: liberação imediata
+	•	IM simples: liberação automática até certo horário
+	•	EV longa: liberação condicionada
+	•	implante: liberação somente com aprovação
+
+Porque o valor do slot e o custo operacional mudam.
+
+⸻
+
+Como categorizar o agendamento
+
+O
