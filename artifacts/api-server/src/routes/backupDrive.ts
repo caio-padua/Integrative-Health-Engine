@@ -6,7 +6,8 @@ import path from "path";
 
 const router = Router();
 
-const DRIVE_FOLDER_ID = "1LfolNE3KgJSrnKwxp0WNXTRIRvSS_i7f";
+const DRIVE_FOLDER_CODIGOS = "1J6Hdypt0eiVxwG3Xw3qfw7q23LXekZYa";
+const DRIVE_FOLDER_ANTIGOS = "1rMHFIwAOiPtoh2iFloRNb_YT_C4ae-Et";
 const PROJETO_NOME = "PADCOM";
 const WORKSPACE = "/home/runner/workspace";
 
@@ -159,32 +160,24 @@ function getDataHoje(): string {
 async function getNextVersion(connectors: ReplitConnectors): Promise<string> {
   let maxVersion = 0;
 
-  const mainResponse = await connectors.proxy(
-    "google-drive",
-    `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false&pageSize=100&fields=files(name)`,
-    { method: "GET" }
-  );
-  const mainData = await mainResponse.json();
-  const allFiles = [...(mainData.files || [])];
-
-  const subResponse = await connectors.proxy(
-    "google-drive",
-    `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id)`,
-    { method: "GET" }
-  );
-  const subData = await subResponse.json();
-  if (subData.files && subData.files.length > 0) {
-    const subId = subData.files[0].id;
-    const subFilesResponse = await connectors.proxy(
+  const [codigosRes, antigosRes] = await Promise.all([
+    connectors.proxy(
       "google-drive",
-      `/drive/v3/files?q='${subId}'+in+parents+and+trashed=false&pageSize=200&fields=files(name)`,
+      `/drive/v3/files?q='${DRIVE_FOLDER_CODIGOS}'+in+parents+and+trashed=false&pageSize=200&fields=files(name)`,
       { method: "GET" }
-    );
-    const subFilesData = await subFilesResponse.json();
-    allFiles.push(...(subFilesData.files || []));
-  }
+    ),
+    connectors.proxy(
+      "google-drive",
+      `/drive/v3/files?q='${DRIVE_FOLDER_ANTIGOS}'+in+parents+and+trashed=false&pageSize=200&fields=files(name)`,
+      { method: "GET" }
+    ),
+  ]);
 
-  const pattern = /V(\d+)/;
+  const codigosData = await codigosRes.json();
+  const antigosData = await antigosRes.json();
+  const allFiles = [...(codigosData.files || []), ...(antigosData.files || [])];
+
+  const pattern = /V01-(\d+)/;
   for (const file of allFiles) {
     const match = file.name?.match(pattern);
     if (match) {
@@ -193,7 +186,17 @@ async function getNextVersion(connectors: ReplitConnectors): Promise<string> {
     }
   }
 
-  return `V${String(maxVersion + 1).padStart(2, "0")}`;
+  const oldPattern = /V(\d+)/;
+  for (const file of allFiles) {
+    if (pattern.test(file.name)) continue;
+    const match = file.name?.match(oldPattern);
+    if (match) {
+      const v = parseInt(match[1], 10);
+      if (v > maxVersion) maxVersion = v;
+    }
+  }
+
+  return `V01-${String(maxVersion + 1).padStart(2, "0")}`;
 }
 
 function getGitLog(): string {
@@ -243,8 +246,9 @@ function generatePlainTextContent(resumo: string, dataHoje: string, versao: stri
   const resumoClean = sanitizeText(resumo);
   const sourceCode = readSourceFiles();
 
-  return `CODIGO REPLIT ${PROJETO_NOME} ${dataHoje} ${versao}
-${resumoClean}
+  const resumo3palavras = resumoClean.split(/\s+/).slice(0, 3).join(" ");
+  return `${dataHoje} CODIGO ${versao} (${resumo3palavras})
+${PROJETO_NOME} - MOTOR CLINICO
 
 ========================================
 DATA/HORA DO BACKUP
@@ -310,8 +314,9 @@ function generateMdContent(resumo: string, dataHoje: string, versao: string): st
   const resumoClean = sanitizeText(resumo);
   const sourceCode = readSourceFiles();
 
-  return `# ${dataHoje} ${versao} CODIGO REPLIT
-## ${resumoClean}
+  const resumo3palavras = resumoClean.split(/\s+/).slice(0, 3).join(" ");
+  return `# ${dataHoje} CODIGO ${versao} (${resumo3palavras})
+## ${PROJETO_NOME} - MOTOR CLINICO
 
 ### DATA/HORA DO BACKUP
 ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
@@ -389,7 +394,7 @@ async function uploadSmallFile(
   mimeType: string
 ): Promise<any> {
   const boundary = "----BackupBoundary" + Date.now();
-  const metadata = JSON.stringify({ name: fileName, parents: [DRIVE_FOLDER_ID] });
+  const metadata = JSON.stringify({ name: fileName, parents: [DRIVE_FOLDER_CODIGOS] });
   const fileBuffer = Buffer.isBuffer(content) ? content : Buffer.from(content, "utf-8");
 
   const body = Buffer.concat([
@@ -428,7 +433,7 @@ async function uploadAsGoogleDoc(
   const boundary = "----BackupBoundary" + Date.now();
   const metadata = JSON.stringify({
     name: fileName,
-    parents: [DRIVE_FOLDER_ID],
+    parents: [DRIVE_FOLDER_CODIGOS],
     mimeType: "application/vnd.google-apps.document",
   });
   const textBuffer = Buffer.from(plainTextContent, "utf-8");
@@ -470,44 +475,10 @@ async function deleteFileFromDrive(connectors: ReplitConnectors, fileId: string)
   }
 }
 
-const SUBPASTA_ANTIGOS_NOME = "BANCO CODIGOS REPLIT (ANTIGOS)";
-
-async function getOrCreateSubpastaAntigos(connectors: ReplitConnectors): Promise<string> {
-  const searchResponse = await connectors.proxy(
-    "google-drive",
-    `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+name='${SUBPASTA_ANTIGOS_NOME}'+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)`,
-    { method: "GET" }
-  );
-  const searchData = await searchResponse.json();
-  if (searchData.files && searchData.files.length > 0) {
-    return searchData.files[0].id;
-  }
-
-  const createResponse = await connectors.proxy(
-    "google-drive",
-    "/drive/v3/files",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: SUBPASTA_ANTIGOS_NOME,
-        mimeType: "application/vnd.google-apps.folder",
-        parents: [DRIVE_FOLDER_ID],
-      }),
-    }
-  );
-  if (!createResponse.ok) {
-    throw new Error(`Falha ao criar subpasta: status ${createResponse.status}`);
-  }
-  const created = await createResponse.json();
-  console.log(`Subpasta criada: ${SUBPASTA_ANTIGOS_NOME} (${created.id})`);
-  return created.id;
-}
-
-async function moveFilesToSubpasta(connectors: ReplitConnectors, subpastaId: string): Promise<number> {
+async function moveCodigosParaAntigos(connectors: ReplitConnectors): Promise<number> {
   const listResponse = await connectors.proxy(
     "google-drive",
-    `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+mimeType!='application/vnd.google-apps.folder'+and+trashed=false&pageSize=100&fields=files(id,name)`,
+    `/drive/v3/files?q='${DRIVE_FOLDER_CODIGOS}'+in+parents+and+mimeType!='application/vnd.google-apps.folder'+and+trashed=false&pageSize=100&fields=files(id,name)`,
     { method: "GET" }
   );
   const listData = await listResponse.json();
@@ -517,7 +488,7 @@ async function moveFilesToSubpasta(connectors: ReplitConnectors, subpastaId: str
   for (const file of files) {
     const moveResponse = await connectors.proxy(
       "google-drive",
-      `/drive/v3/files/${file.id}?addParents=${subpastaId}&removeParents=${DRIVE_FOLDER_ID}`,
+      `/drive/v3/files/${file.id}?addParents=${DRIVE_FOLDER_ANTIGOS}&removeParents=${DRIVE_FOLDER_CODIGOS}`,
       { method: "PATCH" }
     );
     if (moveResponse.ok) {
@@ -541,12 +512,11 @@ router.post("/backup-drive", async (req, res) => {
     const versao = await getNextVersion(connectors);
     const dataHoje = getDataHoje();
 
-    const subpastaId = await getOrCreateSubpastaAntigos(connectors);
-    const movidos = await moveFilesToSubpasta(connectors, subpastaId);
-    console.log(`${movidos} arquivo(s) antigo(s) movido(s) para subpasta`);
+    const movidos = await moveCodigosParaAntigos(connectors);
+    console.log(`${movidos} arquivo(s) antigo(s) movido(s) para CODIGOS (ANTIGOS)`);
 
-    const resumoClean = sanitizeFileName(resumo.trim()).slice(0, 60);
-    const baseFileName = `${dataHoje} ${versao} CODIGO REPLIT ${resumoClean}`;
+    const resumoClean = sanitizeFileName(resumo.trim()).split(/\s+/).slice(0, 3).join(" ");
+    const baseFileName = `${dataHoje} CODIGO ${versao} (${resumoClean})`;
     const resultados: any[] = [];
 
     const plainText = generatePlainTextContent(resumo.trim(), dataHoje, versao);
@@ -564,7 +534,8 @@ router.post("/backup-drive", async (req, res) => {
     res.json({
       sucesso: true,
       mensagem: `Backup enviado! ${movidos > 0 ? `${movidos} arquivo(s) antigo(s) arquivado(s).` : "Nenhum backup anterior encontrado."}`,
-      pasta: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}`,
+      pasta: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_CODIGOS}`,
+      pastaAntigos: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ANTIGOS}`,
       arquivos: resultados,
       arquivados: movidos,
     });
@@ -577,15 +548,25 @@ router.post("/backup-drive", async (req, res) => {
 router.get("/backup-drive/status", async (_req, res) => {
   try {
     const connectors = new ReplitConnectors();
-    const response = await connectors.proxy(
-      "google-drive",
-      `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents&orderBy=createdTime+desc&pageSize=20&fields=files(id,name,createdTime,size,mimeType)`,
-      { method: "GET" }
-    );
-    const data = await response.json();
+    const [codigosRes, antigosRes] = await Promise.all([
+      connectors.proxy(
+        "google-drive",
+        `/drive/v3/files?q='${DRIVE_FOLDER_CODIGOS}'+in+parents&orderBy=createdTime+desc&pageSize=20&fields=files(id,name,createdTime,size,mimeType)`,
+        { method: "GET" }
+      ),
+      connectors.proxy(
+        "google-drive",
+        `/drive/v3/files?q='${DRIVE_FOLDER_ANTIGOS}'+in+parents&orderBy=createdTime+desc&pageSize=20&fields=files(id,name,createdTime,size,mimeType)`,
+        { method: "GET" }
+      ),
+    ]);
+    const codigosData = await codigosRes.json();
+    const antigosData = await antigosRes.json();
     res.json({
-      pasta: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}`,
-      ultimosBackups: data.files || [],
+      pastaCodigos: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_CODIGOS}`,
+      pastaAntigos: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ANTIGOS}`,
+      codigosAtuais: codigosData.files || [],
+      codigosAntigos: antigosData.files || [],
     });
   } catch (err: any) {
     console.error("Erro status backup:", err);
@@ -598,7 +579,7 @@ router.delete("/backup-drive/limpar", async (_req, res) => {
     const connectors = new ReplitConnectors();
     const response = await connectors.proxy(
       "google-drive",
-      `/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+mimeType!='application/vnd.google-apps.folder'+and+trashed=false&pageSize=100&fields=files(id,name)`,
+      `/drive/v3/files?q='${DRIVE_FOLDER_CODIGOS}'+in+parents+and+mimeType!='application/vnd.google-apps.folder'+and+trashed=false&pageSize=100&fields=files(id,name)`,
       { method: "GET" }
     );
     const data = await response.json();
@@ -612,7 +593,7 @@ router.delete("/backup-drive/limpar", async (_req, res) => {
 
     res.json({
       sucesso: true,
-      mensagem: `${deletados} arquivo(s) removido(s) da pasta (subpasta ANTIGOS preservada)`,
+      mensagem: `${deletados} arquivo(s) removido(s) da pasta SHEET (CODIGOS)`,
     });
   } catch (err: any) {
     console.error("Erro limpar backup:", err);
