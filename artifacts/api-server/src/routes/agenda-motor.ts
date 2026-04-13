@@ -44,6 +44,14 @@ router.get("/agenda-motor/sub-agendas", async (req, res) => {
         profissionalNome: usuariosTable.nome,
         modalidade: subAgendasTable.modalidade,
         salaOuLocal: subAgendasTable.salaOuLocal,
+        descricao: subAgendasTable.descricao,
+        googleCalendarId: subAgendasTable.googleCalendarId,
+        certificadoDigitalNome: subAgendasTable.certificadoDigitalNome,
+        certificadoDigitalCpfCnpj: subAgendasTable.certificadoDigitalCpfCnpj,
+        certificadoDigitalValidade: subAgendasTable.certificadoDigitalValidade,
+        certificadoDigitalArquivoUrl: subAgendasTable.certificadoDigitalArquivoUrl,
+        requerCertificadoParaPrescricao: subAgendasTable.requerCertificadoParaPrescricao,
+        requerCertificadoParaProtocolo: subAgendasTable.requerCertificadoParaProtocolo,
         ativa: subAgendasTable.ativa,
         ordem: subAgendasTable.ordem,
       })
@@ -60,7 +68,7 @@ router.get("/agenda-motor/sub-agendas", async (req, res) => {
 
 router.post("/agenda-motor/sub-agendas", async (req, res) => {
   try {
-    const { unidadeId, nome, cor, emoji, tipo, profissionalId, modalidade, salaOuLocal, ordem } = req.body;
+    const { unidadeId, nome, cor, emoji, tipo, profissionalId, modalidade, salaOuLocal, googleCalendarId, ordem } = req.body;
     if (!unidadeId || !nome) {
       res.status(400).json({ erro: "unidadeId e nome sao obrigatorios" });
       return;
@@ -71,6 +79,7 @@ router.post("/agenda-motor/sub-agendas", async (req, res) => {
       profissionalId: profissionalId ? Number(profissionalId) : null,
       modalidade: modalidade || "presencial",
       salaOuLocal: salaOuLocal || null,
+      googleCalendarId: googleCalendarId || null,
       ordem: ordem || 0,
     }).returning();
     res.status(201).json(created);
@@ -82,7 +91,13 @@ router.post("/agenda-motor/sub-agendas", async (req, res) => {
 router.put("/agenda-motor/sub-agendas/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { nome, cor, emoji, tipo, profissionalId, modalidade, salaOuLocal, ativa, ordem } = req.body;
+    const {
+      nome, cor, emoji, tipo, profissionalId, modalidade, salaOuLocal, descricao,
+      googleCalendarId, certificadoDigitalNome, certificadoDigitalCpfCnpj,
+      certificadoDigitalSenha, certificadoDigitalValidade, certificadoDigitalArquivoUrl,
+      requerCertificadoParaPrescricao, requerCertificadoParaProtocolo,
+      ativa, ordem
+    } = req.body;
     const updates: any = { atualizadoEm: new Date() };
     if (nome !== undefined) updates.nome = nome;
     if (cor !== undefined) updates.cor = cor;
@@ -91,6 +106,15 @@ router.put("/agenda-motor/sub-agendas/:id", async (req, res) => {
     if (profissionalId !== undefined) updates.profissionalId = profissionalId ? Number(profissionalId) : null;
     if (modalidade !== undefined) updates.modalidade = modalidade;
     if (salaOuLocal !== undefined) updates.salaOuLocal = salaOuLocal;
+    if (descricao !== undefined) updates.descricao = descricao || null;
+    if (googleCalendarId !== undefined) updates.googleCalendarId = googleCalendarId || null;
+    if (certificadoDigitalNome !== undefined) updates.certificadoDigitalNome = certificadoDigitalNome || null;
+    if (certificadoDigitalCpfCnpj !== undefined) updates.certificadoDigitalCpfCnpj = certificadoDigitalCpfCnpj || null;
+    if (certificadoDigitalSenha !== undefined) updates.certificadoDigitalSenha = certificadoDigitalSenha || null;
+    if (certificadoDigitalValidade !== undefined) updates.certificadoDigitalValidade = certificadoDigitalValidade || null;
+    if (certificadoDigitalArquivoUrl !== undefined) updates.certificadoDigitalArquivoUrl = certificadoDigitalArquivoUrl || null;
+    if (requerCertificadoParaPrescricao !== undefined) updates.requerCertificadoParaPrescricao = requerCertificadoParaPrescricao;
+    if (requerCertificadoParaProtocolo !== undefined) updates.requerCertificadoParaProtocolo = requerCertificadoParaProtocolo;
     if (ativa !== undefined) updates.ativa = ativa;
     if (ordem !== undefined) updates.ordem = ordem;
     const [updated] = await db.update(subAgendasTable).set(updates).where(eq(subAgendasTable.id, id)).returning();
