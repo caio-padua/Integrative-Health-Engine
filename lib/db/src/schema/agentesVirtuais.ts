@@ -189,6 +189,50 @@ export const narrativasAgenteTable = pgTable("narrativas_agente", {
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
+export const agentesPersonalidadeTable = pgTable("agentes_personalidade", {
+  id: serial("id").primaryKey(),
+  agenteClinicaId: integer("agente_clinica_id").references(() => agentesClinicaTable.id).notNull().unique(),
+  formalidade: integer("formalidade").notNull().default(5),
+  empatia: integer("empatia").notNull().default(5),
+  autoridade: integer("autoridade").notNull().default(5),
+  objetividade: integer("objetividade").notNull().default(5),
+  calorHumano: integer("calor_humano").notNull().default(5),
+  proatividade: integer("proatividade").notNull().default(5),
+  paciencia: integer("paciencia").notNull().default(5),
+  tomGeral: text("tom_geral"),
+  pronomeTratamento: varchar("pronome_tratamento", { length: 100 }).notNull().default("Sr(a)."),
+  exemploFraseTipica: text("exemplo_frase_tipica"),
+  personalidadeResumo: text("personalidade_resumo"),
+  generoVoz: varchar("genero_voz", { length: 30 }).notNull().default("neutro"),
+  estiloConversacao: varchar("estilo_conversacao", { length: 50 }).notNull().default("profissional"),
+  nivelHumanizacao: integer("nivel_humanizacao").notNull().default(5),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const agentesMotorEscritaTable = pgTable("agentes_motor_escrita", {
+  id: serial("id").primaryKey(),
+  agenteClinicaId: integer("agente_clinica_id").references(() => agentesClinicaTable.id).notNull().unique(),
+  templateAbertura: text("template_abertura"),
+  templateContexto: text("template_contexto"),
+  templateInformacao: text("template_informacao"),
+  templateOrientacao: text("template_orientacao"),
+  templateAcao: text("template_acao"),
+  templateEncerramento: text("template_encerramento"),
+  maxLinhasPorBloco: integer("max_linhas_por_bloco").notNull().default(3),
+  obrigarQuebraLinha: boolean("obrigar_quebra_linha").notNull().default(true),
+  obrigarTopicos: boolean("obrigar_topicos").notNull().default(true),
+  obrigarEmojiSemantico: boolean("obrigar_emoji_semantico").notNull().default(true),
+  maxCaracteresMensagem: integer("max_caracteres_mensagem").notNull().default(500),
+  espacamentoEntreSecoes: boolean("espacamento_entre_secoes").notNull().default(true),
+  proibidoTextoCorrido: boolean("proibido_texto_corrido").notNull().default(true),
+  proibidoLinguagemRobotica: boolean("proibido_linguagem_robotica").notNull().default(true),
+  estruturaObrigatoria: jsonb("estrutura_obrigatoria").$type<string[]>().default(["ABERTURA", "CONTEXTO", "INFORMAÇÃO", "ORIENTAÇÃO", "AÇÃO"]),
+  estiloVisual: text("estilo_visual"),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
 export const insertCatalogoAgenteSchema = createInsertSchema(catalogoAgentesTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 export const insertModuloClinicaSchema = createInsertSchema(modulosClinicaTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 export const insertAgenteClinicaSchema = createInsertSchema(agentesClinicaTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
@@ -199,6 +243,8 @@ export const insertMemoriaContextualSchema = createInsertSchema(memoriasContextu
 export const insertValidacaoHumanaSchema = createInsertSchema(validacoesHumanasAgenteTable).omit({ id: true, criadoEm: true });
 export const insertEventoSaidaSchema = createInsertSchema(eventosSaidaOperacionaisTable).omit({ id: true, criadoEm: true });
 export const insertNarrativaAgenteSchema = createInsertSchema(narrativasAgenteTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
+export const insertPersonalidadeSchema = createInsertSchema(agentesPersonalidadeTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
+export const insertMotorEscritaSchema = createInsertSchema(agentesMotorEscritaTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 
 export type CatalogoAgente = typeof catalogoAgentesTable.$inferSelect;
 export type ModuloClinica = typeof modulosClinicaTable.$inferSelect;
@@ -210,3 +256,5 @@ export type MemoriaContextualAgente = typeof memoriasContextuaisAgenteTable.$inf
 export type ValidacaoHumanaAgente = typeof validacoesHumanasAgenteTable.$inferSelect;
 export type EventoSaidaOperacional = typeof eventosSaidaOperacionaisTable.$inferSelect;
 export type NarrativaAgente = typeof narrativasAgenteTable.$inferSelect;
+export type AgentesPersonalidade = typeof agentesPersonalidadeTable.$inferSelect;
+export type AgentesMotorEscrita = typeof agentesMotorEscritaTable.$inferSelect;
