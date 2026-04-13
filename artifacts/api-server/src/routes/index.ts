@@ -47,6 +47,8 @@ import seedConsultoriaRouter from "./seedConsultoria";
 import acompanhamentoRouter from "./acompanhamento";
 import comissaoRouter from "./comissao";
 import comercialRouter from "./comercial";
+import slaRouter from "./sla";
+import matrixRouter from "./matrix";
 
 const router: IRouter = Router();
 
@@ -98,5 +100,7 @@ router.use("/seed-consultoria", seedConsultoriaRouter);
 router.use(acompanhamentoRouter);
 router.use(comissaoRouter);
 router.use(comercialRouter);
+router.use(slaRouter);
+router.use(matrixRouter);
 
 export default router;
