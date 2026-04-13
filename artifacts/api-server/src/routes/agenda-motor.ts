@@ -1174,6 +1174,26 @@ router.post("/agenda-motor/smart-release-config", async (req, res) => {
   }
 });
 
+router.put("/agenda-motor/smart-release-config/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const allowedFields = ["turnoManhaInicio", "turnoManhaFim", "turnoTardeInicio", "turnoTardeFim", "limiarLiberacaoPercent", "ativa"];
+    const updates: Record<string, any> = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "Nenhum campo para atualizar" });
+      return;
+    }
+    const [updated] = await db.update(smartReleaseConfigTable).set(updates).where(eq(smartReleaseConfigTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ error: "Config nao encontrada" }); return; }
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete("/agenda-motor/smart-release-config/:id", async (req, res) => {
   try {
     await db.delete(smartReleaseConfigTable).where(eq(smartReleaseConfigTable.id, Number(req.params.id)));

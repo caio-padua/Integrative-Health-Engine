@@ -56,6 +56,7 @@ import rasDistribuirRouter from "./rasDistribuir";
 import consultoriasRouter from "./consultoriasRoute";
 import contratosRouter from "./contratosRoute";
 import raclRacjRouter from "./raclRacj";
+import rasxRevoRouter from "./rasxRevo";
 
 const router: IRouter = Router();
 
@@ -115,5 +116,7 @@ router.use("/agentes-virtuais", agentesVirtuaisRouter);
 router.use(rasDistribuirRouter);
 router.use(consultoriasRouter);
 router.use(contratosRouter);
+router.use(raclRacjRouter);
+router.use(rasxRevoRouter);
 
 export default router;
