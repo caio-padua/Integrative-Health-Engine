@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search, ChevronDown, ChevronRight, FlaskConical,
   Star, Clock, DollarSign, Syringe, Package, Activity,
-  Brain, Heart, Zap, Moon, Flame, Shield, Sparkles
+  Brain, Heart, Zap, Moon, Flame, Shield, Sparkles, Pencil, X, Trash2
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -82,11 +82,11 @@ function BeneficioItem({ icon: Icon, label, value }: { icon: any; label: string;
   );
 }
 
-function SubstanciaCard({ sub }: { sub: Substancia }) {
+function SubstanciaCard({ sub, onEdit }: { sub: Substancia; onEdit: (s: Substancia) => void }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <Card className="border transition-all hover:shadow-md">
+    <Card className="border transition-all hover:shadow-md group">
       <div
         className="flex items-center gap-3 p-4 cursor-pointer select-none"
         onClick={() => setExpanded(!expanded)}
@@ -135,6 +135,9 @@ function SubstanciaCard({ sub }: { sub: Substancia }) {
               />
             ))}
           </div>
+          <button onClick={e => { e.stopPropagation(); onEdit(sub); }} className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded">
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
           {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
         </div>
       </div>
@@ -200,10 +203,109 @@ function SubstanciaCard({ sub }: { sub: Substancia }) {
   );
 }
 
+function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substancia; onClose: () => void; onSave: (data: any) => void; onDelete: () => void }) {
+  const [form, setForm] = useState<Record<string, any>>({
+    nome: item.nome, abreviacao: item.abreviacao || "", codigoSemantico: item.codigoSemantico || "",
+    categoria: item.categoria, categoriaDetalhada: item.categoriaDetalhada || "", cor: item.cor,
+    dosePadrao: item.dosePadrao || "", unidadeDose: item.unidadeDose || "", via: item.via,
+    duracaoMinutos: item.duracaoMinutos, precoReferencia: item.precoReferencia || "",
+    maxSessoesPorSemana: item.maxSessoesPorSemana || "", intervaloDias: item.intervaloDias || "",
+    estoqueQuantidade: item.estoqueQuantidade, estoqueUnidade: item.estoqueUnidade || "",
+    descricao: item.descricao || "", funcaoPrincipal: item.funcaoPrincipal || "",
+    efeitosPercebidos: item.efeitosPercebidos || "", tempoParaEfeito: item.tempoParaEfeito || "",
+    classificacaoEstrelas: item.classificacaoEstrelas, contraindicacoes: item.contraindicacoes || "",
+    evidenciaCientifica: item.evidenciaCientifica || "", notas: item.notas || "",
+    beneficioLongevidade: item.beneficioLongevidade || "", impactoQualidadeVida: item.impactoQualidadeVida || "",
+    beneficioSono: item.beneficioSono || "", beneficioEnergia: item.beneficioEnergia || "",
+    beneficioLibido: item.beneficioLibido || "", performanceFisica: item.performanceFisica || "",
+    forcaMuscular: item.forcaMuscular || "", clarezaMental: item.clarezaMental || "",
+    peleCabeloUnhas: item.peleCabeloUnhas || "", suporteImunologico: item.suporteImunologico || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const handleSave = async () => { setSaving(true); await onSave(form); setSaving(false); };
+  const fields = [
+    { key: "nome", label: "Nome" }, { key: "abreviacao", label: "Abreviacao" },
+    { key: "codigoSemantico", label: "Codigo Semantico" }, { key: "categoria", label: "Categoria" },
+    { key: "categoriaDetalhada", label: "Categoria Detalhada" }, { key: "cor", label: "Cor" },
+    { key: "dosePadrao", label: "Dose Padrao" }, { key: "unidadeDose", label: "Unidade Dose" },
+    { key: "via", label: "Via", options: ["iv", "im", "implant", "oral", "topico"] },
+    { key: "duracaoMinutos", label: "Duracao (min)", type: "number" },
+    { key: "precoReferencia", label: "Preco Referencia", type: "number" },
+    { key: "classificacaoEstrelas", label: "Estrelas (1-5)", type: "number" },
+    { key: "maxSessoesPorSemana", label: "Max Sessoes/Semana", type: "number" },
+    { key: "intervaloDias", label: "Intervalo Dias", type: "number" },
+    { key: "estoqueQuantidade", label: "Estoque Qtd", type: "number" },
+    { key: "estoqueUnidade", label: "Estoque Unidade" },
+    { key: "tempoParaEfeito", label: "Tempo p/ Efeito" },
+    { key: "evidenciaCientifica", label: "Evidencia Cientifica" },
+    { key: "funcaoPrincipal", label: "Funcao Principal", type: "textarea" },
+    { key: "descricao", label: "Descricao", type: "textarea" },
+    { key: "efeitosPercebidos", label: "Efeitos Percebidos", type: "textarea" },
+    { key: "contraindicacoes", label: "Contraindicacoes", type: "textarea" },
+    { key: "notas", label: "Notas", type: "textarea" },
+  ];
+  const beneficioFields = [
+    { key: "beneficioLongevidade", label: "Longevidade" }, { key: "impactoQualidadeVida", label: "Qualidade de Vida" },
+    { key: "beneficioSono", label: "Sono" }, { key: "beneficioEnergia", label: "Energia" },
+    { key: "beneficioLibido", label: "Libido" }, { key: "performanceFisica", label: "Performance Fisica" },
+    { key: "forcaMuscular", label: "Forca Muscular" }, { key: "clarezaMental", label: "Clareza Mental" },
+    { key: "peleCabeloUnhas", label: "Pele/Cabelo/Unhas" }, { key: "suporteImunologico", label: "Suporte Imunologico" },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border w-full max-w-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Substancia</h3>
+          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {fields.map(f => (
+            <div key={f.key} className={`space-y-1 ${f.type === "textarea" ? "col-span-3" : ""}`}>
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{f.label}</label>
+              {f.type === "textarea" ? (
+                <textarea value={form[f.key] || ""} onChange={e => setForm({...form, [f.key]: e.target.value})}
+                  rows={2} className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none resize-none" />
+              ) : (f as any).options ? (
+                <select value={form[f.key] || ""} onChange={e => setForm({...form, [f.key]: e.target.value})}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none">
+                  {(f as any).options.map((o: string) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : (
+                <input type={f.type || "text"} value={form[f.key] ?? ""} onChange={e => setForm({...form, [f.key]: f.type === "number" ? Number(e.target.value) : e.target.value})}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              )}
+            </div>
+          ))}
+        </div>
+        <div>
+          <h4 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">Beneficios</h4>
+          <div className="grid grid-cols-2 gap-3">
+            {beneficioFields.map(f => (
+              <div key={f.key} className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{f.label}</label>
+                <input value={form[f.key] || ""} onChange={e => setForm({...form, [f.key]: e.target.value})}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2 pt-2 border-t border-border">
+          <Button className="flex-1 text-xs h-9" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar Alteracoes"}</Button>
+          <Button variant="outline" className="text-xs h-9" onClick={onClose}>Cancelar</Button>
+          <Button variant="destructive" className="text-xs h-9 gap-1" onClick={onDelete}><Trash2 className="w-3 h-3" /> Excluir</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Substancias() {
   const [search, setSearch] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState("Todos");
   const [viaFiltro, setViaFiltro] = useState("Todos");
+  const [editing, setEditing] = useState<Substancia | null>(null);
+  const qc = useQueryClient();
 
   const { data: substancias = [], isLoading } = useQuery<Substancia[]>({
     queryKey: ["substancias", search, categoriaFiltro, viaFiltro],
@@ -306,9 +408,35 @@ export default function Substancias() {
         ) : (
           <div className="space-y-2">
             {substancias.map((sub) => (
-              <SubstanciaCard key={sub.id} sub={sub} />
+              <SubstanciaCard key={sub.id} sub={sub} onEdit={setEditing} />
             ))}
           </div>
+        )}
+
+        {editing && (
+          <SubstanciaEditModal
+            item={editing}
+            onClose={() => setEditing(null)}
+            onSave={async (data) => {
+              try {
+                const res = await fetch(`${BASE_URL}api/substancias/${editing.id}`, {
+                  method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+                });
+                if (!res.ok) { alert("Erro ao salvar substancia"); return; }
+                setEditing(null);
+                qc.invalidateQueries({ queryKey: ["substancias"] });
+              } catch { alert("Erro de conexao"); }
+            }}
+            onDelete={async () => {
+              if (!confirm("Excluir esta substancia permanentemente?")) return;
+              try {
+                const res = await fetch(`${BASE_URL}api/substancias/${editing.id}`, { method: "DELETE" });
+                if (!res.ok) { alert("Erro ao excluir"); return; }
+                setEditing(null);
+                qc.invalidateQueries({ queryKey: ["substancias"] });
+              } catch { alert("Erro de conexao"); }
+            }}
+          />
         )}
       </div>
     </Layout>

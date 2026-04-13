@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import {
   injetaveisTable, endovenososTable, implantesTable, formulasTable,
   doencasTable, regrasInjetaveisTable, regrasEndovenososTable, regrasImplantesTable,
@@ -299,5 +299,45 @@ router.get("/dicionario-graus", async (_req, res) => {
   const rows = await db.select().from(dicionarioGrausTable).orderBy(dicionarioGrausTable.grau);
   res.json(rows);
 });
+
+function safeId(raw: string): number | null {
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+async function handlePut(table: any, idCol: any, req: any, res: any) {
+  const id = safeId(req.params.id);
+  if (!id) return res.status(400).json({ error: "ID invalido" });
+  const { id: _id, ...body } = req.body;
+  try {
+    const [updated] = await db.update(table).set(body).where(eq(idCol, id)).returning();
+    if (!updated) return res.status(404).json({ error: "Nao encontrado" });
+    res.json(updated);
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro interno" }); }
+}
+
+async function handleDelete(table: any, idCol: any, req: any, res: any) {
+  const id = safeId(req.params.id);
+  if (!id) return res.status(400).json({ error: "ID invalido" });
+  try {
+    const [deleted] = await db.delete(table).where(eq(idCol, id)).returning();
+    if (!deleted) return res.status(404).json({ error: "Nao encontrado" });
+    res.json({ ok: true });
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro interno" }); }
+}
+
+router.put("/injetaveis/:id", (req, res) => handlePut(injetaveisTable, injetaveisTable.id, req, res));
+router.delete("/injetaveis/:id", (req, res) => handleDelete(injetaveisTable, injetaveisTable.id, req, res));
+router.put("/endovenosos/:id", (req, res) => handlePut(endovenososTable, endovenososTable.id, req, res));
+router.delete("/endovenosos/:id", (req, res) => handleDelete(endovenososTable, endovenososTable.id, req, res));
+router.put("/implantes/:id", (req, res) => handlePut(implantesTable, implantesTable.id, req, res));
+router.delete("/implantes/:id", (req, res) => handleDelete(implantesTable, implantesTable.id, req, res));
+router.put("/formulas/:id", (req, res) => handlePut(formulasTable, formulasTable.id, req, res));
+router.delete("/formulas/:id", (req, res) => handleDelete(formulasTable, formulasTable.id, req, res));
+router.put("/exames-base/:id", (req, res) => handlePut(examesBaseTable, examesBaseTable.id, req, res));
+router.put("/dietas/:id", (req, res) => handlePut(dietasTable, dietasTable.id, req, res));
+router.put("/questionario/:id", (req, res) => handlePut(questionarioMasterTable, questionarioMasterTable.id, req, res));
+router.put("/psicologia/:id", (req, res) => handlePut(psicologiaTable, psicologiaTable.id, req, res));
+router.put("/protocolos-master/:id", (req, res) => handlePut(protocolosMasterTable, protocolosMasterTable.id, req, res));
 
 export default router;

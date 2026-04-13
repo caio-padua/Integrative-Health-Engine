@@ -155,13 +155,14 @@ router.get("/sessoes/:id", async (req, res) => {
 });
 
 router.put("/sessoes/:id", async (req, res) => {
-  const { status, dataAgendada, horaAgendada, notas, profissionalId } = req.body;
+  const { status, dataAgendada, horaAgendada, notas, profissionalId, tipoServico } = req.body;
   const updates: Record<string, any> = {};
   if (status !== undefined) updates.status = status;
   if (dataAgendada !== undefined) updates.dataAgendada = dataAgendada;
   if (horaAgendada !== undefined) updates.horaAgendada = horaAgendada;
   if (notas !== undefined) updates.notas = notas;
   if (profissionalId !== undefined) updates.profissionalId = profissionalId;
+  if (tipoServico !== undefined) updates.tipoServico = tipoServico;
 
   const [updated] = await db.update(sessoesTable).set(updates).where(eq(sessoesTable.id, Number(req.params.id))).returning();
   if (!updated) { res.status(404).json({ error: "Sessao nao encontrada" }); return; }

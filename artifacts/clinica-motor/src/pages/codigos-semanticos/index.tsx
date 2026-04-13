@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import {
   Search, Hash, FileText, Syringe, FlaskConical,
   Pill, TestTube, Stethoscope, ClipboardList,
-  ChevronDown, ChevronRight, Tag
+  ChevronDown, ChevronRight, Tag, Pencil, X
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -57,7 +58,73 @@ function ProcedimentoTag({ label, value, color }: { label: string; value: string
   );
 }
 
-function CodigoRow({ item }: { item: CodigoSemantico }) {
+function CodigoEditModal({ item, onClose, onSaved }: { item: CodigoSemantico; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({ ...item });
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/codigos-semanticos/${item.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); toast({ title: d.error || "Erro ao salvar", variant: "destructive" }); setSaving(false); return; }
+      onSaved();
+      onClose();
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setSaving(false);
+  };
+
+  const fields = [
+    { key: "codigo", label: "Codigo" },
+    { key: "tipo", label: "Tipo" },
+    { key: "procedimentoOuSignificado", label: "Descricao/Significado", full: true },
+    { key: "origemLida", label: "Origem Lida" },
+    { key: "grupoObs", label: "Grupo/Obs" },
+    { key: "prescricaoFormula", label: "Prescricao/Formula" },
+    { key: "injetavelIM", label: "Injetavel IM" },
+    { key: "injetavelEV", label: "Injetavel EV" },
+    { key: "implante", label: "Implante" },
+    { key: "exame", label: "Exame" },
+    { key: "protocolo", label: "Protocolo" },
+    { key: "dieta", label: "Dieta" },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Codigo Semantico</h3>
+          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {fields.map(f => (
+            <div key={f.key} className={`space-y-1 ${f.full ? "col-span-2" : ""}`}>
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{f.label}</label>
+              <Input value={(form as any)[f.key] || ""} onChange={e => setForm({ ...form, [f.key]: e.target.value || null })} />
+            </div>
+          ))}
+          <div className="col-span-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.ativo} onChange={e => setForm({ ...form, ativo: e.target.checked })} className="rounded" />
+              <span className="text-sm font-medium">Codigo Ativo</span>
+            </label>
+          </div>
+        </div>
+        <div className="flex gap-2 pt-2 border-t border-border">
+          <Button className="flex-1 text-xs h-9" onClick={save} disabled={saving}>
+            {saving ? "Salvando..." : "Salvar Alteracoes"}
+          </Button>
+          <Button variant="outline" className="text-xs h-9" onClick={onClose}>Cancelar</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CodigoRow({ item, onEdit }: { item: CodigoSemantico; onEdit: (item: CodigoSemantico) => void }) {
   const [expanded, setExpanded] = useState(false);
   const config = TIPO_CONFIG[item.tipo] || { label: item.tipo, color: "bg-gray-100 text-gray-800 border-gray-300", icon: Tag };
   const Icon = config.icon;
@@ -65,7 +132,7 @@ function CodigoRow({ item }: { item: CodigoSemantico }) {
   const hasProcedimentos = item.prescricaoFormula || item.injetavelIM || item.injetavelEV || item.implante || item.exame || item.protocolo || item.dieta;
 
   return (
-    <div className="border-b border-border/50 last:border-0">
+    <div className="border-b border-border/50 last:border-0 group">
       <div
         className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded(!expanded)}
@@ -99,6 +166,12 @@ function CodigoRow({ item }: { item: CodigoSemantico }) {
           {item.protocolo && <div className="w-2 h-2 rounded-full bg-orange-500" title="Protocolo" />}
           {item.dieta && <div className="w-2 h-2 rounded-full bg-lime-500" title="Dieta" />}
         </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(item); }}
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+        >
+          <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
       </div>
 
       {expanded && hasProcedimentos && (
@@ -125,6 +198,8 @@ export default function CodigosSemanticos() {
   const [search, setSearch] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("Todos");
   const [grupoFiltro, setGrupoFiltro] = useState("Todos");
+  const [editing, setEditing] = useState<CodigoSemantico | null>(null);
+  const qc = useQueryClient();
 
   const { data: metaData } = useQuery<{ tipos: string[]; grupos: string[] }>({
     queryKey: ["codigos-semanticos-tipos"],
@@ -275,10 +350,18 @@ export default function CodigosSemanticos() {
                 <div className="w-[70px] text-center">Proc.</div>
               </div>
               {codigos.map(item => (
-                <CodigoRow key={item.id} item={item} />
+                <CodigoRow key={item.id} item={item} onEdit={setEditing} />
               ))}
             </div>
           </Card>
+        )}
+
+        {editing && (
+          <CodigoEditModal
+            item={editing}
+            onClose={() => setEditing(null)}
+            onSaved={() => { qc.invalidateQueries({ queryKey: ["codigos-semanticos"] }); }}
+          />
         )}
       </div>
     </Layout>
