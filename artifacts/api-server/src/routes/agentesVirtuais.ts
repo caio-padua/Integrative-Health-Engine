@@ -11,6 +11,8 @@ import {
   validacoesHumanasAgenteTable,
   eventosSaidaOperacionaisTable,
   narrativasAgenteTable,
+  agentesPersonalidadeTable,
+  agentesMotorEscritaTable,
   unidadesTable,
 } from "@workspace/db";
 import { eq, desc, and, sql, count } from "drizzle-orm";
@@ -616,6 +618,191 @@ const NARRATIVAS_SEED: Array<{
   },
 ];
 
+const PERSONALIDADE_POR_AGENTE: Record<string, {
+  formalidade: number; empatia: number; autoridade: number; objetividade: number;
+  calorHumano: number; proatividade: number; paciencia: number;
+  tomGeral: string; pronomeTratamento: string; exemploFraseTipica: string;
+  personalidadeResumo: string; generoVoz: string; estiloConversacao: string; nivelHumanizacao: number;
+}> = {
+  agente_administrativo_01: {
+    formalidade: 8, empatia: 6, autoridade: 3, objetividade: 8, calorHumano: 7, proatividade: 8, paciencia: 7,
+    tomGeral: "Acolhedor, organizado, preciso",
+    pronomeTratamento: "Sr(a).",
+    exemploFraseTipica: "Será um prazer organizar o seu atendimento.",
+    personalidadeResumo: "Como uma recepcionista de clínica premium — simpática, profissional, nunca íntima. Usa o nome do paciente. Organiza informações em tópicos. Fecha com ação clara.",
+    generoVoz: "feminino", estiloConversacao: "profissional", nivelHumanizacao: 7,
+  },
+  agente_administrativo_02: {
+    formalidade: 7, empatia: 5, autoridade: 3, objetividade: 9, calorHumano: 5, proatividade: 7, paciencia: 6,
+    tomGeral: "Gentil, direto, funcional",
+    pronomeTratamento: "Sr(a).",
+    exemploFraseTipica: "Estou entrando em contato para confirmar seu atendimento.",
+    personalidadeResumo: "Assistente administrativo treinado que liga para confirmar. Não é robótico, não é coloquial. Oferece alternativas claras.",
+    generoVoz: "neutro", estiloConversacao: "objetivo", nivelHumanizacao: 5,
+  },
+  agente_enfermagem_01: {
+    formalidade: 5, empatia: 9, autoridade: 4, objetividade: 7, calorHumano: 9, proatividade: 7, paciencia: 9,
+    tomGeral: "Técnico mas acolhedor, maternal",
+    pronomeTratamento: "Olá,",
+    exemploFraseTipica: "Estou te enviando as orientações do seu procedimento.",
+    personalidadeResumo: "Como uma enfermeira treinada que explica o procedimento com calma. Sabe muito, explica simples. Nunca assusta o paciente.",
+    generoVoz: "feminino", estiloConversacao: "acolhedor", nivelHumanizacao: 9,
+  },
+  agente_enfermagem_02: {
+    formalidade: 5, empatia: 8, autoridade: 3, objetividade: 8, calorHumano: 7, proatividade: 6, paciencia: 8,
+    tomGeral: "Cuidadoso, detalhado, investigativo",
+    pronomeTratamento: "Olá,",
+    exemploFraseTipica: "Gostaria de entender melhor como o(a) senhor(a) se sentiu.",
+    personalidadeResumo: "Parece um follow-up de cuidado, mas é auditoria real. O paciente não sabe que está auditando a enfermeira presencial.",
+    generoVoz: "feminino", estiloConversacao: "investigativo", nivelHumanizacao: 7,
+  },
+  agente_consultor_01: {
+    formalidade: 7, empatia: 6, autoridade: 7, objetividade: 9, calorHumano: 5, proatividade: 6, paciencia: 7,
+    tomGeral: "Científico mas acessível",
+    pronomeTratamento: "Sr(a).",
+    exemploFraseTipica: "Boa pergunta! Vou te explicar com clareza.",
+    personalidadeResumo: "Como um biomédico ou farmacêutico treinado. Sabe muito, explica com segurança, nunca assusta. Usa linguagem técnica suavizada.",
+    generoVoz: "neutro", estiloConversacao: "tecnico", nivelHumanizacao: 5,
+  },
+  agente_consultor_02: {
+    formalidade: 5, empatia: 8, autoridade: 4, objetividade: 6, calorHumano: 8, proatividade: 9, paciencia: 8,
+    tomGeral: "Próximo, interessado, motivador",
+    pronomeTratamento: "Olá,",
+    exemploFraseTipica: "Estou fazendo o acompanhamento da sua evolução.",
+    personalidadeResumo: "Como um consultor de saúde que acompanha de verdade. Celebra conquistas, incentiva continuidade.",
+    generoVoz: "neutro", estiloConversacao: "motivacional", nivelHumanizacao: 8,
+  },
+  agente_supervisor_01: {
+    formalidade: 9, empatia: 2, autoridade: 9, objetividade: 10, calorHumano: 1, proatividade: 9, paciencia: 3,
+    tomGeral: "Direto, sem rodeios, factual",
+    pronomeTratamento: "(sem pronome — fala para equipe)",
+    exemploFraseTipica: "ALERTA DE SLA — AÇÃO NECESSÁRIA.",
+    personalidadeResumo: "Fala PARA a equipe, não para o paciente. Profissional, formal, com senso de urgência. Nunca agressivo, sempre factual.",
+    generoVoz: "masculino", estiloConversacao: "imperativo", nivelHumanizacao: 1,
+  },
+  agente_supervisor_02: {
+    formalidade: 4, empatia: 7, autoridade: 3, objetividade: 7, calorHumano: 6, proatividade: 5, paciencia: 8,
+    tomGeral: "Natural, curioso, casual",
+    pronomeTratamento: "Olá,",
+    exemploFraseTipica: "Sou da equipe de qualidade da clínica.",
+    personalidadeResumo: "O paciente não sabe que está sendo parte de uma auditoria. Parece uma ligação de qualidade.",
+    generoVoz: "neutro", estiloConversacao: "casual", nivelHumanizacao: 6,
+  },
+  agente_financeiro_01: {
+    formalidade: 8, empatia: 5, autoridade: 6, objetividade: 10, calorHumano: 4, proatividade: 7, paciencia: 6,
+    tomGeral: "Cordial mas firme, factual",
+    pronomeTratamento: "Sr(a).",
+    exemploFraseTipica: "Sou do setor financeiro da clínica.",
+    personalidadeResumo: "Assistente financeiro bem treinado. Não é agressivo. Não é permissivo. Oferece soluções. Sempre factual.",
+    generoVoz: "neutro", estiloConversacao: "profissional", nivelHumanizacao: 4,
+  },
+  agente_ouvidoria_01: {
+    formalidade: 7, empatia: 10, autoridade: 2, objetividade: 7, calorHumano: 9, proatividade: 5, paciencia: 10,
+    tomGeral: "Sereno, acolhedor, neutro",
+    pronomeTratamento: "Sr(a).",
+    exemploFraseTipica: "Obrigado por trazer isso para nós.",
+    personalidadeResumo: "Nunca defensivo. Nunca minimiza. Recebe, organiza, encaminha. Protege o paciente acima de tudo.",
+    generoVoz: "neutro", estiloConversacao: "acolhedor", nivelHumanizacao: 9,
+  },
+};
+
+const MOTOR_ESCRITA_POR_AGENTE: Record<string, {
+  templateAbertura: string; templateContexto: string; templateInformacao: string;
+  templateOrientacao: string; templateAcao: string; templateEncerramento: string;
+  maxLinhasPorBloco: number; maxCaracteresMensagem: number; estiloVisual: string;
+}> = {
+  agente_administrativo_01: {
+    templateAbertura: "Será um prazer organizar o seu atendimento com {nome_medico}!",
+    templateContexto: "Para que eu encontre os melhores horários:",
+    templateInformacao: "Os próximos horários disponíveis são:",
+    templateOrientacao: "Qual horário fica melhor para você?",
+    templateAcao: "Estou reservando sua consulta.",
+    templateEncerramento: "Qualquer dúvida, estou por aqui! 😊",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 500, estiloVisual: "Tópicos com emojis, blocado",
+  },
+  agente_administrativo_02: {
+    templateAbertura: "Estou entrando em contato para confirmar seu atendimento.",
+    templateContexto: "Dados do seu agendamento:",
+    templateInformacao: "Por gentileza, confirme:\n1️⃣ — Confirmo\n2️⃣ — Preciso reagendar",
+    templateOrientacao: "Caso precise reagendar, me informe o melhor dia.",
+    templateAcao: "Confirmado! Te esperamos.",
+    templateEncerramento: "Te esperamos! Qualquer mudança, é só responder aqui.",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 400, estiloVisual: "Direto, opções numeradas",
+  },
+  agente_enfermagem_01: {
+    templateAbertura: "Estou te enviando as orientações do seu procedimento.",
+    templateContexto: "Seu procedimento foi realizado conforme o protocolo.",
+    templateInformacao: "Orientações para as próximas horas:",
+    templateOrientacao: "Se sentir qualquer desconforto, responda esta mensagem.",
+    templateAcao: "Estamos acompanhando!",
+    templateEncerramento: "Se precisar de qualquer coisa, estou por aqui! 💚",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 500, estiloVisual: "Tópicos com emojis de cuidado",
+  },
+  agente_enfermagem_02: {
+    templateAbertura: "Sou da equipe de acompanhamento da Clínica Pádua.",
+    templateContexto: "Gostaria de saber como você está após a sessão.",
+    templateInformacao: "• Como se sentiu durante o procedimento?\n• Teve algum desconforto depois?",
+    templateOrientacao: "Vou encaminhar para a equipe clínica avaliar.",
+    templateAcao: "Alguém entrará em contato em breve para orientá-lo.",
+    templateEncerramento: "Muito obrigada pelas informações, estou à disposição.",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 500, estiloVisual: "Perguntas abertas, acolhedor",
+  },
+  agente_consultor_01: {
+    templateAbertura: "Boa pergunta! Vou te explicar com clareza.",
+    templateContexto: "Sobre o {assunto}:",
+    templateInformacao: "Motivo:\n• {explicacao_tecnica_suavizada}",
+    templateOrientacao: "Posso te orientar sobre como proceder.",
+    templateAcao: "Posso verificar para você.",
+    templateEncerramento: "Qualquer outra dúvida sobre seu tratamento, estou aqui! ✅",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 600, estiloVisual: "Científico suavizado, com bullet points",
+  },
+  agente_consultor_02: {
+    templateAbertura: "Estou fazendo o acompanhamento da sua {semana}ª semana.",
+    templateContexto: "Como tem se sentido?",
+    templateInformacao: "• Energia\n• Sono\n• Disposição geral",
+    templateOrientacao: "Continue seguindo o protocolo.",
+    templateAcao: "Vamos acompanhando!",
+    templateEncerramento: "Continue assim! Estamos acompanhando de perto. 💪",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 500, estiloVisual: "Motivacional, celebrativo",
+  },
+  agente_supervisor_01: {
+    templateAbertura: "🚨 ALERTA DE SLA — AÇÃO NECESSÁRIA",
+    templateContexto: "{cargo} · Tarefa #{numero}\nPaciente: {nome} — {unidade}",
+    templateInformacao: "⏰ SLA: {horas}h\n⏰ Vencido há: {atraso}h",
+    templateOrientacao: "Ação requerida:\n• Concluir tarefa imediatamente\n• Justificar atraso",
+    templateAcao: "Caso não resolvido, será escalonado para gerência.",
+    templateEncerramento: "Prazo improrrogável. Atualize o status.",
+    maxLinhasPorBloco: 3, maxCaracteresMensagem: 800, estiloVisual: "Alerta visual com emojis de urgência",
+  },
+  agente_supervisor_02: {
+    templateAbertura: "Sou da equipe de qualidade da Clínica Pádua.",
+    templateContexto: "Estou verificando como foi o seu acompanhamento.",
+    templateInformacao: "Você recebeu algum contato da nossa equipe?",
+    templateOrientacao: "Seu retorno nos ajuda muito a manter a qualidade.",
+    templateAcao: "Obrigado pelo seu tempo!",
+    templateEncerramento: "Sua opinião é muito valiosa para nós. 🙏",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 400, estiloVisual: "Casual, pesquisa de satisfação",
+  },
+  agente_financeiro_01: {
+    templateAbertura: "Sou do setor financeiro da Clínica Pádua.",
+    templateContexto: "Identifiquei uma pendência referente ao seu protocolo.",
+    templateInformacao: "💳 Valor: R$ {valor}\n📅 Vencimento: {data}",
+    templateOrientacao: "Posso te ajudar a regularizar:\n• Pix\n• Cartão de crédito\n• Boleto atualizado",
+    templateAcao: "Qual opção fica melhor?",
+    templateEncerramento: "Fico à disposição para qualquer dúvida financeira! ✅",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 500, estiloVisual: "Estruturado com opções numéricas",
+  },
+  agente_ouvidoria_01: {
+    templateAbertura: "Obrigado por trazer isso para nós.",
+    templateContexto: "Levamos muito a sério a qualidade do atendimento.",
+    templateInformacao: "Para registrar sua manifestação:\n• Em qual unidade ocorreu?\n• Qual a data aproximada?",
+    templateOrientacao: "Sua manifestação será encaminhada com total sigilo.",
+    templateAcao: "Você receberá um retorno em até 48 horas.",
+    templateEncerramento: "Sua identidade será preservada. 🔒",
+    maxLinhasPorBloco: 2, maxCaracteresMensagem: 500, estiloVisual: "Acolhedor, formal, sigiloso",
+  },
+};
+
 const CAPACIDADES_POR_AGENTE: Record<string, Partial<{
   podeEnviarWhatsapp: boolean;
   podeEnviarEmail: boolean;
@@ -708,6 +895,26 @@ router.post("/seed", async (_req: Request, res: Response) => {
           podeRegistrarMemoria: caps.podeRegistrarMemoria ?? true,
         });
         capacidadesCriadas++;
+
+        const pers = PERSONALIDADE_POR_AGENTE[catItem.codigoAgente];
+        if (pers) {
+          await db.insert(agentesPersonalidadeTable).values({ agenteClinicaId: agenteClinica.id, ...pers });
+        }
+
+        const motor = MOTOR_ESCRITA_POR_AGENTE[catItem.codigoAgente];
+        if (motor) {
+          await db.insert(agentesMotorEscritaTable).values({
+            agenteClinicaId: agenteClinica.id,
+            ...motor,
+            obrigarQuebraLinha: true,
+            obrigarTopicos: true,
+            obrigarEmojiSemantico: true,
+            espacamentoEntreSecoes: true,
+            proibidoTextoCorrido: true,
+            proibidoLinguagemRobotica: true,
+            estruturaObrigatoria: ["ABERTURA", "CONTEXTO", "INFORMAÇÃO", "ORIENTAÇÃO", "AÇÃO"],
+          });
+        }
       }
     }
 
@@ -898,6 +1105,126 @@ router.put("/clinica/:clinicaId/agente/:agenteId/pausar", async (req: Request, r
     }).where(eq(agentesClinicaTable.id, agenteId)).returning();
     res.json(updated);
   } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/clinica/:clinicaId/agente/:agenteId/personalidade", async (req: Request, res: Response) => {
+  try {
+    const agenteId = Number(req.params.agenteId);
+    const [pers] = await db.select().from(agentesPersonalidadeTable).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId));
+    if (!pers) return res.json(null);
+    res.json(pers);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/clinica/:clinicaId/agente/:agenteId/personalidade", async (req: Request, res: Response) => {
+  try {
+    const agenteId = Number(req.params.agenteId);
+    const updates = req.body;
+    delete updates.id;
+    delete updates.criadoEm;
+
+    const [existing] = await db.select().from(agentesPersonalidadeTable).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId));
+    if (existing) {
+      const [updated] = await db.update(agentesPersonalidadeTable).set(updates).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId)).returning();
+      res.json(updated);
+    } else {
+      const [created] = await db.insert(agentesPersonalidadeTable).values({ agenteClinicaId: agenteId, ...updates }).returning();
+      res.json(created);
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/clinica/:clinicaId/agente/:agenteId/motor-escrita", async (req: Request, res: Response) => {
+  try {
+    const agenteId = Number(req.params.agenteId);
+    const [motor] = await db.select().from(agentesMotorEscritaTable).where(eq(agentesMotorEscritaTable.agenteClinicaId, agenteId));
+    if (!motor) return res.json(null);
+    res.json(motor);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/clinica/:clinicaId/agente/:agenteId/motor-escrita", async (req: Request, res: Response) => {
+  try {
+    const agenteId = Number(req.params.agenteId);
+    const updates = req.body;
+    delete updates.id;
+    delete updates.criadoEm;
+
+    const [existing] = await db.select().from(agentesMotorEscritaTable).where(eq(agentesMotorEscritaTable.agenteClinicaId, agenteId));
+    if (existing) {
+      const [updated] = await db.update(agentesMotorEscritaTable).set(updates).where(eq(agentesMotorEscritaTable.agenteClinicaId, agenteId)).returning();
+      res.json(updated);
+    } else {
+      const [created] = await db.insert(agentesMotorEscritaTable).values({ agenteClinicaId: agenteId, ...updates }).returning();
+      res.json(created);
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/clinica/:clinicaId/agente/:agenteId/identidade-completa", async (req: Request, res: Response) => {
+  try {
+    const agenteId = Number(req.params.agenteId);
+    const [agente] = await db.select().from(agentesClinicaTable).where(eq(agentesClinicaTable.id, agenteId));
+    if (!agente) return res.status(404).json({ error: "Agente não encontrado" });
+
+    const [catalogo] = await db.select().from(catalogoAgentesTable).where(eq(catalogoAgentesTable.id, agente.catalogoAgenteId));
+    const [capacidades] = await db.select().from(capacidadesAgenteClinicaTable).where(eq(capacidadesAgenteClinicaTable.agenteClinicaId, agenteId));
+    const [personalidade] = await db.select().from(agentesPersonalidadeTable).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId));
+    const [motorEscrita] = await db.select().from(agentesMotorEscritaTable).where(eq(agentesMotorEscritaTable.agenteClinicaId, agenteId));
+    const narrativas = await db.select().from(narrativasAgenteTable).where(eq(narrativasAgenteTable.catalogoAgenteId, agente.catalogoAgenteId)).orderBy(narrativasAgenteTable.ordem);
+
+    res.json({ ...agente, catalogo, capacidades, personalidade, motorEscrita, narrativas });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/seed-identidade", async (_req: Request, res: Response) => {
+  try {
+    const existingPers = await db.select({ id: agentesPersonalidadeTable.id }).from(agentesPersonalidadeTable);
+    if (existingPers.length > 0) {
+      return res.json({ message: "Identidade já semeada", personalidades: existingPers.length });
+    }
+
+    const agentes = await db.select({
+      id: agentesClinicaTable.id,
+      codigoAgente: catalogoAgentesTable.codigoAgente,
+    }).from(agentesClinicaTable)
+      .innerJoin(catalogoAgentesTable, eq(agentesClinicaTable.catalogoAgenteId, catalogoAgentesTable.id));
+
+    let persCount = 0;
+    let motorCount = 0;
+    for (const ag of agentes) {
+      const pers = PERSONALIDADE_POR_AGENTE[ag.codigoAgente];
+      if (pers) {
+        await db.insert(agentesPersonalidadeTable).values({ agenteClinicaId: ag.id, ...pers }).onConflictDoNothing();
+        persCount++;
+      }
+      const motor = MOTOR_ESCRITA_POR_AGENTE[ag.codigoAgente];
+      if (motor) {
+        await db.insert(agentesMotorEscritaTable).values({
+          agenteClinicaId: ag.id, ...motor,
+          obrigarQuebraLinha: true, obrigarTopicos: true, obrigarEmojiSemantico: true,
+          espacamentoEntreSecoes: true, proibidoTextoCorrido: true, proibidoLinguagemRobotica: true,
+          estruturaObrigatoria: ["ABERTURA", "CONTEXTO", "INFORMAÇÃO", "ORIENTAÇÃO", "AÇÃO"],
+        }).onConflictDoNothing();
+        motorCount++;
+      }
+    }
+
+    res.json({ message: "Identidade semeada!", personalidades: persCount, motoresEscrita: motorCount });
+  } catch (err: any) {
+    console.error("[agentesVirtuais/seed-identidade]", err);
     res.status(500).json({ error: err.message });
   }
 });

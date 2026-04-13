@@ -94,7 +94,47 @@ interface Stats {
   execucoesTotal: number;
 }
 
-const TABS = ["CATÁLOGO GLOBAL", "AGENTES DA CLÍNICA", "NARRATIVAS", "CAPACIDADES"];
+interface Personalidade {
+  id: number;
+  agenteClinicaId: number;
+  formalidade: number;
+  empatia: number;
+  autoridade: number;
+  objetividade: number;
+  calorHumano: number;
+  proatividade: number;
+  paciencia: number;
+  tomGeral: string | null;
+  pronomeTratamento: string;
+  exemploFraseTipica: string | null;
+  personalidadeResumo: string | null;
+  generoVoz: string;
+  estiloConversacao: string;
+  nivelHumanizacao: number;
+}
+
+interface MotorEscrita {
+  id: number;
+  agenteClinicaId: number;
+  templateAbertura: string | null;
+  templateContexto: string | null;
+  templateInformacao: string | null;
+  templateOrientacao: string | null;
+  templateAcao: string | null;
+  templateEncerramento: string | null;
+  maxLinhasPorBloco: number;
+  obrigarQuebraLinha: boolean;
+  obrigarTopicos: boolean;
+  obrigarEmojiSemantico: boolean;
+  maxCaracteresMensagem: number;
+  espacamentoEntreSecoes: boolean;
+  proibidoTextoCorrido: boolean;
+  proibidoLinguagemRobotica: boolean;
+  estruturaObrigatoria: string[] | null;
+  estiloVisual: string | null;
+}
+
+const TABS = ["CATÁLOGO GLOBAL", "AGENTES DA CLÍNICA", "NARRATIVAS", "CAPACIDADES", "IDENTIDADE"];
 
 export default function AgentesVirtuaisPage() {
   const { unidadeSelecionada } = useClinic();
@@ -161,7 +201,7 @@ export default function AgentesVirtuaisPage() {
           AGENTES VIRTUAIS — CARTA MAGNA PADCOM
         </h1>
         <p style={{ fontSize: 13, color: "#64748B", margin: "4px 0 0" }}>
-          Catálogo Global · Provisionamento por Clínica · Narrativas · Capacidades Editáveis
+          Catálogo Global · Provisionamento · Narrativas · Capacidades · Identidade Editável
         </p>
       </div>
 
@@ -322,6 +362,7 @@ export default function AgentesVirtuaisPage() {
 
       {tab === 2 && <NarrativasTab catalogo={catalogo} />}
       {tab === 3 && <CapacidadesTab catalogo={catalogo} agentesClinica={agentesClinica} clinicaId={clinicaId} />}
+      {tab === 4 && <IdentidadeTab agentesClinica={agentesClinica} clinicaId={clinicaId} />}
     </div>
   );
 }
@@ -632,6 +673,323 @@ function NarrativasTab({ catalogo }: { catalogo: CatalogoAgente[] }) {
       {!selectedId && (
         <div style={{ color: "#64748B", fontSize: 13, padding: 20, textAlign: "center" }}>
           Selecione um agente acima para ver suas narrativas de conversação.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IdentidadeTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]; clinicaId: number }) {
+  const [selectedAgente, setSelectedAgente] = useState<Agente | null>(null);
+  const [personalidade, setPersonalidade] = useState<Personalidade | null>(null);
+  const [motorEscrita, setMotorEscrita] = useState<MotorEscrita | null>(null);
+  const [subTab, setSubTab] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function loadIdentidade(ag: Agente) {
+    setSelectedAgente(ag);
+    setMsg("");
+    const [persRes, motorRes] = await Promise.all([
+      fetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/personalidade`),
+      fetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/motor-escrita`),
+    ]);
+    setPersonalidade(await persRes.json());
+    setMotorEscrita(await motorRes.json());
+  }
+
+  async function salvarPersonalidade() {
+    if (!selectedAgente || !personalidade) return;
+    setSaving(true);
+    setMsg("");
+    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/personalidade`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(personalidade),
+    });
+    if (res.ok) {
+      setPersonalidade(await res.json());
+      setMsg("Personalidade salva!");
+    }
+    setSaving(false);
+  }
+
+  async function salvarMotorEscrita() {
+    if (!selectedAgente || !motorEscrita) return;
+    setSaving(true);
+    setMsg("");
+    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/motor-escrita`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(motorEscrita),
+    });
+    if (res.ok) {
+      setMotorEscrita(await res.json());
+      setMsg("Motor de escrita salvo!");
+    }
+    setSaving(false);
+  }
+
+  const TRAIT_LABELS: Record<string, { label: string; emoji: string; cor: string }> = {
+    formalidade: { label: "Formalidade", emoji: "🎩", cor: "#3B82F6" },
+    empatia: { label: "Empatia", emoji: "💖", cor: "#EC4899" },
+    autoridade: { label: "Autoridade", emoji: "⚡", cor: "#F97316" },
+    objetividade: { label: "Objetividade", emoji: "🎯", cor: "#10B981" },
+    calorHumano: { label: "Calor Humano", emoji: "🤗", cor: "#F59E0B" },
+    proatividade: { label: "Proatividade", emoji: "🚀", cor: "#8B5CF6" },
+    paciencia: { label: "Paciência", emoji: "🕊️", cor: "#06B6D4" },
+    nivelHumanizacao: { label: "Humanização", emoji: "🫀", cor: "#EF4444" },
+  };
+
+  if (!selectedAgente) {
+    return (
+      <div>
+        <div style={{ color: "#C8920A", fontSize: 11, fontWeight: 800, marginBottom: 12, letterSpacing: "0.06em" }}>
+          SELECIONE UM AGENTE PARA EDITAR SUA IDENTIDADE
+        </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          {agentesClinica.map(ag => (
+            <div key={ag.id} onClick={() => loadIdentidade(ag)} style={{
+              background: "#0F1422", border: `1px solid ${ag.corSemantica}33`,
+              borderLeft: `4px solid ${ag.corSemantica}`, padding: "10px 14px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <span style={{ fontSize: 20 }}>{ag.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontWeight: 800, fontSize: 12, color: "#E2E8F0" }}>{ag.identificadorAgente}</span>
+                <span style={{ fontSize: 10, color: "#64748B", marginLeft: 8 }}>{ag.nomeAgente}</span>
+              </div>
+              <span style={{ color: ag.corSemantica, fontSize: 9, fontWeight: 800 }}>{ag.cargo} {ag.indice}</span>
+              <span style={{ color: "#64748B" }}>▶</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const cor = selectedAgente.corSemantica;
+  const SUB_TABS = ["PERSONALIDADE", "MOTOR DE ESCRITA"];
+
+  return (
+    <div>
+      <button onClick={() => { setSelectedAgente(null); setPersonalidade(null); setMotorEscrita(null); }} style={{
+        background: "none", border: "1px solid #1A2540", color: "#64748B",
+        padding: "6px 14px", cursor: "pointer", marginBottom: 16, fontSize: 11, fontWeight: 700,
+      }}>← VOLTAR</button>
+
+      <div style={{
+        background: "#0F1422", border: `1px solid ${cor}44`, borderLeft: `4px solid ${cor}`,
+        padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 14,
+      }}>
+        <span style={{ fontSize: 32 }}>{selectedAgente.emoji}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 900, fontSize: 16, color: cor }}>{selectedAgente.identificadorAgente}</div>
+          <div style={{ fontSize: 11, color: "#64748B" }}>{selectedAgente.nomeAgente} — {selectedAgente.emailAgente}</div>
+        </div>
+        {msg && <span style={{ color: "#10B981", fontSize: 11, fontWeight: 700 }}>{msg}</span>}
+      </div>
+
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #1A2540", marginBottom: 16 }}>
+        {SUB_TABS.map((t, i) => (
+          <button key={i} onClick={() => setSubTab(i)} style={{
+            background: "none", border: "none",
+            borderBottom: subTab === i ? `3px solid ${cor}` : "3px solid transparent",
+            color: subTab === i ? cor : "#64748B",
+            padding: "8px 16px", cursor: "pointer", fontWeight: 800, fontSize: 11,
+          }}>{t}</button>
+        ))}
+      </div>
+
+      {subTab === 0 && personalidade && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+            {Object.entries(TRAIT_LABELS).map(([key, meta]) => {
+              const val = (personalidade as any)[key] || 0;
+              return (
+                <div key={key} style={{ background: "#0A0D18", padding: "12px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: meta.cor }}>{meta.emoji} {meta.label.toUpperCase()}</span>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: meta.cor }}>{val}</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="10" value={val}
+                    onChange={(e) => setPersonalidade({ ...personalidade, [key]: Number(e.target.value) })}
+                    style={{ width: "100%", accentColor: meta.cor }}
+                  />
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#475569", fontSize: 8 }}>
+                    <span>MÍNIMO</span><span>MÁXIMO</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <div style={{ background: "#0A0D18", padding: "12px 14px" }}>
+              <div style={{ color: cor, fontSize: 10, fontWeight: 800, marginBottom: 6 }}>PRONOME DE TRATAMENTO</div>
+              <input
+                value={personalidade.pronomeTratamento || ""}
+                onChange={(e) => setPersonalidade({ ...personalidade, pronomeTratamento: e.target.value })}
+                style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 12, borderRadius: 0 }}
+              />
+            </div>
+            <div style={{ background: "#0A0D18", padding: "12px 14px" }}>
+              <div style={{ color: cor, fontSize: 10, fontWeight: 800, marginBottom: 6 }}>GÊNERO DA VOZ</div>
+              <select
+                value={personalidade.generoVoz}
+                onChange={(e) => setPersonalidade({ ...personalidade, generoVoz: e.target.value })}
+                style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 12, borderRadius: 0 }}
+              >
+                <option value="neutro">Neutro</option>
+                <option value="feminino">Feminino</option>
+                <option value="masculino">Masculino</option>
+              </select>
+            </div>
+            <div style={{ background: "#0A0D18", padding: "12px 14px" }}>
+              <div style={{ color: cor, fontSize: 10, fontWeight: 800, marginBottom: 6 }}>ESTILO DE CONVERSAÇÃO</div>
+              <input
+                value={personalidade.estiloConversacao || ""}
+                onChange={(e) => setPersonalidade({ ...personalidade, estiloConversacao: e.target.value })}
+                style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 12, borderRadius: 0 }}
+              />
+            </div>
+            <div style={{ background: "#0A0D18", padding: "12px 14px" }}>
+              <div style={{ color: cor, fontSize: 10, fontWeight: 800, marginBottom: 6 }}>TOM GERAL</div>
+              <input
+                value={personalidade.tomGeral || ""}
+                onChange={(e) => setPersonalidade({ ...personalidade, tomGeral: e.target.value })}
+                style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 12, borderRadius: 0 }}
+              />
+            </div>
+          </div>
+
+          <div style={{ background: "#0A0D18", padding: "12px 14px", marginBottom: 12 }}>
+            <div style={{ color: cor, fontSize: 10, fontWeight: 800, marginBottom: 6 }}>FRASE TÍPICA (EXEMPLO)</div>
+            <input
+              value={personalidade.exemploFraseTipica || ""}
+              onChange={(e) => setPersonalidade({ ...personalidade, exemploFraseTipica: e.target.value })}
+              style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 12, borderRadius: 0 }}
+            />
+          </div>
+
+          <div style={{ background: "#0A0D18", padding: "12px 14px", marginBottom: 16 }}>
+            <div style={{ color: cor, fontSize: 10, fontWeight: 800, marginBottom: 6 }}>RESUMO DA PERSONALIDADE</div>
+            <textarea
+              value={personalidade.personalidadeResumo || ""}
+              onChange={(e) => setPersonalidade({ ...personalidade, personalidadeResumo: e.target.value })}
+              rows={3}
+              style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 12, borderRadius: 0, resize: "vertical" }}
+            />
+          </div>
+
+          <button onClick={salvarPersonalidade} disabled={saving} style={{
+            background: cor, color: "#000", fontWeight: 800, fontSize: 12,
+            padding: "10px 24px", border: "none", cursor: "pointer", borderRadius: 0,
+            opacity: saving ? 0.6 : 1,
+          }}>{saving ? "SALVANDO..." : "SALVAR PERSONALIDADE"}</button>
+        </div>
+      )}
+
+      {subTab === 1 && motorEscrita && (
+        <div>
+          <div style={{ color: "#8B5CF6", fontSize: 10, fontWeight: 800, marginBottom: 12, letterSpacing: "0.06em" }}>
+            MOTOR DE ESCRITA — 5 ETAPAS OBRIGATÓRIAS
+          </div>
+
+          <div style={{ display: "grid", gap: 10, marginBottom: 16 }}>
+            {[
+              { key: "templateAbertura", label: "1. ABERTURA", emoji: "👋", cor: "#10B981" },
+              { key: "templateContexto", label: "2. CONTEXTO", emoji: "📋", cor: "#3B82F6" },
+              { key: "templateInformacao", label: "3. INFORMAÇÃO", emoji: "📊", cor: "#F59E0B" },
+              { key: "templateOrientacao", label: "4. ORIENTAÇÃO", emoji: "🧭", cor: "#8B5CF6" },
+              { key: "templateAcao", label: "5. AÇÃO", emoji: "🎯", cor: "#EF4444" },
+              { key: "templateEncerramento", label: "ENCERRAMENTO", emoji: "🤝", cor: "#06B6D4" },
+            ].map(({ key, label, emoji, cor: tCor }) => (
+              <div key={key} style={{ background: "#0A0D18", padding: "12px 14px", borderLeft: `3px solid ${tCor}` }}>
+                <div style={{ color: tCor, fontSize: 10, fontWeight: 800, marginBottom: 6 }}>{emoji} {label}</div>
+                <textarea
+                  value={(motorEscrita as any)[key] || ""}
+                  onChange={(e) => setMotorEscrita({ ...motorEscrita, [key]: e.target.value })}
+                  rows={2}
+                  style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 12, borderRadius: 0, resize: "vertical" }}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ color: "#C8920A", fontSize: 10, fontWeight: 800, marginBottom: 10, letterSpacing: "0.06em" }}>
+            REGRAS VISUAIS TDAH+TOC
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+            <div style={{ background: "#0A0D18", padding: "12px 14px" }}>
+              <div style={{ color: "#64748B", fontSize: 9, fontWeight: 700, marginBottom: 6 }}>MÁX. LINHAS POR BLOCO</div>
+              <input type="number" min="1" max="10"
+                value={motorEscrita.maxLinhasPorBloco}
+                onChange={(e) => setMotorEscrita({ ...motorEscrita, maxLinhasPorBloco: Number(e.target.value) })}
+                style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 14, fontWeight: 900, borderRadius: 0, textAlign: "center" }}
+              />
+            </div>
+            <div style={{ background: "#0A0D18", padding: "12px 14px" }}>
+              <div style={{ color: "#64748B", fontSize: 9, fontWeight: 700, marginBottom: 6 }}>MÁX. CARACTERES / MSG</div>
+              <input type="number" min="100" max="2000" step="50"
+                value={motorEscrita.maxCaracteresMensagem}
+                onChange={(e) => setMotorEscrita({ ...motorEscrita, maxCaracteresMensagem: Number(e.target.value) })}
+                style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 14, fontWeight: 900, borderRadius: 0, textAlign: "center" }}
+              />
+            </div>
+            <div style={{ background: "#0A0D18", padding: "12px 14px" }}>
+              <div style={{ color: "#64748B", fontSize: 9, fontWeight: 700, marginBottom: 6 }}>ESTILO VISUAL</div>
+              <input
+                value={motorEscrita.estiloVisual || ""}
+                onChange={(e) => setMotorEscrita({ ...motorEscrita, estiloVisual: e.target.value })}
+                style={{ width: "100%", background: "#0F1422", border: "1px solid #1A2540", color: "#E2E8F0", padding: "8px 10px", fontSize: 12, borderRadius: 0 }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+            {[
+              { key: "obrigarQuebraLinha", label: "Quebra de Linha" },
+              { key: "obrigarTopicos", label: "Usar Tópicos" },
+              { key: "obrigarEmojiSemantico", label: "Emoji Semântico" },
+              { key: "espacamentoEntreSecoes", label: "Espaço entre Seções" },
+              { key: "proibidoTextoCorrido", label: "Proibido Texto Corrido" },
+              { key: "proibidoLinguagemRobotica", label: "Proibido Linguagem Robótica" },
+            ].map(({ key, label }) => {
+              const val = (motorEscrita as any)[key];
+              return (
+                <div key={key} onClick={() => setMotorEscrita({ ...motorEscrita, [key]: !val })}
+                  style={{
+                    background: "#0A0D18", padding: "10px 12px", cursor: "pointer",
+                    border: `1px solid ${val ? "#10B98144" : "#1A2540"}`,
+                    display: "flex", gap: 8, alignItems: "center",
+                  }}>
+                  <span style={{
+                    width: 18, height: 18, borderRadius: 2, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: val ? "#10B981" : "#374151", fontSize: 10, color: "#fff", fontWeight: 900,
+                  }}>{val ? "✓" : ""}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: val ? "#E2E8F0" : "#64748B" }}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <button onClick={salvarMotorEscrita} disabled={saving} style={{
+            background: "#8B5CF6", color: "#fff", fontWeight: 800, fontSize: 12,
+            padding: "10px 24px", border: "none", cursor: "pointer", borderRadius: 0,
+            opacity: saving ? 0.6 : 1,
+          }}>{saving ? "SALVANDO..." : "SALVAR MOTOR DE ESCRITA"}</button>
+        </div>
+      )}
+
+      {subTab === 0 && !personalidade && (
+        <div style={{ color: "#64748B", fontSize: 13, padding: 20, textAlign: "center" }}>
+          Carregando personalidade...
+        </div>
+      )}
+      {subTab === 1 && !motorEscrita && (
+        <div style={{ color: "#64748B", fontSize: 13, padding: 20, textAlign: "center" }}>
+          Carregando motor de escrita...
         </div>
       )}
     </div>
