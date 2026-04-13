@@ -423,7 +423,14 @@ export default function ConfiguracoesPage() {
   };
 
   const openEditUser = (u: any) => {
-    setEditForm({ nome: u.nome || "", email: u.email || "", perfil: u.perfil || "enfermeira", unidadeId: u.unidadeId || "", senha: "", ativo: u.ativo ?? true });
+    setEditForm({
+      nome: u.nome || "", email: u.email || "", perfil: u.perfil || "enfermeira",
+      unidadeId: u.unidadeId || "", senha: "", ativo: u.ativo ?? true,
+      crm: u.crm || "", cpf: u.cpf || "", cns: u.cns || "",
+      especialidade: u.especialidade || "", telefone: u.telefone || "",
+      podeValidar: u.podeValidar ?? false, podeAssinar: u.podeAssinar ?? false,
+      podeBypass: u.podeBypass ?? false, nuncaOpera: u.nuncaOpera ?? false,
+    });
     setEditingUser(u);
   };
 
@@ -605,6 +612,8 @@ export default function ConfiguracoesPage() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Perfil</TableHead>
+                    <TableHead>CRM</TableHead>
+                    <TableHead>Especialidade</TableHead>
                     <TableHead>Unidade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-10"></TableHead>
@@ -613,16 +622,21 @@ export default function ConfiguracoesPage() {
                 <TableBody>
                   {usuarios?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
                         Nenhum usuário cadastrado.
                       </TableCell>
                     </TableRow>
                   ) : (
                     usuarios?.map((u) => (
                       <TableRow key={u.id} className="group">
-                        <TableCell className="font-medium">{u.nome}</TableCell>
-                        <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{u.nome}</div>
+                          {(u as any).telefone && <div className="text-xs text-muted-foreground">{(u as any).telefone}</div>}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
                         <TableCell>{getPerfilBadge(u.perfil)}</TableCell>
+                        <TableCell className="text-sm font-mono text-muted-foreground">{(u as any).crm || "-"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{(u as any).especialidade || "-"}</TableCell>
                         <TableCell className="text-sm">{u.unidadeNome || "Global"}</TableCell>
                         <TableCell>
                           {u.ativo ? (
@@ -647,7 +661,7 @@ export default function ConfiguracoesPage() {
 
         {editingUser && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
-            <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="bg-card border border-border w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Usuario</h3>
                 <button onClick={() => setEditingUser(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
@@ -681,17 +695,61 @@ export default function ConfiguracoesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 col-span-2">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Nova Senha (deixe vazio para manter)</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">CRM</label>
+                  <Input value={editForm.crm} onChange={e => setEditForm({...editForm, crm: e.target.value})} placeholder="CRM/UF 000000" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">CPF</label>
+                  <Input value={editForm.cpf} onChange={e => setEditForm({...editForm, cpf: e.target.value})} placeholder="000.000.000-00" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">CNS</label>
+                  <Input value={editForm.cns} onChange={e => setEditForm({...editForm, cns: e.target.value})} placeholder="Cartao Nacional Saude" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Especialidade</label>
+                  <Input value={editForm.especialidade} onChange={e => setEditForm({...editForm, especialidade: e.target.value})} placeholder="Medicina Integrativa" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Telefone</label>
+                  <Input value={editForm.telefone} onChange={e => setEditForm({...editForm, telefone: e.target.value})} placeholder="(11) 99999-9999" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Nova Senha (vazio = manter)</label>
                   <Input type="password" value={editForm.senha} onChange={e => setEditForm({...editForm, senha: e.target.value})} placeholder="Min. 6 caracteres" />
                 </div>
-                <div className="space-y-1 col-span-2">
+              </div>
+
+              <div className="border-t border-border pt-3">
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">Permissoes</p>
+                <div className="grid grid-cols-2 gap-2">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={editForm.ativo} onChange={e => setEditForm({...editForm, ativo: e.target.checked})} className="rounded" />
-                    <span className="text-sm font-medium">Usuario Ativo</span>
+                    <input type="checkbox" checked={editForm.podeValidar} onChange={e => setEditForm({...editForm, podeValidar: e.target.checked})} className="rounded" />
+                    <span className="text-sm">Pode Validar</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={editForm.podeAssinar} onChange={e => setEditForm({...editForm, podeAssinar: e.target.checked})} className="rounded" />
+                    <span className="text-sm">Pode Assinar</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={editForm.podeBypass} onChange={e => setEditForm({...editForm, podeBypass: e.target.checked})} className="rounded" />
+                    <span className="text-sm">Pode Bypass</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={editForm.nuncaOpera} onChange={e => setEditForm({...editForm, nuncaOpera: e.target.checked})} className="rounded" />
+                    <span className="text-sm">Nunca Opera</span>
                   </label>
                 </div>
               </div>
+
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editForm.ativo} onChange={e => setEditForm({...editForm, ativo: e.target.checked})} className="rounded" />
+                  <span className="text-sm font-medium">Usuario Ativo</span>
+                </label>
+              </div>
+
               <div className="flex gap-2 pt-2 border-t border-border">
                 <Button className="flex-1 text-xs h-9" onClick={saveEditUser} disabled={editSaving}>
                   {editSaving ? "Salvando..." : "Salvar Alteracoes"}

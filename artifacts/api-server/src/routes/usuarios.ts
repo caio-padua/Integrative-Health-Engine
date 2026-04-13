@@ -15,9 +15,20 @@ router.get("/usuarios", async (req, res): Promise<void> => {
       nome: usuariosTable.nome,
       email: usuariosTable.email,
       perfil: usuariosTable.perfil,
+      escopo: usuariosTable.escopo,
       unidadeId: usuariosTable.unidadeId,
       unidadeNome: unidadesTable.nome,
+      consultoriaId: usuariosTable.consultoriaId,
+      crm: usuariosTable.crm,
+      cpf: usuariosTable.cpf,
+      cns: usuariosTable.cns,
+      especialidade: usuariosTable.especialidade,
+      telefone: usuariosTable.telefone,
       ativo: usuariosTable.ativo,
+      podeValidar: usuariosTable.podeValidar,
+      podeAssinar: usuariosTable.podeAssinar,
+      podeBypass: usuariosTable.podeBypass,
+      nuncaOpera: usuariosTable.nuncaOpera,
       criadoEm: usuariosTable.criadoEm,
     })
     .from(usuariosTable)
@@ -119,7 +130,7 @@ router.get("/usuarios/perfil-atual", async (_req, res): Promise<void> => {
 router.put("/usuarios/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID invalido" }); return; }
-  const allowedFields = ["nome", "email", "perfil", "unidadeId", "ativo", "escopo", "consultoriaId"];
+  const allowedFields = ["nome", "email", "perfil", "unidadeId", "ativo", "escopo", "consultoriaId", "crm", "cpf", "cns", "especialidade", "telefone", "podeValidar", "podeAssinar", "podeBypass", "nuncaOpera"];
   const updateData: Record<string, any> = {};
   for (const key of allowedFields) {
     if (req.body[key] !== undefined) updateData[key] = req.body[key];
