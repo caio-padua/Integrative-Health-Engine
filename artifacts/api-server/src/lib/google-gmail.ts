@@ -310,6 +310,63 @@ export async function sendPreSessionEmail(
   return res.data;
 }
 
+function createEmailWithAttachment(
+  to: string,
+  subject: string,
+  htmlBody: string,
+  attachment: { filename: string; content: Buffer; mimeType: string },
+  from?: string
+): string {
+  const fromAddr = sanitizeEmail(from || 'clinica.padua.agenda@gmail.com');
+  const toAddr = sanitizeEmail(to);
+  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+  const messageParts = [
+    `From: CLINICA PADUA <${fromAddr}>`,
+    `To: ${toAddr}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(htmlBody).toString('base64'),
+    '',
+    `--${boundary}`,
+    `Content-Type: ${attachment.mimeType}`,
+    `Content-Disposition: attachment; filename="${attachment.filename}"`,
+    'Content-Transfer-Encoding: base64',
+    '',
+    attachment.content.toString('base64'),
+    '',
+    `--${boundary}--`,
+  ];
+
+  const raw = messageParts.join('\r\n');
+  return Buffer.from(raw).toString('base64url');
+}
+
+export async function sendEmailWithPdf(
+  toEmail: string,
+  subject: string,
+  htmlBody: string,
+  pdfBuffer: Buffer,
+  pdfFilename: string
+): Promise<any> {
+  const gmail = await getGmailClient();
+  const raw = createEmailWithAttachment(
+    toEmail, subject, htmlBody,
+    { filename: pdfFilename, content: pdfBuffer, mimeType: 'application/pdf' }
+  );
+  const res = await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw },
+  });
+  return res.data;
+}
+
 export async function sendPostSessionEmail(
   toEmail: string,
   opts: {
