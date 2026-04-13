@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Building2, MapPin, Pencil, Calendar } from "lucide-react";
+import { Plus, Building2, MapPin, Pencil, Calendar, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -238,6 +238,7 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
 
 export default function UnidadesPage() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: unidades = [], isLoading } = useQuery<Unidade[]>({
     queryKey: ["unidades"],
@@ -252,6 +253,20 @@ export default function UnidadesPage() {
   const [editUnidade, setEditUnidade] = useState<Unidade | null>(null);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["unidades"] });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE_URL}api/unidades/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Erro");
+    },
+    onSuccess: () => { refresh(); toast({ title: "Unidade excluida" }); },
+    onError: () => toast({ title: "Erro ao excluir unidade", variant: "destructive" }),
+  });
+
+  const handleDelete = (u: Unidade) => {
+    if (!confirm(`Excluir a unidade "${u.nome}" permanentemente?`)) return;
+    deleteMutation.mutate(u.id);
+  };
 
   return (
     <Layout>
@@ -337,9 +352,14 @@ export default function UnidadesPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => setEditUnidade(u)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => setEditUnidade(u)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(u)} className="text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
