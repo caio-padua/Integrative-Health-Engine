@@ -49,6 +49,11 @@ import ComercialPage from "@/pages/comercial";
 import JustificativasPage from "@/pages/justificativas";
 import MatrizAnaliticaPage from "@/pages/matriz-analitica";
 import AgendaMotorPage from "@/pages/agenda-motor";
+import DietasPage from "@/pages/dietas";
+import PsicologiaPage from "@/pages/psicologia";
+import QuestionarioMasterPage from "@/pages/questionario-master";
+import ConsultoriasPage from "@/pages/consultorias";
+import ContratosPage from "@/pages/contratos";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +110,11 @@ function Router() {
       <Route path="/justificativas" component={JustificativasPage} />
       <Route path="/matriz-analitica" component={MatrizAnaliticaPage} />
       <Route path="/agenda-motor" component={AgendaMotorPage} />
+      <Route path="/dietas" component={DietasPage} />
+      <Route path="/psicologia" component={PsicologiaPage} />
+      <Route path="/questionario-master" component={QuestionarioMasterPage} />
+      <Route path="/consultorias" component={ConsultoriasPage} />
+      <Route path="/contratos" component={ContratosPage} />
       <Route component={NotFound} />
     </Switch>
   );
