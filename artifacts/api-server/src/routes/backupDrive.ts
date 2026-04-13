@@ -177,7 +177,7 @@ async function getNextVersion(connectors: ReplitConnectors): Promise<string> {
   const antigosData = await antigosRes.json();
   const allFiles = [...(codigosData.files || []), ...(antigosData.files || [])];
 
-  const pattern = /V01-(\d+)/;
+  const pattern = /V(\d+)/;
   for (const file of allFiles) {
     const match = file.name?.match(pattern);
     if (match) {
@@ -186,17 +186,7 @@ async function getNextVersion(connectors: ReplitConnectors): Promise<string> {
     }
   }
 
-  const oldPattern = /V(\d+)/;
-  for (const file of allFiles) {
-    if (pattern.test(file.name)) continue;
-    const match = file.name?.match(oldPattern);
-    if (match) {
-      const v = parseInt(match[1], 10);
-      if (v > maxVersion) maxVersion = v;
-    }
-  }
-
-  return `V01-${String(maxVersion + 1).padStart(2, "0")}`;
+  return `V${String(maxVersion + 1).padStart(2, "0")}`;
 }
 
 function getGitLog(): string {
