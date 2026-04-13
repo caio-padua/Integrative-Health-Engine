@@ -323,6 +323,7 @@ router.post("/agenda-motor/generate-slots", async (req, res) => {
             await db.insert(agendaSlotsTable).values({
               profissionalId: rule.profissionalId,
               unidadeId: rule.unidadeId,
+              subAgendaId: rule.subAgendaId || null,
               availabilityRuleId: rule.id,
               data: dateStr,
               horaInicio: ts.start,
@@ -948,6 +949,7 @@ router.get("/agenda-motor/weekly-view", async (req, res) => {
       .select({
         id: agendaSlotsTable.id,
         profissionalId: agendaSlotsTable.profissionalId,
+        subAgendaId: agendaSlotsTable.subAgendaId,
         data: agendaSlotsTable.data,
         horaInicio: agendaSlotsTable.horaInicio,
         horaFim: agendaSlotsTable.horaFim,
