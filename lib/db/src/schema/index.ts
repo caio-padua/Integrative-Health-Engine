@@ -38,3 +38,4 @@ export * from "./acompanhamento";
 export * from "./comercial";
 export * from "./agenda";
 export * from "./colaboradores";
+export * from "./agentesVirtuais";
