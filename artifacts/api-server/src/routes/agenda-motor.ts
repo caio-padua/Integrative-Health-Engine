@@ -14,6 +14,7 @@ import {
   taskCardsTable,
   rasTable,
   smartReleaseConfigTable,
+  subAgendasTable,
   TIPOS_PROCEDIMENTO,
 } from "@workspace/db";
 import { eq, and, sql, or, desc, gte, lte, inArray, between, isNull } from "drizzle-orm";
@@ -24,6 +25,116 @@ const router = Router();
 async function auditLog(entidadeTipo: string, entidadeId: number, acao: string, detalhes: any, usuarioId?: number) {
   await db.insert(agendaAuditEventsTable).values({ entidadeTipo, entidadeId, acao, detalhes, usuarioId: usuarioId || null });
 }
+
+router.get("/agenda-motor/sub-agendas", async (req, res) => {
+  try {
+    const { unidadeId } = req.query;
+    const conditions: any[] = [];
+    if (unidadeId) conditions.push(eq(subAgendasTable.unidadeId, Number(unidadeId)));
+
+    const subs = await db
+      .select({
+        id: subAgendasTable.id,
+        unidadeId: subAgendasTable.unidadeId,
+        nome: subAgendasTable.nome,
+        cor: subAgendasTable.cor,
+        emoji: subAgendasTable.emoji,
+        tipo: subAgendasTable.tipo,
+        profissionalId: subAgendasTable.profissionalId,
+        profissionalNome: usuariosTable.nome,
+        modalidade: subAgendasTable.modalidade,
+        salaOuLocal: subAgendasTable.salaOuLocal,
+        ativa: subAgendasTable.ativa,
+        ordem: subAgendasTable.ordem,
+      })
+      .from(subAgendasTable)
+      .leftJoin(usuariosTable, eq(subAgendasTable.profissionalId, usuariosTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(subAgendasTable.ordem, subAgendasTable.nome);
+
+    res.json(subs);
+  } catch (err: any) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+router.post("/agenda-motor/sub-agendas", async (req, res) => {
+  try {
+    const { unidadeId, nome, cor, emoji, tipo, profissionalId, modalidade, salaOuLocal, ordem } = req.body;
+    if (!unidadeId || !nome) {
+      res.status(400).json({ erro: "unidadeId e nome sao obrigatorios" });
+      return;
+    }
+    const [created] = await db.insert(subAgendasTable).values({
+      unidadeId: Number(unidadeId), nome, cor: cor || "#3B82F6",
+      emoji: emoji || null, tipo: tipo || "medico",
+      profissionalId: profissionalId ? Number(profissionalId) : null,
+      modalidade: modalidade || "presencial",
+      salaOuLocal: salaOuLocal || null,
+      ordem: ordem || 0,
+    }).returning();
+    res.status(201).json(created);
+  } catch (err: any) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+router.put("/agenda-motor/sub-agendas/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { nome, cor, emoji, tipo, profissionalId, modalidade, salaOuLocal, ativa, ordem } = req.body;
+    const updates: any = { atualizadoEm: new Date() };
+    if (nome !== undefined) updates.nome = nome;
+    if (cor !== undefined) updates.cor = cor;
+    if (emoji !== undefined) updates.emoji = emoji;
+    if (tipo !== undefined) updates.tipo = tipo;
+    if (profissionalId !== undefined) updates.profissionalId = profissionalId ? Number(profissionalId) : null;
+    if (modalidade !== undefined) updates.modalidade = modalidade;
+    if (salaOuLocal !== undefined) updates.salaOuLocal = salaOuLocal;
+    if (ativa !== undefined) updates.ativa = ativa;
+    if (ordem !== undefined) updates.ordem = ordem;
+    const [updated] = await db.update(subAgendasTable).set(updates).where(eq(subAgendasTable.id, id)).returning();
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+router.delete("/agenda-motor/sub-agendas/:id", async (req, res) => {
+  try {
+    await db.delete(subAgendasTable).where(eq(subAgendasTable.id, Number(req.params.id)));
+    res.json({ sucesso: true });
+  } catch (err: any) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+router.post("/agenda-motor/sub-agendas/seed", async (req, res) => {
+  try {
+    const { unidadeId } = req.body;
+    if (!unidadeId) { res.status(400).json({ erro: "unidadeId obrigatorio" }); return; }
+
+    const existing = await db.select().from(subAgendasTable).where(eq(subAgendasTable.unidadeId, Number(unidadeId)));
+    if (existing.length > 0) { res.json({ mensagem: "Subagendas ja existem", total: existing.length }); return; }
+
+    const seeds = [
+      { nome: "AGENDA MEDICO — DR. CAIO PRESENCIAL", cor: "#3B82F6", emoji: "🏥", tipo: "medico", modalidade: "presencial", salaOuLocal: "Sala 01", ordem: 1 },
+      { nome: "AGENDA MEDICO — DR. CAIO ONLINE", cor: "#8B5CF6", emoji: "💻", tipo: "medico", modalidade: "online", salaOuLocal: "Telemedicina", ordem: 2 },
+      { nome: "AGENDA ENFERMAGEM — PRESENCIAL", cor: "#10B981", emoji: "💉", tipo: "enfermagem", modalidade: "presencial", salaOuLocal: "Sala Infusão", ordem: 3 },
+      { nome: "AGENDA ENFERMAGEM — DOMICILIAR", cor: "#F59E0B", emoji: "🏠", tipo: "enfermagem", modalidade: "domiciliar", salaOuLocal: "Nurse Care", ordem: 4 },
+      { nome: "AGENDA ENFERMAGEM — AUDITORIA", cor: "#EF4444", emoji: "📋", tipo: "enfermagem", modalidade: "remoto", salaOuLocal: "Auditoria Remota", ordem: 5 },
+      { nome: "AGENDA EXAMES — COLETA", cor: "#64748B", emoji: "🧪", tipo: "exames", modalidade: "presencial", salaOuLocal: "Sala Coleta", ordem: 6 },
+    ];
+
+    for (const s of seeds) {
+      await db.insert(subAgendasTable).values({ ...s, unidadeId: Number(unidadeId) });
+    }
+
+    res.json({ sucesso: true, total: seeds.length, mensagem: "Subagendas criadas com sucesso" });
+  } catch (err: any) {
+    res.status(500).json({ erro: err.message });
+  }
+});
 
 router.get("/agenda-motor/tipos-procedimento", (_req, res) => {
   const tipos = Object.entries(TIPOS_PROCEDIMENTO).map(([key, val]) => ({

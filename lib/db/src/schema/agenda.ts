@@ -5,10 +5,31 @@ import { usuariosTable } from "./usuarios";
 import { unidadesTable } from "./unidades";
 import { pacientesTable } from "./pacientes";
 
+export const subAgendasTable = pgTable("sub_agendas", {
+  id: serial("id").primaryKey(),
+  unidadeId: integer("unidade_id").notNull().references(() => unidadesTable.id),
+  nome: text("nome").notNull(),
+  cor: text("cor").notNull().default("#3B82F6"),
+  emoji: text("emoji"),
+  tipo: text("tipo").notNull().default("medico"),
+  profissionalId: integer("profissional_id").references(() => usuariosTable.id),
+  modalidade: text("modalidade").notNull().default("presencial"),
+  salaOuLocal: text("sala_ou_local"),
+  ativa: boolean("ativa").notNull().default(true),
+  ordem: integer("ordem").notNull().default(0),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertSubAgendaSchema = createInsertSchema(subAgendasTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
+export type InsertSubAgenda = z.infer<typeof insertSubAgendaSchema>;
+export type SubAgenda = typeof subAgendasTable.$inferSelect;
+
 export const availabilityRulesTable = pgTable("availability_rules", {
   id: serial("id").primaryKey(),
   profissionalId: integer("profissional_id").notNull().references(() => usuariosTable.id),
   unidadeId: integer("unidade_id").notNull().references(() => unidadesTable.id),
+  subAgendaId: integer("sub_agenda_id").references(() => subAgendasTable.id),
   diaSemana: integer("dia_semana").notNull(),
   horaInicio: text("hora_inicio").notNull(),
   horaFim: text("hora_fim").notNull(),
@@ -26,6 +47,7 @@ export const agendaSlotsTable = pgTable("agenda_slots", {
   id: serial("id").primaryKey(),
   profissionalId: integer("profissional_id").notNull().references(() => usuariosTable.id),
   unidadeId: integer("unidade_id").notNull().references(() => unidadesTable.id),
+  subAgendaId: integer("sub_agenda_id").references(() => subAgendasTable.id),
   availabilityRuleId: integer("availability_rule_id").references(() => availabilityRulesTable.id),
   data: text("data").notNull(),
   horaInicio: text("hora_inicio").notNull(),
