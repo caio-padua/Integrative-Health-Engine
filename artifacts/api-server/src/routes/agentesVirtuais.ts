@@ -1109,9 +1109,63 @@ router.put("/clinica/:clinicaId/agente/:agenteId/pausar", async (req: Request, r
   }
 });
 
+async function validarPropriedadeClinica(agenteId: number, clinicaId: number): Promise<boolean> {
+  const [ag] = await db.select({ id: agentesClinicaTable.id })
+    .from(agentesClinicaTable)
+    .where(and(eq(agentesClinicaTable.id, agenteId), eq(agentesClinicaTable.clinicaId, clinicaId)));
+  return !!ag;
+}
+
+function clamp(val: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, val));
+}
+
+function sanitizarPersonalidade(body: any) {
+  return {
+    ...(body.formalidade !== undefined && { formalidade: clamp(Number(body.formalidade), 0, 10) }),
+    ...(body.empatia !== undefined && { empatia: clamp(Number(body.empatia), 0, 10) }),
+    ...(body.autoridade !== undefined && { autoridade: clamp(Number(body.autoridade), 0, 10) }),
+    ...(body.objetividade !== undefined && { objetividade: clamp(Number(body.objetividade), 0, 10) }),
+    ...(body.calorHumano !== undefined && { calorHumano: clamp(Number(body.calorHumano), 0, 10) }),
+    ...(body.proatividade !== undefined && { proatividade: clamp(Number(body.proatividade), 0, 10) }),
+    ...(body.paciencia !== undefined && { paciencia: clamp(Number(body.paciencia), 0, 10) }),
+    ...(body.nivelHumanizacao !== undefined && { nivelHumanizacao: clamp(Number(body.nivelHumanizacao), 0, 10) }),
+    ...(body.tomGeral !== undefined && { tomGeral: String(body.tomGeral).slice(0, 500) }),
+    ...(body.pronomeTratamento !== undefined && { pronomeTratamento: String(body.pronomeTratamento).slice(0, 100) }),
+    ...(body.exemploFraseTipica !== undefined && { exemploFraseTipica: String(body.exemploFraseTipica).slice(0, 1000) }),
+    ...(body.personalidadeResumo !== undefined && { personalidadeResumo: String(body.personalidadeResumo).slice(0, 2000) }),
+    ...(body.generoVoz !== undefined && { generoVoz: ["neutro", "feminino", "masculino"].includes(body.generoVoz) ? body.generoVoz : "neutro" }),
+    ...(body.estiloConversacao !== undefined && { estiloConversacao: String(body.estiloConversacao).slice(0, 50) }),
+  };
+}
+
+function sanitizarMotorEscrita(body: any) {
+  return {
+    ...(body.templateAbertura !== undefined && { templateAbertura: String(body.templateAbertura).slice(0, 2000) }),
+    ...(body.templateContexto !== undefined && { templateContexto: String(body.templateContexto).slice(0, 2000) }),
+    ...(body.templateInformacao !== undefined && { templateInformacao: String(body.templateInformacao).slice(0, 2000) }),
+    ...(body.templateOrientacao !== undefined && { templateOrientacao: String(body.templateOrientacao).slice(0, 2000) }),
+    ...(body.templateAcao !== undefined && { templateAcao: String(body.templateAcao).slice(0, 2000) }),
+    ...(body.templateEncerramento !== undefined && { templateEncerramento: String(body.templateEncerramento).slice(0, 2000) }),
+    ...(body.maxLinhasPorBloco !== undefined && { maxLinhasPorBloco: clamp(Number(body.maxLinhasPorBloco), 1, 10) }),
+    ...(body.maxCaracteresMensagem !== undefined && { maxCaracteresMensagem: clamp(Number(body.maxCaracteresMensagem), 100, 2000) }),
+    ...(body.obrigarQuebraLinha !== undefined && { obrigarQuebraLinha: Boolean(body.obrigarQuebraLinha) }),
+    ...(body.obrigarTopicos !== undefined && { obrigarTopicos: Boolean(body.obrigarTopicos) }),
+    ...(body.obrigarEmojiSemantico !== undefined && { obrigarEmojiSemantico: Boolean(body.obrigarEmojiSemantico) }),
+    ...(body.espacamentoEntreSecoes !== undefined && { espacamentoEntreSecoes: Boolean(body.espacamentoEntreSecoes) }),
+    ...(body.proibidoTextoCorrido !== undefined && { proibidoTextoCorrido: Boolean(body.proibidoTextoCorrido) }),
+    ...(body.proibidoLinguagemRobotica !== undefined && { proibidoLinguagemRobotica: Boolean(body.proibidoLinguagemRobotica) }),
+    ...(body.estiloVisual !== undefined && { estiloVisual: String(body.estiloVisual).slice(0, 500) }),
+    ...(body.estruturaObrigatoria !== undefined && Array.isArray(body.estruturaObrigatoria) && { estruturaObrigatoria: body.estruturaObrigatoria.map((s: any) => String(s).slice(0, 50)).slice(0, 10) }),
+  };
+}
+
 router.get("/clinica/:clinicaId/agente/:agenteId/personalidade", async (req: Request, res: Response) => {
   try {
     const agenteId = Number(req.params.agenteId);
+    const clinicaId = Number(req.params.clinicaId);
+    if (!(await validarPropriedadeClinica(agenteId, clinicaId))) return res.status(403).json({ error: "Agente não pertence a esta clínica" });
+
     const [pers] = await db.select().from(agentesPersonalidadeTable).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId));
     if (!pers) return res.json(null);
     res.json(pers);
@@ -1123,16 +1177,17 @@ router.get("/clinica/:clinicaId/agente/:agenteId/personalidade", async (req: Req
 router.put("/clinica/:clinicaId/agente/:agenteId/personalidade", async (req: Request, res: Response) => {
   try {
     const agenteId = Number(req.params.agenteId);
-    const updates = req.body;
-    delete updates.id;
-    delete updates.criadoEm;
+    const clinicaId = Number(req.params.clinicaId);
+    if (!(await validarPropriedadeClinica(agenteId, clinicaId))) return res.status(403).json({ error: "Agente não pertence a esta clínica" });
+
+    const safe = sanitizarPersonalidade(req.body);
 
     const [existing] = await db.select().from(agentesPersonalidadeTable).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId));
     if (existing) {
-      const [updated] = await db.update(agentesPersonalidadeTable).set(updates).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId)).returning();
+      const [updated] = await db.update(agentesPersonalidadeTable).set(safe).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId)).returning();
       res.json(updated);
     } else {
-      const [created] = await db.insert(agentesPersonalidadeTable).values({ agenteClinicaId: agenteId, ...updates }).returning();
+      const [created] = await db.insert(agentesPersonalidadeTable).values({ agenteClinicaId: agenteId, ...safe }).returning();
       res.json(created);
     }
   } catch (err: any) {
@@ -1143,6 +1198,9 @@ router.put("/clinica/:clinicaId/agente/:agenteId/personalidade", async (req: Req
 router.get("/clinica/:clinicaId/agente/:agenteId/motor-escrita", async (req: Request, res: Response) => {
   try {
     const agenteId = Number(req.params.agenteId);
+    const clinicaId = Number(req.params.clinicaId);
+    if (!(await validarPropriedadeClinica(agenteId, clinicaId))) return res.status(403).json({ error: "Agente não pertence a esta clínica" });
+
     const [motor] = await db.select().from(agentesMotorEscritaTable).where(eq(agentesMotorEscritaTable.agenteClinicaId, agenteId));
     if (!motor) return res.json(null);
     res.json(motor);
@@ -1154,16 +1212,17 @@ router.get("/clinica/:clinicaId/agente/:agenteId/motor-escrita", async (req: Req
 router.put("/clinica/:clinicaId/agente/:agenteId/motor-escrita", async (req: Request, res: Response) => {
   try {
     const agenteId = Number(req.params.agenteId);
-    const updates = req.body;
-    delete updates.id;
-    delete updates.criadoEm;
+    const clinicaId = Number(req.params.clinicaId);
+    if (!(await validarPropriedadeClinica(agenteId, clinicaId))) return res.status(403).json({ error: "Agente não pertence a esta clínica" });
+
+    const safe = sanitizarMotorEscrita(req.body);
 
     const [existing] = await db.select().from(agentesMotorEscritaTable).where(eq(agentesMotorEscritaTable.agenteClinicaId, agenteId));
     if (existing) {
-      const [updated] = await db.update(agentesMotorEscritaTable).set(updates).where(eq(agentesMotorEscritaTable.agenteClinicaId, agenteId)).returning();
+      const [updated] = await db.update(agentesMotorEscritaTable).set(safe).where(eq(agentesMotorEscritaTable.agenteClinicaId, agenteId)).returning();
       res.json(updated);
     } else {
-      const [created] = await db.insert(agentesMotorEscritaTable).values({ agenteClinicaId: agenteId, ...updates }).returning();
+      const [created] = await db.insert(agentesMotorEscritaTable).values({ agenteClinicaId: agenteId, ...safe }).returning();
       res.json(created);
     }
   } catch (err: any) {
@@ -1174,9 +1233,10 @@ router.put("/clinica/:clinicaId/agente/:agenteId/motor-escrita", async (req: Req
 router.get("/clinica/:clinicaId/agente/:agenteId/identidade-completa", async (req: Request, res: Response) => {
   try {
     const agenteId = Number(req.params.agenteId);
-    const [agente] = await db.select().from(agentesClinicaTable).where(eq(agentesClinicaTable.id, agenteId));
-    if (!agente) return res.status(404).json({ error: "Agente não encontrado" });
+    const clinicaId = Number(req.params.clinicaId);
+    if (!(await validarPropriedadeClinica(agenteId, clinicaId))) return res.status(403).json({ error: "Agente não pertence a esta clínica" });
 
+    const [agente] = await db.select().from(agentesClinicaTable).where(eq(agentesClinicaTable.id, agenteId));
     const [catalogo] = await db.select().from(catalogoAgentesTable).where(eq(catalogoAgentesTable.id, agente.catalogoAgenteId));
     const [capacidades] = await db.select().from(capacidadesAgenteClinicaTable).where(eq(capacidadesAgenteClinicaTable.agenteClinicaId, agenteId));
     const [personalidade] = await db.select().from(agentesPersonalidadeTable).where(eq(agentesPersonalidadeTable.agenteClinicaId, agenteId));
