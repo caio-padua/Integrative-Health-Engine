@@ -235,6 +235,13 @@ export const agentesMotorEscritaTable = pgTable("agentes_motor_escrita", {
   proibidoLinguagemRobotica: boolean("proibido_linguagem_robotica").notNull().default(true),
   estruturaObrigatoria: jsonb("estrutura_obrigatoria").$type<string[]>().default(["ABERTURA", "CONTEXTO", "INFORMAÇÃO", "ORIENTAÇÃO", "AÇÃO"]),
   estiloVisual: text("estilo_visual"),
+  assinaturaPadrao: text("assinatura_padrao").default("Estou à sua disposição para qualquer\ndúvida ou esclarecimento!\n\nMuito obrigada!"),
+  obrigarAssinaturaNomeCargo: boolean("obrigar_assinatura_nome_cargo").notNull().default(true),
+  umaPerguntaPorMensagem: boolean("uma_pergunta_por_mensagem").notNull().default(true),
+  dataHorarioEmLinhasSeparadas: boolean("data_horario_linhas_separadas").notNull().default(true),
+  usarEmojiAntesDeCampo: boolean("usar_emoji_antes_campo").notNull().default(true),
+  nuncaFraseSequencial: boolean("nunca_frase_sequencial").notNull().default(true),
+  nivelElegancia: varchar("nivel_elegancia", { length: 30 }).notNull().default("classico"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -293,6 +300,30 @@ export const agentesVersionamentoTable = pgTable("agentes_versionamento", {
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const pesquisaSatisfacaoTable = pgTable("pesquisa_satisfacao", {
+  id: serial("id").primaryKey(),
+  clinicaId: integer("clinica_id").references(() => unidadesTable.id).notNull(),
+  telefonePaciente: varchar("telefone_paciente", { length: 30 }).notNull(),
+  nomePaciente: varchar("nome_paciente", { length: 200 }),
+  sessaoId: integer("sessao_id"),
+  etapaAtual: integer("etapa_atual").notNull().default(0),
+  totalEtapas: integer("total_etapas").notNull().default(5),
+  concluida: boolean("concluida").notNull().default(false),
+  mediaGeral: real("media_geral"),
+  comentarioLivre: text("comentario_livre"),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  concluidaEm: timestamp("concluida_em", { withTimezone: true }),
+});
+
+export const pesquisaRespostasTable = pgTable("pesquisa_respostas", {
+  id: serial("id").primaryKey(),
+  pesquisaId: integer("pesquisa_id").references(() => pesquisaSatisfacaoTable.id).notNull(),
+  etapa: integer("etapa").notNull(),
+  pergunta: text("pergunta").notNull(),
+  nota: integer("nota"),
+  respondidaEm: timestamp("respondida_em", { withTimezone: true }),
+});
+
 export const insertCatalogoAgenteSchema = createInsertSchema(catalogoAgentesTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 export const insertModuloClinicaSchema = createInsertSchema(modulosClinicaTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 export const insertAgenteClinicaSchema = createInsertSchema(agentesClinicaTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
@@ -326,3 +357,5 @@ export type AgentesIdentidade = typeof agentesIdentidadeTable.$inferSelect;
 export type AgentesFrases = typeof agentesFrasesTable.$inferSelect;
 export type AgentesRegras = typeof agentesRegrasTable.$inferSelect;
 export type AgentesVersionamento = typeof agentesVersionamentoTable.$inferSelect;
+export type PesquisaSatisfacao = typeof pesquisaSatisfacaoTable.$inferSelect;
+export type PesquisaRespostas = typeof pesquisaRespostasTable.$inferSelect;
