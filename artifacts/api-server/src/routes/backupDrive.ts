@@ -441,11 +441,93 @@ async function moveCodigosParaAntigos(connectors: ReplitConnectors): Promise<num
   return movidos;
 }
 
+router.get("/backup-drive/integridade", async (_req, res) => {
+  try {
+    const { execSync } = require("child_process");
+    const dirs = [
+      { nome: "Schema (DNA)", caminho: "lib/db/src/schema", ext: ".ts" },
+      { nome: "API Routes (RNA)", caminho: "artifacts/api-server/src/routes", ext: ".ts" },
+      { nome: "Frontend Pages", caminho: "artifacts/clinica-motor/src/pages", ext: ".tsx,.ts" },
+      { nome: "Components", caminho: "artifacts/clinica-motor/src/components", ext: ".tsx,.ts" },
+      { nome: "Contexts", caminho: "artifacts/clinica-motor/src/contexts", ext: ".tsx,.ts" },
+      { nome: "Services", caminho: "artifacts/api-server/src/services", ext: ".ts" },
+      { nome: "Libs", caminho: "artifacts/api-server/src/lib", ext: ".ts" },
+    ];
+
+    const camadas: any[] = [];
+    let totalLocal = 0;
+    let totalGit = 0;
+    let totalLinhas = 0;
+    const faltando: string[] = [];
+
+    for (const dir of dirs) {
+      const exts = dir.ext.split(",");
+      const findExts = exts.map(e => `-name '*${e}'`).join(" -o ");
+      const localFiles = execSync(`find ${path.join(WORKSPACE, dir.caminho)} \\( ${findExts} \\) 2>/dev/null | sort`, { encoding: "utf-8" }).trim().split("\n").filter(Boolean);
+      const gitPattern = `${dir.caminho}/`;
+      const gitFiles = execSync(`git -C ${WORKSPACE} ls-tree -r HEAD --name-only | grep '^${gitPattern}' | grep -E '\\.(ts|tsx)$' | sort`, { encoding: "utf-8" }).trim().split("\n").filter(Boolean);
+
+      let linhas = 0;
+      for (const f of localFiles) {
+        try { linhas += parseInt(execSync(`wc -l < "${f}"`, { encoding: "utf-8" }).trim()); } catch {}
+      }
+
+      const localNames = new Set(localFiles.map((f: string) => f.replace(WORKSPACE + "/", "")));
+      const gitNames = new Set(gitFiles);
+      const faltandoNoGit = [...localNames].filter(n => !gitNames.has(n));
+      const faltandoLocal = [...gitNames].filter(n => !localNames.has(n));
+      faltando.push(...faltandoNoGit.map(f => `LOCAL sem GIT: ${f}`));
+      faltando.push(...faltandoLocal.map(f => `GIT sem LOCAL: ${f}`));
+
+      camadas.push({
+        nome: dir.nome,
+        local: localFiles.length,
+        git: gitFiles.length,
+        linhas,
+        integro: localFiles.length === gitFiles.length && faltandoNoGit.length === 0 && faltandoLocal.length === 0,
+      });
+      totalLocal += localFiles.length;
+      totalGit += gitFiles.length;
+      totalLinhas += linhas;
+    }
+
+    const modificados = execSync(`git -C ${WORKSPACE} status --short -- lib/db/src/ artifacts/api-server/src/ artifacts/clinica-motor/src/`, { encoding: "utf-8" }).trim();
+
+    const integridadeTotal = totalLocal === totalGit && faltando.length === 0 && !modificados;
+
+    res.json({
+      integridadeTotal,
+      status: integridadeTotal ? "GENOMA 100% INTEGRO" : "ALERTA: DIVERGENCIA DETECTADA",
+      totalArquivos: { local: totalLocal, git: totalGit },
+      totalLinhas,
+      camadas,
+      arquivosFaltando: faltando,
+      modificadosSemCommit: modificados ? modificados.split("\n") : [],
+      dataVerificacao: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    console.error("Erro integridade:", err);
+    res.status(500).json({ erro: "Erro ao verificar integridade" });
+  }
+});
+
 router.post("/backup-drive", async (req, res) => {
   try {
     const { resumo } = req.body;
     if (!resumo || typeof resumo !== "string" || resumo.trim().length < 5) {
       return res.status(400).json({ erro: "Informe um resumo da melhoria (minimo 5 caracteres)" });
+    }
+
+    const { execSync } = require("child_process");
+    const localCount = parseInt(execSync(`find ${WORKSPACE}/lib/db/src ${WORKSPACE}/artifacts/api-server/src ${WORKSPACE}/artifacts/clinica-motor/src \\( -name '*.ts' -o -name '*.tsx' \\) | wc -l`, { encoding: "utf-8" }).trim());
+    const gitCount = parseInt(execSync(`git -C ${WORKSPACE} ls-tree -r HEAD --name-only | grep -E '\\.(ts|tsx)$' | grep -E '(lib/db/src|artifacts/api-server/src|artifacts/clinica-motor/src)' | wc -l`, { encoding: "utf-8" }).trim());
+
+    if (localCount !== gitCount) {
+      return res.status(409).json({
+        erro: `BLOQUEADO: ${localCount} arquivos locais vs ${gitCount} no Git. Corrija antes de fazer backup.`,
+        local: localCount,
+        git: gitCount,
+      });
     }
 
     const connectors = new ReplitConnectors();
@@ -474,6 +556,7 @@ router.post("/backup-drive", async (req, res) => {
 
     res.json({
       sucesso: true,
+      integridadePreBackup: `${localCount} arquivos verificados OK`,
       mensagem: `Backup enviado! ${movidos > 0 ? `${movidos} arquivo(s) antigo(s) arquivado(s).` : "Nenhum backup anterior encontrado."}`,
       pasta: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_CODIGOS}`,
       pastaAntigos: `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ANTIGOS}`,
