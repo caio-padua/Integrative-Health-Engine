@@ -297,10 +297,17 @@ router.get("/ras/:id", async (req, res) => {
 });
 
 function gerarCodigo6(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+  const palavras = [
+    "CASA", "FLOR", "LAGO", "ROSA", "NEVE", "LUAR", "CHUVA",
+    "SOL", "VIDA", "AMOR", "LUZ", "MAR", "RIO", "CEU", "PAZ",
+    "OURO", "AZUL", "BELA", "ANJO", "MAGO", "RUBI", "JADE",
+    "VELA", "ALFA", "BETA", "GAMA", "ONDA", "GELO", "NUVEM",
+    "ALVA", "RAMO", "NILO", "ARCO", "GAIA", "IRIS", "LUNA",
+    "MESA", "PENA", "TEIA", "URSA", "VALE", "ZETA", "DUNA",
+  ];
+  const palavra = palavras[Math.floor(Math.random() * palavras.length)];
+  const numero = Math.floor(Math.random() * 90) + 10;
+  return `${palavra}${numero}`;
 }
 
 router.post("/codigos-validacao", async (req, res) => {

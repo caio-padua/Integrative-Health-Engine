@@ -568,7 +568,7 @@ router.get("/sessoes/:id/whatsapp-lembrete", async (req, res) => {
   const telefone = (sessaoData.pacienteTelefone || "").replace(/\D/g, "");
   const telefoneInt = telefone.startsWith("55") ? telefone : `55${telefone}`;
 
-  const mensagem = `Ola ${primeiroNome}! 👋\n\nLembramos que voce tem uma sessao agendada:\n\n📅 *${dataFormatada}* as *${sessaoData.sessao.horaAgendada}*\n📍 ${sessaoData.unidadeNome || "Clinica PADCOM"}\n\nQualquer duvida, estamos a disposicao. ✨`;
+  const mensagem = `Bom dia, Sr(a). ${primeiroNome}!\n\nPassando para lembrar da sua sessão.\n\n💉 *${sessaoData.sessao.tipoProcedimento || "Sessão Agendada"}*\n\n🗓 *${dataFormatada}*\n🕐 *${sessaoData.sessao.horaAgendada || "Horário agendado"}*\n\n📍 ${sessaoData.unidadeNome || "Clínica Pádua"}\n\nPor gentileza, confirme sua presença\nrespondendo *SIM*.\n\nEstou à sua disposição para qualquer\ndúvida ou esclarecimento!\n\nMuito obrigada!\n\n*Dayana Ludman*\nAssistente Técnica`;
 
   const waUrl = `https://wa.me/${telefoneInt}?text=${encodeURIComponent(mensagem)}`;
 
@@ -605,7 +605,7 @@ router.get("/sessoes/:id/whatsapp-codigo", async (req, res) => {
   const telefone = (sessaoData.pacienteTelefone || "").replace(/\D/g, "");
   const telefoneInt = telefone.startsWith("55") ? telefone : `55${telefone}`;
 
-  const mensagem = `Clinica Padua | ${sessaoData.sessao.tipoProcedimento || "Sessao"} | ${codigo}\n\nOla ${primeiroNome}!\n\nSeu codigo de validacao para a sessao de ${dataFormatada} e:\n\n🔑 *${codigo}*\n\nApresente este codigo a enfermeira no momento da aplicacao.\n\nClinica Padua — Protocolos Injetaveis`;
+  const mensagem = `Bom dia, Sr(a). ${primeiroNome}!\n\nSegue sua chave de validação\npara a sessão de hoje.\n\n🔑 *${codigo}*\n\n📋 *${sessaoData.sessao.tipoProcedimento || "Sessão"}*\n\n🗓 *${dataFormatada}*\n🕐 *${sessaoData.sessao.horaAgendada || "Horário agendado"}*\n\n📍 ${sessaoData.unidadeNome || "Clínica Pádua"}\n\nApresente esta chave à enfermeira\nno momento da aplicação.\n\nEstou à sua disposição para qualquer\ndúvida ou esclarecimento!\n\nMuito obrigada!\n\n*Dayana Ludman*\nAssistente Técnica`;
 
   const waUrl = `https://wa.me/${telefoneInt}?text=${encodeURIComponent(mensagem)}`;
 
