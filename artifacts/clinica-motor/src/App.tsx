@@ -44,6 +44,8 @@ import DelegacaoPage from "@/pages/delegacao";
 import AcompanhamentoPage from "@/pages/acompanhamento";
 import ComissaoPage from "@/pages/comissao";
 import ComercialPage from "@/pages/comercial";
+import JustificativasPage from "@/pages/justificativas";
+import MatrizAnaliticaPage from "@/pages/matriz-analitica";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +97,8 @@ function Router() {
       <Route path="/acompanhamento" component={AcompanhamentoPage} />
       <Route path="/comissao" component={ComissaoPage} />
       <Route path="/comercial" component={ComercialPage} />
+      <Route path="/justificativas" component={JustificativasPage} />
+      <Route path="/matriz-analitica" component={MatrizAnaliticaPage} />
       <Route component={NotFound} />
     </Switch>
   );

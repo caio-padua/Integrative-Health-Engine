@@ -39,7 +39,9 @@ import {
   Globe,
   Diamond,
   DollarSign,
-  TrendingUp
+  TrendingUp,
+  Scale,
+  Grid3X3
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -109,7 +111,8 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const VISIBILIDADE_POR_ESCOPO: Record<string, string[]> = {
     consultoria_master: [
-      "dashboard", "painel-comando", "governanca", "anamnese", "validacao",
+      "dashboard", "painel-comando", "governanca", "justificativas", "matriz-analitica",
+      "anamnese", "validacao",
       "filas", "pacientes", "itens-terapeuticos", "protocolos", "followup",
       "financeiro", "unidades", "fluxos", "pedidos-exame", "substancias",
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
@@ -118,7 +121,8 @@ export function Layout({ children }: { children: ReactNode }) {
     ],
     consultor_campo: [
       "delegacao", "pacientes", "anamnese", "followup", "agenda",
-      "task-cards", "filas", "avaliacao-enfermagem", "estoque", "acompanhamento", "comissao"
+      "task-cards", "filas", "avaliacao-enfermagem", "estoque", "acompanhamento", "comissao",
+      "justificativas"
     ],
     clinica_medico: [
       "anamnese", "validacao", "pacientes", "itens-terapeuticos",
@@ -138,6 +142,8 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, slug: "dashboard" },
     { name: "Painel de Comando", path: "/painel-comando", icon: Radar, slug: "painel-comando" },
     { name: "Governanca", path: "/governanca", icon: Shield, slug: "governanca" },
+    { name: "SLA Justificativas", path: "/justificativas", icon: Scale, slug: "justificativas" },
+    { name: "Matriz Analitica", path: "/matriz-analitica", icon: Grid3X3, slug: "matriz-analitica" },
     { name: "Anamnese", path: "/anamnese", icon: ClipboardList, slug: "anamnese" },
     { name: "Validação", path: "/validacao", icon: CheckSquare, slug: "validacao" },
     { name: "Filas", path: "/filas", icon: ListOrdered, slug: "filas" },
