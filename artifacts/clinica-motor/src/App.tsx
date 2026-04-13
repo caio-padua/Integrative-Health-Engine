@@ -46,6 +46,7 @@ import ComissaoPage from "@/pages/comissao";
 import ComercialPage from "@/pages/comercial";
 import JustificativasPage from "@/pages/justificativas";
 import MatrizAnaliticaPage from "@/pages/matriz-analitica";
+import AgendaMotorPage from "@/pages/agenda-motor";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -99,6 +100,7 @@ function Router() {
       <Route path="/comercial" component={ComercialPage} />
       <Route path="/justificativas" component={JustificativasPage} />
       <Route path="/matriz-analitica" component={MatrizAnaliticaPage} />
+      <Route path="/agenda-motor" component={AgendaMotorPage} />
       <Route component={NotFound} />
     </Switch>
   );
