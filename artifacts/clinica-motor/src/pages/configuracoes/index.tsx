@@ -58,12 +58,13 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
   useEffect(() => { fetchConfigs(); }, [apiBase]);
 
   const handleCreate = async () => {
+    if (!newForm.unidadeId) { toast({ title: "Selecione uma unidade", variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${apiBase}/agenda-motor/smart-release-config`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          unidadeId: newForm.unidadeId ? Number(newForm.unidadeId) : null,
+          unidadeId: Number(newForm.unidadeId),
           turnoManhaInicio: newForm.turnoManhaInicio,
           turnoManhaFim: newForm.turnoManhaFim,
           turnoTardeInicio: newForm.turnoTardeInicio,
@@ -87,9 +88,13 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
   const handleDelete = async (id: number) => {
     if (!confirm("Excluir esta configuracao?")) return;
     try {
-      await fetch(`${apiBase}/agenda-motor/smart-release-config/${id}`, { method: "DELETE" });
-      toast({ title: "Configuracao removida" });
-      fetchConfigs();
+      const res = await fetch(`${apiBase}/agenda-motor/smart-release-config/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Configuracao removida" });
+        fetchConfigs();
+      } else {
+        toast({ title: "Erro ao remover configuracao", variant: "destructive" });
+      }
     } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
   };
 
@@ -116,6 +121,7 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
           turnoTardeInicio: editForm.turnoTardeInicio,
           turnoTardeFim: editForm.turnoTardeFim,
           limiarLiberacaoPercent: Number(editForm.limiarLiberacaoPercent),
+          ativa: editForm.ativa,
         }),
       });
       if (res.ok) {
@@ -152,7 +158,7 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
                 <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Unidade</label>
                 <select value={newForm.unidadeId} onChange={e => setNewForm({ ...newForm, unidadeId: e.target.value })}
                   className="w-full bg-background border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                  <option value="">Global (todas)</option>
+                  <option value="">Selecione unidade...</option>
                   {unidades?.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
                 </select>
               </div>
@@ -251,9 +257,22 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
                   <Input type="time" value={editForm.turnoTardeFim} onChange={e => setEditForm({ ...editForm, turnoTardeFim: e.target.value })} />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Limiar Liberacao (%)</label>
-                <Input type="number" value={editForm.limiarLiberacaoPercent} onChange={e => setEditForm({ ...editForm, limiarLiberacaoPercent: e.target.value })} min={0} max={100} />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Limiar Liberacao (%)</label>
+                  <Input type="number" value={editForm.limiarLiberacaoPercent} onChange={e => setEditForm({ ...editForm, limiarLiberacaoPercent: e.target.value })} min={0} max={100} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Status</label>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm({ ...editForm, ativa: !editForm.ativa })}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border ${editForm.ativa ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-red-500/50 bg-red-500/10 text-red-400"}`}
+                  >
+                    <Power className="w-3.5 h-3.5" />
+                    {editForm.ativa ? "ATIVA" : "INATIVA"}
+                  </button>
+                </div>
               </div>
               <div className="flex gap-2 pt-2 border-t border-border">
                 <Button className="flex-1 text-xs h-9" onClick={saveEdit} disabled={saving}>
