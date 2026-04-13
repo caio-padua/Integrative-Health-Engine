@@ -48,4 +48,12 @@ router.put("/unidades/:id", async (req, res): Promise<void> => {
   res.json(updated);
 });
 
+router.delete("/unidades/:id", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const [deleted] = await db.delete(unidadesTable).where(eq(unidadesTable.id, id)).returning();
+  if (!deleted) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+  res.json({ ok: true });
+});
+
 export default router;
