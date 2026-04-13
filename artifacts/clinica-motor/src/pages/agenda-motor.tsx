@@ -8,7 +8,7 @@ import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock,
   Settings2, RefreshCw, X, User, Phone, ArrowRightLeft,
   Lock, Unlock, Trash2, CloudUpload, Layers, AlertTriangle,
-  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Palette, Check
+  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Check
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -460,6 +460,15 @@ interface SubAgenda {
   profissionalNome: string | null;
   modalidade: string;
   salaOuLocal: string | null;
+  descricao: string | null;
+  googleCalendarId: string | null;
+  certificadoDigitalNome: string | null;
+  certificadoDigitalCpfCnpj: string | null;
+  certificadoDigitalValidade: string | null;
+  certificadoDigitalArquivoUrl: string | null;
+  certificadoDigitalSenha: string | null;
+  requerCertificadoParaPrescricao: boolean;
+  requerCertificadoParaProtocolo: boolean;
   ativa: boolean;
   ordem: number;
 }
@@ -473,8 +482,8 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
   const [subAgendas, setSubAgendas] = useState<SubAgenda[]>([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editCor, setEditCor] = useState("");
+  const [editingSub, setEditingSub] = useState<SubAgenda | null>(null);
+  const [editForm, setEditForm] = useState<Record<string, any>>({});
   const [showNewForm, setShowNewForm] = useState(false);
   const [newNome, setNewNome] = useState("");
   const [newCor, setNewCor] = useState("#3B82F6");
@@ -543,17 +552,40 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
     }
   };
 
-  const handleUpdateCor = async (id: number, cor: string) => {
+  const openEdit = (sub: SubAgenda) => {
+    setEditingSub(sub);
+    setEditForm({
+      nome: sub.nome, cor: sub.cor, emoji: sub.emoji || "", tipo: sub.tipo,
+      modalidade: sub.modalidade, salaOuLocal: sub.salaOuLocal || "",
+      descricao: sub.descricao || "",
+      googleCalendarId: sub.googleCalendarId || "",
+      certificadoDigitalNome: sub.certificadoDigitalNome || "",
+      certificadoDigitalCpfCnpj: sub.certificadoDigitalCpfCnpj || "",
+      certificadoDigitalValidade: sub.certificadoDigitalValidade || "",
+      certificadoDigitalArquivoUrl: sub.certificadoDigitalArquivoUrl || "",
+      certificadoDigitalSenha: "",
+      requerCertificadoParaPrescricao: sub.requerCertificadoParaPrescricao,
+      requerCertificadoParaProtocolo: sub.requerCertificadoParaProtocolo,
+      ordem: sub.ordem,
+    });
+  };
+
+  const handleSaveSubAgenda = async () => {
+    if (!editingSub) return;
     try {
-      await fetch(`${API_BASE}/agenda-motor/sub-agendas/${id}`, {
+      const payload = { ...editForm };
+      if (!payload.certificadoDigitalSenha) delete payload.certificadoDigitalSenha;
+      const res = await fetch(`${API_BASE}/agenda-motor/sub-agendas/${editingSub.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cor }),
+        body: JSON.stringify(payload),
       });
-      setEditingId(null);
+      if (!res.ok) { alert("Erro ao salvar sub-agenda"); return; }
+      setEditingSub(null);
       await fetchSubAgendas();
     } catch (err) {
       console.error(err);
+      alert("Erro de conexao ao salvar");
     }
   };
 
@@ -564,6 +596,17 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ativa: !sub.ativa }),
       });
+      await fetchSubAgendas();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteSubAgenda = async (id: number) => {
+    if (!confirm("Excluir esta sub-agenda permanentemente?")) return;
+    try {
+      await fetch(`${API_BASE}/agenda-motor/sub-agendas/${id}`, { method: "DELETE" });
+      setEditingSub(null);
       await fetchSubAgendas();
     } catch (err) {
       console.error(err);
@@ -626,38 +669,21 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
                     {sub.emoji && <span>{sub.emoji}</span>}
                     {sub.nome.replace(/^AGENDA\s+/, "").replace(/\s*—\s*/, " ")}
                   </div>
-                  <div className="text-[9px] text-muted-foreground truncate">
+                  <div className="text-[9px] text-muted-foreground truncate flex items-center gap-1">
                     {sub.modalidade} {sub.salaOuLocal ? `• ${sub.salaOuLocal}` : ""}
+                    {sub.googleCalendarId && <CalendarIcon className="w-2.5 h-2.5 text-emerald-400/60 shrink-0" />}
                   </div>
                 </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setEditingId(editingId === sub.id ? null : sub.id); setEditCor(sub.cor); }}
+                  onClick={(e) => { e.stopPropagation(); openEdit(sub); }}
                   className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
                 >
-                  <Palette className="w-3 h-3 text-muted-foreground" />
+                  <Settings2 className="w-3 h-3 text-muted-foreground" />
                 </button>
               </div>
 
-              {editingId === sub.id && (
-                <div className="px-3 pb-2 space-y-1.5">
-                  <div className="flex flex-wrap gap-1">
-                    {PRESET_CORES.map(c => (
-                      <button
-                        key={c}
-                        onClick={() => handleUpdateCor(sub.id, c)}
-                        className="w-5 h-5 border border-border/50 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => handleToggleAtiva(sub)}
-                    className="text-[9px] text-red-400 hover:underline flex items-center gap-1"
-                  >
-                    {sub.ativa ? <><EyeOff className="w-2.5 h-2.5" /> Desativar</> : <><Eye className="w-2.5 h-2.5" /> Ativar</>}
-                  </button>
-                </div>
-              )}
+
+
             </div>
           ))}
         </div>
@@ -715,6 +741,163 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
           </Button>
         )}
       </div>
+
+      {editingSub && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setEditingSub(null)}>
+          <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                <div className="w-3 h-3" style={{ backgroundColor: editForm.cor }} />
+                Editar Sub-Agenda
+              </h3>
+              <button onClick={() => setEditingSub(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Nome</label>
+                <input type="text" value={editForm.nome || ""} onChange={e => setEditForm({...editForm, nome: e.target.value})}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Emoji</label>
+                <input type="text" value={editForm.emoji || ""} onChange={e => setEditForm({...editForm, emoji: e.target.value})}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Ordem</label>
+                <input type="number" value={editForm.ordem || 0} onChange={e => setEditForm({...editForm, ordem: Number(e.target.value)})}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tipo</label>
+                <select value={editForm.tipo || "medico"} onChange={e => setEditForm({...editForm, tipo: e.target.value})}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none">
+                  <option value="medico">Medico</option>
+                  <option value="enfermagem">Enfermagem</option>
+                  <option value="exames">Exames</option>
+                  <option value="administrativo">Administrativo</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Modalidade</label>
+                <select value={editForm.modalidade || "presencial"} onChange={e => setEditForm({...editForm, modalidade: e.target.value})}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none">
+                  <option value="presencial">Presencial</option>
+                  <option value="online">Online</option>
+                  <option value="domiciliar">Domiciliar</option>
+                  <option value="remoto">Remoto</option>
+                </select>
+              </div>
+              <div className="col-span-2 space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Sala / Local</label>
+                <input type="text" value={editForm.salaOuLocal || ""} onChange={e => setEditForm({...editForm, salaOuLocal: e.target.value})}
+                  placeholder="Ex: Sala 01, Telemedicina, Nurse Care..."
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Descricao</label>
+                <textarea value={editForm.descricao || ""} onChange={e => setEditForm({...editForm, descricao: e.target.value})}
+                  rows={2} placeholder="Descricao livre..."
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none resize-none" />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Cor</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_CORES.map(c => (
+                    <button key={c} onClick={() => setEditForm({...editForm, cor: c})}
+                      className={`w-6 h-6 border-2 hover:scale-110 transition-transform ${editForm.cor === c ? "border-white ring-1 ring-white" : "border-border/50"}`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-400 flex items-center gap-1">
+                <CalendarIcon className="w-3 h-3" /> Google Calendar
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">ID do Calendario</label>
+                <input type="text" value={editForm.googleCalendarId || ""} onChange={e => setEditForm({...editForm, googleCalendarId: e.target.value})}
+                  placeholder="Cole aqui o Calendar ID (ex: abc123@group.calendar.google.com)"
+                  className="w-full bg-background border border-border px-3 py-2 text-[11px] text-foreground focus:border-emerald-500 focus:outline-none font-mono" />
+                <p className="text-[9px] text-muted-foreground/60">
+                  Google Calendar &gt; Configuracoes &gt; ID do calendario &gt; copie e cole aqui
+                </p>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-purple-400 flex items-center gap-1">
+                <Lock className="w-3 h-3" /> Certificado Digital
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Nome do Certificado</label>
+                  <input type="text" value={editForm.certificadoDigitalNome || ""} onChange={e => setEditForm({...editForm, certificadoDigitalNome: e.target.value})}
+                    placeholder="Ex: Dr. Caio Henrique Fernandes de Moraes"
+                    className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">CPF / CNPJ</label>
+                  <input type="text" value={editForm.certificadoDigitalCpfCnpj || ""} onChange={e => setEditForm({...editForm, certificadoDigitalCpfCnpj: e.target.value})}
+                    placeholder="000.000.000-00"
+                    className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Validade</label>
+                  <input type="date" value={editForm.certificadoDigitalValidade || ""} onChange={e => setEditForm({...editForm, certificadoDigitalValidade: e.target.value})}
+                    className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">URL do Arquivo (.pfx / .p12)</label>
+                  <input type="text" value={editForm.certificadoDigitalArquivoUrl || ""} onChange={e => setEditForm({...editForm, certificadoDigitalArquivoUrl: e.target.value})}
+                    placeholder="https://drive.google.com/... ou caminho do arquivo"
+                    className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none font-mono" />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Senha do Certificado</label>
+                  <input type="password" value={editForm.certificadoDigitalSenha || ""} onChange={e => setEditForm({...editForm, certificadoDigitalSenha: e.target.value})}
+                    placeholder="Deixe vazio para manter a senha atual"
+                    className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+                  <p className="text-[9px] text-muted-foreground/60">Somente preencha para alterar a senha</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editForm.requerCertificadoParaPrescricao || false}
+                    onChange={e => setEditForm({...editForm, requerCertificadoParaPrescricao: e.target.checked})}
+                    className="accent-purple-500" />
+                  <span className="text-[10px] text-foreground">Requer certificado para prescricoes</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editForm.requerCertificadoParaProtocolo || false}
+                    onChange={e => setEditForm({...editForm, requerCertificadoParaProtocolo: e.target.checked})}
+                    className="accent-purple-500" />
+                  <span className="text-[10px] text-foreground">Requer certificado para protocolos</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-border">
+              <Button className="flex-1 text-xs h-9" onClick={handleSaveSubAgenda}>Salvar Alteracoes</Button>
+              <Button variant="outline" className="text-xs h-9" onClick={() => setEditingSub(null)}>Cancelar</Button>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border/30">
+              <button onClick={() => { handleToggleAtiva(editingSub); setEditingSub(null); }}
+                className="text-[10px] text-amber-400 hover:underline flex items-center gap-1">
+                {editingSub.ativa ? <><EyeOff className="w-3 h-3" /> Desativar</> : <><Eye className="w-3 h-3" /> Ativar</>}
+              </button>
+              <button onClick={() => handleDeleteSubAgenda(editingSub.id)}
+                className="text-[10px] text-red-400 hover:underline flex items-center gap-1">
+                <Trash2 className="w-3 h-3" /> Excluir permanentemente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
