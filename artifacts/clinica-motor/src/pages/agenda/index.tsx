@@ -10,8 +10,11 @@ import {
   Building2, CheckCircle2, Circle, XCircle, AlertCircle,
   Syringe, MapPin, MoreVertical, Heart, FileDown,
   MessageSquare, CalendarSync, ClipboardCheck, KeyRound,
-  Download, CheckCheck, X
+  Download, CheckCheck, X, Pencil
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuTrigger, DropdownMenuSeparator
@@ -141,9 +144,10 @@ function SubstancePill({ ap, sessaoId, onConfirm }: {
   );
 }
 
-function SessaoCard({ sessao, onConfirm }: {
+function SessaoCard({ sessao, onConfirm, onEdit }: {
   sessao: SessaoAgenda;
   onConfirm: (sessaoId: number, substanciaId: number, confirmado: boolean) => void;
+  onEdit: (s: SessaoAgenda) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const config = STATUS_CONFIG[sessao.sessao.status] || STATUS_CONFIG.agendada;
@@ -266,6 +270,10 @@ function SessaoCard({ sessao, onConfirm }: {
               <DropdownMenuItem onClick={handleWhatsApp}>
                 <MessageSquare className="h-4 w-4 mr-2" />Lembrete WhatsApp
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(sessao); }}>
+                <Pencil className="h-4 w-4 mr-2" />Editar Sessao
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -307,6 +315,40 @@ export default function AgendaSemanal() {
   const week = useMemo(() => getWeekRange(currentDate), [currentDate]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [editingSessao, setEditingSessao] = useState<SessaoAgenda | null>(null);
+  const [editSessaoForm, setEditSessaoForm] = useState<any>({});
+  const [editSessaoSaving, setEditSessaoSaving] = useState(false);
+
+  const openEditSessao = (s: SessaoAgenda) => {
+    setEditSessaoForm({
+      status: s.sessao.status,
+      dataAgendada: s.sessao.dataAgendada,
+      horaAgendada: s.sessao.horaAgendada || "",
+      notas: s.sessao.notas || "",
+      tipoServico: s.sessao.tipoServico || "presencial",
+    });
+    setEditingSessao(s);
+  };
+
+  const saveEditSessao = async () => {
+    if (!editingSessao) return;
+    setEditSessaoSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/sessoes/${editingSessao.sessao.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editSessaoForm),
+      });
+      if (res.ok) {
+        toast({ title: "Sessao atualizada" });
+        queryClient.invalidateQueries({ queryKey: ["agenda-semanal"] });
+        setEditingSessao(null);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: d.error || "Erro ao salvar", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setEditSessaoSaving(false);
+  };
 
   const { data, isLoading } = useQuery<AgendaResponse>({
     queryKey: ["agenda-semanal", week.from, week.to],
@@ -419,7 +461,7 @@ export default function AgendaSemanal() {
                         <span className="text-[9px]">Sem sessoes</span>
                       </div>
                     ) : (
-                      sessoesDia.map((s) => <SessaoCard key={s.sessao.id} sessao={s} onConfirm={handleConfirm} />)
+                      sessoesDia.map((s) => <SessaoCard key={s.sessao.id} sessao={s} onConfirm={handleConfirm} onEdit={openEditSessao} />)
                     )}
                   </div>
                 </div>
@@ -445,6 +487,60 @@ export default function AgendaSemanal() {
             </span>
           ))}
         </div>
+
+        {editingSessao && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setEditingSessao(null)}>
+            <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Sessao</h3>
+                <button onClick={() => setEditingSessao(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
+              </div>
+              <div className="text-sm text-muted-foreground">Paciente: <strong>{editingSessao.pacienteNome}</strong></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Status</label>
+                  <Select value={editSessaoForm.status} onValueChange={v => setEditSessaoForm({...editSessaoForm, status: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tipo Servico</label>
+                  <Select value={editSessaoForm.tipoServico} onValueChange={v => setEditSessaoForm({...editSessaoForm, tipoServico: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="presencial">Presencial</SelectItem>
+                      <SelectItem value="homecare">Homecare</SelectItem>
+                      <SelectItem value="teleconsulta">Teleconsulta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Data</label>
+                  <Input type="date" value={editSessaoForm.dataAgendada} onChange={e => setEditSessaoForm({...editSessaoForm, dataAgendada: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Hora</label>
+                  <Input type="time" value={editSessaoForm.horaAgendada?.substring(0, 5) || ""} onChange={e => setEditSessaoForm({...editSessaoForm, horaAgendada: e.target.value ? e.target.value + ":00" : null})} />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Notas</label>
+                  <Textarea value={editSessaoForm.notas} onChange={e => setEditSessaoForm({...editSessaoForm, notas: e.target.value})} rows={3} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Button className="flex-1 text-xs h-9" onClick={saveEditSessao} disabled={editSessaoSaving}>
+                  {editSessaoSaving ? "Salvando..." : "Salvar Alteracoes"}
+                </Button>
+                <Button variant="outline" className="text-xs h-9" onClick={() => setEditingSessao(null)}>Cancelar</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

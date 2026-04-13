@@ -48,16 +48,26 @@ router.get("/pacientes/:id", async (req, res): Promise<void> => {
 });
 
 router.put("/pacientes/:id", async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(raw, 10);
-  const parsed = CriarPacienteBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
+  try {
+    const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = parseInt(raw, 10);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalido" }); return; }
+    const body = req.body;
+    const allowed: Record<string, any> = {};
+    const whitelist = ["nome", "cpf", "telefone", "email", "cep", "endereco", "complemento", "bairro", "cidade", "estado", "pais", "unidadeId", "dataNascimento", "statusAtivo", "planoAcompanhamento", "googleDriveFolderId"];
+    for (const k of whitelist) {
+      if (body[k] !== undefined) allowed[k] = body[k];
+    }
+    if (allowed.dataNascimento && typeof allowed.dataNascimento === "string") {
+      allowed.dataNascimento = new Date(allowed.dataNascimento);
+    }
+    if (Object.keys(allowed).length === 0) { res.status(400).json({ error: "Nenhum campo para atualizar" }); return; }
+    const [paciente] = await db.update(pacientesTable).set(allowed).where(eq(pacientesTable.id, id)).returning();
+    if (!paciente) { res.status(404).json({ error: "Paciente não encontrado" }); return; }
+    res.json(paciente);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Erro interno" });
   }
-  const [paciente] = await db.update(pacientesTable).set(parsed.data).where(eq(pacientesTable.id, id)).returning();
-  if (!paciente) { res.status(404).json({ error: "Paciente não encontrado" }); return; }
-  res.json(paciente);
 });
 
 router.patch("/pacientes/:id/fotos", async (req, res): Promise<void> => {

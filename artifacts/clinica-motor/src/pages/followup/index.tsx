@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, CalendarClock, CheckCircle, Clock } from "lucide-react";
+import { Plus, CalendarClock, CheckCircle, Clock, Pencil, X, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -53,9 +53,57 @@ export default function FollowupPage() {
     query: { queryKey: getListarPacientesQueryKey(clinicFilter) }
   });
   
+  const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
   const [open, setOpen] = useState(false);
   const [concluirId, setConcluirId] = useState<number | null>(null);
   const [obsConcluir, setObsConcluir] = useState("");
+  const [editingFw, setEditingFw] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [editSaving, setEditSaving] = useState(false);
+
+  const openEditFw = (fw: any) => {
+    setEditForm({
+      tipo: fw.tipo || "consulta",
+      dataAgendada: fw.dataAgendada ? new Date(fw.dataAgendada).toISOString().split("T")[0] : "",
+      observacoes: fw.observacoes || "",
+      recorrencia: fw.recorrencia || "nenhuma",
+      status: fw.status || "agendado",
+    });
+    setEditingFw(fw);
+  };
+
+  const saveEditFw = async () => {
+    setEditSaving(true);
+    try {
+      const res = await fetch(`${BASE_URL}api/followup/${editingFw.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        toast({ title: "Follow-up atualizado" });
+        queryClient.invalidateQueries({ queryKey: getListarFollowupsQueryKey({}) });
+        setEditingFw(null);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: d.error || "Erro ao salvar", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setEditSaving(false);
+  };
+
+  const deleteEditFw = async () => {
+    if (!confirm("Excluir este follow-up permanentemente?")) return;
+    try {
+      const res = await fetch(`${BASE_URL}api/followup/${editingFw.id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Follow-up removido" });
+        queryClient.invalidateQueries({ queryKey: getListarFollowupsQueryKey({}) });
+        setEditingFw(null);
+      } else {
+        toast({ title: "Erro ao excluir", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+  };
 
   const criarFollowup = useCriarFollowup();
   const concluirFollowup = useConcluirFollowup();
@@ -267,7 +315,7 @@ export default function FollowupPage() {
                     </TableRow>
                   ) : (
                     followups?.map((fw) => (
-                      <TableRow key={fw.id}>
+                      <TableRow key={fw.id} className="group">
                         <TableCell className="font-medium">
                           {fw.pacienteNome}
                           {fw.observacoes && <div className="text-xs text-muted-foreground">{fw.observacoes}</div>}
@@ -324,6 +372,12 @@ export default function FollowupPage() {
                           ) : (
                             <span className="text-sm text-muted-foreground">-</span>
                           )}
+                          <button
+                            onClick={() => openEditFw(fw)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded ml-2"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -333,6 +387,71 @@ export default function FollowupPage() {
             )}
           </CardContent>
         </Card>
+
+        {editingFw && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setEditingFw(null)}>
+            <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Follow-up</h3>
+                <button onClick={() => setEditingFw(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
+              </div>
+              <div className="text-sm text-muted-foreground">Paciente: <strong>{editingFw.pacienteNome}</strong></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tipo</label>
+                  <Select value={editForm.tipo} onValueChange={v => setEditForm({...editForm, tipo: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.values(CriarFollowupBodyTipo).map(t => (
+                        <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Status</label>
+                  <Select value={editForm.status} onValueChange={v => setEditForm({...editForm, status: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="agendado">Agendado</SelectItem>
+                      <SelectItem value="realizado">Realizado</SelectItem>
+                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                      <SelectItem value="atrasado">Atrasado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Data Agendada</label>
+                  <Input type="date" value={editForm.dataAgendada} onChange={e => setEditForm({...editForm, dataAgendada: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Recorrencia</label>
+                  <Select value={editForm.recorrencia} onValueChange={v => setEditForm({...editForm, recorrencia: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.values(CriarFollowupBodyRecorrencia).map(r => (
+                        <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Observacoes</label>
+                  <Textarea value={editForm.observacoes} onChange={e => setEditForm({...editForm, observacoes: e.target.value})} rows={3} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Button className="flex-1 text-xs h-9" onClick={saveEditFw} disabled={editSaving}>
+                  {editSaving ? "Salvando..." : "Salvar Alteracoes"}
+                </Button>
+                <Button variant="outline" className="text-xs h-9" onClick={() => setEditingFw(null)}>Cancelar</Button>
+                <Button variant="destructive" className="text-xs h-9" onClick={deleteEditFw}>
+                  <Trash2 className="w-3 h-3 mr-1" />Excluir
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
