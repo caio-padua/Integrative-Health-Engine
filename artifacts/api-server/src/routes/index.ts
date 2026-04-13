@@ -57,6 +57,7 @@ import consultoriasRouter from "./consultoriasRoute";
 import contratosRouter from "./contratosRoute";
 import raclRacjRouter from "./raclRacj";
 import rasxRevoRouter from "./rasxRevo";
+import rasxArquRouter from "./rasxArqu";
 
 const router: IRouter = Router();
 
@@ -118,5 +119,6 @@ router.use(consultoriasRouter);
 router.use(contratosRouter);
 router.use(raclRacjRouter);
 router.use(rasxRevoRouter);
+router.use(rasxArquRouter);
 
 export default router;

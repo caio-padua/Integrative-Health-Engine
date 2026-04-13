@@ -2,7 +2,8 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   revoSnapshotsTable, revoPatologiasTable, revoCurvasTable,
-  revoOrgaosTable, revoMedicamentosTable,
+  revoOrgaosTable, revoMedicamentosTable, revoEventosMedicacaoTable,
+  revoProximaEtapaTable, rasxAuditLogTable,
   pacientesTable, tratamentosTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -131,6 +132,14 @@ router.get("/rasx/:pacienteId/revo/master", async (req, res): Promise<void> => {
     .where(eq(revoCurvasTable.pacienteId, pacienteId))
     .orderBy(asc(revoCurvasTable.dataRegistro));
 
+  const eventosMedicacao = await db.select().from(revoEventosMedicacaoTable)
+    .where(eq(revoEventosMedicacaoTable.pacienteId, pacienteId))
+    .orderBy(asc(revoEventosMedicacaoTable.data));
+
+  const proximasEtapas = await db.select().from(revoProximaEtapaTable)
+    .where(eq(revoProximaEtapaTable.pacienteId, pacienteId))
+    .orderBy(asc(revoProximaEtapaTable.dataPrevista));
+
   const snapshotInicial = snapshots.find(s => s.tipo === "inicial") || null;
   const snapshotAtual = snapshots.find(s => s.tipo === "atual") || snapshotInicial;
 
@@ -151,9 +160,11 @@ router.get("/rasx/:pacienteId/revo/master", async (req, res): Promise<void> => {
     },
     orgaos,
     medicamentos,
+    eventosMedicacao,
+    proximasEtapas,
     curvas: { doenca: curvaDoenca, saude: curvaSaude },
     temRevo: snapshots.length > 0,
-    versao: "V2",
+    versao: "V5",
   });
 });
 
@@ -353,10 +364,24 @@ router.post("/rasx/:pacienteId/revo/manual-override", async (req, res): Promise<
     return;
   }
 
+  const [original] = await db.select().from(tabela).where(eq(tabela.id, entidadeId));
+  const valorAnterior = original ? String((original as any)[campo] || "") : "";
+
   const [updated] = await db.update(tabela)
     .set({ [campo]: novoValor })
     .where(eq(tabela.id, entidadeId))
     .returning();
+
+  await db.insert(rasxAuditLogTable).values({
+    pacienteId,
+    entidade: entidadeTipo,
+    entidadeId,
+    acao: "override",
+    campo,
+    valorAnterior,
+    valorNovo: String(novoValor),
+    justificativa: justificativa || null,
+  });
 
   res.json({
     atualizado: updated,
