@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, Users, ShieldAlert, CloudUpload, FileText, Loader2, CheckCircle2, ExternalLink, MessageSquare, Phone, Check, CheckCheck, X, Send, TestTube, Pencil, Shield, Layers, Timer } from "lucide-react";
+import { Plus, Settings, Users, ShieldAlert, CloudUpload, FileText, Loader2, CheckCircle2, ExternalLink, MessageSquare, Phone, Check, CheckCheck, X, Send, TestTube, Pencil, Shield, Layers, Timer, Zap, Clock, Trash2, Power } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,6 +29,245 @@ const usuarioSchema = z.object({
   perfil: z.nativeEnum(CriarUsuarioBodyPerfil),
   unidadeId: z.coerce.number().optional(),
 });
+
+function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string; toast: any; unidades: any[] }) {
+  const [configs, setConfigs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showNew, setShowNew] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [newForm, setNewForm] = useState({
+    unidadeId: "",
+    turnoManhaInicio: "08:00",
+    turnoManhaFim: "12:00",
+    turnoTardeInicio: "13:00",
+    turnoTardeFim: "18:00",
+    limiarLiberacaoPercent: "70",
+  });
+
+  const fetchConfigs = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/agenda-motor/smart-release-config`);
+      if (res.ok) setConfigs(await res.json());
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchConfigs(); }, [apiBase]);
+
+  const handleCreate = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${apiBase}/agenda-motor/smart-release-config`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unidadeId: newForm.unidadeId ? Number(newForm.unidadeId) : null,
+          turnoManhaInicio: newForm.turnoManhaInicio,
+          turnoManhaFim: newForm.turnoManhaFim,
+          turnoTardeInicio: newForm.turnoTardeInicio,
+          turnoTardeFim: newForm.turnoTardeFim,
+          limiarLiberacaoPercent: Number(newForm.limiarLiberacaoPercent),
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Configuracao Smart Release criada" });
+        setShowNew(false);
+        setNewForm({ unidadeId: "", turnoManhaInicio: "08:00", turnoManhaFim: "12:00", turnoTardeInicio: "13:00", turnoTardeFim: "18:00", limiarLiberacaoPercent: "70" });
+        fetchConfigs();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: d.error || "Erro ao criar", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Excluir esta configuracao?")) return;
+    try {
+      await fetch(`${apiBase}/agenda-motor/smart-release-config/${id}`, { method: "DELETE" });
+      toast({ title: "Configuracao removida" });
+      fetchConfigs();
+    } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
+  };
+
+  const openEdit = (cfg: any) => {
+    setEditForm({
+      turnoManhaInicio: cfg.turnoManhaInicio || "08:00",
+      turnoManhaFim: cfg.turnoManhaFim || "12:00",
+      turnoTardeInicio: cfg.turnoTardeInicio || "13:00",
+      turnoTardeFim: cfg.turnoTardeFim || "18:00",
+      limiarLiberacaoPercent: String(cfg.limiarLiberacaoPercent || 70),
+      ativa: cfg.ativa ?? true,
+    });
+    setEditing(cfg);
+  };
+
+  const saveEdit = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${apiBase}/agenda-motor/smart-release-config/${editing.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          turnoManhaInicio: editForm.turnoManhaInicio,
+          turnoManhaFim: editForm.turnoManhaFim,
+          turnoTardeInicio: editForm.turnoTardeInicio,
+          turnoTardeFim: editForm.turnoTardeFim,
+          limiarLiberacaoPercent: Number(editForm.limiarLiberacaoPercent),
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Configuracao atualizada" });
+        setEditing(null);
+        fetchConfigs();
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setSaving(false);
+  };
+
+  return (
+    <Card className="bg-card">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Zap className="w-5 h-5 text-yellow-400" />
+          Smart Release — Liberacao Inteligente
+        </CardTitle>
+        <Button size="sm" onClick={() => setShowNew(true)}>
+          <Plus className="mr-1 h-4 w-4" /> Nova Config
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Configura turnos e limiares para liberacao automatica de horarios na agenda.
+          Quando a ocupacao da agenda ultrapassa o limiar definido, horarios adicionais sao liberados automaticamente.
+        </p>
+
+        {showNew && (
+          <div className="border border-primary/30 bg-primary/5 p-4 space-y-3">
+            <p className="text-xs font-bold text-primary uppercase tracking-wider">Nova Configuracao</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Unidade</label>
+                <select value={newForm.unidadeId} onChange={e => setNewForm({ ...newForm, unidadeId: e.target.value })}
+                  className="w-full bg-background border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                  <option value="">Global (todas)</option>
+                  {unidades?.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Limiar Liberacao (%)</label>
+                <Input type="number" value={newForm.limiarLiberacaoPercent} onChange={e => setNewForm({ ...newForm, limiarLiberacaoPercent: e.target.value })} min={0} max={100} />
+              </div>
+              <div />
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Manha Inicio</label>
+                <Input type="time" value={newForm.turnoManhaInicio} onChange={e => setNewForm({ ...newForm, turnoManhaInicio: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Manha Fim</label>
+                <Input type="time" value={newForm.turnoManhaFim} onChange={e => setNewForm({ ...newForm, turnoManhaFim: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tarde Inicio</label>
+                <Input type="time" value={newForm.turnoTardeInicio} onChange={e => setNewForm({ ...newForm, turnoTardeInicio: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tarde Fim</label>
+                <Input type="time" value={newForm.turnoTardeFim} onChange={e => setNewForm({ ...newForm, turnoTardeFim: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button variant="ghost" size="sm" onClick={() => setShowNew(false)}>Cancelar</Button>
+              <Button size="sm" onClick={handleCreate} disabled={saving}>
+                {saving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3 mr-1" />} Criar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <Skeleton className="h-16 w-full" />
+        ) : configs.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Nenhuma configuracao Smart Release. Crie uma acima.</p>
+        ) : (
+          <div className="space-y-2">
+            {configs.map((cfg: any) => (
+              <div key={cfg.id} className="flex items-center justify-between p-3 border border-border rounded group hover:bg-muted/10">
+                <div className="flex items-center gap-4">
+                  <div className={`p-1.5 rounded ${cfg.ativa ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+                    <Power className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{cfg.unidadeNome || "Global"}</span>
+                      <Badge variant="outline" className="text-[10px]">{cfg.ativa ? "ATIVA" : "INATIVA"}</Badge>
+                      <Badge variant="outline" className="text-[10px] bg-yellow-500/10 text-yellow-400">Limiar: {cfg.limiarLiberacaoPercent}%</Badge>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-3">
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Manha: {cfg.turnoManhaInicio}–{cfg.turnoManhaFim}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Tarde: {cfg.turnoTardeInicio}–{cfg.turnoTardeFim}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(cfg)}>
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400" onClick={() => handleDelete(cfg.id)}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {editing && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+            <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wider">Editar Smart Release — {editing.unidadeNome || "Global"}</h3>
+                <button onClick={() => setEditing(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Manha Inicio</label>
+                  <Input type="time" value={editForm.turnoManhaInicio} onChange={e => setEditForm({ ...editForm, turnoManhaInicio: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Manha Fim</label>
+                  <Input type="time" value={editForm.turnoManhaFim} onChange={e => setEditForm({ ...editForm, turnoManhaFim: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tarde Inicio</label>
+                  <Input type="time" value={editForm.turnoTardeInicio} onChange={e => setEditForm({ ...editForm, turnoTardeInicio: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tarde Fim</label>
+                  <Input type="time" value={editForm.turnoTardeFim} onChange={e => setEditForm({ ...editForm, turnoTardeFim: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Limiar Liberacao (%)</label>
+                <Input type="number" value={editForm.limiarLiberacaoPercent} onChange={e => setEditForm({ ...editForm, limiarLiberacaoPercent: e.target.value })} min={0} max={100} />
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Button className="flex-1 text-xs h-9" onClick={saveEdit} disabled={saving}>
+                  {saving ? "Salvando..." : "Salvar Alteracoes"}
+                </Button>
+                <Button variant="outline" className="text-xs h-9" onClick={() => setEditing(null)}>Cancelar</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function OperationalConfigCard({ apiBase, toast }: { apiBase: string; toast: any }) {
   const [soberaniaConfig, setSoberaniaConfig] = useState<any>(null);
@@ -762,6 +1001,8 @@ export default function ConfiguracoesPage() {
         )}
 
         <OperationalConfigCard apiBase={apiBase} toast={toast} />
+
+        <SmartReleaseConfigCard apiBase={apiBase} toast={toast} unidades={unidades || []} />
 
         <Card className="bg-card">
           <CardHeader>

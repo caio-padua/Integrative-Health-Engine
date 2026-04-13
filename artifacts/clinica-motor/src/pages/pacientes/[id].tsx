@@ -3,6 +3,8 @@ import { useRoute, Link } from "wouter";
 import { useObterPaciente, getObterPacienteQueryKey, useAtualizarPaciente } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Activity, Clock, Edit, HeartPulse, MapPin, Mail, Phone, Calendar, FileText, Camera, Upload, Shield } from "lucide-react";
+import RaclRacjPanel from "@/components/RaclRacjPanel";
+import RevoPanel from "@/components/RevoPanel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -521,6 +523,10 @@ export default function PacienteDetalhe() {
                 </CardContent>
               </Card>
             </div>
+
+            {id > 0 && <RaclRacjPanel pacienteId={id} />}
+
+            {id > 0 && <RevoPanel pacienteId={id} />}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="md:col-span-2 bg-card border-border/50">
