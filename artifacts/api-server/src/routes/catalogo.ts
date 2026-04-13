@@ -305,6 +305,14 @@ function safeId(raw: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+async function handlePost(table: any, req: any, res: any) {
+  const { id: _id, ...body } = req.body;
+  try {
+    const [created] = await db.insert(table).values(body).returning();
+    res.status(201).json(created);
+  } catch (e: any) { res.status(500).json({ error: e.message || "Erro interno" }); }
+}
+
 async function handlePut(table: any, idCol: any, req: any, res: any) {
   const id = safeId(req.params.id);
   if (!id) return res.status(400).json({ error: "ID invalido" });
@@ -326,18 +334,32 @@ async function handleDelete(table: any, idCol: any, req: any, res: any) {
   } catch (e: any) { res.status(500).json({ error: e.message || "Erro interno" }); }
 }
 
+router.post("/injetaveis", (req, res) => handlePost(injetaveisTable, req, res));
 router.put("/injetaveis/:id", (req, res) => handlePut(injetaveisTable, injetaveisTable.id, req, res));
 router.delete("/injetaveis/:id", (req, res) => handleDelete(injetaveisTable, injetaveisTable.id, req, res));
+router.post("/endovenosos", (req, res) => handlePost(endovenososTable, req, res));
 router.put("/endovenosos/:id", (req, res) => handlePut(endovenososTable, endovenososTable.id, req, res));
 router.delete("/endovenosos/:id", (req, res) => handleDelete(endovenososTable, endovenososTable.id, req, res));
+router.post("/implantes", (req, res) => handlePost(implantesTable, req, res));
 router.put("/implantes/:id", (req, res) => handlePut(implantesTable, implantesTable.id, req, res));
 router.delete("/implantes/:id", (req, res) => handleDelete(implantesTable, implantesTable.id, req, res));
+router.post("/formulas", (req, res) => handlePost(formulasTable, req, res));
 router.put("/formulas/:id", (req, res) => handlePut(formulasTable, formulasTable.id, req, res));
 router.delete("/formulas/:id", (req, res) => handleDelete(formulasTable, formulasTable.id, req, res));
+router.post("/exames-base", (req, res) => handlePost(examesBaseTable, req, res));
 router.put("/exames-base/:id", (req, res) => handlePut(examesBaseTable, examesBaseTable.id, req, res));
+router.delete("/exames-base/:id", (req, res) => handleDelete(examesBaseTable, examesBaseTable.id, req, res));
+router.post("/dietas", (req, res) => handlePost(dietasTable, req, res));
 router.put("/dietas/:id", (req, res) => handlePut(dietasTable, dietasTable.id, req, res));
+router.delete("/dietas/:id", (req, res) => handleDelete(dietasTable, dietasTable.id, req, res));
+router.post("/questionario", (req, res) => handlePost(questionarioMasterTable, req, res));
 router.put("/questionario/:id", (req, res) => handlePut(questionarioMasterTable, questionarioMasterTable.id, req, res));
+router.delete("/questionario/:id", (req, res) => handleDelete(questionarioMasterTable, questionarioMasterTable.id, req, res));
+router.post("/psicologia", (req, res) => handlePost(psicologiaTable, req, res));
 router.put("/psicologia/:id", (req, res) => handlePut(psicologiaTable, psicologiaTable.id, req, res));
+router.delete("/psicologia/:id", (req, res) => handleDelete(psicologiaTable, psicologiaTable.id, req, res));
+router.post("/protocolos-master", (req, res) => handlePost(protocolosMasterTable, req, res));
 router.put("/protocolos-master/:id", (req, res) => handlePut(protocolosMasterTable, protocolosMasterTable.id, req, res));
+router.delete("/protocolos-master/:id", (req, res) => handleDelete(protocolosMasterTable, protocolosMasterTable.id, req, res));
 
 export default router;
