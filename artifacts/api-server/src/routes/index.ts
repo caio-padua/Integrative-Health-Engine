@@ -55,6 +55,7 @@ import agentesVirtuaisRouter from "./agentesVirtuais";
 import rasDistribuirRouter from "./rasDistribuir";
 import consultoriasRouter from "./consultoriasRoute";
 import contratosRouter from "./contratosRoute";
+import raclRacjRouter from "./raclRacj";
 
 const router: IRouter = Router();
 

@@ -5,13 +5,21 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ChevronDown, ChevronRight, Syringe, Droplets, CircleDot, FlaskConical, Stethoscope, Brain, Microscope, Pencil, X, Trash2 } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Syringe, Droplets, CircleDot, FlaskConical, Stethoscope, Brain, Microscope, Pencil, X, Trash2, Plus } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 async function apiPut(url: string, data: any): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); return { ok: false, error: d.error || `Erro ${res.status}` }; }
+    return { ok: true };
+  } catch { return { ok: false, error: "Erro de conexao" }; }
+}
+
+async function apiPost(url: string, data: any): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     if (!res.ok) { const d = await res.json().catch(() => ({})); return { ok: false, error: d.error || `Erro ${res.status}` }; }
     return { ok: true };
   } catch { return { ok: false, error: "Erro de conexao" }; }
@@ -102,6 +110,7 @@ function InjetaveisTab() {
   const [search, setSearch] = useState("");
   const [expandedEixo, setExpandedEixo] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
@@ -119,10 +128,31 @@ function InjetaveisTab() {
   const grouped: Record<string, any[]> = {};
   filtered.forEach((i: any) => { const eixo = i.eixoIntegrativo || "SEM EIXO"; if (!grouped[eixo]) grouped[eixo] = []; grouped[eixo].push(i); });
 
+  const INJ_FIELDS = [
+    { key: "codigoPadcom", label: "Codigo PADCOM" },
+    { key: "nomeExibicao", label: "Nome Exibicao" },
+    { key: "nomeAmpola", label: "Nome Ampola" },
+    { key: "substanciaBase", label: "Substancia Base" },
+    { key: "dosagem", label: "Dosagem" },
+    { key: "volume", label: "Volume" },
+    { key: "via", label: "Via", options: ["IM", "SC", "EV", "ID"] },
+    { key: "valorUnidade", label: "Valor Unitario" },
+    { key: "classificacao", label: "Classificacao" },
+    { key: "eixoIntegrativo", label: "Eixo Integrativo" },
+    { key: "palavraChaveMotor", label: "Palavra-Chave Motor" },
+    { key: "statusCadastro", label: "Status", options: ["ATIVO", "INATIVO", "PENDENTE"] },
+    { key: "observacao", label: "Observacao", type: "textarea" },
+  ];
+
   const handleSave = async (form: any) => {
     const r = await apiPut(`${BASE_URL}api/catalogo/injetaveis/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-injetaveis"] });
+  };
+  const handleCreate = async (form: any) => {
+    const r = await apiPost(`${BASE_URL}api/catalogo/injetaveis`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-injetaveis"] }); toast({ title: "Injetavel criado" });
   };
   const handleDelete = async () => {
     if (!confirm("Excluir este injetavel?")) return;
@@ -141,6 +171,7 @@ function InjetaveisTab() {
           <Input placeholder="Buscar por codigo, nome, eixo ou palavra-chave..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} itens</Badge>
+        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Injetavel</Button>
       </div>
       <div className="space-y-3">
         {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([eixo, items]) => (
@@ -189,23 +220,10 @@ function InjetaveisTab() {
         ))}
       </div>
       {editing && (
-        <EditModal item={editing} title="Editar Injetavel IM" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDelete}
-          fields={[
-            { key: "codigoPadcom", label: "Codigo PADCOM" },
-            { key: "nomeExibicao", label: "Nome Exibicao" },
-            { key: "nomeAmpola", label: "Nome Ampola" },
-            { key: "substanciaBase", label: "Substancia Base" },
-            { key: "dosagem", label: "Dosagem" },
-            { key: "volume", label: "Volume" },
-            { key: "via", label: "Via", options: ["IM", "SC", "EV", "ID"] },
-            { key: "valorUnidade", label: "Valor Unitario" },
-            { key: "classificacao", label: "Classificacao" },
-            { key: "eixoIntegrativo", label: "Eixo Integrativo" },
-            { key: "palavraChaveMotor", label: "Palavra-Chave Motor" },
-            { key: "statusCadastro", label: "Status", options: ["ATIVO", "INATIVO", "PENDENTE"] },
-            { key: "observacao", label: "Observacao", type: "textarea" },
-          ]}
-        />
+        <EditModal item={editing} title="Editar Injetavel IM" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDelete} fields={INJ_FIELDS} />
+      )}
+      {creating && (
+        <EditModal item={{statusCadastro: "ATIVO", via: "IM"}} title="Novo Injetavel IM" onClose={() => setCreating(false)} onSave={handleCreate} fields={INJ_FIELDS} />
       )}
     </div>
   );
@@ -215,6 +233,7 @@ function EndovenososTab() {
   const [search, setSearch] = useState("");
   const [expandedSoro, setExpandedSoro] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
@@ -239,10 +258,32 @@ function EndovenososTab() {
     }
   });
 
+  const ENDO_FIELDS = [
+    { key: "codigoPadcom", label: "Codigo PADCOM" },
+    { key: "nomeExibicao", label: "Nome Exibicao" },
+    { key: "nomeSoro", label: "Nome Soro" },
+    { key: "substanciaBase", label: "Substancia Base" },
+    { key: "dosagem", label: "Dosagem" },
+    { key: "volume", label: "Volume" },
+    { key: "via", label: "Via" },
+    { key: "valorUnidade", label: "Valor Unitario" },
+    { key: "frequenciaPadrao", label: "Frequencia Padrao" },
+    { key: "tipoLinha", label: "Tipo Linha", options: ["SORO", "COMPONENTE"] },
+    { key: "eixoIntegrativo", label: "Eixo Integrativo" },
+    { key: "palavraChaveMotor", label: "Palavra-Chave Motor" },
+    { key: "statusCadastro", label: "Status", options: ["ATIVO", "INATIVO", "PENDENTE"] },
+    { key: "observacao", label: "Observacao", type: "textarea" },
+  ];
+
   const handleSave = async (form: any) => {
     const r = await apiPut(`${BASE_URL}api/catalogo/endovenosos/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-endovenosos"] });
+  };
+  const handleCreate = async (form: any) => {
+    const r = await apiPost(`${BASE_URL}api/catalogo/endovenosos`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-endovenosos"] }); toast({ title: "Endovenoso criado" });
   };
   const handleDelete = async () => {
     if (!confirm("Excluir este endovenoso?")) return;
@@ -261,6 +302,7 @@ function EndovenososTab() {
           <Input placeholder="Buscar soro por codigo, nome ou eixo..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Badge variant="outline" className="text-sm px-3 py-1.5">{Object.keys(soros).length} soros</Badge>
+        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Endovenoso</Button>
       </div>
       <div className="space-y-3">
         {Object.entries(soros).map(([codigo, { principal, componentes }]) => (
@@ -309,24 +351,10 @@ function EndovenososTab() {
         ))}
       </div>
       {editing && (
-        <EditModal item={editing} title="Editar Endovenoso" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDelete}
-          fields={[
-            { key: "codigoPadcom", label: "Codigo PADCOM" },
-            { key: "nomeExibicao", label: "Nome Exibicao" },
-            { key: "nomeSoro", label: "Nome Soro" },
-            { key: "substanciaBase", label: "Substancia Base" },
-            { key: "dosagem", label: "Dosagem" },
-            { key: "volume", label: "Volume" },
-            { key: "via", label: "Via" },
-            { key: "valorUnidade", label: "Valor Unitario" },
-            { key: "frequenciaPadrao", label: "Frequencia Padrao" },
-            { key: "tipoLinha", label: "Tipo Linha", options: ["SORO", "COMPONENTE"] },
-            { key: "eixoIntegrativo", label: "Eixo Integrativo" },
-            { key: "palavraChaveMotor", label: "Palavra-Chave Motor" },
-            { key: "statusCadastro", label: "Status", options: ["ATIVO", "INATIVO", "PENDENTE"] },
-            { key: "observacao", label: "Observacao", type: "textarea" },
-          ]}
-        />
+        <EditModal item={editing} title="Editar Endovenoso" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDelete} fields={ENDO_FIELDS} />
+      )}
+      {creating && (
+        <EditModal item={{statusCadastro: "ATIVO", tipoLinha: "SORO", via: "EV"}} title="Novo Endovenoso" onClose={() => setCreating(false)} onSave={handleCreate} fields={ENDO_FIELDS} />
       )}
     </div>
   );
@@ -335,6 +363,7 @@ function EndovenososTab() {
 function ImplantesTab() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
@@ -349,10 +378,33 @@ function ImplantesTab() {
     i.indicacao?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const IMPL_FIELDS = [
+    { key: "codigoPadcom", label: "Codigo PADCOM" },
+    { key: "nomeImplante", label: "Nome Implante" },
+    { key: "substanciaAtiva", label: "Substancia Ativa" },
+    { key: "dosagem", label: "Dosagem" },
+    { key: "unidade", label: "Unidade" },
+    { key: "via", label: "Via" },
+    { key: "trocarte", label: "Trocarte" },
+    { key: "liberacaoDiaria", label: "Liberacao Diaria" },
+    { key: "doseRecomendada", label: "Dose Recomendada" },
+    { key: "tempoAcao", label: "Tempo Acao" },
+    { key: "valorUnidade", label: "Valor Unitario" },
+    { key: "origemValor", label: "Origem Valor" },
+    { key: "indicacao", label: "Indicacao", type: "textarea" },
+    { key: "statusCadastro", label: "Status", options: ["ATIVO", "INATIVO", "PENDENTE"] },
+    { key: "observacao", label: "Observacao", type: "textarea" },
+  ];
+
   const handleSave = async (form: any) => {
     const r = await apiPut(`${BASE_URL}api/catalogo/implantes/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-implantes"] });
+  };
+  const handleCreate = async (form: any) => {
+    const r = await apiPost(`${BASE_URL}api/catalogo/implantes`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-implantes"] }); toast({ title: "Implante criado" });
   };
   const handleDelete = async () => {
     if (!confirm("Excluir este implante?")) return;
@@ -371,6 +423,7 @@ function ImplantesTab() {
           <Input placeholder="Buscar implante por codigo, nome, substancia ou indicacao..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} implantes</Badge>
+        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Implante</Button>
       </div>
       <div className="space-y-2">
         {filtered.map((item: any) => (
@@ -402,25 +455,10 @@ function ImplantesTab() {
         ))}
       </div>
       {editing && (
-        <EditModal item={editing} title="Editar Implante" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDelete}
-          fields={[
-            { key: "codigoPadcom", label: "Codigo PADCOM" },
-            { key: "nomeImplante", label: "Nome Implante" },
-            { key: "substanciaAtiva", label: "Substancia Ativa" },
-            { key: "dosagem", label: "Dosagem" },
-            { key: "unidade", label: "Unidade" },
-            { key: "via", label: "Via" },
-            { key: "trocarte", label: "Trocarte" },
-            { key: "liberacaoDiaria", label: "Liberacao Diaria" },
-            { key: "doseRecomendada", label: "Dose Recomendada" },
-            { key: "tempoAcao", label: "Tempo Acao" },
-            { key: "valorUnidade", label: "Valor Unitario" },
-            { key: "origemValor", label: "Origem Valor" },
-            { key: "indicacao", label: "Indicacao", type: "textarea" },
-            { key: "statusCadastro", label: "Status", options: ["ATIVO", "INATIVO", "PENDENTE"] },
-            { key: "observacao", label: "Observacao", type: "textarea" },
-          ]}
-        />
+        <EditModal item={editing} title="Editar Implante" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDelete} fields={IMPL_FIELDS} />
+      )}
+      {creating && (
+        <EditModal item={{statusCadastro: "ATIVO", via: "SC"}} title="Novo Implante" onClose={() => setCreating(false)} onSave={handleCreate} fields={IMPL_FIELDS} />
       )}
     </div>
   );
@@ -430,6 +468,7 @@ function FormulasTab() {
   const [search, setSearch] = useState("");
   const [expandedFormula, setExpandedFormula] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
@@ -450,10 +489,26 @@ function FormulasTab() {
     else grouped[i.codigoPadcom].componentes.push(i);
   });
 
+  const FORM_FIELDS = [
+    { key: "codigoPadcom", label: "Codigo PADCOM" },
+    { key: "identificador", label: "Identificador" },
+    { key: "conteudo", label: "Conteudo", type: "textarea" },
+    { key: "area", label: "Area" },
+    { key: "funcao", label: "Funcao" },
+    { key: "tipoLinha", label: "Tipo Linha" },
+    { key: "valorUnidade", label: "Valor Unitario" },
+    { key: "status", label: "Status", options: ["ATIVO", "INATIVO"] },
+  ];
+
   const handleSave = async (form: any) => {
     const r = await apiPut(`${BASE_URL}api/catalogo/formulas/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-formulas"] });
+  };
+  const handleCreate = async (form: any) => {
+    const r = await apiPost(`${BASE_URL}api/catalogo/formulas`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-formulas"] }); toast({ title: "Formula criada" });
   };
   const handleDelete = async () => {
     if (!confirm("Excluir esta formula?")) return;
@@ -472,6 +527,7 @@ function FormulasTab() {
           <Input placeholder="Buscar formula por codigo, nome ou area..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Badge variant="outline" className="text-sm px-3 py-1.5">{Object.keys(grouped).length} formulas</Badge>
+        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Nova Formula</Button>
       </div>
       <div className="space-y-3">
         {Object.entries(grouped).map(([codigo, { titulo, componentes }]) => {
@@ -532,18 +588,10 @@ function FormulasTab() {
         })}
       </div>
       {editing && (
-        <EditModal item={editing} title="Editar Formula" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDelete}
-          fields={[
-            { key: "codigoPadcom", label: "Codigo PADCOM" },
-            { key: "identificador", label: "Identificador" },
-            { key: "conteudo", label: "Conteudo", type: "textarea" },
-            { key: "area", label: "Area" },
-            { key: "funcao", label: "Funcao" },
-            { key: "tipoLinha", label: "Tipo Linha" },
-            { key: "valorUnidade", label: "Valor Unitario" },
-            { key: "status", label: "Status", options: ["ATIVO", "INATIVO"] },
-          ]}
-        />
+        <EditModal item={editing} title="Editar Formula" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDelete} fields={FORM_FIELDS} />
+      )}
+      {creating && (
+        <EditModal item={{status: "ATIVO", tipoLinha: "FORMULA", identificador: "TITL"}} title="Nova Formula" onClose={() => setCreating(false)} onSave={handleCreate} fields={FORM_FIELDS} />
       )}
     </div>
   );
@@ -552,6 +600,7 @@ function FormulasTab() {
 function ProtocolosTab() {
   const [expandedProto, setExpandedProto] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
@@ -559,8 +608,34 @@ function ProtocolosTab() {
     queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/protocolos-master`); return res.json(); },
   });
 
+  const PROTO_FIELDS = [
+    { key: "codigoProtocolo", label: "Codigo Protocolo" },
+    { key: "nome", label: "Nome" },
+    { key: "area", label: "Area" },
+    { key: "objetivo", label: "Objetivo", type: "textarea" },
+    { key: "modoOferta", label: "Modo Oferta" },
+    { key: "valorExames", label: "Valor Exames" },
+    { key: "valorFormulas", label: "Valor Formulas" },
+    { key: "valorInjetaveis", label: "Valor Injetaveis" },
+    { key: "valorImplantes", label: "Valor Implantes" },
+    { key: "valorTotal", label: "Valor Total" },
+    { key: "status", label: "Status", options: ["ATIVO", "INATIVO"] },
+    { key: "observacao", label: "Observacao", type: "textarea" },
+  ];
+
   const handleSave = async (form: any) => {
     const r = await apiPut(`${BASE_URL}api/catalogo/protocolos-master/${editing.id}`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-protocolos"] });
+  };
+  const handleCreate = async (form: any) => {
+    const r = await apiPost(`${BASE_URL}api/catalogo/protocolos-master`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-protocolos"] }); toast({ title: "Protocolo criado" });
+  };
+  const handleDeleteProto = async () => {
+    if (!confirm("Excluir este protocolo?")) return;
+    const r = await apiDelete(`${BASE_URL}api/catalogo/protocolos-master/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-protocolos"] });
   };
@@ -569,7 +644,10 @@ function ProtocolosTab() {
 
   return (
     <div>
-      <Badge variant="outline" className="text-sm px-3 py-1.5 mb-6">{data.length} protocolos</Badge>
+      <div className="flex items-center gap-3 mb-6">
+        <Badge variant="outline" className="text-sm px-3 py-1.5">{data.length} protocolos</Badge>
+        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Protocolo</Button>
+      </div>
       <div className="space-y-3 mt-4">
         {data.map((p: any) => (
           <div key={p.id} className="border rounded-lg">
@@ -633,22 +711,10 @@ function ProtocolosTab() {
         ))}
       </div>
       {editing && (
-        <EditModal item={editing} title="Editar Protocolo" onClose={() => setEditing(null)} onSave={handleSave}
-          fields={[
-            { key: "codigoProtocolo", label: "Codigo Protocolo" },
-            { key: "nome", label: "Nome" },
-            { key: "area", label: "Area" },
-            { key: "objetivo", label: "Objetivo", type: "textarea" },
-            { key: "modoOferta", label: "Modo Oferta" },
-            { key: "valorExames", label: "Valor Exames" },
-            { key: "valorFormulas", label: "Valor Formulas" },
-            { key: "valorInjetaveis", label: "Valor Injetaveis" },
-            { key: "valorImplantes", label: "Valor Implantes" },
-            { key: "valorTotal", label: "Valor Total" },
-            { key: "status", label: "Status", options: ["ATIVO", "INATIVO"] },
-            { key: "observacao", label: "Observacao", type: "textarea" },
-          ]}
-        />
+        <EditModal item={editing} title="Editar Protocolo" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDeleteProto} fields={PROTO_FIELDS} />
+      )}
+      {creating && (
+        <EditModal item={{status: "ATIVO", modoOferta: "SESSAO"}} title="Novo Protocolo" onClose={() => setCreating(false)} onSave={handleCreate} fields={PROTO_FIELDS} />
       )}
     </div>
   );
@@ -658,6 +724,7 @@ function ExamesTab() {
   const [search, setSearch] = useState("");
   const [expandedGrupo, setExpandedGrupo] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
@@ -676,8 +743,38 @@ function ExamesTab() {
   const grouped: Record<string, any[]> = {};
   filtered.forEach((e: any) => { const g = e.grupoPrincipal || "OUTROS"; if (!grouped[g]) grouped[g] = []; grouped[g].push(e); });
 
+  const EXAME_FIELDS = [
+    { key: "codigoExame", label: "Codigo Exame" },
+    { key: "nomeExame", label: "Nome Exame" },
+    { key: "modalidade", label: "Modalidade" },
+    { key: "materialOuSetor", label: "Material / Setor" },
+    { key: "grupoPrincipal", label: "Grupo Principal" },
+    { key: "subgrupo", label: "Subgrupo" },
+    { key: "blocoOficial", label: "Bloco Oficial" },
+    { key: "grauDoBloco", label: "Grau" },
+    { key: "prioridade", label: "Prioridade", options: ["ALTA", "MEDIA", "BAIXA", "ROTINA"] },
+    { key: "preparo", label: "Preparo", type: "textarea" },
+    { key: "justificativaObjetiva", label: "Justificativa Objetiva", type: "textarea" },
+    { key: "justificativaNarrativa", label: "Justificativa Narrativa", type: "textarea" },
+    { key: "hipoteseDiagnostica1", label: "Hipotese Diagnostica 1" },
+    { key: "cid1", label: "CID 1" },
+    { key: "sexoAplicavel", label: "Sexo Aplicavel", options: ["AMBOS", "MASCULINO", "FEMININO"] },
+    { key: "observacaoClinica", label: "Observacao Clinica", type: "textarea" },
+  ];
+
   const handleSave = async (form: any) => {
     const r = await apiPut(`${BASE_URL}api/catalogo/exames-base/${editing.id}`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-exames-base"] });
+  };
+  const handleCreate = async (form: any) => {
+    const r = await apiPost(`${BASE_URL}api/catalogo/exames-base`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-exames-base"] }); toast({ title: "Exame criado" });
+  };
+  const handleDeleteExame = async () => {
+    if (!confirm("Excluir este exame?")) return;
+    const r = await apiDelete(`${BASE_URL}api/catalogo/exames-base/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-exames-base"] });
   };
@@ -692,6 +789,7 @@ function ExamesTab() {
           <Input placeholder="Buscar exame por codigo, nome, grupo, bloco ou modalidade..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} exames</Badge>
+        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Exame</Button>
       </div>
       <div className="space-y-3">
         {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([grupo, items]) => (
@@ -740,26 +838,10 @@ function ExamesTab() {
         ))}
       </div>
       {editing && (
-        <EditModal item={editing} title="Editar Exame" onClose={() => setEditing(null)} onSave={handleSave}
-          fields={[
-            { key: "codigoExame", label: "Codigo Exame" },
-            { key: "nomeExame", label: "Nome Exame" },
-            { key: "modalidade", label: "Modalidade" },
-            { key: "materialOuSetor", label: "Material / Setor" },
-            { key: "grupoPrincipal", label: "Grupo Principal" },
-            { key: "subgrupo", label: "Subgrupo" },
-            { key: "blocoOficial", label: "Bloco Oficial" },
-            { key: "grauDoBloco", label: "Grau" },
-            { key: "prioridade", label: "Prioridade", options: ["ALTA", "MEDIA", "BAIXA", "ROTINA"] },
-            { key: "preparo", label: "Preparo", type: "textarea" },
-            { key: "justificativaObjetiva", label: "Justificativa Objetiva", type: "textarea" },
-            { key: "justificativaNarrativa", label: "Justificativa Narrativa", type: "textarea" },
-            { key: "hipoteseDiagnostica1", label: "Hipotese Diagnostica 1" },
-            { key: "cid1", label: "CID 1" },
-            { key: "sexoAplicavel", label: "Sexo Aplicavel", options: ["AMBOS", "MASCULINO", "FEMININO"] },
-            { key: "observacaoClinica", label: "Observacao Clinica", type: "textarea" },
-          ]}
-        />
+        <EditModal item={editing} title="Editar Exame" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDeleteExame} fields={EXAME_FIELDS} />
+      )}
+      {creating && (
+        <EditModal item={{prioridade: "ROTINA", sexoAplicavel: "AMBOS"}} title="Novo Exame" onClose={() => setCreating(false)} onSave={handleCreate} fields={EXAME_FIELDS} />
       )}
     </div>
   );
@@ -767,6 +849,10 @@ function ExamesTab() {
 
 function DoencasTab() {
   const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-doencas"],
     queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/doencas`); return res.json(); },
@@ -782,6 +868,33 @@ function DoencasTab() {
   const grouped: Record<string, any[]> = {};
   filtered.forEach((i: any) => { const g = i.grupo || "OUTROS"; if (!grouped[g]) grouped[g] = []; grouped[g].push(i); });
 
+  const DOENCA_FIELDS = [
+    { key: "codigoDoenca", label: "Codigo Doenca" },
+    { key: "nomeDoenca", label: "Nome Doenca" },
+    { key: "grupo", label: "Grupo" },
+    { key: "eixo", label: "Eixo" },
+    { key: "blocoMotor", label: "Bloco Motor" },
+    { key: "cid10", label: "CID-10" },
+    { key: "observacao", label: "Observacao", type: "textarea" },
+  ];
+
+  const handleSave = async (form: any) => {
+    const r = await apiPut(`${BASE_URL}api/catalogo/doencas/${editing.id}`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-doencas"] });
+  };
+  const handleCreate = async (form: any) => {
+    const r = await apiPost(`${BASE_URL}api/catalogo/doencas`, form);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-doencas"] }); toast({ title: "Doenca criada" });
+  };
+  const handleDeleteDoenca = async () => {
+    if (!confirm("Excluir esta doenca?")) return;
+    const r = await apiDelete(`${BASE_URL}api/catalogo/doencas/${editing.id}`);
+    if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
+    setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-doencas"] });
+  };
+
   if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
 
   return (
@@ -792,6 +905,7 @@ function DoencasTab() {
           <Input placeholder="Buscar doenca por codigo, nome, grupo ou eixo..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} doencas</Badge>
+        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Nova Doenca</Button>
       </div>
       <div className="space-y-4">
         {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([grupo, items]) => (
@@ -799,7 +913,7 @@ function DoencasTab() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{grupo}</h3>
             <div className="border rounded-lg divide-y">
               {items.map((d: any) => (
-                <div key={d.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors">
+                <div key={d.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors group">
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-xs text-primary font-medium w-40">{d.codigoDoenca}</span>
                     <span className="font-medium text-sm">{d.nomeDoenca}</span>
@@ -807,6 +921,9 @@ function DoencasTab() {
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">{d.eixo}</Badge>
                     <span className="text-xs text-muted-foreground font-mono">{d.blocoMotor}</span>
+                    <button onClick={() => setEditing(d)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded">
+                      <Pencil className="w-3 h-3 text-muted-foreground" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -814,6 +931,12 @@ function DoencasTab() {
           </div>
         ))}
       </div>
+      {editing && (
+        <EditModal item={editing} title="Editar Doenca" onClose={() => setEditing(null)} onSave={handleSave} onDelete={handleDeleteDoenca} fields={DOENCA_FIELDS} />
+      )}
+      {creating && (
+        <EditModal item={{}} title="Nova Doenca" onClose={() => setCreating(false)} onSave={handleCreate} fields={DOENCA_FIELDS} />
+      )}
     </div>
   );
 }
