@@ -626,8 +626,8 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
         const DRIVE_MAP: Record<string, string> = {
           JURIDICO: "JURIDICO",
           CLINICO: "PROTOCOLOS",
-          EVOLUTIVO: "AVALIACOES",
-          ESTADO_SAUDE: "AVALIACOES",
+          EVOLUTIVO: "SEGUIMENTO",
+          ESTADO_SAUDE: "SEGUIMENTO",
           COMPLETO: "LAUDOS",
         };
         const subfolder = DRIVE_MAP[pdf.categoria] || "LAUDOS";
@@ -776,7 +776,7 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
   };
   await upload("JURIDICO", `RACJ_Termos_Juridicos_${nome}_${dt}.pdf`, gerarRacjPdf(racjData));
 
-  await upload("AVALIACOES", `RASX_RAS_Evolutivo_${nome}_${dt}.pdf`, gerarRasxPdf(collected.pdfData, "EVOLUTIVO"));
+  await upload("SEGUIMENTO", `RASX_RAS_Evolutivo_${nome}_${dt}.pdf`, gerarRasxPdf(collected.pdfData, "EVOLUTIVO"));
 
   await gravarAudit({
     pacienteId, entidade: "drive_popular_completo", acao: "gerar_pdf",
