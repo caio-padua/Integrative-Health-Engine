@@ -13,10 +13,20 @@ import {
   gerarOrcamentoFinanceiroPdf, gerarLaudoExamePdf, gerarRelatorioPatologiasPdf,
   gerarTermoConsentimentoPdf,
 } from "../pdf/docsPdf";
+import { gerarMotorPdf, gerarMotorPdfConsolidado } from "../pdf/rasxMotorPdf";
 import { sendEmailWithPdf } from "../lib/google-gmail.js";
 import { getOrCreateClientFolder, uploadToClientSubfolder } from "../lib/google-drive.js";
 import { buildEmail, buildWhatsappFormal, type EmailOpts } from "../lib/email-templates";
 import crypto from "crypto";
+import {
+  BlocoRAS, EventoRAS, type PayloadRAS, type LogRAS,
+  resolverEvento, resolverClasseProcedimento, resolverBloco,
+  resolverBlocosDoEvento, resolverSubgrupos, resolverConsentimento,
+  resolverPastaDestino, resolverPastasDestino,
+  montarPayloadRAS, gerarNomeArquivoRAS, gerarHashDocumental,
+  buildLogRAS, getArquiteturaCompleta,
+  BLOCO_LABELS, EVENTO_PIPELINE, CLASSE_LABELS, SUBGRUPO_LABELS,
+} from "../lib/rasxEngine";
 
 const router = Router();
 
@@ -830,6 +840,266 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
   } catch (err: any) {
     console.error("[RASX Popular Drive] Erro:", err.message);
     if (!res.headersSent) res.status(500).json({ error: "Erro ao popular Drive", detalhes: err.message });
+  }
+});
+
+router.get("/rasx/arquitetura", async (_req, res): Promise<void> => {
+  res.json(getArquiteturaCompleta());
+});
+
+router.post("/rasx/:pacienteId/motor", async (req, res): Promise<void> => {
+  try {
+    const pacienteId = Number(req.params.pacienteId);
+    if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
+
+    const { evento, classeProcedimento, blocos: blocosReq, drive, email, whatsapp } = req.body;
+    if (!evento) { res.status(400).json({ error: "Campo 'evento' e obrigatorio. Opcoes: " + Object.values(EventoRAS).join(", ") }); return; }
+
+    const eventoResolvido = resolverEvento(evento);
+    const classeResolvida = resolverClasseProcedimento(classeProcedimento);
+
+    const collected = await collectPdfData(pacienteId);
+    if (!collected) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+
+    const blocosDoEvento = blocosReq
+      ? (Array.isArray(blocosReq) ? blocosReq : [blocosReq]).map((b: string) => resolverBloco(b))
+      : resolverBlocosDoEvento(eventoResolvido);
+
+    const payloads: PayloadRAS[] = [];
+    const pdfs: { bloco: BlocoRAS; payload: PayloadRAS; buffer: Buffer; nomeArquivo: string; pasta: string; log: LogRAS }[] = [];
+
+    for (const bloco of blocosDoEvento) {
+      const payloadRAS = montarPayloadRAS({
+        pacienteId,
+        nomePaciente: collected.paciente.nome,
+        cpf: collected.paciente.cpf || undefined,
+        evento: eventoResolvido,
+        bloco,
+        classeProcedimento: classeResolvida,
+        medicamentos: collected.medicamentos.map(m => ({
+          nome: m.medicamentoDoseInline || m.nome,
+          posologia: m.posologia,
+          dataInicio: m.dataInicioUso?.toISOString?.(),
+          evento: m.statusAtual,
+          substituicao: m.substituicaoNatural,
+        })),
+        patologias: collected.patologias.map(p => ({
+          nome: p.nome,
+          tipo: p.tipo,
+          cid: p.cid10,
+        })),
+        orgaos: (collected.pdfData.orgaos || []).map((o: any) => ({
+          nome: o.orgaoSistema,
+          status: o.intensidade || "—",
+        })),
+        proximasEtapas: (collected.pdfData.proximasEtapas || []).map((e: any) => ({
+          descricao: e.descricao,
+          data: e.dataPrevista?.toISOString?.(),
+        })),
+        profissionalResponsavel: "Dr. Caio Henrique Fernandes Padua",
+        crmProfissional: "CRM-SP 125475",
+        nick: "INSTITUTO PADUA",
+        unidade: "Instituto Padua — Vila Formosa",
+        endereco: "Rua Guaxupe, 327 — Vila Formosa, Sao Paulo — SP",
+        protocoloId: undefined,
+      });
+
+      payloads.push(payloadRAS);
+
+      const pdfStream = gerarMotorPdf(payloadRAS);
+      const buffer = await streamToBuffer(pdfStream);
+      const nomeArquivo = gerarNomeArquivoRAS(payloadRAS);
+      const pasta = resolverPastaDestino(bloco, eventoResolvido);
+
+      const log = buildLogRAS({
+        pacienteId,
+        evento: eventoResolvido,
+        bloco,
+        subgrupos: payloadRAS.subgrupos,
+        classeProcedimento: classeResolvida,
+        arquivo: nomeArquivo,
+        pasta,
+        buffer,
+      });
+
+      pdfs.push({ bloco, payload: payloadRAS, buffer, nomeArquivo, pasta, log });
+    }
+
+    if (drive) {
+      try {
+        let folderId = collected.paciente.googleDriveFolderId;
+        if (!folderId) {
+          const folder = await getOrCreateClientFolder(collected.paciente.nome, collected.paciente.cpf || "SEM-CPF");
+          folderId = folder.folderId;
+          await db.update(pacientesTable).set({ googleDriveFolderId: folderId }).where(eq(pacientesTable.id, pacienteId));
+        }
+
+        for (const pdf of pdfs) {
+          const result = await uploadToClientSubfolder({
+            clientFolderId: folderId!,
+            subfolder: pdf.pasta as any,
+            fileName: `${pdf.nomeArquivo}.pdf`,
+            mimeType: "application/pdf",
+            content: pdf.buffer,
+          });
+          pdf.log.status = "enviado";
+          (pdf.log as any).driveFileId = result.fileId;
+          (pdf.log as any).driveFileUrl = result.fileUrl;
+        }
+      } catch (err: any) {
+        console.error("[Motor Drive]", err.message);
+      }
+    }
+
+    if (email) {
+      const toEmail = typeof email === "string" ? email : (collected.paciente.email || null);
+      if (toEmail) {
+        try {
+          for (const pdf of pdfs) {
+            const emailOpts: EmailOpts = {
+              nick: "INSTITUTO PADUA",
+              medicoNome: "Dr. Caio Henrique Fernandes Padua",
+              tipoDocumento: BLOCO_LABELS[pdf.bloco]?.nome || pdf.bloco,
+              acao: "INFORMATIVO",
+              pacienteNome: collected.paciente.nome,
+              unidadeNome: "Instituto Padua",
+              endereco: "Rua Guaxupe, 327 - Vila Formosa, Sao Paulo - SP",
+              whatsapp: "(11) 97715-4000",
+              telefone: "(11) 97715-4000",
+              emailContato: "clinica.padua.agenda@gmail.com",
+            };
+            const built = buildEmail(emailOpts);
+            await sendEmailWithPdf(toEmail, built.subject, built.html, pdf.buffer, `${pdf.nomeArquivo}.pdf`);
+          }
+        } catch (err: any) {
+          console.error("[Motor Email]", err.message);
+        }
+      }
+    }
+
+    for (const pdf of pdfs) {
+      await gravarAudit({
+        pacienteId,
+        entidade: "rasx_motor",
+        acao: "gerar_pdf",
+        metadados: {
+          evento: eventoResolvido,
+          bloco: pdf.bloco,
+          subgrupos: pdf.payload.subgrupos,
+          classeProcedimento: classeResolvida,
+          arquivo: pdf.nomeArquivo,
+          pasta: pdf.pasta,
+          hash: pdf.log.hash,
+          versao: pdf.log.versao,
+          tamanhoBytes: pdf.log.tamanhoBytes,
+          status: pdf.log.status,
+        },
+      });
+    }
+
+    let whatsappResult = null;
+    if (whatsapp) {
+      const telefone = (typeof whatsapp === "string" ? whatsapp : (collected.paciente.telefone || "")).replace(/\D/g, "");
+      const telefoneInt = telefone.startsWith("55") ? telefone : `55${telefone}`;
+      const waOpts: EmailOpts = {
+        nick: "INSTITUTO PADUA",
+        medicoNome: "Dr. Caio Henrique Fernandes Padua",
+        tipoDocumento: pdfs.map(p => BLOCO_LABELS[p.bloco]?.nome || p.bloco).join(" + "),
+        acao: "INFORMATIVO",
+        pacienteNome: collected.paciente.nome,
+        unidadeNome: "Instituto Padua",
+        endereco: "Rua Guaxupe, 327 - Vila Formosa, Sao Paulo - SP",
+        whatsapp: "(11) 97715-4000",
+        telefone: "(11) 97715-4000",
+        emailContato: "clinica.padua.agenda@gmail.com",
+      };
+      const waMensagem = buildWhatsappFormal(waOpts);
+      const waUrl = telefone ? `https://wa.me/${telefoneInt}?text=${encodeURIComponent(waMensagem)}` : null;
+      whatsappResult = { mensagem: waMensagem, waUrl };
+    }
+
+    res.json({
+      sucesso: true,
+      versao: "RASX-MATRIZ V6",
+      paciente: collected.paciente.nome,
+      evento: eventoResolvido,
+      pipelineDescricao: EVENTO_PIPELINE[eventoResolvido]?.descricao,
+      classeProcedimento: classeResolvida || null,
+      consentimentoEspecifico: classeResolvida ? resolverConsentimento(classeResolvida) : null,
+      blocos: pdfs.map(p => ({
+        bloco: p.bloco,
+        blocoNome: BLOCO_LABELS[p.bloco]?.nome,
+        subgrupos: p.payload.subgrupos,
+        subgruposDetalhes: p.payload.subgrupos.map(sg => ({ codigo: sg, ...(SUBGRUPO_LABELS[sg] || { nome: sg, funcao: "—" }) })),
+        nomeArquivo: p.nomeArquivo,
+        pasta: p.pasta,
+        hash: p.log.hash,
+        tamanho: `${(p.buffer.length / 1024).toFixed(1)} KB`,
+        status: p.log.status,
+      })),
+      totalBlocos: pdfs.length,
+      totalPaginas: pdfs.reduce((acc, p) => acc + p.payload.subgrupos.length, 0),
+      whatsapp: whatsappResult,
+    });
+  } catch (err: any) {
+    console.error("[RASX Motor] Erro:", err.message, err.stack);
+    if (!res.headersSent) res.status(500).json({ error: "Erro no motor RASX", detalhes: err.message });
+  }
+});
+
+router.get("/rasx/:pacienteId/motor/pdf/:bloco", async (req, res): Promise<void> => {
+  try {
+    const pacienteId = Number(req.params.pacienteId);
+    const blocoParam = req.params.bloco.toUpperCase();
+    if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
+
+    const bloco = resolverBloco(blocoParam);
+    const eventoParam = (req.query.evento as string) || "START";
+    const eventoResolvido = resolverEvento(eventoParam);
+    const classeParam = req.query.classe as string;
+    const classeResolvida = resolverClasseProcedimento(classeParam);
+
+    const collected = await collectPdfData(pacienteId);
+    if (!collected) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+
+    const payloadRAS = montarPayloadRAS({
+      pacienteId,
+      nomePaciente: collected.paciente.nome,
+      cpf: collected.paciente.cpf || undefined,
+      evento: eventoResolvido,
+      bloco,
+      classeProcedimento: classeResolvida,
+      medicamentos: collected.medicamentos.map(m => ({
+        nome: m.medicamentoDoseInline || m.nome,
+        posologia: m.posologia,
+        dataInicio: m.dataInicioUso?.toISOString?.(),
+        evento: m.statusAtual,
+        substituicao: m.substituicaoNatural,
+      })),
+      patologias: collected.patologias.map(p => ({
+        nome: p.nome,
+        tipo: p.tipo,
+        cid: p.cid10,
+      })),
+      proximasEtapas: (collected.pdfData.proximasEtapas || []).map((e: any) => ({
+        descricao: e.descricao,
+        data: e.dataPrevista?.toISOString?.(),
+      })),
+      profissionalResponsavel: "Dr. Caio Henrique Fernandes Padua",
+      crmProfissional: "CRM-SP 125475",
+      nick: "INSTITUTO PADUA",
+      unidade: "Instituto Padua — Vila Formosa",
+    });
+
+    const pdfStream = gerarMotorPdf(payloadRAS);
+    const nomeArquivo = gerarNomeArquivoRAS(payloadRAS);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${nomeArquivo}.pdf"`);
+    pdfStream.pipe(res);
+  } catch (err: any) {
+    console.error("[Motor PDF Bloco] Erro:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: "Erro ao gerar PDF do bloco", detalhes: err.message });
   }
 });
 

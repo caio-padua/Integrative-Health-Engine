@@ -72,15 +72,35 @@ Key architectural decisions and features include:
 -   **Frontend (RevoPanel):** Toggle between "Remédio" (inline nome+dose + posologia) and "Fórmula" (nome + botão (+) para adicionar substâncias). Lista exibe badge FORMULA roxo com tags de substâncias.
 -   **PDF (RACL HFOR):** Nova seção "Fórmulas Magistrais" no PDF RASX. Cada fórmula ganha sua própria página retrato com tabela substância/dosagem. Paginação automática: se componentes excedem 18 por página, cria continuação com cabeçalho e estrutura mantidos.
 
-## RAS Categorizado — PDFs Separados por Categoria
+## RASX-MATRIZ V6 — Arquitetura Motor Semântico
 
--   **Categorias:** CLINICO (HEST, HPOT, HORG, HMED, HFOR, HCUR, HATU), EVOLUTIVO (HLIN, HTRN, HEVO, HPLA), ESTADO_SAUDE (HATU, HCUR, HPLA), COMPLETO (todos), JURIDICO (RACJ — LGPD, CGLO, RISC, NGAR, PRIV).
--   **PDF Jurídico (RACJ):** 5 termos: LGPD (consentimento dados), CGLO (TCLE global), RISC (declaração riscos), NGAR (não-garantia resultados), PRIV (sigilo e privacidade). Cada termo com checkboxes, parágrafos legais e campo de assinatura.
--   **Endpoints por Categoria:** `GET /api/rasx/:pacienteId/arqu/pdf/:categoria` (CLINICO, EVOLUTIVO, ESTADO_SAUDE, COMPLETO, JURIDICO).
--   **Listar Categorias:** `GET /api/rasx/:pacienteId/arqu/categorias` — retorna todas as categorias com cadernos.
--   **Envio Integrado:** `POST /api/rasx/:pacienteId/arqu/enviar` — body: `{categorias: ["CLINICO","JURIDICO"], drive: true, email: "x@y.com"}`. Gera PDFs, faz upload ao Drive (subpasta LAUDOS para clínicos, JURIDICO para jurídicos), envia por email com anexo PDF.
--   **Popular Drive Completo:** `POST /api/rasx/:pacienteId/arqu/popular-drive` — gera 12 PDFs específicos e popula todas as subpastas do Drive: CADASTRO (Ficha), PATOLOGIAS (Relatório), EXAMES (Solicitação 6 exames), RECEITAS (Receita com medicamentos reais), PROTOCOLOS (RAS Clínico), FINANCEIRO (Orçamento 5 itens), CONTRATOS (Contrato 5 cláusulas), ATESTADOS (Atestado médico), LAUDOS (RAS Completo), TERMOS (Consentimento procedimento), JURIDICO (RACJ 5 termos), SEGUIMENTO (RAS Evolutivo).
--   **Geradores de Documentos (`docsPdf.ts`):** 8 geradores independentes: `gerarFichaCadastroPdf`, `gerarReceitaPdf`, `gerarAtestadoPdf`, `gerarContratoPdf`, `gerarOrcamentoFinanceiroPdf`, `gerarLaudoExamePdf`, `gerarRelatorioPatologiasPdf`, `gerarTermoConsentimentoPdf`. Todos usam design Pawards V15.2 (azul petróleo, dourado queimado, tipografia clássica).
--   **Header PDF:** INSTITUTO PADUA (canto superior direito, branco) + Pawards V15.2 | Padcon Tech (dourado queimado).
--   **Footer PDF:** "PAWARDS - Sistema Gestao Saude" (central, negrito) + "© 2024 PADCON - Tecnologia e Desenvolvimento" (central) + selo "RASX-MATRIZ" em moldura pequena no canto inferior direito.
--   **Logo DP:** `artifacts/api-server/src/pdf/assets/logo-dp.png` disponível mas desabilitada no header (logo escura, precisa versão branca para contraste no header azul).
+### Blocos, Subgrupos, Eventos, Classes, Consentimentos
+-   **5 Blocos Mestres:** CLIN (Clínico), JURI (Jurídico), FINA (Financeiro), ACOM (Acompanhamento), 4100 (Patologias)
+-   **20 Subgrupos:** CLIN: BASE/SESS/EVOL/POSP | JURI: BASE/CONS/IMAG/DIGI | FINA: ORCA/PAGT/REEM/CIEN | ACOM: REVO/JORN/META/ALER | 4100: 4101/4102/4103/4104
+-   **7 Eventos:** START, POS_PROCEDIMENTO, CONSULTA_MENSAL, REVISAO_SEMESTRAL, SOLICITACAO_JURIDICA, SOLICITACAO_FINANCEIRA, FECHAMENTO_LAUDO
+-   **6 Classes Procedimento:** FORM (Fórmulas), INJM (IM), INJV (Endovenosos), IMPL (Implantes), ESTI (Estética Invasiva), ESTT (Estética Tecnologia)
+-   **6 Consentimentos Específicos:** CFOR, CIMU, CEND, CIMP, CEIN, CETE — cada classe de procedimento dispara um consentimento com riscos específicos
+-   **Nomenclatura:** `YY.MM.DD RAS [BLOCO] "PACIENTE" ([CODIGOS])`
+-   **Hash:** SHA-256 (16 primeiros chars) por documento gerado
+-   **Engine:** `rasxEngine.ts` — enums, funções resolver, payload semântico, log auditável
+-   **Motor PDF:** `rasxMotorPdf.ts` — gera PDFs por bloco/subgrupo com layout institucional (cabeçalho PAWARDS + Nick, rodapé RASX-MATRIZ V6)
+
+### Endpoints Motor RASX
+-   **GET /api/rasx/arquitetura** — retorna arquitetura completa (blocos, subgrupos, classes, eventos, nomenclatura)
+-   **POST /api/rasx/:pacienteId/motor** — body: `{evento, classeProcedimento?, blocos?, drive?, email?, whatsapp?}`. Motor principal: resolve evento → blocos → subgrupos → gera PDFs → nomeia → hash → log → opcionalmente Drive/Email/WhatsApp
+-   **GET /api/rasx/:pacienteId/motor/pdf/:bloco** — PDF individual de um bloco (query: `?evento=X&classe=Y`)
+
+### Pipeline Motor (12 Passos do Manifesto)
+1. Receber evento → 2. Validar payload → 3. Identificar classe → 4. Mapear bloco → 5. Definir subgrupos → 6. Buscar dados (ORM) → 7. Gerar payload semântico → 8. Renderizar PDF → 9. Gerar hash SHA-256 → 10. Nomear arquivo (padrão oficial) → 11. Salvar em pasta → 12. Registrar log + disparar entrega
+
+### Endpoints Legados (Retrocompatíveis)
+-   **Categorias:** CLINICO, EVOLUTIVO, ESTADO_SAUDE, COMPLETO, JURIDICO
+-   **GET /api/rasx/:pacienteId/arqu/pdf/:categoria** — PDFs por categoria antiga
+-   **POST /api/rasx/:pacienteId/arqu/enviar** — envio Drive/Email/WhatsApp por categoria
+-   **POST /api/rasx/:pacienteId/arqu/popular-drive** — popula 12 subpastas do Drive
+-   **Geradores de Documentos (`docsPdf.ts`):** 8 geradores independentes
+
+### Layout PDF Institucional
+-   **Header:** Título alinhado à esquerda + código subgrupo + PAWARDS (canto superior direito) + Nick da unidade
+-   **Rodapé:** Central institucional (PADUCCIA CLINICA MEDICA LTDA - EPP | CNPJ | Endereço) + RASX-MATRIZ V6 (canto inferior direito) + "Developed by Pawards MedCore"
+-   **Logo DP:** `artifacts/api-server/src/pdf/assets/logo-dp.png` disponível mas desabilitada (logo escura)
