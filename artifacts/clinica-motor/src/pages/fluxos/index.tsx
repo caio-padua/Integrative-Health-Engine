@@ -103,7 +103,7 @@ export default function FluxosPage() {
               Fluxos de Aprovacao
             </h1>
             <p className="text-muted-foreground mt-1">
-              Etapas e responsaveis em cada fluxo de procedimento do PADCOM V15.
+              Etapas e responsaveis em cada fluxo de procedimento do Pawards V15.
             </p>
           </div>
           <Button onClick={() => open()}>

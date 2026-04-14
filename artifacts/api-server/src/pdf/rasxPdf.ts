@@ -50,8 +50,8 @@ function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isL
   doc.rect(0, 0, width, 70).fill(CORES.azulPetroleo);
   doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: width - 200 });
   doc.fontSize(9).font("Helvetica").fillColor(CORES.douradoQueimado).text(codigo, 40, 48);
-  doc.fontSize(9).fillColor(CORES.offWhite).text("Instituto Padua", width - 160, 25, { width: 120, align: "right" });
-  doc.fontSize(7).fillColor(CORES.douradoQueimado).text("Motor Clinico PADCOM V15.2", width - 160, 40, { width: 120, align: "right" });
+  doc.fontSize(9).fillColor(CORES.offWhite).text("Padcon Tech", width - 160, 25, { width: 120, align: "right" });
+  doc.fontSize(7).fillColor(CORES.douradoQueimado).text("Pawards V15.2", width - 160, 40, { width: 120, align: "right" });
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
@@ -100,7 +100,7 @@ function drawFooter(doc: PDFKit.PDFDocument, isLandscape: boolean) {
   const width = isLandscape ? 842 : 595;
   const height = isLandscape ? 595 : 842;
   doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(`RASX V5 | Gerado em ${new Date().toLocaleDateString("pt-BR")} | Motor Clinico PADCOM V15.2`, 40, height - 30, { width: width - 80, align: "center" });
+    .text(`RASX V5 | Gerado em ${new Date().toLocaleDateString("pt-BR")} | Pawards V15.2 | Powered by Padcon Tech`, 40, height - 30, { width: width - 80, align: "center" });
 }
 
 function drawSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number): number {
@@ -547,7 +547,7 @@ export function gerarRacjPdf(data: RacjPdfData): PassThrough {
   let y = 80;
   y = drawPacienteBlock(doc, data as any, y, 595);
   y = drawSectionTitle(doc, "Lei Geral de Protecao de Dados (Lei 13.709/2018)", y);
-  y = drawRacjParagraph(doc, `Eu, ${data.paciente.nome}${data.paciente.cpf ? ", CPF " + data.paciente.cpf : ""}, autorizo o Instituto Padua e o Dr. ${data.medico} a coletar, armazenar, processar e utilizar meus dados pessoais e dados sensiveis de saude exclusivamente para fins de:`, y, W);
+  y = drawRacjParagraph(doc, `Eu, ${data.paciente.nome}${data.paciente.cpf ? ", CPF " + data.paciente.cpf : ""}, autorizo o Instituto Padua (PADUCCIA CLINICA MEDICA LTDA, CNPJ 63.865.940/0001-63) e o Dr. ${data.medico} a coletar, armazenar, processar e utilizar meus dados pessoais e dados sensiveis de saude exclusivamente para fins de:`, y, W);
   y = drawRacjCheckbox(doc, "Prestacao de servicos medicos e acompanhamento clinico", y);
   y = drawRacjCheckbox(doc, "Elaboracao de prontuario eletronico e relatorios clinicos (RASX/REVO)", y);
   y = drawRacjCheckbox(doc, "Comunicacao via WhatsApp e email para fins clinicos e de agendamento", y);
@@ -629,7 +629,7 @@ export function gerarRacjPdf(data: RacjPdfData): PassThrough {
   y = drawRacjParagraph(doc, "2. Armazenar dados em sistemas com criptografia e controle de acesso, conforme LGPD.", y, W);
   y = drawRacjParagraph(doc, "3. Nao compartilhar dados com terceiros sem autorizacao expressa do paciente, exceto quando exigido por lei ou ordem judicial.", y, W);
   y = drawRacjParagraph(doc, "4. Utilizar sistemas de comunicacao (WhatsApp, email) apenas com consentimento previo do paciente para fins clinicos.", y, W);
-  y = drawRacjParagraph(doc, "5. Garantir que todos os PDFs e relatorios gerados pelo Motor Clinico PADCOM sao de uso exclusivo do paciente e equipe medica autorizada.", y, W);
+  y = drawRacjParagraph(doc, "5. Garantir que todos os PDFs e relatorios gerados pelo Pawards sao de uso exclusivo do paciente e equipe medica autorizada.", y, W);
   y += 8;
   y = drawSectionTitle(doc, "Canais Autorizados de Comunicacao", y);
   y = drawRacjCheckbox(doc, "WhatsApp: comunicacao clinica, envio de relatorios e agendamento", y);

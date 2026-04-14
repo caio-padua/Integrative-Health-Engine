@@ -1,8 +1,20 @@
-# Motor Clínico — Plataforma de Gestão para Clínica Médica Integrativa
+# Pawards — Plataforma de Gestão para Clínica Médica Integrativa
 
 ## Overview
 
-Motor Clínico is a SaaS clinical engine platform designed for multi-unit integrative medical clinics. It aims to streamline operations, enhance patient care through data-driven suggestions, and improve administrative efficiency. The platform's core functionality includes patient anamnesis, which triggers a clinical engine to generate suggestions for exams, formulas, injectables, implants, and treatment protocols. Key capabilities include TDAH-friendly dashboards with operational queues, medical validation workflows, and dedicated modules for follow-up and financial management, all contributing to improved clinical and administrative processes. The business vision is to provide an invisible operational consultancy service through a highly efficient and scalable platform, with a comprehensive monetization system for modules and services, targeting multi-unit clinics and consultancy companies.
+Pawards is a SaaS clinical engine platform developed by Padcon Tech designed for multi-unit integrative medical clinics. It aims to streamline operations, enhance patient care through data-driven suggestions, and improve administrative efficiency. The platform's core functionality includes patient anamnesis, which triggers a clinical engine to generate suggestions for exams, formulas, injectables, implants, and treatment protocols. Key capabilities include TDAH-friendly dashboards with operational queues, medical validation workflows, and dedicated modules for follow-up and financial management, all contributing to improved clinical and administrative processes. The business vision is to provide an invisible operational consultancy service through a highly efficient and scalable platform, with a comprehensive monetization system for modules and services, targeting multi-unit clinics and consultancy companies.
+
+## Dados Corporativos
+
+-   **Sistema:** Pawards V15.2
+-   **Desenvolvido por:** Padcon Tech — Soluções em Tecnologia para Saúde
+-   **Cliente Principal:** Instituto Pádua (Nome Fantasia)
+-   **Razão Social:** PADUCCIA CLINICA MEDICA LTDA - EPP
+-   **CNPJ:** 63.865.940/0001-63
+-   **Endereço:** Rua Guaxupé, 327 - Vila Formosa, São Paulo - SP
+-   **CNAE:** 8630-5/03 — Atividade médica ambulatorial restrita a consultas
+-   **Selo PDF/Footer:** `Pawards V15.2 | Powered by Padcon Tech`
+-   **Selo Completo:** `© 2024 Padcon Tech – Soluções em Tecnologia para Saúde. Todos os direitos reservados.`
 
 ## User Preferences
 

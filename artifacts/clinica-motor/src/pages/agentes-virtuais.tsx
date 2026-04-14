@@ -240,7 +240,7 @@ export default function AgentesVirtuaisPage() {
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 900, color: "#C8920A", letterSpacing: "0.06em", margin: 0 }}>
-          AGENTES VIRTUAIS — CARTA MAGNA PADCOM
+          AGENTES VIRTUAIS — CARTA MAGNA PAWARDS
         </h1>
         <p style={{ fontSize: 13, color: "#64748B", margin: "4px 0 0" }}>
           Catálogo · Provisionamento · Narrativas · Capacidades · Identidade · Frases · Regras

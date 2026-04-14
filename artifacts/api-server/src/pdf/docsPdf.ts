@@ -28,8 +28,8 @@ function header(doc: PDFKit.PDFDocument, titulo: string, codigo: string) {
   doc.rect(0, 0, 595, 70).fill(CORES.azulPetroleo);
   doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: 395 });
   doc.fontSize(9).font("Helvetica").fillColor(CORES.douradoQueimado).text(codigo, 40, 48);
-  doc.fontSize(9).fillColor(CORES.offWhite).text("Instituto Padua", 435, 25, { width: 120, align: "right" });
-  doc.fontSize(7).fillColor(CORES.douradoQueimado).text("Motor Clinico PADCOM V15.2", 435, 40, { width: 120, align: "right" });
+  doc.fontSize(9).fillColor(CORES.offWhite).text("Padcon Tech", 435, 25, { width: 120, align: "right" });
+  doc.fontSize(7).fillColor(CORES.douradoQueimado).text("Pawards V15.2", 435, 40, { width: 120, align: "right" });
 }
 
 function pacienteBlock(doc: PDFKit.PDFDocument, data: DocBase, y: number): number {
@@ -51,7 +51,7 @@ function section(doc: PDFKit.PDFDocument, title: string, y: number): number {
 
 function footer(doc: PDFKit.PDFDocument) {
   doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(`PADCOM V15.2 | Gerado em ${new Date().toLocaleDateString("pt-BR")} | Instituto Padua`, 40, 812, { width: 515, align: "center" });
+    .text(`Pawards V15.2 | Gerado em ${new Date().toLocaleDateString("pt-BR")} | Powered by Padcon Tech`, 40, 812, { width: 515, align: "center" });
 }
 
 function campo(doc: PDFKit.PDFDocument, label: string, valor: string, y: number): number {
@@ -111,7 +111,7 @@ export function gerarFichaCadastroPdf(data: DocBase & { telefone?: string; email
   y += 20;
   doc.rect(40, y, 515, 30).fill("#F0ECE4");
   doc.fontSize(7).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
-    .text("Documento gerado automaticamente pelo Motor Clinico PADCOM V15.2. Os dados acima sao de uso exclusivo do Instituto Padua.", 50, y + 8, { width: 495 });
+    .text("Documento gerado automaticamente pelo Pawards V15.2. Powered by Padcon Tech. Todos os direitos reservados.", 50, y + 8, { width: 495 });
   footer(doc);
   doc.end();
   return stream;
@@ -186,7 +186,7 @@ export function gerarContratoPdf(data: DocBase): PassThrough {
   };
 
   y = section(doc, "Clausula 1 — Objeto", y);
-  y = p(`O presente contrato tem por objeto a prestacao de servicos medicos pelo Instituto Padua, representado pelo Dr. ${data.medico}, ao CONTRATANTE ${data.paciente.nome}${data.paciente.cpf ? ", CPF " + data.paciente.cpf : ""}, incluindo consultas, exames, procedimentos e acompanhamento clinico conforme protocolo terapeutico individualizado.`, y);
+  y = p(`O presente contrato tem por objeto a prestacao de servicos medicos pela PADUCCIA CLINICA MEDICA LTDA (Instituto Padua), CNPJ 63.865.940/0001-63, com sede na Rua Guaxupe, 327, Vila Formosa, Sao Paulo/SP, representada pelo Dr. ${data.medico}, ao CONTRATANTE ${data.paciente.nome}${data.paciente.cpf ? ", CPF " + data.paciente.cpf : ""}, incluindo consultas, exames, procedimentos e acompanhamento clinico conforme protocolo terapeutico individualizado.`, y);
   y = section(doc, "Clausula 2 — Obrigacoes do Contratado", y);
   y = p("O Instituto Padua compromete-se a: a) Prestar atendimento conforme as melhores praticas clinicas; b) Manter sigilo sobre os dados do paciente; c) Fornecer relatorios, receitas e laudos; d) Disponibilizar agendamento eletronico; e) Armazenar documentos em nuvem com controle de acesso.", y);
   y = section(doc, "Clausula 3 — Obrigacoes do Contratante", y);

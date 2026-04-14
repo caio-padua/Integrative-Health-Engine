@@ -261,7 +261,7 @@ export default function ItensTerapeuticos() {
             Itens Terapeuticos
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Catalogo PADCOM V13+V4 — {data?.total || 0} itens: Injetaveis IM/EV, Formulas, Implantes, Exames/Blocos (V4 enriquecido), Protocolos
+            Catalogo Pawards V13+V4 — {data?.total || 0} itens: Injetaveis IM/EV, Formulas, Implantes, Exames/Blocos (V4 enriquecido), Protocolos
           </p>
         </div>
 
@@ -287,7 +287,7 @@ export default function ItensTerapeuticos() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               className="pl-9 bg-muted/30"
-              placeholder="Buscar por nome, codigo PADCOM, eixo, composicao..."
+              placeholder="Buscar por nome, codigo Pawards, eixo, composicao..."
               value={filtroTexto}
               onChange={e => setFiltroTexto(e.target.value)}
             />
@@ -315,7 +315,7 @@ export default function ItensTerapeuticos() {
               <div>
                 <div className="grid grid-cols-[40px_160px_1fr_100px_100px_100px_80px] items-center px-4 py-2 border-b border-border/50 bg-muted/20 text-xs text-muted-foreground font-medium uppercase tracking-wider">
                   <div />
-                  <div>Codigo PADCOM</div>
+                  <div>Codigo Pawards</div>
                   <div>Nome</div>
                   <div>Tipo</div>
                   <div>Eixo / Area</div>

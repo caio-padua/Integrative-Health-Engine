@@ -172,7 +172,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Aval. Enfermagem", path: "/avaliacao-enfermagem", icon: ClipboardCheck, slug: "avaliacao-enfermagem" },
     { name: "Task Cards", path: "/task-cards", icon: AlertTriangle, slug: "task-cards" },
     { name: "RAS Evolutivo", path: "/ras-evolutivo", icon: BarChart3, slug: "ras-evolutivo" },
-    { name: "Catalogo PADCOM", path: "/catalogo", icon: Database, slug: "catalogo" },
+    { name: "Catalogo Pawards", path: "/catalogo", icon: Database, slug: "catalogo" },
     { name: "Permissoes", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
     { name: "Seguranca", path: "/seguranca", icon: Lock, slug: "seguranca" },
     { name: "Delegacao", path: "/delegacao", icon: Send, slug: "delegacao" },
@@ -202,8 +202,8 @@ export function Layout({ children }: { children: ReactNode }) {
             <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain invert-0" />
           </div>
           <div>
-            <span className="font-bold text-sm text-sidebar-foreground tracking-tight uppercase">Motor Clínico</span>
-            <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">PADCOM V15.2</span>
+            <span className="font-bold text-sm text-sidebar-foreground tracking-tight uppercase">Pawards</span>
+            <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">V15.2 | Padcon Tech</span>
           </div>
         </div>
         <div className="px-5 py-3 border-b border-border">

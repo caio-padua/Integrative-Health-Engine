@@ -58,7 +58,7 @@ const TIPO_CONFIG: Record<string, { label: string; color: string; icon: any }> =
 const TIPOS_LIST = Object.keys(TIPO_CONFIG);
 
 const FORM_FIELDS = [
-  { key: "codigo", label: "Codigo PADCOM" },
+  { key: "codigo", label: "Codigo Pawards" },
   { key: "tipo", label: "Tipo", isSelect: true },
   { key: "procedimentoOuSignificado", label: "Descricao/Significado", full: true },
   { key: "origemLida", label: "Origem" },
@@ -232,7 +232,7 @@ export default function CodigosSemanticos() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <Hash className="h-8 w-8 text-primary" />
-              Codigos Semanticos PADCOM
+              Codigos Semanticos Pawards
             </h1>
             <p className="text-muted-foreground mt-1">
               Nomenclatura padronizada — {codigos.length} codigos / {comProcedimentos} com procedimentos
