@@ -118,15 +118,46 @@ function drawCurvaBar(doc: PDFKit.PDFDocument, label: string, valor: number, cor
   return y + 18;
 }
 
-export function gerarRasxPdf(data: RasxPdfData): PassThrough {
+export type RasCategoria = "COMPLETO" | "CLINICO" | "EVOLUTIVO" | "ESTADO_SAUDE";
+
+export const RAS_CATEGORIAS = {
+  CLINICO: {
+    label: "RAS Clinico",
+    descricao: "Cadernos clinicos: estado de saude, patologias, medicamentos, formulas, orgaos, curvas",
+    cadernos: ["RACL HEST", "RACL HPOT", "RACL HORG", "RACL HMED", "RACL HFOR", "RACL HCUR", "RACL HATU"],
+  },
+  EVOLUTIVO: {
+    label: "RAS Evolutivo",
+    descricao: "Evolucao clinica: timeline medicacao, transicao terapeutica, evolucao comparativa, proximas etapas",
+    cadernos: ["RACL HLIN", "RACL HTRN", "RACL HEVO", "RACL HPLA"],
+  },
+  ESTADO_SAUDE: {
+    label: "RAS Estado de Saude",
+    descricao: "Resumo atual: estado atual + curvas + proximas etapas",
+    cadernos: ["RACL HATU", "RACL HCUR", "RACL HPLA"],
+  },
+  COMPLETO: {
+    label: "RAS Completo",
+    descricao: "Todos os cadernos clinicos e evolutivos",
+    cadernos: ["RACL HEST", "RACL HPOT", "RACL HORG", "RACL HMED", "RACL HFOR", "RACL HLIN", "RACL HTRN", "RACL HEVO", "RACL HCUR", "RACL HATU", "RACL HPLA"],
+  },
+};
+
+export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPLETO"): PassThrough {
   const stream = new PassThrough();
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margins: { top: 40, bottom: 40, left: 40, right: 40 }, autoFirstPage: false });
   doc.pipe(stream);
 
+  const cadernos = RAS_CATEGORIAS[categoria].cadernos;
+  const include = (cod: string) => cadernos.includes(cod);
+
+  let y = 0;
+
   // ========== RACL HEST — Estado Inicial (RETRATO) ==========
+  if (include("RACL HEST")) {
   addPageRetrato(doc);
   drawHeader(doc, "Estado Inicial de Saude", "RACL HEST", false);
-  let y = 80;
+  y = 80;
   y = drawPacienteBlock(doc, data, y, 595);
   y = drawTextoInstitucional(doc, y);
 
@@ -165,9 +196,10 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
     });
   }
   drawFooter(doc, false);
+  }
 
   // ========== RACL HPOT — Patologias Potenciais (RETRATO) ==========
-  if (data.patologias.potenciais.length > 0) {
+  if (include("RACL HPOT") && data.patologias.potenciais.length > 0) {
     addPageRetrato(doc);
     drawHeader(doc, "Patologias Potenciais", "RACL HPOT", false);
     y = 80;
@@ -188,7 +220,7 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
   }
 
   // ========== RACL HORG — Orgaos e Sistemas (PAISAGEM) ==========
-  if (data.orgaos.length > 0) {
+  if (include("RACL HORG") && data.orgaos.length > 0) {
     addPagePaisagem(doc);
     drawHeader(doc, "Orgaos e Sistemas Afetados", "RACL HORG", true);
     y = 80;
@@ -210,6 +242,7 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
   }
 
   // ========== RACL HMED — Medicamentos em Uso (PAISAGEM) ==========
+  if (include("RACL HMED")) {
   addPagePaisagem(doc);
   drawHeader(doc, "Medicamentos em Uso", "RACL HMED", true);
   y = 80;
@@ -229,10 +262,11 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
     y = drawTableRow(doc, hmedCols, [inline, m.posologia || "—", m.indicacaoClinica || m.motivoUso || "—", m.statusAtual, m.substituicaoNatural || "—", m.evidenciaMelhora || "—"], y, i % 2 === 0);
   });
   drawFooter(doc, true);
+  }
 
   // ========== RACL HFOR — Formulas Magistrais (RETRATO, paginado) ==========
   const formulas = data.medicamentos.filter((m: any) => m.tipoMed === "formula" && m.componentesFormula && m.componentesFormula.length > 0);
-  if (formulas.length > 0) {
+  if (include("RACL HFOR") && formulas.length > 0) {
     const MAX_COMPONENTES_POR_PAGINA = 18;
     formulas.forEach((f: any, fIdx: number) => {
       addPageRetrato(doc);
@@ -289,7 +323,7 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
   }
 
   // ========== RACL HLIN — Linha Temporal de Medicacao (PAISAGEM) ==========
-  if (data.eventosMedicacao.length > 0) {
+  if (include("RACL HLIN") && data.eventosMedicacao.length > 0) {
     addPagePaisagem(doc);
     drawHeader(doc, "Linha Temporal de Medicacao", "RACL HLIN", true);
     y = 80;
@@ -320,7 +354,7 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
 
   // ========== RACL HTRN — Transicao Terapeutica (PAISAGEM) ==========
   const medsComSub = data.medicamentos.filter((m: any) => m.substituicaoNatural);
-  if (medsComSub.length > 0) {
+  if (include("RACL HTRN") && medsComSub.length > 0) {
     addPagePaisagem(doc);
     drawHeader(doc, "Transicao Terapeutica", "RACL HTRN", true);
     y = 80;
@@ -342,7 +376,7 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
   }
 
   // ========== RACL HEVO — Evolucao Clinica Comparativa (PAISAGEM) ==========
-  if (data.patologias.diagnosticadas.length > 0) {
+  if (include("RACL HEVO") && data.patologias.diagnosticadas.length > 0) {
     addPagePaisagem(doc);
     drawHeader(doc, "Evolucao Clinica Comparativa", "RACL HEVO", true);
     y = 80;
@@ -367,7 +401,7 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
   }
 
   // ========== RACL HCUR — Curvas Declinante e Ascendente (PAISAGEM) ==========
-  if (data.curvas.doenca.length > 0 || data.curvas.saude.length > 0) {
+  if (include("RACL HCUR") && (data.curvas.doenca.length > 0 || data.curvas.saude.length > 0)) {
     addPagePaisagem(doc);
     drawHeader(doc, "Curvas Declinante e Ascendente", "RACL HCUR", true);
     y = 80;
@@ -397,6 +431,7 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
   }
 
   // ========== RACL HATU — Estado Atual de Saude (RETRATO) ==========
+  if (include("RACL HATU")) {
   addPageRetrato(doc);
   drawHeader(doc, "Estado Atual de Saude", "RACL HATU", false);
   y = 80;
@@ -425,9 +460,10 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
     y += 14;
   });
   drawFooter(doc, false);
+  }
 
   // ========== RACL HPLA — Proxima Etapa (RETRATO, Opcional) ==========
-  if (data.proximasEtapas.length > 0) {
+  if (include("RACL HPLA") && data.proximasEtapas.length > 0) {
     addPageRetrato(doc);
     drawHeader(doc, "Proxima Etapa", "RACL HPLA", false);
     y = 80;
@@ -449,6 +485,158 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
     });
     drawFooter(doc, false);
   }
+
+  if (doc.bufferedPageRange().count === 0) {
+    addPageRetrato(doc);
+    drawHeader(doc, `${RAS_CATEGORIAS[categoria].label}`, `RASX ${categoria}`, false);
+    let yFb = 80;
+    yFb = drawPacienteBlock(doc, data, yFb, 595);
+    yFb = drawSectionTitle(doc, "Sem dados disponiveis para esta categoria", yFb);
+    doc.fontSize(9).font("Helvetica").fillColor(CORES.cinzaClaro)
+      .text("Nenhum dado clinico encontrado para gerar os cadernos desta categoria. Verifique se o REVO do paciente possui as informacoes necessarias.", 50, yFb, { width: 495, lineGap: 3 });
+    drawFooter(doc, false);
+  }
+
+  doc.end();
+  return stream;
+}
+
+interface RacjPdfData {
+  paciente: { nome: string; cpf?: string; dataNascimento?: string };
+  medico: string;
+  unidade: string;
+  dataBase: string;
+  patologias: string[];
+  medicamentos: string[];
+}
+
+function drawRacjParagraph(doc: PDFKit.PDFDocument, text: string, y: number, width: number): number {
+  doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(text, 50, y, { width, lineGap: 3 });
+  return y + doc.heightOfString(text, { width }) + 8;
+}
+
+function drawRacjCheckbox(doc: PDFKit.PDFDocument, label: string, y: number): number {
+  doc.rect(50, y, 10, 10).lineWidth(0.5).stroke(CORES.cinzaTexto);
+  doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(label, 66, y + 1, { width: 480 });
+  return y + doc.heightOfString(label, { width: 480 }) + 6;
+}
+
+function drawAssinatura(doc: PDFKit.PDFDocument, y: number): number {
+  y += 30;
+  doc.moveTo(50, y).lineTo(280, y).lineWidth(0.5).stroke(CORES.cinzaTexto);
+  doc.moveTo(310, y).lineTo(540, y).lineWidth(0.5).stroke(CORES.cinzaTexto);
+  doc.fontSize(7).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text("Assinatura do Paciente / Responsavel", 50, y + 4, { width: 230, align: "center" })
+    .text("Assinatura do Medico / CRM", 310, y + 4, { width: 230, align: "center" });
+  y += 20;
+  doc.fontSize(7).fillColor(CORES.cinzaClaro)
+    .text(`Data: ____/____/________`, 50, y)
+    .text(`Local: __________________________`, 310, y);
+  return y + 20;
+}
+
+export function gerarRacjPdf(data: RacjPdfData): PassThrough {
+  const stream = new PassThrough();
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margins: { top: 40, bottom: 40, left: 40, right: 40 }, autoFirstPage: false });
+  doc.pipe(stream);
+  const W = 495;
+
+  // ========== RACJ LGPD — Termo LGPD ==========
+  addPageRetrato(doc);
+  drawHeader(doc, "Termo de Consentimento LGPD", "RACJ LGPD", false);
+  let y = 80;
+  y = drawPacienteBlock(doc, data as any, y, 595);
+  y = drawSectionTitle(doc, "Lei Geral de Protecao de Dados (Lei 13.709/2018)", y);
+  y = drawRacjParagraph(doc, `Eu, ${data.paciente.nome}${data.paciente.cpf ? ", CPF " + data.paciente.cpf : ""}, autorizo o Instituto Padua e o Dr. ${data.medico} a coletar, armazenar, processar e utilizar meus dados pessoais e dados sensiveis de saude exclusivamente para fins de:`, y, W);
+  y = drawRacjCheckbox(doc, "Prestacao de servicos medicos e acompanhamento clinico", y);
+  y = drawRacjCheckbox(doc, "Elaboracao de prontuario eletronico e relatorios clinicos (RASX/REVO)", y);
+  y = drawRacjCheckbox(doc, "Comunicacao via WhatsApp e email para fins clinicos e de agendamento", y);
+  y = drawRacjCheckbox(doc, "Armazenamento em nuvem (Google Drive) com acesso restrito ao medico responsavel", y);
+  y = drawRacjCheckbox(doc, "Geracao de PDFs clinicos, evolutivos e juridicos para uso exclusivo do paciente e equipe medica", y);
+  y += 8;
+  y = drawRacjParagraph(doc, "Os dados serao mantidos pelo prazo minimo de 20 anos conforme Resolucao CFM 1.821/2007. O titular pode solicitar acesso, correcao, anonimizacao ou eliminacao dos dados (quando permitido por lei) a qualquer momento.", y, W);
+  y = drawRacjParagraph(doc, "O consentimento pode ser revogado a qualquer momento, sem prejuizo da licitude do tratamento realizado anteriormente. A revogacao nao se aplica a dados cuja retencao e obrigatoria por lei.", y, W);
+  y = drawAssinatura(doc, y);
+  drawFooter(doc, false);
+
+  // ========== RACJ CGLO — Consentimento Global ==========
+  addPageRetrato(doc);
+  drawHeader(doc, "Consentimento Global para Tratamento", "RACJ CGLO", false);
+  y = 80;
+  y = drawPacienteBlock(doc, data as any, y, 595);
+  y = drawSectionTitle(doc, "Termo de Consentimento Livre e Esclarecido (TCLE)", y);
+  y = drawRacjParagraph(doc, `Declaro que fui informado(a) pelo Dr. ${data.medico} sobre meu quadro clinico, incluindo diagnosticos, prognosticos, riscos e alternativas terapeuticas. Compreendo que o tratamento proposto envolve:`, y, W);
+  if (data.patologias.length > 0) {
+    y = drawSectionTitle(doc, "Patologias em Acompanhamento", y);
+    data.patologias.forEach(p => {
+      doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${p}`, 60, y, { width: W - 10 });
+      y += 14;
+    });
+    y += 4;
+  }
+  if (data.medicamentos.length > 0) {
+    y = drawSectionTitle(doc, "Medicamentos / Formulas Prescritos", y);
+    data.medicamentos.forEach(m => {
+      doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m}`, 60, y, { width: W - 10 });
+      y += 14;
+    });
+    y += 4;
+  }
+  y = drawRacjParagraph(doc, "Autorizo a realizacao dos procedimentos necessarios, incluindo solicitacao de exames complementares, ajuste de posologia e substituicao terapeutica, conforme evolucao clinica.", y, W);
+  y = drawAssinatura(doc, y);
+  drawFooter(doc, false);
+
+  // ========== RACJ RISC — Declaracao de Riscos ==========
+  addPageRetrato(doc);
+  drawHeader(doc, "Declaracao de Riscos e Efeitos Adversos", "RACJ RISC", false);
+  y = 80;
+  y = drawPacienteBlock(doc, data as any, y, 595);
+  y = drawSectionTitle(doc, "Ciencia de Riscos Inerentes ao Tratamento", y);
+  y = drawRacjParagraph(doc, "Declaro estar ciente de que todo tratamento medico envolve riscos, incluindo mas nao se limitando a:", y, W);
+  y = drawRacjCheckbox(doc, "Reacoes adversas a medicamentos, suplementos ou formulas magistrais", y);
+  y = drawRacjCheckbox(doc, "Interacoes medicamentosas nao previsiveis entre substancias prescritas", y);
+  y = drawRacjCheckbox(doc, "Variacao individual na resposta terapeutica (eficacia e tolerabilidade)", y);
+  y = drawRacjCheckbox(doc, "Necessidade de ajustes de dose, substituicao ou suspensao de tratamento", y);
+  y = drawRacjCheckbox(doc, "Agravamento temporario de sintomas durante periodo de transicao terapeutica", y);
+  y = drawRacjCheckbox(doc, "Resultados que podem diferir das expectativas iniciais", y);
+  y += 8;
+  y = drawRacjParagraph(doc, "Fui orientado(a) a comunicar imediatamente ao medico responsavel qualquer reacao adversa, desconforto ou piora clinica durante o tratamento.", y, W);
+  y = drawAssinatura(doc, y);
+  drawFooter(doc, false);
+
+  // ========== RACJ NGAR — Termo de Nao-Garantia ==========
+  addPageRetrato(doc);
+  drawHeader(doc, "Termo de Nao-Garantia de Resultados", "RACJ NGAR", false);
+  y = 80;
+  y = drawPacienteBlock(doc, data as any, y, 595);
+  y = drawSectionTitle(doc, "Ausencia de Garantia de Resultado Especifico", y);
+  y = drawRacjParagraph(doc, "Declaro estar ciente de que:", y, W);
+  y = drawRacjParagraph(doc, "1. A Medicina nao e uma ciencia exata. Resultados clinicos variam conforme caracteristicas individuais, adesao ao tratamento, fatores geneticos, ambientais e comportamentais.", y, W);
+  y = drawRacjParagraph(doc, "2. O medico se compromete a empregar os melhores recursos disponiveis, baseados em evidencias cientificas, mas nao pode garantir cura, remissao completa ou resultado especifico.", y, W);
+  y = drawRacjParagraph(doc, "3. O acompanhamento evolutivo (REVO) permite monitorar a progressao do tratamento e ajustar condutas conforme necessidade clinica.", y, W);
+  y = drawRacjParagraph(doc, "4. A interrupcao unilateral do tratamento sem orientacao medica pode comprometer os resultados alcancados.", y, W);
+  y = drawAssinatura(doc, y);
+  drawFooter(doc, false);
+
+  // ========== RACJ PRIV — Politica de Privacidade ==========
+  addPageRetrato(doc);
+  drawHeader(doc, "Politica de Privacidade e Sigilo Medico", "RACJ PRIV", false);
+  y = 80;
+  y = drawPacienteBlock(doc, data as any, y, 595);
+  y = drawSectionTitle(doc, "Compromisso de Sigilo e Confidencialidade", y);
+  y = drawRacjParagraph(doc, `O Instituto Padua e o Dr. ${data.medico} comprometem-se a:`, y, W);
+  y = drawRacjParagraph(doc, "1. Manter sigilo absoluto sobre todas as informacoes clinicas do paciente, conforme art. 73 do Codigo de Etica Medica e art. 154 do Codigo Penal.", y, W);
+  y = drawRacjParagraph(doc, "2. Armazenar dados em sistemas com criptografia e controle de acesso, conforme LGPD.", y, W);
+  y = drawRacjParagraph(doc, "3. Nao compartilhar dados com terceiros sem autorizacao expressa do paciente, exceto quando exigido por lei ou ordem judicial.", y, W);
+  y = drawRacjParagraph(doc, "4. Utilizar sistemas de comunicacao (WhatsApp, email) apenas com consentimento previo do paciente para fins clinicos.", y, W);
+  y = drawRacjParagraph(doc, "5. Garantir que todos os PDFs e relatorios gerados pelo Motor Clinico PADCOM sao de uso exclusivo do paciente e equipe medica autorizada.", y, W);
+  y += 8;
+  y = drawSectionTitle(doc, "Canais Autorizados de Comunicacao", y);
+  y = drawRacjCheckbox(doc, "WhatsApp: comunicacao clinica, envio de relatorios e agendamento", y);
+  y = drawRacjCheckbox(doc, "Email: envio de PDFs clinicos e juridicos", y);
+  y = drawRacjCheckbox(doc, "Google Drive: armazenamento seguro de documentos do paciente", y);
+  y = drawAssinatura(doc, y);
+  drawFooter(doc, false);
 
   doc.end();
   return stream;

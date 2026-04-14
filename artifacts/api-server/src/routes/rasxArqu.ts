@@ -7,7 +7,9 @@ import {
   pacientesTable, tratamentosTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
-import { gerarRasxPdf } from "../pdf/rasxPdf";
+import { gerarRasxPdf, gerarRacjPdf, RAS_CATEGORIAS, type RasCategoria } from "../pdf/rasxPdf";
+import { sendEmailWithPdf } from "../lib/google-gmail.js";
+import { getOrCreateClientFolder, uploadToClientSubfolder } from "../lib/google-drive.js";
 import crypto from "crypto";
 
 const router = Router();
@@ -423,6 +425,250 @@ router.post("/rasx/:pacienteId/auto-populate", async (req, res): Promise<void> =
     mensagem: `REVO auto-populado: ${patCount} patologias, ${medCount} medicamentos, 6 curvas iniciais`,
     fonte: fonte || "ANAMNESE_AUTO",
   });
+});
+
+async function collectPdfData(pacienteId: number) {
+  const [paciente] = await db.select().from(pacientesTable).where(eq(pacientesTable.id, pacienteId));
+  if (!paciente) return null;
+
+  const snapshots = await db.select().from(revoSnapshotsTable)
+    .where(eq(revoSnapshotsTable.pacienteId, pacienteId))
+    .orderBy(desc(revoSnapshotsTable.dataSnapshot));
+  const patologias = await db.select().from(revoPatologiasTable)
+    .where(eq(revoPatologiasTable.pacienteId, pacienteId));
+  const orgaos = await db.select().from(revoOrgaosTable)
+    .where(eq(revoOrgaosTable.pacienteId, pacienteId));
+  const medicamentos = await db.select().from(revoMedicamentosTable)
+    .where(eq(revoMedicamentosTable.pacienteId, pacienteId));
+  const eventos = await db.select().from(revoEventosMedicacaoTable)
+    .where(eq(revoEventosMedicacaoTable.pacienteId, pacienteId))
+    .orderBy(asc(revoEventosMedicacaoTable.data));
+  const curvas = await db.select().from(revoCurvasTable)
+    .where(eq(revoCurvasTable.pacienteId, pacienteId))
+    .orderBy(asc(revoCurvasTable.dataRegistro));
+  const etapas = await db.select().from(revoProximaEtapaTable)
+    .where(eq(revoProximaEtapaTable.pacienteId, pacienteId));
+
+  const snapshotInicial = snapshots.find(s => s.tipo === "inicial") || null;
+  const snapshotAtual = snapshots.find(s => s.tipo === "atual") || snapshotInicial;
+
+  return {
+    paciente,
+    pdfData: {
+      paciente: { nome: paciente.nome, cpf: paciente.cpf || undefined, dataNascimento: (paciente as any).dataNascimento?.toISOString?.() || undefined },
+      medico: "Dr. Caio Henrique Fernandes Padua",
+      unidade: "Instituto Padua",
+      dataBase: new Date().toLocaleDateString("pt-BR"),
+      snapshotInicial,
+      snapshotAtual,
+      patologias: {
+        diagnosticadas: patologias.filter(p => p.tipo === "diagnosticada"),
+        potenciais: patologias.filter(p => p.tipo === "potencial"),
+      },
+      orgaos,
+      medicamentos,
+      eventosMedicacao: eventos,
+      curvas: {
+        doenca: curvas.filter(c => c.tipoCurva === "doenca"),
+        saude: curvas.filter(c => c.tipoCurva === "saude"),
+      },
+      proximasEtapas: etapas,
+    },
+    patologias,
+    medicamentos,
+  };
+}
+
+function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+    stream.on("error", reject);
+  });
+}
+
+router.get("/rasx/:pacienteId/arqu/categorias", async (_req, res): Promise<void> => {
+  const cats = Object.entries(RAS_CATEGORIAS).map(([key, val]) => ({
+    categoria: key,
+    label: val.label,
+    descricao: val.descricao,
+    cadernos: val.cadernos,
+    totalCadernos: val.cadernos.length,
+  }));
+  cats.push({
+    categoria: "JURIDICO",
+    label: "RAS Juridico",
+    descricao: "Termos juridicos: LGPD, TCLE, riscos, nao-garantia, privacidade",
+    cadernos: ["RACJ LGPD", "RACJ CGLO", "RACJ RISC", "RACJ NGAR", "RACJ PRIV"],
+    totalCadernos: 5,
+  });
+  res.json({ categorias: cats, versao: "V5" });
+});
+
+router.get("/rasx/:pacienteId/arqu/pdf/:categoria", async (req, res): Promise<void> => {
+  try {
+  const pacienteId = Number(req.params.pacienteId);
+  const categoriaParam = req.params.categoria.toUpperCase();
+  if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
+
+  if (categoriaParam === "JURIDICO") {
+    const collected = await collectPdfData(pacienteId);
+    if (!collected) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+
+    const racjData = {
+      paciente: collected.pdfData.paciente,
+      medico: collected.pdfData.medico,
+      unidade: collected.pdfData.unidade,
+      dataBase: collected.pdfData.dataBase,
+      patologias: collected.patologias.map(p => p.nome),
+      medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
+    };
+    const pdfStream = gerarRacjPdf(racjData);
+
+    const hash = crypto.createHash("sha256").update(JSON.stringify({ pacienteId, ts: Date.now(), tipo: "juridico" })).digest("hex").slice(0, 16);
+    await gravarAudit({ pacienteId, entidade: "racj_pdf", acao: "gerar_pdf", metadados: { categoria: "JURIDICO", cadernos: 5 } });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="RACJ_${collected.paciente.nome.replace(/\s+/g, "_")}_${hash}.pdf"`);
+    pdfStream.pipe(res);
+    return;
+  }
+
+  const categoriasValidas = Object.keys(RAS_CATEGORIAS);
+  if (!categoriasValidas.includes(categoriaParam)) {
+    res.status(400).json({ error: `Categoria invalida. Opcoes: ${categoriasValidas.join(", ")}, JURIDICO` });
+    return;
+  }
+
+  const collected = await collectPdfData(pacienteId);
+  if (!collected) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+
+  const categoria = categoriaParam as RasCategoria;
+  const pdfStream = gerarRasxPdf(collected.pdfData, categoria);
+
+  const hash = crypto.createHash("sha256").update(JSON.stringify({ pacienteId, ts: Date.now(), categoria })).digest("hex").slice(0, 16);
+  await gravarAudit({ pacienteId, entidade: "rasx_pdf", acao: "gerar_pdf", metadados: { categoria, cadernos: RAS_CATEGORIAS[categoria].cadernos.length } });
+
+  const label = RAS_CATEGORIAS[categoria].label.replace(/\s+/g, "_");
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="RASX_${label}_${collected.paciente.nome.replace(/\s+/g, "_")}_${hash}.pdf"`);
+  pdfStream.pipe(res);
+  } catch (err: any) {
+    console.error("[RASX PDF Categoria] Erro:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: "Erro ao gerar PDF", detalhes: err.message });
+  }
+});
+
+router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => {
+  try {
+  const pacienteId = Number(req.params.pacienteId);
+  if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
+
+  const { categorias, email, drive, whatsapp } = req.body;
+  const validCats = [...Object.keys(RAS_CATEGORIAS), "JURIDICO"];
+  const rawCats = Array.isArray(categorias) ? categorias : ["CLINICO", "JURIDICO"];
+  const cats: string[] = rawCats.map((c: any) => String(c).toUpperCase()).filter((c: string) => validCats.includes(c));
+  if (cats.length === 0) { res.status(400).json({ error: `Nenhuma categoria valida. Opcoes: ${validCats.join(", ")}` }); return; }
+
+  const collected = await collectPdfData(pacienteId);
+  if (!collected) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+
+  const resultados: any[] = [];
+  const pdfs: { categoria: string; buffer: Buffer; filename: string }[] = [];
+
+  for (const cat of cats) {
+    const catUpper = cat.toUpperCase();
+    let pdfStream: NodeJS.ReadableStream;
+    let filename: string;
+
+    if (catUpper === "JURIDICO") {
+      const racjData = {
+        paciente: collected.pdfData.paciente,
+        medico: collected.pdfData.medico,
+        unidade: collected.pdfData.unidade,
+        dataBase: collected.pdfData.dataBase,
+        patologias: collected.patologias.map(p => p.nome),
+        medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
+      };
+      pdfStream = gerarRacjPdf(racjData);
+      filename = `RACJ_${collected.paciente.nome.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    } else if (Object.keys(RAS_CATEGORIAS).includes(catUpper)) {
+      pdfStream = gerarRasxPdf(collected.pdfData, catUpper as RasCategoria);
+      const label = RAS_CATEGORIAS[catUpper as RasCategoria].label.replace(/\s+/g, "_");
+      filename = `RASX_${label}_${collected.paciente.nome.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    } else {
+      resultados.push({ categoria: catUpper, erro: "Categoria invalida" });
+      continue;
+    }
+
+    const buffer = await streamToBuffer(pdfStream);
+    pdfs.push({ categoria: catUpper, buffer, filename });
+
+    await gravarAudit({ pacienteId, entidade: "rasx_pdf_envio", acao: "gerar_pdf", metadados: { categoria: catUpper, filename } });
+  }
+
+  if (drive) {
+    try {
+      let folderId = collected.paciente.googleDriveFolderId;
+      if (!folderId) {
+        const folder = await getOrCreateClientFolder(collected.paciente.nome, collected.paciente.cpf || "SEM-CPF");
+        folderId = folder.folderId;
+        await db.update(pacientesTable).set({ googleDriveFolderId: folderId }).where(eq(pacientesTable.id, pacienteId));
+      }
+
+      for (const pdf of pdfs) {
+        const subfolder = pdf.categoria === "JURIDICO" ? "JURIDICO" : "LAUDOS";
+        const result = await uploadToClientSubfolder({
+          clientFolderId: folderId!,
+          subfolder: subfolder as any,
+          fileName: pdf.filename,
+          mimeType: "application/pdf",
+          content: pdf.buffer,
+        });
+        resultados.push({ categoria: pdf.categoria, drive: { sucesso: true, fileId: result.fileId, fileUrl: result.fileUrl, subfolder } });
+      }
+    } catch (err: any) {
+      resultados.push({ drive: { sucesso: false, erro: err.message } });
+    }
+  }
+
+  if (email) {
+    const toEmail = typeof email === "string" ? email : (collected.paciente.email || null);
+    if (!toEmail) {
+      resultados.push({ email: { sucesso: false, erro: "Email do paciente nao encontrado" } });
+    } else {
+      try {
+        for (const pdf of pdfs) {
+          const subject = pdf.categoria === "JURIDICO"
+            ? `Termos Juridicos — ${collected.paciente.nome} — Instituto Padua`
+            : `Relatorio ${RAS_CATEGORIAS[pdf.categoria as RasCategoria]?.label || pdf.categoria} — ${collected.paciente.nome} — Instituto Padua`;
+          const html = `<h2>Instituto Padua — Motor Clinico PADCOM V15.2</h2><p>Prezado(a) ${collected.paciente.nome},</p><p>Segue em anexo o documento <strong>${pdf.filename}</strong>.</p><p>Atenciosamente,<br/>Dr. Caio Henrique Fernandes Padua<br/>Instituto Padua</p>`;
+          await sendEmailWithPdf(toEmail, subject, html, pdf.buffer, pdf.filename);
+          resultados.push({ categoria: pdf.categoria, email: { sucesso: true, enviadoPara: toEmail } });
+        }
+      } catch (err: any) {
+        resultados.push({ email: { sucesso: false, erro: err.message } });
+      }
+    }
+  }
+
+  if (whatsapp) {
+    resultados.push({ whatsapp: { info: "Para envio via WhatsApp com PDF anexo, use POST /api/whatsapp/enviar-pdf com mediaUrl apontando para o arquivo no Drive. Os PDFs foram enviados ao Drive." } });
+  }
+
+  await gravarAudit({ pacienteId, entidade: "rasx_envio_completo", acao: "gerar_pdf", metadados: { categorias: cats, email: !!email, drive: !!drive, whatsapp: !!whatsapp, totalPdfs: pdfs.length } });
+
+  res.json({
+    sucesso: true,
+    paciente: collected.paciente.nome,
+    pdfsGerados: pdfs.map(p => ({ categoria: p.categoria, filename: p.filename, tamanho: `${(p.buffer.length / 1024).toFixed(1)} KB` })),
+    resultados,
+  });
+  } catch (err: any) {
+    console.error("[RASX Enviar] Erro:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: "Erro ao processar envio", detalhes: err.message });
+  }
 });
 
 export { gravarAudit };

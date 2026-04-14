@@ -55,3 +55,11 @@ Key architectural decisions and features include:
 -   **API:** `POST /api/rasx/:pacienteId/revo/medicamento` accepts `tipoMed`, `componentesFormula`, `posologia` with field allowlist.
 -   **Frontend (RevoPanel):** Toggle between "Remédio" (inline nome+dose + posologia) and "Fórmula" (nome + botão (+) para adicionar substâncias). Lista exibe badge FORMULA roxo com tags de substâncias.
 -   **PDF (RACL HFOR):** Nova seção "Fórmulas Magistrais" no PDF RASX. Cada fórmula ganha sua própria página retrato com tabela substância/dosagem. Paginação automática: se componentes excedem 18 por página, cria continuação com cabeçalho e estrutura mantidos.
+
+## RAS Categorizado — PDFs Separados por Categoria
+
+-   **Categorias:** CLINICO (HEST, HPOT, HORG, HMED, HFOR, HCUR, HATU), EVOLUTIVO (HLIN, HTRN, HEVO, HPLA), ESTADO_SAUDE (HATU, HCUR, HPLA), COMPLETO (todos), JURIDICO (RACJ — LGPD, CGLO, RISC, NGAR, PRIV).
+-   **PDF Jurídico (RACJ):** 5 termos: LGPD (consentimento dados), CGLO (TCLE global), RISC (declaração riscos), NGAR (não-garantia resultados), PRIV (sigilo e privacidade). Cada termo com checkboxes, parágrafos legais e campo de assinatura.
+-   **Endpoints por Categoria:** `GET /api/rasx/:pacienteId/arqu/pdf/:categoria` (CLINICO, EVOLUTIVO, ESTADO_SAUDE, COMPLETO, JURIDICO).
+-   **Listar Categorias:** `GET /api/rasx/:pacienteId/arqu/categorias` — retorna todas as categorias com cadernos.
+-   **Envio Integrado:** `POST /api/rasx/:pacienteId/arqu/enviar` — body: `{categorias: ["CLINICO","JURIDICO"], drive: true, email: "x@y.com"}`. Gera PDFs, faz upload ao Drive (subpasta LAUDOS para clínicos, JURIDICO para jurídicos), envia por email com anexo PDF.
