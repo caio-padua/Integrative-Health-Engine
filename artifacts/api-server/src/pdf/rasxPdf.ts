@@ -50,8 +50,8 @@ function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isL
   doc.rect(0, 0, width, 70).fill(CORES.azulPetroleo);
   doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: width - 200 });
   doc.fontSize(9).font("Helvetica").fillColor(CORES.douradoQueimado).text(codigo, 40, 48);
-  doc.fontSize(9).fillColor(CORES.offWhite).text("Padcon Tech", width - 160, 25, { width: 120, align: "right" });
-  doc.fontSize(7).fillColor(CORES.douradoQueimado).text("Pawards V15.2", width - 160, 40, { width: 120, align: "right" });
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.offWhite).text("INSTITUTO PADUA", width - 180, 22, { width: 140, align: "right" });
+  doc.fontSize(7).font("Helvetica").fillColor(CORES.douradoQueimado).text("Pawards V15.2 | Padcon Tech", width - 180, 40, { width: 140, align: "right" });
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
@@ -99,8 +99,14 @@ function addPagePaisagem(doc: PDFKit.PDFDocument) {
 function drawFooter(doc: PDFKit.PDFDocument, isLandscape: boolean) {
   const width = isLandscape ? 842 : 595;
   const height = isLandscape ? 595 : 842;
-  doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(`RASX V5 | Gerado em ${new Date().toLocaleDateString("pt-BR")} | Pawards V15.2 | Powered by Padcon Tech`, 40, height - 30, { width: width - 80, align: "center" });
+  const footerY = height - 55;
+  doc.moveTo(40, footerY).lineTo(width - 40, footerY).lineWidth(0.3).stroke(CORES.cinzaClaro);
+  doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text("INSTITUTO PADUA — CLINICA PADUCCIA", 40, footerY + 4, { width: width - 80, align: "center" })
+    .text("PADUCCIA CLINICA MEDICA LTDA - EPP | CNPJ 63.865.940/0001-63 | RUA GUAXUPE, 327 — VILA FORMOSA — SAO PAULO — SP", 40, footerY + 12, { width: width - 80, align: "center" })
+    .text("DOCUMENTO GERADO PELO SISTEMA RASX-MATRIZ | \u00A9 2024 INSTITUTO PADUA | PADCON TECNOLOGIA E DESENVOLVIMENTO", 40, footerY + 20, { width: width - 80, align: "center" });
+  doc.fontSize(5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text("RASX-MATRIZ V6", width - 120, footerY + 28, { width: 80, align: "right" });
 }
 
 function drawSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number): number {
