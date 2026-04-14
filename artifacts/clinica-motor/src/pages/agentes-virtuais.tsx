@@ -538,7 +538,7 @@ function NarrativasWhatsApp({ narrativas, cor, emoji, titulo }: {
             display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
           }}>{emoji}</div>
           <div>
-            <div style={{ color: "#E9EDF0", fontSize: 12, fontWeight: 700 }}>Clínica Pádua — {titulo}</div>
+            <div style={{ color: "#E9EDF0", fontSize: 12, fontWeight: 700 }}>PAWARDS - Instituto Padua</div>
             <div style={{ color: "#6BCB9C", fontSize: 10 }}>● online</div>
           </div>
           <span style={{

@@ -54,7 +54,7 @@ function footer(doc: PDFKit.PDFDocument) {
   const footerY = 806;
   doc.moveTo(40, footerY).lineTo(555, footerY).lineWidth(0.3).stroke(CORES.cinzaClaro);
   doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text("PADCON - Tecnologia e Desenvolvimento", 40, footerY + 5, { width: 455, align: "center" });
+    .text("Developed by Pawards MedCore", 40, footerY + 5, { width: 455, align: "center" });
   const badgeW = 48;
   const badgeH = 10;
   const badgeX = 555 - badgeW;
@@ -121,7 +121,7 @@ export function gerarFichaCadastroPdf(data: DocBase & { telefone?: string; email
   y += 20;
   doc.rect(40, y, 515, 30).fill("#F0ECE4");
   doc.fontSize(7).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
-    .text("Documento gerado automaticamente pelo Pawards. Powered by Padcon. Todos os direitos reservados.", 50, y + 8, { width: 495 });
+    .text("Documento gerado automaticamente. Developed by Pawards MedCore. Todos os direitos reservados.", 50, y + 8, { width: 495 });
   footer(doc);
   doc.end();
   return stream;

@@ -739,7 +739,7 @@ function drawFinancialContractPage(doc: InstanceType<typeof PDFDocument>, dados:
   doc.fontSize(6.5).font("Helvetica").fillColor(COLORS.textDark);
   const contratoPartes = [
     `CONTRATANTE: ${clean(dados.nomePaciente)}, CPF: ${formatCPF(dados.cpfPaciente)}, Telefone: ${formatPhone(dados.celularPaciente)}`,
-    `CONTRATADA: CLINICA PADUA MEDICINA INTEGRATIVA, sob responsabilidade de ${clean(dados.medicoResponsavel)} - ${dados.crmMedico}`,
+    `CONTRATADA: INSTITUTO PADUA - MEDICINA INTEGRATIVA, sob responsabilidade de ${clean(dados.medicoResponsavel)} - ${dados.crmMedico}`,
     `TRATAMENTO: ${clean(trat.nome)} | Protocolo: ${clean(dados.nomeProtocolo)}`,
     `DATA DE INICIO: ${formatDate(trat.dataInicio)} | UNIDADE: ${clean(dados.agenda)}`,
   ];

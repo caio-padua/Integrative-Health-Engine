@@ -103,7 +103,7 @@ function drawFooter(doc: PDFKit.PDFDocument, isLandscape: boolean) {
   const footerY = height - 36;
   doc.moveTo(40, footerY).lineTo(width - 40, footerY).lineWidth(0.3).stroke(CORES.cinzaClaro);
   doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text("PADCON - Tecnologia e Desenvolvimento", 40, footerY + 5, { width: width - 140, align: "center" });
+    .text("Developed by Pawards MedCore", 40, footerY + 5, { width: width - 140, align: "center" });
   const badgeW = 48;
   const badgeH = 10;
   const badgeX = width - 40 - badgeW;
