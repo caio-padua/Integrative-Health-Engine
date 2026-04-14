@@ -26,10 +26,10 @@ function addPage(doc: PDFKit.PDFDocument) {
 
 function header(doc: PDFKit.PDFDocument, titulo: string, codigo: string) {
   doc.rect(0, 0, 595, 70).fill(CORES.azulPetroleo);
-  doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: 395 });
+  doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: 375 });
   doc.fontSize(9).font("Helvetica").fillColor(CORES.douradoQueimado).text(codigo, 40, 48);
-  doc.fontSize(9).fillColor(CORES.offWhite).text("Padcon Tech", 435, 25, { width: 120, align: "right" });
-  doc.fontSize(7).fillColor(CORES.douradoQueimado).text("Pawards V15.2", 435, 40, { width: 120, align: "right" });
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.offWhite).text("INSTITUTO PADUA", 415, 22, { width: 140, align: "right" });
+  doc.fontSize(7).font("Helvetica").fillColor(CORES.douradoQueimado).text("Pawards V15.2 | Padcon Tech", 415, 40, { width: 140, align: "right" });
 }
 
 function pacienteBlock(doc: PDFKit.PDFDocument, data: DocBase, y: number): number {
@@ -50,8 +50,14 @@ function section(doc: PDFKit.PDFDocument, title: string, y: number): number {
 }
 
 function footer(doc: PDFKit.PDFDocument) {
-  doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(`Pawards V15.2 | Gerado em ${new Date().toLocaleDateString("pt-BR")} | Powered by Padcon Tech`, 40, 812, { width: 515, align: "center" });
+  const footerY = 787;
+  doc.moveTo(40, footerY).lineTo(555, footerY).lineWidth(0.3).stroke(CORES.cinzaClaro);
+  doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text("INSTITUTO PADUA — CLINICA PADUCCIA", 40, footerY + 4, { width: 515, align: "center" })
+    .text("PADUCCIA CLINICA MEDICA LTDA - EPP | CNPJ 63.865.940/0001-63 | RUA GUAXUPE, 327 — VILA FORMOSA — SAO PAULO — SP", 40, footerY + 12, { width: 515, align: "center" })
+    .text("DOCUMENTO GERADO PELO SISTEMA RASX-MATRIZ | \u00A9 2024 INSTITUTO PADUA | PADCON TECNOLOGIA E DESENVOLVIMENTO", 40, footerY + 20, { width: 515, align: "center" });
+  doc.fontSize(5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text("RASX-MATRIZ V6", 475, footerY + 28, { width: 80, align: "right" });
 }
 
 function campo(doc: PDFKit.PDFDocument, label: string, valor: string, y: number): number {
