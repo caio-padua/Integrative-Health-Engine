@@ -11,5 +11,10 @@ export const modules: ModuleMap = {
   "./components/mockups/ReceitaVarianteA.tsx": () => import("../components/mockups/ReceitaVarianteA.tsx"),
   "./components/mockups/ReceitaVarianteB.tsx": () => import("../components/mockups/ReceitaVarianteB.tsx"),
   "./components/mockups/ReceitaVarianteC.tsx": () => import("../components/mockups/ReceitaVarianteC.tsx"),
-  "./components/mockups/ReceitaVarianteD.tsx": () => import("../components/mockups/ReceitaVarianteD.tsx")
+  "./components/mockups/ReceitaVarianteD.tsx": () => import("../components/mockups/ReceitaVarianteD.tsx"),
+  "./components/mockups/pawards-showcase/LogoOptions.tsx": () => import("../components/mockups/pawards-showcase/LogoOptions.tsx"),
+  "./components/mockups/pawards-showcase/PdfHeaderFooter.tsx": () => import("../components/mockups/pawards-showcase/PdfHeaderFooter.tsx"),
+  "./components/mockups/pawards-showcase/RasHmed.tsx": () => import("../components/mockups/pawards-showcase/RasHmed.tsx"),
+  "./components/mockups/pawards-showcase/ReceitaLayout.tsx": () => import("../components/mockups/pawards-showcase/ReceitaLayout.tsx"),
+  "./components/mockups/pawards-showcase/SistemaHeader.tsx": () => import("../components/mockups/pawards-showcase/SistemaHeader.tsx")
 };
