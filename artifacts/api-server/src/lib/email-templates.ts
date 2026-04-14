@@ -108,13 +108,19 @@ function formatNome(nome: string): string {
     .join(' ');
 }
 
+const ACAO_FALLBACK = { label: 'Informativo', cor: '#1a1a2e', icone: 'ℹ️', tom: 'Cordial e objetivo' };
+
+function getAcao(key: string) {
+  return ACOES_EMAIL[key as AcaoEmail] || ACAO_FALLBACK;
+}
+
 function buildSubject(opts: EmailOpts): string {
-  const acao = ACOES_EMAIL[opts.acao];
+  const acao = getAcao(opts.acao);
   return `${opts.nick} - ${opts.medicoNome} - ${opts.tipoDocumento} - ${acao.label}`;
 }
 
 function buildHtml(opts: EmailOpts): string {
-  const acao = ACOES_EMAIL[opts.acao];
+  const acao = getAcao(opts.acao);
   const nomeFormatado = formatNome(opts.pacienteNome);
 
   let detalhesBlock = '';
@@ -346,7 +352,7 @@ export function buildEmail(opts: EmailOpts): { subject: string; html: string } {
 }
 
 export function buildWhatsappFormal(opts: EmailOpts): string {
-  const acao = ACOES_EMAIL[opts.acao];
+  const acao = getAcao(opts.acao);
   const nomeFormatado = formatNome(opts.pacienteNome);
   const lines: string[] = [];
 
