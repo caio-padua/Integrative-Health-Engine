@@ -393,4 +393,29 @@ router.post("/rasx/:pacienteId/revo/manual-override", async (req, res): Promise<
   });
 });
 
+router.post("/rasx/:pacienteId/revo/evento-medicacao", async (req, res): Promise<void> => {
+  const pacienteId = Number(req.params.pacienteId);
+  if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
+  const { medicamentoId, data, apresentacao, posologia, status, substituicaoNatural, leituraClinica } = req.body;
+  if (!medicamentoId || !data || !apresentacao || !status) { res.status(400).json({ error: "medicamentoId, data, apresentacao e status obrigatorios" }); return; }
+  const [ev] = await db.insert(revoEventosMedicacaoTable).values({ medicamentoId, pacienteId, data: new Date(data), apresentacao, posologia, status, substituicaoNatural, leituraClinica }).returning();
+  res.status(201).json(ev);
+});
+
+router.post("/rasx/:pacienteId/revo/proxima-etapa", async (req, res): Promise<void> => {
+  const pacienteId = Number(req.params.pacienteId);
+  if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
+  const { tipo, descricao, dataPrevista, prioridade } = req.body;
+  if (!tipo || !descricao) { res.status(400).json({ error: "tipo e descricao obrigatorios" }); return; }
+  const [et] = await db.insert(revoProximaEtapaTable).values({ pacienteId, tipo, descricao, dataPrevista: dataPrevista ? new Date(dataPrevista) : null, prioridade: prioridade || "media" }).returning();
+  res.status(201).json(et);
+});
+
+router.post("/rasx/revo/evento-medicacao", async (req, res): Promise<void> => {
+  const { medicamentoId, pacienteId, data, apresentacao, posologia, status, substituicaoNatural, leituraClinica } = req.body;
+  if (!medicamentoId || !pacienteId || !data || !apresentacao || !status) { res.status(400).json({ error: "medicamentoId, pacienteId, data, apresentacao e status obrigatorios" }); return; }
+  const [ev] = await db.insert(revoEventosMedicacaoTable).values({ medicamentoId, pacienteId, data: new Date(data), apresentacao, posologia, status, substituicaoNatural, leituraClinica }).returning();
+  res.status(201).json(ev);
+});
+
 export default router;
