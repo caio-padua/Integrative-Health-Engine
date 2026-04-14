@@ -478,9 +478,9 @@ function buildIcsEvent(sessao: any, pacienteNome: string, pacienteCpf: string, u
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//PADCOM//MotorClinico//PT",
+    "PRODID:-//PAWARDS//InstitutoPadua//PT",
     "BEGIN:VEVENT",
-    `UID:padcom-sessao-${sessao.id}@motorclinico`,
+    `UID:pawards-sessao-${sessao.id}@institutopadua`,
     `DTSTART:${date}T${time}`,
     `DTEND:${date}T${endTime}`,
     `SUMMARY:${pacienteNome} - ${pacienteCpf || ""}`,
@@ -544,7 +544,7 @@ router.get("/sessoes/ics-semana", async (req, res) => {
     if (eventBlock) events += "BEGIN:VEVENT" + eventBlock + "END:VEVENT\r\n";
   }
 
-  const fullIcs = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//PADCOM//MotorClinico//PT\r\n${events}END:VCALENDAR`;
+  const fullIcs = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//PAWARDS//InstitutoPadua//PT\r\n${events}END:VCALENDAR`;
 
   res.setHeader("Content-Type", "text/calendar; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="agenda-semana.ics"`);

@@ -101,7 +101,7 @@ export default function PermissoesPage() {
               Perfis e Permissoes
             </h1>
             <p className="text-muted-foreground mt-1">
-              Mapa de permissoes por perfil de usuario — Pawards V15.2.
+              Mapa de permissoes por perfil de usuario — Pawards.
             </p>
           </div>
           <Button onClick={() => open()}>

@@ -203,7 +203,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <div>
             <span className="font-bold text-sm text-sidebar-foreground tracking-tight uppercase">Pawards</span>
-            <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">V15.2 | Padcon Tech</span>
+            <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">Padcon Tech</span>
           </div>
         </div>
         <div className="px-5 py-3 border-b border-border">

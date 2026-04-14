@@ -9,7 +9,7 @@ const router = Router();
 
 const DRIVE_FOLDER_CODIGOS = "1J6Hdypt0eiVxwG3Xw3qfw7q23LXekZYa";
 const DRIVE_FOLDER_ANTIGOS = "1rMHFIwAOiPtoh2iFloRNb_YT_C4ae-Et";
-const PROJETO_NOME = "PADCOM";
+const PROJETO_NOME = "PAWARDS";
 const WORKSPACE = "/home/runner/workspace";
 
 const ARQUIVOS_CHAVE = [
@@ -254,7 +254,7 @@ ${gitLog}
 ========================================
 INFORMACOES DO PROJETO
 ========================================
-PROJETO: ${PROJETO_NOME} V15.2 MOTOR CLINICO
+PROJETO: ${PROJETO_NOME} Sistema de Gestao Saude
 STACK: REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM
 AMBIENTE: REPLIT
 BRANCH GITHUB: REPLIT-AGENT
@@ -295,7 +295,7 @@ CODIGO-FONTE DOS ARQUIVOS PRINCIPAIS
 ${sourceCode}
 
 ========================================
-BACKUP AUTOMATICO GERADO VIA MOTOR CLINICO PADCOM V15.2
+BACKUP AUTOMATICO GERADO VIA PAWARDS - Sistema de Gestao Saude
 `;
 }
 
@@ -318,7 +318,7 @@ ${gitLog}
 \`\`\`
 
 ### INFORMACOES DO PROJETO
-- **PROJETO**: ${PROJETO_NOME} V15.2 MOTOR CLINICO
+- **PROJETO**: ${PROJETO_NOME} Sistema de Gestao Saude
 - **STACK**: REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM
 - **AMBIENTE**: REPLIT
 - **BRANCH GITHUB**: REPLIT-AGENT
@@ -356,7 +356,7 @@ ${fileTree}
 ${formatSourceForMd(sourceCode)}
 
 ---
-*BACKUP AUTOMATICO GERADO VIA MOTOR CLINICO PADCOM V15.2*
+*BACKUP AUTOMATICO GERADO VIA PAWARDS - Sistema de Gestao Saude*
 `;
 }
 
@@ -630,7 +630,7 @@ router.get("/backup-drive/atual/txt", async (_req, res) => {
     const dataHoje = getDataHoje();
     const plainText = generatePlainTextContent("LEITURA ATUAL DO PROJETO", dataHoje, "ATUAL");
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    res.setHeader("Content-Disposition", `inline; filename="PADCOM_ATUAL.txt"`);
+    res.setHeader("Content-Disposition", `inline; filename="PAWARDS_ATUAL.txt"`);
     res.send(plainText);
   } catch (err: any) {
     console.error("Erro gerar txt atual:", err);
@@ -643,7 +643,7 @@ router.get("/backup-drive/atual/md", async (_req, res) => {
     const dataHoje = getDataHoje();
     const mdContent = generateMdContent("LEITURA ATUAL DO PROJETO", dataHoje, "ATUAL");
     res.setHeader("Content-Type", "text/markdown; charset=utf-8");
-    res.setHeader("Content-Disposition", `inline; filename="PADCOM_ATUAL.md"`);
+    res.setHeader("Content-Disposition", `inline; filename="PAWARDS_ATUAL.md"`);
     res.send(mdContent);
   } catch (err: any) {
     console.error("Erro gerar md atual:", err);
@@ -669,7 +669,7 @@ router.get("/backup-drive/atual/json", async (_req, res) => {
       }
     }
     res.json({
-      projeto: `${PROJETO_NOME} V15.2 MOTOR CLINICO`,
+      projeto: `${PROJETO_NOME} Sistema de Gestao Saude`,
       data: dataHoje,
       stack: "REACT + TYPESCRIPT + EXPRESS + POSTGRESQL + DRIZZLE ORM",
       ambiente: "REPLIT",

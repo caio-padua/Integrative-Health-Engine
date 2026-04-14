@@ -167,7 +167,7 @@ router.post("/whatsapp/enviar-teste", async (req, res): Promise<void> => {
   }
 
   const config = configs[0];
-  const mensagemTeste = "Teste de conexao WhatsApp — Clinica Padua PADCOM\n\nEsta e uma mensagem de teste. Se voce recebeu, a integracao esta funcionando!\n\n" + new Date().toLocaleString("pt-BR");
+  const mensagemTeste = "Teste de conexao WhatsApp — Instituto Padua | Pawards\n\nEsta e uma mensagem de teste. Se voce recebeu, a integracao esta funcionando!\n\n" + new Date().toLocaleString("pt-BR");
 
   const telefoneFormatado = telefone.replace(/\D/g, "");
   const telefoneInt = telefoneFormatado.startsWith("55") ? telefoneFormatado : `55${telefoneFormatado}`;
@@ -386,7 +386,7 @@ router.post("/whatsapp/enviar-pdf", async (req, res): Promise<void> => {
       const Twilio = (await import("twilio")).default;
       const client = Twilio(decrypted.accountSid!, decrypted.authToken!);
       const msg = await client.messages.create({
-        body: mensagem || "Documento — Clinica Padua PADCOM",
+        body: mensagem || "Documento — Instituto Padua | Pawards",
         from: `whatsapp:${config.numeroRemetente}`,
         to: `whatsapp:+${telefoneFormatado}`,
         mediaUrl: [mediaUrl],
