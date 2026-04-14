@@ -50,8 +50,9 @@ function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isL
   doc.rect(0, 0, width, 70).fill(CORES.azulPetroleo);
   doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: width - 250 });
   doc.fontSize(9).font("Helvetica").fillColor(CORES.douradoQueimado).text(codigo, 40, 48);
-  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.offWhite).text("INSTITUTO PADUA", width - 200, 22, { width: 160, align: "right" });
-  doc.fontSize(6).font("Helvetica").fillColor(CORES.douradoQueimado).text("Pawards V15.2 | Padcon Tech", width - 200, 38, { width: 160, align: "right" });
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.douradoQueimado).text("PAWARDS", width - 160, 18, { width: 120, align: "right" });
+  doc.fontSize(6).font("Helvetica").fillColor(CORES.offWhite).text("Sistema de Gestao Saude", width - 160, 30, { width: 120, align: "right" });
+  doc.fontSize(7).font("Helvetica").fillColor(CORES.offWhite).text("INSTITUTO PADUA", width - 160, 42, { width: 120, align: "right" });
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
@@ -99,18 +100,16 @@ function addPagePaisagem(doc: PDFKit.PDFDocument) {
 function drawFooter(doc: PDFKit.PDFDocument, isLandscape: boolean) {
   const width = isLandscape ? 842 : 595;
   const height = isLandscape ? 595 : 842;
-  const footerY = height - 42;
+  const footerY = height - 36;
   doc.moveTo(40, footerY).lineTo(width - 40, footerY).lineWidth(0.3).stroke(CORES.cinzaClaro);
-  doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.cinzaClaro)
-    .text("PAWARDS - Sistema Gestao Saude", 40, footerY + 5, { width: width - 140, align: "center" });
   doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text("\u00A9 2024 PADCON - Tecnologia e Desenvolvimento", 40, footerY + 14, { width: width - 140, align: "center" });
-  const badgeW = 52;
-  const badgeH = 11;
+    .text("PADCON - Tecnologia e Desenvolvimento", 40, footerY + 5, { width: width - 140, align: "center" });
+  const badgeW = 48;
+  const badgeH = 10;
   const badgeX = width - 40 - badgeW;
-  const badgeY = footerY + 6;
-  doc.rect(badgeX, badgeY, badgeW, badgeH).lineWidth(0.4).stroke(CORES.cinzaClaro);
-  doc.fontSize(4.5).font("Helvetica").fillColor(CORES.cinzaClaro)
+  const badgeY = footerY + 3;
+  doc.rect(badgeX, badgeY, badgeW, badgeH).lineWidth(0.3).stroke(CORES.cinzaClaro);
+  doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro)
     .text("RASX-MATRIZ", badgeX, badgeY + 3, { width: badgeW, align: "center" });
 }
 
@@ -254,6 +253,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
 
   // ========== RACL HMED — Medicamentos em Uso (PAISAGEM) ==========
   if (include("RACL HMED")) {
+  const HMED_PAGE_LIMIT = 500;
   addPagePaisagem(doc);
   drawHeader(doc, "Medicamentos em Uso", "RACL HMED", true);
   y = 80;
@@ -269,6 +269,14 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
   ];
   y = drawTableHeader(doc, hmedCols, y);
   data.medicamentos.forEach((m: any, i: number) => {
+    if (y > HMED_PAGE_LIMIT) {
+      drawFooter(doc, true);
+      addPagePaisagem(doc);
+      drawHeader(doc, "Medicamentos em Uso (cont.)", "RACL HMED", true);
+      y = 80;
+      y = drawPacienteBlock(doc, data, y, 842);
+      y = drawTableHeader(doc, hmedCols, y);
+    }
     const inline = m.medicamentoDoseInline || `${m.nome}${m.dose ? " " + m.dose : ""}`;
     y = drawTableRow(doc, hmedCols, [inline, m.posologia || "—", m.indicacaoClinica || m.motivoUso || "—", m.statusAtual, m.substituicaoNatural || "—", m.evidenciaMelhora || "—"], y, i % 2 === 0);
   });

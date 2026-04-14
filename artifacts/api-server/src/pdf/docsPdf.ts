@@ -28,8 +28,9 @@ function header(doc: PDFKit.PDFDocument, titulo: string, codigo: string) {
   doc.rect(0, 0, 595, 70).fill(CORES.azulPetroleo);
   doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: 345 });
   doc.fontSize(9).font("Helvetica").fillColor(CORES.douradoQueimado).text(codigo, 40, 48);
-  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.offWhite).text("INSTITUTO PADUA", 395, 22, { width: 160, align: "right" });
-  doc.fontSize(6).font("Helvetica").fillColor(CORES.douradoQueimado).text("Pawards V15.2 | Padcon Tech", 395, 38, { width: 160, align: "right" });
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.douradoQueimado).text("PAWARDS", 435, 18, { width: 120, align: "right" });
+  doc.fontSize(6).font("Helvetica").fillColor(CORES.offWhite).text("Sistema de Gestao Saude", 435, 30, { width: 120, align: "right" });
+  doc.fontSize(7).font("Helvetica").fillColor(CORES.offWhite).text("INSTITUTO PADUA", 435, 42, { width: 120, align: "right" });
 }
 
 function pacienteBlock(doc: PDFKit.PDFDocument, data: DocBase, y: number): number {
@@ -50,18 +51,16 @@ function section(doc: PDFKit.PDFDocument, title: string, y: number): number {
 }
 
 function footer(doc: PDFKit.PDFDocument) {
-  const footerY = 800;
+  const footerY = 806;
   doc.moveTo(40, footerY).lineTo(555, footerY).lineWidth(0.3).stroke(CORES.cinzaClaro);
-  doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.cinzaClaro)
-    .text("PAWARDS - Sistema Gestao Saude", 40, footerY + 5, { width: 455, align: "center" });
   doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text("\u00A9 2024 PADCON - Tecnologia e Desenvolvimento", 40, footerY + 14, { width: 455, align: "center" });
-  const badgeW = 52;
-  const badgeH = 11;
+    .text("PADCON - Tecnologia e Desenvolvimento", 40, footerY + 5, { width: 455, align: "center" });
+  const badgeW = 48;
+  const badgeH = 10;
   const badgeX = 555 - badgeW;
-  const badgeY = footerY + 6;
-  doc.rect(badgeX, badgeY, badgeW, badgeH).lineWidth(0.4).stroke(CORES.cinzaClaro);
-  doc.fontSize(4.5).font("Helvetica").fillColor(CORES.cinzaClaro)
+  const badgeY = footerY + 3;
+  doc.rect(badgeX, badgeY, badgeW, badgeH).lineWidth(0.3).stroke(CORES.cinzaClaro);
+  doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro)
     .text("RASX-MATRIZ", badgeX, badgeY + 3, { width: badgeW, align: "center" });
 }
 
@@ -122,7 +121,7 @@ export function gerarFichaCadastroPdf(data: DocBase & { telefone?: string; email
   y += 20;
   doc.rect(40, y, 515, 30).fill("#F0ECE4");
   doc.fontSize(7).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
-    .text("Documento gerado automaticamente pelo Pawards V15.2. Powered by Padcon Tech. Todos os direitos reservados.", 50, y + 8, { width: 495 });
+    .text("Documento gerado automaticamente pelo Pawards. Powered by Padcon. Todos os direitos reservados.", 50, y + 8, { width: 495 });
   footer(doc);
   doc.end();
   return stream;
@@ -137,7 +136,16 @@ export function gerarReceitaPdf(data: DocBase & { medicamentos: { nome: string; 
   let y = 80;
   y = pacienteBlock(doc, data, y);
   y = section(doc, "Prescricao Medica", y);
+  const PAGE_LIMIT = 740;
   data.medicamentos.forEach((m, i) => {
+    if (y > PAGE_LIMIT) {
+      footer(doc);
+      addPage(doc);
+      header(doc, "Receita Medica (cont.)", "PREC 001");
+      y = 80;
+      y = pacienteBlock(doc, data, y);
+      y = section(doc, "Prescricao Medica (continuacao)", y);
+    }
     doc.rect(40, y, 515, 2).fill(CORES.douradoQueimado);
     y += 6;
     doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text(`${i + 1}. ${m.nome}`, 50, y);
@@ -147,6 +155,12 @@ export function gerarReceitaPdf(data: DocBase & { medicamentos: { nome: string; 
     doc.fontSize(9).font("Helvetica").fillColor(CORES.cinzaClaro).text(`Uso: ${m.uso}`, 60, y);
     y += 20;
   });
+  if (y > PAGE_LIMIT - 100) {
+    footer(doc);
+    addPage(doc);
+    header(doc, "Receita Medica", "PREC 001");
+    y = 80;
+  }
   y += 20;
   y = section(doc, "Observacoes", y);
   doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto)
