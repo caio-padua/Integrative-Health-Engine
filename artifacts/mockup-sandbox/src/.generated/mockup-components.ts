@@ -16,5 +16,9 @@ export const modules: ModuleMap = {
   "./components/mockups/pawards-showcase/PdfHeaderFooter.tsx": () => import("../components/mockups/pawards-showcase/PdfHeaderFooter.tsx"),
   "./components/mockups/pawards-showcase/RasHmed.tsx": () => import("../components/mockups/pawards-showcase/RasHmed.tsx"),
   "./components/mockups/pawards-showcase/ReceitaLayout.tsx": () => import("../components/mockups/pawards-showcase/ReceitaLayout.tsx"),
+  "./components/mockups/pawards-showcase/ShieldA.tsx": () => import("../components/mockups/pawards-showcase/ShieldA.tsx"),
+  "./components/mockups/pawards-showcase/ShieldB.tsx": () => import("../components/mockups/pawards-showcase/ShieldB.tsx"),
+  "./components/mockups/pawards-showcase/ShieldC.tsx": () => import("../components/mockups/pawards-showcase/ShieldC.tsx"),
+  "./components/mockups/pawards-showcase/ShieldD.tsx": () => import("../components/mockups/pawards-showcase/ShieldD.tsx"),
   "./components/mockups/pawards-showcase/SistemaHeader.tsx": () => import("../components/mockups/pawards-showcase/SistemaHeader.tsx")
 };
