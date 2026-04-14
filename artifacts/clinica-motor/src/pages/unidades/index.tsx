@@ -56,7 +56,7 @@ const defaultForm: UnidadeForm = {
 
 function sanitizeNick(value: string): string {
   const noAccents = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const words = noAccents.trim().split(/\s+/).slice(0, 2);
+  const words = noAccents.trim().split(/\s+/).slice(0, 3);
   return words.join(" ").toUpperCase();
 }
 
@@ -161,15 +161,16 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
           </div>
 
           <div>
-            <Label>Nick (max 2 palavras, sem acentos)</Label>
+            <Label>Nick da Empresa</Label>
             <Input
               value={form.nick}
               onChange={e => update("nick", sanitizeNick(e.target.value))}
-              placeholder="Ex: Instituto Padua"
+              placeholder="Ex: INSTITUTO PADUA"
               className="uppercase"
-              maxLength={30}
+              maxLength={40}
             />
-            <span className="text-[10px] text-muted-foreground">Aparece em: PAWARDS - {form.nick || "..."} | Agentes: FINANCEIRO - {form.nick || "..."}</span>
+            <p className="text-[10px] text-muted-foreground mt-1">Maximo 3 palavras, sem acentos, auto-convertido para MAIUSCULAS. Usado como identidade visual em todos os documentos, emails e WhatsApp.</p>
+            <p className="text-[10px] text-blue-600 font-medium mt-0.5">Preview: PAWARDS - {form.nick || "..."} | Agente: FINANCEIRO - {form.nick || "..."}</p>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -228,6 +229,8 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
                 <option value="clinic">Clinica</option>
                 <option value="enfermagem">Enfermagem</option>
                 <option value="domiciliar">Domiciliar</option>
+                <option value="telemedicina">Telemedicina</option>
+                <option value="personal">Pessoal</option>
               </select>
             </div>
             <div>
@@ -370,7 +373,7 @@ export default function UnidadesPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-[10px]">
-                            {u.tipo === "clinic" ? "Clinica" : u.tipo === "enfermagem" ? "Enfermagem" : u.tipo === "domiciliar" ? "Domiciliar" : u.tipo}
+                            {u.tipo === "clinic" ? "Clinica" : u.tipo === "enfermagem" ? "Enfermagem" : u.tipo === "domiciliar" ? "Domiciliar" : u.tipo === "telemedicina" ? "Telemedicina" : u.tipo === "personal" ? "Pessoal" : u.tipo}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
