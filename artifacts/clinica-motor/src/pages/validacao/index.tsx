@@ -54,7 +54,7 @@ export default function Validacao() {
             <BrainCircuit className="h-8 w-8 text-primary" />
             Validação Médica
           </h1>
-          <p className="text-muted-foreground mt-1">Aprove ou ajuste as sugestões do Motor Clínico.</p>
+          <p className="text-muted-foreground mt-1">Aprove ou ajuste as sugestões do Motor Pawards.</p>
         </div>
 
         <div className="grid gap-4">

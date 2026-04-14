@@ -140,7 +140,7 @@ export default function AnamneseDetalhe() {
   const atualizarAnamnese = useAtualizarAnamnese();
   const ativarMotor = useAtivarMotorClinico();
 
-  // ── Estado do formulário PADCOM ──────────────────────────────────────────
+  // ── Estado do formulário Pawards ──────────────────────────────────────────
   const [Q010, setQ010] = useState("");
   const [Q011, setQ011] = useState("");
   const [Q012, setQ012] = useState<string[]>([]);
@@ -209,7 +209,7 @@ export default function AnamneseDetalhe() {
       onSuccess: (result: Record<string, unknown>) => {
         const total = result?.totalSugestoes || 0;
         const regras = result?.regrasAtivadas || 0;
-        toast({ title: `Motor ativado — ${total} sugestoes geradas via ${regras} regras PADCOM` });
+        toast({ title: `Motor ativado — ${total} sugestoes geradas via ${regras} regras Pawards` });
         queryClient.invalidateQueries({ queryKey: getObterAnamneseQueryKey(id) });
         queryClient.invalidateQueries({ queryKey: getListarSugestoesQueryKey({ pacienteId: anamnese?.pacienteId }) });
       }
@@ -245,7 +245,7 @@ export default function AnamneseDetalhe() {
                   </Badge>
                 )}
               </h1>
-              <p className="text-muted-foreground text-xs mt-0.5">Questionario PADCOM V9 — Q010 ate Q041</p>
+              <p className="text-muted-foreground text-xs mt-0.5">Questionario Pawards V9 — Q010 ate Q041</p>
             </div>
 
             {anamnese?.status === AnamneseStatus.concluida && !anamnese?.motorAtivadoEm && (
@@ -256,7 +256,7 @@ export default function AnamneseDetalhe() {
                 disabled={ativarMotor.isPending}
               >
                 <Zap className="w-5 h-5 mr-2" />
-                {ativarMotor.isPending ? "Processando..." : "Ativar Motor PADCOM"}
+                {ativarMotor.isPending ? "Processando..." : "Ativar Motor Pawards"}
               </Button>
             )}
             {anamnese?.motorAtivadoEm && (
@@ -280,7 +280,7 @@ export default function AnamneseDetalhe() {
             <div className="lg:col-span-2 space-y-6">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Questionario PADCOM V9</CardTitle>
+                  <CardTitle className="text-base">Questionario Pawards V9</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Tabs defaultValue="clinico">
@@ -453,7 +453,7 @@ export default function AnamneseDetalhe() {
                 <CardHeader className="bg-primary/5 border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <Activity className="w-4 h-4 text-primary" />
-                    Resultado do Motor PADCOM
+                    Resultado do Motor Pawards
                     {sugestoesAnamnese.length > 0 && (
                       <Badge className="ml-auto bg-primary/20 text-primary border-primary/30 text-xs">
                         {sugestoesAnamnese.length} sugestoes
@@ -466,7 +466,7 @@ export default function AnamneseDetalhe() {
                     <div className="p-6 text-center text-muted-foreground flex flex-col items-center gap-3">
                       <PlayCircle className="w-10 h-10 text-muted-foreground/25" />
                       <p className="text-sm">Motor nao ativado.</p>
-                      <p className="text-xs">Preencha o questionario e ative o motor para gerar sugestoes com base nas regras PADCOM.</p>
+                      <p className="text-xs">Preencha o questionario e ative o motor para gerar sugestoes com base nas regras Pawards.</p>
                     </div>
                   ) : loadingSugestoes ? (
                     <div className="p-4 space-y-3">

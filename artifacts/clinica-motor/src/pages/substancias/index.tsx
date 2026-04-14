@@ -330,7 +330,7 @@ export default function Substancias() {
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Substancias PADCOM</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Substancias Pawards</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Catalogo unificado de substancias para sessoes (IV, IM, Implantes)
             </p>

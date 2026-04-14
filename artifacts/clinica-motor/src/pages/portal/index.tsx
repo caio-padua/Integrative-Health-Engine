@@ -165,7 +165,7 @@ export default function PortalClientePage() {
             <img src={`${BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-lg font-bold text-white tracking-tight uppercase">Portal do Cliente</h1>
-          <p className="text-xs text-muted-foreground mt-1">PADCOM — Acompanhamento Clinico</p>
+          <p className="text-xs text-muted-foreground mt-1">Pawards — Acompanhamento Clinico</p>
         </div>
 
         {step === "identificacao" && (
