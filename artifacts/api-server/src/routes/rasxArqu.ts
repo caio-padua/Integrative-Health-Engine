@@ -8,6 +8,11 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { gerarRasxPdf, gerarRacjPdf, RAS_CATEGORIAS, type RasCategoria } from "../pdf/rasxPdf";
+import {
+  gerarFichaCadastroPdf, gerarReceitaPdf, gerarAtestadoPdf, gerarContratoPdf,
+  gerarOrcamentoFinanceiroPdf, gerarLaudoExamePdf, gerarRelatorioPatologiasPdf,
+  gerarTermoConsentimentoPdf,
+} from "../pdf/docsPdf";
 import { sendEmailWithPdf } from "../lib/google-gmail.js";
 import { getOrCreateClientFolder, uploadToClientSubfolder } from "../lib/google-drive.js";
 import crypto from "crypto";
@@ -675,6 +680,119 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
   } catch (err: any) {
     console.error("[RASX Enviar] Erro:", err.message);
     if (!res.headersSent) res.status(500).json({ error: "Erro ao processar envio", detalhes: err.message });
+  }
+});
+
+router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<void> => {
+  try {
+  const pacienteId = Number(req.params.pacienteId);
+  if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
+
+  const collected = await collectPdfData(pacienteId);
+  if (!collected) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+
+  let folderId = collected.paciente.googleDriveFolderId;
+  if (!folderId) {
+    const folder = await getOrCreateClientFolder(collected.paciente.nome, collected.paciente.cpf || "SEM-CPF");
+    folderId = folder.folderId;
+    await db.update(pacientesTable).set({ googleDriveFolderId: folderId }).where(eq(pacientesTable.id, pacienteId));
+  }
+
+  const base = {
+    paciente: collected.pdfData.paciente,
+    medico: collected.pdfData.medico,
+    unidade: collected.pdfData.unidade,
+    dataBase: collected.pdfData.dataBase,
+  };
+  const nome = collected.paciente.nome.replace(/\s+/g, "_");
+  const dt = new Date().toISOString().slice(0, 10);
+  const uploads: { subfolder: string; filename: string; tamanho: string; fileUrl: string }[] = [];
+
+  const upload = async (subfolder: string, filename: string, pdfStream: NodeJS.ReadableStream) => {
+    const buffer = await streamToBuffer(pdfStream);
+    const result = await uploadToClientSubfolder({
+      clientFolderId: folderId!,
+      subfolder: subfolder as any,
+      fileName: filename,
+      mimeType: "application/pdf",
+      content: buffer,
+    });
+    uploads.push({ subfolder, filename, tamanho: `${(buffer.length / 1024).toFixed(1)} KB`, fileUrl: result.fileUrl });
+  };
+
+  await upload("CADASTRO", `Ficha_Cadastro_${nome}_${dt}.pdf`,
+    gerarFichaCadastroPdf({ ...base, telefone: collected.paciente.telefone || undefined, email: collected.paciente.email || undefined }));
+
+  await upload("PATOLOGIAS", `Relatorio_Patologias_${nome}_${dt}.pdf`,
+    gerarRelatorioPatologiasPdf({ ...base, patologias: collected.patologias.map(p => ({
+      nome: p.nome, orgao: p.orgaoSistema || "—", intensidade: p.intensidadeAtual || "—",
+      semaforo: p.statusSemaforo || "amarelo", leitura: p.leituraClinica || "—",
+    })) }));
+
+  await upload("EXAMES", `Solicitacao_Exames_${nome}_${dt}.pdf`,
+    gerarLaudoExamePdf({ ...base, exames: [
+      { nome: "Hemograma Completo", justificativa: "Avaliacao hematologica e investigacao de processo inflamatorio/infeccioso" },
+      { nome: "PCR Ultra-Sensivel", justificativa: "Marcador inflamatorio para acompanhamento de inflamacao cronica" },
+      { nome: "TSH + T4 Livre", justificativa: "Funcao tireoidiana — fadiga cronica e metabolismo" },
+      { nome: "Vitamina D (25-OH)", justificativa: "Avaliacao de status vitaminico — imunidade e funcao musculoesqueletica" },
+      { nome: "Ferritina Serica", justificativa: "Reserva de ferro — correlacao com fadiga e anemia" },
+      { nome: "Cortisol Salivar (4 tempos)", justificativa: "Avaliacao do eixo HPA — estresse cronico e ritmo circadiano" },
+    ] }));
+
+  const meds = collected.medicamentos.map(m => ({
+    nome: m.medicamentoDoseInline || m.nome,
+    posologia: m.posologia || "Conforme orientacao medica",
+    uso: m.motivoUso || m.indicacaoClinica || "Tratamento clinico",
+  }));
+  if (meds.length > 0) {
+    await upload("RECEITAS", `Receita_Medica_${nome}_${dt}.pdf`, gerarReceitaPdf({ ...base, medicamentos: meds }));
+  }
+
+  await upload("PROTOCOLOS", `RASX_RAS_Clinico_${nome}_${dt}.pdf`, gerarRasxPdf(collected.pdfData, "CLINICO"));
+
+  await upload("FINANCEIRO", `Orcamento_${nome}_${dt}.pdf`,
+    gerarOrcamentoFinanceiroPdf({ ...base, itens: [
+      { descricao: "Consulta Integrativa — 30 min presencial", valor: 450.00 },
+      { descricao: "Protocolo de Infusao Endovenosa", valor: 890.00 },
+      { descricao: "Formula Magistral — manipulacao personalizada", valor: 320.00 },
+      { descricao: "Exames laboratoriais complementares", valor: 580.00 },
+      { descricao: "Acompanhamento evolutivo mensal", valor: 250.00 },
+    ], total: 2490.00 }));
+
+  await upload("CONTRATOS", `Contrato_Servicos_${nome}_${dt}.pdf`, gerarContratoPdf(base));
+
+  await upload("ATESTADOS", `Atestado_Medico_${nome}_${dt}.pdf`,
+    gerarAtestadoPdf({ ...base, motivo: "Consulta medica e realizacao de procedimentos clinicos", dias: 1, cid: "R53 — Mal-estar e fadiga" }));
+
+  await upload("LAUDOS", `RASX_RAS_Completo_${nome}_${dt}.pdf`, gerarRasxPdf(collected.pdfData, "COMPLETO"));
+
+  await upload("TERMOS", `Termo_Consentimento_Procedimento_${nome}_${dt}.pdf`,
+    gerarTermoConsentimentoPdf({ ...base, procedimento: "Infusao endovenosa de micronutrientes e suplementacao integrativa" }));
+
+  const racjData = {
+    paciente: base.paciente, medico: base.medico, unidade: base.unidade, dataBase: base.dataBase,
+    patologias: collected.patologias.map(p => p.nome),
+    medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
+  };
+  await upload("JURIDICO", `RACJ_Termos_Juridicos_${nome}_${dt}.pdf`, gerarRacjPdf(racjData));
+
+  await upload("AVALIACOES", `RASX_RAS_Evolutivo_${nome}_${dt}.pdf`, gerarRasxPdf(collected.pdfData, "EVOLUTIVO"));
+
+  await gravarAudit({
+    pacienteId, entidade: "drive_popular_completo", acao: "gerar_pdf",
+    metadados: { totalArquivos: uploads.length, subpastas: uploads.map(u => u.subfolder) },
+  });
+
+  res.json({
+    sucesso: true,
+    paciente: collected.paciente.nome,
+    pastaRaiz: folderId,
+    totalArquivos: uploads.length,
+    arquivos: uploads,
+  });
+  } catch (err: any) {
+    console.error("[RASX Popular Drive] Erro:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: "Erro ao popular Drive", detalhes: err.message });
   }
 });
 
