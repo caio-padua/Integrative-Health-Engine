@@ -25,6 +25,7 @@ interface Unidade {
   cnpj: string | null;
   telefone: string | null;
   tipo: string;
+  nick: string | null;
   googleCalendarId: string | null;
   googleCalendarEmail: string | null;
   cor: string;
@@ -41,6 +42,7 @@ interface UnidadeForm {
   cnpj: string;
   telefone: string;
   tipo: string;
+  nick: string;
   cor: string;
   googleCalendarEmail: string;
   googleCalendarId: string;
@@ -48,9 +50,15 @@ interface UnidadeForm {
 
 const defaultForm: UnidadeForm = {
   nome: "", endereco: "", bairro: "", cidade: "", estado: "",
-  cep: "", cnpj: "", telefone: "", tipo: "clinic", cor: "#3B82F6",
+  cep: "", cnpj: "", telefone: "", tipo: "clinic", nick: "", cor: "#3B82F6",
   googleCalendarEmail: "", googleCalendarId: "",
 };
+
+function sanitizeNick(value: string): string {
+  const noAccents = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const words = noAccents.trim().split(/\s+/).slice(0, 2);
+  return words.join(" ").toUpperCase();
+}
 
 function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
   unidade?: Unidade | null;
@@ -76,6 +84,7 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
         cnpj: unidade.cnpj || "",
         telefone: unidade.telefone || "",
         tipo: unidade.tipo || "clinic",
+        nick: unidade.nick || "",
         cor: unidade.cor || "#3B82F6",
         googleCalendarEmail: unidade.googleCalendarEmail || "",
         googleCalendarId: unidade.googleCalendarId || "",
@@ -149,6 +158,18 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
           <div>
             <Label>Nome da Unidade</Label>
             <Input value={form.nome} onChange={e => update("nome", e.target.value)} className="uppercase" />
+          </div>
+
+          <div>
+            <Label>Nick (max 2 palavras, sem acentos)</Label>
+            <Input
+              value={form.nick}
+              onChange={e => update("nick", sanitizeNick(e.target.value))}
+              placeholder="Ex: Instituto Padua"
+              className="uppercase"
+              maxLength={30}
+            />
+            <span className="text-[10px] text-muted-foreground">Aparece em: PAWARDS - {form.nick || "..."} | Agentes: FINANCEIRO - {form.nick || "..."}</span>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -321,6 +342,7 @@ export default function UnidadesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="font-medium text-sm">{u.nome}</div>
+                          {u.nick && <div className="text-xs text-blue-600 font-medium">PAWARDS - {u.nick}</div>}
                           {u.telefone && <div className="text-xs text-muted-foreground">{u.telefone}</div>}
                         </TableCell>
                         <TableCell>

@@ -87,7 +87,7 @@ export function buildRasEmailHtml(opts: {
 <head><meta charset="UTF-8"></head>
 <body style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;padding:0;background:#f5f5f5">
   <div style="background:${tipo.corPrimaria};padding:28px 24px;text-align:center">
-    <div style="font-size:11px;letter-spacing:3px;color:rgba(255,255,255,0.6);margin-bottom:8px">CLINICA PADUA</div>
+    <div style="font-size:11px;letter-spacing:3px;color:rgba(255,255,255,0.6);margin-bottom:8px">PAWARDS - ${opts.unidade}</div>
     <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:0.5px">${tipo.titulo}</div>
   </div>
 
@@ -139,9 +139,9 @@ export function buildRasEmailHtml(opts: {
   </div>
 
   <div style="padding:16px 24px;text-align:center">
-    <div style="font-size:11px;color:#999;letter-spacing:1px;margin-bottom:4px">CLINICA PADUA</div>
+    <div style="font-size:11px;color:#999;letter-spacing:1px;margin-bottom:4px">PAWARDS - ${opts.unidade}</div>
     <div style="font-size:10px;color:#bbb">Medicina Integrativa e Longevidade</div>
-    <div style="font-size:9px;color:#ccc;margin-top:8px">Documento gerado automaticamente pelo Pawards - Sistema de Gestao Saude</div>
+    <div style="font-size:9px;color:#ccc;margin-top:8px">Developed by Pawards MedCore</div>
   </div>
 </body>
 </html>`;
@@ -206,7 +206,9 @@ export function buildRasWhatsappMessage(opts: {
 
   lines.push('');
   lines.push(`*${opts.medicoNome}*`);
-  lines.push('Clinica Padua');
+  lines.push('PAWARDS - Instituto Padua');
+  lines.push('');
+  lines.push('_Developed by Pawards MedCore_');
 
   return lines.join('\n');
 }

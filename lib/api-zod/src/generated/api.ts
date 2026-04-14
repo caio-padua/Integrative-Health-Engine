@@ -1399,6 +1399,10 @@ export const ListarUnidadesResponseItem = zod.object({
   cidade: zod.string().optional(),
   estado: zod.string().optional(),
   telefone: zod.string().optional(),
+  nick: zod
+    .string()
+    .optional()
+    .describe("Nick da empresa (max 2 palavras, sem acentos)"),
   ativa: zod.boolean(),
   criadoEm: zod.coerce.date(),
 });
@@ -1413,6 +1417,10 @@ export const CriarUnidadeBody = zod.object({
   cidade: zod.string().optional(),
   estado: zod.string().optional(),
   telefone: zod.string().optional(),
+  nick: zod
+    .string()
+    .optional()
+    .describe("Nick da empresa (max 2 palavras, sem acentos)"),
 });
 
 /**

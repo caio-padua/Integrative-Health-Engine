@@ -6,15 +6,19 @@ Pawards is a SaaS clinical engine platform developed by Padcon Tech designed for
 
 ## Dados Corporativos
 
--   **Sistema:** Pawards V15.2
--   **Desenvolvido por:** Padcon Tech — Soluções em Tecnologia para Saúde
--   **Cliente Principal:** Instituto Pádua (Nome Fantasia)
--   **Razão Social:** PADUCCIA CLINICA MEDICA LTDA - EPP
+-   **Sistema:** PAWARDS (sempre maiusculo, sem versao)
+-   **Subtitulo:** MedCore (M e C maiusculos) — aparece SOMENTE no rodape/assinatura
+-   **Desenvolvido por:** Pawards MedCore
+-   **Cliente Principal:** Instituto Padua (Nome Fantasia)
+-   **Razao Social:** PADUCCIA CLINICA MEDICA LTDA - EPP
 -   **CNPJ:** 63.865.940/0001-63
--   **Endereço:** Rua Guaxupé, 327 - Vila Formosa, São Paulo - SP
--   **CNAE:** 8630-5/03 — Atividade médica ambulatorial restrita a consultas
--   **Selo PDF/Footer:** `Pawards V15.2 | Powered by Padcon Tech`
--   **Selo Completo:** `© 2024 Padcon Tech – Soluções em Tecnologia para Saúde. Todos os direitos reservados.`
+-   **Endereco:** Rua Guaxupe, 327 - Vila Formosa, Sao Paulo - SP
+-   **CNAE:** 8630-5/03 — Atividade medica ambulatorial restrita a consultas
+-   **Nick da Empresa:** Campo editavel na tabela `unidades` (max 2 palavras, sem acentos). Exemplo: "INSTITUTO PADUA"
+-   **Formato Header:** `PAWARDS - [Nick]` (ex: PAWARDS - Instituto Padua)
+-   **Formato Rodape/Footer:** `Developed by Pawards MedCore`
+-   **Formato Agentes:** `[CARGO] - [Nick]` (ex: FINANCEIRO - Instituto Padua)
+-   **NUNCA usar:** PADCOM, Padcon Tech, Motor Clinico, V15.2, Clinica Padua em nenhum ponto user-facing
 
 ## User Preferences
 
