@@ -57,7 +57,7 @@ export default function Anamneses() {
                   <TableRow>
                     <TableHead>Paciente</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Motor Clínico</TableHead>
+                    <TableHead>Motor Pawards</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>

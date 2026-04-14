@@ -129,7 +129,7 @@ function InjetaveisTab() {
   filtered.forEach((i: any) => { const eixo = i.eixoIntegrativo || "SEM EIXO"; if (!grouped[eixo]) grouped[eixo] = []; grouped[eixo].push(i); });
 
   const INJ_FIELDS = [
-    { key: "codigoPadcom", label: "Codigo PADCOM" },
+    { key: "codigoPadcom", label: "Codigo Pawards" },
     { key: "nomeExibicao", label: "Nome Exibicao" },
     { key: "nomeAmpola", label: "Nome Ampola" },
     { key: "substanciaBase", label: "Substancia Base" },
@@ -259,7 +259,7 @@ function EndovenososTab() {
   });
 
   const ENDO_FIELDS = [
-    { key: "codigoPadcom", label: "Codigo PADCOM" },
+    { key: "codigoPadcom", label: "Codigo Pawards" },
     { key: "nomeExibicao", label: "Nome Exibicao" },
     { key: "nomeSoro", label: "Nome Soro" },
     { key: "substanciaBase", label: "Substancia Base" },
@@ -379,7 +379,7 @@ function ImplantesTab() {
   );
 
   const IMPL_FIELDS = [
-    { key: "codigoPadcom", label: "Codigo PADCOM" },
+    { key: "codigoPadcom", label: "Codigo Pawards" },
     { key: "nomeImplante", label: "Nome Implante" },
     { key: "substanciaAtiva", label: "Substancia Ativa" },
     { key: "dosagem", label: "Dosagem" },
@@ -490,7 +490,7 @@ function FormulasTab() {
   });
 
   const FORM_FIELDS = [
-    { key: "codigoPadcom", label: "Codigo PADCOM" },
+    { key: "codigoPadcom", label: "Codigo Pawards" },
     { key: "identificador", label: "Identificador" },
     { key: "conteudo", label: "Conteudo", type: "textarea" },
     { key: "area", label: "Area" },
@@ -963,7 +963,7 @@ export default function CatalogoPage() {
   return (
     <Layout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Catalogo PADCOM</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Catalogo Pawards</h1>
         <p className="text-muted-foreground mt-1">Base completa de itens terapeuticos, protocolos e regras do motor clinico</p>
         {resumo?.total && <div className="mt-2 text-sm text-muted-foreground">{resumo.total} registros no total</div>}
       </div>

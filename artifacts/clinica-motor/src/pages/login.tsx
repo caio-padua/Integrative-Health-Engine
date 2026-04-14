@@ -53,8 +53,8 @@ export default function Login() {
               <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-foreground uppercase">Motor Clínico</CardTitle>
-          <p className="text-[11px] text-muted-foreground tracking-[0.3em] uppercase">PADCOM V15.2 — Medicina Integrativa</p>
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground uppercase">Pawards</CardTitle>
+          <p className="text-[11px] text-muted-foreground tracking-[0.3em] uppercase">V15.2 — Powered by Padcon Tech</p>
           <CardDescription className="text-muted-foreground text-sm">
             Onde o caos vira fluxo.
           </CardDescription>

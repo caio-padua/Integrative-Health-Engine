@@ -459,7 +459,7 @@ export default function ConfiguracoesPage() {
     authToken: "",
     apiKey: "",
     numeroRemetente: "",
-    nomeExibicao: "Clinica PADCOM",
+    nomeExibicao: "Clinica Pawards",
     unidadeId: undefined as number | undefined,
   });
   const [waSavingConfig, setWaSavingConfig] = useState(false);
@@ -513,7 +513,7 @@ export default function ConfiguracoesPage() {
       if (res.ok) {
         toast({ title: "Configuracao WhatsApp salva com sucesso!" });
         setWaDialogOpen(false);
-        setWaNewConfig({ provedor: "TWILIO", accountSid: "", authToken: "", apiKey: "", numeroRemetente: "", nomeExibicao: "Clinica PADCOM", unidadeId: undefined });
+        setWaNewConfig({ provedor: "TWILIO", accountSid: "", authToken: "", apiKey: "", numeroRemetente: "", nomeExibicao: "Clinica Pawards", unidadeId: undefined });
         fetchWaConfigs();
       } else {
         const data = await res.json();
