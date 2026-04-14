@@ -51,9 +51,10 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
   const [addingPat, setAddingPat] = useState(false);
   const [showNewPat, setShowNewPat] = useState(false);
 
-  const [newMed, setNewMed] = useState({ nome: "", dose: "", motivoUso: "", tempoUso: "", criterioReducao: "" });
+  const [newMed, setNewMed] = useState({ tipoMed: "remedio" as "remedio"|"formula", nome: "", dose: "", posologia: "", motivoUso: "", tempoUso: "", criterioReducao: "", componentesFormula: [] as Array<{substancia:string;dosagem:string}> });
   const [addingMed, setAddingMed] = useState(false);
   const [showNewMed, setShowNewMed] = useState(false);
+  const [newComponente, setNewComponente] = useState({ substancia: "", dosagem: "" });
 
   const [editingPat, setEditingPat] = useState<any>(null);
   const [editingMed, setEditingMed] = useState<any>(null);
@@ -176,16 +177,29 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const handleAddMedicamento = async () => {
     if (!newMed.nome.trim()) { toast({ title: "Nome do medicamento e obrigatorio", variant: "destructive" }); return; }
+    if (newMed.tipoMed === "formula" && newMed.componentesFormula.length === 0) { toast({ title: "Adicione pelo menos uma substancia na formula", variant: "destructive" }); return; }
     setAddingMed(true);
     try {
+      const payload: any = {
+        nome: newMed.nome,
+        dose: newMed.dose,
+        posologia: newMed.posologia,
+        motivoUso: newMed.motivoUso,
+        tempoUso: newMed.tempoUso,
+        criterioReducao: newMed.criterioReducao,
+        tipoMed: newMed.tipoMed,
+        medicamentoDoseInline: newMed.tipoMed === "remedio" ? `${newMed.nome} ${newMed.dose}`.trim() : newMed.nome,
+      };
+      if (newMed.tipoMed === "formula") payload.componentesFormula = newMed.componentesFormula;
       const res = await fetch(`${apiBase}/rasx/${pacienteId}/revo/medicamento`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMed),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
-        toast({ title: "Medicamento adicionado" });
-        setNewMed({ nome: "", dose: "", motivoUso: "", tempoUso: "", criterioReducao: "" });
+        toast({ title: newMed.tipoMed === "formula" ? "Formula adicionada" : "Medicamento adicionado" });
+        setNewMed({ tipoMed: "remedio", nome: "", dose: "", posologia: "", motivoUso: "", tempoUso: "", criterioReducao: "", componentesFormula: [] });
+        setNewComponente({ substancia: "", dosagem: "" });
         setShowNewMed(false);
         fetchData();
       }
@@ -526,21 +540,78 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
         {medExpanded && (
           <CardContent className="pt-0">
             {showNewMed && (
-              <div className="border border-primary/30 bg-primary/5 p-3 mb-3 space-y-2">
-                <p className="text-xs font-medium text-primary">Novo Medicamento</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <Input placeholder="Nome" value={newMed.nome} onChange={e => setNewMed(m => ({ ...m, nome: e.target.value }))} />
-                  <Input placeholder="Dose" value={newMed.dose} onChange={e => setNewMed(m => ({ ...m, dose: e.target.value }))} />
-                  <Input placeholder="Motivo de uso" value={newMed.motivoUso} onChange={e => setNewMed(m => ({ ...m, motivoUso: e.target.value }))} />
+              <div className="border border-primary/30 bg-primary/5 p-3 mb-3 space-y-3">
+                <div className="flex items-center gap-3">
+                  <p className="text-xs font-medium text-primary">Novo Medicamento</p>
+                  <div className="flex gap-1 ml-auto">
+                    <button onClick={() => setNewMed(m => ({ ...m, tipoMed: "remedio", componentesFormula: [] }))}
+                      className={`px-3 py-1 text-xs font-medium border ${newMed.tipoMed === "remedio" ? "border-blue-500 bg-blue-500/20 text-blue-400" : "border-border bg-muted/10 text-muted-foreground"}`}>
+                      Remedio
+                    </button>
+                    <button onClick={() => setNewMed(m => ({ ...m, tipoMed: "formula" }))}
+                      className={`px-3 py-1 text-xs font-medium border ${newMed.tipoMed === "formula" ? "border-purple-500 bg-purple-500/20 text-purple-400" : "border-border bg-muted/10 text-muted-foreground"}`}>
+                      Formula
+                    </button>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="Tempo de uso" value={newMed.tempoUso} onChange={e => setNewMed(m => ({ ...m, tempoUso: e.target.value }))} />
-                  <Input placeholder="Criterio de reducao" value={newMed.criterioReducao} onChange={e => setNewMed(m => ({ ...m, criterioReducao: e.target.value }))} />
-                </div>
+
+                {newMed.tipoMed === "remedio" ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input placeholder="Medicamento + dose (ex: Captopril 25mg)" value={newMed.nome} onChange={e => setNewMed(m => ({ ...m, nome: e.target.value }))} />
+                      <Input placeholder="Posologia (ex: 1 comp 2x/dia)" value={newMed.posologia} onChange={e => setNewMed(m => ({ ...m, posologia: e.target.value }))} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input placeholder="Motivo de uso" value={newMed.motivoUso} onChange={e => setNewMed(m => ({ ...m, motivoUso: e.target.value }))} />
+                      <Input placeholder="Tempo de uso" value={newMed.tempoUso} onChange={e => setNewMed(m => ({ ...m, tempoUso: e.target.value }))} />
+                      <Input placeholder="Criterio de reducao" value={newMed.criterioReducao} onChange={e => setNewMed(m => ({ ...m, criterioReducao: e.target.value }))} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Input placeholder="Nome da formula (ex: Formula Neuroprotetora)" value={newMed.nome} onChange={e => setNewMed(m => ({ ...m, nome: e.target.value }))} />
+                    <Input placeholder="Posologia (ex: 2 caps 2x/dia)" value={newMed.posologia} onChange={e => setNewMed(m => ({ ...m, posologia: e.target.value }))} />
+                    <div className="border border-purple-500/20 bg-purple-500/5 p-2 space-y-2">
+                      <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Substancias da Formula</p>
+                      {newMed.componentesFormula.length > 0 && (
+                        <div className="space-y-1">
+                          {newMed.componentesFormula.map((c, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-xs bg-purple-500/10 px-2 py-1">
+                              <span className="font-medium text-purple-300">{c.substancia}</span>
+                              <span className="text-muted-foreground">{c.dosagem}</span>
+                              <button onClick={() => setNewMed(m => ({ ...m, componentesFormula: m.componentesFormula.filter((_, i) => i !== idx) }))}
+                                className="ml-auto text-red-400 hover:text-red-300"><X className="w-3 h-3" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Input placeholder="Substancia (ex: Glutationa)" className="flex-1" value={newComponente.substancia}
+                          onChange={e => setNewComponente(c => ({ ...c, substancia: e.target.value }))} />
+                        <Input placeholder="Dosagem (ex: 250mg)" className="w-32" value={newComponente.dosagem}
+                          onChange={e => setNewComponente(c => ({ ...c, dosagem: e.target.value }))} />
+                        <Button size="sm" variant="outline" className="shrink-0"
+                          onClick={() => {
+                            if (!newComponente.substancia.trim()) return;
+                            setNewMed(m => ({ ...m, componentesFormula: [...m.componentesFormula, { ...newComponente }] }));
+                            setNewComponente({ substancia: "", dosagem: "" });
+                          }}>
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input placeholder="Motivo de uso" value={newMed.motivoUso} onChange={e => setNewMed(m => ({ ...m, motivoUso: e.target.value }))} />
+                      <Input placeholder="Tempo de uso" value={newMed.tempoUso} onChange={e => setNewMed(m => ({ ...m, tempoUso: e.target.value }))} />
+                      <Input placeholder="Criterio de reducao" value={newMed.criterioReducao} onChange={e => setNewMed(m => ({ ...m, criterioReducao: e.target.value }))} />
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2 justify-end">
-                  <Button size="sm" variant="ghost" onClick={() => setShowNewMed(false)}><X className="w-3 h-3 mr-1" /> Cancelar</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowNewMed(false); setNewComponente({ substancia: "", dosagem: "" }); }}><X className="w-3 h-3 mr-1" /> Cancelar</Button>
                   <Button size="sm" onClick={handleAddMedicamento} disabled={addingMed}>
-                    {addingMed ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3 mr-1" />} Adicionar
+                    {addingMed ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3 mr-1" />} {newMed.tipoMed === "formula" ? "Adicionar Formula" : "Adicionar Remedio"}
                   </Button>
                 </div>
               </div>
@@ -548,31 +619,44 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
             <div className="divide-y divide-border/20">
               {meds.map((m: any) => (
-                <div key={m.id} className="flex items-center justify-between py-2.5 group hover:bg-muted/5">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{m.nome}</span>
-                        {m.dose && <span className="text-xs text-muted-foreground">{m.dose}</span>}
-                        <Badge variant="outline" className={`text-[9px] ${STATUS_MED_COLORS[m.statusAtual] || ""}`}>
-                          {(m.statusAtual || "em_uso").replace("_", " ")}
-                        </Badge>
-                      </div>
-                      <div className="flex gap-4 text-[10px] text-muted-foreground mt-0.5">
-                        {m.motivoUso && <span>Motivo: {m.motivoUso}</span>}
-                        {m.tempoUso && <span>Tempo: {m.tempoUso}</span>}
-                        {m.substituicaoNatural && <span className="text-green-400">Substituicao: {m.substituicaoNatural}</span>}
+                <div key={m.id} className="py-2.5 group hover:bg-muted/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {m.tipoMed === "formula" && <Badge variant="outline" className="text-[9px] bg-purple-500/20 text-purple-400">FORMULA</Badge>}
+                          <span className="font-medium text-sm">{m.medicamentoDoseInline || m.nome}</span>
+                          {m.tipoMed !== "formula" && m.dose && <span className="text-xs text-muted-foreground">{m.dose}</span>}
+                          <Badge variant="outline" className={`text-[9px] ${STATUS_MED_COLORS[m.statusAtual] || ""}`}>
+                            {(m.statusAtual || "em_uso").replace("_", " ")}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-4 text-[10px] text-muted-foreground mt-0.5">
+                          {m.posologia && <span className="text-blue-400">Posologia: {m.posologia}</span>}
+                          {m.motivoUso && <span>Motivo: {m.motivoUso}</span>}
+                          {m.tempoUso && <span>Tempo: {m.tempoUso}</span>}
+                          {m.substituicaoNatural && <span className="text-green-400">Substituicao: {m.substituicaoNatural}</span>}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditingMed({ ...m })}>
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-400" onClick={() => handleDeleteMedicamento(m.id)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditingMed({ ...m })}>
-                      <Edit className="w-3 h-3" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-400" onClick={() => handleDeleteMedicamento(m.id)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
+                  {m.tipoMed === "formula" && m.componentesFormula && m.componentesFormula.length > 0 && (
+                    <div className="ml-6 mt-1 flex flex-wrap gap-1">
+                      {m.componentesFormula.map((c: any, idx: number) => (
+                        <span key={idx} className="text-[9px] px-1.5 py-0.5 bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                          {c.substancia} {c.dosagem}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {meds.length === 0 && (
