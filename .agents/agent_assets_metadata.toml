@@ -1,5 +1,40 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "N4Sh2eHM1lyflatgco7Yg"
+uri = "file://attached_assets/logo_pawards_01_shield.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "DwQ54xQHa2_MBjrc3ZlNO"
+uri = "file://attached_assets/logo_pawards_02_pulse.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "8Kxu6ipblWrmv1zxXETsv"
+uri = "file://attached_assets/logo_pawards_03_molecular.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "KtZ_7CtCFX_SzYZKvXmyQ"
+uri = "file://attached_assets/logo_pawards_04_stethoscope.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "dtYeAD_oRGKqYZlZ_VXwj"
+uri = "file://attached_assets/logo_pawards_05_progress.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Mv7Bt4rpcSOBjjw-FnlOi"
+uri = "file://attached_assets/logo_pawards_06_pw_mark.png"
+type = "image"
+title = "generated_image"
 
 [[outputs]]
 id = "GfOOjYC--b85IYK9KIAFz"
