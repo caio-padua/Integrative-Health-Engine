@@ -11,6 +11,7 @@ import {
   deleteCalendarEvent,
   listCalendarEvents,
   listCalendars,
+  getCalendarClient,
   buildEventDescription,
   determineCalendarRouting,
   type SessaoCalendarData,
@@ -215,6 +216,33 @@ router.get("/google-calendar/events", async (req, res) => {
     res.json(events);
   } catch (err: any) {
     console.error("[Google] Error:", err.message); res.status(500).json({ error: "Erro na integracao Google" });
+  }
+});
+
+router.post("/google-calendar/create-event", async (req, res) => {
+  try {
+    const { calendarId, summary, description, date, startTime, endTime, colorId } = req.body;
+    if (!summary || !date || !startTime) {
+      res.status(400).json({ error: "summary, date e startTime sao obrigatorios" });
+      return;
+    }
+    const calendar = await getCalendarClient();
+    const start = `${date}T${startTime}:00`;
+    const end = `${date}T${endTime || "09:00"}:00`;
+    const event = await calendar.events.insert({
+      calendarId: calendarId || "primary",
+      requestBody: {
+        summary,
+        description: description || "",
+        start: { dateTime: start, timeZone: "America/Sao_Paulo" },
+        end: { dateTime: end, timeZone: "America/Sao_Paulo" },
+        colorId: colorId || "7",
+      },
+    });
+    res.json({ sucesso: true, eventId: event.data.id, htmlLink: event.data.htmlLink });
+  } catch (err: any) {
+    console.error("[GoogleCalendar] create-event error:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
