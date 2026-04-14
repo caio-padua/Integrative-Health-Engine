@@ -26,10 +26,10 @@ function addPage(doc: PDFKit.PDFDocument) {
 
 function header(doc: PDFKit.PDFDocument, titulo: string, codigo: string) {
   doc.rect(0, 0, 595, 70).fill(CORES.azulPetroleo);
-  doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: 375 });
+  doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: 345 });
   doc.fontSize(9).font("Helvetica").fillColor(CORES.douradoQueimado).text(codigo, 40, 48);
-  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.offWhite).text("INSTITUTO PADUA", 415, 22, { width: 140, align: "right" });
-  doc.fontSize(7).font("Helvetica").fillColor(CORES.douradoQueimado).text("Pawards V15.2 | Padcon Tech", 415, 40, { width: 140, align: "right" });
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.offWhite).text("INSTITUTO PADUA", 395, 22, { width: 160, align: "right" });
+  doc.fontSize(6).font("Helvetica").fillColor(CORES.douradoQueimado).text("Pawards V15.2 | Padcon Tech", 395, 38, { width: 160, align: "right" });
 }
 
 function pacienteBlock(doc: PDFKit.PDFDocument, data: DocBase, y: number): number {
@@ -50,14 +50,19 @@ function section(doc: PDFKit.PDFDocument, title: string, y: number): number {
 }
 
 function footer(doc: PDFKit.PDFDocument) {
-  const footerY = 787;
+  const footerY = 800;
   doc.moveTo(40, footerY).lineTo(555, footerY).lineWidth(0.3).stroke(CORES.cinzaClaro);
+  doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.cinzaClaro)
+    .text("PAWARDS - Sistema Gestao Saude", 40, footerY + 5, { width: 455, align: "center" });
   doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text("INSTITUTO PADUA — CLINICA PADUCCIA", 40, footerY + 4, { width: 515, align: "center" })
-    .text("PADUCCIA CLINICA MEDICA LTDA - EPP | CNPJ 63.865.940/0001-63 | RUA GUAXUPE, 327 — VILA FORMOSA — SAO PAULO — SP", 40, footerY + 12, { width: 515, align: "center" })
-    .text("DOCUMENTO GERADO PELO SISTEMA RASX-MATRIZ | \u00A9 2024 INSTITUTO PADUA | PADCON TECNOLOGIA E DESENVOLVIMENTO", 40, footerY + 20, { width: 515, align: "center" });
-  doc.fontSize(5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text("RASX-MATRIZ V6", 475, footerY + 28, { width: 80, align: "right" });
+    .text("\u00A9 2024 PADCON - Tecnologia e Desenvolvimento", 40, footerY + 14, { width: 455, align: "center" });
+  const badgeW = 52;
+  const badgeH = 11;
+  const badgeX = 555 - badgeW;
+  const badgeY = footerY + 6;
+  doc.rect(badgeX, badgeY, badgeW, badgeH).lineWidth(0.4).stroke(CORES.cinzaClaro);
+  doc.fontSize(4.5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text("RASX-MATRIZ", badgeX, badgeY + 3, { width: badgeW, align: "center" });
 }
 
 function campo(doc: PDFKit.PDFDocument, label: string, valor: string, y: number): number {
