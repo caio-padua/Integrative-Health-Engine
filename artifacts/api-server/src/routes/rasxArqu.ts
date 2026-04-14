@@ -655,7 +655,7 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
           const subject = pdf.categoria === "JURIDICO"
             ? `Termos Juridicos — ${collected.paciente.nome} — Instituto Padua`
             : `Relatorio ${RAS_CATEGORIAS[pdf.categoria as RasCategoria]?.label || pdf.categoria} — ${collected.paciente.nome} — Instituto Padua`;
-          const html = `<h2>Instituto Padua — Motor Clinico PADCOM V15.2</h2><p>Prezado(a) ${collected.paciente.nome},</p><p>Segue em anexo o documento <strong>${pdf.filename}</strong>.</p><p>Atenciosamente,<br/>Dr. Caio Henrique Fernandes Padua<br/>Instituto Padua</p>`;
+          const html = `<h2>Instituto Padua — Pawards</h2><p>Prezado(a) ${collected.paciente.nome},</p><p>Segue em anexo o documento <strong>${pdf.filename}</strong>.</p><p>Atenciosamente,<br/>Dr. Caio Henrique Fernandes Padua<br/>Instituto Padua</p>`;
           await sendEmailWithPdf(toEmail, subject, html, pdf.buffer, pdf.filename);
           resultados.push({ categoria: pdf.categoria, email: { sucesso: true, enviadoPara: toEmail } });
         }

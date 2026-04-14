@@ -653,7 +653,7 @@ Autorizo a administracao das seguintes substancias: ${dados.substancias.map(s =>
 
   sections.push({
     title: `${++sectionNum}. ARMAZENAMENTO DIGITAL`,
-    text: `Autorizo o armazenamento digital de todos os registros de atendimento, incluindo RAS, TCLE, laudos e exames, no sistema PADCOM e, quando aplicavel, em ambiente de nuvem seguro (Google Drive), com compartilhamento exclusivo ao meu e-mail cadastrado, em modo somente leitura.`,
+    text: `Autorizo o armazenamento digital de todos os registros de atendimento, incluindo RAS, TCLE, laudos e exames, no sistema Pawards e, quando aplicavel, em ambiente de nuvem seguro (Google Drive), com compartilhamento exclusivo ao meu e-mail cadastrado, em modo somente leitura.`,
   });
 
   sections.push({
@@ -708,7 +708,7 @@ Declaro ter lido e compreendido integralmente o presente termo, que todas as min
 
   doc.fontSize(5).font("Helvetica").fillColor(COLORS.textLight);
   doc.text(
-    `PADCOM V15 - Motor Clinico | Documento gerado eletronicamente em ${new Date().toLocaleDateString("pt-BR")} | ${clean(dados.agenda)}`,
+    `Pawards - Sistema de Gestao Saude | Documento gerado eletronicamente em ${new Date().toLocaleDateString("pt-BR")} | ${clean(dados.agenda)}`,
     LEFT,
     y,
     { width: CONTENT_WIDTH, align: "center" }
@@ -917,7 +917,7 @@ function drawFinancialContractPage(doc: InstanceType<typeof PDFDocument>, dados:
   y += 38;
   doc.fontSize(5).font("Helvetica").fillColor(COLORS.textLight);
   doc.text(
-    `PADCOM V15.2 - Motor Clinico | Contrato Financeiro gerado eletronicamente em ${new Date().toLocaleDateString("pt-BR")} | ${clean(dados.agenda)}`,
+    `Pawards - Sistema de Gestao Saude | Contrato Financeiro gerado eletronicamente em ${new Date().toLocaleDateString("pt-BR")} | ${clean(dados.agenda)}`,
     LEFT, y, { width: CONTENT_WIDTH, align: "center" }
   );
 }
