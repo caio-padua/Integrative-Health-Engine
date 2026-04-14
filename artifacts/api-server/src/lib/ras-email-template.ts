@@ -141,7 +141,7 @@ export function buildRasEmailHtml(opts: {
   <div style="padding:16px 24px;text-align:center">
     <div style="font-size:11px;color:#999;letter-spacing:1px;margin-bottom:4px">CLINICA PADUA</div>
     <div style="font-size:10px;color:#bbb">Medicina Integrativa e Longevidade</div>
-    <div style="font-size:9px;color:#ccc;margin-top:8px">Documento gerado automaticamente pelo Motor Clinico PADCOM V15.2</div>
+    <div style="font-size:9px;color:#ccc;margin-top:8px">Documento gerado automaticamente pelo Pawards - Sistema de Gestao Saude</div>
   </div>
 </body>
 </html>`;

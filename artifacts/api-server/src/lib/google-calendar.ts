@@ -117,7 +117,7 @@ export function buildEventDescription(opts: {
 
   const lines: string[] = [];
 
-  lines.push('PADCOM - PROTOCOLOS INJETAVEIS');
+  lines.push('PAWARDS - Protocolos Injetaveis');
   lines.push('');
   lines.push(pacienteNome.toUpperCase());
   if (pacienteCpf) lines.push(`CPF ${formatCpf(pacienteCpf)}`);
