@@ -30,13 +30,15 @@ export function templateLembreteSessao(dados: TemplateDados): string {
     "",
     "Qualquer duvida, estamos a disposicao.",
     "",
-    "Clinica Padua — Medicina Integrativa",
+    "PAWARDS - Instituto Padua",
+    "",
+    "_Developed by Pawards MedCore_",
   ].join("\n");
 }
 
 export function templateCodigoValidacao(dados: TemplateDados): string {
   return [
-    `Clinica Padua | ${dados.procedimento || ""} | ${dados.codigo || ""}`,
+    `PAWARDS - Instituto Padua | ${dados.procedimento || ""} | ${dados.codigo || ""}`,
     "",
     `Ola ${primeiroNome(dados.pacienteNome)}!`,
     "",
@@ -46,7 +48,9 @@ export function templateCodigoValidacao(dados: TemplateDados): string {
     "",
     "Apresente este codigo a enfermeira no momento da aplicacao.",
     "",
-    "Clinica Padua — Protocolos Injetaveis",
+    "PAWARDS - Instituto Padua",
+    "",
+    "_Developed by Pawards MedCore_",
   ].join("\n");
 }
 
@@ -61,7 +65,9 @@ export function templateAlertaExameCritico(dados: TemplateDados): string {
     "",
     "Favor verificar e tomar as providencias necessarias.",
     "",
-    "Clinica Padua — Motor Clinico",
+    "PAWARDS - Instituto Padua",
+    "",
+    "_Developed by Pawards MedCore_",
   ].join("\n");
 }
 
@@ -76,7 +82,9 @@ export function templateCardMensalPendente(dados: TemplateDados): string {
     "Ha um card de acompanhamento pendente de resposta.",
     "Acesse o sistema para responder.",
     "",
-    "Clinica Padua — Acompanhamento",
+    "PAWARDS - Instituto Padua",
+    "",
+    "_Developed by Pawards MedCore_",
   ].join("\n");
 }
 
@@ -91,7 +99,9 @@ export function templateAlertaClinicoUrgente(dados: TemplateDados): string {
     "",
     "Verifique o sistema para mais detalhes.",
     "",
-    "Clinica Padua — Alertas",
+    "PAWARDS - Instituto Padua",
+    "",
+    "_Developed by Pawards MedCore_",
   ].join("\n");
 }
 
@@ -109,7 +119,9 @@ export function templateConfirmacaoAgendamento(dados: TemplateDados): string {
     "",
     "Caso precise remarcar, entre em contato conosco.",
     "",
-    "Clinica Padua — Medicina Integrativa",
+    "PAWARDS - Instituto Padua",
+    "",
+    "_Developed by Pawards MedCore_",
   ].join("\n");
 }
 

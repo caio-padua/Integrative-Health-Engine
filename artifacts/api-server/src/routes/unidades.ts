@@ -33,7 +33,7 @@ router.put("/unidades/:id", async (req, res): Promise<void> => {
   const id = parseInt(raw, 10);
   const allowedFields = [
     "nome", "endereco", "bairro", "cidade", "estado", "cep", "cnpj",
-    "telefone", "tipo", "googleCalendarId", "googleCalendarEmail", "cor", "ativa",
+    "telefone", "tipo", "googleCalendarId", "googleCalendarEmail", "cor", "ativa", "nick",
   ];
   const updates: Record<string, any> = {};
   for (const key of allowedFields) {

@@ -679,6 +679,8 @@ export interface Unidade {
   cidade?: string;
   estado?: string;
   telefone?: string;
+  /** Nick da empresa (max 2 palavras, sem acentos) */
+  nick?: string;
   ativa: boolean;
   criadoEm: string;
 }
@@ -689,6 +691,8 @@ export interface CriarUnidadeBody {
   cidade?: string;
   estado?: string;
   telefone?: string;
+  /** Nick da empresa (max 2 palavras, sem acentos) */
+  nick?: string;
 }
 
 export type UsuarioPerfil = (typeof UsuarioPerfil)[keyof typeof UsuarioPerfil];

@@ -18,6 +18,7 @@ export const unidadesTable = pgTable("unidades", {
   codigoInterno: text("codigo_interno"),
   googleCalendarId: text("google_calendar_id"),
   googleCalendarEmail: text("google_calendar_email"),
+  nick: text("nick"),
   cor: text("cor").notNull().default("#3B82F6"),
   ativa: boolean("ativa").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),

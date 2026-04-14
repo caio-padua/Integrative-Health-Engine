@@ -52,7 +52,7 @@ function createEmailRaw(to: string, subject: string, htmlBody: string, from?: st
   const toAddr = sanitizeEmail(to);
 
   const messageParts = [
-    `From: CLINICA PADUA <${fromAddr}>`,
+    `From: PAWARDS - Instituto Padua <${fromAddr}>`,
     `To: ${toAddr}`,
     `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
     'MIME-Version: 1.0',
@@ -154,7 +154,7 @@ function buildPreSessaoHtml(opts: {
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
   <div style="background:#1a1a2e;color:#fff;padding:20px;text-align:center">
-    <h1 style="margin:0;font-size:24px">CLINICA PADUA</h1>
+    <h1 style="margin:0;font-size:24px">PAWARDS - Instituto Padua</h1>
     <p style="margin:5px 0 0;opacity:0.8">MEDICINA INTEGRATIVA</p>
   </div>
   <div style="background:#fff;padding:20px;border:1px solid #eee">
@@ -179,7 +179,7 @@ function buildPreSessaoHtml(opts: {
     <p style="color:#666;font-size:12px;margin-top:20px">Este e um email automatico. Nao responda.</p>
   </div>
   <div style="background:#f5f5f5;padding:10px;text-align:center;font-size:11px;color:#999">
-    CLINICA PADUA - clinica.padua.agenda@gmail.com
+    PAWARDS - Instituto Padua | Developed by Pawards MedCore
   </div>
 </body>
 </html>`;
@@ -252,7 +252,7 @@ function buildPosSessaoHtml(opts: {
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
   <div style="background:#0d7377;color:#fff;padding:20px;text-align:center">
-    <h1 style="margin:0;font-size:24px">CLINICA PADUA</h1>
+    <h1 style="margin:0;font-size:24px">PAWARDS - Instituto Padua</h1>
     <p style="margin:5px 0 0;opacity:0.8">RELATORIO POS-SESSAO</p>
   </div>
   <div style="background:#fff;padding:20px;border:1px solid #eee">
@@ -271,7 +271,7 @@ function buildPosSessaoHtml(opts: {
     <p style="color:#666;font-size:12px;margin-top:20px">Este e um email automatico. Nao responda.</p>
   </div>
   <div style="background:#f5f5f5;padding:10px;text-align:center;font-size:11px;color:#999">
-    CLINICA PADUA - clinica.padua.agenda@gmail.com
+    PAWARDS - Instituto Padua | Developed by Pawards MedCore
   </div>
 </body>
 </html>`;
@@ -322,7 +322,7 @@ function createEmailWithAttachment(
   const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
   const messageParts = [
-    `From: CLINICA PADUA <${fromAddr}>`,
+    `From: PAWARDS - Instituto Padua <${fromAddr}>`,
     `To: ${toAddr}`,
     `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
     'MIME-Version: 1.0',

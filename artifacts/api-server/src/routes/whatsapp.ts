@@ -244,7 +244,7 @@ router.get("/whatsapp/demo-ras.pdf", async (_req, res): Promise<void> => {
       medicoResponsavel: "Dr. Caio Padua",
       crmMedico: "CRM-SP 123456",
       enfermeira: "Ana Paula Ribeiro",
-      agenda: "Clinica Padua — Unidade Jardins",
+      agenda: "PAWARDS - Instituto Padua — Unidade Jardins",
       unidadeEndereco: "Rua Oscar Freire, 1234 — Jardins, Sao Paulo/SP",
       dataAtendimento: "2026-04-12",
       nomeProtocolo: "Protocolo Anti-aging Premium",

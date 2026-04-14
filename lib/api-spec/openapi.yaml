@@ -2230,6 +2230,9 @@ components:
           type: string
         telefone:
           type: string
+        nick:
+          type: string
+          description: Nick da empresa (max 2 palavras, sem acentos)
         ativa:
           type: boolean
         criadoEm:
@@ -2254,6 +2257,9 @@ components:
           type: string
         telefone:
           type: string
+        nick:
+          type: string
+          description: Nick da empresa (max 2 palavras, sem acentos)
       required:
         - nome
 

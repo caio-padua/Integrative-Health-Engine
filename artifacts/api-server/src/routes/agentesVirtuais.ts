@@ -84,7 +84,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Será um prazer organizar o seu atendimento",
       despedida: "Qualquer dúvida, estou por aqui!",
-      assinatura: "Clínica Pádua — Administrativo",
+      assinatura: "ADMINISTRATIVO - Instituto Padua",
       emojisPadrao: ["📋", "📅", "✅", "📍"],
       fraseEscalada: "Entendo a sua situação.\n\nVou direcionar para o setor responsável, que poderá te ajudar com mais precisão.\n\nEm instantes alguém entrará em contato.",
     },
@@ -119,7 +119,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Estou entrando em contato para confirmar seu atendimento",
       despedida: "Te esperamos! Qualquer mudança, é só responder aqui.",
-      assinatura: "Clínica Pádua — Confirmações",
+      assinatura: "ADMINISTRATIVO - Instituto Padua",
       emojisPadrao: ["📋", "✅", "📅", "🔄"],
       fraseEscalada: "Entendo a sua situação.\n\nVou direcionar para o setor responsável, que poderá te ajudar com mais precisão.\n\nEm instantes alguém entrará em contato.",
     },
@@ -154,7 +154,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Estou te enviando as orientações do seu procedimento",
       despedida: "Se precisar de qualquer coisa, estou por aqui!",
-      assinatura: "Clínica Pádua — Enfermagem",
+      assinatura: "ENFERMAGEM - Instituto Padua",
       emojisPadrao: ["💉", "✅", "🔑", "💧"],
       fraseEscalada: "Entendo a sua situação.\n\nVou acionar a equipe clínica imediatamente para te orientar.\n\nPor favor, não se preocupe — alguém entrará em contato em breve.",
     },
@@ -189,7 +189,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Estou fazendo o acompanhamento da sua sessão",
       despedida: "Fico feliz em saber! Vou registrar que está tudo bem.",
-      assinatura: "Clínica Pádua — Acompanhamento",
+      assinatura: "ENFERMAGEM - Instituto Padua",
       emojisPadrao: ["🔍", "✅", "📋", "💚"],
       fraseEscalada: "Obrigado por me contar.\n\nIsso é importante para o seu cuidado.\n\nVou encaminhar imediatamente para a equipe clínica avaliar.",
     },
@@ -224,7 +224,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Boa pergunta! Vou te explicar com clareza",
       despedida: "Qualquer outra dúvida sobre seu tratamento, estou aqui!",
-      assinatura: "Clínica Pádua — Consultoria Clínica",
+      assinatura: "CONSULTOR - Instituto Padua",
       emojisPadrao: ["🧬", "🔬", "📋", "✅"],
       fraseEscalada: "Essa é uma dúvida que precisa ser avaliada diretamente pelo médico.\n\nVou encaminhar para que ele te responda com mais precisão.",
     },
@@ -258,7 +258,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Estou fazendo o acompanhamento da sua evolução",
       despedida: "Continue assim! Estamos acompanhando de perto.",
-      assinatura: "Clínica Pádua — Acompanhamento",
+      assinatura: "CONSULTOR - Instituto Padua",
       emojisPadrao: ["📊", "🎯", "💪", "✅"],
       fraseEscalada: "Essa informação é importante.\n\nVou encaminhar para a equipe clínica avaliar e te retornar.",
     },
@@ -293,7 +293,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "ALERTA DE SLA — AÇÃO NECESSÁRIA",
       despedida: "Prazo improrrogável. Atualize o status.",
-      assinatura: "Instituto Padua — Supervisao Operacional",
+      assinatura: "SUPERVISOR - Instituto Padua",
       emojisPadrao: ["🚨", "⏰", "📋", "⚠️"],
       fraseEscalada: "SLA esgotado sem resolução.\n\nEscalonando para gerência.",
     },
@@ -328,7 +328,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Sou da equipe de qualidade da clínica",
       despedida: "Obrigado pelo seu tempo! Sua opinião é muito valiosa.",
-      assinatura: "Clínica Pádua — Qualidade",
+      assinatura: "SUPERVISOR - Instituto Padua",
       emojisPadrao: ["📋", "✅", "💬", "🙏"],
       fraseEscalada: "Agradeço o retorno.\n\nVou encaminhar para a equipe responsável.",
     },
@@ -363,7 +363,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Sou do setor financeiro da clínica",
       despedida: "Fico à disposição para qualquer dúvida financeira!",
-      assinatura: "Clínica Pádua — Financeiro",
+      assinatura: "FINANCEIRO - Instituto Padua",
       emojisPadrao: ["💰", "📄", "✅", "💳"],
       fraseEscalada: "Entendo a situação.\n\nVou encaminhar para o gestor financeiro que poderá avaliar opções especiais.",
     },
@@ -398,7 +398,7 @@ const CATALOGO_SEED: Array<{
     perfilMensagemPadrao: {
       saudacao: "Obrigado por trazer isso para nós",
       despedida: "Sua manifestação foi registrada com sigilo e será encaminhada à direção.",
-      assinatura: "Clínica Pádua — Ouvidoria Confidencial",
+      assinatura: "OUVIDORIA - Instituto Padua",
       emojisPadrao: ["🛡️", "📋", "✅", "🔒"],
       fraseEscalada: "Sua reclamação foi registrada.\n\nSerá encaminhada à direção com total sigilo.\n\nVocê receberá um retorno em até 48 horas.",
     },
@@ -743,7 +743,7 @@ const MOTOR_ESCRITA_POR_AGENTE: Record<string, {
     maxLinhasPorBloco: 2, maxCaracteresMensagem: 500, estiloVisual: "Tópicos com emojis de cuidado",
   },
   agente_enfermagem_02: {
-    templateAbertura: "Sou da equipe de acompanhamento da Clínica Pádua.",
+    templateAbertura: "Sou da equipe de acompanhamento do Instituto Padua.",
     templateContexto: "Gostaria de saber como você está após a sessão.",
     templateInformacao: "• Como se sentiu durante o procedimento?\n• Teve algum desconforto depois?",
     templateOrientacao: "Vou encaminhar para a equipe clínica avaliar.",
@@ -779,7 +779,7 @@ const MOTOR_ESCRITA_POR_AGENTE: Record<string, {
     maxLinhasPorBloco: 3, maxCaracteresMensagem: 800, estiloVisual: "Alerta visual com emojis de urgência",
   },
   agente_supervisor_02: {
-    templateAbertura: "Sou da equipe de qualidade da Clínica Pádua.",
+    templateAbertura: "Sou da equipe de qualidade do Instituto Padua.",
     templateContexto: "Estou verificando como foi o seu acompanhamento.",
     templateInformacao: "Você recebeu algum contato da nossa equipe?",
     templateOrientacao: "Seu retorno nos ajuda muito a manter a qualidade.",
@@ -788,7 +788,7 @@ const MOTOR_ESCRITA_POR_AGENTE: Record<string, {
     maxLinhasPorBloco: 2, maxCaracteresMensagem: 400, estiloVisual: "Casual, pesquisa de satisfação",
   },
   agente_financeiro_01: {
-    templateAbertura: "Sou do setor financeiro da Clínica Pádua.",
+    templateAbertura: "Sou do setor financeiro do Instituto Padua.",
     templateContexto: "Identifiquei uma pendência referente ao seu protocolo.",
     templateInformacao: "💳 Valor: R$ {valor}\n📅 Vencimento: {data}",
     templateOrientacao: "Posso te ajudar a regularizar:\n• Pix\n• Cartão de crédito\n• Boleto atualizado",

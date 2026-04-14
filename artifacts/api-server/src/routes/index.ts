@@ -58,6 +58,7 @@ import contratosRouter from "./contratosRoute";
 import raclRacjRouter from "./raclRacj";
 import rasxRevoRouter from "./rasxRevo";
 import rasxArquRouter from "./rasxArqu";
+import emailComunicacaoRouter from "./emailComunicacao";
 
 const router: IRouter = Router();
 
@@ -120,5 +121,6 @@ router.use(contratosRouter);
 router.use(raclRacjRouter);
 router.use(rasxRevoRouter);
 router.use(rasxArquRouter);
+router.use(emailComunicacaoRouter);
 
 export default router;

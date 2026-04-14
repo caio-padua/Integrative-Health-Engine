@@ -13,6 +13,8 @@ export interface Unidade {
   cidade?: string;
   estado?: string;
   telefone?: string;
+  /** Nick da empresa (max 2 palavras, sem acentos) */
+  nick?: string;
   ativa: boolean;
   criadoEm: Date;
 }

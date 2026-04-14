@@ -15,6 +15,7 @@ import {
 } from "../pdf/docsPdf";
 import { sendEmailWithPdf } from "../lib/google-gmail.js";
 import { getOrCreateClientFolder, uploadToClientSubfolder } from "../lib/google-drive.js";
+import { buildEmail, buildWhatsappFormal, type EmailOpts } from "../lib/email-templates";
 import crypto from "crypto";
 
 const router = Router();
@@ -651,13 +652,29 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
       resultados.push({ email: { sucesso: false, erro: "Email do paciente nao encontrado" } });
     } else {
       try {
+        const nick = typeof collected.pdfData.unidade === "object" ? (collected.pdfData.unidade as any)?.nick || "Instituto Padua" : "Instituto Padua";
+        const medicoNome = typeof collected.pdfData.medico === "string" ? collected.pdfData.medico : "Dr. Caio Henrique Fernandes Padua";
+        const substancias = collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome);
         for (const pdf of pdfs) {
-          const subject = pdf.categoria === "JURIDICO"
-            ? `Termos Juridicos — ${collected.paciente.nome} — Instituto Padua`
-            : `Relatorio ${RAS_CATEGORIAS[pdf.categoria as RasCategoria]?.label || pdf.categoria} — ${collected.paciente.nome} — Instituto Padua`;
-          const html = `<h2>Instituto Padua — Pawards</h2><p>Prezado(a) ${collected.paciente.nome},</p><p>Segue em anexo o documento <strong>${pdf.filename}</strong>.</p><p>Atenciosamente,<br/>Dr. Caio Henrique Fernandes Padua<br/>Instituto Padua</p>`;
-          await sendEmailWithPdf(toEmail, subject, html, pdf.buffer, pdf.filename);
-          resultados.push({ categoria: pdf.categoria, email: { sucesso: true, enviadoPara: toEmail } });
+          const tipoDoc = pdf.categoria === "JURIDICO"
+            ? "Termos Juridicos"
+            : (RAS_CATEGORIAS[pdf.categoria as RasCategoria]?.label || pdf.categoria);
+          const emailOpts: EmailOpts = {
+            nick,
+            medicoNome,
+            tipoDocumento: tipoDoc,
+            acao: "INFORMATIVO",
+            pacienteNome: collected.paciente.nome,
+            substancias: substancias.length > 0 ? substancias : undefined,
+            unidadeNome: typeof collected.pdfData.unidade === "string" ? collected.pdfData.unidade : nick,
+            endereco: "Rua Guaxupe, 327 - Vila Formosa, Sao Paulo - SP",
+            whatsapp: "(11) 97715-4000",
+            telefone: "(11) 97715-4000",
+            emailContato: "clinica.padua.agenda@gmail.com",
+          };
+          const built = buildEmail(emailOpts);
+          await sendEmailWithPdf(toEmail, built.subject, built.html, pdf.buffer, pdf.filename);
+          resultados.push({ categoria: pdf.categoria, email: { sucesso: true, enviadoPara: toEmail, subject: built.subject } });
         }
       } catch (err: any) {
         resultados.push({ email: { sucesso: false, erro: err.message } });
@@ -666,7 +683,27 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
   }
 
   if (whatsapp) {
-    resultados.push({ whatsapp: { info: "Para envio via WhatsApp com PDF anexo, use POST /api/whatsapp/enviar-pdf com mediaUrl apontando para o arquivo no Drive. Os PDFs foram enviados ao Drive." } });
+    const nick = typeof collected.pdfData.unidade === "object" ? (collected.pdfData.unidade as any)?.nick || "Instituto Padua" : "Instituto Padua";
+    const medicoNome = typeof collected.pdfData.medico === "string" ? collected.pdfData.medico : "Dr. Caio Henrique Fernandes Padua";
+    const substancias = collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome);
+    const waOpts: EmailOpts = {
+      nick,
+      medicoNome,
+      tipoDocumento: cats.map(c => c === "JURIDICO" ? "Termos Juridicos" : (RAS_CATEGORIAS[c as RasCategoria]?.label || c)).join(" + "),
+      acao: "INFORMATIVO",
+      pacienteNome: collected.paciente.nome,
+      substancias: substancias.length > 0 ? substancias : undefined,
+      unidadeNome: typeof collected.pdfData.unidade === "string" ? collected.pdfData.unidade : nick,
+      endereco: "Rua Guaxupe, 327 - Vila Formosa, Sao Paulo - SP",
+      whatsapp: "(11) 97715-4000",
+      telefone: "(11) 97715-4000",
+      emailContato: "clinica.padua.agenda@gmail.com",
+    };
+    const waMensagem = buildWhatsappFormal(waOpts);
+    const telefone = (typeof whatsapp === "string" ? whatsapp : (collected.paciente.telefone || "")).replace(/\D/g, "");
+    const telefoneInt = telefone.startsWith("55") ? telefone : `55${telefone}`;
+    const waUrl = telefone ? `https://wa.me/${telefoneInt}?text=${encodeURIComponent(waMensagem)}` : null;
+    resultados.push({ whatsapp: { mensagem: waMensagem, waUrl, info: "PDFs enviados ao Drive. Use o link wa.me para enviar a mensagem pelo WhatsApp." } });
   }
 
   await gravarAudit({ pacienteId, entidade: "rasx_envio_completo", acao: "gerar_pdf", metadados: { categorias: cats, email: !!email, drive: !!drive, whatsapp: !!whatsapp, totalPdfs: pdfs.length } });
