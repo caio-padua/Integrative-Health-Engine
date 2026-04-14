@@ -48,3 +48,10 @@ Key architectural decisions and features include:
 -   **Trello API:** Task board synchronization (configurable via TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID).
 -   **Twilio:** WhatsApp messaging service.
 -   **Gupshup:** WhatsApp messaging service.
+
+## RASX REVO — Medicamentos Dual-Mode (Remédio vs Fórmula Magistral)
+
+-   **Schema:** `revo_medicamentos` has `tipo_med` (enum: remedio/formula) and `componentes_formula` (jsonb array of {substancia, dosagem}).
+-   **API:** `POST /api/rasx/:pacienteId/revo/medicamento` accepts `tipoMed`, `componentesFormula`, `posologia` with field allowlist.
+-   **Frontend (RevoPanel):** Toggle between "Remédio" (inline nome+dose + posologia) and "Fórmula" (nome + botão (+) para adicionar substâncias). Lista exibe badge FORMULA roxo com tags de substâncias.
+-   **PDF (RACL HFOR):** Nova seção "Fórmulas Magistrais" no PDF RASX. Cada fórmula ganha sua própria página retrato com tabela substância/dosagem. Paginação automática: se componentes excedem 18 por página, cria continuação com cabeçalho e estrutura mantidos.

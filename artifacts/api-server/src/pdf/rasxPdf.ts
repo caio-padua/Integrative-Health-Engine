@@ -230,6 +230,64 @@ export function gerarRasxPdf(data: RasxPdfData): PassThrough {
   });
   drawFooter(doc, true);
 
+  // ========== RACL HFOR — Formulas Magistrais (RETRATO, paginado) ==========
+  const formulas = data.medicamentos.filter((m: any) => m.tipoMed === "formula" && m.componentesFormula && m.componentesFormula.length > 0);
+  if (formulas.length > 0) {
+    const MAX_COMPONENTES_POR_PAGINA = 18;
+    formulas.forEach((f: any, fIdx: number) => {
+      addPageRetrato(doc);
+      drawHeader(doc, `Formula Magistral ${fIdx + 1}/${formulas.length}`, "RACL HFOR", false);
+      y = 80;
+      y = drawPacienteBlock(doc, data, y, 595);
+
+      y = drawSectionTitle(doc, f.nome || `Formula ${fIdx + 1}`, y);
+      if (f.posologia) {
+        doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text("Posologia: ", 50, y, { continued: true });
+        doc.font("Helvetica").fillColor(CORES.cinzaTexto).text(f.posologia);
+        y += 16;
+      }
+      if (f.motivoUso) {
+        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaClaro).text(`Indicacao: ${f.motivoUso}`, 50, y);
+        y += 14;
+      }
+      y += 4;
+
+      const compCols = [
+        { label: "SUBSTANCIA", x: 40, w: 300 },
+        { label: "DOSAGEM", x: 340, w: 215 },
+      ];
+      const comps: Array<{substancia: string; dosagem: string}> = f.componentesFormula;
+      let pageComps = 0;
+
+      y = drawTableHeader(doc, compCols, y);
+      comps.forEach((c: any, cIdx: number) => {
+        y = drawTableRow(doc, compCols, [c.substancia, c.dosagem], y, cIdx % 2 === 0);
+        pageComps++;
+        if (pageComps >= MAX_COMPONENTES_POR_PAGINA && cIdx < comps.length - 1) {
+          drawFooter(doc, false);
+          addPageRetrato(doc);
+          drawHeader(doc, `Formula Magistral ${fIdx + 1}/${formulas.length} (cont.)`, "RACL HFOR", false);
+          y = 80;
+          y = drawPacienteBlock(doc, data, y, 595);
+          y = drawSectionTitle(doc, `${f.nome || "Formula"} — continuacao`, y);
+          y = drawTableHeader(doc, compCols, y);
+          pageComps = 0;
+        }
+      });
+
+      if (f.statusAtual) {
+        y += 8;
+        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaClaro).text(`Status: ${f.statusAtual.replace("_", " ")}`, 50, y);
+        y += 14;
+      }
+      if (f.substituicaoNatural) {
+        doc.fontSize(8).font("Helvetica").fillColor(CORES.verdeSalvia).text(`Substituicao: ${f.substituicaoNatural}`, 50, y);
+        y += 14;
+      }
+      drawFooter(doc, false);
+    });
+  }
+
   // ========== RACL HLIN — Linha Temporal de Medicacao (PAISAGEM) ==========
   if (data.eventosMedicacao.length > 0) {
     addPagePaisagem(doc);

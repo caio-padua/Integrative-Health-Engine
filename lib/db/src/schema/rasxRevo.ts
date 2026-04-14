@@ -113,10 +113,12 @@ export const revoMedicamentosTable = pgTable("revo_medicamentos", {
   id: serial("id").primaryKey(),
   pacienteId: integer("paciente_id").notNull().references(() => pacientesTable.id),
 
+  tipoMed: text("tipo_med", { enum: ["remedio", "formula"] }).notNull().default("remedio"),
   nome: text("nome").notNull(),
   dose: text("dose"),
   medicamentoDoseInline: text("medicamento_dose_inline"),
   posologia: text("posologia"),
+  componentesFormula: jsonb("componentes_formula").$type<Array<{ substancia: string; dosagem: string }>>(),
   motivoUso: text("motivo_uso"),
   tempoUso: text("tempo_uso"),
 

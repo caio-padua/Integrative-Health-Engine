@@ -267,9 +267,13 @@ router.post("/rasx/:pacienteId/revo/medicamento", async (req, res): Promise<void
   const pacienteId = Number(req.params.pacienteId);
   if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
 
+  const allowed = ["nome","dose","medicamentoDoseInline","posologia","motivoUso","tempoUso","statusAtual","criterioReducao","substituicaoNatural","evidenciaMelhora","indicacaoClinica","tipoMed","componentesFormula","dataInicioUso","dataReducao","dataSuspensao"];
+  const clean: any = {};
+  for (const k of allowed) { if (req.body[k] !== undefined) clean[k] = req.body[k]; }
+
   const [med] = await db.insert(revoMedicamentosTable).values({
     pacienteId,
-    ...req.body,
+    ...clean,
   }).returning();
 
   res.status(201).json(med);
