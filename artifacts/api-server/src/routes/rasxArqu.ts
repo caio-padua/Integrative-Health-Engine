@@ -618,7 +618,14 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
       }
 
       for (const pdf of pdfs) {
-        const subfolder = pdf.categoria === "JURIDICO" ? "JURIDICO" : "LAUDOS";
+        const DRIVE_MAP: Record<string, string> = {
+          JURIDICO: "JURIDICO",
+          CLINICO: "PROTOCOLOS",
+          EVOLUTIVO: "AVALIACOES",
+          ESTADO_SAUDE: "AVALIACOES",
+          COMPLETO: "LAUDOS",
+        };
+        const subfolder = DRIVE_MAP[pdf.categoria] || "LAUDOS";
         const result = await uploadToClientSubfolder({
           clientFolderId: folderId!,
           subfolder: subfolder as any,
