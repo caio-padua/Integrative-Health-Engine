@@ -333,20 +333,19 @@ export function buildEventSummary(opts: {
   return `${nome}${cpf} [${codigo}]`;
 }
 
-const COR_POR_TIPO: Record<string, string> = {
-  'APLICACAO ENDOVENOSA': '9',
-  'APLICACAO INTRAMUSCULAR': '5',
-  'IMPLANTE': '11',
-  'CONSULTA': '7',
-  'INFUSAO': '9',
-  'EXAME': '3',
+const COR_POR_CODIGO: Record<string, string> = {
+  'CPRE': '1',
+  'CONL': '3',
+  'CAVL': '7',
+  'SESS': '10',
+  'INFU': '2',
+  'PROC': '11',
+  'EXAM': '8',
 };
 
-function getEventColor(tipoProcedimento: string): string {
-  for (const [key, color] of Object.entries(COR_POR_TIPO)) {
-    if (tipoProcedimento.includes(key)) return color;
-  }
-  return '1';
+export function getEventColor(tipoProcedimento: string, substancias?: SubstanciaEvento[]): string {
+  const codigo = resolveCodigoSemantico(tipoProcedimento, substancias);
+  return COR_POR_CODIGO[codigo] || '1';
 }
 
 export async function createCalendarEvent(data: SessaoCalendarData): Promise<any> {
@@ -385,7 +384,7 @@ export async function createCalendarEvent(data: SessaoCalendarData): Promise<any
       dateTime: endDateTime,
       timeZone: 'America/Sao_Paulo',
     },
-    colorId: getEventColor(data.tipoProcedimento),
+    colorId: getEventColor(data.tipoProcedimento, data.substancias),
   };
 
   const response = await calendar.events.insert({

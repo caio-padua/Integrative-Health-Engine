@@ -18,7 +18,7 @@ import {
   TIPOS_PROCEDIMENTO,
 } from "@workspace/db";
 import { eq, and, sql, or, desc, gte, lte, inArray, between, isNull } from "drizzle-orm";
-import { getCalendarClient } from "../lib/google-calendar";
+import { getCalendarClient, getEventColor } from "../lib/google-calendar";
 
 const router = Router();
 
@@ -1089,7 +1089,7 @@ async function syncAppointmentToGoogleCalendar(appointment: any): Promise<string
         description,
         start: { dateTime: `${appointment.data}T${appointment.horaInicio}:00`, timeZone: "America/Sao_Paulo" },
         end: { dateTime: `${appointment.data}T${appointment.horaFim}:00`, timeZone: "America/Sao_Paulo" },
-        colorId: tipoInfo ? getGCalColorId(appointment.tipoProcedimento) : undefined,
+        colorId: getEventColor(appointment.tipoProcedimento),
       },
     });
 
@@ -1100,23 +1100,6 @@ async function syncAppointmentToGoogleCalendar(appointment: any): Promise<string
   }
 }
 
-function getGCalColorId(tipo: string): string {
-  const map: Record<string, string> = {
-    CONSULTA_30_PRESENCIAL: "1",
-    CONSULTA_30_ONLINE: "3",
-    CONSULTA_60_PRESENCIAL: "1",
-    RETORNO_15_PRESENCIAL: "7",
-    INFUSAO_CURTA_60_PRESENCIAL: "2",
-    INFUSAO_MEDIA_120_PRESENCIAL: "5",
-    INFUSAO_LONGA_180_PRESENCIAL: "11",
-    INFUSAO_EXTRA_240_PRESENCIAL: "11",
-    IMPLANTE_120_PRESENCIAL: "3",
-    IM_15_PRESENCIAL: "10",
-    AVALIACAO_ENF_30_PRESENCIAL: "6",
-    EXAME_30_PRESENCIAL: "8",
-  };
-  return map[tipo] || "1";
-}
 
 router.get("/agenda-motor/smart-release-config", async (req, res) => {
   try {
