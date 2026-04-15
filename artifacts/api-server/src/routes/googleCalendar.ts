@@ -12,6 +12,7 @@ import {
   listCalendarEvents,
   listCalendars,
   getCalendarClient,
+  getEventColor,
   buildEventDescription,
   determineCalendarRouting,
   type SessaoCalendarData,
@@ -236,7 +237,7 @@ router.post("/google-calendar/create-event", async (req, res) => {
         description: description || "",
         start: { dateTime: start, timeZone: "America/Sao_Paulo" },
         end: { dateTime: end, timeZone: "America/Sao_Paulo" },
-        colorId: colorId || "7",
+        colorId: colorId || getEventColor(req.body.tipoProcedimento || "CONSULTA_30_PRESENCIAL"),
       },
     });
     res.json({ sucesso: true, eventId: event.data.id, htmlLink: event.data.htmlLink });
