@@ -158,8 +158,9 @@ export function buildEventDescription(opts: {
   const temEV = vias.has('iv') || vias.has('ev');
   const temImplante = vias.has('implant');
   const temConsulta = tipoProcedimento.includes('CONSULTA');
-  const temDiverso = tipoProcedimento.includes('EXAME') || tipoProcedimento.includes('COLETA') ||
-    (!temConsulta && !temEV && !temIM && !temImplante && substancias.length === 0);
+  const temRetorno = tipoProcedimento.includes('RETORNO') || tipoProcedimento.includes('AVALIACAO');
+  const temEspecifico = tipoProcedimento.includes('EXAME') || tipoProcedimento.includes('COLETA') ||
+    (!temConsulta && !temRetorno && !temEV && !temIM && !temImplante && substancias.length === 0);
 
   const lines: string[] = [];
 
@@ -174,10 +175,11 @@ export function buildEventDescription(opts: {
 
   const procs = [
     { ativo: temConsulta, nome: 'Consulta', min: '60min' },
-    { ativo: temEV, nome: 'Aplicação endovenosa', min: '30min' },
-    { ativo: temIM, nome: 'Aplicação intramuscular', min: '15min' },
+    { ativo: temEV, nome: 'Aplicação Endovenosa', min: '30min' },
+    { ativo: temIM, nome: 'Aplicação Intramuscular', min: '15min' },
     { ativo: temImplante, nome: 'Implante', min: '60min' },
-    { ativo: temDiverso, nome: 'Procedimento diverso', min: '60min' },
+    { ativo: temRetorno, nome: 'Retorno ou Avaliação', min: '30min' },
+    { ativo: temEspecifico, nome: 'Procedimento Específico', min: '60min' },
   ];
   procs.sort((a, b) => (b.ativo ? 1 : 0) - (a.ativo ? 1 : 0));
   const PAD_LEN = 30;
@@ -218,8 +220,8 @@ export function buildEventDescription(opts: {
   lines.push('');
   const LEG_PAD = 28;
   lines.push('<b>Legenda:</b>');
-  lines.push(`🟩  ${'Disponibilidade Aplicação'.padEnd(LEG_PAD)}[DISP]`);
-  lines.push(`🟨  ${'Próxima Sessão'.padEnd(LEG_PAD)}[PROX]`);
+  lines.push(`🟩  ${'Disponível para Aplicação'.padEnd(LEG_PAD)}[DISP]`);
+  lines.push(`🟨  ${'Disponível Próxima Sessão'.padEnd(LEG_PAD)}[PROX]`);
   lines.push(`🟦  ${'Substância Aplicada'.padEnd(LEG_PAD)}[APLI]`);
   lines.push(`⬜  ${'Substância Indisponível'.padEnd(LEG_PAD)}[INDI]`);
   lines.push('');
