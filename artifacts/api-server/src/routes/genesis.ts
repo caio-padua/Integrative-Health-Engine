@@ -8,7 +8,7 @@ import { eq, and, sql } from "drizzle-orm";
 
 const router = Router();
 
-const GENESIS_SEED_ID = 12;
+const GENESIS_SEED_ID = 14;
 const GENESIS_TIPO = "genesis_seed";
 
 const TRATAMENTOS_GENESIS = [
