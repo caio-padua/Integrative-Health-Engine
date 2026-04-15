@@ -56,6 +56,7 @@ interface SubstanciaEvento {
   via: string;
   dose: string;
   status: string;
+  nestaSessao?: boolean;
 }
 
 function statusSquare(status: string): { square: string; tag: string } {
@@ -85,7 +86,7 @@ function determineSessionStatus(substancias: SubstanciaEvento[]): { label: strin
   const hasNaoAplicada = substancias.some(s => s.status === 'nao_aplicada');
 
   if (allDone && hasAplicada && !hasNaoAplicada) return { label: 'Realizado', square: '🟦' };
-  if (allDone && hasNaoAplicada && !hasAplicada) return { label: 'Nao realizado', square: '⬜' };
+  if (allDone && hasNaoAplicada && !hasAplicada) return { label: 'Não realizado', square: '⬜' };
   if (allDone) return { label: 'Realizado', square: '🟦' };
   return { label: 'A realizar', square: '🟨' };
 }
@@ -97,6 +98,36 @@ function capitalize(text: string): string {
 
 function capitalizeSentence(text: string): string {
   return text.split(' ').map((w, i) => i === 0 ? capitalize(w) : w.toLowerCase()).join(' ');
+}
+
+function formatDose(dose: string): string {
+  if (!dose) return '';
+  let d = dose
+    .replace(/\b\d*\s*(amp|ampola|ampolas|frascos?|frasco)\b/gi, '')
+    .replace(/\b\d+[.,]?\d*\s*ml\b/gi, '')
+    .replace(/\bml\b/gi, '')
+    .trim();
+  if (!d) return '';
+  return d;
+}
+
+function cleanSubstanceName(nome: string): string {
+  return nome
+    .replace(/\s*(ENDOVENOSA|INTRAMUSCULAR|INTRAVENOSA|INTRAVENÓSA|SUBCUTANEA|SUBCUTÂNEA|SUBLINGUAL|ORAL)\s*/gi, ' ')
+    .replace(/\s*(EV|IV|IM|SC|SL|VO)\s*$/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const STATUS_ORDER: Record<string, number> = { 'disp': 0, 'prox': 1, 'aplicada': 2, 'nao_aplicada': 3 };
+
+function sortSubstancias(substancias: SubstanciaEvento[]): SubstanciaEvento[] {
+  return [...substancias].sort((a, b) => {
+    const aSessao = a.nestaSessao !== false ? 0 : 1;
+    const bSessao = b.nestaSessao !== false ? 0 : 1;
+    if (aSessao !== bSessao) return aSessao - bSessao;
+    return (STATUS_ORDER[a.status] ?? 4) - (STATUS_ORDER[b.status] ?? 4);
+  });
 }
 
 export function buildEventDescription(opts: {
@@ -118,7 +149,7 @@ export function buildEventDescription(opts: {
 }): string {
   const { pacienteNome, pacienteCpf, numeroMarcacao, totalMarcacoes, unidadeNome, substancias, tipoProcedimento, duracaoMin, endereco } = opts;
 
-  const vias = new Set(substancias.map(s => s.via?.toLowerCase()));
+  const vias = new Set(substancias.filter(s => s.nestaSessao !== false).map(s => s.via?.toLowerCase()));
   const temIM = vias.has('im');
   const temEV = vias.has('iv') || vias.has('ev');
   const temImplante = vias.has('implant');
@@ -126,64 +157,80 @@ export function buildEventDescription(opts: {
 
   const lines: string[] = [];
 
-  lines.push('Pawards - Protocolos injetaveis');
+  lines.push('Pawards - Protocolos injetáveis');
   lines.push('');
   lines.push(capitalizeSentence(pacienteNome));
-  if (pacienteCpf) lines.push(`Cpf ${formatCpf(pacienteCpf)}`);
-  if (numeroMarcacao) lines.push(`Marcacao ${numeroMarcacao}${totalMarcacoes ? '/' + totalMarcacoes : ''}`);
+  if (pacienteCpf) lines.push(`CPF ${formatCpf(pacienteCpf)}`);
+  if (numeroMarcacao) lines.push(`Marcação ${numeroMarcacao}${totalMarcacoes ? '/' + totalMarcacoes : ''}`);
   if (unidadeNome) lines.push(`Unidade ${capitalizeSentence(unidadeNome)}`);
   lines.push('');
 
   lines.push('Procedimentos');
   lines.push('');
   lines.push(`  Consulta [60min]  ${temConsulta ? '✅' : '❎'}`);
-  lines.push(`  Aplicacao endovenosa [30min]  ${temEV ? '✅' : '❎'}`);
-  lines.push(`  Aplicacao intramuscular [15min]  ${temIM ? '✅' : '❎'}`);
+  lines.push(`  Aplicação endovenosa [30min]  ${temEV ? '✅' : '❎'}`);
+  lines.push(`  Aplicação intramuscular [15min]  ${temIM ? '✅' : '❎'}`);
   lines.push(`  Implante [60min]  ${temImplante ? '✅' : '❎'}`);
   lines.push('');
-  lines.push(`Duracao total: ${duracaoMin} minutos`);
+  lines.push(`Duração total: ${duracaoMin} minutos`);
   lines.push('');
 
-  const sessionStatus = determineSessionStatus(substancias);
+  const sessionSubs = substancias.filter(s => s.nestaSessao !== false);
+  const sessionStatus = determineSessionStatus(sessionSubs);
   lines.push(`Status: ${sessionStatus.label}  ${sessionStatus.square}`);
   lines.push('');
   lines.push('');
 
-  lines.push('Substancias do protocolo');
+  const sorted = sortSubstancias(substancias);
+  const destaSessao = sorted.filter(s => s.nestaSessao !== false);
+  const foraDaSessao = sorted.filter(s => s.nestaSessao === false);
+
+  lines.push('Substâncias do protocolo');
   lines.push('');
-  for (let i = 0; i < substancias.length; i++) {
-    const s = substancias[i];
+  let idx = 0;
+  for (const s of destaSessao) {
+    idx++;
     const st = statusSquare(s.status);
-    const idx = `[${i + 1}/${substancias.length}]`;
-    const nome = capitalizeSentence(s.nome);
-    const dose = s.dose || '';
-    lines.push(`  ${st.square}  ${idx}  ${nome} ${dose}  [${st.tag}]`);
+    const nome = cleanSubstanceName(s.nome);
+    const dose = formatDose(s.dose);
+    lines.push(`  ${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
     lines.push('');
+  }
+
+  if (foraDaSessao.length > 0) {
+    for (const s of foraDaSessao) {
+      idx++;
+      const st = statusSquare(s.status);
+      const nome = cleanSubstanceName(s.nome);
+      const dose = formatDose(s.dose);
+      lines.push(`  ${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
+      lines.push('');
+    }
   }
   lines.push('');
 
   lines.push('Legenda');
   lines.push('');
-  lines.push('  🟩  [DISP]  Disponivel para aplicacao hoje');
-  lines.push('  🟨  [PROX]  Proxima sessao');
-  lines.push('  🟦  [APLI]  Substancia ja aplicada');
-  lines.push('  ⬜  [INDI]  Indisponivel');
+  lines.push('  🟩  [DISP]  Disponível para aplicação hoje');
+  lines.push('  🟨  [PROX]  Próxima sessão');
+  lines.push('  🟦  [APLI]  Substância já aplicada');
+  lines.push('  ⬜  [INDI]  Indisponível');
   lines.push('');
   lines.push('');
 
   if (endereco && endereco.rua) {
-    lines.push('Endereco');
+    lines.push('Endereço');
     lines.push('');
     lines.push(`  📍  ${capitalizeSentence(endereco.rua)}`);
     if (endereco.bairro) lines.push(`      ${capitalizeSentence(endereco.bairro)}`);
-    if (endereco.cep) lines.push(`      Cep ${endereco.cep}`);
+    if (endereco.cep) lines.push(`      CEP ${endereco.cep}`);
     if (endereco.cidade && endereco.estado) lines.push(`      ${capitalizeSentence(endereco.cidade)} - ${endereco.estado.toUpperCase()}`);
     lines.push('');
     lines.push('');
 
     const enderecoCompleto = [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep].filter(Boolean).join(', ');
     const enderecoEncoded = encodeURIComponent(enderecoCompleto);
-    lines.push('Navegacao');
+    lines.push('Navegação');
     lines.push('');
     lines.push(`  Google Maps: https://www.google.com/maps/search/?api=1&query=${enderecoEncoded}`);
     lines.push('');
