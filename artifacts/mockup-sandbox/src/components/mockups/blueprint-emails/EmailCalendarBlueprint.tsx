@@ -101,13 +101,21 @@ export function EmailCalendarBlueprint() {
             <div style={s.email(greenAccent)}>pawards.lemos.agenda@gmail.com</div>
             <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>1a clinica sob consultoria</div>
           </div>
+          <div style={s.flowBox("#6366F1")}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#6366F1" }}>INSTITUTO BARROS</div>
+            <div style={{ fontSize: 11, color: "#94A3B8" }}>CNPJ 44.555.666/0001-77</div>
+            <div style={s.divider} />
+            <div style={s.email(blueAccent)}>pawards.barros.geral@gmail.com</div>
+            <div style={s.email(greenAccent)}>pawards.barros.agenda@gmail.com</div>
+            <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>2a clinica sob consultoria</div>
+          </div>
           <div style={s.flowBox(purpleAccent)}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: purpleAccent }}>FUTURA CLINICA X</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: purpleAccent }}>FUTURA CLINICA N...</div>
             <div style={{ fontSize: 11, color: "#94A3B8" }}>CNPJ XX.XXX.XXX/0001-XX</div>
             <div style={s.divider} />
-            <div style={s.email(blueAccent)}>pawards.clinicax.geral@gmail.com</div>
-            <div style={s.email(greenAccent)}>pawards.clinicax.agenda@gmail.com</div>
-            <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>Modelo escalavel</div>
+            <div style={s.email(blueAccent)}>pawards.[clinica].geral@gmail.com</div>
+            <div style={s.email(greenAccent)}>pawards.[clinica].agenda@gmail.com</div>
+            <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>Modelo escalavel infinito</div>
           </div>
         </div>
       </div>
@@ -218,7 +226,7 @@ export function EmailCalendarBlueprint() {
         </div>
 
         <div style={s.row}>
-          <div style={{ ...s.card(tealAccent), flex: "1 1 100%" }}>
+          <div style={{ ...s.card(tealAccent), flex: "1 1 45%" }}>
             <div style={{ ...s.label, color: tealAccent }}>INSTITUTO LEMOS — pawards.lemos.agenda@gmail.com (a criar)</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               {[
@@ -229,6 +237,18 @@ export function EmailCalendarBlueprint() {
               ))}
             </div>
             <div style={{ fontSize: 10, color: "#64748B", marginTop: 8 }}>Dr. Kleber e equipe criam as sub-agendas que precisarem</div>
+          </div>
+          <div style={{ ...s.card("#6366F1"), flex: "1 1 45%" }}>
+            <div style={{ ...s.label, color: "#6366F1" }}>INSTITUTO BARROS — pawards.barros.agenda@gmail.com (a criar)</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+              {[
+                "MEDICO - DR. LUIS BARROS",
+                "ENFERMAGEM - CAMPINAS",
+              ].map((cal, i) => (
+                <span key={i} style={s.badge("#6366F1")}>{cal}</span>
+              ))}
+            </div>
+            <div style={{ fontSize: 10, color: "#64748B", marginTop: 8 }}>Dr. Luis Barros | CRM 222.222/SP | Rua das Palmeiras 320, Jd Europa, Campinas-SP 13070-100</div>
           </div>
         </div>
       </div>
@@ -243,21 +263,21 @@ export function EmailCalendarBlueprint() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${gold}` }}>
-                {["TIPO", "PADRAO", "EXEMPLO PADUA", "EXEMPLO LEMOS"].map((h, i) => (
+                {["TIPO", "PADRAO", "INST. PADUA", "INST. LEMOS", "INST. BARROS"].map((h, i) => (
                   <th key={i} style={{ textAlign: "left", padding: "8px 12px", color: gold, fontSize: 11 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {[
-                ["Email Geral", "pawards.[clinica].geral@gmail.com", "pawards.padua.geral@gmail.com", "pawards.lemos.geral@gmail.com"],
-                ["Email Agenda", "pawards.[clinica].agenda@gmail.com", "clinica.padua.agenda@gmail.com *", "pawards.lemos.agenda@gmail.com"],
-                ["Enfermagem 01", "[clinica].enfermagem01@gmail.com", "padua.enfermagem01@gmail.com", "lemos.enfermagem01@gmail.com"],
-                ["Enfermagem 02", "[clinica].enfermagem02@gmail.com", "padua.enfermagem02@gmail.com", "lemos.enfermagem02@gmail.com"],
-                ["Consultor 01", "[clinica].consultor01@gmail.com", "padua.consultor01@gmail.com", "lemos.consultor01@gmail.com"],
-                ["Supervisor 01", "[clinica].supervisor01@gmail.com", "padua.supervisor01@gmail.com", "lemos.supervisor01@gmail.com"],
-                ["Financeiro 01", "[clinica].financeiro01@gmail.com", "padua.financeiro01@gmail.com", "lemos.financeiro01@gmail.com"],
-                ["Ouvidoria 01", "[clinica].ouvidoria01@gmail.com", "padua.ouvidoria01@gmail.com", "lemos.ouvidoria01@gmail.com"],
+                ["Email Geral", "pawards.[clinica].geral@", "pawards.padua.geral@", "pawards.lemos.geral@", "pawards.barros.geral@"],
+                ["Email Agenda", "pawards.[clinica].agenda@", "clinica.padua.agenda@ *", "pawards.lemos.agenda@", "pawards.barros.agenda@"],
+                ["Enfermagem 01", "[clinica].enfermagem01@", "padua.enfermagem01@", "lemos.enfermagem01@", "barros.enfermagem01@"],
+                ["Enfermagem 02", "[clinica].enfermagem02@", "padua.enfermagem02@", "lemos.enfermagem02@", "barros.enfermagem02@"],
+                ["Consultor 01", "[clinica].consultor01@", "padua.consultor01@", "lemos.consultor01@", "barros.consultor01@"],
+                ["Supervisor 01", "[clinica].supervisor01@", "padua.supervisor01@", "lemos.supervisor01@", "barros.supervisor01@"],
+                ["Financeiro 01", "[clinica].financeiro01@", "padua.financeiro01@", "lemos.financeiro01@", "barros.financeiro01@"],
+                ["Ouvidoria 01", "[clinica].ouvidoria01@", "padua.ouvidoria01@", "lemos.ouvidoria01@", "barros.ouvidoria01@"],
               ].map((row, i) => (
                 <tr key={i} style={{ borderBottom: `1px solid ${sectionBg}` }}>
                   {row.map((cell, j) => (
