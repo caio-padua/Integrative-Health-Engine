@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Building2, MapPin, Pencil, Calendar, Trash2, Mail } from "lucide-react";
+import { Plus, Building2, MapPin, Pencil, Calendar, Trash2, Mail, ExternalLink, Link2, HardDrive, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,18 +42,23 @@ interface Unidade {
   ativa: boolean;
 }
 
-const EMAIL_FIELDS = [
-  { key: "emailGeral", label: "EMAIL PRINCIPAL", sublabel: "Comunicacoes gerais da clinica", suffix: "geral" },
-  { key: "emailAgenda", label: "EMAIL AGENDA", sublabel: "Integracao Google Calendar — paciente recebe convite", suffix: "agenda" },
-  { key: "emailEnfermagem01", label: "ENFERMAGEM 01", sublabel: "Cargo enfermagem — funcionario adota enquanto empregado", suffix: "enfermagem01" },
-  { key: "emailEnfermagem02", label: "ENFERMAGEM 02", sublabel: "Cargo enfermagem — funcionario adota enquanto empregado", suffix: "enfermagem02" },
-  { key: "emailConsultor01", label: "CONSULTOR 01", sublabel: "Consultoria clinica — tira duvidas de saude", suffix: "consultor01" },
-  { key: "emailConsultor02", label: "CONSULTOR 02", sublabel: "Consultoria clinica — tira duvidas de saude", suffix: "consultor02" },
-  { key: "emailSupervisor01", label: "SUPERVISOR 01", sublabel: "Supervisao de processos e qualidade", suffix: "supervisor01" },
-  { key: "emailSupervisor02", label: "SUPERVISOR 02", sublabel: "Supervisao de processos e qualidade", suffix: "supervisor02" },
-  { key: "emailFinanceiro01", label: "FINANCEIRO 01", sublabel: "Gestao financeira e cobrancas", suffix: "financeiro01" },
-  { key: "emailOuvidoria01", label: "OUVIDORIA 01", sublabel: "Canal de manifestacoes e reclamacoes", suffix: "ouvidoria01" },
+const EMAIL_SECTION_1 = [
+  { key: "emailGeral", label: "EMAIL PRINCIPAL", sublabel: "Cadastro da clinica, comunicacoes oficiais, notificacoes do sistema PAWARDS", suffix: "geral", example: "pawards.[nome].geral@gmail.com" },
+  { key: "emailAgenda", label: "EMAIL AGENDA (GOOGLE CALENDAR)", sublabel: "Email vinculado ao Google Calendar — paciente recebe convite no celular. Cada CNPJ tem seu proprio Gmail de agenda isolado.", suffix: "agenda", example: "pawards.[nome].agenda@gmail.com" },
 ] as const;
+
+const EMAIL_SECTION_2 = [
+  { key: "emailEnfermagem01", label: "ENFERMAGEM 01", sublabel: "Cargo enfermagem titular. Funcionario adota o email enquanto empregado. Bianca (IA) responde como agente virtual.", suffix: "enfermagem01", example: "pawards.[nome].enfermagem01@gmail.com" },
+  { key: "emailEnfermagem02", label: "ENFERMAGEM 02", sublabel: "Cargo enfermagem reserva. Mesmo modelo: funcionario usa enquanto vinculado. Mariana (IA) como agente virtual.", suffix: "enfermagem02", example: "pawards.[nome].enfermagem02@gmail.com" },
+  { key: "emailConsultor01", label: "CONSULTOR 01", sublabel: "Consultoria clinica — tira duvidas de saude, orientacoes pos-consulta. Dr. Lucas (IA) como agente virtual.", suffix: "consultor01", example: "pawards.[nome].consultor01@gmail.com" },
+  { key: "emailConsultor02", label: "CONSULTOR 02", sublabel: "Consultoria clinica — segundo canal para demanda excedente. Dra. Camila (IA) como agente virtual.", suffix: "consultor02", example: "pawards.[nome].consultor02@gmail.com" },
+  { key: "emailSupervisor01", label: "SUPERVISOR 01", sublabel: "Supervisao de processos, qualidade, monitoramento SLA. Fernando (IA) como agente virtual.", suffix: "supervisor01", example: "pawards.[nome].supervisor01@gmail.com" },
+  { key: "emailSupervisor02", label: "SUPERVISOR 02", sublabel: "Supervisao reserva — auditoria e escalacao. Gustavo (IA) como agente virtual.", suffix: "supervisor02", example: "pawards.[nome].supervisor02@gmail.com" },
+  { key: "emailFinanceiro01", label: "FINANCEIRO 01", sublabel: "Gestao financeira, cobrancas, orcamentos, NFe. Patricia (IA) como agente virtual.", suffix: "financeiro01", example: "pawards.[nome].financeiro01@gmail.com" },
+  { key: "emailOuvidoria01", label: "OUVIDORIA 01", sublabel: "Canal oficial de reclamacoes, sugestoes e manifestacoes do paciente. Helena (IA) como agente virtual.", suffix: "ouvidoria01", example: "pawards.[nome].ouvidoria01@gmail.com" },
+] as const;
+
+const ALL_EMAIL_FIELDS = [...EMAIL_SECTION_1, ...EMAIL_SECTION_2] as const;
 
 function buildSuggestedEmail(nick: string, suffix: string): string {
   if (!nick) return "";
@@ -157,7 +162,7 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
     const sanitized = sanitizeNick(nickValue);
     setForm(prev => {
       const updated = { ...prev, nick: sanitized };
-      EMAIL_FIELDS.forEach(ef => {
+      ALL_EMAIL_FIELDS.forEach(ef => {
         if (!prev[ef.key as keyof UnidadeForm]) {
           (updated as any)[ef.key] = buildSuggestedEmail(sanitized, ef.suffix);
         }
@@ -308,31 +313,31 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
                 <Input value={form.cor} onChange={e => update("cor", e.target.value)} className="font-mono text-xs" />
               </div>
             </div>
-            <div>
-              <Label>Google Calendar Email</Label>
-              <Input value={form.googleCalendarEmail} onChange={e => update("googleCalendarEmail", e.target.value)} placeholder="email@gmail.com" />
-            </div>
-          </div>
-
-          <div>
-            <Label>Google Calendar ID</Label>
-            <Input value={form.googleCalendarId} onChange={e => update("googleCalendarId", e.target.value)} placeholder="calendar-id (opcional)" />
           </div>
 
           <div className="border-t pt-4 mt-4">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-1">
               <Mail className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">Emails PAWARDS — Auto-preenchidos</span>
+              <span className="font-semibold text-sm">EMAILS PAWARDS</span>
             </div>
-            <p className="text-[10px] text-muted-foreground mb-3">
-              Todos os emails sao gerados automaticamente a partir do Nick. Editaveis — o Dr. Caio cria e mantem posse com 2FA.
+            <p className="text-[10px] text-muted-foreground mb-1">
+              Dr. Caio CRIA todos os emails e ATIVA 2FA com resgate exclusivo. Funcionario ADOTA o email do cargo enquanto empregado.
             </p>
-            <div className="space-y-3">
-              {EMAIL_FIELDS.map((ef) => {
+            <p className="text-[10px] text-muted-foreground mb-4">
+              Todos os emails sao auto-preenchidos a partir do Nick no formato: <span className="font-mono text-blue-400">pawards.[nome].[funcao]@gmail.com</span>. Campos editaveis — a clinica tem autonomia para ajustar.
+            </p>
+
+            <div className="rounded border border-blue-800/50 bg-blue-950/30 p-3 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 className="h-3.5 w-3.5 text-blue-400" />
+                <span className="text-xs font-bold text-blue-300">1. EMAILS DA CLINICA — CADASTRO E AGENDA</span>
+              </div>
+              <p className="text-[9px] text-blue-300/70 mb-3">Emails institucionais da clinica. O principal recebe notificacoes do sistema. O de agenda sincroniza com Google Calendar.</p>
+              {EMAIL_SECTION_1.map((ef) => {
                 const suggested = buildSuggestedEmail(form.nick, ef.suffix);
                 const currentVal = form[ef.key as keyof UnidadeForm] as string;
                 return (
-                  <div key={ef.key}>
+                  <div key={ef.key} className="mb-3">
                     <Label className="text-xs font-bold">{ef.label}</Label>
                     <Input
                       value={currentVal}
@@ -341,15 +346,103 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
                       className="font-mono text-xs"
                     />
                     <p className="text-[9px] text-muted-foreground mt-0.5">{ef.sublabel}</p>
+                    <p className="text-[9px] text-blue-500/80 font-mono mt-0.5">Formato: {ef.example}</p>
                     {suggested && !currentVal && (
-                      <p className="text-[9px] text-amber-600 mt-0.5">Sugestao: {suggested}</p>
+                      <p className="text-[9px] text-amber-500 mt-0.5 font-medium">Sugestao: {suggested}</p>
                     )}
                     {suggested && currentVal && currentVal !== suggested && (
-                      <p className="text-[9px] text-blue-600 mt-0.5">Padrao sugerido: {suggested}</p>
+                      <p className="text-[9px] text-blue-500 mt-0.5">Padrao sugerido: {suggested}</p>
                     )}
                   </div>
                 );
               })}
+            </div>
+
+            <div className="rounded border border-teal-800/50 bg-teal-950/30 p-3 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="h-3.5 w-3.5 text-teal-400" />
+                <span className="text-xs font-bold text-teal-300">2. EMAILS DOS OPERADORES — CARGO = EMAIL = AGENTE VIRTUAL</span>
+              </div>
+              <p className="text-[9px] text-teal-300/70 mb-3">Cada cargo tem um email proprio. Funcionario humano ADOTA o email. Cada email tem um agente virtual (IA) correspondente que responde automaticamente.</p>
+              <div className="space-y-3">
+                {EMAIL_SECTION_2.map((ef) => {
+                  const suggested = buildSuggestedEmail(form.nick, ef.suffix);
+                  const currentVal = form[ef.key as keyof UnidadeForm] as string;
+                  return (
+                    <div key={ef.key}>
+                      <Label className="text-xs font-bold">{ef.label}</Label>
+                      <Input
+                        value={currentVal}
+                        onChange={e => update(ef.key as keyof UnidadeForm, e.target.value)}
+                        placeholder={suggested || "Preencha o Nick primeiro"}
+                        className="font-mono text-xs"
+                      />
+                      <p className="text-[9px] text-muted-foreground mt-0.5">{ef.sublabel}</p>
+                      <p className="text-[9px] text-teal-500/80 font-mono mt-0.5">Formato: {ef.example}</p>
+                      {suggested && !currentVal && (
+                        <p className="text-[9px] text-amber-500 mt-0.5 font-medium">Sugestao: {suggested}</p>
+                      )}
+                      {suggested && currentVal && currentVal !== suggested && (
+                        <p className="text-[9px] text-blue-500 mt-0.5">Padrao sugerido: {suggested}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded border border-amber-800/50 bg-amber-950/30 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Link2 className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-xs font-bold text-amber-300">3. VINCULACAO — GOOGLE CALENDAR E DRIVE</span>
+              </div>
+              <p className="text-[9px] text-amber-300/70 mb-3">Conecte o email da agenda ao Google Calendar e Drive. O PAWARDS cria sessoes na agenda interna e envia convites automaticos ao paciente via Google Calendar.</p>
+              <div className="mb-3">
+                <Label className="text-xs font-bold">GOOGLE CALENDAR EMAIL</Label>
+                <Input
+                  value={form.googleCalendarEmail}
+                  onChange={e => update("googleCalendarEmail", e.target.value)}
+                  placeholder={form.emailAgenda || buildSuggestedEmail(form.nick, "agenda") || "email@gmail.com"}
+                  className="font-mono text-xs"
+                />
+                <p className="text-[9px] text-muted-foreground mt-0.5">Email da conta Google vinculada ao Calendar desta clinica. Deve ser o mesmo do campo "Email Agenda" acima.</p>
+                {form.googleCalendarEmail && form.emailAgenda && form.googleCalendarEmail !== form.emailAgenda && (
+                  <p className="text-[9px] text-amber-500 mt-0.5 font-medium">Atencao: Este email difere do Email Agenda ({form.emailAgenda}). Recomendado usar o mesmo.</p>
+                )}
+              </div>
+              <div className="mb-3">
+                <Label className="text-xs font-bold">GOOGLE CALENDAR ID</Label>
+                <Input
+                  value={form.googleCalendarId}
+                  onChange={e => update("googleCalendarId", e.target.value)}
+                  placeholder="primary ou calendar-id@group.calendar.google.com"
+                  className="font-mono text-xs"
+                />
+                <p className="text-[9px] text-muted-foreground mt-0.5">ID do calendario no Google. Use "primary" para o calendario principal ou o ID especifico de um sub-calendario.</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <a
+                  href="https://calendar.google.com/calendar/r/settings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 bg-amber-900/30 px-2 py-1 rounded border border-amber-700/50 transition-colors"
+                >
+                  <Calendar className="h-3 w-3" />
+                  Abrir Google Calendar
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+                <a
+                  href="https://drive.google.com/drive/my-drive"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 bg-amber-900/30 px-2 py-1 rounded border border-amber-700/50 transition-colors"
+                >
+                  <HardDrive className="h-3 w-3" />
+                  Abrir Google Drive
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              </div>
+              <p className="text-[9px] text-amber-400/60 mt-2">PAWARDS e a agenda MASTER. Google Calendar e COMPLEMENTO — paciente recebe convite no celular para visualizar facilmente.</p>
             </div>
           </div>
 
