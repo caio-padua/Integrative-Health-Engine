@@ -34,17 +34,22 @@ function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, lan
 
 let payload: PayloadRAS | null = null;
 
+let pageCounter = 0;
+
 function drawFooterMotor(doc: PDFKit.PDFDocument, landscape: boolean, p: PayloadRAS) {
   const w = landscape ? 842 : 595;
   const h = landscape ? 595 : 842;
   const fy = h - 52;
   doc.moveTo(40, fy).lineTo(w - 40, fy).lineWidth(0.3).stroke(CORES.cinzaClaro);
 
+  pageCounter++;
+  doc.fontSize(5).font("Helvetica").fillColor(CORES.cinzaClaro).text(`Pagina ${pageCounter}`, 40, fy + 4, { width: 60 });
+
   const nick = p.nick || "INSTITUTO PADUA";
   const rodape = `${nick} — CLINICA PADUCCIA | PADUCCIA CLINICA MEDICA LTDA - EPP | CNPJ 63.865.940/0001-63`;
-  doc.fontSize(4.5).font("Helvetica").fillColor(CORES.cinzaClaro).text(rodape, 40, fy + 4, { width: w - 80, align: "center" });
-  doc.fontSize(4).text("RUA GUAXUPE, 327 — VILA FORMOSA — SAO PAULO — SP | CNAE 8630-5/03", 40, fy + 12, { width: w - 80, align: "center" });
-  doc.fontSize(4).text("Documento gerado pelo sistema RASX-MATRIZ | Developed by Pawards MedCore", 40, fy + 20, { width: w - 80, align: "center" });
+  doc.fontSize(4.5).font("Helvetica").fillColor(CORES.cinzaClaro).text(rodape, 100, fy + 4, { width: w - 200, align: "center" });
+  doc.fontSize(4).text("RUA GUAXUPE, 327 — VILA FORMOSA — SAO PAULO — SP | CNAE 8630-5/03", 100, fy + 12, { width: w - 200, align: "center" });
+  doc.fontSize(4).text("Documento gerado pelo sistema RASX-MATRIZ | Developed by Pawards MedCore", 100, fy + 20, { width: w - 200, align: "center" });
 
   const bw = 60; const bh = 12;
   const bx = w - 40 - bw; const by = fy + 4;
@@ -240,24 +245,37 @@ function renderJURI(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     addPage(doc);
     drawHeader(doc, "Base Juridica — LGPD e Privacidade", SubgrupoJURI.BASE, false);
     let y = drawPaciente(doc, p, 80, 595);
+
+    const termosBase = getTermosDBPorSubgrupo("JURI.BASE");
+    const termoLGPD = termosBase.find(t => t.categoria === "lgpd");
+    const termoPriv = termosBase.find(t => t.categoria === "privacidade");
+    const termoNGar = termosBase.find(t => t.categoria === "nao_garantia");
+
     y = drawSection(doc, "Lei Geral de Protecao de Dados (Lei 13.709/2018)", y);
-    y = drawParagraph(doc, `Eu, ${p.nomePaciente}${p.cpf ? ", CPF " + p.cpf : ""}, autorizo o ${p.nick || "Instituto Padua"} (PADUCCIA CLINICA MEDICA LTDA, CNPJ 63.865.940/0001-63) e o ${p.profissionalResponsavel} a coletar, armazenar, processar e utilizar meus dados pessoais e dados sensiveis de saude exclusivamente para fins de:`, y);
+    const lgpdIntro = `Eu, ${p.nomePaciente}${p.cpf ? ", CPF " + p.cpf : ""}, autorizo o ${p.nick || "Instituto Padua"} (PADUCCIA CLINICA MEDICA LTDA, CNPJ 63.865.940/0001-63) e o ${p.profissionalResponsavel} a coletar, armazenar, processar e utilizar meus dados pessoais e dados sensiveis de saude exclusivamente para fins de:`;
+    y = drawParagraph(doc, lgpdIntro, y);
     y = drawCheckbox(doc, "Prestacao de servicos medicos e acompanhamento clinico", y);
     y = drawCheckbox(doc, "Elaboracao de prontuario eletronico e relatorios clinicos (RASX/REVO)", y);
     y = drawCheckbox(doc, "Comunicacao via WhatsApp e email para fins clinicos e agendamento", y);
     y = drawCheckbox(doc, "Armazenamento em nuvem (Google Drive) com acesso restrito ao medico responsavel", y);
     y = drawCheckbox(doc, "Geracao de PDFs clinicos, evolutivos e juridicos para uso exclusivo do paciente e equipe medica", y);
     y += 6;
-    y = drawParagraph(doc, "Os dados serao mantidos pelo prazo minimo de 20 anos conforme Resolucao CFM 1.821/2007. O titular pode solicitar acesso, correcao, anonimizacao ou eliminacao dos dados (quando permitido por lei) a qualquer momento.", y);
+    const lgpdTexto = termoLGPD?.textoCompleto || "Os dados serao mantidos pelo prazo minimo de 20 anos conforme Resolucao CFM 1.821/2007. O titular pode solicitar acesso, correcao, anonimizacao ou eliminacao dos dados (quando permitido por lei) a qualquer momento.";
+    y = drawParagraph(doc, lgpdTexto, y);
+    if (termoLGPD) { doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro).text(`[Termo ID ${termoLGPD.id} — v${termoLGPD.versao}]`, 50, y); y += 8; }
 
     y += 6;
     y = drawSection(doc, "Politica de Privacidade e Sigilo Medico", y);
-    y = drawParagraph(doc, `O ${p.nick} e o ${p.profissionalResponsavel} comprometem-se a manter sigilo absoluto sobre todas as informacoes clinicas conforme art. 73 do Codigo de Etica Medica e art. 154 do Codigo Penal.`, y);
-    y = drawParagraph(doc, "Nao compartilhar dados com terceiros sem autorizacao expressa, exceto quando exigido por lei ou ordem judicial.", y);
+    const privTexto = termoPriv?.textoCompleto || `O ${p.nick} e o ${p.profissionalResponsavel} comprometem-se a manter sigilo absoluto sobre todas as informacoes clinicas conforme art. 73 do Codigo de Etica Medica e art. 154 do Codigo Penal. Nao compartilhar dados com terceiros sem autorizacao expressa, exceto quando exigido por lei ou ordem judicial.`;
+    y = drawParagraph(doc, privTexto, y);
+    if (termoPriv) { doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro).text(`[Termo ID ${termoPriv.id} — v${termoPriv.versao}]`, 50, y); y += 8; }
 
     y += 6;
     y = drawSection(doc, "Termo de Nao-Garantia de Resultados", y);
-    y = drawParagraph(doc, "A Medicina nao e uma ciencia exata. Resultados variam conforme caracteristicas individuais, adesao ao tratamento, fatores geneticos, ambientais e comportamentais. O medico se compromete a empregar os melhores recursos disponiveis, baseados em evidencias cientificas.", y);
+    const ngarTexto = termoNGar?.textoCompleto || "A Medicina nao e uma ciencia exata. Resultados variam conforme caracteristicas individuais, adesao ao tratamento, fatores geneticos, ambientais e comportamentais. O medico se compromete a empregar os melhores recursos disponiveis, baseados em evidencias cientificas.";
+    y = drawParagraph(doc, ngarTexto, y);
+    if (termoNGar) { doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro).text(`[Termo ID ${termoNGar.id} — v${termoNGar.versao}]`, 50, y); y += 8; }
+
     y = drawAssinatura(doc, y);
     drawFooterMotor(doc, false, p);
   }
@@ -270,14 +288,23 @@ function renderJURI(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
       : "Consentimento Global para Tratamento (TCLE)";
     drawHeader(doc, tituloConsent, p.consentimentoEspecifico || SubgrupoJURI.CONS, false);
     let y = drawPaciente(doc, p, 80, 595);
+
+    const termoCons = p.consentimentoEspecifico
+      ? getTermoDB("JURI.CONS", p.consentimentoEspecifico)
+      : getTermoDB("JURI.CONS");
+    const termoTCLE = getTermosDBPorSubgrupo("JURI.CONS").find(t => t.categoria === "tcle_global");
+
     y = drawSection(doc, "Termo de Consentimento Livre e Esclarecido", y);
-    y = drawParagraph(doc, `Declaro que fui informado(a) pelo ${p.profissionalResponsavel} sobre meu quadro clinico, incluindo diagnosticos, prognosticos, riscos e alternativas terapeuticas.`, y);
+    const tcleTexto = termoTCLE?.textoCompleto || `Declaro que fui informado(a) pelo ${p.profissionalResponsavel} sobre meu quadro clinico, incluindo diagnosticos, prognosticos, riscos e alternativas terapeuticas.`;
+    y = drawParagraph(doc, tcleTexto, y);
+    if (termoTCLE) { doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro).text(`[Termo ID ${termoTCLE.id} — v${termoTCLE.versao}]`, 50, y); y += 8; }
 
     if (classeInfo) {
       y = drawSection(doc, `Riscos Especificos — ${classeInfo.descricao}`, y);
       y = drawParagraph(doc, `Eixo juridico central: ${classeInfo.eixoJuridico}`, y);
       y += 4;
-      const riscosEspecificos: Record<string, string[]> = {
+
+      const riscosHardcoded: Record<string, string[]> = {
         CFOR: ["Variacao individual na absorcao e resposta as formulas manipuladas", "Interacoes medicamentosas entre componentes da formula", "Necessidade de ajuste de dosagem conforme resposta clinica", "Possiveis efeitos gastrointestinais transitoveis"],
         CIMU: ["Dor local no ponto de aplicacao", "Formacao de hematoma ou nodulo no local", "Necessidade de monitoramento clinico apos aplicacao", "Variacao individual na absorcao intramuscular"],
         CEND: ["Risco de reacao imediata durante infusao endovenosa", "Necessidade de ambiente controlado e supervisionado", "Possibilidade de flebite ou infiltracao no acesso venoso", "Protocolo de seguranca com observacao pos-infusao"],
@@ -285,8 +312,18 @@ function renderJURI(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
         CEIN: ["Possibilidade de assimetria nos resultados", "Risco de hematoma, edema ou equimose", "Resultado variavel conforme resposta individual", "Necessidade de sessoes complementares"],
         CETE: ["Risco de queimadura por energia termica ou luminosa", "Sensibilidade ao fototipo do paciente", "Possibilidade de hiperpigmentacao ou hipopigmentacao", "Necessidade de cuidados pos-procedimento rigorosos"],
       };
-      const riscos = p.consentimentoEspecifico ? riscosEspecificos[p.consentimentoEspecifico] || [] : [];
+
+      const riscosFromDB = termoCons?.riscosEspecificos as string[] | undefined;
+      const riscos = (riscosFromDB && riscosFromDB.length > 0)
+        ? riscosFromDB
+        : (p.consentimentoEspecifico ? riscosHardcoded[p.consentimentoEspecifico] || [] : []);
       riscos.forEach(r => { y = drawCheckbox(doc, r, y); });
+
+      if (termoCons) {
+        y += 4;
+        y = drawParagraph(doc, termoCons.textoCompleto, y);
+        doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro).text(`[Termo ID ${termoCons.id} — v${termoCons.versao}]`, 50, y); y += 8;
+      }
     }
 
     if (p.patologias.length > 0) {
@@ -317,14 +354,21 @@ function renderJURI(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     addPage(doc);
     drawHeader(doc, "Autorizacao de Uso de Imagem", SubgrupoJURI.IMAG, false);
     let y = drawPaciente(doc, p, 80, 595);
+
+    const termoImag = getTermosDBPorSubgrupo("JURI.IMAG")[0];
+
     y = drawSection(doc, "Direito de Imagem", y);
-    y = drawParagraph(doc, `Eu, ${p.nomePaciente}, autorizo / nao autorizo (riscar o que nao se aplica) o uso de minha imagem (fotografias e videos) pelo ${p.nick} para fins de:`, y);
-    y = drawCheckbox(doc, "Documentacao clinica e prontuario medico", y);
-    y = drawCheckbox(doc, "Apresentacao em congressos e eventos cientificos (sem identificacao)", y);
-    y = drawCheckbox(doc, "Material educativo (sem identificacao)", y);
-    y = drawCheckbox(doc, "Divulgacao institucional (com identificacao — requer autorizacao separada)", y);
-    y += 8;
-    y = drawParagraph(doc, "A autorizacao pode ser revogada a qualquer momento, sem prejuizo do tratamento.", y);
+    const imagTexto = termoImag?.textoCompleto || `Eu, ${p.nomePaciente}, autorizo / nao autorizo (riscar o que nao se aplica) o uso de minha imagem (fotografias e videos) pelo ${p.nick} para fins de:`;
+    y = drawParagraph(doc, imagTexto, y);
+    if (!termoImag) {
+      y = drawCheckbox(doc, "Documentacao clinica e prontuario medico", y);
+      y = drawCheckbox(doc, "Apresentacao em congressos e eventos cientificos (sem identificacao)", y);
+      y = drawCheckbox(doc, "Material educativo (sem identificacao)", y);
+      y = drawCheckbox(doc, "Divulgacao institucional (com identificacao — requer autorizacao separada)", y);
+      y += 8;
+      y = drawParagraph(doc, "A autorizacao pode ser revogada a qualquer momento, sem prejuizo do tratamento.", y);
+    }
+    if (termoImag) { doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro).text(`[Termo ID ${termoImag.id} — v${termoImag.versao}]`, 50, y); y += 8; }
     y = drawAssinatura(doc, y);
     drawFooterMotor(doc, false, p);
   }
@@ -333,14 +377,20 @@ function renderJURI(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     addPage(doc);
     drawHeader(doc, "Aceite Digital e Assinatura", SubgrupoJURI.DIGI, false);
     let y = drawPaciente(doc, p, 80, 595);
+
+    const termoDigi = getTermosDBPorSubgrupo("JURI.DIGI")[0];
+
     y = drawSection(doc, "Termo de Aceite Digital", y);
-    y = drawParagraph(doc, `Declaro que tomei ciencia de todos os termos, consentimentos e documentos apresentados pelo ${p.nick} e pelo ${p.profissionalResponsavel}.`, y);
-    y = drawParagraph(doc, "A assinatura digital tem validade juridica conforme MP 2.200-2/2001 e Lei 14.063/2020.", y);
-    y += 8;
-    y = drawSection(doc, "Plataforma de Assinatura", y);
-    y = drawCheckbox(doc, "Assinatura presencial em documento fisico", y);
-    y = drawCheckbox(doc, "Assinatura digital via plataforma DOXITE", y);
-    y = drawCheckbox(doc, "Aceite digital via sistema PAWARDS", y);
+    const digiTexto = termoDigi?.textoCompleto || `Declaro que tomei ciencia de todos os termos, consentimentos e documentos apresentados pelo ${p.nick} e pelo ${p.profissionalResponsavel}. A assinatura digital tem validade juridica conforme MP 2.200-2/2001 e Lei 14.063/2020.`;
+    y = drawParagraph(doc, digiTexto, y);
+    if (!termoDigi) {
+      y += 8;
+      y = drawSection(doc, "Plataforma de Assinatura", y);
+      y = drawCheckbox(doc, "Assinatura presencial em documento fisico", y);
+      y = drawCheckbox(doc, "Assinatura digital via plataforma DOXITE", y);
+      y = drawCheckbox(doc, "Aceite digital via sistema PAWARDS", y);
+    }
+    if (termoDigi) { y += 4; doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro).text(`[Termo ID ${termoDigi.id} — v${termoDigi.versao}]`, 50, y); y += 8; }
     y += 8;
     y = drawPlaceholders(doc, p, y);
     y = drawAssinatura(doc, y);
@@ -615,8 +665,38 @@ function render4100(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
   }
 }
 
+export interface TermoJuridicoDB {
+  id: number;
+  bloco: string;
+  subgrupo: string;
+  consentimento: string | null;
+  titulo: string;
+  textoCompleto: string;
+  categoria: string;
+  riscosEspecificos: any;
+  versao: number;
+}
+
+let termosDB: TermoJuridicoDB[] = [];
+
+export function setTermosDB(termos: TermoJuridicoDB[]) {
+  termosDB = termos;
+}
+
+function getTermoDB(subgrupo: string, consentimento?: string | null): TermoJuridicoDB | undefined {
+  if (consentimento) {
+    return termosDB.find(t => t.consentimento === consentimento);
+  }
+  return termosDB.find(t => t.subgrupo === subgrupo && !t.consentimento);
+}
+
+function getTermosDBPorSubgrupo(subgrupo: string): TermoJuridicoDB[] {
+  return termosDB.filter(t => t.subgrupo === subgrupo);
+}
+
 export function gerarMotorPdf(p: PayloadRAS): PassThrough {
   payload = p;
+  pageCounter = 0;
   const stream = new PassThrough();
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margins: { top: 40, bottom: 40, left: 40, right: 40 }, autoFirstPage: false });
   doc.pipe(stream);
@@ -644,6 +724,7 @@ export function gerarMotorPdf(p: PayloadRAS): PassThrough {
 }
 
 export function gerarMotorPdfConsolidado(payloads: PayloadRAS[]): PassThrough {
+  pageCounter = 0;
   const stream = new PassThrough();
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margins: { top: 40, bottom: 40, left: 40, right: 40 }, autoFirstPage: false });
   doc.pipe(stream);

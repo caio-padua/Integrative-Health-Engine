@@ -102,5 +102,15 @@ Key architectural decisions and features include:
 
 ### Layout PDF Institucional
 -   **Header:** Título alinhado à esquerda + código subgrupo + PAWARDS (canto superior direito) + Nick da unidade
--   **Rodapé:** Central institucional (PADUCCIA CLINICA MEDICA LTDA - EPP | CNPJ | Endereço) + RASX-MATRIZ V6 (canto inferior direito) + "Developed by Pawards MedCore"
+-   **Rodapé:** "Pagina X" (canto inferior esquerdo) + Central institucional (PADUCCIA CLINICA MEDICA LTDA - EPP | CNPJ | Endereço) + RASX-MATRIZ V6 (canto inferior direito) + "Developed by Pawards MedCore"
 -   **Logo DP:** `artifacts/api-server/src/pdf/assets/logo-dp.png` disponível mas desabilitada (logo escura)
+
+### Termos Jurídicos (DB-driven)
+-   **Tabelas:** `termos_juridicos` (id, bloco, subgrupo, consentimento, titulo, textoCompleto, categoria, riscosEspecificos, versao, ativo) + `termos_assinados` (id, pacienteId, termoId, versaoAssinada, dataAssinatura, meioAssinatura)
+-   **8 Categorias:** lgpd, privacidade, nao_garantia, tcle_global, consentimento_especifico, imagem, aceite_digital, ciencia_financeira
+-   **13 Termos Seed:** 3 JURI.BASE + 7 JURI.CONS (1 TCLE + 6 consentimentos) + JURI.IMAG + JURI.DIGI + FINA.CIEN
+-   **API:** GET/POST/PUT `/api/termos-juridicos/*`, POST `/api/termos-juridicos/seed`, POST `/api/termos-assinados`
+-   **Motor PDF:** `rasxMotorPdf.ts` busca termos ativos do banco via `setTermosDB()` com fallback hardcoded. Cada seção exibe `[Termo ID X — vY]` quando texto vem do banco.
+
+### Validação Motor
+-   **POST /api/rasx/:pacienteId/motor:** Validação inline (sem Zod) — verifica evento (7 opções), classeProcedimento (6 opções), blocos (string|array), drive (boolean), email (boolean|string), whatsapp (boolean|string). Retorna `{error, detalhes[], opcoes}` em caso de payload inválido.

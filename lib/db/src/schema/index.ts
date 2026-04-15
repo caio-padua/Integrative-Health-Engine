@@ -42,3 +42,4 @@ export * from "./agentesVirtuais";
 export * from "./eventoStart";
 export * from "./cadernosDocumentais";
 export * from "./rasxRevo";
+export * from "./termosJuridicos";

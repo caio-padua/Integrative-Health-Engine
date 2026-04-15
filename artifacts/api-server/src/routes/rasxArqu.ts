@@ -4,7 +4,7 @@ import {
   revoSnapshotsTable, revoPatologiasTable, revoCurvasTable,
   revoOrgaosTable, revoMedicamentosTable, revoEventosMedicacaoTable,
   rasxAuditLogTable, revoProximaEtapaTable,
-  pacientesTable, tratamentosTable,
+  pacientesTable, tratamentosTable, termosJuridicosTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { gerarRasxPdf, gerarRacjPdf, RAS_CATEGORIAS, type RasCategoria } from "../pdf/rasxPdf";
@@ -13,7 +13,7 @@ import {
   gerarOrcamentoFinanceiroPdf, gerarLaudoExamePdf, gerarRelatorioPatologiasPdf,
   gerarTermoConsentimentoPdf,
 } from "../pdf/docsPdf";
-import { gerarMotorPdf, gerarMotorPdfConsolidado } from "../pdf/rasxMotorPdf";
+import { gerarMotorPdf, gerarMotorPdfConsolidado, setTermosDB } from "../pdf/rasxMotorPdf";
 import { sendEmailWithPdf } from "../lib/google-gmail.js";
 import { getOrCreateClientFolder, uploadToClientSubfolder } from "../lib/google-drive.js";
 import { buildEmail, buildWhatsappFormal, type EmailOpts } from "../lib/email-templates";
@@ -27,6 +27,29 @@ import {
   buildLogRAS, getArquiteturaCompleta,
   BLOCO_LABELS, EVENTO_PIPELINE, CLASSE_LABELS, SUBGRUPO_LABELS,
 } from "../lib/rasxEngine";
+
+const VALID_EVENTOS = ["START", "POS_PROCEDIMENTO", "CONSULTA_MENSAL", "REVISAO_SEMESTRAL", "SOLICITACAO_JURIDICA", "SOLICITACAO_FINANCEIRA", "FECHAMENTO_LAUDO"] as const;
+const VALID_CLASSES = ["FORM", "INJM", "INJV", "IMPL", "ESTI", "ESTT"] as const;
+
+function validateMotorBody(body: any): { ok: true; data: { evento: string; classeProcedimento?: string; blocos?: string | string[]; drive?: boolean; email?: boolean | string; whatsapp?: boolean | string } } | { ok: false; errors: string[] } {
+  const errors: string[] = [];
+  if (!body || typeof body !== "object") return { ok: false, errors: ["Body deve ser um objeto JSON"] };
+  if (!body.evento || typeof body.evento !== "string") { errors.push("'evento' e obrigatorio (string)"); }
+  else if (!(VALID_EVENTOS as readonly string[]).includes(body.evento)) { errors.push(`'evento' invalido. Opcoes: ${VALID_EVENTOS.join(", ")}`); }
+  if (body.classeProcedimento !== undefined && !(VALID_CLASSES as readonly string[]).includes(body.classeProcedimento)) { errors.push(`'classeProcedimento' invalido. Opcoes: ${VALID_CLASSES.join(", ")}`); }
+  if (body.blocos !== undefined) {
+    if (typeof body.blocos === "string") { /* ok */ }
+    else if (Array.isArray(body.blocos)) {
+      const invalid = body.blocos.filter((b: any) => typeof b !== "string");
+      if (invalid.length > 0) errors.push("'blocos' array deve conter apenas strings");
+    } else { errors.push("'blocos' deve ser string ou array de strings"); }
+  }
+  if (body.drive !== undefined && typeof body.drive !== "boolean") { errors.push("'drive' deve ser boolean"); }
+  if (body.email !== undefined && typeof body.email !== "boolean" && typeof body.email !== "string") { errors.push("'email' deve ser boolean ou string"); }
+  if (body.whatsapp !== undefined && typeof body.whatsapp !== "boolean" && typeof body.whatsapp !== "string") { errors.push("'whatsapp' deve ser boolean ou string"); }
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, data: body };
+}
 
 const router = Router();
 
@@ -852,8 +875,17 @@ router.post("/rasx/:pacienteId/motor", async (req, res): Promise<void> => {
     const pacienteId = Number(req.params.pacienteId);
     if (isNaN(pacienteId)) { res.status(400).json({ error: "ID invalido" }); return; }
 
-    const { evento, classeProcedimento, blocos: blocosReq, drive, email, whatsapp } = req.body;
-    if (!evento) { res.status(400).json({ error: "Campo 'evento' e obrigatorio. Opcoes: " + Object.values(EventoRAS).join(", ") }); return; }
+    const validated = validateMotorBody(req.body);
+    if (!validated.ok) {
+      res.status(400).json({
+        error: "Payload invalido",
+        detalhes: validated.errors,
+        opcoes: { eventos: [...VALID_EVENTOS], classes: [...VALID_CLASSES] },
+      });
+      return;
+    }
+
+    const { evento, classeProcedimento, blocos: blocosReq, drive, email, whatsapp } = validated.data;
 
     const eventoResolvido = resolverEvento(evento);
     const classeResolvida = resolverClasseProcedimento(classeProcedimento);
@@ -864,6 +896,20 @@ router.post("/rasx/:pacienteId/motor", async (req, res): Promise<void> => {
     const blocosDoEvento = blocosReq
       ? (Array.isArray(blocosReq) ? blocosReq : [blocosReq]).map((b: string) => resolverBloco(b))
       : resolverBlocosDoEvento(eventoResolvido);
+
+    const termosAtivos = await db.select().from(termosJuridicosTable)
+      .where(eq(termosJuridicosTable.ativo, true));
+    setTermosDB(termosAtivos.map(t => ({
+      id: t.id,
+      bloco: t.bloco,
+      subgrupo: t.subgrupo,
+      consentimento: t.consentimento,
+      titulo: t.titulo,
+      textoCompleto: t.textoCompleto,
+      categoria: t.categoria,
+      riscosEspecificos: t.riscosEspecificos,
+      versao: t.versao,
+    })));
 
     const payloads: PayloadRAS[] = [];
     const pdfs: { bloco: BlocoRAS; payload: PayloadRAS; buffer: Buffer; nomeArquivo: string; pasta: string; log: LogRAS }[] = [];
@@ -1061,6 +1107,14 @@ router.get("/rasx/:pacienteId/motor/pdf/:bloco", async (req, res): Promise<void>
 
     const collected = await collectPdfData(pacienteId);
     if (!collected) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+
+    const termosAtivos = await db.select().from(termosJuridicosTable)
+      .where(eq(termosJuridicosTable.ativo, true));
+    setTermosDB(termosAtivos.map(t => ({
+      id: t.id, bloco: t.bloco, subgrupo: t.subgrupo, consentimento: t.consentimento,
+      titulo: t.titulo, textoCompleto: t.textoCompleto, categoria: t.categoria,
+      riscosEspecificos: t.riscosEspecificos, versao: t.versao,
+    })));
 
     const payloadRAS = montarPayloadRAS({
       pacienteId,
