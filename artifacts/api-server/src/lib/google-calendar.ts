@@ -85,10 +85,10 @@ function determineSessionStatus(substancias: SubstanciaEvento[]): { label: strin
   const allDone = substancias.every(s => s.status === 'aplicada' || s.status === 'nao_aplicada');
   const hasNaoAplicada = substancias.some(s => s.status === 'nao_aplicada');
 
-  if (allDone && hasAplicada && !hasNaoAplicada) return { label: 'Realizado', square: '🟦' };
-  if (allDone && hasNaoAplicada && !hasAplicada) return { label: 'Não realizado', square: '⬜' };
-  if (allDone) return { label: 'Realizado', square: '🟦' };
-  return { label: 'A realizar', square: '🟨' };
+  if (allDone && hasAplicada && !hasNaoAplicada) return { label: 'Realizado com Sucesso', square: '🟦' };
+  if (allDone && hasNaoAplicada && !hasAplicada) return { label: 'Não Realizado', square: '⬜' };
+  if (allDone) return { label: 'Realizado com Sucesso', square: '🟦' };
+  return { label: 'Aplicação Programada', square: '🟨' };
 }
 
 function capitalize(text: string): string {
@@ -168,76 +168,60 @@ export function buildEventDescription(opts: {
   if (numeroMarcacao) lines.push(`Agendamento Número: ${numeroMarcacao}${totalMarcacoes ? '/' + totalMarcacoes : ''}`);
   if (unidadeNome) lines.push(`Unidade ${titleCase(unidadeNome)}`);
   lines.push('');
-
   lines.push('<b>Procedimentos:</b>');
+  lines.push(`<b>Consulta [60min]</b>  ${temConsulta ? '✅' : '❎'}`);
+  lines.push(`<b>Aplicação endovenosa [30min]</b>  ${temEV ? '✅' : '❎'}`);
+  lines.push(`<b>Aplicação intramuscular [15min]</b>  ${temIM ? '✅' : '❎'}`);
+  lines.push(`<b>Implante [60min]</b>  ${temImplante ? '✅' : '❎'}`);
+  lines.push(`<b>Duração Total:</b> ${duracaoMin}min`);
   lines.push('');
-  lines.push(`  Consulta [60min]  ${temConsulta ? '✅' : '❎'}`);
-  lines.push(`  Aplicação endovenosa [30min]  ${temEV ? '✅' : '❎'}`);
-  lines.push(`  Aplicação intramuscular [15min]  ${temIM ? '✅' : '❎'}`);
-  lines.push(`  Implante [60min]  ${temImplante ? '✅' : '❎'}`);
-  lines.push('');
-  lines.push(`<b>DURAÇÃO TOTAL: ${duracaoMin}min</b>`);
-  lines.push('');
-
   const sessionSubs = substancias.filter(s => s.nestaSessao !== false);
   const sessionStatus = determineSessionStatus(sessionSubs);
-  lines.push(`<b>Status: ${sessionStatus.label}  ${sessionStatus.square}</b>`);
+  lines.push(`<b>Status:</b> ${sessionStatus.label}`);
+  lines.push(`${sessionStatus.square} ${sessionStatus.label}`);
   lines.push('');
-  lines.push('');
-
   const sorted = sortSubstancias(substancias);
   const destaSessao = sorted.filter(s => s.nestaSessao !== false);
   const foraDaSessao = sorted.filter(s => s.nestaSessao === false);
 
   lines.push('<b>Substâncias Protocolo:</b>');
-  lines.push('');
   let idx = 0;
   for (const s of destaSessao) {
     idx++;
     const st = statusSquare(s.status);
     const nome = cleanSubstanceName(s.nome);
     const dose = formatDose(s.dose);
-    lines.push(`  ${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
+    lines.push(`${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
   }
-
   if (foraDaSessao.length > 0) {
     for (const s of foraDaSessao) {
       idx++;
       const st = statusSquare(s.status);
       const nome = cleanSubstanceName(s.nome);
       const dose = formatDose(s.dose);
-      lines.push(`  ${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
+      lines.push(`${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
     }
   }
   lines.push('');
-  lines.push('');
-
   lines.push('<b>Legenda:</b>');
+  lines.push('🟩  [DISP]  Disponibilidade Aplicação');
+  lines.push('🟨  [PROX]  Próxima Sessão');
+  lines.push('🟦  [APLI]  Substância Aplicada');
+  lines.push('⬜  [INDI]  Substância Indisponível');
   lines.push('');
-  lines.push('  🟩  [DISP]  Disponibilidade Aplicação');
-  lines.push('  🟨  [PROX]  Próxima Sessão');
-  lines.push('  🟦  [APLI]  Substância Aplicada');
-  lines.push('  ⬜  [INDI]  Substância Indisponível');
-  lines.push('');
-  lines.push('');
-
   if (endereco && endereco.rua) {
     lines.push('<b>📍 Endereço:</b>');
+    lines.push(`${titleCase(endereco.rua)}`);
+    if (endereco.bairro) lines.push(`${titleCase(endereco.bairro)}`);
+    if (endereco.cep) lines.push(`CEP ${endereco.cep}`);
+    if (endereco.cidade && endereco.estado) lines.push(`${titleCase(endereco.cidade)} - ${endereco.estado.toUpperCase()}`);
     lines.push('');
-    lines.push(`  ${titleCase(endereco.rua)}`);
-    if (endereco.bairro) lines.push(`  ${titleCase(endereco.bairro)}`);
-    if (endereco.cep) lines.push(`  CEP ${endereco.cep}`);
-    if (endereco.cidade && endereco.estado) lines.push(`  ${titleCase(endereco.cidade)} - ${endereco.estado.toUpperCase()}`);
-    lines.push('');
-    lines.push('');
-
     const enderecoCompleto = [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep].filter(Boolean).join(', ');
     const enderecoEncoded = encodeURIComponent(enderecoCompleto);
     lines.push('<b>Navegação:</b>');
+    lines.push(`Google Maps: https://www.google.com/maps/search/?api=1&query=${enderecoEncoded}`);
     lines.push('');
-    lines.push(`  Google Maps: https://www.google.com/maps/search/?api=1&query=${enderecoEncoded}`);
-    lines.push('');
-    lines.push(`  Waze: https://waze.com/ul?q=${enderecoEncoded}&navigate=yes`);
+    lines.push(`Waze: https://waze.com/ul?q=${enderecoEncoded}&navigate=yes`);
   }
 
   return lines.join('\n');
