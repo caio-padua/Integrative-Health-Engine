@@ -174,14 +174,18 @@ export function buildEventDescription(opts: {
   lines.push('<b>Procedimentos:</b>');
 
   const procs = [
-    { ativo: temConsulta, nome: 'Consulta', min: '60min' },
-    { ativo: temEV, nome: 'Aplicação Endovenosa', min: '30min' },
-    { ativo: temIM, nome: 'Aplicação Intramuscular', min: '15min' },
-    { ativo: temImplante, nome: 'Implante', min: '60min' },
-    { ativo: temRetorno, nome: 'Retorno ou Avaliação', min: '30min' },
-    { ativo: temEspecifico, nome: 'Procedimento Específico', min: '60min' },
+    { ativo: temIM, nome: 'Aplicação Intramuscular', min: '15min', ordem: 0 },
+    { ativo: temEV, nome: 'Aplicação Endovenosa', min: '30min', ordem: 1 },
+    { ativo: temConsulta, nome: 'Consulta', min: '60min', ordem: 2 },
+    { ativo: temRetorno, nome: 'Retorno ou Avaliação', min: '30min', ordem: 3 },
+    { ativo: temEspecifico, nome: 'Procedimento Específico', min: '60min', ordem: 4 },
+    { ativo: temImplante, nome: 'Implante', min: '60min', ordem: 5 },
   ];
-  procs.sort((a, b) => (b.ativo ? 1 : 0) - (a.ativo ? 1 : 0));
+  procs.sort((a, b) => {
+    const diff = (b.ativo ? 1 : 0) - (a.ativo ? 1 : 0);
+    if (diff !== 0) return diff;
+    return a.ordem - b.ordem;
+  });
   const PAD_LEN = 30;
   for (const p of procs) {
     const thumb = p.ativo ? '👍' : '👎';
