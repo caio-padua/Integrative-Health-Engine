@@ -2,23 +2,7 @@
 
 ## Overview
 
-Pawards is a SaaS clinical engine platform developed by Padcon Tech designed for multi-unit integrative medical clinics. It aims to streamline operations, enhance patient care through data-driven suggestions, and improve administrative efficiency. The platform's core functionality includes patient anamnesis, which triggers a clinical engine to generate suggestions for exams, formulas, injectables, implants, and treatment protocols. Key capabilities include TDAH-friendly dashboards with operational queues, medical validation workflows, and dedicated modules for follow-up and financial management, all contributing to improved clinical and administrative processes. The business vision is to provide an invisible operational consultancy service through a highly efficient and scalable platform, with a comprehensive monetization system for modules and services, targeting multi-unit clinics and consultancy companies.
-
-## Dados Corporativos
-
--   **Sistema:** PAWARDS (sempre maiusculo, sem versao)
--   **Subtitulo:** MedCore (M e C maiusculos) — aparece SOMENTE no rodape/assinatura
--   **Desenvolvido por:** Pawards MedCore
--   **Cliente Principal:** Instituto Padua (Nome Fantasia)
--   **Razao Social:** PADUCCIA CLINICA MEDICA LTDA - EPP
--   **CNPJ:** 63.865.940/0001-63
--   **Endereco:** Rua Guaxupe, 327 - Vila Formosa, Sao Paulo - SP
--   **CNAE:** 8630-5/03 — Atividade medica ambulatorial restrita a consultas
--   **Nick da Empresa:** Campo editavel na tabela `unidades` (max 2 palavras, sem acentos). Exemplo: "INSTITUTO PADUA"
--   **Formato Header:** `PAWARDS - [Nick]` (ex: PAWARDS - Instituto Padua)
--   **Formato Rodape/Footer:** `Developed by Pawards MedCore`
--   **Formato Agentes:** `[CARGO] - [Nick]` (ex: FINANCEIRO - Instituto Padua)
--   **NUNCA usar:** PADCOM, Padcon Tech, Motor Clinico, V15.2, Clinica Padua em nenhum ponto user-facing
+Pawards is a SaaS clinical engine platform designed for multi-unit integrative medical clinics. It aims to streamline operations, enhance patient care through data-driven suggestions, and improve administrative efficiency. The platform's core functionality includes patient anamnesis, which triggers a clinical engine to generate suggestions for exams, formulas, injectables, implants, and treatment protocols. Key capabilities include TDAH-friendly dashboards with operational queues, medical validation workflows, and dedicated modules for follow-up and financial management. The business vision is to provide an invisible operational consultancy service through a highly efficient and scalable platform, with a comprehensive monetization system for modules and services, targeting multi-unit clinics and consultancy companies.
 
 ## User Preferences
 
@@ -30,26 +14,31 @@ The system is built as a monorepo using `pnpm workspaces`, Node.js 24, and TypeS
 
 Key architectural decisions and features include:
 
--   **UI/UX Design (PADCOM V15.2):** Emphasizes a classic, austere, and TDAH-friendly aesthetic with 0px border-radius, pastel blue primary color, deep navy background, and JetBrains Mono typography, resembling a well-formatted legal document.
--   **Access Control & Multi-unit Management:** Role-based access (e.g., `enfermeira`, `medico_tecnico`) and dynamic permissions with a matrix per profile. Supports full management and configuration of multiple clinic units and a multi-clinic consultancy model with `escopo`-based visibility (e.g., `consultoria_master`, `consultor_campo`, `clinica_medico`).
--   **Clinical Engine:** Automates suggestions for therapeutic items based on semantic analysis of anamnesis, utilizing a Unified Therapeutic Items Catalog (PADCOM V13+V4) with 490 classified items.
+-   **UI/UX Design:** Emphasizes a classic, austere, and TDAH-friendly aesthetic with 0px border-radius, pastel blue primary color, deep navy background, and JetBrains Mono typography, resembling a well-formatted legal document.
+-   **Access Control & Multi-unit Management:** Role-based access (e.g., `enfermeira`, `medico_tecnico`) and dynamic permissions with a matrix per profile. Supports full management and configuration of multiple clinic units and a multi-clinic consultancy model with `escopo`-based visibility.
+-   **Clinical Engine:** Automates suggestions for therapeutic items based on semantic analysis of anamnesis, utilizing a Unified Therapeutic Items Catalog.
 -   **Operational Workflow:** Manages workflows through operational queues (anamnesis, validation, procedures, follow-up, payments) and includes parameterized approval flows with conditional bypasses.
--   **Data Management & Auditability:** All new database schemas must include `origem`, `versaoSchema`, and `arquivadoEm` for auditability and LGPD compliance. Patient monitoring includes tracking vital signs, symptoms, and formula adherence.
--   **Reporting & Dashboards:** Generates automated RAS (Registro de Atendimento em Saúde) PDFs. Features a TDAH-friendly dashboard with real-time operational queues, a "Painel de Comando" for substance usage and session status, and comprehensive global/unit dashboards with KPIs for consultoria_master and clinic owners.
--   **Monetization & Commission System:** Implements a "Motor Comercial" with three charging models (Full, Pacote, Por Demanda) and eight sellable modules. Includes a "Comissão & Metas dos Consultores" system for tracking consultant remuneration and progress.
--   **Delegation System:** A Trello-style board with tasks, priorities, deadlines, and responsibilities, supporting Colaborador Scoring based on resolution rate and completion.
+-   **Data Management & Auditability:** All new database schemas must include `origem`, `versaoSchema`, and `arquivadoEm` for auditability and LGPD compliance.
+-   **Reporting & Dashboards:** Generates automated RAS (Registro de Atendimento em Saúde) PDFs. Features a TDAH-friendly dashboard with real-time operational queues and comprehensive global/unit KPIs.
+-   **Monetization & Commission System:** Implements a "Motor Comercial" with three charging models (Full, Pacote, Por Demanda) and eight sellable modules, including a commission tracking system for consultants.
+-   **Delegation System:** A Trello-style board with tasks, priorities, deadlines, and responsibilities, supporting Colaborador Scoring.
 -   **SLA Management:** Unified SLA queue with a traffic light system for task cards and follow-ups, requiring mandatory justifications for overdue items with escalation procedures.
 -   **Advanced Analytics:** A "Matriz Analítica Cross-Filter" for detailed cross-analysis of clinical data with dynamic facets and server-side pagination.
--   **Motor de Agenda (Fase 2):** Complete scheduling engine with transactional slot management. Tables: `availability_rules`, `agenda_slots` (unique constraint on professional+date+time), `slot_locks`, `appointments` (SELECT FOR UPDATE booking), `appointment_reschedules`, `agenda_audit_events`, `agenda_blocks`, **`sub_agendas`** (Google Calendar-style sub-agenda filtering). 12 semantic procedure types (e.g., CONSULTA_30_PRESENCIAL, INFUSAO_LONGA_180_PRESENCIAL). Slot generation from availability rules. Transactional booking with conflict detection (409). Cancel/reschedule with history. Bidirectional Google Calendar sync (push on book, pull external events). Weekly view API. **Sub-Agendas sidebar** with colored checkboxes for filtering (toggle visibility per sub-agenda, color picker, create/edit/deactivate). Sub-agendas linked to availability rules and propagated to generated slots. API: `/api/agenda-motor/sub-agendas` (CRUD + seed). Page: `/agenda-motor`. API: `/api/agenda-motor/*`.
--   **Portal do Paciente — Agendamentos (Fase 3):** Patient portal with senha-based authentication (bcrypt). First access: CPF + DOB → set password. Subsequent: CPF + password login. Patient appointment view with self-reschedule (allowed until 00:00 of appointment day). Available slot picker for rescheduling (30-day window, filtered by procedure type). FALTOU automation engine: `POST /api/agenda-motor/processar-faltas` marks overdue appointments as "faltou", auto-reschedules to same slot next week (if available), creates task cards for enfermeira + clinica_admin roles. Admin "Processar Faltas" button on agenda-motor page. Schema additions: `senhaPortal` on pacientes, `reagendamentoAutomaticoDeId` + `motivoFalta` on appointments. API: `/api/portal/login`, `/api/portal/definir-senha`, `/api/portal/meus-agendamentos/:id`, `/api/portal/slots-disponiveis`, `/api/portal/reagendar`. Page: `/portal` (agendamentos section added to existing portal menu).
--   **Liberacao Inteligente de Vagas (Fase 4):** Progressive smart slot release engine. Morning slots released first; afternoon released when morning >= limiar% occupied (default 60%). Config per unit/professional via `smart_release_config` table. `turno` (manha/tarde) + `liberado` (boolean) fields on `agenda_slots`. Admin controls: "Liberar Vagas" button on agenda-motor page. Visual turno indicators (M/T badges) and locked/unlocked state on slot cells. Portal endpoint `GET /api/agenda-motor/slots-liberados` returns only released available slots. API: `GET/POST /api/agenda-motor/smart-release-config`, `DELETE /api/agenda-motor/smart-release-config/:id`, `POST /api/agenda-motor/smart-release`.
--   **Trello Bidirecional (Fase 4):** Bidirectional sync between delegation board and Trello. Trello client utility (`lib/trello.ts`) with configurable env vars (TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID). Push: `POST /api/delegacao/sync-trello` creates/updates Trello cards from delegacoes. Pull: `POST /api/delegacao/pull-trello` updates local delegation status from Trello list positions. Status check: `GET /api/delegacao/trello/status`. Fields added to delegacoes: `trelloCardId`, `trelloListId`, `trelloLastSync`. Frontend: "Sync Trello" + "Pull" buttons on delegacao page with configuration awareness.
--   **Colaboradores & RH (Manifesto Dr. Claude V2):** Full team management module. 8 tables: `team_positions` (cargo, indice, modalidade, SLA, permissoes, metas, **direitos**, **deveres**, **advertencia_triggers**, **demissao_triggers**, **justa_causa_triggers**, **quando_reporta**), `team_members` (pessoa fisica → posicao), `task_attempts` (tentativas de contato por card), `task_validations` (supervisor valida resolucao), `commission_events` (comissao por resolucao validada), `disciplinary_events` (registro CLT formal), **`agent_actions`** (log de acoes de agentes IA — tipo, target, input/output, tempo execucao, status), **`sla_monitoring`** (monitoramento SLA em tempo real — prazo, vencimento, alertas amarelo/vermelho, escalacao programatica). 8 cargos definidos: MEDICO, GERENTE, SUPERVISOR, ADMINISTRATIVO, ENFERMAGEM, CONSULTOR, FINANCEIRO, OUVIDORIA. Cores semanticas do manifesto: purple=medico, gold=gerente, orange=supervisor, blue=admin, teal=enfermagem, cyan=consultor, green=financeiro, pink=ouvidoria. Identity Cards com 5 sub-abas: FUNCAO, METAS, DIREITOS, DEVERES, REGUA (escala CLT). Aba SEMANTICA: design system imutavel (10 cores), principios TDAH+TOC (8 leis visuais), bracos para IA (agent_actions, sla_monitoring, task_validations). API: `/api/colaboradores/*`, `/api/colaboradores/agent-actions`, `/api/colaboradores/sla-monitoring`. Page: `/colaboradores` (6 abas: Equipe, Organograma, Posicoes & Funcoes, Comissoes, Disciplinar, Semantica).
--   **Agentes Virtuais — Carta Magna PADCOM (Fase 6):** AI agent provisioning and management module. 12 tables: `catalogo_agentes` (global template catalog), `modulos_clinica` (per-clinic module enablement), `agentes_clinica` (provisioned agents per clinic), `capacidades_agente_clinica` (editable agent capabilities), `execucoes_agente` (execution log), `acoes_agente` (action log), `memorias_contextuais_agente` (contextual memory), `validacoes_humanas_agente` (human validation queue), `eventos_saida_operacionais` (operational output events), `narrativas_agente` (TDAH+TOC formatted narrative templates), **`agentes_personalidade`** (per-agent personality traits — formalidade, empatia, autoridade, objetividade, calorHumano, proatividade, paciencia, all 0-10 scale, plus pronomeTratamento, generoVoz, estiloConversacao, tomGeral, exemploFraseTipica, personalidadeResumo, nivelHumanizacao), **`agentes_motor_escrita`** (per-agent writing engine — templateAbertura/Contexto/Informacao/Orientacao/Acao/Encerramento, maxLinhasPorBloco, maxCaracteresMensagem, boolean rules: obrigarQuebraLinha, obrigarTopicos, obrigarEmojiSemantico, espacamentoEntreSecoes, proibidoTextoCorrido, proibidoLinguagemRobotica, estruturaObrigatoria JSONB, estiloVisual). 10 agent types. Seed: 100 provisioned + 100 personalidades + 100 motores de escrita + 18 narrativas. Frontend: 5 tabs — Catálogo Global, Agentes da Clínica, Narrativas, Capacidades, **IDENTIDADE** (sub-tabs: PERSONALIDADE with trait sliders 0-10 + text fields, MOTOR DE ESCRITA with 6 template editors + TDAH+TOC toggle rules). API: `/api/agentes-virtuais/*`, including `/personalidade`, `/motor-escrita`, `/identidade-completa`, `/seed-identidade`. Page: `/agentes-virtuais`.
+-   **Agenda Motor:** A comprehensive scheduling engine with transactional slot management, availability rules, appointment booking, rescheduling, and bidirectional Google Calendar synchronization. Includes "Sub-Agendas" for filtering.
+-   **Patient Portal:** Allows patients to view appointments, self-reschedule, and manage their profile. Includes an automated "Faltou" (missed appointment) engine.
+-   **Smart Slot Release:** Progressively releases appointment slots based on occupancy thresholds (e.g., morning slots released first, afternoon slots released when morning slots are 60% occupied).
+-   **Bidirectional Trello Sync:** Synchronizes tasks and statuses between the internal delegation board and Trello.
+-   **Team Management Module (Colaboradores & RH):** Provides full team management, including positions, members, task attempts, validations, commission events, and disciplinary events. Features identity cards with detailed information per role.
+-   **Virtual Agents Module (Carta Magna PADCOM):** Manages AI agent provisioning, capabilities, execution logs, contextual memories, and human validation queues. Includes extensive configuration for agent personalities and writing engines (e.g., formality, empathy, tone, writing style rules).
 -   **Clinic-Aware Filtering:** All major pages dynamically filter data based on the selected clinic using a `useClinic()` context and `?unidadeId` query parameters.
 -   **Semantic Code Coverage:** 100% semantic code coverage for dietary plans using the `B1 B2 B3 B4 SEQ` format.
--   **Full CRUD Editing (PADCOM V15.2):** All major entities now have complete Create/Read/Update/Delete. Covers: Catálogo (all 7 tabs — Injetáveis IM, Endovenosos, Implantes, Fórmulas, Protocolos Master, Exames Base, Doenças — each with "Novo X" create button + EditModal + delete), Usuários (full clinical fields: CRM, CPF, CNS, especialidade, telefone, permissões podeValidar/podeAssinar/podeBypass/nuncaOpera), Substâncias (full edit modal with 30+ fields), Sub-Agendas, Unidades (full CRUD), Códigos Semânticos (full CRUD inline), Fluxos de Aprovação (create/edit/delete etapas with boolean toggles), Perfis e Permissões (create/edit/delete with permission switches). Backend: CRUD routes for all catalog entities (doencas, regras-injetaveis, regras-endovenosos, regras-implantes, mapa-anamnese, motor-decisao, recorrencia, matriz-rastreio, regras-triagem) plus fluxos and permissoes. Frontend uses `apiPost`/`apiPut`/`apiDelete` helpers with toast feedback.
--   **New CRUD Pages (T010):** Five new standalone pages with full CRUD: **Dietas** (`/dietas` — 48 diet plans with modelo/refeicao/faixa calórica, API via `/api/catalogo/dietas`), **Psicologia** (`/psicologia` — 5 psychological protocols with sinais-chave/encaminhamento, API via `/api/catalogo/psicologia`), **Questionário Master** (`/questionario-master` — 19 questions grouped by bloco, API via `/api/catalogo/questionario`), **Consultorias** (`/consultorias` — enterprise consultancy management with plano/CNPJ/maxUnidades, API via `/api/consultorias`), **Contratos** (`/contratos` — clinic contracts with modelo cobrança full/pacote/por_demanda, API via `/api/contratos`). All pages include search, inline create/edit forms, delete with confirmation, and follow the PADCOM V15.2 dark design system.
+-   **Full CRUD Editing:** Complete Create/Read/Update/Delete functionality for all major entities including Catálogo (Injectables, Formulas, Implants, Protocols, Exams, Diseases), Users, Substances, Sub-Agendas, Units, Semantic Codes, Approval Flows, and Profiles/Permissions.
+-   **New CRUD Pages:** Dedicated pages for Dietas, Psicologia protocols, Master Questionnaires, Consultancies, and Contracts, all with full CRUD functionality.
+-   **RASX REVO — Dual-Mode Medications:** Supports both traditional "Remédio" and "Fórmula Magistral" (compounded formulas) with distinct data structures and PDF reporting.
+-   **RASX-MATRIZ V6 — Semantic Motor Architecture:** A robust document generation engine structured with 5 Master Blocks (CLIN, JURI, FINA, ACOM, 4100), 20 Subgroups, 7 Events, 6 Procedure Classes, and 6 Specific Consents. Generates hashed, officially named PDFs with auditable logs and optional delivery via Drive, Email, or WhatsApp.
+-   **Institutional PDF Layout:** Standardized header (PAWARDS + Nick) and footer (page number, institutional details, RASX-MATRIZ V6, Developed by Pawards MedCore) for all generated PDFs.
+-   **DB-driven Legal Terms:** Manages legal terms (e.g., LGPD, consent forms) from the database, allowing for versioning and digital signing by patients, integrated into enriched RACJ PDFs.
+-   **Instituto Genesis:** A protected, immutable "genesis_seed" unit (ID 14) that serves as a permanent template for colonizing new clinics with predefined catalogs, legal terms, and motor configurations. It allows for additive catalogs where new entries propagate automatically.
 
 ## External Dependencies
 
@@ -64,78 +53,3 @@ Key architectural decisions and features include:
 -   **Trello API:** Task board synchronization (configurable via TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID).
 -   **Twilio:** WhatsApp messaging service.
 -   **Gupshup:** WhatsApp messaging service.
-
-## RASX REVO — Medicamentos Dual-Mode (Remédio vs Fórmula Magistral)
-
--   **Schema:** `revo_medicamentos` has `tipo_med` (enum: remedio/formula) and `componentes_formula` (jsonb array of {substancia, dosagem}).
--   **API:** `POST /api/rasx/:pacienteId/revo/medicamento` accepts `tipoMed`, `componentesFormula`, `posologia` with field allowlist.
--   **Frontend (RevoPanel):** Toggle between "Remédio" (inline nome+dose + posologia) and "Fórmula" (nome + botão (+) para adicionar substâncias). Lista exibe badge FORMULA roxo com tags de substâncias.
--   **PDF (RACL HFOR):** Nova seção "Fórmulas Magistrais" no PDF RASX. Cada fórmula ganha sua própria página retrato com tabela substância/dosagem. Paginação automática: se componentes excedem 18 por página, cria continuação com cabeçalho e estrutura mantidos.
-
-## RASX-MATRIZ V6 — Arquitetura Motor Semântico
-
-### Blocos, Subgrupos, Eventos, Classes, Consentimentos
--   **5 Blocos Mestres:** CLIN (Clínico), JURI (Jurídico), FINA (Financeiro), ACOM (Acompanhamento), 4100 (Patologias)
--   **20 Subgrupos:** CLIN: BASE/SESS/EVOL/POSP | JURI: BASE/CONS/IMAG/DIGI | FINA: ORCA/PAGT/REEM/CIEN | ACOM: REVO/JORN/META/ALER | 4100: 4101/4102/4103/4104
--   **7 Eventos:** START, POS_PROCEDIMENTO, CONSULTA_MENSAL, REVISAO_SEMESTRAL, SOLICITACAO_JURIDICA, SOLICITACAO_FINANCEIRA, FECHAMENTO_LAUDO
--   **6 Classes Procedimento:** FORM (Fórmulas), INJM (IM), INJV (Endovenosos), IMPL (Implantes), ESTI (Estética Invasiva), ESTT (Estética Tecnologia)
--   **6 Consentimentos Específicos:** CFOR, CIMU, CEND, CIMP, CEIN, CETE — cada classe de procedimento dispara um consentimento com riscos específicos
--   **Nomenclatura:** `YY.MM.DD RAS [BLOCO] "PACIENTE" ([CODIGOS])`
--   **Hash:** SHA-256 (16 primeiros chars) por documento gerado
--   **Engine:** `rasxEngine.ts` — enums, funções resolver, payload semântico, log auditável
--   **Motor PDF:** `rasxMotorPdf.ts` — gera PDFs por bloco/subgrupo com layout institucional (cabeçalho PAWARDS + Nick, rodapé RASX-MATRIZ V6)
-
-### Endpoints Motor RASX
--   **GET /api/rasx/arquitetura** — retorna arquitetura completa (blocos, subgrupos, classes, eventos, nomenclatura)
--   **POST /api/rasx/:pacienteId/motor** — body: `{evento, classeProcedimento?, blocos?, drive?, email?, whatsapp?}`. Motor principal: resolve evento → blocos → subgrupos → gera PDFs → nomeia → hash → log → opcionalmente Drive/Email/WhatsApp
--   **GET /api/rasx/:pacienteId/motor/pdf/:bloco** — PDF individual de um bloco (query: `?evento=X&classe=Y`)
-
-### Pipeline Motor (12 Passos do Manifesto)
-1. Receber evento → 2. Validar payload → 3. Identificar classe → 4. Mapear bloco → 5. Definir subgrupos → 6. Buscar dados (ORM) → 7. Gerar payload semântico → 8. Renderizar PDF → 9. Gerar hash SHA-256 → 10. Nomear arquivo (padrão oficial) → 11. Salvar em pasta → 12. Registrar log + disparar entrega
-
-### Endpoints Legados (Retrocompatíveis)
--   **Categorias:** CLINICO, EVOLUTIVO, ESTADO_SAUDE, COMPLETO, JURIDICO
--   **GET /api/rasx/:pacienteId/arqu/pdf/:categoria** — PDFs por categoria antiga
--   **POST /api/rasx/:pacienteId/arqu/enviar** — envio Drive/Email/WhatsApp por categoria
--   **POST /api/rasx/:pacienteId/arqu/popular-drive** — popula 13 documentos em subpastas do Drive
--   **Nomenclatura Arquivos Drive:** `AA.MM.DD RAS [TIPO] "NOME" (CÓDIGOS).pdf` — ex: `26.04.15 RAS CLINICO "CAIO" (HEST HPOT HORG HMED).pdf`
--   **Geradores de Documentos (`docsPdf.ts`):** 8 geradores independentes
-
-### Layout PDF Institucional
--   **Header:** Título alinhado à esquerda + código subgrupo + PAWARDS (canto superior direito) + Nick da unidade
--   **Rodapé:** "Pagina X" (canto inferior esquerdo) + Central institucional (PADUCCIA CLINICA MEDICA LTDA - EPP | CNPJ | Endereço) + RASX-MATRIZ V6 (canto inferior direito) + "Developed by Pawards MedCore"
--   **Logo DP:** `artifacts/api-server/src/pdf/assets/logo-dp.png` disponível mas desabilitada (logo escura)
-
-### Termos Jurídicos (DB-driven)
--   **Tabelas:** `termos_juridicos` (id, bloco, subgrupo, consentimento, titulo, textoCompleto, categoria, riscosEspecificos, versao, ativo) + `termos_assinados` (id, pacienteId, termoId, versaoAssinada, dataAssinatura, meioAssinatura)
--   **8 Categorias:** lgpd, privacidade, nao_garantia, tcle_global, consentimento_especifico, imagem, aceite_digital, ciencia_financeira
--   **RACJ PDF Enriquecido (Manifesto Seções 14-15):** 6 páginas — LGPD (armazenamento digital + retencao CFM 1.821/2007), CGLO p1 (TCLE seções 1-5: identificação, procedimento, finalidade, riscos, contraindicações), CGLO p2 (seções 6-10: Vit C IV/G6PD, NAD+, consentimento por via IV/IM/SC/Implante, armazenamento digital, declaração final), RISC (riscos gerais + riscos por via + ANVISA/CFM), NGAR (5 itens não-garantia), PRIV (sigilo + canais + consentimento pré-sessão + ICP-Brasil A1)
--   **13 Termos Seed:** 3 JURI.BASE + 7 JURI.CONS (1 TCLE + 6 consentimentos) + JURI.IMAG + JURI.DIGI + FINA.CIEN
--   **API:** GET/POST/PUT `/api/termos-juridicos/*`, POST `/api/termos-juridicos/seed`, POST `/api/termos-assinados`
--   **Motor PDF:** `rasxMotorPdf.ts` busca termos ativos do banco via `setTermosDB()` com fallback hardcoded. Cada seção exibe `[Termo ID X — vY]` quando texto vem do banco.
-
-### Validação Motor
--   **POST /api/rasx/:pacienteId/motor:** Validação inline (sem Zod) — verifica evento (7 opções), classeProcedimento (6 opções), blocos (string|array), drive (boolean), email (boolean|string), whatsapp (boolean|string). Retorna `{error, detalhes[], opcoes}` em caso de payload inválido.
-
-### Instituto Genesis — Semente Perene PAWARDS
--   **ID:** 14 | **Nick:** INSTITUTO GENESIS | **Tipo:** genesis_seed | **Cor:** #FFD700
--   **Conceito:** Clone imutável do sistema — semente perene de colonização para novas clínicas. Dados iniciais NÃO podem ser excluídos, apenas somados.
--   **Proteção:** Tipo `genesis_seed` bloqueia DELETE na rota de unidades (HTTP 403). Auto-colonização também bloqueada.
--   **DNA herdado (1.176 itens):** 246 exames, 54 fórmulas, 305 injetáveis IM, 63 endovenosos, 32 implantes, 49 doenças, 11 protocolos, 48 dietas, 231 matriz rastreio, 13 termos jurídicos, motor RASX-MATRIZ V6 completo (5 blocos, 20 subgrupos, 7 eventos, 6 classes, 6 consentimentos)
--   **Regra:** Catálogos aditivos — novas entradas propagam automaticamente. Remoções manuais por clínica, nunca na semente.
--   **Endpoints Genesis Core:**
-    -   `GET /api/genesis/info` — informações completas da semente Genesis (DNA, catálogos, proteção)
-    -   `POST /api/genesis/colonizar/:unidadeId` — coloniza uma clínica com DNA Genesis (herança de termos, catálogos, motor)
-    -   `POST /api/genesis/popular-lemos` — popula Lemos com tratamentos
-    -   `POST /api/genesis/popular-agendas` — cria regras, slots e agendamentos para unidades 2-10
-    -   `POST /api/genesis/assinar-termos-todos` — assina termos base para todos os pacientes
-    -   `GET /api/genesis/status` — status completo do sistema (instituto genesis, pacientes, tratamentos, termos, agenda por unidade)
--   **Endpoints Genesis Popular (seed automático):**
-    -   `POST /api/genesis-popular/completar-lemos` — garante Lemos 100% (pacientes, tratamentos, regras, slots, agendamentos)
-    -   `POST /api/genesis-popular/completar-todas` — preenche gaps em TODAS as 9 unidades operacionais (cria pacientes domiciliar, slots, tratamentos, agendamentos)
-    -   `POST /api/genesis-popular/seed-nova-clinica/:unidadeId` — seed completo para nova clínica (DNA catálogos, regras, slots, cascata, soberania, templates tratamento)
-    -   `GET /api/genesis-popular/validacao-completa` — validação 5/5 de todas unidades (pacientes, tratamentos, regras, slots, agendamentos) com score e status global
--   **Dados Populados (9/9 unidades COMPLETAS):**
-    -   34 pacientes, 21 tratamentos, 85+ regras disponibilidade, 696+ slots, 80+ agendamentos, 155 assinaturas de termos
-    -   Unidades 1-6, 8 (Instituto Padua), 9-10 (Instituto Lemos), 14 (Genesis seed)
-    -   Constraint: profissional não pode ter slots sobrepostos em unidades diferentes (uq_slot_profissional_horario)
