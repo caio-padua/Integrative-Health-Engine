@@ -621,6 +621,20 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
     let pdfStream: NodeJS.ReadableStream;
     let filename: string;
 
+    const envNow = new Date();
+    const envYy = String(envNow.getFullYear()).slice(-2);
+    const envMm = String(envNow.getMonth() + 1).padStart(2, '0');
+    const envDd = String(envNow.getDate()).padStart(2, '0');
+    const envPrefix = `${envYy}.${envMm}.${envDd}`;
+
+    const FILENAME_MAP: Record<string, string> = {
+      JURIDICO: `${envPrefix} RACJ Termos Juridicos.pdf`,
+      CLINICO: `${envPrefix} RACL RAS Clinico.pdf`,
+      EVOLUTIVO: `${envPrefix} RACL HEVO RAS Evolutivo.pdf`,
+      ESTADO_SAUDE: `${envPrefix} RACL HATU RAS Estado Saude.pdf`,
+      COMPLETO: `${envPrefix} RACL RAS Completo.pdf`,
+    };
+
     if (catUpper === "JURIDICO") {
       const racjData = {
         paciente: collected.pdfData.paciente,
@@ -631,11 +645,10 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
         medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
       };
       pdfStream = gerarRacjPdf(racjData);
-      filename = `RACJ_${collected.paciente.nome.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      filename = FILENAME_MAP[catUpper];
     } else if (Object.keys(RAS_CATEGORIAS).includes(catUpper)) {
       pdfStream = gerarRasxPdf(collected.pdfData, catUpper as RasCategoria);
-      const label = RAS_CATEGORIAS[catUpper as RasCategoria].label.replace(/\s+/g, "_");
-      filename = `RASX_${label}_${collected.paciente.nome.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      filename = FILENAME_MAP[catUpper] || `${envPrefix} RACL ${catUpper}.pdf`;
     } else {
       resultados.push({ categoria: catUpper, erro: "Categoria invalida" });
       continue;
@@ -774,8 +787,11 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     unidade: collected.pdfData.unidade,
     dataBase: collected.pdfData.dataBase,
   };
-  const nome = collected.paciente.nome.replace(/\s+/g, "_");
-  const dt = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const prefix = `${yy}.${mm}.${dd}`;
   const uploads: { subfolder: string; filename: string; tamanho: string; fileUrl: string }[] = [];
 
   const upload = async (subfolder: string, filename: string, pdfStream: NodeJS.ReadableStream) => {
@@ -790,16 +806,16 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     uploads.push({ subfolder, filename, tamanho: `${(buffer.length / 1024).toFixed(1)} KB`, fileUrl: result.fileUrl });
   };
 
-  await upload("CADASTRO", `Ficha_Cadastro_${nome}_${dt}.pdf`,
+  await upload("CADASTRO", `${prefix} RACL Ficha Cadastro.pdf`,
     gerarFichaCadastroPdf({ ...base, telefone: collected.paciente.telefone || undefined, email: collected.paciente.email || undefined }));
 
-  await upload("PATOLOGIAS", `Relatorio_Patologias_${nome}_${dt}.pdf`,
+  await upload("PATOLOGIAS", `${prefix} RACL HPOT Patologias.pdf`,
     gerarRelatorioPatologiasPdf({ ...base, patologias: collected.patologias.map(p => ({
       nome: p.nome, orgao: p.orgaoSistema || "—", intensidade: p.intensidadeAtual || "—",
       semaforo: p.statusSemaforo || "amarelo", leitura: p.leituraClinica || "—",
     })) }));
 
-  await upload("EXAMES", `Solicitacao_Exames_${nome}_${dt}.pdf`,
+  await upload("EXAMES", `${prefix} RACL Solicitacao Exames.pdf`,
     gerarLaudoExamePdf({ ...base, exames: [
       { nome: "Hemograma Completo", justificativa: "Avaliacao hematologica e investigacao de processo inflamatorio/infeccioso" },
       { nome: "PCR Ultra-Sensivel", justificativa: "Marcador inflamatorio para acompanhamento de inflamacao cronica" },
@@ -815,12 +831,12 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     uso: m.motivoUso || m.indicacaoClinica || "Tratamento clinico",
   }));
   if (meds.length > 0) {
-    await upload("RECEITAS", `Receita_Medica_${nome}_${dt}.pdf`, gerarReceitaPdf({ ...base, medicamentos: meds }));
+    await upload("RECEITAS", `${prefix} RACL HMED Receita Medica.pdf`, gerarReceitaPdf({ ...base, medicamentos: meds }));
   }
 
-  await upload("PROTOCOLOS", `RASX_RAS_Clinico_${nome}_${dt}.pdf`, gerarRasxPdf(collected.pdfData, "CLINICO"));
+  await upload("PROTOCOLOS", `${prefix} RACL RAS Clinico.pdf`, gerarRasxPdf(collected.pdfData, "CLINICO"));
 
-  await upload("FINANCEIRO", `Orcamento_${nome}_${dt}.pdf`,
+  await upload("FINANCEIRO", `${prefix} RACL Orcamento.pdf`,
     gerarOrcamentoFinanceiroPdf({ ...base, itens: [
       { descricao: "Consulta Integrativa — 30 min presencial", valor: 450.00 },
       { descricao: "Protocolo de Infusao Endovenosa", valor: 890.00 },
@@ -829,14 +845,14 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
       { descricao: "Acompanhamento evolutivo mensal", valor: 250.00 },
     ], total: 2490.00 }));
 
-  await upload("CONTRATOS", `Contrato_Servicos_${nome}_${dt}.pdf`, gerarContratoPdf(base));
+  await upload("CONTRATOS", `${prefix} RACL Contrato Servicos.pdf`, gerarContratoPdf(base));
 
-  await upload("ATESTADOS", `Atestado_Medico_${nome}_${dt}.pdf`,
+  await upload("ATESTADOS", `${prefix} RACL Atestado Medico.pdf`,
     gerarAtestadoPdf({ ...base, motivo: "Consulta medica e realizacao de procedimentos clinicos", dias: 1, cid: "R53 — Mal-estar e fadiga" }));
 
-  await upload("LAUDOS", `RASX_RAS_Completo_${nome}_${dt}.pdf`, gerarRasxPdf(collected.pdfData, "COMPLETO"));
+  await upload("LAUDOS", `${prefix} RACL RAS Completo.pdf`, gerarRasxPdf(collected.pdfData, "COMPLETO"));
 
-  await upload("TERMOS", `Termo_Consentimento_Procedimento_${nome}_${dt}.pdf`,
+  await upload("TERMOS", `${prefix} RACJ Termo Consentimento.pdf`,
     gerarTermoConsentimentoPdf({ ...base, procedimento: "Infusao endovenosa de micronutrientes e suplementacao integrativa" }));
 
   const racjData = {
@@ -844,9 +860,11 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     patologias: collected.patologias.map(p => p.nome),
     medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
   };
-  await upload("JURIDICO", `RACJ_Termos_Juridicos_${nome}_${dt}.pdf`, gerarRacjPdf(racjData));
+  await upload("JURIDICO", `${prefix} RACJ Termos Juridicos.pdf`, gerarRacjPdf(racjData));
 
-  await upload("SEGUIMENTO", `RASX_RAS_Evolutivo_${nome}_${dt}.pdf`, gerarRasxPdf(collected.pdfData, "EVOLUTIVO"));
+  await upload("SEGUIMENTO", `${prefix} RACL HEVO RAS Evolutivo.pdf`, gerarRasxPdf(collected.pdfData, "EVOLUTIVO"));
+
+  await upload("SEGUIMENTO", `${prefix} RACL HATU RAS Estado Saude.pdf`, gerarRasxPdf(collected.pdfData, "ESTADO_SAUDE"));
 
   await gravarAudit({
     pacienteId, entidade: "drive_popular_completo", acao: "gerar_pdf",
