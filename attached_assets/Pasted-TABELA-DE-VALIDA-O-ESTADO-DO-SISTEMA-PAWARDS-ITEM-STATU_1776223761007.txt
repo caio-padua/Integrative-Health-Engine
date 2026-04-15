@@ -1,0 +1,41 @@
+TABELA DE VALIDAÇÃO — ESTADO DO SISTEMA PAWARDS
+
+#	ITEM	STATUS	DETALHE
+EMPRESAS / NICKS			
+1	Nick editável na tabela unidades?	SIM	Campo nick (text) editável via PUT /api/unidades/:id
+2	Nicks configurados — Instituto Padua (IDs 1-8)?	SIM	8 unidades com nick "INSTITUTO PADUA"
+3	Nicks configurados — Instituto Lemos (IDs 9-10)?	SIM	2 unidades com nick "INSTITUTO LEMOS"
+TERMOS JURÍDICOS			
+4	Termos existem no banco?	SIM	13 termos ativos, v1
+5	Termos editáveis via API (PUT)?	SIM	PUT /api/termos-juridicos/:id
+6	Textos vieram do hardcoded?	SIM	Seed copiou 100% do texto que estava no código
+7	Motor PDF lê do banco?	SIM	Com fallback hardcoded se banco vazio
+RASX — ARQUITETURA			
+8	Quantos blocos?	5	CLIN, JURI, FINA, ACOM, 4100
+9	Quantos subgrupos?	20	4 por bloco
+10	Quantos eventos?	7	START, POS_PROC, MENSAL, SEMESTRAL, JURID, FINAN, LAUDO
+11	Quantas classes?	6	FORM, INJM, INJV, IMPL, ESTI, ESTT
+12	Quantos consentimentos?	6	CFOR, CIMU, CEND, CIMP, CEIN, CETE
+13	RAS expansíveis?	SIM	Basta adicionar enum no rasxEngine.ts + render no rasxMotorPdf.ts
+14	RAS editáveis (termos)?	SIM	Via API PUT /api/termos-juridicos/:id — muda texto no próximo PDF
+PACIENTES			
+15	Total pacientes ativos?	31	Distribuídos em 8 unidades
+16	Pacientes Instituto Padua?	27	6 unidades com pacientes
+17	Pacientes Instituto Lemos (Kleber)?	4	2 em São Miguel + 2 em Telemedicina
+PROTOCOLOS / TRATAMENTOS			
+18	Tratamentos ativos?	7 ativos + 1 suspenso	8 total
+19	Unidades com tratamentos?	3	Unidades 1, 2 e 3
+20	Lemos tem tratamentos?	NÃO	Unidades 9 e 10 sem tratamentos
+AGENDA			
+21	Regras de disponibilidade?	SIM	10 regras configuradas
+22	Sub-agendas?	SIM	8 sub-agendas
+23	Slots gerados?	SIM	12 slots hoje (15/abr)
+24	Agendamentos?	25	23 agendados + 2 faltou
+25	Agendamentos em todas as unidades?	NÃO	Todos 25 na unidade 1 apenas
+EXAMES			
+26	Exames base cadastrados?	SIM	246 exames
+LACUNAS IDENTIFICADAS			
+27	Lemos sem tratamentos?	PENDENTE	Precisa criar protocolos para os 4 pacientes
+28	Agenda só na unidade 1?	PENDENTE	Unidades 2-10 sem slots/agendamentos
+29	Exames vinculados a pacientes?	VERIFICAR	Exames base existem, vínculo paciente-exame precisa confirmar
+Resumo executivo: O sistema tem a estrutura completa (5 blocos, 20 subgrupos, 7 eventos, tudo editável e expansível). Os termos jurídicos já estão no banco com o texto do hardcoded, editáveis via API. Porém, os dados operacionais estão concentrados no Instituto Padua (unidade 1). O Lemos tem 4 pacientes mas sem tratamentos, sem agenda, sem protocolos.
