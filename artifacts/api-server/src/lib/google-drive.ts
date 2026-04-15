@@ -105,15 +105,15 @@ async function findOrCreateFolder(drive: any, folderName: string, parentId?: str
 }
 
 export function formatFileName(date: Date, tipo: string, pacienteNome: string, extra?: string): string {
-  const yyyy = date.getFullYear();
+  const yy = String(date.getFullYear()).slice(-2);
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
   const nome = pacienteNome.toUpperCase().trim();
   const tipoUpper = tipo.toUpperCase().trim();
   if (extra) {
-    return `${yyyy}.${mm}.${dd} ${tipoUpper} ${extra.toUpperCase()} ${nome}`;
+    return `${yy}.${mm}.${dd} ${tipoUpper} ${extra.toUpperCase()} ${nome}`;
   }
-  return `${yyyy}.${mm}.${dd} ${tipoUpper} ${nome}`;
+  return `${yy}.${mm}.${dd} ${tipoUpper} ${nome}`;
 }
 
 export async function getOrCreateClientFolder(clientName: string, clientCpf: string): Promise<{
