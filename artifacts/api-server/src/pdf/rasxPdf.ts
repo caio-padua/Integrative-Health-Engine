@@ -560,52 +560,92 @@ export function gerarRacjPdf(data: RacjPdfData): PassThrough {
   doc.pipe(stream);
   const W = 495;
 
-  // ========== RACJ LGPD — Termo LGPD ==========
+  // ========== RACJ LGPD — Termo LGPD (Secao 15 do Manifesto) ==========
   addPageRetrato(doc);
   drawHeader(doc, "Termo de Consentimento LGPD", "RACJ LGPD", false);
   let y = 80;
   y = drawPacienteBlock(doc, data as any, y, 595);
   y = drawSectionTitle(doc, "Lei Geral de Protecao de Dados (Lei 13.709/2018)", y);
-  y = drawRacjParagraph(doc, `Eu, ${data.paciente.nome}${data.paciente.cpf ? ", CPF " + data.paciente.cpf : ""}, autorizo o Instituto Padua (PADUCCIA CLINICA MEDICA LTDA, CNPJ 63.865.940/0001-63) e o Dr. ${data.medico} a coletar, armazenar, processar e utilizar meus dados pessoais e dados sensiveis de saude exclusivamente para fins de:`, y, W);
-  y = drawRacjCheckbox(doc, "Prestacao de servicos medicos e acompanhamento clinico", y);
-  y = drawRacjCheckbox(doc, "Elaboracao de prontuario eletronico e relatorios clinicos (RASX/REVO)", y);
-  y = drawRacjCheckbox(doc, "Comunicacao via WhatsApp e email para fins clinicos e de agendamento", y);
-  y = drawRacjCheckbox(doc, "Armazenamento em nuvem (Google Drive) com acesso restrito ao medico responsavel", y);
-  y = drawRacjCheckbox(doc, "Geracao de PDFs clinicos, evolutivos e juridicos para uso exclusivo do paciente e equipe medica", y);
-  y += 8;
+  y = drawRacjParagraph(doc, `Em conformidade com a Lei n. 13.709/2018 (LGPD), eu, ${data.paciente.nome}${data.paciente.cpf ? ", portador(a) do CPF " + data.paciente.cpf : ""}, autorizo a coleta, armazenamento e processamento dos meus dados pessoais e dados sensiveis de saude para fins exclusivos de:`, y, W);
+  y = drawRacjCheckbox(doc, "Execucao do protocolo terapeutico", y);
+  y = drawRacjCheckbox(doc, "Emissao de documentos clinicos (RAS, receituarios)", y);
+  y = drawRacjCheckbox(doc, "Acompanhamento da evolucao clinica", y);
+  y = drawRacjCheckbox(doc, "Comunicacao sobre agendamentos e resultados", y);
+  y += 6;
+  y = drawSectionTitle(doc, "Armazenamento Digital", y);
+  y = drawRacjParagraph(doc, "Autorizo o armazenamento digital de todos os registros de atendimento, incluindo o presente termo, no sistema PAWARDS e, quando aplicavel, em ambiente de nuvem seguro (Google Drive), com compartilhamento exclusivo ao meu e-mail cadastrado, em modo somente leitura.", y, W);
+  y = drawRacjParagraph(doc, "Tenho ciencia do meu direito de solicitar a exclusao, correcao ou portabilidade dos meus dados a qualquer momento.", y, W);
+  y += 4;
+  y = drawSectionTitle(doc, "Retencao e Revogacao", y);
   y = drawRacjParagraph(doc, "Os dados serao mantidos pelo prazo minimo de 20 anos conforme Resolucao CFM 1.821/2007. O titular pode solicitar acesso, correcao, anonimizacao ou eliminacao dos dados (quando permitido por lei) a qualquer momento.", y, W);
   y = drawRacjParagraph(doc, "O consentimento pode ser revogado a qualquer momento, sem prejuizo da licitude do tratamento realizado anteriormente. A revogacao nao se aplica a dados cuja retencao e obrigatoria por lei.", y, W);
   y = drawAssinatura(doc, y);
   drawFooter(doc, false);
 
-  // ========== RACJ CGLO — Consentimento Global ==========
+  // ========== RACJ CGLO — Consentimento Global / TCLE (Secao 14 do Manifesto — 10 Secoes Fixas) ==========
   addPageRetrato(doc);
-  drawHeader(doc, "Consentimento Global para Tratamento", "RACJ CGLO", false);
+  drawHeader(doc, "Termo de Consentimento Livre e Esclarecido (TCLE)", "RACJ CGLO", false);
   y = 80;
   y = drawPacienteBlock(doc, data as any, y, 595);
-  y = drawSectionTitle(doc, "Termo de Consentimento Livre e Esclarecido (TCLE)", y);
-  y = drawRacjParagraph(doc, `Declaro que fui informado(a) pelo Dr. ${data.medico} sobre meu quadro clinico, incluindo diagnosticos, prognosticos, riscos e alternativas terapeuticas. Compreendo que o tratamento proposto envolve:`, y, W);
+
+  y = drawSectionTitle(doc, "1. IDENTIFICACAO", y);
+  y = drawRacjParagraph(doc, `Eu, ${data.paciente.nome}${data.paciente.cpf ? ", portador(a) do CPF " + data.paciente.cpf : ""}, declaro que fui devidamente informado(a) pelo Dr. ${data.medico} sobre meu quadro clinico, incluindo diagnosticos, prognosticos, riscos e alternativas terapeuticas.`, y, W);
+
+  y = drawSectionTitle(doc, "2. PROCEDIMENTO", y);
+  y = drawRacjParagraph(doc, `Autorizo a administracao das seguintes substancias: ${data.medicamentos.length > 0 ? data.medicamentos.join(", ") : "[conforme prescricao medica]"}. Estou ciente de que os procedimentos injetaveis podem incluir aplicacoes por via endovenosa (IV), intramuscular (IM) e/ou subcutanea (SC), bem como implantes subcutaneos.`, y, W);
+
+  y = drawSectionTitle(doc, "3. FINALIDADE TERAPEUTICA", y);
+  y = drawRacjParagraph(doc, "O tratamento tem como finalidade a suplementacao de micronutrientes, modulacao bioquimica, terapia antioxidante e demais abordagens integrativas indicadas pelo medico responsavel.", y, W);
+
   if (data.patologias.length > 0) {
     y = drawSectionTitle(doc, "Patologias em Acompanhamento", y);
     data.patologias.forEach(p => {
-      doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${p}`, 60, y, { width: W - 10 });
+      doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`  \u2022 ${p}`, 50, y, { width: W });
       y += 14;
     });
     y += 4;
   }
-  if (data.medicamentos.length > 0) {
-    y = drawSectionTitle(doc, "Medicamentos / Formulas Prescritos", y);
-    data.medicamentos.forEach(m => {
-      doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m}`, 60, y, { width: W - 10 });
-      y += 14;
-    });
-    y += 4;
-  }
-  y = drawRacjParagraph(doc, "Autorizo a realizacao dos procedimentos necessarios, incluindo solicitacao de exames complementares, ajuste de posologia e substituicao terapeutica, conforme evolucao clinica.", y, W);
+
+  y = drawSectionTitle(doc, "4. RISCOS E EFEITOS ADVERSOS", y);
+  y = drawRacjParagraph(doc, "Fui informado(a) sobre os possiveis riscos e efeitos adversos, incluindo: dor e/ou hematoma no local da aplicacao, reacoes alergicas, rubor facial, cefaleia, nausea, hipotensao transitoria e, em casos raros, reacoes anafilaticas.", y, W);
+
+  y = drawSectionTitle(doc, "5. CONTRAINDICACOES INFORMADAS", y);
+  y = drawRacjParagraph(doc, "Declaro ter sido questionado(a) e ter informado ao medico sobre: gestacao ou suspeita de gravidez; amamentacao; uso de anticoagulantes; doencas renais, hepaticas ou cardiacas; alergias conhecidas e demais condicoes relevantes.", y, W);
+
   y = drawAssinatura(doc, y);
   drawFooter(doc, false);
 
-  // ========== RACJ RISC — Declaracao de Riscos ==========
+  // ========== RACJ CGLO pagina 2 — Secoes 6 a 10 do TCLE ==========
+  addPageRetrato(doc);
+  drawHeader(doc, "TCLE — Consentimentos Especificos", "RACJ CGLO", false);
+  y = 80;
+
+  y = drawSectionTitle(doc, "6. CONSENTIMENTO VITAMINA C IV (quando aplicavel)", y);
+  y = drawRacjParagraph(doc, "No caso de Vitamina C endovenosa em alta dose (acima de 10g), declaro ciencia da necessidade de dosagem previa de G6PD (glicose-6-fosfato desidrogenase). A deficiencia desta enzima pode causar anemia hemolitica. Fui orientado(a) a realizar o exame antes do inicio do protocolo.", y, W);
+
+  y = drawSectionTitle(doc, "7. NAD+ E TERAPIAS DE LONGEVIDADE (quando aplicavel)", y);
+  y = drawRacjParagraph(doc, "Fui orientado(a) sobre a velocidade de infusao adequada para NAD+ e possiveis desconfortos, incluindo: desconforto toracico, nausea ou cefaleia durante a infusao. A velocidade de gotejamento sera ajustada conforme tolerancia individual.", y, W);
+
+  y = drawSectionTitle(doc, "8. CONSENTIMENTO POR VIA DE APLICACAO", y);
+
+  y = drawRacjParagraph(doc, "Via Endovenosa (IV): Autorizo procedimentos por via endovenosa. Fui informado(a) que infusoes IV requerem acesso venoso periferico, podendo ocorrer dor no local da puncao, hematoma, flebite e, raramente, infiltracao.", y, W);
+
+  y = drawRacjParagraph(doc, "Via Intramuscular (IM): Autorizo procedimentos por via intramuscular. Estou ciente de que aplicacoes IM podem causar dor local, hematoma, nodulacao transitoria e, em raros casos, lesao nervosa periferica.", y, W);
+
+  y = drawRacjParagraph(doc, "Via Subcutanea (SC): Autorizo procedimentos por via subcutanea. Fui informado(a) que aplicacoes SC podem resultar em nodulos locais, eritema, prurido e dor no ponto de aplicacao. A absorcao e gradual.", y, W);
+
+  y = drawRacjParagraph(doc, "Implante Subcutaneo: Autorizo a realizacao de implante subcutaneo. Estou ciente dos riscos especificos incluindo: necessidade de pequeno procedimento cirurgico, possibilidade de infeccao local, extrusao do implante, formacao de cicatriz, e necessidade de retorno para remocao ao final do periodo terapeutico.", y, W);
+
+  y = drawSectionTitle(doc, "9. ARMAZENAMENTO DIGITAL", y);
+  y = drawRacjParagraph(doc, "Autorizo o armazenamento digital de todos os registros de atendimento, incluindo o presente termo, no sistema PAWARDS e, quando aplicavel, em ambiente de nuvem seguro (Google Drive), com compartilhamento exclusivo ao meu e-mail cadastrado, em modo somente leitura.", y, W);
+
+  y = drawSectionTitle(doc, "10. DECLARACAO FINAL", y);
+  y = drawRacjParagraph(doc, "Declaro ter lido e compreendido integralmente o presente termo. Todas as minhas duvidas foram esclarecidas pelo medico responsavel. Estou ciente de que posso revogar este consentimento a qualquer momento, sem prejuizo do atendimento ja realizado.", y, W);
+
+  y = drawAssinatura(doc, y);
+  drawFooter(doc, false);
+
+  // ========== RACJ RISC — Declaracao de Riscos e Efeitos Adversos ==========
   addPageRetrato(doc);
   drawHeader(doc, "Declaracao de Riscos e Efeitos Adversos", "RACJ RISC", false);
   y = 80;
@@ -618,12 +658,19 @@ export function gerarRacjPdf(data: RacjPdfData): PassThrough {
   y = drawRacjCheckbox(doc, "Necessidade de ajustes de dose, substituicao ou suspensao de tratamento", y);
   y = drawRacjCheckbox(doc, "Agravamento temporario de sintomas durante periodo de transicao terapeutica", y);
   y = drawRacjCheckbox(doc, "Resultados que podem diferir das expectativas iniciais", y);
+  y += 6;
+  y = drawSectionTitle(doc, "Riscos Especificos por Via de Aplicacao", y);
+  y = drawRacjCheckbox(doc, "Endovenosa (IV): dor no local da puncao, hematoma, flebite, infiltracao, reacoes anafilaticas (raras)", y);
+  y = drawRacjCheckbox(doc, "Intramuscular (IM): dor local, hematoma, nodulacao transitoria, lesao nervosa periferica (rara)", y);
+  y = drawRacjCheckbox(doc, "Subcutanea (SC): nodulos locais, eritema, prurido, dor no ponto de aplicacao", y);
+  y = drawRacjCheckbox(doc, "Implante: infeccao local, extrusao, cicatriz, necessidade de procedimento cirurgico para remocao", y);
   y += 8;
   y = drawRacjParagraph(doc, "Fui orientado(a) a comunicar imediatamente ao medico responsavel qualquer reacao adversa, desconforto ou piora clinica durante o tratamento.", y, W);
+  y = drawRacjParagraph(doc, "O consentimento formal sera registrado presencialmente antes da primeira aplicacao, conforme exigencias da ANVISA e do Conselho Federal de Medicina (CFM). O RAS (Registro de Administracao de Substancias) sera emitido e assinado digitalmente com certificado ICP-Brasil A1 apos cada sessao.", y, W);
   y = drawAssinatura(doc, y);
   drawFooter(doc, false);
 
-  // ========== RACJ NGAR — Termo de Nao-Garantia ==========
+  // ========== RACJ NGAR — Termo de Nao-Garantia de Resultados ==========
   addPageRetrato(doc);
   drawHeader(doc, "Termo de Nao-Garantia de Resultados", "RACJ NGAR", false);
   y = 80;
@@ -634,26 +681,32 @@ export function gerarRacjPdf(data: RacjPdfData): PassThrough {
   y = drawRacjParagraph(doc, "2. O medico se compromete a empregar os melhores recursos disponiveis, baseados em evidencias cientificas, mas nao pode garantir cura, remissao completa ou resultado especifico.", y, W);
   y = drawRacjParagraph(doc, "3. O acompanhamento evolutivo (REVO) permite monitorar a progressao do tratamento e ajustar condutas conforme necessidade clinica.", y, W);
   y = drawRacjParagraph(doc, "4. A interrupcao unilateral do tratamento sem orientacao medica pode comprometer os resultados alcancados.", y, W);
+  y = drawRacjParagraph(doc, "5. O plano terapeutico podera ser alterado a qualquer momento pelo medico responsavel, com base na evolucao clinica, resultados de exames e resposta individual ao tratamento.", y, W);
   y = drawAssinatura(doc, y);
   drawFooter(doc, false);
 
-  // ========== RACJ PRIV — Politica de Privacidade ==========
+  // ========== RACJ PRIV — Politica de Privacidade e Sigilo Medico ==========
   addPageRetrato(doc);
   drawHeader(doc, "Politica de Privacidade e Sigilo Medico", "RACJ PRIV", false);
   y = 80;
   y = drawPacienteBlock(doc, data as any, y, 595);
   y = drawSectionTitle(doc, "Compromisso de Sigilo e Confidencialidade", y);
-  y = drawRacjParagraph(doc, `O Instituto Padua e o Dr. ${data.medico} comprometem-se a:`, y, W);
+  y = drawRacjParagraph(doc, `O Instituto Padua (PADUCCIA CLINICA MEDICA LTDA, CNPJ 63.865.940/0001-63) e o Dr. ${data.medico} comprometem-se a:`, y, W);
   y = drawRacjParagraph(doc, "1. Manter sigilo absoluto sobre todas as informacoes clinicas do paciente, conforme art. 73 do Codigo de Etica Medica e art. 154 do Codigo Penal.", y, W);
-  y = drawRacjParagraph(doc, "2. Armazenar dados em sistemas com criptografia e controle de acesso, conforme LGPD.", y, W);
+  y = drawRacjParagraph(doc, "2. Armazenar dados em sistemas com criptografia e controle de acesso, conforme Lei 13.709/2018 (LGPD).", y, W);
   y = drawRacjParagraph(doc, "3. Nao compartilhar dados com terceiros sem autorizacao expressa do paciente, exceto quando exigido por lei ou ordem judicial.", y, W);
-  y = drawRacjParagraph(doc, "4. Utilizar sistemas de comunicacao (WhatsApp, email) apenas com consentimento previo do paciente para fins clinicos.", y, W);
-  y = drawRacjParagraph(doc, "5. Garantir que todos os PDFs e relatorios gerados pelo Pawards sao de uso exclusivo do paciente e equipe medica autorizada.", y, W);
-  y += 8;
+  y = drawRacjParagraph(doc, "4. Utilizar sistemas de comunicacao (WhatsApp, email) apenas com consentimento previo do paciente para fins exclusivamente clinicos.", y, W);
+  y = drawRacjParagraph(doc, "5. Garantir que todos os PDFs e relatorios gerados pelo sistema PAWARDS sao de uso exclusivo do paciente e equipe medica autorizada.", y, W);
+  y = drawRacjParagraph(doc, "6. A assinatura digital ICP-Brasil A1 confere validade juridica ao documento (MP 2.200-2/2001). Os documentos assinados digitalmente possuem a mesma validade legal de documentos assinados fisicamente.", y, W);
+  y += 6;
   y = drawSectionTitle(doc, "Canais Autorizados de Comunicacao", y);
   y = drawRacjCheckbox(doc, "WhatsApp: comunicacao clinica, envio de relatorios e agendamento", y);
-  y = drawRacjCheckbox(doc, "Email: envio de PDFs clinicos e juridicos", y);
-  y = drawRacjCheckbox(doc, "Google Drive: armazenamento seguro de documentos do paciente", y);
+  y = drawRacjCheckbox(doc, "Email: envio de PDFs clinicos e juridicos, codigo de validacao pre-sessao", y);
+  y = drawRacjCheckbox(doc, "Google Drive: armazenamento seguro de documentos em 16 subpastas organizadas por categoria", y);
+  y += 6;
+  y = drawSectionTitle(doc, "Consentimento no E-mail Pre-Sessao", y);
+  y = drawRacjParagraph(doc, "Ao prosseguir com o tratamento, o(a) paciente declara estar ciente dos procedimentos a serem realizados, incluindo aplicacoes endovenosas, intramusculares e/ou implantes subcutaneos. O paciente foi informado sobre os beneficios esperados, possiveis efeitos colaterais e contraindicacoes de cada substancia.", y, W);
+  y = drawRacjParagraph(doc, "O consentimento formal sera registrado presencialmente antes da primeira aplicacao, conforme exigencias da ANVISA e do Conselho Federal de Medicina (CFM). O RAS (Registro de Administracao de Substancias) sera emitido e assinado digitalmente com certificado ICP-Brasil A1 apos cada sessao.", y, W);
   y = drawAssinatura(doc, y);
   drawFooter(doc, false);
 
