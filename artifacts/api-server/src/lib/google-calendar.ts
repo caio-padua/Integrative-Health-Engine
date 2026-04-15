@@ -161,23 +161,23 @@ export function buildEventDescription(opts: {
 
   const lines: string[] = [];
 
-  lines.push('Pawards - Protocolos injetáveis');
+  lines.push('<b>Developed by: Pawards MedCore</b>');
   lines.push('');
   lines.push(`<b>${titleCase(pacienteNome)}</b>`);
   if (pacienteCpf) lines.push(`CPF.: ${formatCpf(pacienteCpf)}`);
   if (numeroMarcacao) lines.push(`Agendamento Número: ${numeroMarcacao}${totalMarcacoes ? '/' + totalMarcacoes : ''}`);
-  if (unidadeNome) lines.push(`Unidade ${titleCase(unidadeNome)}`);
+  if (unidadeNome) lines.push(`Unidade: ${titleCase(unidadeNome)}`);
   lines.push('');
   lines.push('<b>Procedimentos:</b>');
-  lines.push(`<b>Consulta [60min]</b>  ${temConsulta ? '✅' : '❎'}`);
-  lines.push(`<b>Aplicação endovenosa [30min]</b>  ${temEV ? '✅' : '❎'}`);
-  lines.push(`<b>Aplicação intramuscular [15min]</b>  ${temIM ? '✅' : '❎'}`);
-  lines.push(`<b>Implante [60min]</b>  ${temImplante ? '✅' : '❎'}`);
+  lines.push(`${temConsulta ? '👍' : '👎'} Consulta [60min]`);
+  lines.push(`${temEV ? '👍' : '👎'} Aplicação endovenosa [30min]`);
+  lines.push(`${temIM ? '👍' : '👎'} Aplicação intramuscular [15min]`);
+  lines.push(`${temImplante ? '👍' : '👎'} Implante [60min]`);
   lines.push(`<b>Duração Total:</b> ${duracaoMin}min`);
   lines.push('');
   const sessionSubs = substancias.filter(s => s.nestaSessao !== false);
   const sessionStatus = determineSessionStatus(sessionSubs);
-  lines.push(`<b>Status:</b> ${sessionStatus.label}`);
+  lines.push('<b>Status:</b>');
   lines.push(`${sessionStatus.square} ${sessionStatus.label}`);
   lines.push('');
   const sorted = sortSubstancias(substancias);
@@ -189,7 +189,7 @@ export function buildEventDescription(opts: {
   for (const s of destaSessao) {
     idx++;
     const st = statusSquare(s.status);
-    const nome = cleanSubstanceName(s.nome);
+    const nome = titleCase(cleanSubstanceName(s.nome));
     const dose = formatDose(s.dose);
     lines.push(`${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
   }
@@ -197,7 +197,7 @@ export function buildEventDescription(opts: {
     for (const s of foraDaSessao) {
       idx++;
       const st = statusSquare(s.status);
-      const nome = cleanSubstanceName(s.nome);
+      const nome = titleCase(cleanSubstanceName(s.nome));
       const dose = formatDose(s.dose);
       lines.push(`${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
     }
