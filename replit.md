@@ -123,10 +123,19 @@ Key architectural decisions and features include:
 -   **Proteção:** Tipo `genesis_seed` bloqueia DELETE na rota de unidades (HTTP 403). Auto-colonização também bloqueada.
 -   **DNA herdado (1.176 itens):** 246 exames, 54 fórmulas, 305 injetáveis IM, 63 endovenosos, 32 implantes, 49 doenças, 11 protocolos, 48 dietas, 231 matriz rastreio, 13 termos jurídicos, motor RASX-MATRIZ V6 completo (5 blocos, 20 subgrupos, 7 eventos, 6 classes, 6 consentimentos)
 -   **Regra:** Catálogos aditivos — novas entradas propagam automaticamente. Remoções manuais por clínica, nunca na semente.
--   **Endpoints:**
+-   **Endpoints Genesis Core:**
     -   `GET /api/genesis/info` — informações completas da semente Genesis (DNA, catálogos, proteção)
     -   `POST /api/genesis/colonizar/:unidadeId` — coloniza uma clínica com DNA Genesis (herança de termos, catálogos, motor)
     -   `POST /api/genesis/popular-lemos` — popula Lemos com tratamentos
     -   `POST /api/genesis/popular-agendas` — cria regras, slots e agendamentos para unidades 2-10
     -   `POST /api/genesis/assinar-termos-todos` — assina termos base para todos os pacientes
     -   `GET /api/genesis/status` — status completo do sistema (instituto genesis, pacientes, tratamentos, termos, agenda por unidade)
+-   **Endpoints Genesis Popular (seed automático):**
+    -   `POST /api/genesis-popular/completar-lemos` — garante Lemos 100% (pacientes, tratamentos, regras, slots, agendamentos)
+    -   `POST /api/genesis-popular/completar-todas` — preenche gaps em TODAS as 9 unidades operacionais (cria pacientes domiciliar, slots, tratamentos, agendamentos)
+    -   `POST /api/genesis-popular/seed-nova-clinica/:unidadeId` — seed completo para nova clínica (DNA catálogos, regras, slots, cascata, soberania, templates tratamento)
+    -   `GET /api/genesis-popular/validacao-completa` — validação 5/5 de todas unidades (pacientes, tratamentos, regras, slots, agendamentos) com score e status global
+-   **Dados Populados (9/9 unidades COMPLETAS):**
+    -   34 pacientes, 21 tratamentos, 85+ regras disponibilidade, 696+ slots, 80+ agendamentos, 155 assinaturas de termos
+    -   Unidades 1-6, 8 (Instituto Padua), 9-10 (Instituto Lemos), 14 (Genesis seed)
+    -   Constraint: profissional não pode ter slots sobrepostos em unidades diferentes (uq_slot_profissional_horario)
