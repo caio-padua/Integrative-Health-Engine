@@ -626,13 +626,14 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
     const envMm = String(envNow.getMonth() + 1).padStart(2, '0');
     const envDd = String(envNow.getDate()).padStart(2, '0');
     const envPrefix = `${envYy}.${envMm}.${envDd}`;
+    const envNome = collected.paciente.nome.split(" ")[0].toUpperCase();
 
     const FILENAME_MAP: Record<string, string> = {
-      JURIDICO: `${envPrefix} RACJ Termos Juridicos.pdf`,
-      CLINICO: `${envPrefix} RACL RAS Clinico.pdf`,
-      EVOLUTIVO: `${envPrefix} RACL HEVO RAS Evolutivo.pdf`,
-      ESTADO_SAUDE: `${envPrefix} RACL HATU RAS Estado Saude.pdf`,
-      COMPLETO: `${envPrefix} RACL RAS Completo.pdf`,
+      JURIDICO: `${envPrefix} RAS JURIDICO "${envNome}" (LGPD CGLO RISC NGAR PRIV).pdf`,
+      CLINICO: `${envPrefix} RAS CLINICO "${envNome}" (HEST HPOT HORG HMED).pdf`,
+      EVOLUTIVO: `${envPrefix} RAS EVOLUTIVO "${envNome}" (HLIN HTRN HEVO HPLA).pdf`,
+      ESTADO_SAUDE: `${envPrefix} RAS ESTADO SAUDE "${envNome}" (HATU HCUR HPLA).pdf`,
+      COMPLETO: `${envPrefix} RAS COMPLETO "${envNome}" (HEST HPOT HORG HMED HFOR HLIN HTRN HEVO HCUR HATU HPLA).pdf`,
     };
 
     if (catUpper === "JURIDICO") {
@@ -648,7 +649,7 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
       filename = FILENAME_MAP[catUpper];
     } else if (Object.keys(RAS_CATEGORIAS).includes(catUpper)) {
       pdfStream = gerarRasxPdf(collected.pdfData, catUpper as RasCategoria);
-      filename = FILENAME_MAP[catUpper] || `${envPrefix} RACL ${catUpper}.pdf`;
+      filename = FILENAME_MAP[catUpper] || `${envPrefix} RAS ${catUpper} "${envNome}".pdf`;
     } else {
       resultados.push({ categoria: catUpper, erro: "Categoria invalida" });
       continue;
@@ -806,16 +807,18 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     uploads.push({ subfolder, filename, tamanho: `${(buffer.length / 1024).toFixed(1)} KB`, fileUrl: result.fileUrl });
   };
 
-  await upload("CADASTRO", `${prefix} RACL Ficha Cadastro.pdf`,
+  const primeiroNome = collected.paciente.nome.split(" ")[0].toUpperCase();
+
+  await upload("CADASTRO", `${prefix} RAS CADASTRO "${primeiroNome}" (HEST).pdf`,
     gerarFichaCadastroPdf({ ...base, telefone: collected.paciente.telefone || undefined, email: collected.paciente.email || undefined }));
 
-  await upload("PATOLOGIAS", `${prefix} RACL HPOT Patologias.pdf`,
+  await upload("PATOLOGIAS", `${prefix} RAS PATOLOGIAS "${primeiroNome}" (HPOT).pdf`,
     gerarRelatorioPatologiasPdf({ ...base, patologias: collected.patologias.map(p => ({
       nome: p.nome, orgao: p.orgaoSistema || "—", intensidade: p.intensidadeAtual || "—",
       semaforo: p.statusSemaforo || "amarelo", leitura: p.leituraClinica || "—",
     })) }));
 
-  await upload("EXAMES", `${prefix} RACL Solicitacao Exames.pdf`,
+  await upload("EXAMES", `${prefix} RAS EXAMES "${primeiroNome}" (HORG).pdf`,
     gerarLaudoExamePdf({ ...base, exames: [
       { nome: "Hemograma Completo", justificativa: "Avaliacao hematologica e investigacao de processo inflamatorio/infeccioso" },
       { nome: "PCR Ultra-Sensivel", justificativa: "Marcador inflamatorio para acompanhamento de inflamacao cronica" },
@@ -831,12 +834,12 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     uso: m.motivoUso || m.indicacaoClinica || "Tratamento clinico",
   }));
   if (meds.length > 0) {
-    await upload("RECEITAS", `${prefix} RACL HMED Receita Medica.pdf`, gerarReceitaPdf({ ...base, medicamentos: meds }));
+    await upload("RECEITAS", `${prefix} RAS RECEITA "${primeiroNome}" (HMED).pdf`, gerarReceitaPdf({ ...base, medicamentos: meds }));
   }
 
-  await upload("PROTOCOLOS", `${prefix} RACL RAS Clinico.pdf`, gerarRasxPdf(collected.pdfData, "CLINICO"));
+  await upload("PROTOCOLOS", `${prefix} RAS CLINICO "${primeiroNome}" (HEST HPOT HORG HMED).pdf`, gerarRasxPdf(collected.pdfData, "CLINICO"));
 
-  await upload("FINANCEIRO", `${prefix} RACL Orcamento.pdf`,
+  await upload("FINANCEIRO", `${prefix} RAS FINANCEIRO "${primeiroNome}" (HFOR).pdf`,
     gerarOrcamentoFinanceiroPdf({ ...base, itens: [
       { descricao: "Consulta Integrativa — 30 min presencial", valor: 450.00 },
       { descricao: "Protocolo de Infusao Endovenosa", valor: 890.00 },
@@ -845,14 +848,14 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
       { descricao: "Acompanhamento evolutivo mensal", valor: 250.00 },
     ], total: 2490.00 }));
 
-  await upload("CONTRATOS", `${prefix} RACL Contrato Servicos.pdf`, gerarContratoPdf(base));
+  await upload("CONTRATOS", `${prefix} RAS CONTRATO "${primeiroNome}" (LGPD).pdf`, gerarContratoPdf(base));
 
-  await upload("ATESTADOS", `${prefix} RACL Atestado Medico.pdf`,
+  await upload("ATESTADOS", `${prefix} RAS ATESTADO "${primeiroNome}" (HATU).pdf`,
     gerarAtestadoPdf({ ...base, motivo: "Consulta medica e realizacao de procedimentos clinicos", dias: 1, cid: "R53 — Mal-estar e fadiga" }));
 
-  await upload("LAUDOS", `${prefix} RACL RAS Completo.pdf`, gerarRasxPdf(collected.pdfData, "COMPLETO"));
+  await upload("LAUDOS", `${prefix} RAS COMPLETO "${primeiroNome}" (HEST HPOT HORG HMED HFOR HLIN HTRN HEVO HCUR HATU HPLA).pdf`, gerarRasxPdf(collected.pdfData, "COMPLETO"));
 
-  await upload("TERMOS", `${prefix} RACJ Termo Consentimento.pdf`,
+  await upload("TERMOS", `${prefix} RAS CONSENTIMENTO "${primeiroNome}" (CGLO RISC NGAR).pdf`,
     gerarTermoConsentimentoPdf({ ...base, procedimento: "Infusao endovenosa de micronutrientes e suplementacao integrativa" }));
 
   const racjData = {
@@ -860,11 +863,11 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     patologias: collected.patologias.map(p => p.nome),
     medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
   };
-  await upload("JURIDICO", `${prefix} RACJ Termos Juridicos.pdf`, gerarRacjPdf(racjData));
+  await upload("JURIDICO", `${prefix} RAS JURIDICO "${primeiroNome}" (LGPD CGLO RISC NGAR PRIV).pdf`, gerarRacjPdf(racjData));
 
-  await upload("SEGUIMENTO", `${prefix} RACL HEVO RAS Evolutivo.pdf`, gerarRasxPdf(collected.pdfData, "EVOLUTIVO"));
+  await upload("SEGUIMENTO", `${prefix} RAS EVOLUTIVO "${primeiroNome}" (HLIN HTRN HEVO HPLA).pdf`, gerarRasxPdf(collected.pdfData, "EVOLUTIVO"));
 
-  await upload("SEGUIMENTO", `${prefix} RACL HATU RAS Estado Saude.pdf`, gerarRasxPdf(collected.pdfData, "ESTADO_SAUDE"));
+  await upload("SEGUIMENTO", `${prefix} RAS ESTADO SAUDE "${primeiroNome}" (HATU HCUR HPLA).pdf`, gerarRasxPdf(collected.pdfData, "ESTADO_SAUDE"));
 
   await gravarAudit({
     pacienteId, entidade: "drive_popular_completo", acao: "gerar_pdf",
