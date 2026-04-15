@@ -129,14 +129,14 @@ export function EmailCalendarBlueprint() {
 
         <div style={{ ...s.row, marginTop: 16 }}>
           {[
-            { cargo: "ENFERMAGEM 01", humano: "Bianca", agente: "Bianca (IA)", email: "padua.enfermagem01@gmail.com", cor: tealAccent, emoji: "💉" },
-            { cargo: "ENFERMAGEM 02", humano: "Mariana", agente: "Mariana (IA)", email: "padua.enfermagem02@gmail.com", cor: tealAccent, emoji: "🔍" },
-            { cargo: "CONSULTOR 01", humano: "—", agente: "Dr. Lucas (IA)", email: "padua.consultor01@gmail.com", cor: purpleAccent, emoji: "🧬" },
-            { cargo: "CONSULTOR 02", humano: "—", agente: "Dra. Camila (IA)", email: "padua.consultor02@gmail.com", cor: purpleAccent, emoji: "📊" },
-            { cargo: "SUPERVISOR 01", humano: "Graco", agente: "Fernando (IA)", email: "padua.supervisor01@gmail.com", cor: orangeAccent, emoji: "📋" },
-            { cargo: "SUPERVISOR 02", humano: "—", agente: "Gustavo (IA)", email: "padua.supervisor02@gmail.com", cor: orangeAccent, emoji: "🕵️" },
-            { cargo: "FINANCEIRO 01", humano: "—", agente: "Patricia (IA)", email: "padua.financeiro01@gmail.com", cor: greenAccent, emoji: "💰" },
-            { cargo: "OUVIDORIA 01", humano: "—", agente: "Helena (IA)", email: "padua.ouvidoria01@gmail.com", cor: pinkAccent, emoji: "🛡️" },
+            { cargo: "ENFERMAGEM 01", humano: "Bianca", agente: "Bianca (IA)", email: "pawards.padua.enfermagem01@gmail.com", cor: tealAccent, emoji: "💉" },
+            { cargo: "ENFERMAGEM 02", humano: "Mariana", agente: "Mariana (IA)", email: "pawards.padua.enfermagem02@gmail.com", cor: tealAccent, emoji: "🔍" },
+            { cargo: "CONSULTOR 01", humano: "—", agente: "Dr. Lucas (IA)", email: "pawards.padua.consultor01@gmail.com", cor: purpleAccent, emoji: "🧬" },
+            { cargo: "CONSULTOR 02", humano: "—", agente: "Dra. Camila (IA)", email: "pawards.padua.consultor02@gmail.com", cor: purpleAccent, emoji: "📊" },
+            { cargo: "SUPERVISOR 01", humano: "Graco", agente: "Fernando (IA)", email: "pawards.padua.supervisor01@gmail.com", cor: orangeAccent, emoji: "📋" },
+            { cargo: "SUPERVISOR 02", humano: "—", agente: "Gustavo (IA)", email: "pawards.padua.supervisor02@gmail.com", cor: orangeAccent, emoji: "🕵️" },
+            { cargo: "FINANCEIRO 01", humano: "—", agente: "Patricia (IA)", email: "pawards.padua.financeiro01@gmail.com", cor: greenAccent, emoji: "💰" },
+            { cargo: "OUVIDORIA 01", humano: "—", agente: "Helena (IA)", email: "pawards.padua.ouvidoria01@gmail.com", cor: pinkAccent, emoji: "🛡️" },
           ].map((ag, i) => (
             <div key={i} style={{ ...s.card(ag.cor), flex: "1 1 220px", minWidth: 220 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -157,7 +157,7 @@ export function EmailCalendarBlueprint() {
 
         <div style={s.divider} />
         <div style={s.note}>
-          Para OUTRA clinica (ex: Lemos), a nomenclatura muda o prefixo: lemos.enfermagem01@gmail.com, lemos.consultor01@gmail.com, etc. Mesma logica, mesmo cargo, email diferente por empresa.
+          Para OUTRA clinica (ex: Lemos), a nomenclatura segue: pawards.lemos.enfermagem01@gmail.com, pawards.lemos.consultor01@gmail.com, etc. Sempre com prefixo pawards. — mesma logica, mesmo cargo, email diferente por empresa.
         </div>
       </div>
 
@@ -272,12 +272,12 @@ export function EmailCalendarBlueprint() {
               {[
                 ["Email Geral", "pawards.[clinica].geral@", "pawards.padua.geral@", "pawards.lemos.geral@", "pawards.barros.geral@"],
                 ["Email Agenda", "pawards.[clinica].agenda@", "clinica.padua.agenda@ *", "pawards.lemos.agenda@", "pawards.barros.agenda@"],
-                ["Enfermagem 01", "[clinica].enfermagem01@", "padua.enfermagem01@", "lemos.enfermagem01@", "barros.enfermagem01@"],
-                ["Enfermagem 02", "[clinica].enfermagem02@", "padua.enfermagem02@", "lemos.enfermagem02@", "barros.enfermagem02@"],
-                ["Consultor 01", "[clinica].consultor01@", "padua.consultor01@", "lemos.consultor01@", "barros.consultor01@"],
-                ["Supervisor 01", "[clinica].supervisor01@", "padua.supervisor01@", "lemos.supervisor01@", "barros.supervisor01@"],
-                ["Financeiro 01", "[clinica].financeiro01@", "padua.financeiro01@", "lemos.financeiro01@", "barros.financeiro01@"],
-                ["Ouvidoria 01", "[clinica].ouvidoria01@", "padua.ouvidoria01@", "lemos.ouvidoria01@", "barros.ouvidoria01@"],
+                ["Enfermagem 01", "pawards.[clinica].enfermagem01@", "pawards.padua.enfermagem01@", "pawards.lemos.enfermagem01@", "pawards.barros.enfermagem01@"],
+                ["Enfermagem 02", "pawards.[clinica].enfermagem02@", "pawards.padua.enfermagem02@", "pawards.lemos.enfermagem02@", "pawards.barros.enfermagem02@"],
+                ["Consultor 01", "pawards.[clinica].consultor01@", "pawards.padua.consultor01@", "pawards.lemos.consultor01@", "pawards.barros.consultor01@"],
+                ["Supervisor 01", "pawards.[clinica].supervisor01@", "pawards.padua.supervisor01@", "pawards.lemos.supervisor01@", "pawards.barros.supervisor01@"],
+                ["Financeiro 01", "pawards.[clinica].financeiro01@", "pawards.padua.financeiro01@", "pawards.lemos.financeiro01@", "pawards.barros.financeiro01@"],
+                ["Ouvidoria 01", "pawards.[clinica].ouvidoria01@", "pawards.padua.ouvidoria01@", "pawards.lemos.ouvidoria01@", "pawards.barros.ouvidoria01@"],
               ].map((row, i) => (
                 <tr key={i} style={{ borderBottom: `1px solid ${sectionBg}` }}>
                   {row.map((cell, j) => (
