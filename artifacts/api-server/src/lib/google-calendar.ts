@@ -158,6 +158,8 @@ export function buildEventDescription(opts: {
   const temEV = vias.has('iv') || vias.has('ev');
   const temImplante = vias.has('implant');
   const temConsulta = tipoProcedimento.includes('CONSULTA');
+  const temDiverso = tipoProcedimento.includes('EXAME') || tipoProcedimento.includes('COLETA') ||
+    (!temConsulta && !temEV && !temIM && !temImplante && substancias.length === 0);
 
   const lines: string[] = [];
 
@@ -169,10 +171,21 @@ export function buildEventDescription(opts: {
   if (unidadeNome) lines.push(`Unidade: ${titleCase(unidadeNome)}`);
   lines.push('');
   lines.push('<b>Procedimentos:</b>');
-  lines.push(`${temConsulta ? '👍' : '👎'} Consulta [60min]`);
-  lines.push(`${temEV ? '👍' : '👎'} Aplicação endovenosa [30min]`);
-  lines.push(`${temIM ? '👍' : '👎'} Aplicação intramuscular [15min]`);
-  lines.push(`${temImplante ? '👍' : '👎'} Implante [60min]`);
+
+  const procs = [
+    { ativo: temConsulta, nome: 'Consulta', min: '60min' },
+    { ativo: temEV, nome: 'Aplicação endovenosa', min: '30min' },
+    { ativo: temIM, nome: 'Aplicação intramuscular', min: '15min' },
+    { ativo: temImplante, nome: 'Implante', min: '60min' },
+    { ativo: temDiverso, nome: 'Procedimento diverso', min: '60min' },
+  ];
+  procs.sort((a, b) => (b.ativo ? 1 : 0) - (a.ativo ? 1 : 0));
+  const PAD_LEN = 30;
+  for (const p of procs) {
+    const thumb = p.ativo ? '👍' : '👎';
+    const padded = p.nome.padEnd(PAD_LEN, ' ');
+    lines.push(`${thumb} ${padded}[${p.min}]`);
+  }
   lines.push(`<b>Duração Total:</b> ${duracaoMin}min`);
   lines.push('');
   const sessionSubs = substancias.filter(s => s.nestaSessao !== false);
@@ -203,11 +216,12 @@ export function buildEventDescription(opts: {
     }
   }
   lines.push('');
+  const LEG_PAD = 28;
   lines.push('<b>Legenda:</b>');
-  lines.push('🟩  [DISP]  Disponibilidade Aplicação');
-  lines.push('🟨  [PROX]  Próxima Sessão');
-  lines.push('🟦  [APLI]  Substância Aplicada');
-  lines.push('⬜  [INDI]  Substância Indisponível');
+  lines.push(`🟩  ${'Disponibilidade Aplicação'.padEnd(LEG_PAD)}[DISP]`);
+  lines.push(`🟨  ${'Próxima Sessão'.padEnd(LEG_PAD)}[PROX]`);
+  lines.push(`🟦  ${'Substância Aplicada'.padEnd(LEG_PAD)}[APLI]`);
+  lines.push(`⬜  ${'Substância Indisponível'.padEnd(LEG_PAD)}[INDI]`);
   lines.push('');
   if (endereco && endereco.rua) {
     lines.push('<b>📍 Endereço:</b>');
