@@ -51,8 +51,13 @@ router.put("/unidades/:id", async (req, res): Promise<void> => {
 router.delete("/unidades/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
+  const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
+  if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+  if (unidade.tipo === "genesis_seed") {
+    res.status(403).json({ error: "Instituto Genesis e semente perene — nao pode ser excluido. Apenas adicoes sao permitidas." });
+    return;
+  }
   const [deleted] = await db.delete(unidadesTable).where(eq(unidadesTable.id, id)).returning();
-  if (!deleted) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
   res.json({ ok: true });
 });
 

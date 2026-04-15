@@ -60,6 +60,7 @@ import rasxRevoRouter from "./rasxRevo";
 import rasxArquRouter from "./rasxArqu";
 import emailComunicacaoRouter from "./emailComunicacao";
 import termosJuridicosRouter from "./termosJuridicos";
+import genesisRouter from "./genesis";
 
 const router: IRouter = Router();
 
@@ -124,5 +125,6 @@ router.use(rasxRevoRouter);
 router.use(rasxArquRouter);
 router.use(emailComunicacaoRouter);
 router.use(termosJuridicosRouter);
+router.use("/genesis", genesisRouter);
 
 export default router;
