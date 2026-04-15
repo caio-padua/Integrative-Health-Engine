@@ -202,11 +202,67 @@ export interface SessaoCalendarData {
   };
 }
 
+const CODIGOS_SEMANTICOS: Record<string, { codigo: string; descricao: string }> = {
+  'CONSULTA_30_PRESENCIAL':        { codigo: 'CPRE', descricao: 'Consulta Presencial' },
+  'CONSULTA_60_PRESENCIAL':        { codigo: 'CPRE', descricao: 'Consulta Presencial Extensa' },
+  'CONSULTA_30_ONLINE':            { codigo: 'CONL', descricao: 'Consulta Online' },
+  'CONSULTA_30_TELEMEDICINA':      { codigo: 'CONL', descricao: 'Consulta Telemedicina' },
+  'RETORNO_15_PRESENCIAL':         { codigo: 'CAVL', descricao: 'Consulta de Retorno' },
+  'RETORNO_15_TELEMEDICINA':       { codigo: 'CAVL', descricao: 'Retorno Telemedicina' },
+  'AVALIACAO_ENF_30_PRESENCIAL':   { codigo: 'CAVL', descricao: 'Avaliacao Enfermagem' },
+  'AVALIACAO_ENFERMAGEM_20_PRESENCIAL': { codigo: 'CAVL', descricao: 'Avaliacao Enfermagem' },
+  'IMPLANTE_120_PRESENCIAL':       { codigo: 'PROCE', descricao: 'Procedimento — Implante' },
+  'IM_15_PRESENCIAL':              { codigo: 'SESS', descricao: 'Sessao Aplicacao IM' },
+  'APLICACAO_IM_15_PRESENCIAL':    { codigo: 'SESS', descricao: 'Sessao Aplicacao IM' },
+  'INFUSAO_CURTA_60_PRESENCIAL':   { codigo: 'SESS', descricao: 'Sessao Infusao EV Curta' },
+  'INFUSAO_MEDIA_120_PRESENCIAL':  { codigo: 'SESS', descricao: 'Sessao Infusao EV Media' },
+  'INFUSAO_LONGA_180_PRESENCIAL':  { codigo: 'INFU', descricao: 'Infusao Longa EV' },
+  'INFUSAO_EXTRA_240_PRESENCIAL':  { codigo: 'INFU', descricao: 'Infusao Extra EV' },
+  'EXAME_30_PRESENCIAL':           { codigo: 'EXAM', descricao: 'Coleta de Exame' },
+};
+
+function resolveCodigoSemantico(tipoProcedimento: string, substancias?: SubstanciaEvento[]): string {
+  const match = CODIGOS_SEMANTICOS[tipoProcedimento];
+  if (match) return match.codigo;
+
+  const tipo = tipoProcedimento.toUpperCase();
+  if (tipo.includes('ONLINE') || tipo.includes('TELEMEDICINA')) return 'CONL';
+  if (tipo.includes('RETORNO') || tipo.includes('AVALIACAO')) return 'CAVL';
+  if (tipo.includes('IMPLANTE')) return 'PROCE';
+  if (tipo.includes('INFUSAO_LONGA') || tipo.includes('INFUSAO_EXTRA')) return 'INFU';
+  if (tipo.includes('INFUSAO') || tipo.includes('IM_') || tipo.includes('APLICACAO')) return 'SESS';
+  if (tipo.includes('EXAME') || tipo.includes('COLETA')) return 'EXAM';
+  if (tipo.includes('CONSULTA')) return 'CPRE';
+
+  if (substancias?.length) {
+    const vias = substancias.map(s => s.via?.toLowerCase());
+    if (vias.includes('implant')) return 'PROCE';
+    if (vias.some(v => v === 'iv' || v === 'ev')) return 'SESS';
+    if (vias.includes('im')) return 'SESS';
+  }
+
+  return 'CPRE';
+}
+
+export function buildEventSummary(opts: {
+  pacienteNome: string;
+  pacienteCpf?: string;
+  tipoProcedimento: string;
+  substancias?: SubstanciaEvento[];
+}): string {
+  const nome = opts.pacienteNome.toUpperCase();
+  const cpf = opts.pacienteCpf ? ` CPF ${formatCpf(opts.pacienteCpf)}` : '';
+  const codigo = resolveCodigoSemantico(opts.tipoProcedimento, opts.substancias);
+  return `${nome}${cpf} [${codigo}]`;
+}
+
 const COR_POR_TIPO: Record<string, string> = {
   'APLICACAO ENDOVENOSA': '9',
   'APLICACAO INTRAMUSCULAR': '5',
   'IMPLANTE': '11',
   'CONSULTA': '7',
+  'INFUSAO': '9',
+  'EXAME': '3',
 };
 
 function getEventColor(tipoProcedimento: string): string {
@@ -234,8 +290,15 @@ export async function createCalendarEvent(data: SessaoCalendarData): Promise<any
     endereco: data.endereco,
   });
 
+  const summary = buildEventSummary({
+    pacienteNome: data.pacienteNome,
+    pacienteCpf: data.pacienteCpf,
+    tipoProcedimento: data.tipoProcedimento,
+    substancias: data.substancias,
+  });
+
   const event = {
-    summary: `${data.pacienteNome.toUpperCase()} - ${data.tipoProcedimento}`,
+    summary,
     description,
     start: {
       dateTime: startDateTime,
@@ -279,10 +342,17 @@ export async function updateCalendarEventDescription(
     endereco,
   });
 
+  const summary = buildEventSummary({
+    pacienteNome: extra?.pacienteNome || '',
+    pacienteCpf: extra?.pacienteCpf,
+    tipoProcedimento,
+    substancias,
+  });
+
   const response = await calendar.events.patch({
     calendarId: calendarId || 'primary',
     eventId,
-    requestBody: { description },
+    requestBody: { summary, description },
   });
 
   return response.data;

@@ -90,8 +90,8 @@ export function EmailCalendarBlueprint() {
             <div style={{ fontSize: 11, color: "#94A3B8" }}>CNPJ 63.865.940/0001-63</div>
             <div style={s.divider} />
             <div style={s.email(blueAccent)}>pawards.padua.geral@gmail.com</div>
-            <div style={s.email(greenAccent)}>pawards.padua.agenda@gmail.com</div>
-            <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>Sede principal</div>
+            <div style={s.email(greenAccent)}>clinica.padua.agenda@gmail.com</div>
+            <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>* Email ja em uso — excecao historica</div>
           </div>
           <div style={s.flowBox(tealAccent)}>
             <div style={{ fontSize: 12, fontWeight: 700, color: tealAccent }}>INSTITUTO LEMOS</div>
@@ -207,7 +207,7 @@ export function EmailCalendarBlueprint() {
 
         <div style={{ ...s.row, marginTop: 16 }}>
           <div style={{ ...s.card(gold), flex: "1 1 100%" }}>
-            <div style={{ ...s.label, color: gold }}>INSTITUTO PADUA — pawards.padua.agenda@gmail.com</div>
+            <div style={{ ...s.label, color: gold }}>INSTITUTO PADUA — clinica.padua.agenda@gmail.com</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               {[
                 "MEDICO - HIGIENOPOLIS",
@@ -271,7 +271,7 @@ export function EmailCalendarBlueprint() {
             <tbody>
               {[
                 ["Email Geral", "pawards.[clinica].geral@", "pawards.padua.geral@", "pawards.lemos.geral@", "pawards.barros.geral@"],
-                ["Email Agenda", "pawards.[clinica].agenda@", "pawards.padua.agenda@", "pawards.lemos.agenda@", "pawards.barros.agenda@"],
+                ["Email Agenda", "pawards.[clinica].agenda@", "clinica.padua.agenda@ *", "pawards.lemos.agenda@", "pawards.barros.agenda@"],
                 ["Enfermagem 01", "pawards.[clinica].enfermagem01@", "pawards.padua.enfermagem01@", "pawards.lemos.enfermagem01@", "pawards.barros.enfermagem01@"],
                 ["Enfermagem 02", "pawards.[clinica].enfermagem02@", "pawards.padua.enfermagem02@", "pawards.lemos.enfermagem02@", "pawards.barros.enfermagem02@"],
                 ["Consultor 01", "pawards.[clinica].consultor01@", "pawards.padua.consultor01@", "pawards.lemos.consultor01@", "pawards.barros.consultor01@"],
@@ -289,7 +289,7 @@ export function EmailCalendarBlueprint() {
               ))}
             </tbody>
           </table>
-          <div style={s.note}>Regra canonica: pawards.[nome].[funcao]@gmail.com — todas as clinicas seguem o mesmo padrao, incluindo agenda.</div>
+          <div style={s.note}>* clinica.padua.agenda@gmail.com ja esta em uso. Futuras clinicas seguem o padrao pawards.[nome].agenda@gmail.com</div>
         </div>
       </div>
 
