@@ -58,13 +58,13 @@ interface SubstanciaEvento {
   status: string;
 }
 
-function statusDot(status: string): string {
+function statusSquare(status: string): { square: string; tag: string } {
   switch (status) {
-    case 'disp': return '🟢 DISP';
-    case 'aplicada': return '🔵 APLICADA';
-    case 'prox': return '🟤 PROX';
-    case 'nao_aplicada': return '⚫ N/A';
-    default: return '⚪ ' + status.toUpperCase();
+    case 'disp': return { square: '🟩', tag: 'DISP' };
+    case 'aplicada': return { square: '🟦', tag: 'APLI' };
+    case 'prox': return { square: '🟨', tag: 'PROX' };
+    case 'nao_aplicada': return { square: '⬜', tag: 'INDI' };
+    default: return { square: '⬜', tag: status.toUpperCase().slice(0, 4) };
   }
 }
 
@@ -77,17 +77,26 @@ function formatCpf(cpf: string | undefined): string {
   return cpf;
 }
 
-function determineSessionStatus(substancias: SubstanciaEvento[]): { label: string; dot: string } {
-  if (!substancias.length) return { label: 'A REALIZAR', dot: '🟡' };
+function determineSessionStatus(substancias: SubstanciaEvento[]): { label: string; square: string } {
+  if (!substancias.length) return { label: 'A realizar', square: '🟨' };
 
   const hasAplicada = substancias.some(s => s.status === 'aplicada');
   const allDone = substancias.every(s => s.status === 'aplicada' || s.status === 'nao_aplicada');
   const hasNaoAplicada = substancias.some(s => s.status === 'nao_aplicada');
 
-  if (allDone && hasAplicada && !hasNaoAplicada) return { label: 'REALIZADO', dot: '🔵' };
-  if (allDone && hasNaoAplicada && !hasAplicada) return { label: 'NAO REALIZADO', dot: '⚫' };
-  if (allDone) return { label: 'REALIZADO', dot: '🔵' };
-  return { label: 'A REALIZAR', dot: '🟡' };
+  if (allDone && hasAplicada && !hasNaoAplicada) return { label: 'Realizado', square: '🟦' };
+  if (allDone && hasNaoAplicada && !hasAplicada) return { label: 'Nao realizado', square: '⬜' };
+  if (allDone) return { label: 'Realizado', square: '🟦' };
+  return { label: 'A realizar', square: '🟨' };
+}
+
+function capitalize(text: string): string {
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+}
+
+function capitalizeSentence(text: string): string {
+  return text.split(' ').map((w, i) => i === 0 ? capitalize(w) : w.toLowerCase()).join(' ');
 }
 
 export function buildEventDescription(opts: {
@@ -117,54 +126,68 @@ export function buildEventDescription(opts: {
 
   const lines: string[] = [];
 
-  lines.push('PAWARDS - Protocolos Injetaveis');
+  lines.push('Pawards - Protocolos injetaveis');
   lines.push('');
-  lines.push(pacienteNome.toUpperCase());
-  if (pacienteCpf) lines.push(`CPF ${formatCpf(pacienteCpf)}`);
+  lines.push(capitalizeSentence(pacienteNome));
+  if (pacienteCpf) lines.push(`Cpf ${formatCpf(pacienteCpf)}`);
   if (numeroMarcacao) lines.push(`Marcacao ${numeroMarcacao}${totalMarcacoes ? '/' + totalMarcacoes : ''}`);
-  if (unidadeNome) lines.push(`Unidade ${unidadeNome}`);
+  if (unidadeNome) lines.push(`Unidade ${capitalizeSentence(unidadeNome)}`);
   lines.push('');
 
-  lines.push('PROCEDIMENTO:');
-  lines.push(`CONSULTA - DURACAO: 60 MINUTOS ${temConsulta ? '✅' : '❎'}`);
-  lines.push(`APLICACAO ENDOVENOSA - DURACAO: 30 MINUTOS ${temEV ? '✅' : '❎'}`);
-  lines.push(`APLICACAO INTRAMUSCULAR - DURACAO: 15 MINUTOS ${temIM ? '✅' : '❎'}`);
-  lines.push(`IMPLANTE - DURACAO: 60 MINUTOS ${temImplante ? '✅' : '❎'}`);
+  lines.push('Procedimentos');
   lines.push('');
-  lines.push(`DURACAO TOTAL: ${duracaoMin} MINUTOS`);
+  lines.push(`  Consulta [60min]  ${temConsulta ? '✅' : '❎'}`);
+  lines.push(`  Aplicacao endovenosa [30min]  ${temEV ? '✅' : '❎'}`);
+  lines.push(`  Aplicacao intramuscular [15min]  ${temIM ? '✅' : '❎'}`);
+  lines.push(`  Implante [60min]  ${temImplante ? '✅' : '❎'}`);
+  lines.push('');
+  lines.push(`Duracao total: ${duracaoMin} minutos`);
   lines.push('');
 
   const sessionStatus = determineSessionStatus(substancias);
-  lines.push(`STATUS: ${sessionStatus.label} ${sessionStatus.dot}`);
+  lines.push(`Status: ${sessionStatus.label}  ${sessionStatus.square}`);
+  lines.push('');
   lines.push('');
 
-  lines.push('SUBSTANCIAS DO PROTOCOLO:');
-  for (const s of substancias) {
-    lines.push(`${statusDot(s.status)} ${s.nome.toUpperCase()} (${s.via?.toUpperCase() || '-'}) - ${s.dose}`);
+  lines.push('Substancias do protocolo');
+  lines.push('');
+  for (let i = 0; i < substancias.length; i++) {
+    const s = substancias[i];
+    const st = statusSquare(s.status);
+    const idx = `[${i + 1}/${substancias.length}]`;
+    const nome = capitalizeSentence(s.nome);
+    const dose = s.dose || '';
+    lines.push(`  ${st.square}  ${idx}  ${nome} ${dose}  [${st.tag}]`);
+    lines.push('');
   }
   lines.push('');
 
-  lines.push('---');
-  lines.push('LEGENDA');
-  lines.push('🟢 DISP - DISPONIVEL PARA APLICACAO HOJE');
-  lines.push('🔵 APLICADA - SUBSTANCIA JA APLICADA');
-  lines.push('🟤 PROX - PROXIMA SESSAO');
-  lines.push('⚫ N/A - NAO APLICAVEL');
+  lines.push('Legenda');
+  lines.push('');
+  lines.push('  🟩  [DISP]  Disponivel para aplicacao hoje');
+  lines.push('  🟨  [PROX]  Proxima sessao');
+  lines.push('  🟦  [APLI]  Substancia ja aplicada');
+  lines.push('  ⬜  [INDI]  Indisponivel');
+  lines.push('');
   lines.push('');
 
   if (endereco && endereco.rua) {
-    lines.push('━━━ ENDERECO ━━━');
-    lines.push(`📍 ${endereco.rua.toUpperCase()}`);
-    if (endereco.bairro) lines.push(`   ${endereco.bairro.toUpperCase()}`);
-    if (endereco.cep) lines.push(`   CEP ${endereco.cep}`);
-    if (endereco.cidade && endereco.estado) lines.push(`   ${endereco.cidade.toUpperCase()} - ${endereco.estado.toUpperCase()}`);
+    lines.push('Endereco');
+    lines.push('');
+    lines.push(`  📍  ${capitalizeSentence(endereco.rua)}`);
+    if (endereco.bairro) lines.push(`      ${capitalizeSentence(endereco.bairro)}`);
+    if (endereco.cep) lines.push(`      Cep ${endereco.cep}`);
+    if (endereco.cidade && endereco.estado) lines.push(`      ${capitalizeSentence(endereco.cidade)} - ${endereco.estado.toUpperCase()}`);
+    lines.push('');
     lines.push('');
 
     const enderecoCompleto = [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep].filter(Boolean).join(', ');
     const enderecoEncoded = encodeURIComponent(enderecoCompleto);
-    lines.push('━━━ NAVEGACAO ━━━');
-    lines.push(`🗺️ GOOGLE MAPS: https://www.google.com/maps/search/?api=1&query=${enderecoEncoded}`);
-    lines.push(`🧭 WAZE: https://waze.com/ul?q=${enderecoEncoded}&navigate=yes`);
+    lines.push('Navegacao');
+    lines.push('');
+    lines.push(`  Google Maps: https://www.google.com/maps/search/?api=1&query=${enderecoEncoded}`);
+    lines.push('');
+    lines.push(`  Waze: https://waze.com/ul?q=${enderecoEncoded}&navigate=yes`);
   }
 
   return lines.join('\n');
@@ -211,7 +234,7 @@ const CODIGOS_SEMANTICOS: Record<string, { codigo: string; descricao: string }> 
   'RETORNO_15_TELEMEDICINA':       { codigo: 'CAVL', descricao: 'Retorno Telemedicina' },
   'AVALIACAO_ENF_30_PRESENCIAL':   { codigo: 'CAVL', descricao: 'Avaliacao Enfermagem' },
   'AVALIACAO_ENFERMAGEM_20_PRESENCIAL': { codigo: 'CAVL', descricao: 'Avaliacao Enfermagem' },
-  'IMPLANTE_120_PRESENCIAL':       { codigo: 'PROCE', descricao: 'Procedimento — Implante' },
+  'IMPLANTE_120_PRESENCIAL':       { codigo: 'PROC', descricao: 'Procedimento — Implante' },
   'IM_15_PRESENCIAL':              { codigo: 'SESS', descricao: 'Sessao Aplicacao IM' },
   'APLICACAO_IM_15_PRESENCIAL':    { codigo: 'SESS', descricao: 'Sessao Aplicacao IM' },
   'INFUSAO_CURTA_60_PRESENCIAL':   { codigo: 'SESS', descricao: 'Sessao Infusao EV Curta' },
@@ -228,7 +251,7 @@ function resolveCodigoSemantico(tipoProcedimento: string, substancias?: Substanc
   const tipo = tipoProcedimento.toUpperCase();
   if (tipo.includes('ONLINE') || tipo.includes('TELEMEDICINA')) return 'CONL';
   if (tipo.includes('RETORNO') || tipo.includes('AVALIACAO')) return 'CAVL';
-  if (tipo.includes('IMPLANTE')) return 'PROCE';
+  if (tipo.includes('IMPLANTE')) return 'PROC';
   if (tipo.includes('INFUSAO_LONGA') || tipo.includes('INFUSAO_EXTRA')) return 'INFU';
   if (tipo.includes('INFUSAO') || tipo.includes('IM_') || tipo.includes('APLICACAO')) return 'SESS';
   if (tipo.includes('EXAME') || tipo.includes('COLETA')) return 'EXAM';
@@ -236,7 +259,7 @@ function resolveCodigoSemantico(tipoProcedimento: string, substancias?: Substanc
 
   if (substancias?.length) {
     const vias = substancias.map(s => s.via?.toLowerCase());
-    if (vias.includes('implant')) return 'PROCE';
+    if (vias.includes('implant')) return 'PROC';
     if (vias.some(v => v === 'iv' || v === 'ev')) return 'SESS';
     if (vias.includes('im')) return 'SESS';
   }
