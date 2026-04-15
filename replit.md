@@ -114,3 +114,17 @@ Key architectural decisions and features include:
 
 ### Validação Motor
 -   **POST /api/rasx/:pacienteId/motor:** Validação inline (sem Zod) — verifica evento (7 opções), classeProcedimento (6 opções), blocos (string|array), drive (boolean), email (boolean|string), whatsapp (boolean|string). Retorna `{error, detalhes[], opcoes}` em caso de payload inválido.
+
+### Instituto Genesis — Semente Perene PAWARDS
+-   **ID:** 12 | **Nick:** INSTITUTO GENESIS | **Tipo:** genesis_seed | **Cor:** #FFD700
+-   **Conceito:** Clone imutável do sistema — semente perene de colonização para novas clínicas. Dados iniciais NÃO podem ser excluídos, apenas somados.
+-   **Proteção:** Tipo `genesis_seed` bloqueia DELETE na rota de unidades (HTTP 403). Auto-colonização também bloqueada.
+-   **DNA herdado (1.176 itens):** 246 exames, 54 fórmulas, 305 injetáveis IM, 63 endovenosos, 32 implantes, 49 doenças, 11 protocolos, 48 dietas, 231 matriz rastreio, 13 termos jurídicos, motor RASX-MATRIZ V6 completo (5 blocos, 20 subgrupos, 7 eventos, 6 classes, 6 consentimentos)
+-   **Regra:** Catálogos aditivos — novas entradas propagam automaticamente. Remoções manuais por clínica, nunca na semente.
+-   **Endpoints:**
+    -   `GET /api/genesis/info` — informações completas da semente Genesis (DNA, catálogos, proteção)
+    -   `POST /api/genesis/colonizar/:unidadeId` — coloniza uma clínica com DNA Genesis (herança de termos, catálogos, motor)
+    -   `POST /api/genesis/popular-lemos` — popula Lemos com tratamentos
+    -   `POST /api/genesis/popular-agendas` — cria regras, slots e agendamentos para unidades 2-10
+    -   `POST /api/genesis/assinar-termos-todos` — assina termos base para todos os pacientes
+    -   `GET /api/genesis/status` — status completo do sistema (instituto genesis, pacientes, tratamentos, termos, agenda por unidade)
