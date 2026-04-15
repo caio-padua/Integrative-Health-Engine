@@ -97,7 +97,8 @@ Key architectural decisions and features include:
 -   **Categorias:** CLINICO, EVOLUTIVO, ESTADO_SAUDE, COMPLETO, JURIDICO
 -   **GET /api/rasx/:pacienteId/arqu/pdf/:categoria** — PDFs por categoria antiga
 -   **POST /api/rasx/:pacienteId/arqu/enviar** — envio Drive/Email/WhatsApp por categoria
--   **POST /api/rasx/:pacienteId/arqu/popular-drive** — popula 12 subpastas do Drive
+-   **POST /api/rasx/:pacienteId/arqu/popular-drive** — popula 13 documentos em subpastas do Drive
+-   **Nomenclatura Arquivos Drive:** `AA.MM.DD RAS [TIPO] "NOME" (CÓDIGOS).pdf` — ex: `26.04.15 RAS CLINICO "CAIO" (HEST HPOT HORG HMED).pdf`
 -   **Geradores de Documentos (`docsPdf.ts`):** 8 geradores independentes
 
 ### Layout PDF Institucional
@@ -108,6 +109,7 @@ Key architectural decisions and features include:
 ### Termos Jurídicos (DB-driven)
 -   **Tabelas:** `termos_juridicos` (id, bloco, subgrupo, consentimento, titulo, textoCompleto, categoria, riscosEspecificos, versao, ativo) + `termos_assinados` (id, pacienteId, termoId, versaoAssinada, dataAssinatura, meioAssinatura)
 -   **8 Categorias:** lgpd, privacidade, nao_garantia, tcle_global, consentimento_especifico, imagem, aceite_digital, ciencia_financeira
+-   **RACJ PDF Enriquecido (Manifesto Seções 14-15):** 6 páginas — LGPD (armazenamento digital + retencao CFM 1.821/2007), CGLO p1 (TCLE seções 1-5: identificação, procedimento, finalidade, riscos, contraindicações), CGLO p2 (seções 6-10: Vit C IV/G6PD, NAD+, consentimento por via IV/IM/SC/Implante, armazenamento digital, declaração final), RISC (riscos gerais + riscos por via + ANVISA/CFM), NGAR (5 itens não-garantia), PRIV (sigilo + canais + consentimento pré-sessão + ICP-Brasil A1)
 -   **13 Termos Seed:** 3 JURI.BASE + 7 JURI.CONS (1 TCLE + 6 consentimentos) + JURI.IMAG + JURI.DIGI + FINA.CIEN
 -   **API:** GET/POST/PUT `/api/termos-juridicos/*`, POST `/api/termos-juridicos/seed`, POST `/api/termos-assinados`
 -   **Motor PDF:** `rasxMotorPdf.ts` busca termos ativos do banco via `setTermosDB()` com fallback hardcoded. Cada seção exibe `[Termo ID X — vY]` quando texto vem do banco.
