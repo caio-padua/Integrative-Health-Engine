@@ -34,6 +34,9 @@ router.put("/unidades/:id", async (req, res): Promise<void> => {
   const allowedFields = [
     "nome", "endereco", "bairro", "cidade", "estado", "cep", "cnpj",
     "telefone", "tipo", "googleCalendarId", "googleCalendarEmail", "cor", "ativa", "nick",
+    "emailGeral", "emailAgenda", "emailEnfermagem01", "emailEnfermagem02",
+    "emailConsultor01", "emailConsultor02", "emailSupervisor01", "emailSupervisor02",
+    "emailFinanceiro01", "emailOuvidoria01",
   ];
   const updates: Record<string, any> = {};
   for (const key of allowedFields) {
