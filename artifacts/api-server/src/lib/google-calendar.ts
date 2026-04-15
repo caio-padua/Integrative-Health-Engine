@@ -96,6 +96,10 @@ function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 }
 
+function titleCase(text: string): string {
+  return text.split(' ').map(w => capitalize(w)).join(' ');
+}
+
 function capitalizeSentence(text: string): string {
   return text.split(' ').map((w, i) => i === 0 ? capitalize(w) : w.toLowerCase()).join(' ');
 }
@@ -159,25 +163,25 @@ export function buildEventDescription(opts: {
 
   lines.push('Pawards - Protocolos injetáveis');
   lines.push('');
-  lines.push(capitalizeSentence(pacienteNome));
-  if (pacienteCpf) lines.push(`CPF ${formatCpf(pacienteCpf)}`);
-  if (numeroMarcacao) lines.push(`Marcação ${numeroMarcacao}${totalMarcacoes ? '/' + totalMarcacoes : ''}`);
-  if (unidadeNome) lines.push(`Unidade ${capitalizeSentence(unidadeNome)}`);
+  lines.push(`<b>${titleCase(pacienteNome)}</b>`);
+  if (pacienteCpf) lines.push(`CPF.: ${formatCpf(pacienteCpf)}`);
+  if (numeroMarcacao) lines.push(`Agendamento Número: ${numeroMarcacao}${totalMarcacoes ? '/' + totalMarcacoes : ''}`);
+  if (unidadeNome) lines.push(`Unidade ${titleCase(unidadeNome)}`);
   lines.push('');
 
-  lines.push('Procedimentos');
+  lines.push('<b>Procedimentos:</b>');
   lines.push('');
   lines.push(`  Consulta [60min]  ${temConsulta ? '✅' : '❎'}`);
   lines.push(`  Aplicação endovenosa [30min]  ${temEV ? '✅' : '❎'}`);
   lines.push(`  Aplicação intramuscular [15min]  ${temIM ? '✅' : '❎'}`);
   lines.push(`  Implante [60min]  ${temImplante ? '✅' : '❎'}`);
   lines.push('');
-  lines.push(`Duração total: ${duracaoMin} minutos`);
+  lines.push(`<b>DURAÇÃO TOTAL: ${duracaoMin}min</b>`);
   lines.push('');
 
   const sessionSubs = substancias.filter(s => s.nestaSessao !== false);
   const sessionStatus = determineSessionStatus(sessionSubs);
-  lines.push(`Status: ${sessionStatus.label}  ${sessionStatus.square}`);
+  lines.push(`<b>Status: ${sessionStatus.label}  ${sessionStatus.square}</b>`);
   lines.push('');
   lines.push('');
 
@@ -185,7 +189,7 @@ export function buildEventDescription(opts: {
   const destaSessao = sorted.filter(s => s.nestaSessao !== false);
   const foraDaSessao = sorted.filter(s => s.nestaSessao === false);
 
-  lines.push('Substâncias do protocolo');
+  lines.push('<b>Substâncias Protocolo:</b>');
   lines.push('');
   let idx = 0;
   for (const s of destaSessao) {
@@ -194,7 +198,6 @@ export function buildEventDescription(opts: {
     const nome = cleanSubstanceName(s.nome);
     const dose = formatDose(s.dose);
     lines.push(`  ${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
-    lines.push('');
   }
 
   if (foraDaSessao.length > 0) {
@@ -204,33 +207,33 @@ export function buildEventDescription(opts: {
       const nome = cleanSubstanceName(s.nome);
       const dose = formatDose(s.dose);
       lines.push(`  ${st.square}  [${idx}/${substancias.length}]  ${nome} ${dose}  [${st.tag}]`);
-      lines.push('');
     }
   }
   lines.push('');
-
-  lines.push('Legenda');
   lines.push('');
-  lines.push('  🟩  [DISP]  Disponível para aplicação hoje');
-  lines.push('  🟨  [PROX]  Próxima sessão');
-  lines.push('  🟦  [APLI]  Substância já aplicada');
-  lines.push('  ⬜  [INDI]  Indisponível');
+
+  lines.push('<b>Legenda:</b>');
+  lines.push('');
+  lines.push('  🟩  [DISP]  Disponibilidade Aplicação');
+  lines.push('  🟨  [PROX]  Próxima Sessão');
+  lines.push('  🟦  [APLI]  Substância Aplicada');
+  lines.push('  ⬜  [INDI]  Substância Indisponível');
   lines.push('');
   lines.push('');
 
   if (endereco && endereco.rua) {
-    lines.push('Endereço');
+    lines.push('<b>📍 Endereço:</b>');
     lines.push('');
-    lines.push(`  📍  ${capitalizeSentence(endereco.rua)}`);
-    if (endereco.bairro) lines.push(`      ${capitalizeSentence(endereco.bairro)}`);
-    if (endereco.cep) lines.push(`      CEP ${endereco.cep}`);
-    if (endereco.cidade && endereco.estado) lines.push(`      ${capitalizeSentence(endereco.cidade)} - ${endereco.estado.toUpperCase()}`);
+    lines.push(`  ${titleCase(endereco.rua)}`);
+    if (endereco.bairro) lines.push(`  ${titleCase(endereco.bairro)}`);
+    if (endereco.cep) lines.push(`  CEP ${endereco.cep}`);
+    if (endereco.cidade && endereco.estado) lines.push(`  ${titleCase(endereco.cidade)} - ${endereco.estado.toUpperCase()}`);
     lines.push('');
     lines.push('');
 
     const enderecoCompleto = [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep].filter(Boolean).join(', ');
     const enderecoEncoded = encodeURIComponent(enderecoCompleto);
-    lines.push('Navegação');
+    lines.push('<b>Navegação:</b>');
     lines.push('');
     lines.push(`  Google Maps: https://www.google.com/maps/search/?api=1&query=${enderecoEncoded}`);
     lines.push('');
