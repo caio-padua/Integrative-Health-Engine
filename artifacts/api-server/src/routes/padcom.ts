@@ -1,4 +1,6 @@
 import { Router, Request, Response } from "express";
+import * as XLSX from "xlsx";
+import { z } from "zod";
 import { db } from "@workspace/db";
 import {
   padcomQuestionariosTable,
@@ -16,8 +18,12 @@ import {
   insertPadcomCompetenciaRegulatoriaSchema,
   padcomValidacoesCascataTable,
   insertPadcomValidacaoCascataSchema,
+  padcomAgendamentosTable,
+  insertPadcomAgendamentoSchema,
+  padcomNotificacoesTable,
+  insertPadcomNotificacaoSchema,
 } from "@workspace/db";
-import { eq, asc, and, or, desc, sql, count, avg } from "drizzle-orm";
+import { eq, asc, and, or, desc, sql, count, avg, gte, lte } from "drizzle-orm";
 
 // Schemas Zod parciais para PATCH (whitelist contra mass assignment)
 const updatePadcomCompetenciaSchema = insertPadcomCompetenciaRegulatoriaSchema
@@ -26,6 +32,16 @@ const updatePadcomCompetenciaSchema = insertPadcomCompetenciaRegulatoriaSchema
 const updatePadcomValidacaoDecidirSchema = insertPadcomValidacaoCascataSchema
   .pick({ decisao: true, observacao: true, validadoPor: true, certificadoDigital: true })
   .partial();
+const STATUS_AGENDAMENTO = ["pendente", "confirmado", "cancelado", "realizado"] as const;
+const updatePadcomAgendamentoSchema = z
+  .object({
+    status: z.enum(STATUS_AGENDAMENTO).optional(),
+    agendadoPara: z.coerce.date().optional(),
+    observacao: z.string().optional(),
+    canceladoEm: z.coerce.date().optional(),
+    realizadoEm: z.coerce.date().optional(),
+  })
+  .strict();
 
 const router = Router();
 
@@ -687,6 +703,285 @@ router.get("/padcom-dashboard-bracos", async (req: Request, res: Response): Prom
     porStatus,
     funil,
   });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ONDA 3 — Agendamentos automáticos pós-anamnese + Notificações + Export XLSX
+// ═══════════════════════════════════════════════════════════════
+
+// Helper: cria notificação interna (canal in_app) — usado por triggers automáticos
+async function criarNotificacao(args: {
+  clinicaId?: string | null;
+  sessaoId?: string | null;
+  agendamentoId?: string | null;
+  destinatarioPapel: string;
+  severidade?: string;
+  titulo: string;
+  mensagem: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const [row] = await db
+    .insert(padcomNotificacoesTable)
+    .values({
+      clinicaId: args.clinicaId ?? null,
+      sessaoId: args.sessaoId ?? null,
+      agendamentoId: args.agendamentoId ?? null,
+      destinatarioPapel: args.destinatarioPapel,
+      canal: "in_app",
+      severidade: args.severidade ?? "info",
+      titulo: args.titulo,
+      mensagem: args.mensagem,
+      metadata: args.metadata ?? null,
+      status: "pendente",
+    })
+    .returning();
+  return row;
+}
+
+// POST /padcom-sessoes/:id/agendar-retorno — calcula data via banda e cria agendamento + notificação
+// Multi-tenant: se X-Clinica-Id (ou ?clinicaId) for enviado, valida que a sessão pertence àquela clínica.
+// Atomicidade: tudo em transação (insert agendamento + update sessão + 1-2 notificações).
+// Idempotência: ON CONFLICT DO NOTHING + re-select.
+router.post("/padcom-sessoes/:id/agendar-retorno", async (req: Request, res: Response): Promise<void> => {
+  const tenantHeader = req.header("x-clinica-id") ?? (req.query.clinicaId as string | undefined);
+  const sessao = (await db.select().from(padcomSessoesTable).where(eq(padcomSessoesTable.id, req.params.id)))[0];
+  if (!sessao) {
+    res.status(404).json({ error: "sessão não encontrada" });
+    return;
+  }
+  if (tenantHeader && sessao.clinicaId && String(tenantHeader) !== String(sessao.clinicaId)) {
+    res.status(404).json({ error: "sessão fora do escopo da clínica" });
+    return;
+  }
+  if (!sessao.banda) {
+    res.status(400).json({ error: "sessão sem banda — finalize antes" });
+    return;
+  }
+
+  // Resolve banda (aceita cor ou nome) e lê retorno_dias do acoes_motor
+  const banda = (
+    await db
+      .select()
+      .from(padcomBandasTable)
+      .where(or(eq(padcomBandasTable.cor, sessao.banda), eq(padcomBandasTable.nome, sessao.banda)))
+  )[0];
+  if (!banda) {
+    res.status(422).json({ error: `banda '${sessao.banda}' não encontrada` });
+    return;
+  }
+  const acoesMotor = (banda.acoesMotor as Record<string, unknown> | null) ?? {};
+  const retornoDiasRaw = acoesMotor["retorno_dias"];
+  const retornoDias = typeof retornoDiasRaw === "number" ? retornoDiasRaw : Number(retornoDiasRaw ?? 30);
+  const dataRetorno = new Date(Date.now() + retornoDias * 24 * 60 * 60 * 1000);
+
+  // Transação atômica: insert (com ON CONFLICT) + update sessão + notificações
+  const result = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(padcomAgendamentosTable)
+      .values({
+        clinicaId: sessao.clinicaId,
+        sessaoId: sessao.id,
+        pacienteId: sessao.pacienteId,
+        tipo: "retorno",
+        status: "pendente",
+        agendadoPara: dataRetorno,
+        bandaOrigem: banda.cor,
+        observacao: `Retorno automático pós-anamnese PADCOM — banda ${banda.cor} (${retornoDias} dias)`,
+      })
+      .onConflictDoNothing({
+        target: [padcomAgendamentosTable.sessaoId, padcomAgendamentosTable.tipo],
+      })
+      .returning();
+
+    // Idempotente: se conflitou (já existia), re-seleciona o existente
+    if (inserted.length === 0) {
+      const existente = (
+        await tx
+          .select()
+          .from(padcomAgendamentosTable)
+          .where(
+            and(
+              eq(padcomAgendamentosTable.sessaoId, sessao.id),
+              eq(padcomAgendamentosTable.tipo, "retorno"),
+            ),
+          )
+      )[0];
+      return { agendamento: existente, idempotente: true };
+    }
+    const agendamento = inserted[0];
+
+    // Atualiza sessão com proximoRetornoEm
+    await tx
+      .update(padcomSessoesTable)
+      .set({ proximoRetornoEm: dataRetorno, atualizadoEm: new Date() })
+      .where(eq(padcomSessoesTable.id, sessao.id));
+
+    // Notifica recepção (agendamento) e — se banda crítica — médico
+    await tx.insert(padcomNotificacoesTable).values({
+      clinicaId: sessao.clinicaId,
+      sessaoId: sessao.id,
+      agendamentoId: agendamento.id,
+      destinatarioPapel: "recepcao",
+      canal: "in_app",
+      severidade: "info",
+      titulo: `Retorno agendado para ${dataRetorno.toISOString().slice(0, 10)}`,
+      mensagem: `Sessão ${sessao.id.slice(0, 8)} (banda ${banda.cor}) — retorno em ${retornoDias} dias.`,
+      metadata: { retornoDias, banda: banda.cor },
+      status: "pendente",
+    });
+    if (banda.cor === "vermelha" || banda.cor === "laranja") {
+      await tx.insert(padcomNotificacoesTable).values({
+        clinicaId: sessao.clinicaId,
+        sessaoId: sessao.id,
+        agendamentoId: agendamento.id,
+        destinatarioPapel: "medico",
+        canal: "in_app",
+        severidade: banda.cor === "vermelha" ? "critico" : "aviso",
+        titulo: `Paciente em banda ${banda.cor.toUpperCase()} — atenção`,
+        mensagem: `Sessão ${sessao.id.slice(0, 8)} finalizada em banda ${banda.cor}. Retorno em ${retornoDias} dias.`,
+        metadata: { banda: banda.cor, score: sessao.scoreFinal },
+        status: "pendente",
+      });
+    }
+
+    return { agendamento, idempotente: false };
+  });
+
+  if (result.idempotente) {
+    res.status(200).json({ agendamento: result.agendamento, idempotente: true });
+    return;
+  }
+  res.status(201).json({ agendamento: result.agendamento, retornoDias, banda: banda.cor });
+});
+
+// GET /padcom-agendamentos — multi-tenant obrigatório (X-Clinica-Id ou ?clinicaId)
+router.get("/padcom-agendamentos", async (req: Request, res: Response): Promise<void> => {
+  const tenant = req.header("x-clinica-id") ?? (req.query.clinicaId as string | undefined);
+  if (!tenant) {
+    res.status(400).json({ error: "X-Clinica-Id (header) ou ?clinicaId é obrigatório" });
+    return;
+  }
+  const { status, pacienteId, de, ate } = req.query;
+  const conds = [eq(padcomAgendamentosTable.clinicaId, String(tenant))];
+  if (status) conds.push(eq(padcomAgendamentosTable.status, String(status)));
+  if (pacienteId) conds.push(eq(padcomAgendamentosTable.pacienteId, String(pacienteId)));
+  if (de) conds.push(gte(padcomAgendamentosTable.agendadoPara, new Date(String(de))));
+  if (ate) conds.push(lte(padcomAgendamentosTable.agendadoPara, new Date(String(ate))));
+  const rows = await db
+    .select()
+    .from(padcomAgendamentosTable)
+    .where(and(...conds))
+    .orderBy(asc(padcomAgendamentosTable.agendadoPara));
+  res.json(rows);
+});
+
+// PATCH /padcom-agendamentos/:id (confirmar/cancelar/realizar) — tenant obrigatório
+router.patch("/padcom-agendamentos/:id", async (req: Request, res: Response): Promise<void> => {
+  const parsed = updatePadcomAgendamentoSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const tenant = req.header("x-clinica-id") ?? (req.query.clinicaId as string | undefined);
+  if (!tenant) {
+    res.status(400).json({ error: "X-Clinica-Id (header) ou ?clinicaId é obrigatório" });
+    return;
+  }
+  const where = and(
+    eq(padcomAgendamentosTable.id, req.params.id),
+    eq(padcomAgendamentosTable.clinicaId, String(tenant)),
+  );
+  const set: Record<string, unknown> = { ...parsed.data, atualizadoEm: new Date() };
+  if (parsed.data.status === "cancelado" && !parsed.data.canceladoEm) set.canceladoEm = new Date();
+  if (parsed.data.status === "realizado" && !parsed.data.realizadoEm) set.realizadoEm = new Date();
+  const [row] = await db.update(padcomAgendamentosTable).set(set).where(where!).returning();
+  if (!row) {
+    res.status(404).json({ error: "não encontrado ou fora do escopo da clínica" });
+    return;
+  }
+  res.json(row);
+});
+
+// GET /padcom-notificacoes — multi-tenant obrigatório
+router.get("/padcom-notificacoes", async (req: Request, res: Response): Promise<void> => {
+  const tenant = req.header("x-clinica-id") ?? (req.query.clinicaId as string | undefined);
+  if (!tenant) {
+    res.status(400).json({ error: "X-Clinica-Id (header) ou ?clinicaId é obrigatório" });
+    return;
+  }
+  const { papel, lida, severidade } = req.query;
+  const conds = [eq(padcomNotificacoesTable.clinicaId, String(tenant))];
+  if (papel) conds.push(eq(padcomNotificacoesTable.destinatarioPapel, String(papel)));
+  if (lida !== undefined) conds.push(eq(padcomNotificacoesTable.lida, lida === "true"));
+  if (severidade) conds.push(eq(padcomNotificacoesTable.severidade, String(severidade)));
+  const rows = await db
+    .select()
+    .from(padcomNotificacoesTable)
+    .where(and(...conds))
+    .orderBy(desc(padcomNotificacoesTable.criadoEm));
+  res.json(rows);
+});
+
+// POST /padcom-notificacoes (criação manual via API)
+router.post("/padcom-notificacoes", async (req: Request, res: Response): Promise<void> => {
+  const parsed = insertPadcomNotificacaoSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const [row] = await db.insert(padcomNotificacoesTable).values(parsed.data).returning();
+  res.status(201).json(row);
+});
+
+// PATCH /padcom-notificacoes/:id/marcar-lida — multi-tenant obrigatório
+router.patch("/padcom-notificacoes/:id/marcar-lida", async (req: Request, res: Response): Promise<void> => {
+  const tenant = req.header("x-clinica-id") ?? (req.query.clinicaId as string | undefined);
+  if (!tenant) {
+    res.status(400).json({ error: "X-Clinica-Id (header) ou ?clinicaId é obrigatório" });
+    return;
+  }
+  const where = and(
+    eq(padcomNotificacoesTable.id, req.params.id),
+    eq(padcomNotificacoesTable.clinicaId, String(tenant)),
+  );
+  const [row] = await db
+    .update(padcomNotificacoesTable)
+    .set({ lida: true, lidoEm: new Date(), status: "lida" })
+    .where(where!)
+    .returning();
+  if (!row) {
+    res.status(404).json({ error: "não encontrada ou fora do escopo da clínica" });
+    return;
+  }
+  res.json(row);
+});
+
+// GET /padcom-export-xlsx — multi-tenant obrigatório (cada clínica só exporta seus dados)
+router.get("/padcom-export-xlsx", async (req: Request, res: Response): Promise<void> => {
+  const tenant = req.header("x-clinica-id") ?? (req.query.clinicaId as string | undefined);
+  if (!tenant) {
+    res.status(400).json({ error: "X-Clinica-Id (header) ou ?clinicaId é obrigatório" });
+    return;
+  }
+  const tenantStr = String(tenant);
+  const [sessoes, agendamentos, cascatas, notificacoes] = await Promise.all([
+    db.select().from(padcomSessoesTable).where(eq(padcomSessoesTable.clinicaId, tenantStr)),
+    db.select().from(padcomAgendamentosTable).where(eq(padcomAgendamentosTable.clinicaId, tenantStr)),
+    db.select().from(padcomValidacoesCascataTable).where(eq(padcomValidacoesCascataTable.clinicaId, tenantStr)),
+    db.select().from(padcomNotificacoesTable).where(eq(padcomNotificacoesTable.clinicaId, tenantStr)),
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sessoes), "Sessoes");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(agendamentos), "Agendamentos");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cascatas), "Cascatas");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(notificacoes), "Notificacoes");
+
+  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  const filename = `padcom-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.send(buf);
 });
 
 export default router;

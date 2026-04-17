@@ -59,3 +59,7 @@ export * from "./padcomAuditoria";
 // PADCOM V15 — Onda 2: Score Regulatório + Cascata N1/N2/N3 + Braços de Entrada
 export * from "./padcomCompetenciasRegulatorias";
 export * from "./padcomValidacoesCascata";
+
+// PADCOM V15 — Onda 3: Agendamentos automáticos + Notificações + Exportação XLSX
+export * from "./padcomAgendamentos";
+export * from "./padcomNotificacoes";
