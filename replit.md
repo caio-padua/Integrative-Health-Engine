@@ -53,3 +53,29 @@ Key architectural decisions and features include:
 -   **Trello API:** Task board synchronization (configurable via TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID).
 -   **Twilio:** WhatsApp messaging service.
 -   **Gupshup:** WhatsApp messaging service.
+## Sistema de Pagamentos PADCON (Dr. Manus)
+
+Integrado em 17/04/2026. Adapter pattern com 4 gateways (Asaas, Mercado Pago, Stripe, InfinitPay).
+
+**Backend** (`artifacts/api-server/src/`):
+- `payments/` — types, payment.service, 4 adapters
+- `routes/payments.ts` — REST + webhooks (montado em `/api/payments`)
+- `app.ts` — `express.raw` para `/api/payments/webhooks/stripe`
+
+**Frontend** (`artifacts/clinica-motor/src/`):
+- `hooks/use-payment.ts` — hook React (chargePatient, subscribeClinic, polling PIX)
+- `components/PaymentModal.tsx` — modal universal B2C/B2B
+
+**Endpoints:** GET /api/payments/gateways · POST /patient · POST /clinic/subscribe · GET/POST /:gateway/:id/status|cancel · POST /webhooks/:gateway
+
+**Credenciais (todas opcionais — gateway só fica disponível se a env existir):**
+ASAAS_API_KEY · MERCADOPAGO_ACCESS_TOKEN · STRIPE_SECRET_KEY (+ STRIPE_WEBHOOK_SECRET + 6 STRIPE_PRICE_*) · INFINITPAY_CLIENT_ID/SECRET/WEBHOOK_SECRET
+
+**Webhooks (configurar nos painéis dos gateways):**
+- Asaas: `/api/payments/webhooks/asaas`
+- Mercado Pago: `/api/payments/webhooks/mercadopago`
+- Stripe: `/api/payments/webhooks/stripe` (raw body validado)
+- InfinitPay: `/api/payments/webhooks/infinitpay`
+
+**Preços B2C (paciente, centavos):** básico 29700 · intermediário 59700 · avançado 99700 · full 149700
+**Preços B2B (clínica, centavos):** starter 29700/mês ou 26700/mês anual · pro 59700/53700 · enterprise 149700/134700
