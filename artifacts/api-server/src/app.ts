@@ -26,6 +26,11 @@ app.use(
   }),
 );
 app.use(cors());
+// Stripe webhook precisa do raw body para validar assinatura — DEVE vir antes do express.json
+app.use(
+  "/api/payments/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
