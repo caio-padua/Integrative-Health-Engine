@@ -55,3 +55,7 @@ export * from "./padcomRespostas";
 export * from "./padcomBandas";
 export * from "./padcomAlertas";
 export * from "./padcomAuditoria";
+
+// PADCOM V15 — Onda 2: Score Regulatório + Cascata N1/N2/N3 + Braços de Entrada
+export * from "./padcomCompetenciasRegulatorias";
+export * from "./padcomValidacoesCascata";
