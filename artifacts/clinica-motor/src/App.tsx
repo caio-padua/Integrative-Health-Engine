@@ -55,6 +55,12 @@ import QuestionarioMasterPage from "@/pages/questionario-master";
 import ConsultoriasPage from "@/pages/consultorias";
 import ContratosPage from "@/pages/contratos";
 import AdminComercialPage from "@/pages/admin-comercial";
+// PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
+import PadcomPaciente from "@/pages/padcom/paciente";
+import PadcomConcluido from "@/pages/padcom/concluido";
+import PadcomAdmin from "@/pages/padcom/admin";
+import PadcomAdminDetalhe from "@/pages/padcom/admin-detalhe";
+import PadcomAdminDashboard from "@/pages/padcom/admin-dashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,6 +123,12 @@ function Router() {
       <Route path="/consultorias" component={ConsultoriasPage} />
       <Route path="/contratos" component={ContratosPage} />
       <Route path="/admin-comercial" component={AdminComercialPage} />
+      {/* ══════ PADCOM V15 — Anamnese Integrativa (Manus Bundle) ══════ */}
+      <Route path="/padcom" component={PadcomPaciente} />
+      <Route path="/padcom/concluido" component={PadcomConcluido} />
+      <Route path="/padcom-admin/dashboard" component={PadcomAdminDashboard} />
+      <Route path="/padcom-admin/:sessaoId" component={PadcomAdminDetalhe} />
+      <Route path="/padcom-admin" component={PadcomAdmin} />
       <Route component={NotFound} />
     </Switch>
   );

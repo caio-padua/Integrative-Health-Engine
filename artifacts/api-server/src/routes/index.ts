@@ -133,4 +133,8 @@ router.use("/genesis-popular", genesisPopularRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
+// PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
+import padcomRouter from "./padcom";
+router.use(padcomRouter);
+
 export default router;
