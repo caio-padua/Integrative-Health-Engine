@@ -8,11 +8,24 @@ import {
   padcomRespostasTable,
   insertPadcomRespostaSchema,
   padcomBandasTable,
+  insertPadcomBandaSchema,
   padcomAlertasTable,
   padcomAlertasRegrasTable,
   padcomAuditoriaTable,
+  padcomCompetenciasRegulatoriasTable,
+  insertPadcomCompetenciaRegulatoriaSchema,
+  padcomValidacoesCascataTable,
+  insertPadcomValidacaoCascataSchema,
 } from "@workspace/db";
-import { eq, asc, and, desc, sql, count, avg } from "drizzle-orm";
+import { eq, asc, and, or, desc, sql, count, avg } from "drizzle-orm";
+
+// Schemas Zod parciais para PATCH (whitelist contra mass assignment)
+const updatePadcomCompetenciaSchema = insertPadcomCompetenciaRegulatoriaSchema
+  .omit({ id: true, criadoEm: true, atualizadoEm: true })
+  .partial();
+const updatePadcomValidacaoDecidirSchema = insertPadcomValidacaoCascataSchema
+  .pick({ decisao: true, observacao: true, validadoPor: true, certificadoDigital: true })
+  .partial();
 
 const router = Router();
 
@@ -418,6 +431,262 @@ router.get("/padcom-auditoria", async (req: Request, res: Response): Promise<voi
     .limit(Number(limit) || 50);
 
   res.json(rows);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ONDA 2 — P1: Competências Regulatórias (catálogo de itens terapêuticos)
+// ═══════════════════════════════════════════════════════════════
+
+router.get("/padcom-competencias", async (req: Request, res: Response): Promise<void> => {
+  const { clinicaId, categoria, competencia, ativo } = req.query;
+  const conds = [];
+  // Multi-tenant: aceita registros globais (clinicaId=null) + os da clínica solicitada
+  if (clinicaId) {
+    conds.push(
+      or(
+        eq(padcomCompetenciasRegulatoriasTable.clinicaId, String(clinicaId)),
+        sql`${padcomCompetenciasRegulatoriasTable.clinicaId} IS NULL`,
+      )!,
+    );
+  }
+  if (categoria) conds.push(eq(padcomCompetenciasRegulatoriasTable.categoria, String(categoria)));
+  if (competencia) conds.push(eq(padcomCompetenciasRegulatoriasTable.competenciaMinima, String(competencia)));
+  if (ativo !== undefined) conds.push(eq(padcomCompetenciasRegulatoriasTable.ativo, ativo === "true"));
+  const rows = conds.length
+    ? await db.select().from(padcomCompetenciasRegulatoriasTable).where(and(...conds)).orderBy(asc(padcomCompetenciasRegulatoriasTable.codigo))
+    : await db.select().from(padcomCompetenciasRegulatoriasTable).orderBy(asc(padcomCompetenciasRegulatoriasTable.codigo));
+  res.json(rows);
+});
+
+router.post("/padcom-competencias", async (req: Request, res: Response): Promise<void> => {
+  const parsed = insertPadcomCompetenciaRegulatoriaSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const [row] = await db.insert(padcomCompetenciasRegulatoriasTable).values(parsed.data).returning();
+  res.status(201).json(row);
+});
+
+router.patch("/padcom-competencias/:id", async (req: Request, res: Response): Promise<void> => {
+  const parsed = updatePadcomCompetenciaSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const [row] = await db
+    .update(padcomCompetenciasRegulatoriasTable)
+    .set({ ...parsed.data, atualizadoEm: new Date() })
+    .where(eq(padcomCompetenciasRegulatoriasTable.id, req.params.id))
+    .returning();
+  if (!row) {
+    res.status(404).json({ error: "não encontrado" });
+    return;
+  }
+  res.json(row);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ONDA 2 — P2: Validações em Cascata (N1 / N2 / N3)
+// ═══════════════════════════════════════════════════════════════
+
+router.get("/padcom-validacoes-cascata", async (req: Request, res: Response): Promise<void> => {
+  const { clinicaId, sessaoId, nivel, decisao } = req.query;
+  const conds = [];
+  if (clinicaId) conds.push(eq(padcomValidacoesCascataTable.clinicaId, String(clinicaId)));
+  if (sessaoId) conds.push(eq(padcomValidacoesCascataTable.sessaoId, String(sessaoId)));
+  if (nivel) conds.push(eq(padcomValidacoesCascataTable.nivel, String(nivel)));
+  if (decisao) conds.push(eq(padcomValidacoesCascataTable.decisao, String(decisao)));
+  const rows = conds.length
+    ? await db.select().from(padcomValidacoesCascataTable).where(and(...conds)).orderBy(asc(padcomValidacoesCascataTable.etapa))
+    : await db.select().from(padcomValidacoesCascataTable).orderBy(desc(padcomValidacoesCascataTable.criadoEm));
+  res.json(rows);
+});
+
+router.post("/padcom-validacoes-cascata", async (req: Request, res: Response): Promise<void> => {
+  const parsed = insertPadcomValidacaoCascataSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const [row] = await db.insert(padcomValidacoesCascataTable).values(parsed.data).returning();
+  res.status(201).json(row);
+});
+
+router.patch("/padcom-validacoes-cascata/:id/decidir", async (req: Request, res: Response): Promise<void> => {
+  const parsed = updatePadcomValidacaoDecidirSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const decisao = parsed.data.decisao;
+  if (!decisao || !["aprovado", "rejeitado", "escalado"].includes(decisao)) {
+    res.status(400).json({ error: "decisao deve ser aprovado | rejeitado | escalado" });
+    return;
+  }
+  // Multi-tenant: header opcional X-Clinica-Id força escopo da clínica no UPDATE
+  const tenantHeader = req.header("x-clinica-id") ?? (req.query.clinicaId as string | undefined);
+  const idCond = eq(padcomValidacoesCascataTable.id, req.params.id);
+  const where = tenantHeader
+    ? and(idCond, eq(padcomValidacoesCascataTable.clinicaId, String(tenantHeader)))
+    : idCond;
+  const [row] = await db
+    .update(padcomValidacoesCascataTable)
+    .set({ ...parsed.data, decisao, decididoEm: new Date() })
+    .where(where!)
+    .returning();
+  if (!row) {
+    res.status(404).json({ error: "não encontrado ou fora do escopo da clínica" });
+    return;
+  }
+  res.json(row);
+});
+
+// Resolver cascata default a partir da banda + itens do motor
+router.post("/padcom-sessoes/:id/iniciar-cascata", async (req: Request, res: Response): Promise<void> => {
+  const sessao = (await db.select().from(padcomSessoesTable).where(eq(padcomSessoesTable.id, req.params.id)))[0];
+  if (!sessao) {
+    res.status(404).json({ error: "sessão não encontrada" });
+    return;
+  }
+  if (!sessao.banda) {
+    res.status(400).json({ error: "sessão sem banda — finalize antes" });
+    return;
+  }
+  // Resiliente: aceita tanto 'cor' quanto 'nome' como chave (finalizar salva nome)
+  const banda = (
+    await db
+      .select()
+      .from(padcomBandasTable)
+      .where(or(eq(padcomBandasTable.cor, sessao.banda), eq(padcomBandasTable.nome, sessao.banda)))
+  )[0];
+  if (!banda) {
+    res.status(422).json({
+      error: `banda '${sessao.banda}' não encontrada no catálogo`,
+      aviso: "verifique consistência entre padcom_bandas (nome/cor) e padcom_sessoes.banda — nenhuma etapa criada",
+    });
+    return;
+  }
+  const nivel = banda.nivelValidacao;
+
+  // Idempotência: se já existem etapas pra essa sessão+nivel, retorna as existentes
+  const existentes = await db
+    .select()
+    .from(padcomValidacoesCascataTable)
+    .where(
+      and(
+        eq(padcomValidacoesCascataTable.sessaoId, sessao.id),
+        eq(padcomValidacoesCascataTable.nivel, nivel),
+      ),
+    )
+    .orderBy(asc(padcomValidacoesCascataTable.etapa));
+  if (existentes.length > 0) {
+    res.status(200).json({ nivel, etapas: existentes, idempotente: true });
+    return;
+  }
+
+  // Define cascata: N1=1 etapa, N2=2 etapas, N3=3 etapas
+  const cascataMap: Record<string, Array<{ etapa: number; papel: string }>> = {
+    N1: [{ etapa: 1, papel: "ia" }],
+    N2: [
+      { etapa: 1, papel: "ia" },
+      { etapa: 2, papel: "consultora" },
+    ],
+    N3: [
+      { etapa: 1, papel: "enfermeira" },
+      { etapa: 2, papel: "medico" },
+      { etapa: 3, papel: "preceptor" },
+    ],
+  };
+  const etapas = cascataMap[nivel] ?? cascataMap.N3;
+  const inseridos = await db
+    .insert(padcomValidacoesCascataTable)
+    .values(
+      etapas.map((e) => ({
+        clinicaId: sessao.clinicaId,
+        sessaoId: sessao.id,
+        pacienteId: sessao.pacienteId,
+        nivel,
+        etapa: e.etapa,
+        papel: e.papel,
+        decisao: "pendente",
+        itensAvaliados: banda?.acoesMotor ?? null,
+      })),
+    )
+    .returning();
+  res.status(201).json({ nivel, etapas: inseridos });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ONDA 2 — P3: Dashboard de Governança por Braço de Entrada
+// ═══════════════════════════════════════════════════════════════
+
+router.get("/padcom-dashboard-bracos", async (req: Request, res: Response): Promise<void> => {
+  const { clinicaId } = req.query;
+  const tenantWhere = clinicaId ? eq(padcomSessoesTable.clinicaId, String(clinicaId)) : undefined;
+
+  const applyTenant = <T extends { where: (w: ReturnType<typeof eq>) => T }>(q: T) =>
+    tenantWhere ? q.where(tenantWhere) : q;
+
+  // Todas as agregações respeitam multi-tenant (clinicaId)
+  const porBraco = await applyTenant(
+    db
+      .select({
+        braco: padcomSessoesTable.bracoEntrada,
+        total: count(),
+        scoreMedio: avg(padcomSessoesTable.scoreFinal),
+      })
+      .from(padcomSessoesTable)
+      .$dynamic(),
+  ).groupBy(padcomSessoesTable.bracoEntrada);
+
+  const porUtmSource = await applyTenant(
+    db
+      .select({ utm: padcomSessoesTable.utmSource, total: count() })
+      .from(padcomSessoesTable)
+      .$dynamic(),
+  ).groupBy(padcomSessoesTable.utmSource);
+
+  const porStatus = await applyTenant(
+    db
+      .select({ status: padcomSessoesTable.status, total: count() })
+      .from(padcomSessoesTable)
+      .$dynamic(),
+  ).groupBy(padcomSessoesTable.status);
+
+  // Funil por braço com filtro multi-tenant (parametrizado contra SQL injection)
+  const funilSql = clinicaId
+    ? sql`
+      SELECT 
+        COALESCE(braco_entrada, 'sem_braco') AS braco,
+        COUNT(*)::int AS iniciadas,
+        COUNT(*) FILTER (WHERE status IN ('finalizada','validada'))::int AS finalizadas,
+        COUNT(*) FILTER (WHERE status = 'validada')::int AS validadas
+      FROM padcom_sessoes
+      WHERE clinica_id = ${String(clinicaId)}
+      GROUP BY braco_entrada
+      ORDER BY iniciadas DESC
+    `
+    : sql`
+      SELECT 
+        COALESCE(braco_entrada, 'sem_braco') AS braco,
+        COUNT(*)::int AS iniciadas,
+        COUNT(*) FILTER (WHERE status IN ('finalizada','validada'))::int AS finalizadas,
+        COUNT(*) FILTER (WHERE status = 'validada')::int AS validadas
+      FROM padcom_sessoes
+      GROUP BY braco_entrada
+      ORDER BY iniciadas DESC
+    `;
+  const funilRes = await db.execute(funilSql);
+  const funil = (funilRes as { rows?: unknown[] }).rows ?? funilRes;
+
+  res.json({
+    bracos: ["trafego_pago", "consultora", "site", "vendedor_externo", "referral", "whatsapp"],
+    porBraco,
+    porUtmSource,
+    porStatus,
+    funil,
+  });
 });
 
 export default router;

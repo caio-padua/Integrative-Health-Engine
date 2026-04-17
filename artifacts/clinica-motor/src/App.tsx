@@ -61,6 +61,7 @@ import PadcomConcluido from "@/pages/padcom/concluido";
 import PadcomAdmin from "@/pages/padcom/admin";
 import PadcomAdminDetalhe from "@/pages/padcom/admin-detalhe";
 import PadcomAdminDashboard from "@/pages/padcom/admin-dashboard";
+import PadcomGovernanca from "@/pages/padcom/governanca";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -129,6 +130,7 @@ function Router() {
       <Route path="/padcom-admin/dashboard" component={PadcomAdminDashboard} />
       <Route path="/padcom-admin/:sessaoId" component={PadcomAdminDetalhe} />
       <Route path="/padcom-admin" component={PadcomAdmin} />
+      <Route path="/padcom-governanca" component={PadcomGovernanca} />
       <Route component={NotFound} />
     </Switch>
   );
