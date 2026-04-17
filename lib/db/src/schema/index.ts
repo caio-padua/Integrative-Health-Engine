@@ -45,3 +45,13 @@ export * from "./rasxRevo";
 export * from "./termosJuridicos";
 export * from "./farmaciasParceiras";
 export * from "./comercialConfig";
+
+// ══════════════════════════════════════════════════════════════
+// PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
+// ══════════════════════════════════════════════════════════════
+export * from "./padcomQuestionarios";
+export * from "./padcomSessoes";
+export * from "./padcomRespostas";
+export * from "./padcomBandas";
+export * from "./padcomAlertas";
+export * from "./padcomAuditoria";
