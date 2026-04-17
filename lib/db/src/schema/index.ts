@@ -63,3 +63,4 @@ export * from "./padcomValidacoesCascata";
 // PADCOM V15 — Onda 3: Agendamentos automáticos + Notificações + Exportação XLSX
 export * from "./padcomAgendamentos";
 export * from "./padcomNotificacoes";
+export * from "./documentosReferencia";
