@@ -45,6 +45,7 @@ export const padcomSessoesTable = pgTable("padcom_sessoes", {
   dispositivoInfo: jsonb("dispositivo_info"),
   anonimizado: boolean("anonimizado").notNull().default(false),
   iniciadaEm: timestamp("iniciada_em").notNull().defaultNow(),
+  proximoRetornoEm: timestamp("proximo_retorno_em"),
   finalizadaEm: timestamp("finalizada_em"),
   validadaEm: timestamp("validada_em"),
   validadaPor: varchar("validada_por"),
