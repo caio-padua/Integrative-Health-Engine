@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import comercialAdminRouter from "./comercialAdmin";
 import paymentsRouter from "./payments";
 import unidadesRouter from "./unidades";
 import usuariosRouter from "./usuarios";
@@ -130,5 +131,6 @@ router.use(termosJuridicosRouter);
 router.use("/genesis", genesisRouter);
 router.use("/genesis-popular", genesisPopularRouter);
 router.use("/payments", paymentsRouter);
+router.use(comercialAdminRouter);
 
 export default router;
