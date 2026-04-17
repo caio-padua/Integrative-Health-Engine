@@ -28,6 +28,7 @@ export const formulaBlendTable = pgTable("formula_blend", {
   duracao: text("duracao").notNull(),
   objetivo: text("objetivo").notNull(),
   ativo: boolean("ativo").notNull().default(true),
+  formulaId: integer("formula_id"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

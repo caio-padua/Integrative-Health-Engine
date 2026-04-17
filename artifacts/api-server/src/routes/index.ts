@@ -64,6 +64,7 @@ import emailComunicacaoRouter from "./emailComunicacao";
 import termosJuridicosRouter from "./termosJuridicos";
 import genesisRouter from "./genesis";
 import genesisPopularRouter from "./genesisPopular";
+import documentosReferenciaRouter from "./documentosReferencia";
 
 const router: IRouter = Router();
 
@@ -130,6 +131,7 @@ router.use(emailComunicacaoRouter);
 router.use(termosJuridicosRouter);
 router.use("/genesis", genesisRouter);
 router.use("/genesis-popular", genesisPopularRouter);
+router.use(documentosReferenciaRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
