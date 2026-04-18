@@ -75,20 +75,36 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const [tratamentoAtivo, setTratamentoAtivo] = useState<any>(null);
+  const [dicLookup, setDicLookup] = useState<Record<string, { significado: string; tipo: string; origem: string | null }>>({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setDicLookup({});
     try {
       const res = await fetch(`${apiBase}/rasx/${pacienteId}/revo/master`);
-      if (res.ok) setData(await res.json());
+      let revo: any = null;
+      if (res.ok) { revo = await res.json(); setData(revo); }
+      let trat: any = null;
       const tRes = await fetch(`${apiBase}/tratamentos?pacienteId=${pacienteId}`);
       if (tRes.ok) {
         const lista = await tRes.json();
         const ativo = (lista || []).find((t: any) => t.status !== "cancelado") || lista?.[0];
         if (ativo?.id) {
           const detRes = await fetch(`${apiBase}/financeiro/tratamentos/${ativo.id}`);
-          if (detRes.ok) setTratamentoAtivo(await detRes.json());
+          if (detRes.ok) { trat = await detRes.json(); setTratamentoAtivo(trat); }
         }
+      }
+      const codes = new Set<string>();
+      for (const p of (revo?.patologias?.diagnosticadas || [])) if (p.codigoSemantico) codes.add(p.codigoSemantico);
+      for (const p of (revo?.patologias?.potenciais || [])) if (p.codigoSemantico) codes.add(p.codigoSemantico);
+      for (const m of (revo?.medicamentos || [])) if (m.codigoSemantico) codes.add(m.codigoSemantico);
+      for (const it of (trat?.itens || [])) if (it.codigoSemantico) codes.add(it.codigoSemantico);
+      if (codes.size > 0) {
+        const lookupRes = await fetch(`${apiBase}/codigos-semanticos/lookup`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ codes: Array.from(codes) }),
+        });
+        if (lookupRes.ok) setDicLookup(await lookupRes.json());
       }
     } catch {
       toast({ title: "Erro ao carregar REVO", variant: "destructive" });
@@ -408,6 +424,12 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
         const cobertura = Math.round((linkados / itens.length) * 100);
         const patById: Record<number, any> = {};
         for (const p of [...patDiag, ...patPot]) patById[p.id] = p;
+        const todosCodigos: string[] = [];
+        for (const it of itens) if (it.codigoSemantico) todosCodigos.push(it.codigoSemantico);
+        for (const p of [...patDiag, ...patPot]) if (p.codigoSemantico) todosCodigos.push(p.codigoSemantico);
+        for (const m of meds) if (m.codigoSemantico) todosCodigos.push(m.codigoSemantico);
+        const lastreados = todosCodigos.filter(c => dicLookup[c]).length;
+        const lastroPct = todosCodigos.length ? Math.round((lastreados / todosCodigos.length) * 100) : 0;
         return (
           <Card className="bg-card border-amber-500/30">
             <CardHeader className="pb-2">
@@ -421,12 +443,18 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                 </div>
                 <div className="flex gap-2 text-[10px]">
                   <span className="text-amber-300">{itens.length} itens</span>
-                  <span className="text-green-400">{linkados} ligados</span>
-                  <span className="text-muted-foreground">{cobertura}% cobertura</span>
+                  <span className="text-green-400">{linkados} ligados ({cobertura}%)</span>
+                  <span className={lastroPct === 100 ? "text-green-400" : "text-red-400"}>
+                    {lastreados}/{todosCodigos.length} códigos lastreados ({lastroPct}%)
+                  </span>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
+              <div className="text-[10px] text-muted-foreground mb-2 px-1">
+                Cada código abaixo está validado contra <span className="text-amber-300 font-mono">codigos_semanticos</span> (485+ códigos do dicionário Pawards).
+                Origem dos códigos novos: <span className="text-amber-300 font-mono">PROTOCOLO_NATACHA_V16</span>.
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="text-[10px] text-muted-foreground uppercase border-b border-border/30">
@@ -453,22 +481,44 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                             </div>
                           </td>
                           <td className="py-2 px-1">
-                            {it.codigoSemantico ? (
-                              <span className="text-[9px] font-mono px-1.5 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded">
-                                {it.codigoSemantico}
-                              </span>
-                            ) : <span className="text-red-400 text-[10px]">SEM CÓDIGO</span>}
+                            {it.codigoSemantico ? (() => {
+                              const dic = dicLookup[it.codigoSemantico];
+                              const lastreado = !!dic;
+                              return (
+                                <div className="flex flex-col gap-0.5" title={dic?.significado || "SEM LASTRO no dicionario"}>
+                                  <span className={`text-[9px] font-mono px-1.5 py-0.5 border rounded inline-flex items-center gap-1 self-start ${
+                                    lastreado ? "bg-amber-500/10 text-amber-300 border-amber-500/30" : "bg-red-500/10 text-red-400 border-red-500/30"
+                                  }`}>
+                                    {lastreado ? "✓" : "✗"} {it.codigoSemantico}
+                                  </span>
+                                  {dic && (
+                                    <span className="text-[9px] text-muted-foreground truncate max-w-[280px]">
+                                      {dic.significado}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })() : <span className="text-red-400 text-[10px]">SEM CÓDIGO</span>}
                           </td>
                           <td className="py-2 px-1">
-                            {pat ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-amber-300">→</span>
-                                <span className={`w-2 h-2 rounded-full ${SEMAFORO_COLORS[pat.statusSemaforo] || "bg-gray-500"}`} />
-                                <span className="font-medium">{pat.nome}</span>
-                                {pat.cid10 && <span className="text-[9px] text-muted-foreground">({pat.cid10})</span>}
-                                <span className="text-[9px] font-mono text-amber-300/70">{pat.codigoSemantico}</span>
-                              </div>
-                            ) : (
+                            {pat ? (() => {
+                              const dicP = pat.codigoSemantico ? dicLookup[pat.codigoSemantico] : null;
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-amber-300">→</span>
+                                    <span className={`w-2 h-2 rounded-full ${SEMAFORO_COLORS[pat.statusSemaforo] || "bg-gray-500"}`} />
+                                    <span className="font-medium">{pat.nome}</span>
+                                    {pat.cid10 && <span className="text-[9px] text-muted-foreground">({pat.cid10})</span>}
+                                  </div>
+                                  {pat.codigoSemantico && (
+                                    <span className={`text-[9px] font-mono ml-4 ${dicP ? "text-amber-300/70" : "text-red-400"}`}>
+                                      {dicP ? "✓" : "✗"} {pat.codigoSemantico}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })() : (
                               <span className="text-red-400 text-[10px]">— sem alvo clínico —</span>
                             )}
                           </td>
@@ -584,11 +634,20 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                           <div className={`w-2 h-2 rounded-full ${SEMAFORO_COLORS[p.statusSemaforo] || "bg-gray-500"}`} />
                           <span className="font-medium">{p.nome}</span>
                           {p.cid10 && <span className="text-[9px] text-muted-foreground">({p.cid10})</span>}
-                          {p.codigoSemantico ? (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded">
-                              {p.codigoSemantico}
-                            </span>
-                          ) : (
+                          {p.codigoSemantico ? (() => {
+                            const dic = dicLookup[p.codigoSemantico];
+                            return (
+                              <span
+                                className={`text-[9px] font-mono px-1.5 py-0.5 border rounded ${
+                                  dic ? "bg-amber-500/10 text-amber-300 border-amber-500/30" : "bg-red-500/10 text-red-400 border-red-500/30"
+                                }`}
+                                title={dic?.significado || "SEM LASTRO no dicionario"}
+                              >
+                                {dic ? "✓" : "✗"} {p.codigoSemantico}
+                                {dic && <span className="ml-1 text-muted-foreground normal-case">— {dic.significado}</span>}
+                              </span>
+                            );
+                          })() : (
                             <span className="text-[9px] font-mono px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded">
                               SEM CÓDIGO
                             </span>
@@ -735,11 +794,20 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                           <Badge variant="outline" className={`text-[9px] ${STATUS_MED_COLORS[m.statusAtual] || ""}`}>
                             {(m.statusAtual || "em_uso").replace("_", " ")}
                           </Badge>
-                          {m.codigoSemantico ? (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded">
-                              {m.codigoSemantico}
-                            </span>
-                          ) : (
+                          {m.codigoSemantico ? (() => {
+                            const dic = dicLookup[m.codigoSemantico];
+                            return (
+                              <span
+                                className={`text-[9px] font-mono px-1.5 py-0.5 border rounded ${
+                                  dic ? "bg-amber-500/10 text-amber-300 border-amber-500/30" : "bg-red-500/10 text-red-400 border-red-500/30"
+                                }`}
+                                title={dic?.significado || "SEM LASTRO no dicionario"}
+                              >
+                                {dic ? "✓" : "✗"} {m.codigoSemantico}
+                                {dic && <span className="ml-1 text-muted-foreground normal-case">— {dic.significado}</span>}
+                              </span>
+                            );
+                          })() : (
                             <span className="text-[9px] font-mono px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded">
                               SEM CÓDIGO
                             </span>

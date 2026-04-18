@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { codigosSemanticosTable, insertCodigoSemanticoSchema } from "@workspace/db/schema";
-import { eq, ilike, sql, and } from "drizzle-orm";
+import { eq, ilike, sql, and, inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -22,6 +22,21 @@ router.get("/codigos-semanticos", async (req, res) => {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(codigosSemanticosTable.codigo);
   res.json(result);
+});
+
+router.post("/codigos-semanticos/lookup", async (req, res) => {
+  const raw: unknown[] = Array.isArray(req.body?.codes) ? req.body.codes : [];
+  const codes: string[] = Array.from(new Set(
+    raw.filter((c): c is string => typeof c === "string" && c.length > 0 && c.length <= 64).map(c => c.trim())
+  ));
+  if (codes.length === 0) { res.json({}); return; }
+  if (codes.length > 500) { res.status(400).json({ error: "Maximo de 500 codigos por requisicao" }); return; }
+  const rows = await db.select().from(codigosSemanticosTable).where(inArray(codigosSemanticosTable.codigo, codes));
+  const out: Record<string, { significado: string; tipo: string; origem: string | null }> = {};
+  for (const r of rows) {
+    out[r.codigo] = { significado: r.procedimentoOuSignificado, tipo: r.tipo, origem: r.origemLida };
+  }
+  res.json(out);
 });
 
 router.get("/codigos-semanticos/tipos", async (_req, res) => {
