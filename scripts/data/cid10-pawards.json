@@ -1,0 +1,266 @@
+[
+  {
+    "codigo": "E03.9",
+    "hd_associado": "DISFUNÇÃO TIREOIDIANA EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "E04.9",
+    "hd_associado": "BÓCIO / TIREOIDOPATIA"
+  },
+  {
+    "codigo": "Z09.8",
+    "hd_associado": "MONITORIZAÇÃO CLÍNICA"
+  },
+  {
+    "codigo": "E22.1",
+    "hd_associado": "HIPERPROLACTINEMIA EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "E28.9",
+    "hd_associado": "DISFUNÇÃO GONADAL"
+  },
+  {
+    "codigo": "E55.9",
+    "hd_associado": "HIPOVITAMINOSE D EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "R53",
+    "hd_associado": "FADIGA / DOR MUSCULAR"
+  },
+  {
+    "codigo": "E53.8",
+    "hd_associado": "DEFICIÊNCIA DE B12 EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "R20.2",
+    "hd_associado": "PARESTESIAS / FADIGA"
+  },
+  {
+    "codigo": "E11.9",
+    "hd_associado": "DIABETES / RESISTÊNCIA INSULÍNICA"
+  },
+  {
+    "codigo": "E88.81",
+    "hd_associado": "SÍNDROME METABÓLICA"
+  },
+  {
+    "codigo": "E66.9",
+    "hd_associado": "OBESIDADE"
+  },
+  {
+    "codigo": "E78.5",
+    "hd_associado": "DISLIPIDEMIA"
+  },
+  {
+    "codigo": "Z13.6",
+    "hd_associado": "RISCO CARDIOMETABÓLICO"
+  },
+  {
+    "codigo": "R82.9",
+    "hd_associado": "AVALIAÇÃO URINÁRIA GERAL"
+  },
+  {
+    "codigo": "N39.0",
+    "hd_associado": "INFECÇÃO URINÁRIA EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "R80",
+    "hd_associado": "PROTEINÚRIA EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "N28.9",
+    "hd_associado": "NEFROPATIA EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "B89",
+    "hd_associado": "PARASITOSE INTESTINAL EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "R19.8",
+    "hd_associado": "SINTOMAS GASTROINTESTINAIS"
+  },
+  {
+    "codigo": "R00.2",
+    "hd_associado": "PALPITAÇÕES"
+  },
+  {
+    "codigo": "R07.4",
+    "hd_associado": "DOR TORÁCICA"
+  },
+  {
+    "codigo": "I38",
+    "hd_associado": "SOPRO / VALVOPATIA EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "R06.0",
+    "hd_associado": "DISPNEIA"
+  },
+  {
+    "codigo": "I10",
+    "hd_associado": "HIPERTENSÃO"
+  },
+  {
+    "codigo": "I49.9",
+    "hd_associado": "ARRITMIA EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "R55",
+    "hd_associado": "SÍNCOPE"
+  },
+  {
+    "codigo": "Z82.4",
+    "hd_associado": "HISTÓRICO FAMILIAR"
+  },
+  {
+    "codigo": "I25.1",
+    "hd_associado": "DOENÇA ARTERIAL CORONARIANA / ESTENOSE"
+  },
+  {
+    "codigo": "R10.4",
+    "hd_associado": "DOR ABDOMINAL"
+  },
+  {
+    "codigo": "R93.5",
+    "hd_associado": "LESÃO ABDOMINAL EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "N20.0",
+    "hd_associado": "LITÍASE / MASSA"
+  },
+  {
+    "codigo": "R51",
+    "hd_associado": "CEFALEIA / TRAUMA"
+  },
+  {
+    "codigo": "R29.8",
+    "hd_associado": "ALTERAÇÃO NEUROLÓGICA"
+  },
+  {
+    "codigo": "Z03.8",
+    "hd_associado": "AVALIAÇÃO AGUDA"
+  },
+  {
+    "codigo": "M51.1",
+    "hd_associado": "DISCOPATIA LOMBAR"
+  },
+  {
+    "codigo": "M54.1",
+    "hd_associado": "RADICULOPATIA"
+  },
+  {
+    "codigo": "M54.5",
+    "hd_associado": "LOMBALGIA MECÂNICA"
+  },
+  {
+    "codigo": "R42",
+    "hd_associado": "TONTURA"
+  },
+  {
+    "codigo": "M23.2",
+    "hd_associado": "LESÃO MENISCAL"
+  },
+  {
+    "codigo": "M25.5",
+    "hd_associado": "DOR ARTICULAR"
+  },
+  {
+    "codigo": "M94.2",
+    "hd_associado": "CONDROPATIA"
+  },
+  {
+    "codigo": "M75.1",
+    "hd_associado": "LESÃO DO MANGUITO ROTADOR"
+  },
+  {
+    "codigo": "M75.5",
+    "hd_associado": "BURSITE / TENDINOPATIA"
+  },
+  {
+    "codigo": "S93.4",
+    "hd_associado": "LESÃO LIGAMENTAR"
+  },
+  {
+    "codigo": "M76.8",
+    "hd_associado": "TENDINOPATIA"
+  },
+  {
+    "codigo": "M72.2",
+    "hd_associado": "FASCITE / LESÃO PARTES MOLES"
+  },
+  {
+    "codigo": "M84.3",
+    "hd_associado": "ESTRESSE ÓSSEO"
+  },
+  {
+    "codigo": "M65.9",
+    "hd_associado": "TENOSSINOVITE"
+  },
+  {
+    "codigo": "M13.9",
+    "hd_associado": "ARTRITE EM INVESTIGAÇÃO"
+  },
+  {
+    "codigo": "M77.1",
+    "hd_associado": "EPICONDILITE / TENDINOPATIA"
+  },
+  {
+    "codigo": "S53.4",
+    "hd_associado": "LESÃO LIGAMENTAR"
+  },
+  {
+    "codigo": "K76.0",
+    "hd_associado": "ESTEATOSE / HEPATOPATIA"
+  },
+  {
+    "codigo": "K80.2",
+    "hd_associado": "COLELITÍASE"
+  },
+  {
+    "codigo": "E04.1",
+    "hd_associado": "NÓDULO TIREOIDIANO"
+  },
+  {
+    "codigo": "N63",
+    "hd_associado": "NÓDULO MAMÁRIO"
+  },
+  {
+    "codigo": "N64.4",
+    "hd_associado": "MASTALGIA"
+  },
+  {
+    "codigo": "Z12.3",
+    "hd_associado": "RASTREAMENTO / ACHADO CLÍNICO"
+  },
+  {
+    "codigo": "K30",
+    "hd_associado": "DISPEPSIA"
+  },
+  {
+    "codigo": "K21.9",
+    "hd_associado": "REFLUXO"
+  },
+  {
+    "codigo": "R10.1",
+    "hd_associado": "DOR EPIGÁSTRICA"
+  },
+  {
+    "codigo": "Z12.1",
+    "hd_associado": "RASTREAMENTO COLORRETAL"
+  },
+  {
+    "codigo": "K92.1",
+    "hd_associado": "SANGRAMENTO INTESTINAL"
+  },
+  {
+    "codigo": "R19.4",
+    "hd_associado": "ALTERAÇÃO DO HÁBITO INTESTINAL"
+  },
+  {
+    "codigo": "M81.9",
+    "hd_associado": "OSTEOPENIA / OSTEOPOROSE"
+  },
+  {
+    "codigo": "Z91.8",
+    "hd_associado": "RISCO DE FRATURA"
+  }
+]
