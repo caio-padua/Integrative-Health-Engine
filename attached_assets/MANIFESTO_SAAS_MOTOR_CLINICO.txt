@@ -1,0 +1,436 @@
+Manifesto de arquitetura 
+
+
+Motor clinico
+
+
+CAVALO ENTRADA
+
+
+ENTRADA AUTÔNOMA                    ENTRADA OPERACIONAL
+(paciente responde sozinho)         (enfermeira/secretária opera)
+        │                                      │
+  Link via WhatsApp                   Interface interna
+  Instagram / Site                    Tablet na clínica
+  Formulário público                  Cadastro manual
+  Sem login necessário                Login da equipe
+        │                                      │
+        ▼                                      ▼
+   Validação CRM ←─── APROVAÇÃO DO DR. CAIO ───→ Direto aprovado
+        │                                      │
+        └──────────────┬───────────────────────┘
+                       ▼
+              BANCO DE DADOS ÚNICO
+              (mesmo paciente, mesma tabela)
+                       │
+              MOTOR CLÍNICO ATIVADO
+Quero que você atue como arquiteto principal de um sistema clínico premium do Instituto Pádua, com visão de produto escalável, design editorial sofisticado, lógica operacional robusta e automação futura. O objetivo não é criar um PDF simples nem um sistema genérico de clínica, mas sim um ecossistema documental e operacional premium, com alto valor percebido pelo paciente e com possibilidade futura de comercialização via consultoria e habilitação de clínicas, sob a assinatura PADCON.
+
+
+NOME E POSICIONAMENTO INSTITUCIONAL OBRIGATÓRIOS
+
+
+DR. CAIO HENRIQUE FERNANDES PÁDUA  
+INSTITUTO PÁDUA  
+MEDICINA INTEGRATIVA DE ALTA PERFORMANCE  
+DIRETOR CLÍNICO E SUPERVISOR MÉDICO  
+RESPONSÁVEL PELA FORMAÇÃO E PADRONIZAÇÃO ASSISTENCIAL
+
+
+ASSINATURA FIXA DO SISTEMA
+
+
+Developed and Supervised by PADCON
+
+
+PREMISSA CENTRAL
+
+
+O sistema deve comunicar claramente que o Dr. Caio não é apenas o médico que executa tudo, mas sim o diretor clínico, supervisor médico e formador de outros médicos, responsável pela diretriz terapêutica, validação clínica e padronização assistencial. O layout, os textos e a arquitetura precisam reforçar autoridade, liderança e sofisticação.
+
+
+DIRETRIZ VISUAL GERAL
+
+
+Tanto o PDF documental quanto o PDF evolutivo devem seguir a mesma identidade visual premium, elegante, clássica e editorial, inspirada em design de relatório médico de alta classe. Nada de aparência de planilha crua, ERP comum ou relatório administrativo simples.
+
+
+O design system deve seguir:
+- estética editorial premium
+- leitura TDAH-friendly e TOC-friendly
+- muito respiro visual
+- forte hierarquia tipográfica
+- molduras elegantes
+- seções bem definidas
+- uso de estrelas em vez de bolinhas
+- percentuais bem visíveis
+- rodapé discreto com “Developed and Supervised by PADCON”
+- identidade do Instituto Pádua no cabeçalho
+- foto do Dr. Caio no PDF documental em composição meio corpo com mão visível, transmitindo liderança e autoridade
+- versão menor e elegante da foto no PDF evolutivo
+
+
+PALETA E DESIGN
+- preto profundo / carvão
+- off-white premium
+- dourado suave
+- azul petróleo escuro
+- cinzas quentes
+- títulos em tipografia serifada elegante
+- corpo em sans-serif muito legível
+
+
+ESTRUTURA GERAL DO SISTEMA
+
+
+Este sistema terá dois documentos principais e uma linha do tempo de documentos ao longo do tratamento.
+
+
+1. PDF DOCUMENTAL COMPLETO  
+Gerado no fechamento do protocolo ou na primeira sessão.
+
+
+2. PDF RAS EVOLUTIVO  
+Gerado após cada aplicação.
+
+
+3. Linha do tempo de documentos adicionais  
+- a cada 30 dias: acompanhamento remoto
+- antepenúltima sessão: lembrete de exames
+- penúltima sessão: PDF de exames + retorno
+- última sessão: PDF de conclusão do ciclo
+
+
+PDF DOCUMENTAL COMPLETO — ESTRUTURA OBRIGATÓRIA
+
+
+1. Capa premium com foto do Dr. Caio em meio corpo com mão visível
+2. Apresentação do Dr. Caio e do Instituto Pádua em tom institucional e premium
+3. Resumo executivo do protocolo
+4. RAS documental com:
+   - substância
+   - via
+   - dose
+   - frequência
+   - número de sessões
+   - data de início
+   - observação médica
+5. RAS operacional inicial
+6. Matriz de impacto por sistema com estrelas à direita e percentuais grandes e nítidos
+7. Matriz de expectativas clínicas e tolerabilidade
+8. Fichas das substâncias com:
+   - nome
+   - categoria terapêutica
+   - via
+   - frequência
+   - dose padrão
+   - função principal
+   - descrição clínica
+   - evidência científica resumida
+   - sistemas impactados
+   - efeitos percebidos
+   - tempo para efeito
+   - contraindicações/alertas
+   - observações editáveis
+9. Termo geral do protocolo
+10. LGPD / confidencialidade
+11. Termo para injetáveis endovenosos
+12. Termo para injetáveis intramusculares
+13. Termo para fórmulas e manipulados
+14. Termo para implantes
+15. Termo de autorização de uso de imagem e relato
+16. Documento de orientação de nota fiscal
+
+
+PDF RAS EVOLUTIVO — ESTRUTURA OBRIGATÓRIA
+
+
+1. Cabeçalho premium com identificação do paciente, sessão atual, data, unidade, médico responsável
+2. Mini bloco institucional com nome do Dr. Caio e seu posicionamento de diretor clínico e supervisor médico
+3. Resumo da sessão:
+   - substâncias aplicadas
+   - quem aplicou
+   - horário
+   - progresso do protocolo
+   - próxima sessão
+4. Página “Como foi sua última semana?”
+5. Observação da enfermagem
+6. Classificação por cor:
+   - verde
+   - amarelo
+   - vermelho
+7. Adesão percebida:
+   - alta
+   - média
+   - baixa
+8. Mini histórico acumulado
+9. RAS operacional resumido
+10. Evolução de Saúde
+11. Próxima etapa / lembretes / exames / acompanhamento remoto
+
+
+REGRAS ESPECÍFICAS DO RAS OPERACIONAL RESUMIDO
+
+
+No PDF evolutivo, a parte operacional não deve mostrar a grade longa inteira como planilha crua. Ela deve ser refinada.
+
+
+Regras:
+- as aplicações já realizadas devem ser condensadas em uma única linha-resumo
+- mostrar a data inicial até a data final das aplicações já feitas
+- status: REALIZADAS 100%
+- as aplicações futuras devem aparecer como PENDENTE ou A REALIZAR
+- se houver muitas futuras, resumir as últimas em vez de ocupar linhas demais
+
+
+EVOLUÇÃO DE SAÚDE
+
+
+A antiga matriz de impacto deve ser renomeada para:
+Evolução de Saúde
+ou
+Impacto Evolutivo de Saúde
+
+
+Sistemas-base:
+- cardiovascular
+- neurocognição
+- metabolismo / tireoide
+- osteomuscular
+- hepático
+- imunológico
+- dermatológico
+- libido / hormonal
+- performance física
+- hipertrofia / definição
+- longevidade / qualidade de vida
+
+
+Regra visual:
+- texto do sistema à esquerda
+- estrelas à direita
+- percentual grande e visível
+- tudo editável
+
+
+FORMULÁRIO OBRIGATÓRIO DA ENFERMAGEM EM CADA APLICAÇÃO
+
+
+Toda sessão precisa registrar:
+- pergunta principal: “Como foi sua última semana?”
+- classificação:
+  - verde
+  - amarelo
+  - vermelho
+- texto livre
+- adesão percebida:
+  - alta
+  - média
+  - baixa
+- sintomas relatados
+- observação da enfermagem
+
+
+Esses dados devem alimentar:
+- histórico do paciente
+- PDF RAS evolutivo
+- trilha operacional interna
+- possíveis cards de acompanhamento
+
+
+LÓGICA DOS ALERTAS
+
+
+Verde:
+- sem queixas relevantes
+- apenas atualiza histórico e PDF evolutivo
+
+
+Amarelo:
+- alerta moderado
+- atualiza histórico
+- entra no PDF evolutivo
+- gera card de acompanhamento
+
+
+Vermelho:
+- alerta importante
+- atualiza histórico
+- entra no PDF evolutivo
+- gera card prioritário
+- notifica equipe responsável
+
+
+TRELLO COMO PRIMEIRA CAMADA OPERACIONAL
+
+
+Use Trello como camada inicial de gestão de cards.
+
+
+Listas sugeridas:
+- cadastro de clientes
+- acompanhar
+- alerta
+- assinatura pendente
+- financeiro / nota fiscal
+- exames / retorno
+- concluídos
+
+
+Estrutura mínima do card:
+- nome do paciente
+- fase do protocolo
+- sessão atual
+- objetivo terapêutico
+- substâncias em uso
+- classificação do alerta
+- observação da enfermagem
+- mini histórico
+- responsável
+- prazo
+
+
+USO DE IMAGEM E RELATO
+
+
+Criar um documento específico:
+
+
+TERMO DE AUTORIZAÇÃO DE USO DE IMAGEM E RELATO
+
+
+Campos:
+- autorizo / não autorizo
+- uso de imagem
+- uso de relato
+- benefício padrão de 5% no próximo protocolo
+- possibilidade de condição maior por comum acordo
+
+
+NOTA FISCAL
+
+
+Criar um documento específico:
+
+
+ORIENTAÇÃO SOBRE EMISSÃO DE NOTA FISCAL
+
+
+Regra obrigatória:
+- a nota fiscal só poderá ser emitida após a conclusão total do pagamento
+- a emissão depende da confirmação de todos os dados cadastrais pelo paciente
+- essa confirmação pode ocorrer presencialmente ou por telefone
+- isso protege tanto a empresa quanto o cliente
+
+
+Fluxo:
+- pagamento concluído
+- gerar card para financeiro
+- confirmar dados
+- só então liberar emissão da nota fiscal
+
+
+ASSINATURA DOS DOCUMENTOS
+
+
+Paciente:
+- Clicksign
+- Autentique
+- DocuSign
+
+
+Médico:
+- ICP-Brasil A1
+
+
+Regra:
+- se o paciente não assinar em 24–48h, gerar tarefa de acompanhamento para o administrativo
+
+
+PAPÉIS / SLOTS DA EQUIPE
+
+
+O sistema deve prever até 10 slots por categoria:
+
+
+- padua.enfermeiro01 até 10
+- padua.administrativo01 até 10
+- padua.medico01 até 10
+- padua.gerente01 até 10
+- padua.ouvidoria01 até 10
+- padua.financeiro01 até 10
+- padua.consultor01 até 10
+
+
+Cada slot deve ter:
+- categoria
+- número
+- nome real
+- e-mail real
+- status: vazio / ocupado
+- permissões
+- unidade
+
+
+CADASTROS MESTRES EDITÁVEIS
+
+
+O sistema deve prever cadastros mestres editáveis para alimentar todos os PDFs e telas:
+
+
+- substâncias EV
+- substâncias IM
+- implantes
+- fórmulas/manipulados
+- exames
+- textos jurídicos
+- observações padrão
+- impactos por sistema
+- tempos para efeito
+- expectativas clínicas
+- contraindicações / alertas
+
+
+LINHA DO TEMPO DOS DOCUMENTOS
+
+
+Sessão 1:
+- PDF DOCUMENTAL COMPLETO
+- termo de uso de imagem
+- orientação sobre nota fiscal
+
+
+Sessões seguintes:
+- PDF RAS EVOLUTIVO
+
+
+A cada 30 dias:
+- avaliação remota por consultor/assistente da saúde
+- geração de tarefa de acompanhamento
+
+
+Antepenúltima sessão:
+- lembrete de exames
+
+
+Penúltima sessão:
+- PDF de exames + retorno
+
+
+Última sessão:
+- PDF de conclusão do ciclo
+
+
+REGRA FINAL DE IMPLEMENTAÇÃO
+
+
+Não invente layout novo.  
+Não simplifique.  
+Não use aparência de planilha simples.  
+Não reduza o posicionamento do Dr. Caio a médico executor.  
+Não retire a assinatura PADCON.  
+Não troque estrelas por bolinhas.  
+Não esconda os percentuais.
+
+
+Implemente este sistema mantendo a identidade visual premium, clássica e sofisticada. O objetivo é construir um ecossistema documental de alta autoridade, alta percepção de valor e alta escalabilidade operacional para o Instituto Pádua, com assinatura PADCON.

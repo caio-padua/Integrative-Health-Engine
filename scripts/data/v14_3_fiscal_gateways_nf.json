@@ -1,0 +1,509 @@
+{
+  "FISCAL MAPA OPERACIONAL": {
+    "headers": [
+      "ORDEM",
+      "ETAPA",
+      "ENTRADA",
+      "PROCESSAMENTO",
+      "SAIDA",
+      "TRAVA",
+      "ACAO SE ERRO",
+      "OBSERVACAO"
+    ],
+    "n_rows": 7,
+    "rows": [
+      {
+        "ORDEM": "1",
+        "ETAPA": "Pagamento confirmado",
+        "ENTRADA": "gateway + status_pagamento + id_transacao",
+        "PROCESSAMENTO": "normaliza status de origem",
+        "SAIDA": "status_normalizado",
+        "TRAVA": "status nao aprovado",
+        "ACAO SE ERRO": "bloquear NF",
+        "OBSERVACAO": "usar tabela FISCAL GATEWAYS"
+      },
+      {
+        "ORDEM": "2",
+        "ETAPA": "Validacao fiscal minima",
+        "ENTRADA": "cpf_tomador + nome_tomador + valor + empresa_emitente + codigo_interno_procedimento",
+        "PROCESSAMENTO": "checa obrigatorios",
+        "SAIDA": "apto_fiscal",
+        "TRAVA": "campo minimo ausente",
+        "ACAO SE ERRO": "bloquear ou enviar para revisao",
+        "OBSERVACAO": "politica configuravel"
+      },
+      {
+        "ORDEM": "3",
+        "ETAPA": "Classificacao semantica",
+        "ENTRADA": "codigo_interno_procedimento",
+        "PROCESSAMENTO": "procura categoria/subcategoria/template",
+        "SAIDA": "texto_base_nf",
+        "TRAVA": "codigo nao encontrado",
+        "ACAO SE ERRO": "fila de revisao",
+        "OBSERVACAO": "nao usar texto livre"
+      },
+      {
+        "ORDEM": "4",
+        "ETAPA": "Montagem do texto",
+        "ENTRADA": "template + nome + quantidade + duracao + frequencia",
+        "PROCESSAMENTO": "gera resumo e detalhado",
+        "SAIDA": "texto_nf_resumo / texto_nf_detalhado",
+        "TRAVA": "texto vazio ou generico",
+        "ACAO SE ERRO": "bloquear emissao",
+        "OBSERVACAO": "usar detector semantico"
+      },
+      {
+        "ORDEM": "5",
+        "ETAPA": "Escolha do texto final",
+        "ENTRADA": "modo_texto + tag_reembolso + contexto",
+        "PROCESSAMENTO": "seleciona o melhor texto",
+        "SAIDA": "texto_nf_final",
+        "TRAVA": "conflito de regra",
+        "ACAO SE ERRO": "revisao humana",
+        "OBSERVACAO": "resumo x detalhado"
+      },
+      {
+        "ORDEM": "6",
+        "ETAPA": "Emissao fiscal",
+        "ENTRADA": "texto_nf_final + dados tomador + valor",
+        "PROCESSAMENTO": "envio para backend emissor",
+        "SAIDA": "numero da NF / retorno API",
+        "TRAVA": "erro na API emissora",
+        "ACAO SE ERRO": "registrar falha e reenfileirar",
+        "OBSERVACAO": "motor fiscal desacoplado"
+      },
+      {
+        "ORDEM": "7",
+        "ETAPA": "Registro e auditoria",
+        "ENTRADA": "numero NF + protocolo + usuario",
+        "PROCESSAMENTO": "grava retorno no prontuario/financeiro",
+        "SAIDA": "historico fiscal",
+        "TRAVA": "falha de gravacao",
+        "ACAO SE ERRO": "repetir gravacao e alertar",
+        "OBSERVACAO": "nao perder trilha"
+      }
+    ]
+  },
+  "FISCAL GATEWAYS": {
+    "headers": [
+      "GATEWAY",
+      "STATUS_ORIGEM",
+      "STATUS_INTERNO_PADRAO",
+      "GERA_RECIBO",
+      "LIBERA_NF",
+      "EXIGE_REVISAO",
+      "OBSERVACAO"
+    ],
+    "n_rows": 10,
+    "rows": [
+      {
+        "GATEWAY": "ASAAS",
+        "STATUS_ORIGEM": "RECEIVED",
+        "STATUS_INTERNO_PADRAO": "APROVADO",
+        "GERA_RECIBO": "SIM",
+        "LIBERA_NF": "SIM",
+        "EXIGE_REVISAO": "NAO",
+        "OBSERVACAO": "Pagamento confirmado"
+      },
+      {
+        "GATEWAY": "ASAAS",
+        "STATUS_ORIGEM": "CONFIRMED",
+        "STATUS_INTERNO_PADRAO": "APROVADO",
+        "GERA_RECIBO": "SIM",
+        "LIBERA_NF": "SIM",
+        "EXIGE_REVISAO": "NAO",
+        "OBSERVACAO": "Pagamento confirmado"
+      },
+      {
+        "GATEWAY": "ASAAS",
+        "STATUS_ORIGEM": "PENDING",
+        "STATUS_INTERNO_PADRAO": "PENDENTE",
+        "GERA_RECIBO": "NAO",
+        "LIBERA_NF": "NAO",
+        "EXIGE_REVISAO": "NAO",
+        "OBSERVACAO": "Aguardar liquidacao"
+      },
+      {
+        "GATEWAY": "ASAAS",
+        "STATUS_ORIGEM": "OVERDUE",
+        "STATUS_INTERNO_PADRAO": "VENCIDO",
+        "GERA_RECIBO": "NAO",
+        "LIBERA_NF": "NAO",
+        "EXIGE_REVISAO": "NAO",
+        "OBSERVACAO": "Cobranca em aberto"
+      },
+      {
+        "GATEWAY": "MERCADO PAGO",
+        "STATUS_ORIGEM": "approved",
+        "STATUS_INTERNO_PADRAO": "APROVADO",
+        "GERA_RECIBO": "SIM",
+        "LIBERA_NF": "SIM",
+        "EXIGE_REVISAO": "NAO",
+        "OBSERVACAO": "Pagamento aprovado"
+      },
+      {
+        "GATEWAY": "MERCADO PAGO",
+        "STATUS_ORIGEM": "pending",
+        "STATUS_INTERNO_PADRAO": "PENDENTE",
+        "GERA_RECIBO": "NAO",
+        "LIBERA_NF": "NAO",
+        "EXIGE_REVISAO": "NAO",
+        "OBSERVACAO": "Aguardar aprovacao"
+      },
+      {
+        "GATEWAY": "MERCADO PAGO",
+        "STATUS_ORIGEM": "in_process",
+        "STATUS_INTERNO_PADRAO": "EM_ANALISE",
+        "GERA_RECIBO": "NAO",
+        "LIBERA_NF": "NAO",
+        "EXIGE_REVISAO": "SIM",
+        "OBSERVACAO": "Revisar antifraude"
+      },
+      {
+        "GATEWAY": "MERCADO PAGO",
+        "STATUS_ORIGEM": "rejected",
+        "STATUS_INTERNO_PADRAO": "REJEITADO",
+        "GERA_RECIBO": "NAO",
+        "LIBERA_NF": "NAO",
+        "EXIGE_REVISAO": "NAO",
+        "OBSERVACAO": "Nao emitir NF"
+      },
+      {
+        "GATEWAY": "PIX MANUAL",
+        "STATUS_ORIGEM": "confirmado_manual",
+        "STATUS_INTERNO_PADRAO": "APROVADO",
+        "GERA_RECIBO": "SIM",
+        "LIBERA_NF": "SIM",
+        "EXIGE_REVISAO": "SIM",
+        "OBSERVACAO": "Exige auditoria humana"
+      },
+      {
+        "GATEWAY": "CARTAO MANUAL",
+        "STATUS_ORIGEM": "confirmado_manual",
+        "STATUS_INTERNO_PADRAO": "APROVADO",
+        "GERA_RECIBO": "SIM",
+        "LIBERA_NF": "SIM",
+        "EXIGE_REVISAO": "SIM",
+        "OBSERVACAO": "Conferir comprovante"
+      }
+    ]
+  },
+  "FISCAL PROCEDIMENTOS": {
+    "headers": [
+      "CODIGO_INTERNO",
+      "CATEGORIA",
+      "SUBCATEGORIA",
+      "NOME_EXIBICAO",
+      "TEXTO_BASE_NF",
+      "PERMITE_QUANTIDADE",
+      "PERMITE_FREQUENCIA",
+      "PERMITE_DURACAO",
+      "EXIGE_CODIGO_INTERNO",
+      "EXIGE_REVISAO_HUMANA",
+      "MODO_TEXTO"
+    ],
+    "n_rows": 7,
+    "rows": [
+      {
+        "CODIGO_INTERNO": "MC_CONS_001",
+        "CATEGORIA": "consulta",
+        "SUBCATEGORIA": "consulta integrativa",
+        "NOME_EXIBICAO": "Consulta medica integrativa",
+        "TEXTO_BASE_NF": "Honorarios medicos referentes a consulta medica integrativa.",
+        "PERMITE_QUANTIDADE": "NAO",
+        "PERMITE_FREQUENCIA": "NAO",
+        "PERMITE_DURACAO": "NAO",
+        "EXIGE_CODIGO_INTERNO": "SIM",
+        "EXIGE_REVISAO_HUMANA": "NAO",
+        "MODO_TEXTO": "resumo"
+      },
+      {
+        "CODIGO_INTERNO": "MC_EXM_001",
+        "CATEGORIA": "exames",
+        "SUBCATEGORIA": "emissao de guias",
+        "NOME_EXIBICAO": "Emissao de guias de exames",
+        "TEXTO_BASE_NF": "Honorarios medicos referentes a emissao de guias de exames e orientacao clinica correlata.",
+        "PERMITE_QUANTIDADE": "NAO",
+        "PERMITE_FREQUENCIA": "NAO",
+        "PERMITE_DURACAO": "NAO",
+        "EXIGE_CODIGO_INTERNO": "SIM",
+        "EXIGE_REVISAO_HUMANA": "NAO",
+        "MODO_TEXTO": "resumo"
+      },
+      {
+        "CODIGO_INTERNO": "MC_EXM_002",
+        "CATEGORIA": "exames",
+        "SUBCATEGORIA": "solicitacao e interpretacao",
+        "NOME_EXIBICAO": "Solicitacao de exames laboratoriais",
+        "TEXTO_BASE_NF": "Honorarios medicos referentes a solicitacao e interpretacao clinica inicial de exames laboratoriais.",
+        "PERMITE_QUANTIDADE": "NAO",
+        "PERMITE_FREQUENCIA": "NAO",
+        "PERMITE_DURACAO": "NAO",
+        "EXIGE_CODIGO_INTERNO": "SIM",
+        "EXIGE_REVISAO_HUMANA": "SIM",
+        "MODO_TEXTO": "detalhado"
+      },
+      {
+        "CODIGO_INTERNO": "MC_INF_001",
+        "CATEGORIA": "infusao",
+        "SUBCATEGORIA": "soro antioxidante",
+        "NOME_EXIBICAO": "Soro antioxidante endovenoso",
+        "TEXTO_BASE_NF": "Honorarios medicos referentes a protocolo injetavel endovenoso tipo soro antioxidante.",
+        "PERMITE_QUANTIDADE": "SIM",
+        "PERMITE_FREQUENCIA": "SIM",
+        "PERMITE_DURACAO": "SIM",
+        "EXIGE_CODIGO_INTERNO": "SIM",
+        "EXIGE_REVISAO_HUMANA": "NAO",
+        "MODO_TEXTO": "detalhado"
+      },
+      {
+        "CODIGO_INTERNO": "MC_INF_002",
+        "CATEGORIA": "infusao",
+        "SUBCATEGORIA": "reposicao endovenosa",
+        "NOME_EXIBICAO": "Infusao endovenosa de micronutrientes",
+        "TEXTO_BASE_NF": "Honorarios medicos referentes a infusao endovenosa assistida de micronutrientes.",
+        "PERMITE_QUANTIDADE": "SIM",
+        "PERMITE_FREQUENCIA": "SIM",
+        "PERMITE_DURACAO": "SIM",
+        "EXIGE_CODIGO_INTERNO": "SIM",
+        "EXIGE_REVISAO_HUMANA": "SIM",
+        "MODO_TEXTO": "detalhado"
+      },
+      {
+        "CODIGO_INTERNO": "MC_INJ_001",
+        "CATEGORIA": "injetavel",
+        "SUBCATEGORIA": "vitamina intramuscular",
+        "NOME_EXIBICAO": "Aplicacao injetavel intramuscular",
+        "TEXTO_BASE_NF": "Honorarios medicos referentes a aplicacao terapeutica injetavel intramuscular assistida.",
+        "PERMITE_QUANTIDADE": "SIM",
+        "PERMITE_FREQUENCIA": "SIM",
+        "PERMITE_DURACAO": "NAO",
+        "EXIGE_CODIGO_INTERNO": "SIM",
+        "EXIGE_REVISAO_HUMANA": "NAO",
+        "MODO_TEXTO": "resumo"
+      },
+      {
+        "CODIGO_INTERNO": "MC_RET_001",
+        "CATEGORIA": "retorno",
+        "SUBCATEGORIA": "retorno assistido",
+        "NOME_EXIBICAO": "Retorno medico assistido",
+        "TEXTO_BASE_NF": "Honorarios medicos referentes a retorno medico e reavaliacao clinica.",
+        "PERMITE_QUANTIDADE": "NAO",
+        "PERMITE_FREQUENCIA": "NAO",
+        "PERMITE_DURACAO": "NAO",
+        "EXIGE_CODIGO_INTERNO": "SIM",
+        "EXIGE_REVISAO_HUMANA": "NAO",
+        "MODO_TEXTO": "resumo"
+      }
+    ]
+  },
+  "FISCAL TEXTO NF": {
+    "headers": [
+      "REGRA_ID",
+      "CONDICAO",
+      "TEMPLATE_TEXTO",
+      "EXEMPLO",
+      "OBS"
+    ],
+    "n_rows": 7,
+    "rows": [
+      {
+        "REGRA_ID": "R001",
+        "CONDICAO": "categoria = consulta",
+        "TEMPLATE_TEXTO": "Honorarios medicos referentes a {nome_exibicao}.",
+        "EXEMPLO": "Honorarios medicos referentes a consulta medica integrativa.",
+        "OBS": "Template resumido padrao"
+      },
+      {
+        "REGRA_ID": "R002",
+        "CONDICAO": "categoria = exames e subcategoria = emissao de guias",
+        "TEMPLATE_TEXTO": "Honorarios medicos referentes a emissao de guias de exames e orientacao clinica correlata.",
+        "EXEMPLO": "Honorarios medicos referentes a emissao de guias de exames e orientacao clinica correlata.",
+        "OBS": "Padrao para exame sem excesso de detalhe"
+      },
+      {
+        "REGRA_ID": "R003",
+        "CONDICAO": "categoria = exames e subcategoria = solicitacao e interpretacao",
+        "TEMPLATE_TEXTO": "Honorarios medicos referentes a solicitacao e interpretacao clinica de exames laboratoriais.",
+        "EXEMPLO": "Honorarios medicos referentes a solicitacao e interpretacao clinica de exames laboratoriais.",
+        "OBS": "Pode exigir revisao"
+      },
+      {
+        "REGRA_ID": "R004",
+        "CONDICAO": "categoria = infusao e quantidade preenchida",
+        "TEMPLATE_TEXTO": "Honorarios medicos referentes a protocolo injetavel endovenoso tipo {nome_exibicao}, com {quantidade_unidades} unidade(s), duracao media de {duracao_media}, frequencia {frequencia_planejada}.",
+        "EXEMPLO": "Honorarios medicos referentes a protocolo injetavel endovenoso tipo soro antioxidante, com 1 unidade, duracao media de 60 minutos, frequencia semanal.",
+        "OBS": "Template detalhado"
+      },
+      {
+        "REGRA_ID": "R005",
+        "CONDICAO": "categoria = injetavel e quantidade preenchida",
+        "TEMPLATE_TEXTO": "Honorarios medicos referentes a aplicacao terapeutica injetavel de {nome_exibicao}, quantidade {quantidade_unidades}.",
+        "EXEMPLO": "Honorarios medicos referentes a aplicacao terapeutica injetavel de vitamina intramuscular, quantidade 1.",
+        "OBS": "Detalhe moderado"
+      },
+      {
+        "REGRA_ID": "R006",
+        "CONDICAO": "tag_reembolso_convenio = sim",
+        "TEMPLATE_TEXTO": "Honorarios medicos referentes a {nome_exibicao}, conforme atendimento/protocolo medico executado.",
+        "EXEMPLO": "Honorarios medicos referentes a protocolo injetavel endovenoso, conforme atendimento medico executado.",
+        "OBS": "Texto mais neutro para reembolso"
+      },
+      {
+        "REGRA_ID": "R007",
+        "CONDICAO": "dados insuficientes",
+        "TEMPLATE_TEXTO": "BLOQUEAR EMISSAO",
+        "EXEMPLO": "BLOQUEAR EMISSAO",
+        "OBS": "Nao emitir sem dados minimos"
+      }
+    ]
+  },
+  "FISCAL TESTES SEMANTICOS": {
+    "headers": [
+      "TESTE",
+      "CENARIO",
+      "ENTRADA RESUMIDA",
+      "RESULTADO ESPERADO",
+      "STATUS",
+      "FORMULA EXEMPLO",
+      "RISCO EVITADO",
+      "OBS"
+    ],
+    "n_rows": 8,
+    "rows": [
+      {
+        "TESTE": "T001",
+        "CENARIO": "Consulta simples paga no ASAAS",
+        "ENTRADA RESUMIDA": "APROVADO + MC_CONS_001",
+        "RESULTADO ESPERADO": "Honorarios medicos referentes a consulta medica integrativa.",
+        "STATUS": "OK",
+        "FORMULA EXEMPLO": "#NAME?",
+        "RISCO EVITADO": "Texto generico",
+        "OBS": ""
+      },
+      {
+        "TESTE": "T002",
+        "CENARIO": "Emissao de guias de exames",
+        "ENTRADA RESUMIDA": "APROVADO + MC_EXM_001",
+        "RESULTADO ESPERADO": "Honorarios medicos referentes a emissao de guias de exames e orientacao clinica correlata.",
+        "STATUS": "OK",
+        "FORMULA EXEMPLO": "#NAME?",
+        "RISCO EVITADO": "Descricao vaga",
+        "OBS": ""
+      },
+      {
+        "TESTE": "T003",
+        "CENARIO": "Interpretacao de exames",
+        "ENTRADA RESUMIDA": "APROVADO + MC_EXM_002",
+        "RESULTADO ESPERADO": "Honorarios medicos referentes a solicitacao e interpretacao clinica de exames laboratoriais.",
+        "STATUS": "OK",
+        "FORMULA EXEMPLO": "#NAME?",
+        "RISCO EVITADO": "Falta de clareza",
+        "OBS": ""
+      },
+      {
+        "TESTE": "T004",
+        "CENARIO": "Soro antioxidante semanal",
+        "ENTRADA RESUMIDA": "APROVADO + MC_INF_001 + qtd/dur/freq",
+        "RESULTADO ESPERADO": "Honorarios medicos referentes a protocolo injetavel endovenoso tipo soro antioxidante, com 1 unidade, duracao media de 60 minutos, frequencia semanal.",
+        "STATUS": "OK",
+        "FORMULA EXEMPLO": "#NAME?",
+        "RISCO EVITADO": "Texto incompleto",
+        "OBS": ""
+      },
+      {
+        "TESTE": "T005",
+        "CENARIO": "Pagamento pendente Mercado Pago",
+        "ENTRADA RESUMIDA": "PENDENTE + qualquer procedimento",
+        "RESULTADO ESPERADO": "BLOQUEAR EMISSAO",
+        "STATUS": "OK",
+        "FORMULA EXEMPLO": "#NAME?",
+        "RISCO EVITADO": "Emitir sem liquidacao",
+        "OBS": ""
+      },
+      {
+        "TESTE": "T006",
+        "CENARIO": "Ausencia de CPF do tomador",
+        "ENTRADA RESUMIDA": "APROVADO + sem cpf",
+        "RESULTADO ESPERADO": "BLOQUEAR ou REVISAO HUMANA",
+        "STATUS": "OK",
+        "FORMULA EXEMPLO": "#NAME?",
+        "RISCO EVITADO": "Falha fiscal minima",
+        "OBS": ""
+      },
+      {
+        "TESTE": "T007",
+        "CENARIO": "Procedimento sem codigo interno",
+        "ENTRADA RESUMIDA": "APROVADO + sem codigo",
+        "RESULTADO ESPERADO": "BLOQUEAR EMISSAO",
+        "STATUS": "OK",
+        "FORMULA EXEMPLO": "#NAME?",
+        "RISCO EVITADO": "Texto sem ancora semantica",
+        "OBS": ""
+      },
+      {
+        "TESTE": "T008",
+        "CENARIO": "Texto generico detectado",
+        "ENTRADA RESUMIDA": "texto com 'servicos prestados'",
+        "RESULTADO ESPERADO": "REVISAR",
+        "STATUS": "OK",
+        "FORMULA EXEMPLO": "#NAME?",
+        "RISCO EVITADO": "Descricao inadequada",
+        "OBS": ""
+      }
+    ]
+  },
+  "FISCAL LEGENDA HUMANA": {
+    "headers": [
+      "ITEM",
+      "SIGNIFICADO",
+      "USO PRATICO",
+      "EXEMPLO"
+    ],
+    "n_rows": 7,
+    "rows": [
+      {
+        "ITEM": "status_normalizado",
+        "SIGNIFICADO": "Traducao do status bruto do gateway para o padrao interno.",
+        "USO PRATICO": "Decide se a nota pode seguir.",
+        "EXEMPLO": "approved -> APROVADO"
+      },
+      {
+        "ITEM": "apto_fiscal",
+        "SIGNIFICADO": "Confirma se os dados minimos para emissao estao completos.",
+        "USO PRATICO": "Evita emissao errada.",
+        "EXEMPLO": "CPF + codigo + nome curto + pagamento valido"
+      },
+      {
+        "ITEM": "texto_nf_resumo",
+        "SIGNIFICADO": "Texto curto para nota simples.",
+        "USO PRATICO": "Consulta, retorno, emissao de guias.",
+        "EXEMPLO": "Honorarios medicos referentes a consulta medica integrativa."
+      },
+      {
+        "ITEM": "texto_nf_detalhado",
+        "SIGNIFICADO": "Texto mais completo para protocolos e cenarios de reembolso.",
+        "USO PRATICO": "Infusoes e injetaveis com quantidade/frequencia.",
+        "EXEMPLO": "Honorarios medicos referentes a protocolo injetavel endovenoso..."
+      },
+      {
+        "ITEM": "texto_nf_final",
+        "SIGNIFICADO": "Texto final que vai para a emissao.",
+        "USO PRATICO": "Sai do motor para o backend fiscal.",
+        "EXEMPLO": "Resumo ou detalhado conforme a regra"
+      },
+      {
+        "ITEM": "revisao humana",
+        "SIGNIFICADO": "Fila obrigatoria para casos manuais ou ambiguos.",
+        "USO PRATICO": "Protege a operacao.",
+        "EXEMPLO": "PIX manual, sem CPF, texto conflitante"
+      },
+      {
+        "ITEM": "backend emissor",
+        "SIGNIFICADO": "Sistema que recebe os dados e emite a NF.",
+        "USO PRATICO": "Fica desacoplado do motor clinico.",
+        "EXEMPLO": "Payload fiscal + retorno do numero da nota"
+      }
+    ]
+  }
+}
