@@ -37,6 +37,15 @@ router.get("/oportunidades-entrada", async (req: Request, res: Response) => {
   } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
+router.get("/cobertura-manifesto", async (req: Request, res: Response) => {
+  try {
+    const codigo = typeof req.query["manifesto"] === "string" ? req.query["manifesto"] : "MANIFESTO_NACIONAL_V2_GPT";
+    const r = await db.execute(sql`SELECT * FROM cobertura_manifesto_topicos WHERE manifesto_codigo = ${codigo} ORDER BY topico_numero`);
+    const resumo = await db.execute(sql`SELECT status_cobertura, count(*)::int as total FROM cobertura_manifesto_topicos WHERE manifesto_codigo = ${codigo} GROUP BY status_cobertura`);
+    res.json({ topicos: (r as any).rows || [], resumo: (resumo as any).rows || [] });
+  } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
 router.get("/kaizen-melhorias", async (req: Request, res: Response) => {
   try {
     const area = typeof req.query["area"] === "string" ? req.query["area"] : null;
