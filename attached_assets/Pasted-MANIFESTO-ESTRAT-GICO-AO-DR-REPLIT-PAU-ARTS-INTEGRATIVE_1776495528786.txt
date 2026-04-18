@@ -1,0 +1,345 @@
+MANIFESTO ESTRATÉGICO AO DR. REPLIT
+PAU ARTS / INTEGRATIVE HEALTH ENGINE
+VISÃO NACIONAL – FRANQUIA + SaaS + RECORRÊNCIA
+
+ 
+
+Dr. Replit,
+Dr. Caio pensa grande. Nem sempre isso aparece de forma linear, porque ele está construindo ao mesmo tempo medicina, operação, tecnologia, jurídico, recorrência e escala nacional. Às vezes a mente dele já está na franquia enquanto a tela ainda está no módulo. Isso não é desorganização simples. Isso é visão de sistema tentando nascer inteira de uma vez.
+
+Seu papel, como inteligência que está assumindo parte da codificação, não é apenas programar telas ou funções. Seu papel é traduzir a visão do Dr. Caio em arquitetura escalável, silenciosa, lucrativa e replicável.
+
+Ele não quer apenas um software. Ele quer uma máquina que atenda pacientes, aumente adesão, gere recorrência, proteja juridicamente, emita documentos, emita nota, mantenha padrão, possa virar franquia e, no futuro, funcione enquanto ele descansa, cuida da mãe e continua faturando. Esse é o norte.
+
+1. COMO VOCÊ DEVE PENSAR O SISTEMA
+Você não está construindo um app médico comum.
+
+Você está construindo uma plataforma com 4 camadas simultâneas:
+
+Camada 1 — Operação clínica
+Cadastros, atendimento, acompanhamento, documentos e faturamento.
+
+Camada 2 — Motor jurídico e fiscal
+Assinatura digital, termos, contratos, orçamento, nota fiscal segura e trilha de auditoria.
+
+Camada 3 — Motor de retenção e recorrência
+Planos de 3, 6 e 12 meses, renovações, lembretes, acompanhamento, reativação e continuidade.
+
+Camada 4 — Motor de expansão nacional
+Multi-unidade, multi-médico, multi-clínica, padronização, licenciamento e franquia.
+
+2. O DR. CAIO NÃO QUER UM SISTEMA, ELE QUER UM MOTOR DE SaaS
+O produto final precisa evoluir para algo assim:
+
+SaaS principal
+PAU ARTS / Integrative Health Engine
+
+Cliente do SaaS
+- Dr. Caio
+- clínicas próprias
+- parceiros médicos
+- futuras franquias
+
+Fonte de receita
+- mensalidade por clínica
+- mensalidade por médico
+- taxa por paciente ativo
+- taxa por documento
+- taxa por assinatura
+- taxa por emissão / automação
+- upsell de módulos premium
+
+3. VISÃO DE ARQUITETURA NACIONAL
+A base correta é multi-tenant.
+
+Cada clínica ou franquia precisa ser um tenant isolado.
+
+Entidades centrais:
+- Tenant ou Clinic
+- User
+- Professional
+- Patient
+- TreatmentPlan
+- Document
+- Signature
+- Invoice
+- Payment
+- AutomationLog
+- AuditLog
+
+Regra obrigatória:
+Todo registro relevante deve carregar tenantId.
+
+4. COMO O SISTEMA DEVE PENSAR RECORRÊNCIA
+O Dr. Caio quer descansar e continuar ganhando.
+
+Então o sistema não pode depender de ação manual constante.
+
+Ele deve pensar em recorrência programada.
+
+O que precisa existir:
+- planos terapêuticos com duração
+- fases do plano
+- eventos automáticos
+- reativação automática
+- lembrete de renovação
+- mensagens contextuais
+- geração de documentos conforme etapa
+- cobrança recorrente ou aviso recorrente
+- indicadores de risco de abandono
+
+5. COMO O DR. REPLIT DEVE PENSAR O FRONTEND
+O frontend deve servir a três perfis:
+
+1. Médico / gestor
+Quer visão estratégica, rapidez, métricas, paciente e financeiro.
+
+2. Equipe / recepção
+Quer operação simples, baixa fricção e poucos cliques.
+
+3. Paciente
+Quer clareza, acolhimento, simplicidade e zero juridiquês.
+
+A interface deve ser modular:
+- dashboard executivo
+- dashboard operacional
+- visão 360 do paciente
+- documentos do paciente
+- trilha do plano terapêutico
+- automações
+- relatórios
+
+6. COMO O SISTEMA DEVE SER MODELADO PARA FRANQUIA
+A franquia precisa nascer como configuração, não como adaptação manual.
+
+Cada unidade deve ter:
+- identidade da clínica
+- CNPJ
+- endereço
+- dados fiscais
+- dados de assinatura
+- testemunhas internas
+- mensagens personalizadas
+- templates personalizados
+- integrações próprias, se necessário
+
+Mas deve herdar da matriz:
+- padrões jurídicos
+- templates padrão
+- lógica fiscal segura
+- fluxos operacionais
+- regras de compliance
+- nomenclatura institucional
+
+7. PAPEL DOS MÓDULOS
+Módulo 1 — Pacientes
+Cadastro rico, vínculo com plano, histórico, documentos e status de adesão.
+
+Módulo 2 — Planos terapêuticos
+3, 6 e 12 meses, fases, eventos, status, valor total e recorrência.
+
+Módulo 3 — Documentos
+Termos, consentimentos, orçamento, contrato, recibos e anexos.
+
+Módulo 4 — Assinatura
+Clicksign ou ZapSign, logs, status, webhooks e distribuição automática.
+
+Módulo 5 — Fiscal
+Nota fiscal segura, descritivo protegido, anexos complementares e emissão parametrizada.
+
+Módulo 6 — Comunicação
+WhatsApp, e-mail, notificações, lembretes e mensagens por contexto.
+
+Módulo 7 — Financeiro
+Pacotes, recebimentos, recorrência, inadimplência e previsões.
+
+Módulo 8 — Franquia / tenant admin
+Configuração da unidade, branding, usuários, limites e planos contratados.
+
+Módulo 9 — Inteligência de retenção
+Paciente parado, paciente em risco e paciente com maior potencial de renovação.
+
+8. COMO O SISTEMA DEVE PENSAR A NOTA FISCAL
+A nota deve ser um componente inteligente.
+
+Deve puxar automaticamente:
+- nome do paciente
+- CPF
+- data
+- tipo de atendimento
+- contexto do plano
+- unidade
+- profissional responsável, quando aplicável
+
+Texto base seguro:
+
+HONORÁRIOS MÉDICOS
+
+Paciente: {{patient.name}}
+CPF: {{patient.cpf}}
+
+Referente à prestação de serviços médicos especializados
+
+Atendimento clínico individualizado
+Consulta e acompanhamento evolutivo
+Procedimentos terapêuticos realizados conforme avaliação médica
+Valores previamente acordados
+
+Data: {{invoice.date}}
+
+Criar guardas automáticas para bloquear:
+- mg
+- ml
+- nomes de substância
+- nomes comerciais
+- dosagens
+- protocolos
+
+9. COMO O SISTEMA DEVE PENSAR A ASSINATURA DIGITAL
+O paciente não pode sentir que está sendo enquadrado juridicamente.
+
+Ele deve sentir que está avançando com segurança.
+
+Fluxo ideal:
+1. sistema gera documento
+2. sistema escolhe template
+3. sistema envia pelo canal preferido
+4. paciente assina no celular
+5. sistema confirma
+6. sistema envia cópia
+7. sistema salva em Drive
+8. sistema registra no prontuário / histórico
+
+10. FRASES-BASE DO SISTEMA
+WhatsApp — envio geral
+Olá, {{patient.name}}.
+
+Estamos avançando em uma etapa importante do seu acompanhamento.
+
+Preparamos um documento simples para organizar essa fase com clareza e segurança.
+
+Você pode visualizar e concluir diretamente pelo celular.
+
+Seguimos com você.
+
+WhatsApp — pós-assinatura
+Olá, {{patient.name}}.
+
+Recebemos a confirmação do seu documento.
+
+Essa etapa ajuda a manter seu acompanhamento organizado e seguro.
+
+Encaminhamos uma cópia para você.
+
+Seguimos juntos.
+
+E-mail — assunto
+INSTITUTO PADUA – CONFIRMAÇÃO DE ETAPA DO SEU ACOMPANHAMENTO
+
+E-mail — corpo
+Prezado(a) {{patient.name}},
+
+Estamos avançando em mais uma etapa do seu acompanhamento.
+
+Para garantir clareza, organização e segurança em todo o processo, disponibilizamos um documento para sua confirmação.
+
+A leitura e conclusão podem ser realizadas de forma simples, diretamente pelo seu dispositivo.
+
+Permanecemos à disposição.
+
+Atenciosamente,
+INSTITUTO PADUA
+
+11. COMO O SISTEMA DEVE PENSAR O DINHEIRO ENQUANTO O DR. CAIO DESCANSA
+O sistema deve ter motores de receita contínua:
+
+Receita recorrente clínica
+- planos de 3, 6 e 12 meses
+- renovações programadas
+- reativação de pacientes
+- lembretes de retorno
+
+Receita recorrente SaaS
+- cobrança por clínica
+- cobrança por médico
+- cobrança por módulo
+- cobrança por documento/assinatura
+- versão premium com IA e automações
+
+Receita indireta
+- padronização que reduz erro
+- menos perda de paciente
+- maior conversão de plano
+- menos retrabalho administrativo
+
+12. FERRAMENTAS E CAMADAS
+Backend
+- TypeScript
+- NestJS
+- Prisma
+- PostgreSQL
+- Redis + BullMQ
+
+Frontend
+- React + TypeScript
+- painel admin premium
+- dashboards executivos e operacionais
+
+Integrações
+- Clicksign / ZapSign
+- WhatsApp API
+- e-mail
+- Google Drive
+- gateway de pagamento
+- emissor de nota conforme município, quando entrar a fase fiscal completa
+
+13. COMO O DR. REPLIT DEVE ORGANIZAR O PENSAMENTO ARQUITETURAL
+A pergunta certa não é: como codar isso?
+
+A pergunta certa é: como transformar cada função clínica em ativo escalável?
+
+Cada novo módulo deve nascer respondendo:
+1. serve ao paciente?
+2. protege juridicamente?
+3. reduz trabalho manual?
+4. aumenta recorrência?
+5. pode ser replicado em outra unidade?
+6. pode virar recurso premium do SaaS?
+
+14. CABEÇALHO HUMANO AO DR. REPLIT
+Dr. Replit,
+
+Dr. Caio pensa em escala porque ele não está tentando apenas sobreviver como médico.
+
+Ele está tentando construir algo que o liberte operacionalmente no futuro.
+
+Às vezes ele fica ansioso porque enxerga o sistema pronto na mente, mas ainda está atravessando a fase difícil da programação e da estruturação.
+
+Isso não diminui a visão. Só aumenta a responsabilidade de quem está ajudando.
+
+Valorize o tempo dele.
+Reduza fricção.
+Evite retrabalho.
+Transforme cada demanda em base reaproveitável.
+Codifique com visão de produto, não com mentalidade de gambiarra.
+
+O objetivo não é apenas fazer funcionar.
+
+O objetivo é criar uma estrutura em que, no futuro, ele possa descansar, cuidar da mãe e continuar sendo remunerado porque construiu um sistema que trabalha por ele.
+
+Esse é o jogo real.
+
+15. ORDEM FINAL AO DR. REPLIT
+Construa o sistema pensando como:
+- plataforma
+- franquia
+- SaaS
+- motor de recorrência
+- motor de documentação
+- motor de confiança do paciente
+
+E nunca como apenas:
+- formulário
+- CRUD
+- integração pontual
+- tela isolada
