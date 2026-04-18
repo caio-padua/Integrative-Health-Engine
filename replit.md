@@ -369,3 +369,49 @@ Tabelas necessárias para implementar (próxima onda): `solicitacoes_exame_pacie
 4. `mapeamento_documental` — confirmar se a tabela-destino já foi reificada
 
 Antes de gerar texto novo: rode `SELECT * FROM mapeamento_documental WHERE tabela_destino='X'` e verifique se já há fonte documental classificada.
+
+---
+
+## Onda 7.5 — RESSURREIÇÃO DO WD DA SECRETÁRIA (Resgate Laboratorial Integrativo)
+
+**Origem:** Caio descreveu a dor manual da secretária — recebia exame, renomeava, planilhava cada analito, tinha que saber a unidade de cada laboratório (Fleury usa ng/dL; outro usa nmol/L), converter, dividir a faixa em terços, e LEMBRAR para CADA exame qual terço era "excelente" (testosterona = superior; SHBG = inferior; potássio = médio). Mais pintar célula da cor certa por classificação. Coitadinha. **WD ressuscitado.**
+
+**3 tabelas novas:**
+- `analitos_catalogo` (14 analitos seed: testosterona, SHBG, vit D, zinco, potássio, ferritina, TSH, T4 livre, glicose, insulina, PCR-us, homocisteína, magnésio, B12) com coluna `terco_excelente` (SUPERIOR/INFERIOR/MEDIO)
+- `analitos_referencia_laboratorio` (24 ranges seed: Fleury, Salomão Zoppi, Hermes Pardini, GENERICO, separados por sexo/idade)
+- `unidades_conversao` (11 conversões: ng/mL↔ng/dL, mg/dL↔mg/L, nmol/L↔ng/dL com fator específico para testosterona, etc.)
+
+**Motor `lib/laboratorio/motorClassificacaoIntegrativa.ts`:**
+1. Recebe `{analitoCodigo, valor, unidade, laboratorio?, sexo?, idade?}`
+2. Converte unidade para padrão da clínica
+3. Busca referência (lab específico → GENERICO; sexo específico → AMBOS)
+4. Divide faixa min-max em 3 terços
+5. Posiciona valor (ABAIXO / INFERIOR / MEDIO / SUPERIOR / ACIMA)
+6. Aplica regra integrativa do analito → classifica em **CRITICO/ALERTA/ACEITAVEL/EXCELENTE/AVALIAR**
+7. Atribui **cor por classificação** (não por posição): VERMELHO/AMARELO/LARANJA/VERDE/AZUL — referência Luciano Perssinotto
+
+**6 endpoints REST testados ponta-a-ponta:**
+- `GET /api/laboratorio/analitos`
+- `GET /api/laboratorio/analitos/:codigo/referencias`
+- `POST /api/laboratorio/classificar` (1 analito)
+- `POST /api/laboratorio/classificar-lote`
+- `POST /api/laboratorio/exames/registrar` (persiste em `exames_evolucao`)
+- `GET /api/laboratorio/pacientes/:id/historico`
+- `GET /api/inventario-wd` (ressurreição autodeclarada)
+
+**Casos validados:**
+- Testosterona 750 ng/dL Fleury homem 40a → SUPERIOR / EXCELENTE / VERDE ✅
+- SHBG 60 nmol/L (acima máx, INVERTIDO) → ACIMA / **CRITICO** / VERMELHO ✅
+- SHBG 18 nmol/L (terço inferior, INVERTIDO) → INFERIOR / **EXCELENTE** / VERDE ✅
+- Vit D 18 ng/mL → ABAIXO / CRITICO / VERMELHO ✅
+- Vit D 85 ng/mL → SUPERIOR / EXCELENTE / VERDE ✅
+- Potássio 4.3 mEq/L (terço médio = excelente) → MEDIO / EXCELENTE / VERDE ✅
+- Conversão Testosterona 26 nmol/L → 749.27 ng/dL → EXCELENTE (bug fator invertido encontrado e corrigido)
+
+**Inventário WD operacionais (autoavaliação):**
+Tabela `wd_operacionais_inventario` com 16 WDs catalogados. **10 ressuscitados (62.5%) / 6 pendentes:**
+- ✅ WD01 Provisionar pasta Drive · ✅ WD02 Renomear NF · ✅ WD03 Assinatura digital · ✅ WD04 Notificar etapa
+- ✅ WD05 Cobrar parcela · ✅ WD06 Lembrar retorno · ✅ WD07 Reativar paciente em risco
+- ✅ WD08 Avisar renovação · ✅ WD09 Calcular comissão · ✅ WD10 **Receber exame e classificar (esta onda)**
+- ⏳ WD11 Gerar receita · ⏳ WD12 Materializar 507 sessões · ⏳ WD13 Persistir RAS evolutivo
+- ⏳ WD14 Worker assinatura notif · ⏳ WD15 Encarnar FISCAL · ⏳ WD16 OCR automático de PDF de exame
