@@ -55,6 +55,8 @@ export const registroSubstanciaUsoTable = pgTable("registro_substancia_uso", {
   id: serial("id").primaryKey(),
   pacienteId: integer("paciente_id").notNull().references(() => pacientesTable.id),
   substanciaNome: text("substancia_nome").notNull(),
+  medicamentoApresentacao: text("medicamento_apresentacao"),
+  posologia: text("posologia"),
   tipo: text("tipo", { enum: ["BLEND", "MEDICACAO", "SUPLEMENTO", "INJETAVEL"] }).notNull(),
   via: text("via"),
   dose: text("dose"),
@@ -68,6 +70,32 @@ export const registroSubstanciaUsoTable = pgTable("registro_substancia_uso", {
 }, (table) => [
   index("idx_registro_substancia_paciente").on(table.pacienteId),
 ]);
+
+export const linhaMedicacaoEventoTable = pgTable("linha_medicacao_evento", {
+  id: serial("id").primaryKey(),
+  pacienteId: integer("paciente_id").notNull().references(() => pacientesTable.id),
+  medicamentoBase: text("medicamento_base").notNull(),
+  apresentacao: text("apresentacao").notNull(),
+  posologia: text("posologia"),
+  dataEvento: date("data_evento").notNull(),
+  status: text("status", {
+    enum: ["ATIVO", "REDUZIDO", "AUMENTADO", "TROCADO", "SUSPENSO", "SUBSTITUIDO_INTEGRATIVO"]
+  }).notNull(),
+  substituicaoNatural: text("substituicao_natural"),
+  criterioClinico: text("criterio_clinico"),
+  leituraClinica: text("leitura_clinica"),
+  registroSubstanciaUsoId: integer("registro_substancia_uso_id").references(() => registroSubstanciaUsoTable.id),
+  validadoPorMedico: boolean("validado_por_medico").notNull().default(false),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  index("idx_linha_medicacao_paciente_data").on(table.pacienteId, table.dataEvento),
+  index("idx_linha_medicacao_base").on(table.pacienteId, table.medicamentoBase),
+]);
+
+export const insertLinhaMedicacaoEventoSchema = createInsertSchema(linhaMedicacaoEventoTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
+export type InsertLinhaMedicacaoEvento = z.infer<typeof insertLinhaMedicacaoEventoSchema>;
+export type LinhaMedicacaoEvento = typeof linhaMedicacaoEventoTable.$inferSelect;
 
 export const insertRegistroSubstanciaUsoSchema = createInsertSchema(registroSubstanciaUsoTable).omit({ id: true, criadoEm: true, atualizadoEm: true });
 export type InsertRegistroSubstanciaUso = z.infer<typeof insertRegistroSubstanciaUsoSchema>;
