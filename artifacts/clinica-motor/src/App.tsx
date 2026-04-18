@@ -15,6 +15,7 @@ import Validacao from "@/pages/validacao";
 import Filas from "@/pages/filas";
 import Pacientes from "@/pages/pacientes";
 import ExamesGrafico from "@/pages/pacientes/exames-grafico";
+import LaboratorioValidacao from "@/pages/laboratorio-validacao";
 import PacienteDetalhe from "@/pages/pacientes/[id]";
 import ItensTerapeuticos from "@/pages/itens-terapeuticos";
 import Protocolos from "@/pages/protocolos";
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/pacientes" component={Pacientes} />
       <Route path="/pacientes/:id/questionario" component={QuestionarioPaciente} />
       <Route path="/pacientes/:id/exames-grafico" component={ExamesGrafico} />
+      <Route path="/laboratorio/validacao" component={LaboratorioValidacao} />
       <Route path="/pacientes/:id" component={PacienteDetalhe} />
       <Route path="/itens-terapeuticos" component={ItensTerapeuticos} />
       <Route path="/protocolos" component={Protocolos} />

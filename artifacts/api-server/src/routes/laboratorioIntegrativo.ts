@@ -5,6 +5,56 @@ import { classificarAnalito, classificarLote, type ResultadoAnalitoInput } from 
 
 const router = Router();
 
+router.patch("/laboratorio/analitos/:codigo", async (req: Request, res: Response) => {
+  try {
+    const codigo = String(req.params["codigo"]);
+    const { terco_excelente, observacao_clinica, origem_referencia, validado_por } = req.body || {};
+    if (terco_excelente && !["SUPERIOR", "INFERIOR", "MEDIO"].includes(String(terco_excelente))) {
+      return res.status(400).json({ error: "terco_excelente deve ser SUPERIOR, INFERIOR ou MEDIO" });
+    }
+    const sets: any[] = [];
+    if (terco_excelente)     sets.push(sql`terco_excelente = ${String(terco_excelente)}`);
+    if (observacao_clinica != null) sets.push(sql`observacao_clinica = ${String(observacao_clinica)}`);
+    if (origem_referencia != null)  sets.push(sql`origem_referencia = ${String(origem_referencia)}`);
+    if (sets.length === 0) return res.status(400).json({ error: "nada para atualizar" });
+    const setClause = sql.join(sets, sql`, `);
+    const r: any = await db.execute(sql`UPDATE analitos_catalogo SET ${setClause} WHERE codigo = ${codigo} RETURNING *`);
+    const row = (r.rows ?? r)[0];
+    if (!row) return res.status(404).json({ error: "analito nao encontrado" });
+    // Audit trail simples
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS analitos_validacoes_log (
+        id SERIAL PRIMARY KEY,
+        analito_codigo TEXT NOT NULL,
+        validado_por TEXT,
+        terco_excelente_anterior TEXT,
+        terco_excelente_novo TEXT,
+        observacao_nova TEXT,
+        origem_nova TEXT,
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      INSERT INTO analitos_validacoes_log (analito_codigo, validado_por, terco_excelente_novo, observacao_nova, origem_nova)
+      VALUES (${codigo}, ${validado_por ? String(validado_por) : null}, ${terco_excelente ? String(terco_excelente) : null}, ${observacao_clinica != null ? String(observacao_clinica) : null}, ${origem_referencia != null ? String(origem_referencia) : null})
+    `);
+    res.json({ atualizado: true, analito: row });
+  } catch (e) {
+    console.error("patch analito erro:", e);
+    res.status(500).json({ error: "erro ao atualizar analito" });
+  }
+});
+
+router.get("/laboratorio/analitos/:codigo/historico-validacoes", async (req: Request, res: Response) => {
+  try {
+    const codigo = String(req.params["codigo"]);
+    const r: any = await db.execute(sql`
+      SELECT * FROM analitos_validacoes_log WHERE analito_codigo = ${codigo} ORDER BY criado_em DESC LIMIT 50
+    `).catch(() => ({ rows: [] }));
+    res.json({ codigo, validacoes: (r.rows ?? r ?? []) });
+  } catch (e) { res.status(500).json({ error: "erro" }); }
+});
+
 router.get("/laboratorio/analitos", async (_req: Request, res: Response) => {
   try {
     const rows: any = await db.execute(sql`SELECT * FROM analitos_catalogo WHERE ativo = true ORDER BY grupo, nome`);
