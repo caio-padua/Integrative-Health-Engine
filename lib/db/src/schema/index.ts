@@ -64,3 +64,4 @@ export * from "./padcomValidacoesCascata";
 export * from "./padcomAgendamentos";
 export * from "./padcomNotificacoes";
 export * from "./documentosReferencia";
+export * from "./mapeamentoDocumental";
