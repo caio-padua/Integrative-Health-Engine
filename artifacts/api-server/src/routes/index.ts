@@ -68,6 +68,7 @@ import documentosReferenciaRouter from "./documentosReferencia";
 import assinaturasRouter from "./assinaturas";
 import assinaturasWebhookRouter from "./assinaturasWebhook";
 import juridicoNotaFiscalRouter from "./juridicoNotaFiscal";
+import assinaturaCRUDRouter from "./assinaturaCRUD";
 
 const router: IRouter = Router();
 
@@ -138,6 +139,7 @@ router.use(documentosReferenciaRouter);
 router.use(assinaturasRouter);
 router.use(assinaturasWebhookRouter);
 router.use(juridicoNotaFiscalRouter);
+router.use(assinaturaCRUDRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 

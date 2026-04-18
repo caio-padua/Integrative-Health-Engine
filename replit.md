@@ -264,6 +264,61 @@ Caio orientado pelo Dr. Chat: "reificar texto no corpo é bom MAS cuidado em esp
 - ✅ TCLE blindado V1 enviado → solicitação 4, status ENVIADO, envelope mock, signatário com link
 - ✅ Trigger SQL bloqueia UPDATE direto no banco (defesa em profundidade)
 
+**Onda 6.3 — HIDRATAÇÃO SEMÂNTICA + CATEGORIAS DE PROCEDIMENTO + CRUD ADMIN (3 manifestos novos: IMPLANTACAO 3 + PACOTE_TEXTOS + core_module.ts):**
+
+Caio (carta-branca, "não me valide nada"): "NF tem que ser **RELATIVA** aos procedimentos, não genérica igual pra todo mundo. Tom de empatia, neuromarketing, convite à melhoria de vida (assinatura da casa própria)."
+
+**Princípio neurolinguístico (IMPLANTACAO 3 §2):** "O paciente não assina um documento. Ele formaliza uma decisão de evolução pessoal." Comunicação deve **acolher / simplificar / gerar segurança / convidar suavemente / finalizar com confiança.**
+
+**1. Tabela `procedimento_categorias_nf`** com 7 categorias seed cobrindo todo o leque do consultório:
+| Código | Frase NF (exemplo) |
+|---|---|
+| CONSULTA | "Atendimento clinico com avaliacao individualizada e escuta integrativa…" |
+| EXAME | "Conducao de processo diagnostico individualizado…" |
+| ACOMPANHAMENTO | "Conducao de plano terapeutico continuo e progressivo…" |
+| PROCEDIMENTO_ENDOVENOSO | "Procedimento assistido com monitoramento clinico em ambiente controlado…" |
+| PROCEDIMENTO_SUBCUTANEO | "Aplicacao terapeutica conforme indicacao clinica individualizada…" |
+| PROCEDIMENTO_IMPLANTE | "Procedimento clinico ambulatorial conduzido em ambiente controlado…" |
+| PROGRAMA_LONGITUDINAL | "Conducao de programa longitudinal de cuidado integrativo…" |
+
+Cada categoria tem 3 textos (NF + acolhimento pós-assinatura + convite inicial), todos passando por sanitizer + triggers SQL. Padrão PAWARDS mantido (`porque_existe`, `quando_usar`, `exemplo_pratico`).
+
+**2. `buildInvoiceDescription(patient, invoice, categoria)` V2** — texto base do manifesto IMPLANTACAO 3 §3 com placeholder `{{FRASE_CATEGORIA}}` interpolado. Sem categoria, cai no fallback genérico.
+
+**3. CRUD admin completo** (`routes/assinaturaCRUD.ts`, 12 endpoints):
+- `GET/PATCH/POST /admin/testemunhas` — 4 testemunhas totalmente editáveis (nome, cpf, cargo, email, telefone, par, ordem)
+- `GET/PATCH /admin/textos/:codigo` — 6 textos institucionais (email/whatsapp envio + pós + NF)
+- `PATCH /admin/templates/:codigo` — TCLE/contrato/orçamento etc.
+- `GET/PATCH /admin/categorias-procedimento/:codigo` — frases NF/acolhimento/convite
+- `POST/PATCH /admin/termos-bloqueados` — gerência do catálogo jurídico
+
+**4. Tom neuromarketing** nos textos institucionais (atualizados conforme IMPLANTACAO 3 §6/7/8):
+- E-mail envio: "Estamos avancando em mais uma etapa do seu acompanhamento"
+- WhatsApp envio: "Estamos organizando uma etapa importante… Seguimos com voce."
+- WhatsApp pós: "Encaminhamos uma copia para sua organizacao. Seguimos juntos."
+
+**5. NF agora carrega `categoria_codigo`** (FK para o catálogo). 4 NFs emitidas no teste com categorias persistidas (id 10 CONSULTA, 11 EXAME, 12 IMPLANTE).
+
+**6. Code review pós-Onda 6.3 fechou 6 findings (1 CRITICAL + 5 HIGH):**
+- ✅ **CRITICAL — auth /admin/***: criado `middleware/adminAuth.ts` fail-closed (header `X-Admin-Token` validado contra secret `ADMIN_TOKEN`). 401 sem token, 503 se secret ausente.
+- ✅ **HIGH — SQL injection PATCH testemunhas**: removido `sql.raw` com escape manual; agora usa `sql` tagged template com `COALESCE($x::tipo, coluna)` por campo.
+- ✅ **HIGH — defesa em profundidade**: PATCH testemunhas/templates passa `nome_completo`/`cargo`/`observacoes`/`titulo` pelo `exigirTextoLimpo`. Triggers SQL existem (`trg_assin_templates_validar`, `trg_nfe_validar`).
+- ✅ **HIGH — cache categorias NF**: TTL 60s em `notaFiscal.ts` (Map<codigo, CategoriaNF>); invalidado por PATCH em categoria.
+- ✅ **HIGH — robustez CRUD**: PATCH agora retorna 404 quando registro não existe; 400 quando body vazio.
+- ✅ **HIGH — compliance fiscal**: `frase_nota_fiscal` da CONSULTA reescrita removendo "escuta integrativa" (subjetivo); tom emocional fica restrito a `frase_acolhimento`/`frase_convite`.
+- ✅ Secret `ADMIN_TOKEN` configurado em shared.
+
+**Validação ponta-a-ponta da Onda 6.3:**
+- ✅ 7 categorias listadas, todas validadas pelo sanitizer (NOTICE OK em cada uma)
+- ✅ Preview ENDOVENOSO/SUBCUTÂNEO/PROGRAMA com frases distintas e adequadas
+- ✅ Emissão de NF para CONSULTA/EXAME/IMPLANTE persiste com categoria + hash
+- ✅ PATCH testemunha 3 mudou nome+cargo
+- ✅ PATCH texto institucional aceita texto limpo, **bloqueia "200mg cannabidiol" com erro JSON 400** legível
+- ✅ PATCH categoria altera frase NF, próxima emissão usa o novo texto
+- ✅ Triple-defense intacta: sanitizer TS + triggers SQL `trg_assin_templates_validar` + `trg_nfe_validar`
+
+**Pacote de manifestos baixado:** `attached_assets/sheet_assinatura/` agora contém os 4 manifestos do Caio (1, 2, 3, 4) + PACOTE_TEXTOS.docx + core_module.ts extraídos do ZIP IMPLANTACAO 4.
+
 **Worker de envio real (ainda PENDING):** as notificações são gravadas em `assinatura_notificacoes` com status `PENDENTE`. Falta um cron/worker que liste pendentes, dispare via Gmail integration + WhatsApp (futuro Z-API/Twilio) + Google Drive upload, e marque `ENVIADO/ENTREGUE/FALHA`. A osmose já enfileira tudo corretamente, só falta o consumidor.
 
 **Próxima onda — implementação:** [SUPERSEDED] feita acima.

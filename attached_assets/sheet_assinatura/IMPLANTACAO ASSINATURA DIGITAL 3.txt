@@ -1,0 +1,52 @@
+MANIFESTO KAIZEN – MÓDULO INTEGRADO JURÍDICO, ASSINATURA E NOTA FISCALPAU ARTS – INSTITUTO PADUA – DR. CAIO HENRIQUE PÁDUA
+
+
+
+1. OBJETIVO
+
+Implementar um módulo completo dentro do sistema TypeScript existente, integrando:- Assinatura digital- Documentos jurídicos- Nota fiscal inteligente- Comunicação automatizada- Estratégia psicológica de adesãoTudo embutido no fluxo do paciente, sem sistemas paralelos.
+
+2. PRINCÍPIO NEUROLINGUÍSTICO
+
+O paciente não assina um documento.Ele formaliza uma decisão de evolução pessoal.A comunicação deve:- acolher- simplificar- gerar segurança- convidar suavemente- finalizar com confiança
+
+3. NOTA FISCAL – TEXTO PADRÃO
+
+HONORÁRIOS MÉDICOSPaciente: {{patient.name}}CPF: {{patient.cpf}}Referente à condução do acompanhamento clínico individualizadoAtendimento e monitoramento evolutivo conforme avaliação médicaAplicação de condutas terapêuticas personalizadasValores previamente acordadosData: {{invoice.date}}
+
+4. BLOQUEIOS JURÍDICOS
+
+Proibir automaticamente:- medicamentos- substâncias- dosagens- protocolos específicos
+
+5. FRASES POR SITUAÇÃO
+
+Consulta:Atendimento clínico com avaliação individualizadaInjetável:Aplicação terapêutica conforme indicação clínicaEndovenoso:Procedimento assistido com monitoramento clínicoPlano longo:Condução de plano terapêutico contínuo e progressivo
+
+6. WHATSAPP – ENVIO
+
+Olá, {{patient.name}}.Estamos organizando uma etapa importante do seu acompanhamento.O processo é simples e seguro, podendo ser realizado pelo celular.Seguimos com você.
+
+7. WHATSAPP – PÓS
+
+Seu documento foi concluído com sucesso.Encaminhamos uma cópia para sua organização.Seguimos juntos.
+
+8. EMAIL
+
+ASSUNTO:INSTITUTO PADUA – CONFIRMAÇÃO DE ETAPA DO SEU ACOMPANHAMENTOCORPO:Prezado(a) {{patient.name}},Estamos avançando em mais uma etapa do seu acompanhamento.O processo foi estruturado para garantir segurança e clareza.Atenciosamente,Instituto Padua
+
+9. ARQUITETURA TYPESCRIPT
+
+Extensões no sistema existente:Patient:- signatureStatus- driveFolderIdDocument:- id- type- status- signedUrl- hashFunção principal:buildInvoiceDescription(patient, invoice)
+
+10. AUTOMAÇÃO
+
+Após assinatura:- salvar Google Drive- enviar email- enviar WhatsApp- gerar nota fiscal
+
+11. NOMENCLATURA
+
+YYYY-MM-DD - CONFIRMAÇÃO DE ETAPA - NOME.pdf
+
+12. CONCLUSÃO
+
+Este sistema deve operar com:- simplicidade externa- robustez interna- proteção jurídica invisível- comunicação de alto valor emocionalObjetivo: aumentar adesão, segurança e percepção institucional.
+
