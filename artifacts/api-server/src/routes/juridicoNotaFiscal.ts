@@ -56,6 +56,19 @@ router.post("/notas-fiscais/emitir", async (req: Request, res: Response) => {
   }
 });
 
+// Onda 6.4 - reupload manual de NF para Drive (caso auto-upload tenha falhado)
+router.post("/notas-fiscais/:id/reupload-drive", async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params["id"]);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "id invalido" }); return; }
+    const { uploadNFParaDrive } = await import("../lib/juridico/notaFiscalDrive");
+    const r = await uploadNFParaDrive(id);
+    res.json({ ok: true, ...r });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 router.get("/notas-fiscais", async (req: Request, res: Response) => {
   // Filtros parametrizados com sql tagged template - sem injection vector.
   const pacienteIdRaw = req.query["paciente_id"];
