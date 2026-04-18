@@ -154,6 +154,8 @@ router.get("/financeiro/tratamentos/:id", async (req, res): Promise<void> => {
       id: tratamentoItensTable.id,
       substanciaId: tratamentoItensTable.substanciaId,
       substanciaNome: substanciasTable.nome,
+      codigoSemantico: tratamentoItensTable.codigoSemantico,
+      revoPatologiaId: tratamentoItensTable.revoPatologiaId,
       descricao: tratamentoItensTable.descricao,
       tipo: tratamentoItensTable.tipo,
       quantidade: tratamentoItensTable.quantidade,

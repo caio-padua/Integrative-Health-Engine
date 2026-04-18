@@ -74,11 +74,22 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
+  const [tratamentoAtivo, setTratamentoAtivo] = useState<any>(null);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${apiBase}/rasx/${pacienteId}/revo/master`);
       if (res.ok) setData(await res.json());
+      const tRes = await fetch(`${apiBase}/tratamentos?pacienteId=${pacienteId}`);
+      if (tRes.ok) {
+        const lista = await tRes.json();
+        const ativo = (lista || []).find((t: any) => t.status !== "cancelado") || lista?.[0];
+        if (ativo?.id) {
+          const detRes = await fetch(`${apiBase}/financeiro/tratamentos/${ativo.id}`);
+          if (detRes.ok) setTratamentoAtivo(await detRes.json());
+        }
+      }
     } catch {
       toast({ title: "Erro ao carregar REVO", variant: "destructive" });
     }
@@ -391,6 +402,91 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
         <MiniStat icon={Activity} label="Orgaos" value={orgaos.length} color="text-purple-400" />
       </div>
 
+      {tratamentoAtivo?.itens?.length > 0 && (() => {
+        const itens = tratamentoAtivo.itens;
+        const linkados = itens.filter((i: any) => i.revoPatologiaId).length;
+        const cobertura = Math.round((linkados / itens.length) * 100);
+        const patById: Record<number, any> = {};
+        for (const p of [...patDiag, ...patPot]) patById[p.id] = p;
+        return (
+          <Card className="bg-card border-amber-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between text-base">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-300">⛓</span>
+                  <span>Anastomose Genótipo ↔ Fenótipo</span>
+                  <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-300 border-amber-500/40">
+                    {tratamentoAtivo.nome}
+                  </Badge>
+                </div>
+                <div className="flex gap-2 text-[10px]">
+                  <span className="text-amber-300">{itens.length} itens</span>
+                  <span className="text-green-400">{linkados} ligados</span>
+                  <span className="text-muted-foreground">{cobertura}% cobertura</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-[10px] text-muted-foreground uppercase border-b border-border/30">
+                    <tr>
+                      <th className="text-left py-2 px-1">Item do Protocolo</th>
+                      <th className="text-left py-2 px-1">Código (genótipo)</th>
+                      <th className="text-left py-2 px-1">Trata Patologia (fenótipo)</th>
+                      <th className="text-right py-2 px-1">Sessões</th>
+                      <th className="text-right py-2 px-1">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {itens.map((it: any) => {
+                      const pat = it.revoPatologiaId ? patById[it.revoPatologiaId] : null;
+                      const tipoColor = it.tipo === "formula" ? "bg-purple-500/20 text-purple-300"
+                        : it.tipo === "implante" ? "bg-pink-500/20 text-pink-300"
+                        : "bg-blue-500/20 text-blue-300";
+                      return (
+                        <tr key={it.id} className="border-b border-border/10 hover:bg-muted/5">
+                          <td className="py-2 px-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={`text-[9px] uppercase ${tipoColor}`}>{it.tipo}</Badge>
+                              <span className="font-medium truncate max-w-[420px]" title={it.descricao}>{it.descricao}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-1">
+                            {it.codigoSemantico ? (
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded">
+                                {it.codigoSemantico}
+                              </span>
+                            ) : <span className="text-red-400 text-[10px]">SEM CÓDIGO</span>}
+                          </td>
+                          <td className="py-2 px-1">
+                            {pat ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-amber-300">→</span>
+                                <span className={`w-2 h-2 rounded-full ${SEMAFORO_COLORS[pat.statusSemaforo] || "bg-gray-500"}`} />
+                                <span className="font-medium">{pat.nome}</span>
+                                {pat.cid10 && <span className="text-[9px] text-muted-foreground">({pat.cid10})</span>}
+                                <span className="text-[9px] font-mono text-amber-300/70">{pat.codigoSemantico}</span>
+                              </div>
+                            ) : (
+                              <span className="text-red-400 text-[10px]">— sem alvo clínico —</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-1 text-right text-muted-foreground">{it.numeroSessoes || "—"}</td>
+                          <td className="py-2 px-1 text-right text-green-400">
+                            {it.valorTotal ? `R$ ${Number(it.valorTotal).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {(curvaDoenca.length > 0 || curvaSaude.length > 0) && (
         <div className="grid grid-cols-2 gap-3">
           <Card className="bg-card border-border/50">
@@ -484,10 +580,19 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                   {patDiag.map((p: any) => (
                     <tr key={p.id} className="border-b border-border/10 hover:bg-muted/5 group">
                       <td className="py-2 px-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <div className={`w-2 h-2 rounded-full ${SEMAFORO_COLORS[p.statusSemaforo] || "bg-gray-500"}`} />
                           <span className="font-medium">{p.nome}</span>
                           {p.cid10 && <span className="text-[9px] text-muted-foreground">({p.cid10})</span>}
+                          {p.codigoSemantico ? (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded">
+                              {p.codigoSemantico}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded">
+                              SEM CÓDIGO
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="py-2 px-1 text-muted-foreground">{p.orgaoSistema || "—"}</td>
@@ -623,13 +728,22 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {m.tipoMed === "formula" && <Badge variant="outline" className="text-[9px] bg-purple-500/20 text-purple-400">FORMULA</Badge>}
                           <span className="font-medium text-sm">{m.medicamentoDoseInline || m.nome}</span>
                           {m.tipoMed !== "formula" && m.dose && <span className="text-xs text-muted-foreground">{m.dose}</span>}
                           <Badge variant="outline" className={`text-[9px] ${STATUS_MED_COLORS[m.statusAtual] || ""}`}>
                             {(m.statusAtual || "em_uso").replace("_", " ")}
                           </Badge>
+                          {m.codigoSemantico ? (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded">
+                              {m.codigoSemantico}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded">
+                              SEM CÓDIGO
+                            </span>
+                          )}
                         </div>
                         <div className="flex gap-4 text-[10px] text-muted-foreground mt-0.5">
                           {m.posologia && <span className="text-blue-400">Posologia: {m.posologia}</span>}
