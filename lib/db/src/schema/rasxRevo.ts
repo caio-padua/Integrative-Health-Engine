@@ -40,6 +40,7 @@ export const revoPatologiasTable = pgTable("revo_patologias", {
 
   nome: text("nome").notNull(),
   cid10: text("cid10"),
+  codigoSemantico: text("codigo_semantico"),
   tipo: text("tipo", {
     enum: ["diagnosticada", "potencial", "remissao", "resolvida"]
   }).notNull().default("diagnosticada"),
@@ -115,6 +116,7 @@ export const revoMedicamentosTable = pgTable("revo_medicamentos", {
 
   tipoMed: text("tipo_med", { enum: ["remedio", "formula"] }).notNull().default("remedio"),
   nome: text("nome").notNull(),
+  codigoSemantico: text("codigo_semantico"),
   dose: text("dose"),
   medicamentoDoseInline: text("medicamento_dose_inline"),
   posologia: text("posologia"),

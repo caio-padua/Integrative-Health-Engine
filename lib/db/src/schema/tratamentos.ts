@@ -50,6 +50,8 @@ export const tratamentoItensTable = pgTable("tratamento_itens", {
   id: serial("id").primaryKey(),
   tratamentoId: integer("tratamento_id").notNull().references(() => tratamentosTable.id),
   substanciaId: integer("substancia_id").references(() => substanciasTable.id),
+  codigoSemantico: text("codigo_semantico"),
+  revoPatologiaId: integer("revo_patologia_id"),
 
   descricao: text("descricao").notNull(),
   tipo: text("tipo", {
