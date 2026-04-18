@@ -191,3 +191,9 @@ id = "IZzIh3r7J5NSXuw1SEWdk"
 uri = "file://screenshots/painel-transmutacao.jpg"
 type = "image"
 title = "Painel de Transmutação Semântica — Amostra Visual do Todo"
+
+[[outputs]]
+id = "KF_h4CiQrsQ8KXUQgVNil"
+uri = "file://screenshots/protocolo-natacha-1.jpg"
+type = "image"
+title = "Protocolo da Natacha — motor em operação (Receita + Exames)"
