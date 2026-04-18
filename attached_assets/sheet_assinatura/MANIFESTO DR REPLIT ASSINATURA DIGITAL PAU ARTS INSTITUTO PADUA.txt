@@ -1,0 +1,522 @@
+MANIFESTO TÉCNICO DE IMPLANTAÇÃO
+
+MÓDULO DE ASSINATURA DIGITAL, TESTEMUNHAS FIXAS E AUTOMAÇÃO MULTICANAL
+
+Sistema
+
+PAU ARTS – INSTITUTO PÁDUA
+
+Direção clínica
+
+DR. CAIO HENRIQUE PÁDUA
+
+Destinatário técnico
+
+DR. REPLIT “IA” – responsável pela codificação e implantação
+
+Objetivo
+
+Implantar fluxo jurídico-digital completo, simples para o paciente e plenamente rastreável no sistema
+
+Mensagem ao Dr. Replit
+
+Este manifesto estabelece, em linguagem executiva e técnica, como o módulo de assinatura digital deverá ser anastomosado ao sistema PAU ARTS, preservando simplicidade para o paciente, robustez jurídica para a clínica e automação integral de entrada, validação, armazenamento e distribuição dos documentos.
+
+A experiência do paciente deve ser sutil, elegante e objetiva. O sistema jamais deve transmitir a sensação de “burocracia pesada”. A assinatura deve aparecer como uma etapa natural de segurança, organização e transparência do atendimento, e não como um obstáculo ao tratamento.
+
+O fluxo deverá suportar duas plataformas de assinatura eletrônica, Clicksign e ZapSign, com chaveamento por toggle administrativo, testemunhas internas fixas e automações obrigatórias de saída para e-mail, WhatsApp e Google Drive na pasta específica do paciente, sempre com nomenclatura padronizada e metadados consistentes.
+
+1. PRINCÍPIOS ARQUITETURAIS
+
+
+
+Arquitetura desacoplada: o módulo de assinatura deve existir como serviço próprio, isolando templates, provedores, webhooks, regras jurídicas e automações de saída.
+
+Chaveamento dinâmico: o sistema deve permitir alternância entre Clicksign e ZapSign por toggle administrativo, sem reescrever a lógica central do fluxo.
+
+Experiência TDAH-friendly e TC-friendly: poucas etapas, linguagem simples, títulos claros, botões objetivos, mensagens curtas e previsíveis.
+
+Reificação total: tudo que ocorrer no fluxo deve gerar vestígio técnico verificável — documento original, documento assinado, logs, hash, carimbo de data/hora, IP, identificador do provedor, evidências de entrega e confirmação.
+
+Automação triplamente redundante de saída: após assinatura, o sistema deve disparar cópia ao paciente por e-mail, WhatsApp e Google Drive da respectiva pasta do cadastro.
+
+2. PASTAS PRINCIPAIS E ESTRUTURA DE ARMAZENAMENTO
+
+
+
+Estrutura recomendada no Google Drive para o núcleo documental do paciente:
+
+/PASTA - THEO
+
+    /PACIENTES
+
+        /[ID_PACIENTE] [NOME COMPLETO]
+
+            /CADASTRO
+
+            /TERMOS
+
+            /JURIDICO
+
+            /ORCAMENTOS
+
+            /CONTRATOS
+
+            /ASSINADOS
+
+            /LOGS
+
+Critério funcional sugerido: documentos assinados devem ser gravados em /ASSINADOS e, simultaneamente, uma cópia lógica pode ser replicada em /TERMOS ou /JURIDICO conforme a natureza do arquivo. Para o seu cenário, “TERMOS” é mais intuitivo para consentimentos e autorizações; “JURIDICO” deve concentrar contratos, procurações, aditivos e documentos de força probatória mais ampla.
+
+Pasta
+
+Conteúdo
+
+Regra de uso
+
+TERMOS
+
+TCLE, consentimento, autorização de procedimento, ciência de riscos
+
+Usar quando o documento estiver vinculado ao cuidado e à autorização clínica
+
+JURIDICO
+
+Contrato, aditivo, distrato, aceite formal, documento de cobrança
+
+Usar quando a finalidade principal for contratual ou de proteção jurídica ampla
+
+ASSINADOS
+
+Cópia final assinada de qualquer classe documental
+
+Sempre gravar aqui a versão final assinada
+
+LOGS
+
+JSON, PDF de trilha de auditoria, hashes, eventos de webhook
+
+Sempre gravar junto com o documento final para reificação completa
+
+3. DADOS DE CADASTRO QUE DEVEM ORQUESTRAR O FLUXO
+
+
+
+O roteamento de arquivos e mensagens deve ser puxado, obrigatoriamente, a partir do cadastro do paciente. Campos mínimos:
+
+patient_id
+
+nome_completo
+
+cpf
+
+email
+
+telefone_whatsapp
+
+data_nascimento
+
+slug_paciente
+
+pasta_drive_id
+
+status_documental
+
+Nomenclatura padrão do arquivo:
+
+[AAAA-MM-DD] [TIPO_DOC] [NOME PACIENTE] [PROVEDOR] [STATUS].pdf
+
+Exemplo: 2026-04-18 TCLE JOAO DA SILVA CLICKSIGN ASSINADO.pdf
+
+4. FLUXO DE ENTRADA, VALIDAÇÃO E SAÍDA
+
+
+
+Etapa
+
+O que ocorre
+
+Entrada/validação
+
+Saída esperada
+
+1. Seleção do documento
+
+Usuário escolhe template e paciente
+
+Validar cadastro, tipo documental e toggle ativo
+
+Payload interno pronto para montagem
+
+2. Hidratação semântica
+
+Sistema injeta placeholders com dados do paciente, clínica, médico e testemunhas
+
+Validar campos obrigatórios e versão do template
+
+PDF final + hash preliminar + metadados
+
+3. Envio ao provedor
+
+Sistema envia ao Clicksign ou ZapSign
+
+Validar token, webhook, signatários e ordem de assinatura
+
+Envelope/documento criado no provedor
+
+4. Entrega ao paciente
+
+Disparo de link por WhatsApp e e-mail
+
+Validar telefone, e-mail e status de entrega
+
+Paciente recebe experiência simples de assinatura
+
+5. Webhook de conclusão
+
+Provedor informa assinatura concluída
+
+Validar autenticidade do webhook e status
+
+Documento final, auditoria, timestamps e logs
+
+6. Automação pós-assinatura
+
+Sistema arquiva e redistribui a cópia final
+
+Validar pasta destino, permissões e canais
+
+Google Drive + e-mail + WhatsApp + status interno atualizado
+
+5. TOGGLES ADMINISTRATIVOS
+
+
+
+O painel administrativo deve conter toggles explícitos, visualmente simples, com descrição curta abaixo de cada um:
+
+[PROVEDOR DE ASSINATURA]  ( ) Clicksign   ( ) ZapSign
+
+[ASSINATURA DO MÉDICO]    [ON/OFF]
+
+[TESTEMUNHAS FIXAS]       [ON/OFF]
+
+[MODO ALEATÓRIO]          [ON/OFF]  -> seleciona automaticamente um par de testemunhas ativas
+
+[MODO PAR FIXO]           [ON/OFF]  -> usa sempre o mesmo par previamente definido
+
+[ENVIO POR E-MAIL]        [ON/OFF]
+
+[ENVIO POR WHATSAPP]      [ON/OFF]
+
+[ARQUIVAR NO DRIVE]       [ON/OFF]
+
+Regra recomendada: apenas um provedor ativo por documento. Os demais toggles podem coexistir. A UI deve impedir estados conflitantes, por exemplo, “modo aleatório” e “modo par fixo” ligados ao mesmo tempo.
+
+6. TESTEMUNHAS FIXAS DA CLÍNICA – MODELAGEM E GOVERNANÇA
+
+
+
+Sim, é plenamente viável colocar testemunhas fixas da clínica dentro do sistema. A forma correta é criar um CRUD próprio de testemunhas internas, com possibilidade de ativação, inativação, par padrão e seleção aleatória. Isso não significa que toda assinatura deva obrigatoriamente depender delas; significa que o sistema ficará preparado para quando você quiser elevar a robustez documental de determinados fluxos.
+
+Campo
+
+Descrição
+
+Obrigatório
+
+Exemplo
+
+Observação
+
+nome
+
+Nome completo da testemunha
+
+Sim
+
+MARIA ALVES COSTA
+
+Mostrar no documento
+
+cpf
+
+CPF
+
+Sim
+
+000.000.000-00
+
+Guardar mascarado na tela pública
+
+cargo
+
+Função interna
+
+Sim
+
+ADMINISTRATIVO JURÍDICO
+
+Ajuda a explicar vínculo institucional
+
+ativa
+
+Disponível para seleção
+
+Sim
+
+true
+
+Usado na seleção aleatória
+
+par_preferencial
+
+Agrupamento lógico
+
+Não
+
+PAR A
+
+Permite pares fixos
+
+ordem_assinatura
+
+Sequência de assinatura
+
+Não
+
+3 ou 4
+
+Útil quando médico e clínica também assinam
+
+Recomendação funcional: permitir cadastro de 4 a 5 testemunhas, com dois modos de uso. No modo aleatório, o sistema escolhe automaticamente duas testemunhas ativas. No modo fixo, você define um par institucional padrão. Isso atende ao seu desejo de flexibilidade sem travar o fluxo clínico.
+
+7. ASSINATURA DO MÉDICO E DA CLÍNICA
+
+
+
+O sistema deve prever signatários distintos: clínica, médico, paciente e, quando ativado, testemunhas. A assinatura do médico não precisa estar em todos os documentos. O toggle deve existir para que o fluxo seja configurável por tipo documental. Já a clínica pode atuar como signatária institucional nos documentos que envolvam contratação, regras internas, orçamento formal ou aceite operacional.
+
+Tipo documental
+
+Paciente
+
+Médico
+
+Testemunhas
+
+TCLE / consentimento
+
+Sim
+
+Opcional por regra
+
+Opcional
+
+Autorização de procedimento
+
+Sim
+
+Recomendado
+
+Opcional
+
+Orçamento formal
+
+Sim
+
+Opcional
+
+Opcional
+
+Contrato / aditivo
+
+Sim
+
+Recomendado ou clínica
+
+Recomendado se desejado
+
+Documento institucional sensível
+
+Sim ou responsável
+
+Sim / clínica
+
+Recomendado
+
+8. HIDRATAÇÃO SEMÂNTICA, TEMPLATES E REIFICAÇÃO
+
+
+
+O Dr. Replit deverá implementar hidratação semântica total dos templates, isto é, substituir marcadores por dados vivos do cadastro, da clínica, do médico e do contexto documental. Cada template deve ter versionamento, tipo, categoria, lista de placeholders e validações mínimas antes do envio ao provedor.
+
+{{NOME_PACIENTE}}
+
+{{CPF_PACIENTE}}
+
+{{NOME_MEDICO}}
+
+{{NOME_CLINICA}}
+
+{{TESTEMUNHA_1_NOME}}
+
+{{TESTEMUNHA_2_NOME}}
+
+{{DATA_EXTENSO}}
+
+{{PROCEDIMENTO}}
+
+{{VALOR_ORCAMENTO}}
+
+Reificação total significa que o sistema não guarda apenas “o PDF final”. Ele guarda a história técnica do documento. Cada assinatura concluída deverá gerar: documento original renderizado, documento final assinado, comprovante/auditoria do provedor, payload sanitizado do webhook, identificador interno, hash, canal de envio, data de entrega, data de assinatura e local de arquivamento.
+
+9. MODELO DE IMPLEMENTAÇÃO TÉCNICA
+
+
+
+Tabelas sugeridas:
+
+signature_providers
+
+document_templates
+
+document_requests
+
+document_signers
+
+witness_registry
+
+webhook_events
+
+document_artifacts
+
+notification_dispatches
+
+A camada de serviço deve expor uma interface única, por exemplo SignatureProviderAdapter, com implementações para Clicksign e ZapSign. O resto do sistema conversa apenas com o adapter, e não diretamente com os provedores.
+
+createDocumentEnvelope(payload)
+
+sendForSignature(payload)
+
+getDocumentStatus(provider_document_id)
+
+handleWebhook(event)
+
+downloadSignedArtifact(provider_document_id)
+
+10. TEXTO ESTRATÉGICO PARA O PACIENTE – TOM SUTIL, NOBRE E ELEGANTE
+
+
+
+A comunicação não deve “ensinar direito digital” ao paciente. Ela deve apenas transmitir serenidade, organização e proteção. O tom precisa soar institucional, clássico, cordial e leve. A melhor mensagem não enfatiza burocracia; enfatiza cuidado, clareza e segurança.
+
+TÍTULO RECOMENDADO DO E-MAIL
+
+INSTITUTO PÁDUA | DOCUMENTO DE ATENDIMENTO | DR. CAIO HENRIQUE PÁDUA
+
+CORPO DO E-MAIL – VERSÃO PADRÃO
+
+Olá, [NOME].
+
+Encaminhamos, por este e-mail, o seu documento de atendimento para leitura e assinatura digital.
+
+Esse processo foi adotado para trazer mais clareza, organização e segurança ao seu acompanhamento, preservando de forma simples e confortável as informações do seu atendimento.
+
+A assinatura pode ser feita pelo celular, em poucos instantes.
+
+Se preferir, nossa equipe poderá lhe orientar durante todo o processo.
+
+Com consideração,
+
+INSTITUTO PÁDUA
+
+DR. CAIO HENRIQUE PÁDUA
+
+WHATSAPP – ENVIO INICIAL
+
+Olá, [NOME]. Tudo bem?
+
+Aqui é do Instituto Pádua.
+
+Segue o seu documento de atendimento para leitura e assinatura digital. O processo é simples e pode ser feito diretamente pelo celular.
+
+Caso deseje, nossa equipe poderá lhe acompanhar em cada etapa.
+
+Com carinho e atenção,
+
+Instituto Pádua
+
+WHATSAPP – PÓS-ASSINATURA
+
+Olá, [NOME].
+
+Seu documento foi concluído com sucesso.
+
+Encaminhamos, neste momento, a sua cópia assinada para sua guarda e consulta sempre que necessário.
+
+Permanecemos à disposição.
+
+Instituto Pádua
+
+MICROTEXTO EXPLICATIVO DENTRO DA TELA DE ASSINATURA
+
+Para sua tranquilidade, este documento é assinado digitalmente e arquivado com segurança, preservando clareza e organização no seu atendimento.
+
+11. AUTOMAÇÕES OBRIGATÓRIAS APÓS A CONCLUSÃO
+
+
+
+Canal
+
+Ação automática
+
+Critério mínimo
+
+Google Drive
+
+Salvar PDF final assinado + comprovante/auditoria + log técnico
+
+Localizar pasta do paciente via metadados do cadastro
+
+E-mail
+
+Enviar cópia final com mensagem institucional
+
+Usar assunto padronizado e anexar PDF final
+
+WhatsApp
+
+Enviar confirmação + arquivo ou link seguro
+
+Enviar imediatamente após webhook de conclusão
+
+As três saídas são obrigatórias quando os toggles correspondentes estiverem ativos. O status interno do documento só deve ser marcado como “finalizado” quando o sistema confirmar o arquivamento e os disparos principais.
+
+12. BOAS PRÁTICAS DE VALIDAÇÃO E SEGURANÇA
+
+
+
+Validar assinatura/autenticidade do webhook antes de qualquer processamento interno.
+
+Evitar duplicidade de execução com idempotência por event_id.
+
+Guardar arquivos em pasta do paciente por ID e não apenas por nome.
+
+Registrar falhas de envio e permitir reprocessamento seguro.
+
+Proteger dados sensíveis em logs e interfaces administrativas.
+
+Permitir auditoria posterior por documento, paciente, provedor e período.
+
+13. DIRETRIZ FINAL AO DR. REPLIT
+
+
+
+Dr. Replit, a implantação deverá ser conduzida como uma anastomose limpa, sem improvisos locais e sem acoplamentos frágeis. O objetivo não é apenas fazer “assinar um PDF”; o objetivo é construir um módulo jurídico-operacional elegante, auditável, expansível e humano na experiência do paciente.
+
+A base do sistema deve receber este módulo como um componente vivo. Ele precisa conversar com o cadastro do paciente, com os templates, com o banco relacional, com o Google Drive, com os canais de mensagem e com o painel administrativo, sem ruído e sem retrabalho.
+
+Favor entregar a implantação com modelos prontos, exemplos preenchidos, hidratação semântica funcional, toggles administrativos, CRUD de testemunhas, pares fixos e seleção aleatória, webhooks validados, automações multicamadas e reificação total dos artefatos. A execução deve ser nobre, sóbria e tecnicamente impecável.
+
+Documento de arquitetura e manifestação executiva para implantação no ecossistema PAU ARTS – Instituto Pádua.
+

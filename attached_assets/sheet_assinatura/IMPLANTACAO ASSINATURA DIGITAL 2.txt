@@ -1,0 +1,42 @@
+MANIFESTO DEFINITIVO – DR. REPLIT (VERSÃO COMPLETA)
+
+Este documento define a implementação completa e integrada do módulo jurídico, assinatura digital,nota fiscal e automação dentro do sistema TypeScript existente.NÃO criar sistema separado.NÃO criar fluxo paralelo.TUDO deve estar dentro do fluxo do paciente.
+
+1. ARQUITETURA INTERNA
+
+O módulo deve ser acoplado aos seguintes pontos já existentes:- patient module- appointment/atendimento- billing/faturamentoPonto de injeção:finalização do atendimento (closeAppointment)
+
+2. CAMPOS OBRIGATÓRIOS
+
+Patient:- id- name- cpf- email- phone- driveFolderIdDocument:- id- patientId- type- status- provider- signedUrl- hash- ip- signedAt
+
+3. NOTA FISCAL – MODELO FINAL
+
+O sistema deve montar automaticamente o corpo da nota fiscal com dados do paciente.TEXTO OBRIGATÓRIO:
+
+HONORÁRIOS MÉDICOSPaciente: {{patient.name}}CPF: {{patient.cpf}}Referente à prestação de serviços médicos especializadosAtendimento clínico individualizadoConsulta e acompanhamento evolutivoProcedimentos terapêuticos realizados conforme avaliação médicaValores previamente acordadosData: {{invoice.date}}
+
+4. REGRAS JURÍDICAS
+
+O sistema deve bloquear automaticamente:- medicamentos- nomes químicos- dosagens- protocolos específicosObjetivo:evitar vínculo com venda de substâncias
+
+5. TYPESCRIPT (IMPLEMENTAÇÃO)
+
+function buildInvoiceDescription(patient, invoice) {  return `HONORÁRIOS MÉDICOSPaciente: ${patient.name}CPF: ${patient.cpf}Referente à prestação de serviços médicos especializadosAtendimento clínico individualizadoConsulta e acompanhamento evolutivoProcedimentos terapêuticos realizados conforme avaliação médicaValores previamente acordadosData: ${invoice.date}  `}
+
+6. TESTEMUNHAS
+
+Criar tabela Witness:- id- name- cpf- activeRegra:mínimo 4 cadastradasselecionar 2 automaticamente
+
+7. AUTOMAÇÃO
+
+Após assinatura:- salvar no Google Drive- enviar email- enviar WhatsApp- gerar nota fiscal
+
+8. WHATSAPP
+
+Olá, {{patient.name}}.Aqui é do Instituto Padua.Encaminhamos seu documento.O processo é simples e pode ser realizado pelo celular.
+
+9. EMAIL
+
+ASSUNTO:INSTITUTO PADUA – DOCUMENTO INSTITUCIONAL – DR. CAIO HENRIQUE PÁDUACORPO:Prezado(a) {{patient.name}},Encaminhamos seu documento para acompanhamento.Atenciosamente,Instituto Padua
+
