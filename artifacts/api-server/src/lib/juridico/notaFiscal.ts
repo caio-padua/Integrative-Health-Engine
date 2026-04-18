@@ -101,5 +101,17 @@ export async function emitirNotaFiscalBlindada(p: {
   `);
   const row = ((ins as unknown as { rows?: Array<{ id: number; status: string }> }).rows || [])[0];
   if (!row) throw new Error("Falha ao persistir NF");
+
+  // Auto-upload Drive (fire-and-forget) - Onda 6.4
+  void (async () => {
+    try {
+      const { uploadNFParaDrive } = await import("./notaFiscalDrive");
+      await uploadNFParaDrive(row.id);
+      console.log(`[NF Drive] NF ${row.id} arquivada na subpasta NOTAS FISCAIS`);
+    } catch (e) {
+      console.error(`[NF Drive] Falha auto-upload NF ${row.id}:`, (e as Error).message);
+    }
+  })();
+
   return { id: row.id, descricao, hash, status: row.status, categoria: categoria?.codigo };
 }

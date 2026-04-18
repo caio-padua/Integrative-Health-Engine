@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, pacientesTable, unidadesTable } from "@workspace/db";
 import { eq, ilike, or } from "drizzle-orm";
 import { CriarPacienteBody } from "@workspace/api-zod";
+import { autoProvisionDriveAsync } from "../lib/pacientes/autoProvisionDrive";
 
 const router = Router();
 
@@ -36,6 +37,8 @@ router.post("/pacientes", async (req, res): Promise<void> => {
     return;
   }
   const [paciente] = await db.insert(pacientesTable).values(parsed.data).returning();
+  // Onda 6.4 - provisionamento Drive + planilha GPS+RAS automatico (fire-and-forget)
+  if (paciente) autoProvisionDriveAsync({ id: paciente.id, nome: paciente.nome, cpf: paciente.cpf, googleDriveFolderId: paciente.googleDriveFolderId });
   res.status(201).json(paciente);
 });
 

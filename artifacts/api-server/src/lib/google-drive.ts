@@ -2,7 +2,7 @@ import { google } from 'googleapis';
 
 let connectionSettings: any;
 
-async function getAccessToken() {
+export async function getAccessToken() {
   if (connectionSettings && connectionSettings.settings?.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
     return connectionSettings.settings.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
   }
@@ -45,6 +45,11 @@ export async function getDriveClient() {
 
 const CLINICA_ROOT_FOLDER = 'CLINICA PADUA - CLIENTES';
 
+// Onda 6.4 - subpastas atualizadas. NOTAS FISCAIS, ASSINATURAS, RAS e GPS
+// foram adicionadas como pastas-padrao para todo paciente (Caio: "criar a
+// pasta NOTAS FISCAIS e colocar como padrao toda vez que o paciente for
+// gerado"). Todo doc gerado pelo sistema cai automaticamente na subpasta
+// adequada.
 const CLIENT_SUBFOLDERS = [
   'CADASTRO',
   'PATOLOGIAS',
@@ -53,6 +58,8 @@ const CLIENT_SUBFOLDERS = [
   'RECEITAS',
   'PROTOCOLOS',
   'FINANCEIRO',
+  'NOTAS FISCAIS',
+  'ASSINATURAS',
   'CONTRATOS',
   'ATESTADOS',
   'LAUDOS',
@@ -62,6 +69,8 @@ const CLIENT_SUBFOLDERS = [
   'PESQUISA',
   'OUVIDORIA',
   'JURIDICO',
+  'RAS',
+  'GPS',
 ] as const;
 
 export type ClientSubfolder = typeof CLIENT_SUBFOLDERS[number];
