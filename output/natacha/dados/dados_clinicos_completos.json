@@ -1,0 +1,420 @@
+{
+  "paciente": [
+    {
+      "Error in river service (agentToolPostgreSQL - executeSqlCommand)": "LINE 1: ... id",
+      " code: EXECUTE_SQL_COMMAND_ERROR": " nome",
+      " message: Encountered an error executing SQL command: exitCode=1 exitReason=exit stderr=ERROR:  column \"endereco_completo\" does not exist": " cpf"
+    },
+    {
+      "Error in river service (agentToolPostgreSQL - executeSqlCommand)": "                                                             ^"
+    }
+  ],
+  "anamnese": [
+    {
+      "Error in river service (agentToolPostgreSQL - executeSqlCommand)": "LINE 1: SELECT id",
+      " code: EXECUTE_SQL_COMMAND_ERROR": " queixa_principal",
+      " message: Encountered an error executing SQL command: exitCode=1 exitReason=exit stderr=ERROR:  column \"queixa_principal\" does not exist": " hipoteses_diagnosticas"
+    },
+    {
+      "Error in river service (agentToolPostgreSQL - executeSqlCommand)": "                   ^"
+    }
+  ],
+  "patologias": [
+    {
+      "nome": "Artralgia Difusa",
+      "codigo_semantico": "DOEN INFL ARTR 001 0001",
+      "cid10": "M25.5",
+      "status_semaforo": "amarelo",
+      "tipo": "diagnosticada",
+      "significado_dicionario": "ARTRALGIA (DOEN/INFL/ARTR/001)"
+    },
+    {
+      "nome": "Deficiencia de Vitamina D",
+      "codigo_semantico": "DOEN NUTR VITD 001 0001",
+      "cid10": "E55.9",
+      "status_semaforo": "amarelo",
+      "tipo": "diagnosticada",
+      "significado_dicionario": "DEFICIENCIA DE VITAMINA D (DOEN/NUTR/VITD/001)"
+    },
+    {
+      "nome": "Hipotireoidismo Subclinico",
+      "codigo_semantico": "DOEN TIRE HIPO 001 0001",
+      "cid10": "E02",
+      "status_semaforo": "amarelo",
+      "tipo": "diagnosticada",
+      "significado_dicionario": "HIPOTIREOIDISMO (DOEN/TIRE/HIPO/001)"
+    },
+    {
+      "nome": "Insonia Cronica",
+      "codigo_semantico": "DOEN NEUR INSO 001 0001",
+      "cid10": "G47.0",
+      "status_semaforo": "vermelho",
+      "tipo": "diagnosticada",
+      "significado_dicionario": "INSÔNIA (DOEN/NEUR/INSO/001)"
+    },
+    {
+      "nome": "Resistencia Insulinica",
+      "codigo_semantico": "DOEN META RINS 001 0001",
+      "cid10": "E11.9",
+      "status_semaforo": "amarelo",
+      "tipo": "diagnosticada",
+      "significado_dicionario": "RESISTENCIA INSULINICA (DOEN/META/RINS/001)"
+    },
+    {
+      "nome": "Sindrome de Fadiga Cronica",
+      "codigo_semantico": "DOEN MITO FADI 001 0001",
+      "cid10": "R53.82",
+      "status_semaforo": "vermelho",
+      "tipo": "diagnosticada",
+      "significado_dicionario": "FADIGA (DOEN/MITO/FADI/001)"
+    },
+    {
+      "nome": "Diabetes Mellitus Tipo 2",
+      "codigo_semantico": "DOEN META DIAB 001 0001",
+      "cid10": "",
+      "status_semaforo": "amarelo",
+      "tipo": "potencial",
+      "significado_dicionario": "DIABETES TIPO 2 (DOEN/META/DIAB/001)"
+    },
+    {
+      "nome": "Doenca de Alzheimer Precoce",
+      "codigo_semantico": "DOEN NEUR ALZH 001 0001",
+      "cid10": "",
+      "status_semaforo": "amarelo",
+      "tipo": "potencial",
+      "significado_dicionario": "DOENCA DE ALZHEIMER PRECOCE (DOEN/NEUR/ALZH/001)"
+    },
+    {
+      "nome": "Osteoporose",
+      "codigo_semantico": "DOEN OSSE OSTP 001 0001",
+      "cid10": "",
+      "status_semaforo": "amarelo",
+      "tipo": "potencial",
+      "significado_dicionario": "OSTEOPOROSE (DOEN/OSSE/OSTP/001)"
+    }
+  ],
+  "medicamentos": [
+    {
+      "nome": "Acido Alfa Lipoico 300mg",
+      "codigo_semantico": "SUPL META ISOL ALAX 0300",
+      "dose": "300mg",
+      "posologia": "1 cap em jejum",
+      "status_atual": "em_uso",
+      "significado_dicionario": "ACIDO ALFA LIPOICO 300MG (SUPL/META/ISOL/ALAX)"
+    },
+    {
+      "nome": "Ashwagandha KSM-66 600mg",
+      "codigo_semantico": "SUPL ADAP ISOL ASHW 0600",
+      "dose": "600mg",
+      "posologia": "1 cap a noite",
+      "status_atual": "em_uso",
+      "significado_dicionario": "ASHWAGANDHA KSM-66 600MG (SUPL/ADAP/ISOL/ASHW)"
+    },
+    {
+      "nome": "Berberina 500mg",
+      "codigo_semantico": "SUPL META ISOL BERB 0500",
+      "dose": "500mg",
+      "posologia": "1 cap 2x/dia antes refeicoes",
+      "status_atual": "em_uso",
+      "significado_dicionario": "BERBERINA 500MG (SUPL/META/ISOL/BERB)"
+    },
+    {
+      "nome": "Clonazepam 0.5mg",
+      "codigo_semantico": "MEDI NEUR ISOL CLON 0005",
+      "dose": "0.5mg",
+      "posologia": "1 comp a noite",
+      "status_atual": "suspenso",
+      "significado_dicionario": "CLONAZEPAM 0.5MG (MEDI/NEUR/ISOL/CLON)"
+    },
+    {
+      "nome": "Coenzima Q10 200mg",
+      "codigo_semantico": "SUPL MITO ISOL COQ1 0200",
+      "dose": "200mg",
+      "posologia": "1 cap/dia com cafe",
+      "status_atual": "em_uso",
+      "significado_dicionario": "COENZIMA Q10 200MG (SUPL/MITO/ISOL/COQ1)"
+    },
+    {
+      "nome": "Colecalciferol + K2 MK7",
+      "codigo_semantico": "SUPL VITA ISOL VITD 5000",
+      "dose": "5000UI + 100mcg",
+      "posologia": "1 cap/dia",
+      "status_atual": "em_uso",
+      "significado_dicionario": "VITAMINA D3 5000UI (SUPL/VITA/ISOL/VITD)"
+    },
+    {
+      "nome": "Cromo Picolinato 500mcg",
+      "codigo_semantico": "SUPL MINE ISOL CROM 0500",
+      "dose": "500mcg",
+      "posologia": "1 cap/dia antes almoco",
+      "status_atual": "em_uso",
+      "significado_dicionario": "CROMO PICOLINATO 500MCG (SUPL/MINE/ISOL/CROM)"
+    },
+    {
+      "nome": "Curcumina Fitossomal 500mg",
+      "codigo_semantico": "SUPL ANTI ISOL CURC 0500",
+      "dose": "500mg",
+      "posologia": "1 cap 2x/dia",
+      "status_atual": "em_uso",
+      "significado_dicionario": "CURCUMINA FITOSSOMAL 500MG (SUPL/ANTI/ISOL/CURC)"
+    },
+    {
+      "nome": "Formula Anti-Aging Mitocondrial",
+      "codigo_semantico": "FORM MITO AGNG AGNG 0001",
+      "dose": "",
+      "posologia": "2 caps/dia com cafe da manha",
+      "status_atual": "em_uso",
+      "significado_dicionario": "BLEND ANTI-AGING MITOCONDRIAL (FORM/MITO/AGNG/AGNG)"
+    },
+    {
+      "nome": "Formula Articular Anti-inflamatoria",
+      "codigo_semantico": "FORM ARTI ANTI ANTI 0001",
+      "dose": "",
+      "posologia": "2 caps 2x/dia com refeicoes",
+      "status_atual": "em_uso",
+      "significado_dicionario": "BLEND ARTICULAR ANTI-INFLAMATORIO (FORM/ARTI/ANTI/ANTI) - Curcumina+Boswellia+ColagenoUC2+Omega3+VitD3+MSM"
+    },
+    {
+      "nome": "Formula Detox Hepatico Phase I/II",
+      "codigo_semantico": "FORM HEPA DETX DETX 0001",
+      "dose": "",
+      "posologia": "1 cap 2x/dia por 21 dias/ciclo",
+      "status_atual": "em_uso",
+      "significado_dicionario": "BLEND DETOX HEPATICO PHASE I/II (FORM/HEPA/DETX/DETX)"
+    },
+    {
+      "nome": "Formula Metabolica Insulinica",
+      "codigo_semantico": "FORM META INSU INSU 0001",
+      "dose": "",
+      "posologia": "1 cap 3x/dia antes refeicoes",
+      "status_atual": "em_uso",
+      "significado_dicionario": "BLEND METABOLICO INSULINICO (FORM/META/INSU/INSU) - Berberina+Inositol+ALA+Cromo+Canela"
+    },
+    {
+      "nome": "Formula Neuroprotetora Cognitiva",
+      "codigo_semantico": "FORM NEUR COGN COGN 0001",
+      "dose": "",
+      "posologia": "2 caps 2x/dia com refeicoes",
+      "status_atual": "em_uso",
+      "significado_dicionario": "BLEND NEUROPROTETOR COGNITIVO (FORM/NEUR/COGN/COGN)"
+    },
+    {
+      "nome": "Formula Sono Reparador",
+      "codigo_semantico": "FORM SONO REPA REPA 0001",
+      "dose": "",
+      "posologia": "2 caps 1h antes de dormir",
+      "status_atual": "em_uso",
+      "significado_dicionario": "BLEND SONO REPARADOR PROFUNDO (FORM/SONO/REPA/REPA) - MgGli+Triptofano+Melatonina+Ashwa+GABA+B6P5P"
+    },
+    {
+      "nome": "Formula Tiroidiana Integrativa",
+      "codigo_semantico": "FORM TIRE INTE INTE 0001",
+      "dose": "",
+      "posologia": "1 cap em jejum (separar 30min da Levo)",
+      "status_atual": "em_uso",
+      "significado_dicionario": "BLEND TIROIDIANA INTEGRATIVA (FORM/TIRE/INTE/INTE)"
+    },
+    {
+      "nome": "Levotiroxina 50mcg",
+      "codigo_semantico": "MEDI HORM TIRE LEVO 0050",
+      "dose": "50mcg",
+      "posologia": "1 comp em jejum 30min antes cafe",
+      "status_atual": "em_uso",
+      "significado_dicionario": "LEVOTIROXINA SODICA 50MCG (MEDI/HORM/TIRE/LEVO)"
+    },
+    {
+      "nome": "Magnesio Quelato 400mg",
+      "codigo_semantico": "SUPL MINE ISOL MAGN 0400",
+      "dose": "400mg",
+      "posologia": "1 cap a noite",
+      "status_atual": "em_uso",
+      "significado_dicionario": "MAGNESIO BISGLICINATO 400MG (SUPL/MINE/ISOL/MAGN)"
+    },
+    {
+      "nome": "Melatonina 3mg",
+      "codigo_semantico": "SUPL HORM ISOL MELA 0003",
+      "dose": "3mg",
+      "posologia": "1 comp 30min antes de dormir",
+      "status_atual": "em_uso",
+      "significado_dicionario": "MELATONINA 3MG (SUPL/HORM/ISOL/MELA)"
+    },
+    {
+      "nome": "Metformina 500mg",
+      "codigo_semantico": "MEDI META ISOL METF 0500",
+      "dose": "500mg",
+      "posologia": "1 comp 2x/dia com refeicoes",
+      "status_atual": "reduzido",
+      "significado_dicionario": "METFORMINA 500MG (MEDI/META/ISOL/METF)"
+    },
+    {
+      "nome": "N-Acetilcisteina (NAC) 600mg",
+      "codigo_semantico": "SUPL ANTI ISOL NACX 0600",
+      "dose": "600mg",
+      "posologia": "1 cap 2x/dia",
+      "status_atual": "em_uso",
+      "significado_dicionario": "N-ACETILCISTEINA NAC 600MG (SUPL/ANTI/ISOL/NACX)"
+    },
+    {
+      "nome": "Omega 3 EPA/DHA 1000mg",
+      "codigo_semantico": "SUPL CARD ISOL OMG3 1000",
+      "dose": "1000mg",
+      "posologia": "2 caps/dia com refeicoes",
+      "status_atual": "em_uso",
+      "significado_dicionario": "OMEGA 3 EPA/DHA 1000MG (SUPL/CARD/ISOL/OMG3)"
+    },
+    {
+      "nome": "Probiotico Multi-cepa 30bi UFC",
+      "codigo_semantico": "SUPL GUTX ISOL PROB 0030",
+      "dose": "30bi UFC",
+      "posologia": "1 cap em jejum",
+      "status_atual": "em_uso",
+      "significado_dicionario": "PROBIOTICO MULTI-CEPA 30 BI UFC (SUPL/GUTX/ISOL/PROB)"
+    },
+    {
+      "nome": "Selenio 200mcg",
+      "codigo_semantico": "SUPL TIRE ISOL SELE 0200",
+      "dose": "200mcg",
+      "posologia": "1 cap/dia com almoco",
+      "status_atual": "em_uso",
+      "significado_dicionario": "SELENIO 200MCG (SUPL/TIRE/ISOL/SELE)"
+    },
+    {
+      "nome": "Vitamina D3 10.000UI",
+      "codigo_semantico": "SUPL VITA ISOL VITD 10000",
+      "dose": "10.000UI",
+      "posologia": "1 cap/dia com almoco",
+      "status_atual": "em_uso",
+      "significado_dicionario": "VITAMINA D3 10000UI (SUPL/VITA/ISOL/VITD)"
+    },
+    {
+      "nome": "Zinco Quelato 30mg",
+      "codigo_semantico": "SUPL MINE ISOL ZINC 0030",
+      "dose": "30mg",
+      "posologia": "1 cap/dia com almoco",
+      "status_atual": "em_uso",
+      "significado_dicionario": "ZINCO QUELATO 30MG (SUPL/MINE/ISOL/ZINC)"
+    }
+  ],
+  "itens_tratamento": [
+    {
+      "descricao": "BLEND SONO REPARADOR PROFUNDO (FORM SONO REPA REPA 0001) - 6 ativos: Mg Glicinato 300mg + L-Triptofano 500mg + Melatonina 3mg + Ashwagandha KSM-66 300mg + GABA 200mg + Vit B6 P5P 25mg",
+      "codigo_semantico": "FORM SONO REPA REPA 0001",
+      "tipo": "formula",
+      "numero_sessoes": "60",
+      "valor_total": "578",
+      "significado_dicionario": "BLEND SONO REPARADOR PROFUNDO (FORM/SONO/REPA/REPA) - MgGli+Triptofano+Melatonina+Ashwa+GABA+B6P5P",
+      "patologia_alvo": "Insonia Cronica",
+      "cid10": "G47.0"
+    },
+    {
+      "descricao": "BLEND ARTICULAR ANTI-INFLAMATORIO (FORM ARTI ANTI ANTI 0001) - 6 ativos: Curcumina 500mg + Boswellia AKBA 400mg + Colageno UC-II 40mg + Omega-3 1000mg + Vit D3 5000UI + MSM 500mg",
+      "codigo_semantico": "FORM ARTI ANTI ANTI 0001",
+      "tipo": "formula",
+      "numero_sessoes": "90",
+      "valor_total": "1026",
+      "significado_dicionario": "BLEND ARTICULAR ANTI-INFLAMATORIO (FORM/ARTI/ANTI/ANTI) - Curcumina+Boswellia+ColagenoUC2+Omega3+VitD3+MSM",
+      "patologia_alvo": "Artralgia Difusa",
+      "cid10": "M25.5"
+    },
+    {
+      "descricao": "BLEND METABOLICO INSULINICO (FORM META INSU INSU 0001) - 5 ativos: Berberina 500mg + Inositol Myo+D-Chiro 2000mg + ALA 300mg + Cromo Picolinato 400mcg + Canela 250mg",
+      "codigo_semantico": "FORM META INSU INSU 0001",
+      "tipo": "formula",
+      "numero_sessoes": "90",
+      "valor_total": "954",
+      "significado_dicionario": "BLEND METABOLICO INSULINICO (FORM/META/INSU/INSU) - Berberina+Inositol+ALA+Cromo+Canela",
+      "patologia_alvo": "Resistencia Insulinica",
+      "cid10": "E11.9"
+    },
+    {
+      "descricao": "Levotiroxina sodica 50mcg (MEDI HORM TIRE LEVO 0050)",
+      "codigo_semantico": "MEDI HORM TIRE LEVO 0050",
+      "tipo": "substancia",
+      "numero_sessoes": "",
+      "valor_total": "228",
+      "significado_dicionario": "LEVOTIROXINA SODICA 50MCG (MEDI/HORM/TIRE/LEVO)",
+      "patologia_alvo": "Hipotireoidismo Subclinico",
+      "cid10": "E02"
+    },
+    {
+      "descricao": "Vitamina D3 5000 UI (SUPL VITA ISOL VITD 5000)",
+      "codigo_semantico": "SUPL VITA ISOL VITD 5000",
+      "tipo": "substancia",
+      "numero_sessoes": "120",
+      "valor_total": "260",
+      "significado_dicionario": "VITAMINA D3 5000UI (SUPL/VITA/ISOL/VITD)",
+      "patologia_alvo": "Deficiencia de Vitamina D",
+      "cid10": "E55.9"
+    },
+    {
+      "descricao": "Vitamina B12 metilcobalamina 1000mcg (SUPL VITA ISOL B12X 1000)",
+      "codigo_semantico": "SUPL VITA ISOL B12X 1000",
+      "tipo": "substancia",
+      "numero_sessoes": "90",
+      "valor_total": "234",
+      "significado_dicionario": "VITAMINA B12 METILCOBALAMINA 1000MCG (SUPL/VITA/ISOL/B12X)",
+      "patologia_alvo": "Sindrome de Fadiga Cronica",
+      "cid10": "R53.82"
+    },
+    {
+      "descricao": "Magnesio Bisglicinato 400mg (SUPL MINE ISOL MAGN 0400)",
+      "codigo_semantico": "SUPL MINE ISOL MAGN 0400",
+      "tipo": "substancia",
+      "numero_sessoes": "",
+      "valor_total": "552",
+      "significado_dicionario": "MAGNESIO BISGLICINATO 400MG (SUPL/MINE/ISOL/MAGN)",
+      "patologia_alvo": "Insonia Cronica",
+      "cid10": "G47.0"
+    },
+    {
+      "descricao": "Zinco Quelato 30mg (SUPL MINE ISOL ZINC 0030)",
+      "codigo_semantico": "SUPL MINE ISOL ZINC 0030",
+      "tipo": "substancia",
+      "numero_sessoes": "60",
+      "valor_total": "108",
+      "significado_dicionario": "ZINCO QUELATO 30MG (SUPL/MINE/ISOL/ZINC)",
+      "patologia_alvo": "Hipotireoidismo Subclinico",
+      "cid10": "E02"
+    },
+    {
+      "descricao": "Estradiol Pellet 12,5mg (IMPL HORM SUBC ESTR 0125) x2 unidades",
+      "codigo_semantico": "IMPL HORM SUBC ESTR 0001",
+      "tipo": "implante",
+      "numero_sessoes": "1",
+      "valor_total": "1780",
+      "significado_dicionario": "ESTRADIOL PELLET (IMPL/HORM/SUBC/ESTR)",
+      "patologia_alvo": "Osteoporose",
+      "cid10": ""
+    },
+    {
+      "descricao": "Progesterona Pellet 100mg (IMPL HORM SUBC PROG 0100) x1 unidade",
+      "codigo_semantico": "IMPL HORM SUBC PROG 0001",
+      "tipo": "implante",
+      "numero_sessoes": "1",
+      "valor_total": "1240",
+      "significado_dicionario": "PROGESTERONA PELLET (IMPL/HORM/SUBC/PROG)",
+      "patologia_alvo": "Insonia Cronica",
+      "cid10": "G47.0"
+    },
+    {
+      "descricao": "Testosterona Pellet 75mg (IMPL HORM SUBC TEST 0075) x1 unidade",
+      "codigo_semantico": "IMPL HORM SUBC TEST 0001",
+      "tipo": "implante",
+      "numero_sessoes": "1",
+      "valor_total": "1450",
+      "significado_dicionario": "TESTOSTERONA PELLET (IMPL/HORM/SUBC/TEST)",
+      "patologia_alvo": "Sindrome de Fadiga Cronica",
+      "cid10": "R53.82"
+    }
+  ],
+  "pedido_exame": [
+    {
+      "Error in river service (agentToolPostgreSQL - executeSqlCommand)": "LINE 1: SELECT id",
+      " code: EXECUTE_SQL_COMMAND_ERROR": " tipo",
+      " message: Encountered an error executing SQL command: exitCode=1 exitReason=exit stderr=ERROR:  relation \"pedidos_exames\" does not exist": " status"
+    },
+    {
+      "Error in river service (agentToolPostgreSQL - executeSqlCommand)": "                                                ^"
+    }
+  ]
+}
