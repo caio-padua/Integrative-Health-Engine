@@ -494,7 +494,17 @@ async function collectPdfData(pacienteId: number) {
   return {
     paciente,
     pdfData: {
-      paciente: { nome: paciente.nome, cpf: paciente.cpf || undefined, dataNascimento: (paciente as any).dataNascimento?.toISOString?.() || undefined },
+      paciente: {
+        nome: paciente.nome,
+        cpf: paciente.cpf || undefined,
+        dataNascimento: typeof (paciente as any).dataNascimento === "string"
+          ? (paciente as any).dataNascimento
+          : (paciente as any).dataNascimento?.toISOString?.()?.slice(0,10) || undefined,
+        telefone: (paciente as any).telefone || undefined,
+        email: (paciente as any).email || undefined,
+        enderecoCompleto: (paciente as any).endereco || undefined,
+        plano: (paciente as any).planoAcompanhamento || undefined,
+      },
       medico: "Dr. Caio Henrique Fernandes Padua",
       unidade: "Instituto Padua",
       dataBase: new Date().toLocaleDateString("pt-BR"),
