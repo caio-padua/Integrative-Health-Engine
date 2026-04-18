@@ -13,6 +13,7 @@ export const modules: ModuleMap = {
   "./components/mockups/ReceitaVarianteC.tsx": () => import("../components/mockups/ReceitaVarianteC.tsx"),
   "./components/mockups/ReceitaVarianteD.tsx": () => import("../components/mockups/ReceitaVarianteD.tsx"),
   "./components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx": () => import("../components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx"),
+  "./components/mockups/padua-atelier/PaduaAtelierPanel.tsx": () => import("../components/mockups/padua-atelier/PaduaAtelierPanel.tsx"),
   "./components/mockups/pawards-showcase/LogoOptions.tsx": () => import("../components/mockups/pawards-showcase/LogoOptions.tsx"),
   "./components/mockups/pawards-showcase/PdfHeaderFooter.tsx": () => import("../components/mockups/pawards-showcase/PdfHeaderFooter.tsx"),
   "./components/mockups/pawards-showcase/RasHmed.tsx": () => import("../components/mockups/pawards-showcase/RasHmed.tsx"),
@@ -22,6 +23,5 @@ export const modules: ModuleMap = {
   "./components/mockups/pawards-showcase/ShieldC.tsx": () => import("../components/mockups/pawards-showcase/ShieldC.tsx"),
   "./components/mockups/pawards-showcase/ShieldD.tsx": () => import("../components/mockups/pawards-showcase/ShieldD.tsx"),
   "./components/mockups/pawards-showcase/SistemaHeader.tsx": () => import("../components/mockups/pawards-showcase/SistemaHeader.tsx"),
-  "./components/mockups/padua-atelier/PaduaAtelierPanel.tsx": () => import("../components/mockups/padua-atelier/PaduaAtelierPanel.tsx"),
   "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx")
 };
