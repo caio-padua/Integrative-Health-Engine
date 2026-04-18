@@ -124,6 +124,77 @@ router.get("/laboratorio/pacientes/:id/historico", async (req: Request, res: Res
   }
 });
 
+// Serie temporal de um analito do paciente (para grafico de barras)
+router.get("/laboratorio/pacientes/:id/serie/:codigo", async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params["id"]);
+    const codigo = String(req.params["codigo"]);
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: "id invalido" });
+
+    const ctxUnidade = (req as any).tenantContext?.unidadeId;
+    if (ctxUnidade != null) {
+      const pac: any = await db.execute(sql`SELECT unidade_id FROM pacientes WHERE id = ${id}`);
+      const pacRow = (pac.rows ?? pac)[0];
+      if (!pacRow) return res.status(404).json({ error: "paciente nao encontrado" });
+      if (Number(pacRow.unidade_id) !== Number(ctxUnidade)) return res.status(403).json({ error: "fora da unidade" });
+    }
+
+    const cat: any = await db.execute(sql`SELECT * FROM analitos_catalogo WHERE codigo = ${codigo}`);
+    const catRow = (cat.rows ?? cat)[0];
+    if (!catRow) return res.status(404).json({ error: "analito nao catalogado" });
+
+    const rows: any = await db.execute(sql`
+      SELECT id, valor, unidade, valor_minimo, valor_maximo, classificacao, data_coleta, laboratorio, terco
+      FROM exames_evolucao
+      WHERE paciente_id = ${id} AND nome_exame = ${catRow.nome}
+      ORDER BY data_coleta ASC NULLS LAST, criado_em ASC
+    `);
+    const serie = (rows.rows ?? rows);
+
+    // Gancho de venda: se ultimo resultado for CRITICO/ALERTA, sugerir produto
+    const ultimo = serie[serie.length - 1];
+    const sugestaoVenda: any = null;
+    let venda: any = sugestaoVenda;
+    if (ultimo) {
+      const c = String(ultimo.classificacao || "");
+      if (c === "CRITICO" || c === "ALERTA") {
+        const sugestoesProtocolos: Record<string, { titulo: string; produto: string; valor_estimado: number }> = {
+          VITAMINA_D:           { titulo: "Reposicao Vitamina D injetavel", produto: "Protocolo Vit D 600.000UI IM + manutencao oral", valor_estimado: 480 },
+          ZINCO:                { titulo: "Reposicao Zinco quelado",        produto: "Zinco 30mg + Picolinato 12 semanas",                valor_estimado: 220 },
+          MAGNESIO:             { titulo: "Reposicao Magnesio",             produto: "Magnesio Dimalato + Glicinato 90 dias",              valor_estimado: 280 },
+          B12:                  { titulo: "Pulso B12",                      produto: "Hidroxocobalamina IM 5x + manutencao SL",            valor_estimado: 320 },
+          TESTOSTERONA_TOTAL:   { titulo: "Avaliacao TRT integrativa",      produto: "Consulta especifica + protocolo otimizacao",         valor_estimado: 950 },
+          SHBG:                 { titulo: "Modular SHBG",                   produto: "Protocolo aromatase + suporte hepatico",             valor_estimado: 540 },
+          PCR_ULTRA:            { titulo: "Anti-inflamatorio sistemico",    produto: "Protocolo PCR-down 90 dias",                         valor_estimado: 680 },
+          HOMOCISTEINA:         { titulo: "Metilacao",                      produto: "Metilfolato + B12 metilada + B6 P5P",                valor_estimado: 380 },
+          INSULINA:             { titulo: "Sensibilizacao insulinica",      produto: "Berberina + Inositol + jejum guiado",                valor_estimado: 460 },
+          TSH:                  { titulo: "Suporte tireoidiano",            produto: "Selenio + Iodo + L-tirosina (avaliacao)",            valor_estimado: 340 },
+          FERRITINA:            { titulo: "Reposicao Ferro otimizada",      produto: "Ferro bisglicinato + cofatores",                     valor_estimado: 290 },
+        };
+        const s = sugestoesProtocolos[codigo];
+        if (s) venda = { ...s, motivo: `Ultimo resultado ${c} em ${catRow.nome}` };
+      }
+    }
+
+    res.json({
+      paciente_id: id,
+      analito: {
+        codigo: catRow.codigo,
+        nome: catRow.nome,
+        grupo: catRow.grupo,
+        unidade_padrao: catRow.unidade_padrao_integrativa,
+        terco_excelente: catRow.terco_excelente,
+        observacao_clinica: catRow.observacao_clinica,
+      },
+      serie,
+      sugestao_venda: venda,
+    });
+  } catch (e) {
+    console.error("serie erro:", e);
+    res.status(500).json({ error: "erro ao montar serie" });
+  }
+});
+
 router.get("/inventario-wd", async (_req: Request, res: Response) => {
   try {
     const rows: any = await db.execute(sql`SELECT * FROM wd_operacionais_inventario ORDER BY prioridade DESC, codigo`);
