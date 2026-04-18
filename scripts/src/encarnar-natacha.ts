@@ -71,6 +71,17 @@ const FORMULAS_COMPONENTES: Record<string, { substancia: string; dosagem: string
   ],
 };
 
+/**
+ * Insere as 9 doencas da Natacha em `doencas_catalogo`.
+ *
+ * Funcao: para cada item do JSON da receita-modelo, faz UPSERT por `codigo`
+ *         (NATD-001..006 diagnosticadas + NATP-007..009 potenciais),
+ *         preservando o vinculo com paciente_id=43 via FK.
+ * Por que existe: o catalogo de doencas do paciente alimenta o motor RASX
+ *                 que cruza genotipo (codigo) com fenotipo (sintomas atuais).
+ *                 Sem o catalogo, o RAS nao tem ancora de hipotese.
+ * Exemplo: encarnarDoencas(rows) → 9 INSERT, retorna {inserted:9, skipped:0}.
+ */
 async function encarnarDoencas() {
   console.log("\n[ENCARNAR] Doencas (catalogo) — 6 diagnosticadas + 3 potenciais...");
   const todas = [
@@ -104,6 +115,17 @@ async function encarnarDoencas() {
   return inseridas;
 }
 
+/**
+ * Cria o snapshot inicial do estado de saude da Natacha em `estado_saude_paciente`.
+ *
+ * Funcao: insere 1 linha com condicoes_atuais, sintomas_ativos e
+ *         medicamentos_em_uso (3 colunas JSONB) + niveis_subjetivos
+ *         (energia=3, dor=6, sono=2, estresse=7) para paciente_id=43.
+ * Por que existe: o RAS evolutivo precisa de uma "linha zero" para calcular
+ *                 delta clinico em sessoes seguintes. Sem snapshot inicial
+ *                 nao existe baseline para comparar evolucao.
+ * Exemplo: encarnarEstadoSaude(43, payload) → INSERT id=12, retorna {snapshot_id:12}.
+ */
 async function encarnarEstadoSaude() {
   console.log("\n[ENCARNAR] estado_saude_paciente (snapshot inicial)...");
   const existing = await db
@@ -167,6 +189,17 @@ async function encarnarEstadoSaude() {
   return 1;
 }
 
+/**
+ * Valida e (se necessario) popula `componentes_formula` JSONB nas 3 formulas magistrais.
+ *
+ * Funcao: para cada formula da Natacha (Sono Reparador, Articular, Metabolica),
+ *         confere se a coluna JSONB ja tem composicao; se vazia, popula com a
+ *         lista de ativos extraida da receita-modelo (doc 65).
+ * Por que existe: o gerador de receita PDF le componentes_formula direto da
+ *                 tabela. Se vazia, o PDF sai sem detalhamento de ativos.
+ * Exemplo: 3 formulas validadas, 0 atualizadas (todas ja populadas) → log
+ *          "ja-encarnadas" e segue.
+ */
 async function encarnarComponentesFormulas() {
   console.log("\n[ENCARNAR] componentes_formula JSONB nas 3 formulas magistrais...");
   let atualizadas = 0;
@@ -199,6 +232,17 @@ async function encarnarComponentesFormulas() {
   return atualizadas;
 }
 
+/**
+ * Registra rastro de auditoria do doc 65 em `mapeamento_documental`.
+ *
+ * Funcao: marca o documento de referencia (Receita Modelo Natacha) como
+ *         ENCARNADO, gravando tabelas-destino, contagens e autor.
+ * Por que existe: mapeamento_documental e o LIVRO RAZAO da reificacao —
+ *                 prova que cada documento da Drive ja virou linhas no banco.
+ *                 Sem ele, ninguem sabe o que foi encarnado e o que falta.
+ * Exemplo: registrarMapeamento(65, ['doencas_catalogo', 'estado_saude_paciente'])
+ *          → INSERT/UPDATE em mapeamento_documental, status=ENCARNADO.
+ */
 async function registrarMapeamento(
   doencasInseridas: number,
   estadosCriados: number,
@@ -254,6 +298,16 @@ async function registrarMapeamento(
   console.log(`  [OK] 3 registros ENCARNADO criados para doc 65`);
 }
 
+/**
+ * Orquestrador: encarna doc 65 (Receita Modelo Natacha) em 3 tabelas.
+ *
+ * Funcao: executa em sequencia encarnarDoencas → encarnarEstadoSaude →
+ *         encarnarComponentesFormulas → registrarMapeamento.
+ * Por que existe: a Natacha e o paciente-piloto (zero) que valida o motor
+ *                 ponta a ponta antes de migrar todos os outros pacientes.
+ * Exemplo: $ pnpm tsx scripts/src/encarnar-natacha.ts
+ *          → ✓ 9 doencas, 1 snapshot, 3 formulas validadas, mapeamento ok.
+ */
 async function main() {
   const t0 = Date.now();
   console.log("=".repeat(80));

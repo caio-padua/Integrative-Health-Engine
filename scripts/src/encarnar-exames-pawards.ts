@@ -52,6 +52,23 @@ interface Cid {
   hd_associado: string;
 }
 
+/**
+ * Encarnacao do motor de exames PAWARDS no banco PostgreSQL.
+ *
+ * Funcao: le `scripts/data/exames-pawards.json` (34 exames extraidos da
+ *         Planilha Geradora Exames Clinica V3 do Drive) + `cid10-pawards.json`
+ *         (66 CIDs unicos) e faz UPSERT em `exames_base` e `cid10`.
+ *
+ * Por que existe: trazer o catalogo do Dr. Caio (cadaver no Sheets) para
+ *                 a tabela viva, com 3 HD/CID + 3 niveis de justificativa
+ *                 (objetiva/narrativa/robusta) prontos para o gerador de PDF.
+ *
+ * Exemplo pratico:
+ *   $ pnpm --filter @workspace/scripts exec tsx src/encarnar-exames-pawards.ts
+ *   → ✓ 34 exames upserted em exames_base
+ *   → ✓ 66 CIDs upserted em cid10 (9 capitulos)
+ *   → Stats: 254 exames com justificativa robusta, 34 com 3 hipoteses.
+ */
 async function main() {
   const exames: Exame[] = JSON.parse(fs.readFileSync(path.join(ROOT, "exames-pawards.json"), "utf8"));
   const cids: Cid[] = JSON.parse(fs.readFileSync(path.join(ROOT, "cid10-pawards.json"), "utf8"));
