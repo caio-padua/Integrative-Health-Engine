@@ -1,0 +1,12 @@
+PACOTE COMPLETO – CÓDIGO + TEXTOS + ARQUITETURA
+
+Inclui textos institucionais e estrutura técnica para integração no sistema TypeScript.
+
+NOTA FISCAL PADRÃO
+
+HONORÁRIOS MÉDICOSPaciente: {{patient.name}}CPF: {{patient.cpf}}Referente à condução do acompanhamento clínico individualizadoAtendimento e monitoramento evolutivo conforme avaliação médicaAplicação de condutas terapêuticas personalizadasValores previamente acordadosData: {{invoice.date}}
+
+WHATSAPP
+
+Olá, {{patient.name}}.Estamos organizando uma etapa importante do seu acompanhamento.Seguimos com você.
+

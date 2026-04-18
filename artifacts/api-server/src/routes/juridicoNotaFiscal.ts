@@ -27,14 +27,19 @@ router.post("/juridico/analisar-texto", async (req: Request, res: Response) => {
 
 router.post("/notas-fiscais/preview", async (req: Request, res: Response) => {
   try {
-    const { pacienteId, valor } = req.body as { pacienteId: number; valor: number };
+    const { pacienteId, valor, categoriaCodigo } = req.body as { pacienteId: number; valor: number; categoriaCodigo?: string };
     if (!pacienteId) { res.status(400).json({ error: "pacienteId obrigatorio" }); return; }
     const pac = await db.execute(sql`SELECT id, nome AS name, cpf FROM pacientes WHERE id = ${pacienteId} LIMIT 1`);
     const patient = ((pac as unknown as { rows?: Array<{ id: number; name: string; cpf: string | null }> }).rows || [])[0];
     if (!patient) { res.status(404).json({ error: "paciente nao encontrado" }); return; }
-    const descricao = buildInvoiceDescription(patient, { date: new Date().toLocaleDateString("pt-BR"), valor: valor || 0 });
+    let categoria = null;
+    if (categoriaCodigo) {
+      const cr = await db.execute(sql`SELECT codigo, rotulo, frase_nota_fiscal FROM procedimento_categorias_nf WHERE codigo = ${categoriaCodigo} AND ativo = true`);
+      categoria = ((cr as unknown as { rows?: Array<{ codigo: string; rotulo: string; frase_nota_fiscal: string }> }).rows || [])[0] || null;
+    }
+    const descricao = buildInvoiceDescription(patient, { date: new Date().toLocaleDateString("pt-BR"), valor: valor || 0 }, categoria);
     const validacao = await analisarTexto(descricao);
-    res.json({ descricao, validacao });
+    res.json({ descricao, validacao, categoria });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -42,9 +47,9 @@ router.post("/notas-fiscais/preview", async (req: Request, res: Response) => {
 
 router.post("/notas-fiscais/emitir", async (req: Request, res: Response) => {
   try {
-    const { pacienteId, appointmentId, valor, provedorCodigo } = req.body as { pacienteId: number; appointmentId?: number; valor: number; provedorCodigo?: string };
+    const { pacienteId, appointmentId, valor, provedorCodigo, categoriaCodigo } = req.body as { pacienteId: number; appointmentId?: number; valor: number; provedorCodigo?: string; categoriaCodigo?: string };
     if (!pacienteId || !valor) { res.status(400).json({ error: "pacienteId e valor obrigatorios" }); return; }
-    const result = await emitirNotaFiscalBlindada({ pacienteId, appointmentId, valor, provedorCodigo });
+    const result = await emitirNotaFiscalBlindada({ pacienteId, appointmentId, valor, provedorCodigo, categoriaCodigo });
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
