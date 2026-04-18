@@ -1,0 +1,54 @@
+MANIFESTO TÉCNICO INTEGRADO – MÓDULO JURÍDICO, ASSINATURA E NOTA FISCALPAU ARTS – INSTITUTO PADUA – DR. CAIO HENRIQUE PÁDUA
+
+
+
+1. OBJETIVO
+
+Dr. Replit, este manifesto define a implementação interna do módulo de documentos, assinatura digital e nota fiscal dentro do sistema já existente em TypeScript.O módulo deve operar de forma embutida no fluxo do paciente, sem criar sistemas paralelos.
+
+2. VINCULAÇÃO DE DADOS DO PACIENTE NA NOTA FISCAL
+
+A nota fiscal deve puxar automaticamente os dados do paciente e inserir no corpo do documento de forma estruturada e TDAH-friendly.
+
+Campos obrigatórios dinâmicos:
+
+- Nome: {{patient.name}}
+
+- CPF: {{patient.cpf}}
+
+- Data: {{invoice.date}}
+
+- ID Atendimento: {{appointment.id}}
+
+3. TEXTO PADRÃO DA NOTA FISCAL
+
+Este texto deve ser fixo, com interpolação apenas dos dados do paciente.
+
+HONORÁRIOS MÉDICOSPaciente: {{patient.name}}CPF: {{patient.cpf}}Referente à prestação de serviços médicos especializadosAtendimento clínico individualizadoConsulta e acompanhamento evolutivoProcedimentos terapêuticos realizados conforme avaliação médicaValores previamente acordadosData: {{invoice.date}}
+
+4. REGRAS DE BLOQUEIO JURÍDICO
+
+O sistema deve bloquear automaticamente qualquer inserção de:
+
+- Nome de medicamentos
+
+- Substâncias químicas
+
+- Dosagens
+
+- Protocolos específicos
+
+5. FUNÇÃO TYPESCRIPT – GERAÇÃO DE DESCRIÇÃO
+
+function buildInvoiceDescription(patient, invoice) {return `HONORÁRIOS MÉDICOSPaciente: ${patient.name}CPF: ${patient.cpf}Referente à prestação de serviços médicos especializadosAtendimento clínico individualizadoConsulta e acompanhamento evolutivoProcedimentos terapêuticos realizados conforme avaliação médicaValores previamente acordadosData: ${invoice.date}`}
+
+6. TEXTO WHATSAPP
+
+Olá, {{patient.name}}.Aqui é do Instituto Padua.Encaminhamos seu documento para acompanhamento.O processo é simples e pode ser realizado pelo celular.Estamos à disposição.
+
+7. EMAIL
+
+ASSUNTO: INSTITUTO PADUA – DOCUMENTO INSTITUCIONAL – DR. CAIO HENRIQUE PÁDUA
+
+Prezado(a) {{patient.name}},Encaminhamos seu documento para acompanhamento.O processo foi estruturado para garantir segurança e organização.Atenciosamente,Instituto Padua
+

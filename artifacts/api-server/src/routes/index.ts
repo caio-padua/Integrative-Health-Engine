@@ -65,6 +65,9 @@ import termosJuridicosRouter from "./termosJuridicos";
 import genesisRouter from "./genesis";
 import genesisPopularRouter from "./genesisPopular";
 import documentosReferenciaRouter from "./documentosReferencia";
+import assinaturasRouter from "./assinaturas";
+import assinaturasWebhookRouter from "./assinaturasWebhook";
+import juridicoNotaFiscalRouter from "./juridicoNotaFiscal";
 
 const router: IRouter = Router();
 
@@ -132,6 +135,9 @@ router.use(termosJuridicosRouter);
 router.use("/genesis", genesisRouter);
 router.use("/genesis-popular", genesisPopularRouter);
 router.use(documentosReferenciaRouter);
+router.use(assinaturasRouter);
+router.use(assinaturasWebhookRouter);
+router.use(juridicoNotaFiscalRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
