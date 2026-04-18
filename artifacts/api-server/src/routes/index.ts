@@ -70,6 +70,7 @@ import assinaturasWebhookRouter from "./assinaturasWebhook";
 import juridicoNotaFiscalRouter from "./juridicoNotaFiscal";
 import assinaturaCRUDRouter from "./assinaturaCRUD";
 import manifestoNacionalRouter from "./manifestoNacional";
+import planosTerapeuticosRouter from "./planosTerapeuticos";
 
 const router: IRouter = Router();
 
@@ -142,6 +143,7 @@ router.use(assinaturasWebhookRouter);
 router.use(juridicoNotaFiscalRouter);
 router.use(assinaturaCRUDRouter);
 router.use(manifestoNacionalRouter);
+router.use(planosTerapeuticosRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 

@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import { tenantContextMiddleware } from "./middlewares/tenantContext";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -37,6 +38,6 @@ app.use("/api/webhooks/assinatura/zapsign",   express.raw({ type: "*/*" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-app.use("/api", router);
+app.use("/api", tenantContextMiddleware, router);
 
 export default app;
