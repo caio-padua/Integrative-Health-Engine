@@ -185,3 +185,9 @@ id = "Q6rqaKcwxBwpqSrCRDymO"
 uri = "file://exports/PARECER_DR_REPLIT_PROXIMOS_PASSOS.md"
 type = "text"
 title = "Parecer Dr. Replit — Proximos Passos (Para o Staff)"
+
+[[outputs]]
+id = "IZzIh3r7J5NSXuw1SEWdk"
+uri = "file://screenshots/painel-transmutacao.jpg"
+type = "image"
+title = "Painel de Transmutação Semântica — Amostra Visual do Todo"
