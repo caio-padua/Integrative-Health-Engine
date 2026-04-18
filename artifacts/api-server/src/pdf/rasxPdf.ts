@@ -16,7 +16,7 @@ const CORES = {
 };
 
 interface RasxPdfData {
-  paciente: { nome: string; cpf?: string; dataNascimento?: string };
+  paciente: { nome: string; cpf?: string; dataNascimento?: string; telefone?: string; email?: string; sexo?: string; enderecoCompleto?: string; plano?: string };
   medico: string;
   unidade: string;
   dataBase: string;
@@ -56,12 +56,33 @@ function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isL
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
-  const idade = data.paciente.dataNascimento ? calcIdade(data.paciente.dataNascimento) : "—";
-  doc.rect(40, y, width - 80, 40).fill("#E8E4DC");
-  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.cinzaTexto).text(`Paciente: ${data.paciente.nome}`, 50, y + 8);
+  const p = data.paciente;
+  const idade = p.dataNascimento ? `${calcIdade(p.dataNascimento)} anos` : "—";
+  const dataNasc = p.dataNascimento ? new Date(p.dataNascimento).toLocaleDateString("pt-BR") : "—";
+  const sexo = p.sexo ? p.sexo.charAt(0).toUpperCase() + p.sexo.slice(1).toLowerCase() : "—";
+  const cpf = p.cpf || "—";
+  const tel = p.telefone || "—";
+  const email = p.email || "—";
+  const endereco = p.enderecoCompleto || "—";
+  const plano = p.plano || "Particular";
+  const blockH = 78;
+  doc.rect(40, y, width - 80, blockH).fill("#E8E4DC");
+  // Linha 1: nome + plano
+  doc.fontSize(11).font("Helvetica-Bold").fillColor(CORES.cinzaTexto).text(p.nome.toUpperCase(), 50, y + 8, { width: width - 200 });
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text(`PLANO: ${plano.toUpperCase()}`, width - 160, y + 10, { width: 110, align: "right" });
+  // Linha 2: dados pessoais
   doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(`Idade: ${idade}  |  Data Base: ${data.dataBase}  |  Medico: ${data.medico}  |  Unidade: ${data.unidade}`, 50, y + 24);
-  return y + 52;
+    .text(`CPF: ${cpf}   |   Nasc: ${dataNasc} (${idade})   |   Sexo: ${sexo}`, 50, y + 26, { width: width - 100 });
+  // Linha 3: contato
+  doc.fontSize(7.5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text(`Tel: ${tel}   |   Email: ${email}`, 50, y + 41, { width: width - 100 });
+  // Linha 4: endereco
+  doc.fontSize(7).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
+    .text(`End.: ${endereco}`, 50, y + 54, { width: width - 100, ellipsis: true, height: 10 });
+  // Linha 5: rodape do bloco
+  doc.fontSize(7).font("Helvetica").fillColor(CORES.azulPetroleo)
+    .text(`Data Base: ${data.dataBase}   |   ${data.medico}   |   ${data.unidade}`, 50, y + 65, { width: width - 100 });
+  return y + blockH + 10;
 }
 
 function drawTextoInstitucional(doc: PDFKit.PDFDocument, y: number): number {
@@ -521,7 +542,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
 }
 
 interface RacjPdfData {
-  paciente: { nome: string; cpf?: string; dataNascimento?: string };
+  paciente: { nome: string; cpf?: string; dataNascimento?: string; telefone?: string; email?: string; sexo?: string; enderecoCompleto?: string; plano?: string };
   medico: string;
   unidade: string;
   dataBase: string;
