@@ -7,7 +7,7 @@ import {
   pacientesTable, tratamentosTable, termosJuridicosTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
-import { gerarRasxPdf, gerarRacjPdf, RAS_CATEGORIAS, type RasCategoria } from "../pdf/rasxPdf";
+import { gerarRasxPdf, gerarRacjPdf, gerarRacjPdfFromBanco, RAS_CATEGORIAS, type RasCategoria, type TermoJuridicoDb } from "../pdf/rasxPdf";
 import {
   gerarFichaCadastroPdf, gerarReceitaPdf, gerarAtestadoPdf, gerarContratoPdf,
   gerarOrcamentoFinanceiroPdf, gerarLaudoExamePdf, gerarRelatorioPatologiasPdf,
@@ -573,10 +573,13 @@ router.get("/rasx/:pacienteId/arqu/pdf/:categoria", async (req, res): Promise<vo
       patologias: collected.patologias.map(p => p.nome),
       medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
     };
-    const pdfStream = gerarRacjPdf(racjData);
+    const termosBanco = await db.select().from(termosJuridicosTable)
+      .where(eq(termosJuridicosTable.ativo, true))
+      .orderBy(termosJuridicosTable.id);
+    const pdfStream = gerarRacjPdfFromBanco(racjData, termosBanco as unknown as TermoJuridicoDb[]);
 
     const hash = crypto.createHash("sha256").update(JSON.stringify({ pacienteId, ts: Date.now(), tipo: "juridico" })).digest("hex").slice(0, 16);
-    await gravarAudit({ pacienteId, entidade: "racj_pdf", acao: "gerar_pdf", metadados: { categoria: "JURIDICO", cadernos: 5 } });
+    await gravarAudit({ pacienteId, entidade: "racj_pdf", acao: "gerar_pdf", metadados: { categoria: "JURIDICO", cadernos: termosBanco.length, fonte: "termos_juridicos_db" } });
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="RACJ_${collected.paciente.nome.replace(/\s+/g, "_")}_${hash}.pdf"`);
@@ -655,7 +658,10 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
         patologias: collected.patologias.map(p => p.nome),
         medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
       };
-      pdfStream = gerarRacjPdf(racjData);
+      const termosBanco = await db.select().from(termosJuridicosTable)
+        .where(eq(termosJuridicosTable.ativo, true))
+        .orderBy(termosJuridicosTable.id);
+      pdfStream = gerarRacjPdfFromBanco(racjData, termosBanco as unknown as TermoJuridicoDb[]);
       filename = FILENAME_MAP[catUpper];
     } else if (Object.keys(RAS_CATEGORIAS).includes(catUpper)) {
       pdfStream = gerarRasxPdf(collected.pdfData, catUpper as RasCategoria);
@@ -873,7 +879,10 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     patologias: collected.patologias.map(p => p.nome),
     medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
   };
-  await upload("JURIDICO", `${prefix} RAS JURIDICO "${primeiroNome}" (LGPD CGLO RISC NGAR PRIV).pdf`, gerarRacjPdf(racjData));
+  const termosBancoCompleto = await db.select().from(termosJuridicosTable)
+    .where(eq(termosJuridicosTable.ativo, true))
+    .orderBy(termosJuridicosTable.id);
+  await upload("JURIDICO", `${prefix} RAS JURIDICO "${primeiroNome}" (LGPD CGLO RISC NGAR PRIV).pdf`, gerarRacjPdfFromBanco(racjData, termosBancoCompleto as unknown as TermoJuridicoDb[]));
 
   await upload("SEGUIMENTO", `${prefix} RAS EVOLUTIVO "${primeiroNome}" (HLIN HTRN HEVO HPLA).pdf`, gerarRasxPdf(collected.pdfData, "EVOLUTIVO"));
 
