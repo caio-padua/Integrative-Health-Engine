@@ -550,6 +550,20 @@ interface RacjPdfData {
   medicamentos: string[];
 }
 
+/**
+ * Termo juridico carregado do banco (tabela termos_juridicos).
+ * Usado pela versao "anastomosada" de gerarRacjPdf que le textos rebuscados
+ * (3.000-6.800 chars cada) ao inves dos 5 textos hardcoded originais.
+ */
+export interface TermoJuridicoDb {
+  id: number;
+  bloco: string;
+  consentimento: string | null;
+  titulo: string;
+  texto_completo: string;
+  riscos_especificos?: Array<{ titulo?: string; descricao?: string } | string> | null;
+}
+
 function drawRacjParagraph(doc: PDFKit.PDFDocument, text: string, y: number, width: number): number {
   doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(text, 50, y, { width, lineGap: 3 });
   return y + doc.heightOfString(text, { width }) + 8;
@@ -730,6 +744,146 @@ export function gerarRacjPdf(data: RacjPdfData): PassThrough {
   y = drawRacjParagraph(doc, "O consentimento formal sera registrado presencialmente antes da primeira aplicacao, conforme exigencias da ANVISA e do Conselho Federal de Medicina (CFM). O RAS (Registro de Administracao de Substancias) sera emitido e assinado digitalmente com certificado ICP-Brasil A1 apos cada sessao.", y, W);
   y = drawAssinatura(doc, y);
   drawFooter(doc, false);
+
+  doc.end();
+  return stream;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// VERSAO ANASTOMOSADA — le termos_juridicos do banco (Reificacao V1)
+// ──────────────────────────────────────────────────────────────────────────
+
+const PAGE_BOTTOM_LIMIT = 760;
+
+function drawRacjBlocoTexto(doc: PDFKit.PDFDocument, texto: string, y: number, width: number, paciente?: { nome: string; cpf?: string }): number {
+  let renderText = texto;
+  if (paciente) {
+    renderText = renderText
+      .replace(/\{\{\s*NOME_PACIENTE\s*\}\}/gi, paciente.nome)
+      .replace(/\{\{\s*CPF_PACIENTE\s*\}\}/gi, paciente.cpf || "_____________");
+  }
+  const paragrafos = renderText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  for (const par of paragrafos) {
+    const trimmed = par.trim();
+    const altura = doc.fontSize(8).font("Helvetica").heightOfString(trimmed, { width, lineGap: 3 }) + 8;
+    if (y + altura > PAGE_BOTTOM_LIMIT) {
+      drawFooter(doc, false);
+      addPageRetrato(doc);
+      drawHeader(doc, "(continuacao)", "RACJ", false);
+      y = 80;
+    }
+    const ehTitulo = (trimmed.length < 110 && /^[A-Z0-9 IVXÇÃÕÉÊÍÓÚÁÂÔÀ\.\-—]{6,}$/.test(trimmed)) ||
+                     (/^\d+\.\s+[A-ZÇÃ]/.test(trimmed) && trimmed.length < 80);
+    if (ehTitulo) {
+      y = drawSectionTitle(doc, trimmed, y);
+    } else {
+      y = drawRacjParagraph(doc, trimmed, y, width);
+    }
+  }
+  return y;
+}
+
+function drawRacjRiscos(doc: PDFKit.PDFDocument, riscos: TermoJuridicoDb["riscos_especificos"], y: number, width: number): number {
+  if (!riscos || !Array.isArray(riscos) || riscos.length === 0) return y;
+  if (y + 60 > PAGE_BOTTOM_LIMIT) {
+    drawFooter(doc, false); addPageRetrato(doc);
+    drawHeader(doc, "Riscos Especificos (continuacao)", "RACJ", false); y = 80;
+  }
+  y = drawSectionTitle(doc, "Riscos Especificos Catalogados", y);
+  for (const r of riscos) {
+    const titulo = typeof r === "string" ? "" : (r.titulo || "");
+    const descricao = typeof r === "string" ? r : (r.descricao || JSON.stringify(r));
+    const linha = titulo ? `${titulo}: ${descricao}` : descricao;
+    const altura = doc.fontSize(8).font("Helvetica").heightOfString(linha, { width: width - 16, lineGap: 3 }) + 8;
+    if (y + altura > PAGE_BOTTOM_LIMIT) {
+      drawFooter(doc, false); addPageRetrato(doc);
+      drawHeader(doc, "Riscos Especificos (continuacao)", "RACJ", false); y = 80;
+    }
+    y = drawRacjCheckbox(doc, linha, y);
+  }
+  return y + 4;
+}
+
+function deriveCodigoRacj(termo: TermoJuridicoDb): string {
+  if (termo.consentimento) return `RACJ ${termo.consentimento}`;
+  const t = termo.titulo.toLowerCase();
+  if (t.includes("lgpd") || t.includes("dados pessoais")) return "RACJ LGPD";
+  if (t.includes("privacidade") || t.includes("sigilo")) return "RACJ PRIV";
+  if (t.includes("nao-garantia") || t.includes("nao garantia") || t.includes("obrigacao de meio")) return "RACJ NGAR";
+  if (t.includes("imagem") || t.includes("voz")) return "RACJ IMAG";
+  if (t.includes("aceite digital") || t.includes("assinatura eletronica")) return "RACJ AEAS";
+  if (t.includes("financeira") || t.includes("comercial")) return "RACJ FINA";
+  if (t.includes("tcle") || t.includes("consentimento livre")) return "RACJ CGLO";
+  return "RACJ JURI";
+}
+
+/**
+ * RACJ "anastomosado" — le termos_juridicos do banco (3.000-6.800 chars cada,
+ * baseados em CFM 1931/2009, LGPD 13.709/2018, CDC, ANVISA RDC 67/2007).
+ * Cada termo gera 1+ pagina(s) com header proprio, texto rebuscado, riscos
+ * especificos catalogados e bloco de assinatura.
+ *
+ * Fallback: se termos vazio, chama gerarRacjPdf hardcoded original.
+ */
+export function gerarRacjPdfFromBanco(data: RacjPdfData, termos: TermoJuridicoDb[]): PassThrough {
+  if (!termos || termos.length === 0) return gerarRacjPdf(data);
+
+  const stream = new PassThrough();
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margins: { top: 40, bottom: 40, left: 40, right: 40 }, autoFirstPage: false });
+  doc.pipe(stream);
+  const W = 495;
+
+  const ordenados = [...termos].sort((a, b) => {
+    if (a.bloco !== b.bloco) return a.bloco === "JURI" ? -1 : 1;
+    return a.id - b.id;
+  });
+
+  for (const termo of ordenados) {
+    try {
+    addPageRetrato(doc);
+    const codigo = deriveCodigoRacj(termo);
+    drawHeader(doc, String(termo.titulo || "Termo"), codigo, false);
+    let y = 80;
+    y = drawPacienteBlock(doc, data as any, y, 595);
+    y = drawRacjBlocoTexto(doc, String(termo.texto_completo || ""), y, W, data.paciente);
+    y = drawRacjRiscos(doc, termo.riscos_especificos, y, W);
+
+    if (codigo === "RACJ CGLO" && (data.patologias.length > 0 || data.medicamentos.length > 0)) {
+      if (y + 100 > PAGE_BOTTOM_LIMIT) {
+        drawFooter(doc, false); addPageRetrato(doc);
+        drawHeader(doc, `${termo.titulo} (anexo)`, codigo, false); y = 80;
+      }
+      if (data.patologias.length > 0) {
+        y = drawSectionTitle(doc, "Patologias em Acompanhamento", y);
+        for (const p of data.patologias) {
+          doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`  \u2022 ${p}`, 50, y, { width: W });
+          y += 14;
+          if (y + 20 > PAGE_BOTTOM_LIMIT) { drawFooter(doc, false); addPageRetrato(doc); drawHeader(doc, `${termo.titulo} (anexo)`, codigo, false); y = 80; }
+        }
+        y += 6;
+      }
+      if (data.medicamentos.length > 0) {
+        y = drawSectionTitle(doc, "Medicamentos em Acompanhamento", y);
+        for (const m of data.medicamentos) {
+          doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`  \u2022 ${m}`, 50, y, { width: W });
+          y += 14;
+          if (y + 20 > PAGE_BOTTOM_LIMIT) { drawFooter(doc, false); addPageRetrato(doc); drawHeader(doc, `${termo.titulo} (anexo)`, codigo, false); y = 80; }
+        }
+        y += 6;
+      }
+    }
+
+    if (y + 90 > PAGE_BOTTOM_LIMIT) {
+      drawFooter(doc, false); addPageRetrato(doc);
+      drawHeader(doc, `${termo.titulo} (assinatura)`, codigo, false); y = 80;
+    }
+    drawAssinatura(doc, y);
+    drawFooter(doc, false);
+    } catch (err: any) {
+      console.error(`[gerarRacjPdfFromBanco] Erro no termo id=${termo?.id} titulo=${termo?.titulo}:`, err.message, err.stack);
+      throw err;
+    }
+  }
 
   doc.end();
   return stream;
