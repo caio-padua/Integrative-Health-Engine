@@ -197,3 +197,69 @@ id = "KF_h4CiQrsQ8KXUQgVNil"
 uri = "file://screenshots/protocolo-natacha-1.jpg"
 type = "image"
 title = "Protocolo da Natacha — motor em operação (Receita + Exames)"
+
+[[outputs]]
+id = "G0iuJBxSpivRoInzj6xMP"
+uri = "file://output/natacha/README.md"
+type = "text"
+title = "📋 Dossiê Natacha — README"
+
+[[outputs]]
+id = "Be-9WAkrpV9rrUSpfFA0L"
+uri = "file://output/natacha/ras/04_RAS_COMPLETO.pdf"
+type = "pdf"
+title = "RAS Completo (11 cadernos clínico+evolutivo)"
+
+[[outputs]]
+id = "q1G2ViOhikYp_p5AzkAhK"
+uri = "file://output/natacha/ras/01_RAS_CLINICO.pdf"
+type = "pdf"
+title = "RAS Clínico (7 cadernos)"
+
+[[outputs]]
+id = "KeUUoa5dtdlSU0O0j5gh4"
+uri = "file://output/natacha/ras/02_RAS_EVOLUTIVO.pdf"
+type = "pdf"
+title = "RAS Evolutivo (4 cadernos)"
+
+[[outputs]]
+id = "7S94nopud76LpExth6PMM"
+uri = "file://output/natacha/ras/03_RAS_ESTADO_SAUDE.pdf"
+type = "pdf"
+title = "RAS Estado de Saúde"
+
+[[outputs]]
+id = "9XFDzaUO506OT5HVyWgdI"
+uri = "file://output/natacha/ras/05_RAS_JURIDICO.pdf"
+type = "pdf"
+title = "RAS Jurídico (LGPD/TCLE/Riscos)"
+
+[[outputs]]
+id = "VJkejUIm9uLCwwTBBC5CX"
+uri = "file://output/natacha/ras/06_RAS_LEGADO_CONSOLIDADO.pdf"
+type = "pdf"
+title = "RAS Legado Consolidado V4"
+
+[[outputs]]
+id = "nnc5qdjZgzdGIJRDAZfws"
+uri = "file://output/natacha/agenda/agenda_tratamento_22.csv"
+type = "table"
+title = "📅 Agenda — 515 sessões (Excel/CSV)"
+
+[[outputs]]
+id = "vVP2Tb8lSjdM5_2awbhDb"
+uri = "file://output/natacha/agenda/agenda_tratamento_22.json"
+type = "unspecified"
+title = "📅 Agenda — 515 sessões (JSON)"
+
+[[outputs]]
+id = "y5rTfQRm_XtkzLlPngB4W"
+uri = "file://output/natacha/dados/anastomose_genotipo_fenotipo.csv"
+type = "table"
+title = "🧬 Anastomose item↔código↔patologia"
+
+[[outputs]]
+id = "tPa_r4fe3di9NGLj526F1"
+uri = "file://output/natacha/dados/dados_clinicos_completos.json"
+type = "unspecified"
+title = "📊 Dados clínicos brutos (paciente+anamnese+patologias+meds+itens)"
