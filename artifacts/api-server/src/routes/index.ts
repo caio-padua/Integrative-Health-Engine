@@ -69,6 +69,7 @@ import assinaturasRouter from "./assinaturas";
 import assinaturasWebhookRouter from "./assinaturasWebhook";
 import juridicoNotaFiscalRouter from "./juridicoNotaFiscal";
 import assinaturaCRUDRouter from "./assinaturaCRUD";
+import manifestoNacionalRouter from "./manifestoNacional";
 
 const router: IRouter = Router();
 
@@ -140,6 +141,7 @@ router.use(assinaturasRouter);
 router.use(assinaturasWebhookRouter);
 router.use(juridicoNotaFiscalRouter);
 router.use(assinaturaCRUDRouter);
+router.use(manifestoNacionalRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
