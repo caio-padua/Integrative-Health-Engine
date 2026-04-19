@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/services/whatsappTemplates.test.ts"
+    "test": "tsx --test src/services/whatsappTemplates.test.ts src/services/prescricaoLembreteService.test.ts"
   },
   "dependencies": {
     "@swc/helpers": "^0.5.21",
