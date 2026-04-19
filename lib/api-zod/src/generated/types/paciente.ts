@@ -5,6 +5,9 @@
  * Motor Clínico - API para clínica médica integrativa
  * OpenAPI spec version: 0.1.0
  */
+import type { PacienteAtividadeFisica } from "./pacienteAtividadeFisica";
+import type { PacienteFototipoFitzpatrick } from "./pacienteFototipoFitzpatrick";
+import type { PacienteGenero } from "./pacienteGenero";
 
 export interface Paciente {
   id: number;
@@ -22,6 +25,15 @@ export interface Paciente {
   pais?: string;
   unidadeId: number;
   statusAtivo: boolean;
+  genero?: PacienteGenero;
+  alturaCm?: number | null;
+  pesoKg?: string | null;
+  alergias?: string | null;
+  condicoesClinicas?: string | null;
+  medicamentosContinuos?: string | null;
+  gestante?: boolean;
+  fototipoFitzpatrick?: PacienteFototipoFitzpatrick;
+  atividadeFisica?: PacienteAtividadeFisica;
   criadoEm: Date;
   atualizadoEm: Date;
 }

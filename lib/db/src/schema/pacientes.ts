@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, integer, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, integer, timestamp, date, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { unidadesTable } from "./unidades";
@@ -25,6 +25,15 @@ export const pacientesTable = pgTable("pacientes", {
   senhaPortal: text("senha_portal"),
   fotoRosto: text("foto_rosto"),
   fotoCorpo: text("foto_corpo"),
+  genero: text("genero", { enum: ["masculino", "feminino", "outro", "nao_informado"] }).notNull().default("nao_informado"),
+  alturaCm: integer("altura_cm"),
+  pesoKg: numeric("peso_kg", { precision: 5, scale: 2 }),
+  alergias: text("alergias"),
+  condicoesClinicas: text("condicoes_clinicas"),
+  medicamentosContinuos: text("medicamentos_continuos"),
+  gestante: boolean("gestante").notNull().default(false),
+  fototipoFitzpatrick: text("fototipo_fitzpatrick", { enum: ["I", "II", "III", "IV", "V", "VI"] }),
+  atividadeFisica: text("atividade_fisica", { enum: ["sedentario", "leve", "moderado", "intenso", "atleta"] }),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

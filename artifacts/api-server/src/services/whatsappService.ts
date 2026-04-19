@@ -1,7 +1,7 @@
 import { db, whatsappConfigTable, whatsappMensagensLogTable, alertasNotificacaoTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { decryptCredential } from "./credentialEncryption";
-import { TEMPLATES_DISPONIVEIS, type TemplateDados } from "./whatsappTemplates";
+import { renderTemplate, type TemplateNome, type TemplateDadosMap } from "./whatsappTemplates";
 
 export interface EnvioResult {
   sucesso: boolean;
@@ -180,21 +180,23 @@ export async function enviarWhatsapp(
   };
 }
 
-export async function enviarComTemplate(
+export async function enviarComTemplate<N extends TemplateNome>(
   telefone: string,
-  templateNome: string,
-  dados: TemplateDados,
+  templateNome: N,
+  dados: TemplateDadosMap[N],
   options?: {
     unidadeId?: number;
     alertaNotificacaoId?: number;
   },
 ): Promise<EnvioResult & { logId?: number }> {
-  const template = TEMPLATES_DISPONIVEIS.find(t => t.nome === templateNome);
-  if (!template) {
-    return { sucesso: false, erro: `Template '${templateNome}' nao encontrado` };
+  let mensagem: string;
+  try {
+    mensagem = renderTemplate(templateNome, dados);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { sucesso: false, erro: message };
   }
 
-  const mensagem = template.fn(dados);
   return enviarWhatsapp(telefone, mensagem, {
     ...options,
     templateNome,

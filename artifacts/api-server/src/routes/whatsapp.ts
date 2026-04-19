@@ -8,7 +8,7 @@ import {
   enviarWhatsapp, enviarComTemplate, atualizarStatusWebhook, testarConexaoWhatsapp,
   obterAuthTokenParaValidacao, obterConfigWhatsapp,
 } from "../services/whatsappService";
-import { TEMPLATES_DISPONIVEIS } from "../services/whatsappTemplates";
+import { TEMPLATES_DISPONIVEIS, type TemplateNome, type TemplateDadosMap } from "../services/whatsappTemplates";
 import { encryptCredential, isEncrypted } from "../services/credentialEncryption";
 import { decryptCredential } from "../services/credentialEncryption";
 import { gerarPdfRAS } from "../pdf/gerarRAS";
@@ -127,10 +127,18 @@ router.post("/whatsapp/enviar", async (req, res): Promise<void> => {
 
   let resultado;
   if (templateNome && templateDados) {
-    resultado = await enviarComTemplate(telefone, templateNome, templateDados, {
-      unidadeId,
-      alertaNotificacaoId,
-    });
+    const nomesValidos = TEMPLATES_DISPONIVEIS.map((t) => t.nome) as readonly TemplateNome[];
+    if (!nomesValidos.includes(templateNome as TemplateNome)) {
+      res.status(400).json({ erro: `Template '${templateNome}' nao encontrado` });
+      return;
+    }
+    const nome = templateNome as TemplateNome;
+    resultado = await enviarComTemplate(
+      telefone,
+      nome,
+      templateDados as TemplateDadosMap[typeof nome],
+      { unidadeId, alertaNotificacaoId },
+    );
   } else if (mensagem) {
     resultado = await enviarWhatsapp(telefone, mensagem, {
       unidadeId,

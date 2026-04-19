@@ -3,6 +3,7 @@ export * from "./unidades";
 export * from "./usuarios";
 export * from "./delegacao";
 export * from "./pacientes";
+export * from "./periodosDia";
 export * from "./anamneses";
 export * from "./itensTerapeuticos";
 export * from "./sugestoes";

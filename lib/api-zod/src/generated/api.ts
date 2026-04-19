@@ -41,6 +41,36 @@ export const ListarPacientesResponseItem = zod.object({
   pais: zod.string().optional(),
   unidadeId: zod.number(),
   statusAtivo: zod.boolean(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
+  alturaCm: zod.number().nullish(),
+  pesoKg: zod.string().nullish(),
+  alergias: zod.string().nullish(),
+  condicoesClinicas: zod.string().nullish(),
+  medicamentosContinuos: zod.string().nullish(),
+  gestante: zod.boolean().optional(),
+  fototipoFitzpatrick: zod
+    .union([
+      zod.literal("I"),
+      zod.literal("II"),
+      zod.literal("III"),
+      zod.literal("IV"),
+      zod.literal("V"),
+      zod.literal("VI"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  atividadeFisica: zod
+    .union([
+      zod.literal("sedentario"),
+      zod.literal("leve"),
+      zod.literal("moderado"),
+      zod.literal("intenso"),
+      zod.literal("atleta"),
+      zod.literal(null),
+    ])
+    .nullish(),
   criadoEm: zod.coerce.date(),
   atualizadoEm: zod.coerce.date(),
 });
@@ -63,6 +93,36 @@ export const CriarPacienteBody = zod.object({
   estado: zod.string().optional(),
   pais: zod.string().optional(),
   unidadeId: zod.number(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
+  alturaCm: zod.number().nullish(),
+  pesoKg: zod.string().nullish(),
+  alergias: zod.string().nullish(),
+  condicoesClinicas: zod.string().nullish(),
+  medicamentosContinuos: zod.string().nullish(),
+  gestante: zod.boolean().optional(),
+  fototipoFitzpatrick: zod
+    .union([
+      zod.literal("I"),
+      zod.literal("II"),
+      zod.literal("III"),
+      zod.literal("IV"),
+      zod.literal("V"),
+      zod.literal("VI"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  atividadeFisica: zod
+    .union([
+      zod.literal("sedentario"),
+      zod.literal("leve"),
+      zod.literal("moderado"),
+      zod.literal("intenso"),
+      zod.literal("atleta"),
+      zod.literal(null),
+    ])
+    .nullish(),
 });
 
 /**
@@ -88,6 +148,36 @@ export const ObterPacienteResponse = zod.object({
   pais: zod.string().optional(),
   unidadeId: zod.number(),
   statusAtivo: zod.boolean(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
+  alturaCm: zod.number().nullish(),
+  pesoKg: zod.string().nullish(),
+  alergias: zod.string().nullish(),
+  condicoesClinicas: zod.string().nullish(),
+  medicamentosContinuos: zod.string().nullish(),
+  gestante: zod.boolean().optional(),
+  fototipoFitzpatrick: zod
+    .union([
+      zod.literal("I"),
+      zod.literal("II"),
+      zod.literal("III"),
+      zod.literal("IV"),
+      zod.literal("V"),
+      zod.literal("VI"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  atividadeFisica: zod
+    .union([
+      zod.literal("sedentario"),
+      zod.literal("leve"),
+      zod.literal("moderado"),
+      zod.literal("intenso"),
+      zod.literal("atleta"),
+      zod.literal(null),
+    ])
+    .nullish(),
   criadoEm: zod.coerce.date(),
   atualizadoEm: zod.coerce.date(),
 });
@@ -113,6 +203,36 @@ export const AtualizarPacienteBody = zod.object({
   estado: zod.string().optional(),
   pais: zod.string().optional(),
   unidadeId: zod.number(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
+  alturaCm: zod.number().nullish(),
+  pesoKg: zod.string().nullish(),
+  alergias: zod.string().nullish(),
+  condicoesClinicas: zod.string().nullish(),
+  medicamentosContinuos: zod.string().nullish(),
+  gestante: zod.boolean().optional(),
+  fototipoFitzpatrick: zod
+    .union([
+      zod.literal("I"),
+      zod.literal("II"),
+      zod.literal("III"),
+      zod.literal("IV"),
+      zod.literal("V"),
+      zod.literal("VI"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  atividadeFisica: zod
+    .union([
+      zod.literal("sedentario"),
+      zod.literal("leve"),
+      zod.literal("moderado"),
+      zod.literal("intenso"),
+      zod.literal("atleta"),
+      zod.literal(null),
+    ])
+    .nullish(),
 });
 
 export const AtualizarPacienteResponse = zod.object({
@@ -131,6 +251,36 @@ export const AtualizarPacienteResponse = zod.object({
   pais: zod.string().optional(),
   unidadeId: zod.number(),
   statusAtivo: zod.boolean(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
+  alturaCm: zod.number().nullish(),
+  pesoKg: zod.string().nullish(),
+  alergias: zod.string().nullish(),
+  condicoesClinicas: zod.string().nullish(),
+  medicamentosContinuos: zod.string().nullish(),
+  gestante: zod.boolean().optional(),
+  fototipoFitzpatrick: zod
+    .union([
+      zod.literal("I"),
+      zod.literal("II"),
+      zod.literal("III"),
+      zod.literal("IV"),
+      zod.literal("V"),
+      zod.literal("VI"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  atividadeFisica: zod
+    .union([
+      zod.literal("sedentario"),
+      zod.literal("leve"),
+      zod.literal("moderado"),
+      zod.literal("intenso"),
+      zod.literal("atleta"),
+      zod.literal(null),
+    ])
+    .nullish(),
   criadoEm: zod.coerce.date(),
   atualizadoEm: zod.coerce.date(),
 });

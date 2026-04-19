@@ -1284,6 +1284,34 @@ components:
           type: integer
         statusAtivo:
           type: boolean
+        genero:
+          type: string
+          enum: [masculino, feminino, outro, nao_informado]
+        alturaCm:
+          type: integer
+          nullable: true
+        pesoKg:
+          type: string
+          nullable: true
+        alergias:
+          type: string
+          nullable: true
+        condicoesClinicas:
+          type: string
+          nullable: true
+        medicamentosContinuos:
+          type: string
+          nullable: true
+        gestante:
+          type: boolean
+        fototipoFitzpatrick:
+          type: string
+          nullable: true
+          enum: [I, II, III, IV, V, VI, null]
+        atividadeFisica:
+          type: string
+          nullable: true
+          enum: [sedentario, leve, moderado, intenso, atleta, null]
         criadoEm:
           type: string
           format: date-time
@@ -1329,6 +1357,34 @@ components:
           type: string
         unidadeId:
           type: integer
+        genero:
+          type: string
+          enum: [masculino, feminino, outro, nao_informado]
+        alturaCm:
+          type: integer
+          nullable: true
+        pesoKg:
+          type: string
+          nullable: true
+        alergias:
+          type: string
+          nullable: true
+        condicoesClinicas:
+          type: string
+          nullable: true
+        medicamentosContinuos:
+          type: string
+          nullable: true
+        gestante:
+          type: boolean
+        fototipoFitzpatrick:
+          type: string
+          nullable: true
+          enum: [I, II, III, IV, V, VI, null]
+        atividadeFisica:
+          type: string
+          nullable: true
+          enum: [sedentario, leve, moderado, intenso, atleta, null]
       required:
         - nome
         - telefone
