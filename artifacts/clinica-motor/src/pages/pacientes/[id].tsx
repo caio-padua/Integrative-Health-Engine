@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -61,6 +63,14 @@ const pacienteSchema = z.object({
   pais: z.string().optional(),
   unidadeId: z.coerce.number().min(1, "Unidade e obrigatoria"),
   genero: z.enum(["masculino", "feminino", "outro", "nao_informado"]).default("nao_informado"),
+  alturaCm: z.coerce.number().int().min(30).max(260).optional().or(z.literal("").transform(() => undefined)),
+  pesoKg: z.coerce.number().min(0.5).max(500).optional().or(z.literal("").transform(() => undefined)),
+  alergias: z.string().optional(),
+  condicoesClinicas: z.string().optional(),
+  medicamentosContinuos: z.string().optional(),
+  gestante: z.boolean().default(false),
+  fototipoFitzpatrick: z.enum(["I","II","III","IV","V","VI"]).optional().or(z.literal("").transform(() => undefined)),
+  atividadeFisica: z.enum(["sedentario","leve","moderado","intenso","atleta"]).optional().or(z.literal("").transform(() => undefined)),
 });
 
 export default function PacienteDetalhe() {
@@ -84,6 +94,7 @@ export default function PacienteDetalhe() {
       cep: "", endereco: "", complemento: "", bairro: "", cidade: "", estado: "", pais: "Brasil",
       unidadeId: 1,
       genero: "nao_informado",
+      gestante: false,
     }
   });
 
@@ -107,6 +118,14 @@ export default function PacienteDetalhe() {
         pais: (paciente as any).pais || "Brasil",
         unidadeId: paciente.unidadeId,
         genero: ((paciente as any).genero as "masculino" | "feminino" | "outro" | "nao_informado") || "nao_informado",
+        alturaCm: (paciente as any).alturaCm ?? undefined,
+        pesoKg: (paciente as any).pesoKg != null ? Number((paciente as any).pesoKg) : undefined,
+        alergias: (paciente as any).alergias || "",
+        condicoesClinicas: (paciente as any).condicoesClinicas || "",
+        medicamentosContinuos: (paciente as any).medicamentosContinuos || "",
+        gestante: Boolean((paciente as any).gestante) || false,
+        fototipoFitzpatrick: ((paciente as any).fototipoFitzpatrick as any) || undefined,
+        atividadeFisica: ((paciente as any).atividadeFisica as any) || undefined,
       });
     }
   }, [paciente, form]);
@@ -129,10 +148,19 @@ export default function PacienteDetalhe() {
   const [saving, setSaving] = useState(false);
   const onSubmit = async (values: z.infer<typeof pacienteSchema>) => {
     setSaving(true);
+    const payload: any = { ...values };
+    if (payload.alturaCm === undefined || payload.alturaCm === null || (payload.alturaCm as any) === "") payload.alturaCm = null;
+    if (payload.pesoKg === undefined || payload.pesoKg === null || (payload.pesoKg as any) === "") payload.pesoKg = null;
+    else if (typeof payload.pesoKg === "number") payload.pesoKg = String(payload.pesoKg);
+    if (!payload.fototipoFitzpatrick) payload.fototipoFitzpatrick = null;
+    if (!payload.atividadeFisica) payload.atividadeFisica = null;
+    if (payload.alergias === "") payload.alergias = null;
+    if (payload.condicoesClinicas === "") payload.condicoesClinicas = null;
+    if (payload.medicamentosContinuos === "") payload.medicamentosContinuos = null;
     try {
       const res = await fetch(`${BASE_URL}api/pacientes/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Erro ao salvar" }));
@@ -327,6 +355,92 @@ export default function PacienteDetalhe() {
                         </FormItem>
                       )} />
 
+                      <div className="border-t pt-4 mt-4">
+                        <p className="text-sm font-medium text-muted-foreground mb-3">Dados Clínicos</p>
+                        <div className="grid grid-cols-3 gap-4">
+                          <FormField control={form.control} name="alturaCm" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Altura (cm)</FormLabel>
+                              <FormControl><Input type="number" min={30} max={260} placeholder="170" {...field} value={field.value ?? ""} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={form.control} name="pesoKg" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Peso (kg)</FormLabel>
+                              <FormControl><Input type="number" step="0.1" min={0.5} max={500} placeholder="70.5" {...field} value={field.value ?? ""} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={form.control} name="fototipoFitzpatrick" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Fototipo (Fitzpatrick)</FormLabel>
+                              <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || undefined)}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="—" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  <SelectItem value="I">I — Pele muito clara</SelectItem>
+                                  <SelectItem value="II">II — Pele clara</SelectItem>
+                                  <SelectItem value="III">III — Pele média</SelectItem>
+                                  <SelectItem value="IV">IV — Pele morena clara</SelectItem>
+                                  <SelectItem value="V">V — Pele morena</SelectItem>
+                                  <SelectItem value="VI">VI — Pele negra</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-3">
+                          <FormField control={form.control} name="atividadeFisica" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Atividade Física</FormLabel>
+                              <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || undefined)}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="—" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  <SelectItem value="sedentario">Sedentário</SelectItem>
+                                  <SelectItem value="leve">Leve</SelectItem>
+                                  <SelectItem value="moderado">Moderado</SelectItem>
+                                  <SelectItem value="intenso">Intenso</SelectItem>
+                                  <SelectItem value="atleta">Atleta</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={form.control} name="gestante" render={({ field }) => (
+                            <FormItem className="flex flex-col gap-2">
+                              <FormLabel>Gestante</FormLabel>
+                              <div className="flex items-center gap-2 h-10">
+                                <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(Boolean(v))} />
+                                <span className="text-sm text-muted-foreground">Gestante / lactante</span>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                        </div>
+                        <FormField control={form.control} name="alergias" render={({ field }) => (
+                          <FormItem className="mt-3">
+                            <FormLabel>Alergias <span className="text-red-500">⚠</span></FormLabel>
+                            <FormControl><Textarea {...field} rows={2} placeholder="Ex.: Dipirona, frutos do mar, látex…" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="condicoesClinicas" render={({ field }) => (
+                          <FormItem className="mt-3">
+                            <FormLabel>Condições Clínicas / Comorbidades</FormLabel>
+                            <FormControl><Textarea {...field} rows={2} placeholder="Ex.: Hipertensão, Diabetes tipo 2, Hipotireoidismo…" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="medicamentosContinuos" render={({ field }) => (
+                          <FormItem className="mt-3">
+                            <FormLabel>Medicamentos de Uso Contínuo</FormLabel>
+                            <FormControl><Textarea {...field} rows={2} placeholder="Ex.: Losartana 50mg 1x/dia, Levotiroxina 50mcg em jejum…" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="dataNascimento" render={({ field }) => (
                           <FormItem>
@@ -484,6 +598,66 @@ export default function PacienteDetalhe() {
                   <div className="flex items-center gap-3 text-sm">
                     <Shield className="w-4 h-4 text-muted-foreground" />
                     <span>Plano: <Badge variant="outline" className="ml-1">{(p?.planoAcompanhamento || "cobre").toUpperCase()}</Badge></span>
+                  </div>
+                  {(p?.genero && p.genero !== "nao_informado") && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      <span>Gênero: <Badge variant="outline" className="ml-1 capitalize">{p.genero}</Badge></span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card border-border/50 md:col-span-3">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <HeartPulse className="w-4 h-4 text-primary" /> Dados Clínicos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Altura</p>
+                      <p className="font-medium">{p?.alturaCm ? `${p.alturaCm} cm` : <span className="text-muted-foreground">—</span>}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Peso</p>
+                      <p className="font-medium">{p?.pesoKg ? `${p.pesoKg} kg` : <span className="text-muted-foreground">—</span>}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">IMC</p>
+                      <p className="font-medium">
+                        {p?.alturaCm && p?.pesoKg
+                          ? (Number(p.pesoKg) / Math.pow(Number(p.alturaCm) / 100, 2)).toFixed(1)
+                          : <span className="text-muted-foreground">—</span>}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Fototipo</p>
+                      <p className="font-medium">{p?.fototipoFitzpatrick || <span className="text-muted-foreground">—</span>}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Atividade física</p>
+                      <p className="font-medium capitalize">{p?.atividadeFisica || <span className="text-muted-foreground">—</span>}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Gestante</p>
+                      <p className="font-medium">{p?.gestante ? <Badge className="bg-pink-500/20 text-pink-600 border-none">SIM</Badge> : <span className="text-muted-foreground">Não</span>}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-red-500 text-xs uppercase tracking-wide font-semibold">⚠ Alergias</p>
+                      <p className="mt-1 whitespace-pre-wrap">{p?.alergias || <span className="text-muted-foreground">Nenhuma registrada</span>}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Condições clínicas</p>
+                      <p className="mt-1 whitespace-pre-wrap">{p?.condicoesClinicas || <span className="text-muted-foreground">—</span>}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Medicamentos contínuos</p>
+                      <p className="mt-1 whitespace-pre-wrap">{p?.medicamentosContinuos || <span className="text-muted-foreground">—</span>}</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

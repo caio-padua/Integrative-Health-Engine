@@ -19,6 +19,31 @@ export const PacienteGenero = {
   nao_informado: "nao_informado",
 } as const;
 
+export type PacienteFototipoFitzpatrick =
+  | (typeof PacienteFototipoFitzpatrick)[keyof typeof PacienteFototipoFitzpatrick]
+  | null;
+
+export const PacienteFototipoFitzpatrick = {
+  I: "I",
+  II: "II",
+  III: "III",
+  IV: "IV",
+  V: "V",
+  VI: "VI",
+} as const;
+
+export type PacienteAtividadeFisica =
+  | (typeof PacienteAtividadeFisica)[keyof typeof PacienteAtividadeFisica]
+  | null;
+
+export const PacienteAtividadeFisica = {
+  sedentario: "sedentario",
+  leve: "leve",
+  moderado: "moderado",
+  intenso: "intenso",
+  atleta: "atleta",
+} as const;
+
 export interface Paciente {
   id: number;
   nome: string;
@@ -36,6 +61,14 @@ export interface Paciente {
   unidadeId: number;
   statusAtivo: boolean;
   genero?: PacienteGenero;
+  alturaCm?: number | null;
+  pesoKg?: string | null;
+  alergias?: string | null;
+  condicoesClinicas?: string | null;
+  medicamentosContinuos?: string | null;
+  gestante?: boolean;
+  fototipoFitzpatrick?: PacienteFototipoFitzpatrick;
+  atividadeFisica?: PacienteAtividadeFisica;
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -48,6 +81,31 @@ export const CriarPacienteBodyGenero = {
   feminino: "feminino",
   outro: "outro",
   nao_informado: "nao_informado",
+} as const;
+
+export type CriarPacienteBodyFototipoFitzpatrick =
+  | (typeof CriarPacienteBodyFototipoFitzpatrick)[keyof typeof CriarPacienteBodyFototipoFitzpatrick]
+  | null;
+
+export const CriarPacienteBodyFototipoFitzpatrick = {
+  I: "I",
+  II: "II",
+  III: "III",
+  IV: "IV",
+  V: "V",
+  VI: "VI",
+} as const;
+
+export type CriarPacienteBodyAtividadeFisica =
+  | (typeof CriarPacienteBodyAtividadeFisica)[keyof typeof CriarPacienteBodyAtividadeFisica]
+  | null;
+
+export const CriarPacienteBodyAtividadeFisica = {
+  sedentario: "sedentario",
+  leve: "leve",
+  moderado: "moderado",
+  intenso: "intenso",
+  atleta: "atleta",
 } as const;
 
 export interface CriarPacienteBody {
@@ -65,6 +123,14 @@ export interface CriarPacienteBody {
   pais?: string;
   unidadeId: number;
   genero?: CriarPacienteBodyGenero;
+  alturaCm?: number | null;
+  pesoKg?: string | null;
+  alergias?: string | null;
+  condicoesClinicas?: string | null;
+  medicamentosContinuos?: string | null;
+  gestante?: boolean;
+  fototipoFitzpatrick?: CriarPacienteBodyFototipoFitzpatrick;
+  atividadeFisica?: CriarPacienteBodyAtividadeFisica;
 }
 
 export type AnamneseStatus =
