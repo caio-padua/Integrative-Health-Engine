@@ -50,7 +50,8 @@ import {
   ClipboardList as ClipboardListIcon,
   Building,
   FileSignature,
-  BellRing
+  BellRing,
+  MessageSquareText
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -129,7 +130,7 @@ export function Layout({ children }: { children: ReactNode }) {
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
       "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
       "configuracoes", "delegacao", "colaboradores", "agentes-virtuais", "acompanhamento", "comissao", "comercial",
-      "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas"
+      "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens"
     ],
     consultor_campo: [
       "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
@@ -186,6 +187,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Colaboradores & RH", path: "/colaboradores", icon: UserCheck, slug: "colaboradores" },
     { name: "Agentes Virtuais", path: "/agentes-virtuais", icon: Bot, slug: "agentes-virtuais" },
     { name: "Lembretes Falhas", path: "/lembretes-falhas", icon: BellRing, slug: "lembretes-falhas" },
+    { name: "Mensagens", path: "/mensagens", icon: MessageSquareText, slug: "mensagens" },
     { name: "Acompanhamento", path: "/acompanhamento", icon: Diamond, slug: "acompanhamento" },
     { name: "Comissao & Metas", path: "/comissao", icon: DollarSign, slug: "comissao" },
     { name: "Comercial", path: "/comercial", icon: TrendingUp, slug: "comercial" },

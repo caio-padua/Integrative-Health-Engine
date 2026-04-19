@@ -66,6 +66,11 @@ const pacienteSchema = z.object({
   alturaCm: z.coerce.number().int().min(30).max(260).optional().or(z.literal("").transform(() => undefined)),
   pesoKg: z.coerce.number().min(0.5).max(500).optional().or(z.literal("").transform(() => undefined)),
   alergias: z.string().optional(),
+  gestante: z.boolean().optional(),
+});
+
+export default function PacienteDetalhe() {
+  const [, params] = useRoute("/pacientes/:id");
   const id = parseInt(params?.id || "0");
   const queryClient = useQueryClient();
   const { toast } = useToast();
