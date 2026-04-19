@@ -6,18 +6,31 @@ const PALETA = {
   dourado: "#B8924E",
   carvao: "#2A2A2A",
   borda: "#E5DFD5",
-  agua: "#0E7C9B",
-  laranja: "#D87B3F",
-  verde: "#2E8B57",
   vermelho: "#B23A3A",
+  // família AZUL — local e remoto são parentes (mesma jornada de atendimento)
+  azulClaro: "#5BA8C9",   // LOCAL → azul claro (presencial, leveza)
+  azulEscuro: "#1B3A5C",  // REMOTO → azul escuro (fora da clínica, profundidade)
+  cinza: "#6B7280",        // PESSOAL → cinza neutro (não-clínico)
 };
 
 type ModoAgenda = "LOCAL" | "REMOTO" | "PESSOAL";
 
 const MODO: Record<ModoAgenda, { label: string; cor: string; desc: string }> = {
-  LOCAL: { label: "LOCAL", cor: PALETA.verde, desc: "atendimento presencial dentro da clínica" },
-  REMOTO: { label: "REMOTO", cor: PALETA.laranja, desc: "atendimento online (telemedicina / home)" },
-  PESSOAL: { label: "PESSOAL", cor: PALETA.agua, desc: "compromissos pessoais do dono (não atende paciente)" },
+  LOCAL: {
+    label: "LOCAL",
+    cor: PALETA.azulClaro,
+    desc: "presencial dentro da clínica",
+  },
+  REMOTO: {
+    label: "REMOTO",
+    cor: PALETA.azulEscuro,
+    desc: "tudo fora da clínica: online, home office, visita domiciliar",
+  },
+  PESSOAL: {
+    label: "PESSOAL",
+    cor: PALETA.cinza,
+    desc: "compromissos do dono (não atende paciente)",
+  },
 };
 
 type Agenda = { papel: string; pessoa: string; modo: ModoAgenda };
