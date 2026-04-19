@@ -59,7 +59,7 @@ function moldePadrao(dono: string): Agenda[] {
 
 const CLINICAS: Empresa[] = [
   {
-    fantasia: "Instituto Pádua",
+    fantasia: "INSTITUTO PADUA",
     razaoSocial: "PADUCCIA CLINICA MEDICA LTDA",
     cnpj: "63.865.940/0001-63",
     dono: "Caio Pádua",
@@ -76,8 +76,8 @@ const CLINICAS: Empresa[] = [
     agendas: moldePadrao("Caio Pádua"),
   },
   {
-    fantasia: "Instituto Médico Lemos (Dr. Entende)",
-    razaoSocial: "LEMOS CENTRO MÉDICO INTEGRADO LTDA",
+    fantasia: "INSTITUTO LEMOS",
+    razaoSocial: "LEMOS CENTRO MEDICO INTEGRADO LTDA",
     cnpj: "32.247.755/0002-62",
     dono: "Kleber Clara Lemos",
     inscricaoEstadual: "Isento",
@@ -93,7 +93,7 @@ const CLINICAS: Empresa[] = [
     agendas: moldePadrao("Kleber Clara Lemos"),
   },
   {
-    fantasia: "Instituto Barros",
+    fantasia: "INSTITUTO BARROS",
     razaoSocial: "BARROS CLINICA INTEGRATIVA LTDA",
     cnpj: "23.456.789/0001-01",
     dono: "Aline Barros",
@@ -110,7 +110,7 @@ const CLINICAS: Empresa[] = [
     agendas: moldePadrao("Aline Barros"),
   },
   {
-    fantasia: "Instituto Andrade",
+    fantasia: "INSTITUTO ANDRADE",
     razaoSocial: "ANDRADE CLINICA MEDICA LTDA",
     cnpj: "34.567.890/0001-12",
     dono: "Ademir Andrade",
@@ -128,7 +128,7 @@ const CLINICAS: Empresa[] = [
     agendas: moldePadrao("Ademir Andrade"),
   },
   {
-    fantasia: "Instituto Barakat",
+    fantasia: "INSTITUTO BARAKAT",
     razaoSocial: "BARAKAT CLINICA MEDICA LTDA",
     cnpj: "45.678.901/0001-23",
     dono: "Mohamad Barakat",
@@ -146,7 +146,7 @@ const CLINICAS: Empresa[] = [
     agendas: moldePadrao("Mohamad Barakat"),
   },
   {
-    fantasia: "Instituto Genesis (Semente Perene)",
+    fantasia: "INSTITUTO GENESIS",
     razaoSocial: "GENESIS CLINICA MEDICA LTDA",
     cnpj: "56.789.012/0001-34",
     dono: "Abraão Genesis (analogia) · Operador real: Caio Pádua",
