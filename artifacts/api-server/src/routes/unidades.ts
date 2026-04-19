@@ -31,6 +31,12 @@ router.get("/unidades/:id", async (req, res): Promise<void> => {
 router.put("/unidades/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
+  const [existente] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
+  if (!existente) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+  if (existente.tipo === "genesis_seed") {
+    res.status(403).json({ error: "Instituto Genesis e semente perene — somente o administrador geral pode altera-la." });
+    return;
+  }
   const allowedFields = [
     "nome", "endereco", "bairro", "cidade", "estado", "cep", "cnpj",
     "telefone", "tipo", "googleCalendarId", "googleCalendarEmail", "cor", "ativa", "nick",
