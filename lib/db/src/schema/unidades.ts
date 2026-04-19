@@ -31,6 +31,7 @@ export const unidadesTable = pgTable("unidades", {
   emailOuvidoria01: text("email_ouvidoria01"),
   cor: text("cor").notNull().default("#3B82F6"),
   ativa: boolean("ativa").notNull().default(true),
+  timezone: text("timezone").notNull().default("America/Sao_Paulo"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

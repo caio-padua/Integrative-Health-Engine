@@ -47,6 +47,7 @@ export * from "./rasxRevo";
 export * from "./termosJuridicos";
 export * from "./farmaciasParceiras";
 export * from "./comercialConfig";
+export * from "./prescricoesLembrete";
 
 // ══════════════════════════════════════════════════════════════
 // PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)

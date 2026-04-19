@@ -72,6 +72,7 @@ import assinaturaCRUDRouter from "./assinaturaCRUD";
 import manifestoNacionalRouter from "./manifestoNacional";
 import planosTerapeuticosRouter from "./planosTerapeuticos";
 import laboratorioIntegrativoRouter from "./laboratorioIntegrativo";
+import prescricoesLembreteRouter from "./prescricoesLembrete";
 
 const router: IRouter = Router();
 
@@ -146,6 +147,7 @@ router.use(assinaturaCRUDRouter);
 router.use(manifestoNacionalRouter);
 router.use(planosTerapeuticosRouter);
 router.use(laboratorioIntegrativoRouter);
+router.use(prescricoesLembreteRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
