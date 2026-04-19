@@ -93,7 +93,7 @@ const CLINICAS: Empresa[] = [
     certificadoSenha: "Padua4321@",
     fonteDados: "REAL",
     operacao: "Cadastrada — marca representativa do grupo",
-    agendas: moldePadrao("Caio Pádua"),
+    agendas: moldePadrao("Médico Integrativo"),
   },
   {
     fantasia: "INSTITUTO PALUZZE",
@@ -111,7 +111,7 @@ const CLINICAS: Empresa[] = [
     certificadoSenha: "Padua4321@",
     fonteDados: "REAL",
     operacao: "Cadastrada — sem operação ativa",
-    agendas: moldePadrao("Caio Pádua"),
+    agendas: moldePadrao("Médico Paluzze"),
   },
   {
     fantasia: "INSTITUTO PADUZZI",
@@ -130,7 +130,7 @@ const CLINICAS: Empresa[] = [
     fonteDados: "REAL",
     operacao: "Cadastrada — sem operação ativa",
     novo: true,
-    agendas: moldePadrao("Caio Pádua"),
+    agendas: moldePadrao("Médico Paduzzi"),
   },
   {
     fantasia: "INSTITUTO PAZIALLE",
@@ -149,7 +149,7 @@ const CLINICAS: Empresa[] = [
     fonteDados: "REAL",
     operacao: "Cadastrada — sem operação ativa",
     novo: true,
-    agendas: moldePadrao("Caio Pádua"),
+    agendas: moldePadrao("Médico Pazialle"),
   },
   {
     fantasia: "INSTITUTO LEMOS",
@@ -167,7 +167,7 @@ const CLINICAS: Empresa[] = [
     certificadoSenha: "(a definir)",
     fonteDados: "REAL",
     operacao: "Cadastrada — sem operação ativa",
-    agendas: moldePadrao("Kleber Clara Lemos"),
+    agendas: moldePadrao("Kleber Lemos"),
   },
   {
     fantasia: "INSTITUTO BARROS",
@@ -223,7 +223,7 @@ const CLINICAS: Empresa[] = [
     fonteDados: "REAL",
     operacao: "Cadastrada — parceiro (Instituto Dr. Barakat de Medicina Integrativa)",
     novo: true,
-    agendas: moldePadrao("Dr. Mohamad Barakat"),
+    agendas: moldePadrao("Mohamad Barakat"),
   },
   {
     fantasia: "INSTITUTO GENESIS",
@@ -241,7 +241,7 @@ const CLINICAS: Empresa[] = [
     certificadoSenha: "(a definir)",
     fonteDados: "FICTÍCIO",
     operacao: "Fictícia — Inundação Genesis (936 cadernos sintéticos)",
-    agendas: moldePadrao("Caio Pádua (Genesis)"),
+    agendas: moldePadrao("Abraão Genesis"),
   },
 ];
 
