@@ -167,7 +167,7 @@ const CLINICAS: Empresa[] = [
     certificadoSenha: "(a definir)",
     fonteDados: "REAL",
     operacao: "Cadastrada — sem operação ativa",
-    agendas: moldePadrao("Kleber Lemos"),
+    agendas: moldePadrao("Médico Lemos"),
   },
   {
     fantasia: "INSTITUTO BARROS",
@@ -185,7 +185,7 @@ const CLINICAS: Empresa[] = [
     certificadoSenha: "(a definir)",
     fonteDados: "FICTÍCIO",
     operacao: "Fictícia — placeholder",
-    agendas: moldePadrao("Aline Barros"),
+    agendas: moldePadrao("Médico Barros"),
   },
   {
     fantasia: "INSTITUTO ANDRADE",
@@ -204,7 +204,7 @@ const CLINICAS: Empresa[] = [
     fonteDados: "FICTÍCIO",
     operacao: "Fictícia — placeholder",
     novo: true,
-    agendas: moldePadrao("Ademir Andrade"),
+    agendas: moldePadrao("Médico Andrade"),
   },
   {
     fantasia: "INSTITUTO BARAKAT",
@@ -223,7 +223,7 @@ const CLINICAS: Empresa[] = [
     fonteDados: "REAL",
     operacao: "Cadastrada — parceiro (Instituto Dr. Barakat de Medicina Integrativa)",
     novo: true,
-    agendas: moldePadrao("Mohamad Barakat"),
+    agendas: moldePadrao("Médico Barakat"),
   },
   {
     fantasia: "INSTITUTO GENESIS",
@@ -241,7 +241,7 @@ const CLINICAS: Empresa[] = [
     certificadoSenha: "(a definir)",
     fonteDados: "FICTÍCIO",
     operacao: "Fictícia — Inundação Genesis (936 cadernos sintéticos)",
-    agendas: moldePadrao("Abraão Genesis"),
+    agendas: moldePadrao("Médico Genesis"),
   },
 ];
 
