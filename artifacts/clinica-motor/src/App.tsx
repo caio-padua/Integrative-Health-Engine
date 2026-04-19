@@ -60,6 +60,7 @@ import ConsultoriasPage from "@/pages/consultorias";
 import ContratosPage from "@/pages/contratos";
 import AdminComercialPage from "@/pages/admin-comercial";
 import InundacaoPage from "@/pages/inundacao";
+import BlueprintPage from "@/pages/blueprint";
 // PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
 import PadcomPaciente from "@/pages/padcom/paciente";
 import PadcomConcluido from "@/pages/padcom/concluido";
@@ -112,6 +113,7 @@ function Router() {
       <Route path="/ras" component={RasPage} />
       <Route path="/codigos-validacao" component={CodigosValidacaoPage} />
       <Route path="/inundacao" component={InundacaoPage} />
+      <Route path="/blueprint" component={BlueprintPage} />
       <Route path="/estoque" component={EstoquePage} />
       <Route path="/task-cards" component={TaskCardsPage} />
       <Route path="/avaliacao-enfermagem" component={AvaliacaoEnfermagemPage} />
