@@ -1284,6 +1284,9 @@ components:
           type: integer
         statusAtivo:
           type: boolean
+        genero:
+          type: string
+          enum: [masculino, feminino, outro, nao_informado]
         criadoEm:
           type: string
           format: date-time
@@ -1329,6 +1332,9 @@ components:
           type: string
         unidadeId:
           type: integer
+        genero:
+          type: string
+          enum: [masculino, feminino, outro, nao_informado]
       required:
         - nome
         - telefone

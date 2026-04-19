@@ -60,6 +60,7 @@ const pacienteSchema = z.object({
   estado: z.string().optional(),
   pais: z.string().optional(),
   unidadeId: z.coerce.number().min(1, "Unidade e obrigatoria"),
+  genero: z.enum(["masculino", "feminino", "outro", "nao_informado"]).default("nao_informado"),
 });
 
 export default function PacienteDetalhe() {
@@ -82,6 +83,7 @@ export default function PacienteDetalhe() {
       statusAtivo: true, planoAcompanhamento: "cobre" as any, googleDriveFolderId: "",
       cep: "", endereco: "", complemento: "", bairro: "", cidade: "", estado: "", pais: "Brasil",
       unidadeId: 1,
+      genero: "nao_informado",
     }
   });
 
@@ -104,6 +106,7 @@ export default function PacienteDetalhe() {
         estado: (paciente as any).estado || "",
         pais: (paciente as any).pais || "Brasil",
         unidadeId: paciente.unidadeId,
+        genero: ((paciente as any).genero as "masculino" | "feminino" | "outro" | "nao_informado") || "nao_informado",
       });
     }
   }, [paciente, form]);
@@ -300,6 +303,26 @@ export default function PacienteDetalhe() {
                         <FormItem>
                           <FormLabel>E-mail</FormLabel>
                           <FormControl><Input type="email" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="genero" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Gênero</FormLabel>
+                          <Select value={field.value || "nao_informado"} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="nao_informado">Não informado</SelectItem>
+                              <SelectItem value="feminino">Feminino</SelectItem>
+                              <SelectItem value="masculino">Masculino</SelectItem>
+                              <SelectItem value="outro">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )} />

@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { useClinic } from "@/contexts/ClinicContext";
 
@@ -51,6 +52,7 @@ const pacienteSchema = z.object({
   estado: z.string().optional(),
   pais: z.string().optional(),
   unidadeId: z.coerce.number().min(1, "Unidade e obrigatoria"),
+  genero: z.enum(["masculino", "feminino", "outro", "nao_informado"]).default("nao_informado"),
 });
 
 export default function Pacientes() {
@@ -70,6 +72,7 @@ export default function Pacientes() {
       nome: "", cpf: "", telefone: "", email: "",
       cep: "", endereco: "", complemento: "", bairro: "", cidade: "", estado: "", pais: "Brasil",
       unidadeId: 1,
+      genero: "nao_informado",
     }
   });
 
@@ -157,6 +160,26 @@ export default function Pacientes() {
                     <FormItem>
                       <FormLabel>E-mail</FormLabel>
                       <FormControl><Input type="email" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="genero" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gênero</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="nao_informado">Não informado</SelectItem>
+                          <SelectItem value="feminino">Feminino</SelectItem>
+                          <SelectItem value="masculino">Masculino</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )} />

@@ -5,6 +5,7 @@
  * Motor Clínico - API para clínica médica integrativa
  * OpenAPI spec version: 0.1.0
  */
+import type { PacienteGenero } from "./pacienteGenero";
 
 export interface Paciente {
   id: number;
@@ -22,6 +23,7 @@ export interface Paciente {
   pais?: string;
   unidadeId: number;
   statusAtivo: boolean;
+  genero?: PacienteGenero;
   criadoEm: Date;
   atualizadoEm: Date;
 }

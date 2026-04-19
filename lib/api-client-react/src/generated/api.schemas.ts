@@ -9,6 +9,16 @@ export interface HealthStatus {
   status: string;
 }
 
+export type PacienteGenero =
+  (typeof PacienteGenero)[keyof typeof PacienteGenero];
+
+export const PacienteGenero = {
+  masculino: "masculino",
+  feminino: "feminino",
+  outro: "outro",
+  nao_informado: "nao_informado",
+} as const;
+
 export interface Paciente {
   id: number;
   nome: string;
@@ -25,9 +35,20 @@ export interface Paciente {
   pais?: string;
   unidadeId: number;
   statusAtivo: boolean;
+  genero?: PacienteGenero;
   criadoEm: string;
   atualizadoEm: string;
 }
+
+export type CriarPacienteBodyGenero =
+  (typeof CriarPacienteBodyGenero)[keyof typeof CriarPacienteBodyGenero];
+
+export const CriarPacienteBodyGenero = {
+  masculino: "masculino",
+  feminino: "feminino",
+  outro: "outro",
+  nao_informado: "nao_informado",
+} as const;
 
 export interface CriarPacienteBody {
   nome: string;
@@ -43,6 +64,7 @@ export interface CriarPacienteBody {
   estado?: string;
   pais?: string;
   unidadeId: number;
+  genero?: CriarPacienteBodyGenero;
 }
 
 export type AnamneseStatus =

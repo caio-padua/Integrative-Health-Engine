@@ -57,7 +57,7 @@ router.put("/pacientes/:id", async (req, res): Promise<void> => {
     if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalido" }); return; }
     const body = req.body;
     const allowed: Record<string, any> = {};
-    const whitelist = ["nome", "cpf", "telefone", "email", "cep", "endereco", "complemento", "bairro", "cidade", "estado", "pais", "unidadeId", "dataNascimento", "statusAtivo", "planoAcompanhamento", "googleDriveFolderId"];
+    const whitelist = ["nome", "cpf", "telefone", "email", "cep", "endereco", "complemento", "bairro", "cidade", "estado", "pais", "unidadeId", "dataNascimento", "statusAtivo", "planoAcompanhamento", "googleDriveFolderId", "genero"];
     for (const k of whitelist) {
       if (body[k] !== undefined) allowed[k] = body[k];
     }

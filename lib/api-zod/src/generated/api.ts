@@ -41,6 +41,9 @@ export const ListarPacientesResponseItem = zod.object({
   pais: zod.string().optional(),
   unidadeId: zod.number(),
   statusAtivo: zod.boolean(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
   criadoEm: zod.coerce.date(),
   atualizadoEm: zod.coerce.date(),
 });
@@ -63,6 +66,9 @@ export const CriarPacienteBody = zod.object({
   estado: zod.string().optional(),
   pais: zod.string().optional(),
   unidadeId: zod.number(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
 });
 
 /**
@@ -88,6 +94,9 @@ export const ObterPacienteResponse = zod.object({
   pais: zod.string().optional(),
   unidadeId: zod.number(),
   statusAtivo: zod.boolean(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
   criadoEm: zod.coerce.date(),
   atualizadoEm: zod.coerce.date(),
 });
@@ -113,6 +122,9 @@ export const AtualizarPacienteBody = zod.object({
   estado: zod.string().optional(),
   pais: zod.string().optional(),
   unidadeId: zod.number(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
 });
 
 export const AtualizarPacienteResponse = zod.object({
@@ -131,6 +143,9 @@ export const AtualizarPacienteResponse = zod.object({
   pais: zod.string().optional(),
   unidadeId: zod.number(),
   statusAtivo: zod.boolean(),
+  genero: zod
+    .enum(["masculino", "feminino", "outro", "nao_informado"])
+    .optional(),
   criadoEm: zod.coerce.date(),
   atualizadoEm: zod.coerce.date(),
 });

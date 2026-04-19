@@ -25,6 +25,7 @@ export const pacientesTable = pgTable("pacientes", {
   senhaPortal: text("senha_portal"),
   fotoRosto: text("foto_rosto"),
   fotoCorpo: text("foto_corpo"),
+  genero: text("genero", { enum: ["masculino", "feminino", "outro", "nao_informado"] }).notNull().default("nao_informado"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
