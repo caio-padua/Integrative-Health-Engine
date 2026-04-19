@@ -1,3 +1,15 @@
+/**
+ * 📚 CATÁLOGO DE FARMÁCIA — Remédios industrializados, suplementos e seus Mazinhos
+ * ──────────────────────────────────────────────────────────────────────────────
+ * Cada item carrega não só o "como tomar" (via, dose, período, horário)
+ * mas também os "como pode reagir" (efeitos colaterais 1-N).
+ * Esses efeitos viram pista quando o paciente ABANDONA SILENCIOSAMENTE
+ * uma substância em um período específico — o sistema cruza e direciona
+ * a investigação no Card Filé Mastigado.
+ *
+ * Arquitetura irmã: 💧 linfonodos_paciente, 🔬 mapa_aderencia_celular
+ * Cunhado por: Dr. Caio — abril/2026
+ */
 import { pgTable, serial, text, integer, boolean, timestamp, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const remediosFarmaciaTable = pgTable("remedios_farmacia", {
@@ -13,6 +25,7 @@ export const remediosFarmaciaTable = pgTable("remedios_farmacia", {
   dosePadrao: text("dose_padrao"),
   posologiaPadrao: text("posologia_padrao"),
   periodosPadrao: jsonb("periodos_padrao").$type<string[] | null>(),
+  efeitosColaterais: jsonb("efeitos_colaterais").$type<string[] | null>(),
   observacoes: text("observacoes"),
   ativo: boolean("ativo").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
@@ -42,6 +55,7 @@ export const suplementosLaboratorioTable = pgTable("suplementos_laboratorio", {
   dosePadrao: text("dose_padrao"),
   posologiaPadrao: text("posologia_padrao"),
   periodosPadrao: jsonb("periodos_padrao").$type<string[] | null>(),
+  efeitosColaterais: jsonb("efeitos_colaterais").$type<string[] | null>(),
   observacoes: text("observacoes"),
   ativo: boolean("ativo").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
