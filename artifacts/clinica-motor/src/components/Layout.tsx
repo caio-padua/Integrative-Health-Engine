@@ -2,6 +2,7 @@ import { ReactNode, useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
+import { useLembretesFalhasContagem } from "@/hooks/useLembretesFalhasContagem";
 import { 
   LayoutDashboard, 
   ClipboardList, 
@@ -48,7 +49,8 @@ import {
   Brain,
   ClipboardList as ClipboardListIcon,
   Building,
-  FileSignature
+  FileSignature,
+  BellRing
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -113,6 +115,8 @@ function ClinicSwitcher() {
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const { unidadeSelecionada } = useClinic();
+  const { total: falhasLembrete } = useLembretesFalhasContagem(unidadeSelecionada);
 
   if (!user) return <>{children}</>;
 
@@ -125,24 +129,27 @@ export function Layout({ children }: { children: ReactNode }) {
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
       "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
       "configuracoes", "delegacao", "colaboradores", "agentes-virtuais", "acompanhamento", "comissao", "comercial",
-      "dietas", "psicologia", "questionario-master", "consultorias", "contratos"
+      "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas"
     ],
     consultor_campo: [
       "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
       "task-cards", "filas", "avaliacao-enfermagem", "estoque", "acompanhamento", "comissao",
-      "justificativas"
+      "justificativas", "lembretes-falhas"
     ],
     clinica_medico: [
       "anamnese", "validacao", "pacientes", "itens-terapeuticos",
-      "pedidos-exame", "agenda", "ras", "ras-evolutivo", "followup", "delegacao", "colaboradores"
+      "pedidos-exame", "agenda", "ras", "ras-evolutivo", "followup", "delegacao", "colaboradores",
+      "lembretes-falhas"
     ],
     clinica_enfermeira: [
       "anamnese", "filas", "pacientes", "followup", "agenda",
-      "estoque", "avaliacao-enfermagem", "task-cards", "delegacao", "colaboradores"
+      "estoque", "avaliacao-enfermagem", "task-cards", "delegacao", "colaboradores",
+      "lembretes-falhas"
     ],
     clinica_admin: [
       "anamnese", "filas", "pacientes", "followup", "agenda",
-      "estoque", "avaliacao-enfermagem", "task-cards", "financeiro", "delegacao", "colaboradores"
+      "estoque", "avaliacao-enfermagem", "task-cards", "financeiro", "delegacao", "colaboradores",
+      "lembretes-falhas"
     ],
   };
 
@@ -178,6 +185,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Delegacao", path: "/delegacao", icon: Send, slug: "delegacao" },
     { name: "Colaboradores & RH", path: "/colaboradores", icon: UserCheck, slug: "colaboradores" },
     { name: "Agentes Virtuais", path: "/agentes-virtuais", icon: Bot, slug: "agentes-virtuais" },
+    { name: "Lembretes Falhas", path: "/lembretes-falhas", icon: BellRing, slug: "lembretes-falhas" },
     { name: "Acompanhamento", path: "/acompanhamento", icon: Diamond, slug: "acompanhamento" },
     { name: "Comissao & Metas", path: "/comissao", icon: DollarSign, slug: "comissao" },
     { name: "Comercial", path: "/comercial", icon: TrendingUp, slug: "comercial" },
@@ -227,7 +235,15 @@ export function Layout({ children }: { children: ReactNode }) {
                 }`}
               >
                 <Icon className="mr-3 h-4 w-4 flex-shrink-0" />
-                {item.name}
+                <span className="flex-1">{item.name}</span>
+                {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
+                  <span
+                    data-testid="badge-lembretes-falhas"
+                    className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-600 text-white text-[10px] font-semibold leading-none"
+                  >
+                    {falhasLembrete > 99 ? "99+" : falhasLembrete}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

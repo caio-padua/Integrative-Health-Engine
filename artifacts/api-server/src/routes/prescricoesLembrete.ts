@@ -6,7 +6,7 @@ import {
   pacientesTable,
   insertPrescricaoLembreteSchema,
 } from "@workspace/db";
-import { and, desc, eq, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, sql, type SQL } from "drizzle-orm";
 import { executarLembretesPrescricao } from "../services/prescricaoLembreteService";
 
 const router = Router();
@@ -82,6 +82,69 @@ router.get("/prescricoes-lembrete/:id/envios", async (req, res): Promise<void> =
     .orderBy(desc(prescricaoLembreteEnviosTable.enviadoEm))
     .limit(200);
   res.json(rows);
+});
+
+router.get("/prescricoes-lembrete/falhas/contagem", async (req, res): Promise<void> => {
+  const { unidadeId, janelaHoras } = req.query;
+
+  const ctxUnidade = req.tenantContext?.unidadeId ?? null;
+  let unidadeFiltro: number | null = null;
+
+  if (ctxUnidade != null) {
+    unidadeFiltro = ctxUnidade;
+    if (unidadeId !== undefined && unidadeId !== "") {
+      const u = Number(unidadeId);
+      if (!Number.isFinite(u)) {
+        res.status(400).json({ erro: "unidadeId deve ser numero" });
+        return;
+      }
+      if (u !== ctxUnidade) {
+        res.status(403).json({ erro: "unidade fora do escopo do chamador" });
+        return;
+      }
+    }
+  } else {
+    if (unidadeId === undefined || unidadeId === "") {
+      res.status(400).json({ erro: "unidadeId e obrigatorio" });
+      return;
+    }
+    const u = Number(unidadeId);
+    if (!Number.isFinite(u)) {
+      res.status(400).json({ erro: "unidadeId deve ser numero" });
+      return;
+    }
+    unidadeFiltro = u;
+  }
+
+  let horas = 24;
+  if (janelaHoras !== undefined && janelaHoras !== "") {
+    const h = Number(janelaHoras);
+    if (!Number.isFinite(h) || h < 1 || h > 168) {
+      res.status(400).json({ erro: "janelaHoras deve ser numero entre 1 e 168" });
+      return;
+    }
+    horas = Math.floor(h);
+  }
+
+  const desde = new Date(Date.now() - horas * 60 * 60 * 1000);
+
+  const [row] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(prescricaoLembreteEnviosTable)
+    .where(
+      and(
+        eq(prescricaoLembreteEnviosTable.status, "FALHOU"),
+        eq(prescricaoLembreteEnviosTable.unidadeId, unidadeFiltro),
+        gte(prescricaoLembreteEnviosTable.enviadoEm, desde),
+      ),
+    );
+
+  res.json({
+    unidadeId: unidadeFiltro,
+    janelaHoras: horas,
+    desde: desde.toISOString(),
+    total: row?.total ?? 0,
+  });
 });
 
 router.get("/prescricoes-lembrete/falhas", async (req, res): Promise<void> => {
