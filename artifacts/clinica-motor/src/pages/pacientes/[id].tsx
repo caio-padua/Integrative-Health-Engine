@@ -66,15 +66,6 @@ const pacienteSchema = z.object({
   alturaCm: z.coerce.number().int().min(30).max(260).optional().or(z.literal("").transform(() => undefined)),
   pesoKg: z.coerce.number().min(0.5).max(500).optional().or(z.literal("").transform(() => undefined)),
   alergias: z.string().optional(),
-  condicoesClinicas: z.string().optional(),
-  medicamentosContinuos: z.string().optional(),
-  gestante: z.boolean().default(false),
-  fototipoFitzpatrick: z.enum(["I","II","III","IV","V","VI"]).optional().or(z.literal("").transform(() => undefined)),
-  atividadeFisica: z.enum(["sedentario","leve","moderado","intenso","atleta"]).optional().or(z.literal("").transform(() => undefined)),
-});
-
-export default function PacienteDetalhe() {
-  const [, params] = useRoute("/pacientes/:id");
   const id = parseInt(params?.id || "0");
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -346,8 +337,8 @@ export default function PacienteDetalhe() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="nao_informado">Não informado</SelectItem>
-                              <SelectItem value="feminino">Feminino</SelectItem>
-                              <SelectItem value="masculino">Masculino</SelectItem>
+                              <SelectItem value="feminino">Sra. (Feminino)</SelectItem>
+                              <SelectItem value="masculino">Sr. (Masculino)</SelectItem>
                               <SelectItem value="outro">Outro</SelectItem>
                             </SelectContent>
                           </Select>
@@ -599,12 +590,15 @@ export default function PacienteDetalhe() {
                     <Shield className="w-4 h-4 text-muted-foreground" />
                     <span>Plano: <Badge variant="outline" className="ml-1">{(p?.planoAcompanhamento || "cobre").toUpperCase()}</Badge></span>
                   </div>
-                  {(p?.genero && p.genero !== "nao_informado") && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      <span>Gênero: <Badge variant="outline" className="ml-1 capitalize">{p.genero}</Badge></span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3 text-sm">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <span>Gênero: <Badge variant="outline" className="ml-1">{
+                      p?.genero === "feminino" ? "Sra. (Feminino)" :
+                      p?.genero === "masculino" ? "Sr. (Masculino)" :
+                      p?.genero === "outro" ? "Outro" :
+                      "Não informado"
+                    }</Badge></span>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -627,17 +621,15 @@ export default function PacienteDetalhe() {
                     <div>
                       <p className="text-muted-foreground text-xs uppercase tracking-wide">IMC</p>
                       <p className="font-medium">
-                        {p?.alturaCm && p?.pesoKg
-                          ? (Number(p.pesoKg) / Math.pow(Number(p.alturaCm) / 100, 2)).toFixed(1)
-                          : <span className="text-muted-foreground">—</span>}
+                        {p?.alturaCm && p?.pesoKg ? (Number(p.pesoKg) / Math.pow(Number(p.alturaCm)/100, 2)).toFixed(1) : <span className="text-muted-foreground">—</span>}
                       </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs uppercase tracking-wide">Fototipo</p>
-                      <p className="font-medium">{p?.fototipoFitzpatrick || <span className="text-muted-foreground">—</span>}</p>
+                      <p className="font-medium">{p?.fototipoFitzpatrick ? `Tipo ${p.fototipoFitzpatrick}` : <span className="text-muted-foreground">—</span>}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Atividade física</p>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Atividade Física</p>
                       <p className="font-medium capitalize">{p?.atividadeFisica || <span className="text-muted-foreground">—</span>}</p>
                     </div>
                     <div>
