@@ -74,6 +74,7 @@ import manifestoNacionalRouter from "./manifestoNacional";
 import planosTerapeuticosRouter from "./planosTerapeuticos";
 import laboratorioIntegrativoRouter from "./laboratorioIntegrativo";
 import prescricoesLembreteRouter from "./prescricoesLembrete";
+import examesRouter from "./exames";
 
 const router: IRouter = Router();
 
@@ -150,6 +151,7 @@ router.use(manifestoNacionalRouter);
 router.use(planosTerapeuticosRouter);
 router.use(laboratorioIntegrativoRouter);
 router.use(prescricoesLembreteRouter);
+router.use(examesRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
