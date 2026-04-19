@@ -388,7 +388,7 @@ Antes de gerar texto novo: rode `SELECT * FROM mapeamento_documental WHERE tabel
 4. Divide faixa min-max em 3 terços
 5. Posiciona valor (ABAIXO / INFERIOR / MEDIO / SUPERIOR / ACIMA)
 6. Aplica regra integrativa do analito → classifica em **CRITICO/ALERTA/ACEITAVEL/EXCELENTE/AVALIAR**
-7. Atribui **cor por classificação** (não por posição): VERMELHO/AMARELO/LARANJA/VERDE/AZUL — referência Luciano Perssinotto
+7. Atribui **cor por classificação** (não por posição): VERMELHO/AMARELO/LARANJA/VERDE/AZUL — referência João Hipocondríaco (paciente referência fictício)
 
 **6 endpoints REST testados ponta-a-ponta:**
 - `GET /api/laboratorio/analitos`
