@@ -30,14 +30,15 @@ type Clinica = {
 };
 
 function moldePadrao(dono: string): Agenda[] {
+  const donoUp = dono.toUpperCase();
   return [
-    { papel: "MÉDICO DONO", pessoa: dono, modo: "LOCAL" },
-    { papel: "MÉDICO DONO", pessoa: dono, modo: "REMOTO" },
-    { papel: "AGENDA PESSOAL", pessoa: dono, modo: "PESSOAL" },
-    { papel: "MÉDICO ASSISTENTE 01", pessoa: "(a definir)", modo: "LOCAL" },
-    { papel: "MÉDICO ASSISTENTE 01", pessoa: "(a definir)", modo: "REMOTO" },
-    { papel: "ENFERMAGEM", pessoa: "(a definir)", modo: "LOCAL" },
-    { papel: "ENFERMAGEM", pessoa: "(a definir)", modo: "REMOTO" },
+    { papel: `AGENDA MÉDICO — ${donoUp}`, pessoa: dono, modo: "LOCAL" },
+    { papel: `AGENDA MÉDICO — ${donoUp}`, pessoa: dono, modo: "REMOTO" },
+    { papel: `AGENDA PESSOAL — ${donoUp}`, pessoa: dono, modo: "PESSOAL" },
+    { papel: "AGENDA MÉDICO — ASSISTENTE 01", pessoa: "(a definir)", modo: "LOCAL" },
+    { papel: "AGENDA MÉDICO — ASSISTENTE 01", pessoa: "(a definir)", modo: "REMOTO" },
+    { papel: "AGENDA ENFERMAGEM", pessoa: "(a definir)", modo: "LOCAL" },
+    { papel: "AGENDA ENFERMAGEM", pessoa: "(a definir)", modo: "REMOTO" },
   ];
 }
 
