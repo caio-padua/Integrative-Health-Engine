@@ -3,9 +3,10 @@ import {
   db,
   prescricoesLembreteTable,
   prescricaoLembreteEnviosTable,
+  pacientesTable,
   insertPrescricaoLembreteSchema,
 } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, type SQL } from "drizzle-orm";
 import { executarLembretesPrescricao } from "../services/prescricaoLembreteService";
 
 const router = Router();
@@ -80,6 +81,78 @@ router.get("/prescricoes-lembrete/:id/envios", async (req, res): Promise<void> =
     .where(eq(prescricaoLembreteEnviosTable.prescricaoLembreteId, id))
     .orderBy(desc(prescricaoLembreteEnviosTable.enviadoEm))
     .limit(200);
+  res.json(rows);
+});
+
+router.get("/prescricoes-lembrete/falhas", async (req, res): Promise<void> => {
+  const { unidadeId, limit } = req.query;
+
+  const conditions: SQL[] = [eq(prescricaoLembreteEnviosTable.status, "FALHOU")];
+
+  // Tenant guard: se ha contexto de unidade, o filtro fica preso a ela.
+  // Sem contexto, exige unidadeId explicito para evitar vazamento entre
+  // unidades. Cross-unit listing nao e suportado por este endpoint.
+  const ctxUnidade = req.tenantContext?.unidadeId ?? null;
+  let unidadeFiltro: number | null = null;
+
+  if (ctxUnidade != null) {
+    unidadeFiltro = ctxUnidade;
+    if (unidadeId !== undefined && unidadeId !== "") {
+      const u = Number(unidadeId);
+      if (!Number.isFinite(u)) {
+        res.status(400).json({ erro: "unidadeId deve ser numero" });
+        return;
+      }
+      if (u !== ctxUnidade) {
+        res.status(403).json({ erro: "unidade fora do escopo do chamador" });
+        return;
+      }
+    }
+  } else {
+    if (unidadeId === undefined || unidadeId === "") {
+      res.status(400).json({ erro: "unidadeId e obrigatorio" });
+      return;
+    }
+    const u = Number(unidadeId);
+    if (!Number.isFinite(u)) {
+      res.status(400).json({ erro: "unidadeId deve ser numero" });
+      return;
+    }
+    unidadeFiltro = u;
+  }
+  conditions.push(eq(prescricaoLembreteEnviosTable.unidadeId, unidadeFiltro));
+
+  let lim = 100;
+  if (limit !== undefined && limit !== "") {
+    const n = Number(limit);
+    if (!Number.isFinite(n) || n < 1 || n > 500) {
+      res.status(400).json({ erro: "limit deve ser numero entre 1 e 500" });
+      return;
+    }
+    lim = Math.floor(n);
+  }
+
+  const rows = await db
+    .select({
+      id: prescricaoLembreteEnviosTable.id,
+      prescricaoLembreteId: prescricaoLembreteEnviosTable.prescricaoLembreteId,
+      pacienteId: prescricaoLembreteEnviosTable.pacienteId,
+      pacienteNome: pacientesTable.nome,
+      unidadeId: prescricaoLembreteEnviosTable.unidadeId,
+      janela: prescricaoLembreteEnviosTable.janela,
+      erro: prescricaoLembreteEnviosTable.erro,
+      whatsappLogId: prescricaoLembreteEnviosTable.whatsappLogId,
+      enviadoEm: prescricaoLembreteEnviosTable.enviadoEm,
+    })
+    .from(prescricaoLembreteEnviosTable)
+    .innerJoin(
+      pacientesTable,
+      eq(pacientesTable.id, prescricaoLembreteEnviosTable.pacienteId),
+    )
+    .where(and(...conditions))
+    .orderBy(desc(prescricaoLembreteEnviosTable.enviadoEm))
+    .limit(lim);
+
   res.json(rows);
 });
 

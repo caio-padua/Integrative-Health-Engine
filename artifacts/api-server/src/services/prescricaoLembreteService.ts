@@ -4,10 +4,13 @@ import {
   prescricaoLembreteEnviosTable,
   pacientesTable,
   unidadesTable,
+  usuariosTable,
+  alertasNotificacaoTable,
+  criarAlerta,
   type PrescricaoLembrete,
   type PrescricaoPeriodoJson,
 } from "@workspace/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { enviarComTemplate } from "./whatsappService";
 import {
   cumprimentoPorHora,
@@ -287,6 +290,21 @@ export async function executarLembretesPrescricao(
       console.error(
         `[lembretePrescricao] FALHA paciente=${ctx.prescricao.pacienteId} prescricao=${ctx.prescricao.id} janela=${janela}: ${erroMsg}`,
       );
+      // Best-effort: alerta a equipe da unidade. Falha aqui nao deve quebrar o tick.
+      try {
+        await emitirAlertasFalha({
+          unidadeId: ctx.unidadeId,
+          pacienteId: ctx.prescricao.pacienteId,
+          pacienteNome: ctx.pacienteNome,
+          janela,
+          erroMsg,
+        });
+      } catch (e) {
+        console.error(
+          `[lembretePrescricao] erro ao emitir alertas de falha:`,
+          (e as Error).message,
+        );
+      }
       detalhes.push({
         prescricaoId: ctx.prescricao.id,
         pacienteId: ctx.prescricao.pacienteId,
@@ -300,6 +318,73 @@ export async function executarLembretesPrescricao(
   }
 
   return { examinados: prescricoes.length, enviados, falhas, pulados, detalhes };
+}
+
+interface EmitirAlertasFalhaArgs {
+  unidadeId: number | null;
+  pacienteId: number;
+  pacienteNome: string;
+  janela: string;
+  erroMsg: string;
+}
+
+/**
+ * Cria um alerta SISTEMA para cada usuario ativo da unidade do paciente,
+ * notificando a equipe (recepcao/enfermagem/admin clinica) que o lembrete
+ * de prescricao falhou ao ser enviado.
+ *
+ * Sem destinatario na unidade: nao gera alerta (apenas log no servidor).
+ */
+async function emitirAlertasFalha(args: EmitirAlertasFalhaArgs): Promise<void> {
+  const { unidadeId, pacienteId, pacienteNome, janela, erroMsg } = args;
+  if (!unidadeId) {
+    console.warn(
+      `[lembretePrescricao] paciente=${pacienteId} sem unidade resolvida — alerta nao emitido`,
+    );
+    return;
+  }
+
+  const destinatarios = await db
+    .select({ id: usuariosTable.id })
+    .from(usuariosTable)
+    .where(
+      and(
+        eq(usuariosTable.unidadeId, unidadeId),
+        eq(usuariosTable.ativo, true),
+        inArray(usuariosTable.escopo, [
+          "clinica_admin",
+          "clinica_enfermeira",
+          "clinica_medico",
+        ]),
+      ),
+    );
+
+  if (destinatarios.length === 0) {
+    console.warn(
+      `[lembretePrescricao] unidade=${unidadeId} sem usuarios elegiveis para receber alerta de falha`,
+    );
+    return;
+  }
+
+  const mensagem =
+    `Falha ao enviar lembrete de prescricao para ${pacienteNome} ` +
+    `(paciente #${pacienteId}, janela ${janela}). Motivo: ${erroMsg}`;
+  const linkAcao = `/pacientes/${pacienteId}`;
+
+  const valores = destinatarios.map((d) =>
+    ({
+      ...criarAlerta(
+        "LEMBRETE_PRESCRICAO_FALHOU",
+        d.id,
+        mensagem,
+        linkAcao,
+        48,
+        "SISTEMA",
+      ),
+    }),
+  );
+
+  await db.insert(alertasNotificacaoTable).values(valores);
 }
 
 let workerStarted = false;

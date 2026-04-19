@@ -6,7 +6,14 @@ import { usuariosTable } from "./usuarios";
 export const alertasNotificacaoTable = pgTable("alertas_notificacao", {
   id: serial("id").primaryKey(),
   tipo: text("tipo", {
-    enum: ["FILA_PENDENTE", "CASCATA_ALTERADA", "EXAME_RECEBIDO", "ALERTA_CLINICO", "PRAZO_EXPIRANDO"],
+    enum: [
+      "FILA_PENDENTE",
+      "CASCATA_ALTERADA",
+      "EXAME_RECEBIDO",
+      "ALERTA_CLINICO",
+      "PRAZO_EXPIRANDO",
+      "LEMBRETE_PRESCRICAO_FALHOU",
+    ],
   }).notNull(),
   destinatarioId: integer("destinatario_id").notNull().references(() => usuariosTable.id),
   canal: text("canal", { enum: ["SISTEMA", "WHATSAPP", "EMAIL"] }).notNull().default("SISTEMA"),
