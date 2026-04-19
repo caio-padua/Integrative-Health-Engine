@@ -533,14 +533,33 @@ export default function UnidadesPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    unidades.map(u => (
-                      <TableRow key={u.id}>
+                    unidades.map(u => {
+                      const isGenesis = u.tipo === "genesis_seed";
+                      return (
+                      <TableRow
+                        key={u.id}
+                        className={isGenesis ? "bg-amber-50 hover:bg-amber-100 border-l-4 border-l-amber-400" : ""}
+                      >
                         <TableCell>
-                          <div className="w-6 h-6 rounded-full" style={{ backgroundColor: u.cor }} />
+                          {isGenesis ? (
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs ring-2 ring-amber-500"
+                              style={{ backgroundColor: u.cor || "#FFD700" }}
+                              title="Semente perene PAWARDS"
+                            >
+                              🌱
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full" style={{ backgroundColor: u.cor }} />
+                          )}
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-sm">{u.nome}</div>
+                          <div className="font-medium text-sm flex items-center gap-1">
+                            {u.nome}
+                            {isGenesis && <span className="text-amber-600" title="Protegida — somente administrador geral">🔒</span>}
+                          </div>
                           {u.nick && <div className="text-xs text-blue-600 font-medium">PAWARDS - {u.nick}</div>}
+                          {isGenesis && <div className="text-[10px] text-amber-700 font-semibold tracking-wide">SEMENTE PERENE • RIO CAUDALOSO</div>}
                           {u.telefone && <div className="text-xs text-muted-foreground">{u.telefone}</div>}
                         </TableCell>
                         <TableCell>
@@ -567,22 +586,42 @@ export default function UnidadesPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-[10px]">
-                            {u.tipo === "clinic" ? "Clinica" : u.tipo === "enfermagem" ? "Enfermagem" : u.tipo === "domiciliar" ? "Domiciliar" : u.tipo === "telemedicina" ? "Telemedicina" : u.tipo === "personal" ? "Pessoal" : u.tipo}
-                          </Badge>
+                          {isGenesis ? (
+                            <Badge className="text-[10px] bg-amber-500 hover:bg-amber-500 text-white border-amber-600">
+                              🌱 Genesis
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">
+                              {u.tipo === "clinic" ? "Clinica" : u.tipo === "enfermagem" ? "Enfermagem" : u.tipo === "domiciliar" ? "Domiciliar" : u.tipo === "telemedicina" ? "Telemedicina" : u.tipo === "personal" ? "Pessoal" : u.tipo}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => setEditUnidade(u)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(u)} className="text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {isGenesis ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled
+                                className="text-amber-600 cursor-not-allowed opacity-70"
+                                title="Protegida — somente administrador geral pode editar a Genesis"
+                              >
+                                🔒
+                              </Button>
+                            ) : (
+                              <>
+                                <Button variant="ghost" size="sm" onClick={() => setEditUnidade(u)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDelete(u)} className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                    );})
                   )}
                 </TableBody>
               </Table>
