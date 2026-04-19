@@ -130,7 +130,7 @@ export function Layout({ children }: { children: ReactNode }) {
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
       "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
       "configuracoes", "delegacao", "colaboradores", "agentes-virtuais", "acompanhamento", "comissao", "comercial",
-      "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens", "exames", "inundacao"
+      "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens", "exames", "inundacao", "blueprint"
     ],
     consultor_campo: [
       "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
@@ -199,6 +199,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Contratos", path: "/contratos", icon: FileSignature, slug: "contratos" },
     { name: "Configuracoes", path: "/configuracoes", icon: Settings, slug: "configuracoes" },
     { name: "💧 Inundação Genesis", path: "/inundacao", icon: Database, slug: "inundacao" },
+    { name: "🏛️ Blueprint Arquitetura", path: "/blueprint", icon: Building, slug: "blueprint" },
   ];
 
   const escopo = (user as any).escopo || "consultoria_master";
