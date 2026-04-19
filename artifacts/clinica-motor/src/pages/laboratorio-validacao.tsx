@@ -207,7 +207,7 @@ export default function LaboratorioValidacao() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium block mb-1">Origem da regra</label>
-                  <Input value={origem} onChange={e => setOrigem(e.target.value)} placeholder="ex: PERSSINOTTO, INSTITUTO_PADUA" />
+                  <Input value={origem} onChange={e => setOrigem(e.target.value)} placeholder="ex: JOAO_HIPOCONDRIACO, INSTITUTO_PADUA" />
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">Quem está validando</label>
