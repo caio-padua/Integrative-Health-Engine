@@ -40,6 +40,7 @@ type Empresa = {
   certificadoSenha: string;
   // Meta
   fonteDados: "REAL" | "FICTÍCIO";
+  operacao?: string;
   novo?: boolean;
   agendas: Agenda[];
 };
@@ -60,6 +61,24 @@ function moldePadrao(dono: string): Agenda[] {
 const CLINICAS: Empresa[] = [
   {
     fantasia: "INSTITUTO PADUA",
+    razaoSocial: "CLINICA DE MEDICINA INTEGRATIVA PADUA LTDA",
+    cnpj: "33.143.134/0001-10",
+    dono: "Caio Pádua",
+    inscricaoEstadual: "(a confirmar)",
+    inscricaoMunicipal: "(a confirmar)",
+    endereco: "Rua Guaxupé, 327",
+    bairro: "Vila Formosa",
+    cidade: "São Paulo",
+    uf: "SP",
+    cep: "(a confirmar)",
+    certificadoDigital: "/certificados/CLINICA_INTEGRATIVA_PADUA.p12",
+    certificadoSenha: "Padua4321@",
+    fonteDados: "REAL",
+    operacao: "ATIVA — operação principal",
+    agendas: moldePadrao("Caio Pádua"),
+  },
+  {
+    fantasia: "INSTITUTO PADUCCIA",
     razaoSocial: "PADUCCIA CLINICA MEDICA LTDA",
     cnpj: "63.865.940/0001-63",
     dono: "Caio Pádua",
@@ -70,9 +89,28 @@ const CLINICAS: Empresa[] = [
     cidade: "São Paulo",
     uf: "SP",
     cep: "(a confirmar)",
-    certificadoDigital: "(arquivo .pfx a anexar)",
-    certificadoSenha: "(a definir)",
+    certificadoDigital: "/certificados/CAIO_PADUA_PF.p12",
+    certificadoSenha: "Padua4321@",
     fonteDados: "REAL",
+    operacao: "Cadastrada — sem operação ativa",
+    agendas: moldePadrao("Caio Pádua"),
+  },
+  {
+    fantasia: "INSTITUTO PALUZZE",
+    razaoSocial: "PALUZZE MEDICINA ESTETICA LTDA",
+    cnpj: "13.584.113/0001-23",
+    dono: "Caio Pádua",
+    inscricaoEstadual: "(a confirmar)",
+    inscricaoMunicipal: "(a confirmar)",
+    endereco: "(a confirmar)",
+    bairro: "(a confirmar)",
+    cidade: "São Paulo",
+    uf: "SP",
+    cep: "(a confirmar)",
+    certificadoDigital: "/certificados/CAIO_PADUA_PF.p12",
+    certificadoSenha: "Padua4321@",
+    fonteDados: "REAL",
+    operacao: "Cadastrada — sem operação ativa",
     agendas: moldePadrao("Caio Pádua"),
   },
   {
@@ -90,6 +128,7 @@ const CLINICAS: Empresa[] = [
     certificadoDigital: "(arquivo .pfx a anexar)",
     certificadoSenha: "(a definir)",
     fonteDados: "REAL",
+    operacao: "Cadastrada — sem operação ativa",
     agendas: moldePadrao("Kleber Clara Lemos"),
   },
   {
@@ -107,6 +146,7 @@ const CLINICAS: Empresa[] = [
     certificadoDigital: "(arquivo .pfx a anexar)",
     certificadoSenha: "(a definir)",
     fonteDados: "FICTÍCIO",
+    operacao: "Fictícia — placeholder",
     agendas: moldePadrao("Aline Barros"),
   },
   {
@@ -124,6 +164,7 @@ const CLINICAS: Empresa[] = [
     certificadoDigital: "(arquivo .pfx a anexar)",
     certificadoSenha: "(a definir)",
     fonteDados: "FICTÍCIO",
+    operacao: "Fictícia — placeholder",
     novo: true,
     agendas: moldePadrao("Ademir Andrade"),
   },
@@ -142,6 +183,7 @@ const CLINICAS: Empresa[] = [
     certificadoDigital: "(arquivo .pfx a anexar)",
     certificadoSenha: "(a definir)",
     fonteDados: "FICTÍCIO",
+    operacao: "Fictícia — placeholder",
     novo: true,
     agendas: moldePadrao("Mohamad Barakat"),
   },
@@ -160,6 +202,7 @@ const CLINICAS: Empresa[] = [
     certificadoDigital: "(arquivo .pfx a anexar)",
     certificadoSenha: "(a definir)",
     fonteDados: "FICTÍCIO",
+    operacao: "Fictícia — Inundação Genesis (936 cadernos sintéticos)",
     agendas: moldePadrao("Caio Pádua (Genesis)"),
   },
 ];
@@ -174,7 +217,7 @@ export default function Blueprint() {
               🏛️ Blueprint Conceitual — Ficha Cadastral × Agendas
             </h1>
             <p style={{ color: PALETA.carvao, marginTop: 6, opacity: 0.75, fontSize: 14 }}>
-              Proposta. <strong>Não toquei o DB.</strong> Pádua + Lemos = dados reais. Outras 4 = fictícias plausíveis.
+              Cravado por Caio. Grupo Pádua = 3 clínicas (Padua/Paduccia/Paluzze) + Lemos = dados reais. Barros/Andrade/Barakat/Genesis = fictícias.
             </p>
           </header>
 
@@ -191,7 +234,7 @@ export default function Blueprint() {
                 </div>
                 <div style={{ fontSize: 13, color: PALETA.carvao, marginTop: 6, lineHeight: 1.5 }}>
                   Pessoa jurídica com <strong>razão social, CNPJ, inscrições, endereço, certificado digital, dono</strong>.
-                  <br/><strong>6 no total</strong> (4 já existem + 2 novas: Andrade e Barakat).
+                  <br/><strong>8 no total</strong> (Pádua + Paduccia + Paluzze + Lemos + Barros + Andrade + Barakat + Genesis).
                 </div>
               </div>
 
@@ -217,7 +260,7 @@ export default function Blueprint() {
           </section>
 
           <h2 style={{ color: PALETA.petroleo, fontSize: 22, marginBottom: 12 }}>
-            🏥 6 Clínicas × 7 agendas cada = <strong>42 agendas totais</strong>
+            🏥 8 Clínicas × 7 agendas cada = <strong>56 agendas totais</strong>
           </h2>
 
           {CLINICAS.map((c) => <EmpresaBlock key={c.cnpj} empresa={c} />)}
