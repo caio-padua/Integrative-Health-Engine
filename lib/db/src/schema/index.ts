@@ -5,6 +5,7 @@ export * from "./delegacao";
 export * from "./pacientes";
 export * from "./periodosDia";
 export * from "./catalogoFarmacia";
+export * from "./sistemaLinfatico";
 export * from "./anamneses";
 export * from "./itensTerapeuticos";
 export * from "./sugestoes";
