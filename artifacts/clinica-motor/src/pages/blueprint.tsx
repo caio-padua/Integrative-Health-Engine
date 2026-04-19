@@ -60,17 +60,17 @@ function moldePadrao(dono: string): Agenda[] {
 
 const CLINICAS: Empresa[] = [
   {
-    fantasia: "INSTITUTO PADUCCIA",
+    fantasia: "INSTITUTO PADUA",
     razaoSocial: "PADUCCIA CLINICA MEDICA LTDA",
     cnpj: "63.865.940/0001-63",
     dono: "Caio Henrique Fernandes Pádua",
-    inscricaoEstadual: "Isento",
+    inscricaoEstadual: "Isenta",
     inscricaoMunicipal: "156980767114",
     endereco: "Rua Guaxupé, 327",
     bairro: "Vila Formosa",
     cidade: "São Paulo",
     uf: "SP",
-    cep: "03355-001",
+    cep: "03416-050",
     certificadoDigital: "/certificados/CAIO_PADUA_PF.p12",
     certificadoSenha: "Padua4321@",
     fonteDados: "REAL",
@@ -82,13 +82,13 @@ const CLINICAS: Empresa[] = [
     razaoSocial: "CLINICA DE MEDICINA INTEGRATIVA PADUA LTDA",
     cnpj: "33.143.134/0001-10",
     dono: "Caio Henrique Fernandes Pádua",
-    inscricaoEstadual: "Isento",
+    inscricaoEstadual: "Isenta",
     inscricaoMunicipal: "(a confirmar)",
     endereco: "Rua Guaxupé, 327",
     bairro: "Vila Formosa",
     cidade: "São Paulo",
     uf: "SP",
-    cep: "03355-001",
+    cep: "03416-050",
     certificadoDigital: "/certificados/CLINICA_INTEGRATIVA_PADUA.p12",
     certificadoSenha: "Padua4321@",
     fonteDados: "REAL",
@@ -255,7 +255,7 @@ export default function Blueprint() {
               🏛️ Blueprint Conceitual — Ficha Cadastral × Agendas
             </h1>
             <p style={{ color: PALETA.carvao, marginTop: 6, opacity: 0.75, fontSize: 14 }}>
-              Cravado por Caio. Grupo Pádua = 5 clínicas reais do Caio (Paduccia ⭐ ativa · Integrativo · Paluzze · Paduzzi · Pazialle) + Lemos. Barros/Andrade/Barakat/Genesis = fictícias.
+              Cravado por Caio. Grupo Pádua = 5 clínicas reais do Caio (Pádua ⭐ ativa [razão: Paduccia] · Integrativo · Paluzze · Paduzzi · Pazialle) + Lemos. Barros/Andrade/Genesis = fictícias. Barakat = real (dados pendentes).
             </p>
           </header>
 
@@ -272,7 +272,7 @@ export default function Blueprint() {
                 </div>
                 <div style={{ fontSize: 13, color: PALETA.carvao, marginTop: 6, lineHeight: 1.5 }}>
                   Pessoa jurídica com <strong>razão social, CNPJ, inscrições, endereço, certificado digital, dono</strong>.
-                  <br/><strong>10 no total</strong> (Paduccia ⭐ + Integrativo + Paluzze + Paduzzi + Pazialle + Lemos + Barros + Andrade + Barakat + Genesis).
+                  <br/><strong>10 no total</strong> (Pádua ⭐ + Integrativo + Paluzze + Paduzzi + Pazialle + Lemos + Barros + Andrade + Barakat + Genesis).
                 </div>
               </div>
 
