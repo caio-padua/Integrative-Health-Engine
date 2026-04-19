@@ -12,6 +12,18 @@
  */
 import { pgTable, serial, text, integer, boolean, timestamp, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 
+/**
+ * 🩹 EFEITO COLATERAL ESTRUTURADO
+ * Cada efeito carrega ordem + intensidade + texto.
+ * Intensidades: primario · secundario · terciario · adicional (4º+)
+ * Lido pelo Card Filé Mastigado para guiar a investigação SEM induzir resposta.
+ */
+export type EfeitoColateral = {
+  ordem: number;
+  intensidade: "primario" | "secundario" | "terciario" | "adicional";
+  efeito: string;
+};
+
 export const remediosFarmaciaTable = pgTable("remedios_farmacia", {
   id: serial("id").primaryKey(),
   nome: text("nome").notNull(),
@@ -25,7 +37,7 @@ export const remediosFarmaciaTable = pgTable("remedios_farmacia", {
   dosePadrao: text("dose_padrao"),
   posologiaPadrao: text("posologia_padrao"),
   periodosPadrao: jsonb("periodos_padrao").$type<string[] | null>(),
-  efeitosColaterais: jsonb("efeitos_colaterais").$type<string[] | null>(),
+  efeitosColaterais: jsonb("efeitos_colaterais").$type<EfeitoColateral[] | null>(),
   observacoes: text("observacoes"),
   ativo: boolean("ativo").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
@@ -55,7 +67,7 @@ export const suplementosLaboratorioTable = pgTable("suplementos_laboratorio", {
   dosePadrao: text("dose_padrao"),
   posologiaPadrao: text("posologia_padrao"),
   periodosPadrao: jsonb("periodos_padrao").$type<string[] | null>(),
-  efeitosColaterais: jsonb("efeitos_colaterais").$type<string[] | null>(),
+  efeitosColaterais: jsonb("efeitos_colaterais").$type<EfeitoColateral[] | null>(),
   observacoes: text("observacoes"),
   ativo: boolean("ativo").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
