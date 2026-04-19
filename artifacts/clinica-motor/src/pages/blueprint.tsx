@@ -48,7 +48,11 @@ const CLINICAS: Clinica[] = [
   { nome: "Instituto Barros", dono: "Aline Barros", agendas: moldePadrao("Aline Barros") },
   { nome: "Instituto Andrade", dono: "Ademir Andrade", novo: true, agendas: moldePadrao("Ademir Andrade") },
   { nome: "Instituto Barakat", dono: "Mohamad Barakat", novo: true, agendas: moldePadrao("Mohamad Barakat") },
-  { nome: "Instituto Genesis", dono: "Abraão Genesis", agendas: moldePadrao("Abraão Genesis") },
+  {
+    nome: "Instituto Genesis (Semente Perene)",
+    dono: "Abraão Genesis (simbólico) · Operador real: Caio Pádua",
+    agendas: moldePadrao("Caio Pádua (Genesis)"),
+  },
 ];
 
 export default function Blueprint() {
