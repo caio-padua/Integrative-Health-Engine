@@ -130,7 +130,7 @@ export function Layout({ children }: { children: ReactNode }) {
       "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
       "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
       "configuracoes", "delegacao", "colaboradores", "agentes-virtuais", "acompanhamento", "comissao", "comercial",
-      "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens"
+      "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens", "exames"
     ],
     consultor_campo: [
       "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
@@ -172,6 +172,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { name: "Unidades", path: "/unidades", icon: Building2, slug: "unidades" },
     { name: "Fluxos Aprovacao", path: "/fluxos", icon: GitBranch, slug: "fluxos" },
     { name: "Pedidos de Exame", path: "/pedidos-exame", icon: FileText, slug: "pedidos-exame" },
+    { name: "Exames (Catalogo)", path: "/exames", icon: FlaskConical, slug: "exames" },
     { name: "Substancias", path: "/substancias", icon: FlaskConical, slug: "substancias" },
     { name: "Agenda Semanal", path: "/agenda", icon: CalendarDays, slug: "agenda" },
     { name: "RAS", path: "/ras", icon: FileCheck, slug: "ras" },
