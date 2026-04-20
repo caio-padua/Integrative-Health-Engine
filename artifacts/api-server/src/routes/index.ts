@@ -77,6 +77,7 @@ import laboratorioIntegrativoRouter from "./laboratorioIntegrativo";
 import prescricoesLembreteRouter from "./prescricoesLembrete";
 import examesRouter from "./exames";
 import agendasProfissionaisRouter from "./agendasProfissionais";
+import matrixGovernancaCategoriaRouter from "./matrixGovernancaCategoria";
 
 const router: IRouter = Router();
 
@@ -156,6 +157,7 @@ router.use(laboratorioIntegrativoRouter);
 router.use(prescricoesLembreteRouter);
 router.use(examesRouter);
 router.use(agendasProfissionaisRouter);
+router.use(matrixGovernancaCategoriaRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
