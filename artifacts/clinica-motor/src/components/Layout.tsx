@@ -5,10 +5,10 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { useLembretesFalhasContagem } from "@/hooks/useLembretesFalhasContagem";
 import {
   LayoutDashboard, ClipboardList, CheckSquare, ListOrdered, Users, Pill, BookOpen, CalendarClock, CreditCard,
-  Building2, Settings, LogOut, Activity, GitBranch, ShieldCheck, Database, FileText, FlaskConical, CalendarDays,
+  Building2, Settings, LogOut, GitBranch, ShieldCheck, Database, FileText, FlaskConical, CalendarDays,
   FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
   ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
-  ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, Sparkles, MessageCircle,
+  ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle,
 } from "lucide-react";
 import { Button } from "./ui/button";
 
