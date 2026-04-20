@@ -1,0 +1,843 @@
+# SPEC PR#1 — COMMAND PALETTE UNIVERSAL (⌘K)
+
+**Sprint:** PADCON 2.0 — primeiro PR do ciclo frontend de 4 meses
+**Autor da spec:** Dr. Claude (orquestrador)
+**Executor:** Dr. Replit (cirurgião-chefe)
+**Aprovador:** Dr. Caio Henrique Fernandes Pádua
+**Estimativa:** 3 dias úteis
+**Branch:** `replit-agent` → PR para `main`
+**Commit inclui também:** `SECURITY_DEBT.md` no root
+
+---
+
+## 1. OBJETIVO
+
+Implantar o atalho universal ⌘K (Mac) / Ctrl+K (Win/Linux) que abre um painel de busca de comandos acima de qualquer tela. É o **teletransporte verdadeiro** descrito no Manifesto 2.0, princípio #6 — qualquer tela, qualquer ação, três teclas de distância.
+
+Este é o primeiro PR de frontend do ciclo de 4 meses. Ele define o **padrão arquitetural de extensibilidade por módulo** que se repete nos próximos 13 passos. Executar ele bem significa que todo módulo futuro herda um registry de comandos automaticamente. Executar mal significa retrabalho em cada uma das 11 telas da Fase A.
+
+Prioridade: **qualidade arquitetural > quantidade de comandos iniciais**. Melhor entregar 15 comandos impecavelmente estruturados do que 60 frouxos.
+
+---
+
+## 2. ESCOPO DESTE PR
+
+### Entra
+
+- Lib `cmdk` instalada
+- Registry global de comandos com padrão extensível
+- Hook `useRegisterCommand` para módulos registrarem comandos dinamicamente
+- Arquivos `*.commands.ts` por módulo, carregados estaticamente no bootstrap
+- 15 comandos base (listados abaixo)
+- Componente visual aderente ao Manifesto 2.0
+- Atalho ⌘K / Ctrl+K global
+- Navegação por teclado (setas, Enter, ESC)
+- Recent commands em localStorage (últimos 5)
+- 10 testes E2E Playwright
+- `SECURITY_DEBT.md` no root
+
+### Fica de fora (PRs futuros)
+
+- Combos de atalho tipo "G + P" (Linear-style) — vira PR separado após ⌘K estabilizar
+- Integração com Peek-and-Pop (é o Passo 6, PR posterior)
+- Busca full-text em conteúdo de paciente/NFe (depende de Fase A telas prontas)
+- i18n (PT-BR hardcoded por enquanto)
+- Theming dark/light (o sistema inteiro é dark, não há alternativa ainda)
+
+---
+
+## 3. STACK E DEPENDÊNCIAS
+
+**Adicionar ao `package.json` de `artifacts/clinica-motor`:**
+
+```json
+{
+  "dependencies": {
+    "cmdk": "^1.0.0",
+    "lucide-react": "^0.400.0"
+  }
+}
+```
+
+`lucide-react` provavelmente já está — confirmar antes. Se não, instalar.
+
+**Não usar:**
+- Headless UI (overkill pro caso)
+- Radix Dialog nativo (cmdk já empacota Radix por baixo)
+- Fuse.js ou Flexsearch pra fuzzy search (cmdk tem match por score nativo)
+
+---
+
+## 4. ESTRUTURA DE ARQUIVOS
+
+```
+artifacts/clinica-motor/src/
+├── lib/
+│   └── commandPalette/
+│       ├── index.ts              # barrel export
+│       ├── types.ts              # Command, CommandCategory, CommandContext
+│       ├── registry.ts           # singleton com comandos + API
+│       ├── provider.tsx          # <CommandPaletteProvider> + estado
+│       ├── hooks.ts              # useCommandPalette, useRegisterCommand
+│       └── defaultCommands.ts    # comandos base (Navegar, Admin)
+│
+├── components/
+│   └── CommandPalette/
+│       ├── CommandPalette.tsx    # componente visual principal
+│       ├── CommandItem.tsx       # item individual
+│       ├── CommandGroup.tsx      # agrupamento por categoria
+│       ├── CommandShortcut.tsx   # badge de atalho
+│       ├── CommandFooter.tsx     # rodapé com instruções
+│       └── tokens.css            # tokens aderentes ao Manifesto 2.0
+│
+└── pages/
+    ├── pacientes/commands.ts     # comandos do módulo Pacientes
+    ├── financeiro/commands.ts    # comandos do módulo Financeiro
+    ├── nfe/commands.ts           # comandos do módulo NFe
+    └── ...                       # um por módulo futuramente
+```
+
+**Regra:** qualquer módulo que quer contribuir comandos cria um arquivo `commands.ts` dentro da sua pasta. O registry importa todos esses arquivos no bootstrap (via import explícito no `defaultCommands.ts`). Módulos carregados dinamicamente usam `useRegisterCommand` em seus componentes.
+
+---
+
+## 5. TIPOS TYPESCRIPT
+
+`lib/commandPalette/types.ts`:
+
+```ts
+import type { LucideIcon } from 'lucide-react';
+
+export type CommandCategory =
+  | 'navegar'
+  | 'buscar'
+  | 'criar'
+  | 'acoes'
+  | 'admin';
+
+export interface CommandContext {
+  navigate: (path: string) => void;
+  closePalette: () => void;
+  perfilUsuario?: string; // usado depois do JWT; provisório por enquanto
+}
+
+export interface Command {
+  id: string;                    // único global, formato 'modulo:acao'
+  label: string;                 // texto visível
+  description?: string;          // subtítulo opcional
+  category: CommandCategory;
+  keywords: string[];            // termos extras pra match (cpf, nota, etc)
+  icon: LucideIcon;              // componente lucide-react
+  shortcut?: string[];           // ex: ['⌘', 'P'] — exibido mas não ativado nesta versão
+  perform: (ctx: CommandContext) => void | Promise<void>;
+  requiresPerfil?: string[];     // placeholder para pós-JWT
+  hidden?: boolean;              // esconde da lista mas ainda registrado
+}
+```
+
+Regra de nomenclatura para `id`: sempre `modulo:acao`, snake_case.
+- `navegar:dashboard`
+- `pacientes:buscar`
+- `nfe:emitir`
+- `admin:gateways`
+
+---
+
+## 6. REGISTRY API
+
+`lib/commandPalette/registry.ts`:
+
+```ts
+import type { Command } from './types';
+
+class CommandRegistry {
+  private commands = new Map<string, Command>();
+  private listeners = new Set<() => void>();
+
+  register(cmd: Command): void {
+    if (this.commands.has(cmd.id)) {
+      console.warn(`[CommandPalette] comando duplicado: ${cmd.id}`);
+      return;
+    }
+    this.commands.set(cmd.id, cmd);
+    this.notify();
+  }
+
+  unregister(id: string): void {
+    this.commands.delete(id);
+    this.notify();
+  }
+
+  list(): Command[] {
+    return Array.from(this.commands.values())
+      .filter(c => !c.hidden)
+      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  }
+
+  get(id: string): Command | undefined {
+    return this.commands.get(id);
+  }
+
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  private notify(): void {
+    this.listeners.forEach(fn => fn());
+  }
+}
+
+export const commandRegistry = new CommandRegistry();
+```
+
+**Singleton.** Não instanciar múltiplos. Exportado como valor constante, não factory.
+
+---
+
+## 7. PROVIDER E HOOKS
+
+`lib/commandPalette/provider.tsx`:
+
+```tsx
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'wouter';
+import { commandRegistry } from './registry';
+import { defaultCommands } from './defaultCommands';
+import type { Command, CommandContext } from './types';
+
+interface PaletteState {
+  isOpen: boolean;
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+  recentCommandIds: string[];
+}
+
+const Ctx = createContext<PaletteState | null>(null);
+
+export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [recentCommandIds, setRecentCommandIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('padcon:cmdk:recent') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  // registra comandos default no mount
+  useEffect(() => {
+    defaultCommands.forEach(cmd => commandRegistry.register(cmd));
+    return () => defaultCommands.forEach(cmd => commandRegistry.unregister(cmd.id));
+  }, []);
+
+  // atalho global ⌘K / Ctrl+K
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsOpen(v => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const open = useCallback(() => setIsOpen(true), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  const toggle = useCallback(() => setIsOpen(v => !v), []);
+
+  return (
+    <Ctx.Provider value={{ isOpen, open, close, toggle, recentCommandIds }}>
+      {children}
+    </Ctx.Provider>
+  );
+}
+
+export function useCommandPalette(): PaletteState {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error('useCommandPalette fora de CommandPaletteProvider');
+  return ctx;
+}
+```
+
+`lib/commandPalette/hooks.ts`:
+
+```ts
+import { useEffect } from 'react';
+import { commandRegistry } from './registry';
+import type { Command } from './types';
+
+export function useRegisterCommand(cmd: Command | Command[]): void {
+  useEffect(() => {
+    const arr = Array.isArray(cmd) ? cmd : [cmd];
+    arr.forEach(c => commandRegistry.register(c));
+    return () => arr.forEach(c => commandRegistry.unregister(c.id));
+  }, []); // intencionalmente vazio — comando é estável no ciclo de vida do componente
+}
+```
+
+Uso em módulo dinâmico:
+
+```tsx
+// pages/pacientes/index.tsx
+import { useRegisterCommand } from '@/lib/commandPalette';
+import { UserPlus } from 'lucide-react';
+
+export default function PacientesPage() {
+  useRegisterCommand({
+    id: 'pacientes:adicionar-do-contexto',
+    label: 'Adicionar paciente (contexto atual)',
+    category: 'criar',
+    keywords: ['novo', 'paciente'],
+    icon: UserPlus,
+    perform: (ctx) => {
+      ctx.navigate('/pacientes/novo');
+      ctx.closePalette();
+    },
+    hidden: false,
+  });
+
+  return <div>...</div>;
+}
+```
+
+---
+
+## 8. COMANDOS BASE (15 iniciais)
+
+`lib/commandPalette/defaultCommands.ts`:
+
+```ts
+import {
+  LayoutDashboard, Users, Calendar, FileText, FolderOpen,
+  Stethoscope, Receipt, Settings, Shield, Database,
+  CreditCard, FileCheck, Building2, UsersRound, MessageSquare,
+} from 'lucide-react';
+import type { Command } from './types';
+
+export const defaultCommands: Command[] = [
+  // NAVEGAR (9)
+  { id: 'navegar:dashboard', label: 'Ir para Dashboard', category: 'navegar',
+    keywords: ['home', 'inicio', 'painel'], icon: LayoutDashboard,
+    shortcut: ['G', 'D'],
+    perform: (ctx) => { ctx.navigate('/dashboard'); ctx.closePalette(); } },
+
+  { id: 'navegar:pacientes', label: 'Ir para Pacientes', category: 'navegar',
+    keywords: ['paciente', 'prontuario'], icon: Users,
+    shortcut: ['G', 'P'],
+    perform: (ctx) => { ctx.navigate('/pacientes'); ctx.closePalette(); } },
+
+  { id: 'navegar:agenda', label: 'Ir para Agenda', category: 'navegar',
+    keywords: ['calendario', 'horario', 'consulta'], icon: Calendar,
+    perform: (ctx) => { ctx.navigate('/agenda-motor'); ctx.closePalette(); } },
+
+  { id: 'navegar:sessoes', label: 'Ir para Sessões', category: 'navegar',
+    keywords: ['sessao', 'atendimento'], icon: Stethoscope,
+    perform: (ctx) => { ctx.navigate('/sessoes'); ctx.closePalette(); } },
+
+  { id: 'navegar:catalogo', label: 'Ir para Catálogo', category: 'navegar',
+    keywords: ['formula', 'injetavel', 'endovenoso', 'implante'], icon: FolderOpen,
+    perform: (ctx) => { ctx.navigate('/catalogo'); ctx.closePalette(); } },
+
+  { id: 'navegar:financeiro', label: 'Ir para Financeiro', category: 'navegar',
+    keywords: ['receita', 'caixa', 'pagamento'], icon: Receipt,
+    perform: (ctx) => { ctx.navigate('/financeiro'); ctx.closePalette(); } },
+
+  { id: 'navegar:nfe', label: 'Ir para Painel NFe', category: 'navegar',
+    keywords: ['nota', 'fiscal', 'nfse'], icon: FileText,
+    perform: (ctx) => { ctx.navigate('/painel-nfe'); ctx.closePalette(); } },
+
+  { id: 'navegar:governanca', label: 'Ir para Governança', category: 'navegar',
+    keywords: ['semaforo', 'sla', 'auditoria'], icon: Shield,
+    perform: (ctx) => { ctx.navigate('/governanca'); ctx.closePalette(); } },
+
+  { id: 'navegar:unidades', label: 'Ir para Unidades', category: 'navegar',
+    keywords: ['clinica', 'instituto'], icon: Building2,
+    perform: (ctx) => { ctx.navigate('/unidades'); ctx.closePalette(); } },
+
+  // ADMIN (4)
+  { id: 'admin:gateways', label: 'Gateways de Pagamento', category: 'admin',
+    keywords: ['asaas', 'stripe', 'mercadopago', 'vindi', 'infinitepay'], icon: CreditCard,
+    perform: (ctx) => { ctx.navigate('/gateways-pagamento'); ctx.closePalette(); } },
+
+  { id: 'admin:credenciais-nfe', label: 'Credenciais NFe', category: 'admin',
+    keywords: ['focus', 'enotas', 'certificado', 'a1'], icon: FileCheck,
+    perform: (ctx) => { ctx.navigate('/credenciais-nfe'); ctx.closePalette(); } },
+
+  { id: 'admin:seguranca', label: 'Segurança', category: 'admin',
+    keywords: ['permissao', 'token', 'jwt'], icon: Shield,
+    perform: (ctx) => { ctx.navigate('/seguranca'); ctx.closePalette(); } },
+
+  { id: 'admin:colaboradores', label: 'Colaboradores', category: 'admin',
+    keywords: ['equipe', 'rh', 'funcionario'], icon: UsersRound,
+    perform: (ctx) => { ctx.navigate('/colaboradores'); ctx.closePalette(); } },
+
+  // AÇÕES (2)
+  { id: 'acoes:mensagens', label: 'Abrir Mensagens', category: 'acoes',
+    keywords: ['whatsapp', 'conversa', 'chat'], icon: MessageSquare,
+    perform: (ctx) => { ctx.navigate('/mensagens'); ctx.closePalette(); } },
+
+  { id: 'acoes:configuracoes', label: 'Configurações', category: 'acoes',
+    keywords: ['settings', 'ajustes', 'preferencias'], icon: Settings,
+    perform: (ctx) => { ctx.navigate('/configuracoes'); ctx.closePalette(); } },
+];
+```
+
+Os 15 comandos são **todos de navegação ou ação simples**. Nenhum faz mutação real (emitir NFe, deletar, etc) — isso vem em PRs módulo a módulo, com confirmação dentro da própria tela. ⌘K leva até a tela, não substitui a tela.
+
+---
+
+## 9. COMPONENTE VISUAL
+
+`components/CommandPalette/CommandPalette.tsx`:
+
+```tsx
+import { Command as CmdkRoot } from 'cmdk';
+import { useCommandPalette } from '@/lib/commandPalette';
+import { useNavigate } from 'wouter';
+import { commandRegistry } from '@/lib/commandPalette/registry';
+import { useEffect, useState } from 'react';
+import { CommandItem } from './CommandItem';
+import { CommandGroup } from './CommandGroup';
+import { CommandFooter } from './CommandFooter';
+import './tokens.css';
+
+export function CommandPalette() {
+  const { isOpen, close, recentCommandIds } = useCommandPalette();
+  const [, navigate] = useNavigate();
+  const [commands, setCommands] = useState(commandRegistry.list());
+
+  useEffect(() => {
+    return commandRegistry.subscribe(() => setCommands(commandRegistry.list()));
+  }, []);
+
+  if (!isOpen) return null;
+
+  const ctx = { navigate, closePalette: close };
+  const grouped = groupByCategory(commands);
+  const recents = recentCommandIds
+    .map(id => commandRegistry.get(id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
+    .slice(0, 5);
+
+  return (
+    <div
+      className="cmdk-overlay"
+      onClick={close}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Paleta de comandos"
+    >
+      <div className="cmdk-container" onClick={(e) => e.stopPropagation()}>
+        <CmdkRoot label="Paleta de comandos" loop>
+          <CmdkRoot.Input
+            className="cmdk-input"
+            placeholder="Buscar comandos ou digite para agir..."
+            autoFocus
+          />
+          <CmdkRoot.List className="cmdk-list">
+            <CmdkRoot.Empty className="cmdk-empty">
+              Nenhum comando encontrado.
+            </CmdkRoot.Empty>
+
+            {recents.length > 0 && (
+              <CommandGroup heading="Recentes">
+                {recents.map(cmd => (
+                  <CommandItem key={`recent-${cmd.id}`} command={cmd} context={ctx} />
+                ))}
+              </CommandGroup>
+            )}
+
+            {(['navegar', 'buscar', 'criar', 'acoes', 'admin'] as const).map(cat => {
+              const items = grouped[cat] || [];
+              if (items.length === 0) return null;
+              return (
+                <CommandGroup key={cat} heading={categoryLabel(cat)}>
+                  {items.map(cmd => (
+                    <CommandItem key={cmd.id} command={cmd} context={ctx} />
+                  ))}
+                </CommandGroup>
+              );
+            })}
+          </CmdkRoot.List>
+          <CommandFooter />
+        </CmdkRoot>
+      </div>
+    </div>
+  );
+}
+
+function groupByCategory(cmds: Command[]) {
+  return cmds.reduce<Record<string, Command[]>>((acc, cmd) => {
+    (acc[cmd.category] = acc[cmd.category] || []).push(cmd);
+    return acc;
+  }, {});
+}
+
+function categoryLabel(cat: string): string {
+  return { navegar: 'Navegar', buscar: 'Buscar', criar: 'Criar',
+           acoes: 'Ações', admin: 'Admin' }[cat] || cat;
+}
+```
+
+---
+
+## 10. TOKENS CSS — ADERÊNCIA AO MANIFESTO 2.0
+
+`components/CommandPalette/tokens.css`:
+
+```css
+.cmdk-overlay {
+  position: fixed;
+  inset: 0;
+  background: hsl(215 28% 9% / 0.72);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  animation: cmdk-fade-in 120ms ease-out;
+}
+
+.cmdk-container {
+  width: 640px;
+  max-width: 92vw;
+  background: hsl(215 28% 11%);
+  border: 1px solid hsl(215 28% 18%);
+  border-radius: 0;           /* Manifesto #: zero radius */
+  box-shadow: 0 24px 48px hsl(215 28% 4% / 0.48);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cmdk-input {
+  width: 100%;
+  padding: 18px 20px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid hsl(215 28% 18%);
+  color: hsl(0 0% 95%);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  outline: none;
+}
+
+.cmdk-input::placeholder {
+  color: hsl(215 15% 45%);
+}
+
+.cmdk-list {
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.cmdk-empty {
+  padding: 24px;
+  text-align: center;
+  color: hsl(215 15% 45%);
+  font-size: 14px;
+}
+
+/* animações — Manifesto #4: 150ms, sem parallax */
+@keyframes cmdk-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+```
+
+E para `CommandItem.tsx`, o essencial:
+
+```css
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  color: hsl(0 0% 85%);
+  transition: background 120ms ease-out;  /* Manifesto #4 */
+}
+
+.cmdk-item[data-selected="true"] {
+  background: hsl(210 45% 65% / 0.12);
+  border-left: 2px solid hsl(210 45% 65%);   /* Manifesto #9: barra lateral 2px primary */
+  padding-left: 18px;
+}
+
+.cmdk-item-icon {
+  width: 16px;
+  height: 16px;
+  color: hsl(215 15% 55%);
+}
+
+.cmdk-item[data-selected="true"] .cmdk-item-icon {
+  color: hsl(210 45% 65%);
+}
+
+.cmdk-shortcut {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;   /* Manifesto #2: monoespaço pra shortcut */
+  font-size: 11px;
+  color: hsl(215 15% 45%);
+  letter-spacing: 0.04em;
+}
+
+.cmdk-group-heading {
+  padding: 8px 20px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: hsl(215 15% 50%);
+}
+```
+
+---
+
+## 11. RECENT COMMANDS
+
+Em `provider.tsx`, adicionar função `recordUse(id)` exposta no contexto:
+
+```ts
+const recordUse = useCallback((id: string) => {
+  setRecentCommandIds(prev => {
+    const next = [id, ...prev.filter(x => x !== id)].slice(0, 5);
+    localStorage.setItem('padcon:cmdk:recent', JSON.stringify(next));
+    return next;
+  });
+}, []);
+```
+
+E no `CommandItem.tsx`, chamar `recordUse(command.id)` antes de `perform(ctx)`.
+
+Guarda apenas os **5 últimos distintos**. Não guarda quando o comando é `hidden`. Limpar via `localStorage.removeItem('padcon:cmdk:recent')` se necessário.
+
+---
+
+## 12. INSTRUÇÕES NO RODAPÉ
+
+`CommandFooter.tsx`:
+
+```tsx
+export function CommandFooter() {
+  return (
+    <div className="cmdk-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+      <span><kbd>↵</kbd> executar</span>
+      <span><kbd>esc</kbd> fechar</span>
+    </div>
+  );
+}
+```
+
+```css
+.cmdk-footer {
+  display: flex;
+  gap: 20px;
+  padding: 10px 20px;
+  border-top: 1px solid hsl(215 28% 18%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: hsl(215 15% 45%);
+}
+.cmdk-footer kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 4px;
+  background: hsl(215 28% 15%);
+  border: 1px solid hsl(215 28% 22%);
+  border-radius: 0;
+  font-family: inherit;
+  font-size: 10px;
+  color: hsl(0 0% 80%);
+}
+```
+
+---
+
+## 13. MONTAGEM NO APP
+
+Em `artifacts/clinica-motor/src/App.tsx` (ou equivalente):
+
+```tsx
+import { CommandPaletteProvider } from '@/lib/commandPalette';
+import { CommandPalette } from '@/components/CommandPalette/CommandPalette';
+
+export function App() {
+  return (
+    <CommandPaletteProvider>
+      {/* ... resto do app ... */}
+      <CommandPalette />
+    </CommandPaletteProvider>
+  );
+}
+```
+
+`<CommandPalette />` sempre no topo da árvore (fixed overlay), fora de qualquer container que tenha `overflow: hidden`.
+
+---
+
+## 14. TESTES E2E PLAYWRIGHT
+
+Arquivo `tests/e2e/command-palette.spec.ts`:
+
+```ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Command Palette ⌘K', () => {
+  test('1. Ctrl+K abre o palette', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await expect(page.getByRole('dialog', { name: /paleta de comandos/i })).toBeVisible();
+  });
+
+  test('2. ESC fecha o palette', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+  });
+
+  test('3. Digitar filtra comandos', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await page.keyboard.type('pacientes');
+    await expect(page.getByText('Ir para Pacientes')).toBeVisible();
+    await expect(page.getByText('Ir para Financeiro')).not.toBeVisible();
+  });
+
+  test('4. Enter executa comando e navega', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await page.keyboard.type('pacientes');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/pacientes/);
+  });
+
+  test('5. Setas navegam entre itens', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    const selected = page.locator('[data-selected="true"]');
+    await expect(selected).toHaveCount(1);
+  });
+
+  test('6. Click com mouse executa', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await page.getByText('Ir para Agenda').click();
+    await expect(page).toHaveURL(/\/agenda-motor/);
+  });
+
+  test('7. Clique no overlay fecha', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await page.locator('.cmdk-overlay').click({ position: { x: 10, y: 10 } });
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+  });
+
+  test('8. Recentes persistem após reload', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await page.getByText('Ir para Pacientes').click();
+    await page.reload();
+    await page.keyboard.press('Control+k');
+    await expect(page.getByText('Recentes')).toBeVisible();
+    await expect(page.locator('text="Ir para Pacientes"').first()).toBeVisible();
+  });
+
+  test('9. Nenhum resultado mostra mensagem vazia', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Control+k');
+    await page.keyboard.type('xyzqwertyinexistente');
+    await expect(page.getByText(/nenhum comando encontrado/i)).toBeVisible();
+  });
+
+  test('10. Atalho com Meta (Mac) também funciona', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.keyboard.press('Meta+k');
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+});
+```
+
+Os 10 testes **precisam passar** antes do PR ser aprovado.
+
+---
+
+## 15. CRITÉRIO DE ACEITE
+
+PR aprovado quando todos estes itens estiverem ✅:
+
+- [ ] `cmdk` instalado em `package.json` do workspace `clinica-motor`
+- [ ] Estrutura de arquivos conforme seção 4
+- [ ] `commandRegistry` singleton funciona (register, unregister, list, subscribe)
+- [ ] `CommandPaletteProvider` montado globalmente
+- [ ] Atalho ⌘K (Mac) e Ctrl+K (Win/Linux) abrem o palette
+- [ ] ESC fecha, clique no overlay fecha, Enter executa, setas navegam
+- [ ] 15 comandos base registrados e todos navegáveis
+- [ ] Hook `useRegisterCommand` funcional (testar registrando 1 comando ad-hoc em uma página)
+- [ ] Recentes persistem em `localStorage` (chave `padcon:cmdk:recent`, máximo 5 distintos)
+- [ ] Visual aderente: border-radius 0, 6 cores, JetBrains Mono em shortcuts, transições 120-150ms, skeleton do Manifesto
+- [ ] 10 testes Playwright passando em CI
+- [ ] `SECURITY_DEBT.md` incluído no root do repo (texto já entregue em mensagem anterior)
+- [ ] README da `clinica-motor` atualizado com seção "Command Palette" explicando como registrar comandos
+- [ ] Zero warning no console ao abrir/fechar o palette 100 vezes seguidas (stress test manual)
+- [ ] Acessível por teclado do começo ao fim (sem mouse)
+
+---
+
+## 16. O QUE NÃO FAZER
+
+Contra-padrões que o Caio deve rejeitar na revisão:
+
+- ❌ Usar `window.location.href = ...` pra navegar — sempre `navigate()` do Wouter
+- ❌ Ícones de emoji em vez de lucide-react
+- ❌ Cores fora das 6 do Manifesto (verde, vermelho, dourado, azul, preto, cinza)
+- ❌ Border-radius arredondado (Manifesto #: zero)
+- ❌ Sombras coloridas
+- ❌ Comandos com `perform` que faz `fetch` direto — comandos só navegam ou abrem modais; mutação mora na tela, não no ⌘K
+- ❌ Adicionar mais de 15 comandos iniciais (mantém enxuto; outros vêm via `useRegisterCommand` quando os módulos existirem)
+- ❌ Salvar algo sensível em `localStorage` além dos recentes (token, paciente ID, etc — não fazer)
+- ❌ Bloqueio síncrono no registro de comandos — sempre idempotente
+
+---
+
+## 17. COMO FICA DEPOIS DO ⌘K
+
+Este PR não entrega valor sozinho. Ele desbloqueia:
+
+- **Passo 4 (Design System 2.0):** tokens.css do ⌘K vira semente do `design-tokens.css` global
+- **Passo 5 já feito** ✅
+- **Passo 6 (Peek-and-Pop):** ⌘K aprende a chamar o drawer do Peek-and-Pop em vez de navegar direto quando o comando for do tipo `peek`
+- **Fase A (11 telas):** cada tela nova registra seus próprios comandos via `useRegisterCommand` — ⌘K fica mais rico sem mexer no core
+- **Passo 11 (Relatórios PDF):** comando `relatorios:gerar-mensal` aparece no ⌘K
+- **Mobile Expo (Passo 14):** mesmo registry é portável pra React Native com swipe up em vez de ⌘K
+
+Ou seja: ⌘K não é feature isolada. É a espinha dorsal de navegação de tudo que vem depois. É por isso que a qualidade arquitetural dele vale mais que a velocidade.
+
+---
+
+## 18. ENTREGA
+
+Branch: `replit-agent` → PR "feat(cmdk): Command Palette universal ⌘K"
+Commit único, atômico. Se precisar dividir, dividir em no máximo 2: (1) infra + provider + registry, (2) visual + comandos + testes.
+
+Commit adicional no mesmo PR: `SECURITY_DEBT.md` no root.
+
+Após merge: Caio abre no navegador, aperta Ctrl+K, vê a lista, navega 5 vezes, grava vídeo curto de 30s mandando pro grupo. **Dopamina cravada.**
+
+---
+
+**FIM DA SPEC.**
+
+_Dr. Claude, orquestrador_
+_20.04.26_
