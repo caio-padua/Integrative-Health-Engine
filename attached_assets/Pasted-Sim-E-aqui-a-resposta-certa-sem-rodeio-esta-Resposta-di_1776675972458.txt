@@ -1,0 +1,562 @@
+Sim. E aqui a resposta certa, sem rodeio, é esta:
+
+Resposta direta
+
+Para o Replit automatizar melhor, mais rápido e com menos gambiarra: escolha Zoho Mail.
+Para o menor custo por muitas caixas reais, com gestão mais manual: Locaweb tende a ser melhor.
+
+A diferença prática é:
+
+* Zoho: melhor para automação por sistema, porque tem documentação e APIs próprias com OAuth para operações de conta e e-mail. O Zoho também suporta aliases, mas o próprio Zoho informa um limite de até 30 aliases por conta.  ￼
+* Locaweb: melhor para muitas caixas reais baratas, porque a própria Locaweb divulga planos de e-mail com custo por conta muito baixo em volume, a partir de 25 contas, e também permite alias no painel. Mas o que aparece publicamente, de forma clara, é uma operação mais orientada a painel/administrador do que uma automação aberta e elegante via API como no Zoho.  ￼
+
+O ponto mais importante do seu caso
+
+Você disse algo decisivo:
+
+esses e-mails não vão ser usados para trocar mensagens; vão servir mais para login no Trello, login no sistema e identidade
+
+Então o que você precisa não é “e-mail profissional tradicional”.
+
+Você precisa de:
+
+* identidade única
+* capacidade de receber verificação e reset de senha
+* baixo custo
+* provisionamento controlado pelo sistema
+
+E aqui existe um detalhe crítico:
+
+Mesmo sendo “só login”, a caixa precisa existir de verdade
+
+Porque Trello/Atlassian usa o e-mail da conta para login, verificação, confirmação e recuperação. A documentação oficial da Atlassian mostra que:
+
+* o e-mail usado no Trello é o e-mail da conta Atlassian;
+* mudanças de e-mail exigem verificação;
+* recuperação de conta e verificação de identidade dependem de mensagens enviadas para a caixa de entrada.  ￼
+
+Então:
+não basta “inventar o endereço”.
+Você precisa garantir que ele receba mensagens.
+
+⸻
+
+Minha recomendação objetiva para você
+
+Se a prioridade é automação com Replit
+
+Zoho Mail
+
+Porque:
+
+* tem APIs documentadas
+* usa OAuth oficialmente
+* é mais natural para um backend em TypeScript automatizar depois  ￼
+
+Se a prioridade é criar muitas contas pagando pouco
+
+Locaweb
+
+Porque:
+
+* a própria Locaweb divulga planos com muitas caixas e custo baixo por conta
+* é interessante quando você quer muitas identidades reais de forma econômica  ￼
+
+⸻
+
+Minha recomendação mais honesta, pensando no seu modelo
+
+Como você quer que o sistema crie isso, eu escolheria assim:
+
+Escolha principal
+
+Zoho Mail, se você quer o Replit automatizando de verdade
+
+Mas com uma observação importante:
+
+O modelo “1 caixa base por cargo + vários aliases” no Zoho tem limite
+
+O próprio Zoho informa até 30 aliases por conta.  ￼
+
+Como você tem, por clínica e por cargo, pelo menos:
+
+* local.alpha
+* local.beta
+* remote.alpha
+* remote.beta
+
+isso dá 4 aliases por cargo por clínica.
+
+Exemplo só para administrativo:
+
+* 1 clínica = 4 aliases
+* 5 clínicas = 20 aliases
+* 8 clínicas = 32 aliases
+
+Ou seja:
+com 8 clínicas você já ultrapassa o limite de 30 aliases em uma única caixa-base daquele cargo no Zoho.
+Essa conta matemática é uma inferência direta a partir do seu padrão e do limite oficial de 30 aliases por conta informado pelo Zoho.  ￼
+
+⸻
+
+Conclusão prática
+
+Cenário A — você quer automação forte com o Replit
+
+Use Zoho, mas não concentre todas as clínicas no mesmo mailbox-base por cargo.
+
+Você pode dividir assim:
+
+* administrativo.1@…
+* administrativo.2@…
+* administrativo.3@…
+
+e distribuir aliases entre elas.
+
+Cenário B — você quer escala bruta e custo baixo por muitas identidades reais
+
+Use Locaweb e crie caixas reais por lote.
+
+⸻
+
+Minha decisão técnica para você
+
+Pelo que você quer agora — o sistema gerando e controlando — eu escolheria:
+
+Zoho Mail
+
+para a primeira fase.
+
+E eu estruturaria o código para ficar agnóstico de provedor, para você poder trocar depois para Locaweb ou outro.
+
+⸻
+
+Texto pronto para colar no Replit
+
+DECISÃO DE ARQUITETURA DE E-MAILS
+Objetivo:
+Implementar um sistema de identidades operacionais por clínica, onde os endereços de e-mail serão usados principalmente como identidade de login e provisionamento de acesso, e não como canal humano de troca de mensagens.
+IMPORTANTE:
+Mesmo sendo usados principalmente como login, esses endereços precisam existir de verdade e receber mensagens, porque plataformas como Trello/Atlassian usam e-mail para:
+- verificação de conta
+- confirmação de e-mail
+- redefinição de senha
+- verificação de identidade
+Provedor escolhido para a primeira fase:
+Zoho Mail
+Motivo:
+- melhor adequação para automação via sistema
+- possui APIs documentadas
+- integra melhor com backend TypeScript
+- permite aliases
+Observação crítica:
+O Zoho limita até 30 aliases por conta.
+Portanto, o sistema deve ser desenhado com camada de abstração de provedor e sem assumir que haverá apenas um mailbox-base por cargo para sempre.
+Arquitetura necessária:
+1. O módulo deve continuar gerando catálogo interno por clínica.
+2. A camada de provisionamento deve ser separada por provider.
+3. O sistema deve suportar futuramente Zoho e Locaweb.
+4. O provider inicial será Zoho.
+5. O sistema deve permitir alternar provider no futuro sem reescrever a lógica do catálogo.
+
+⸻
+
+Agora a segunda parte: blocos de código prontos
+
+1. Tipos do provedor
+
+// src/modules/email-identity/provider-types.ts
+export type EmailProvider = 'zoho' | 'locaweb';
+export interface ProvisionEmailInput {
+  email: string;
+  cargo: string;
+  clinicSlug: string;
+  targetMailbox: string;
+}
+export interface ProvisionEmailResult {
+  success: boolean;
+  provider: EmailProvider;
+  email: string;
+  message?: string;
+  externalId?: string;
+}
+export interface EmailProvisionProvider {
+  name: EmailProvider;
+  provisionAlias(input: ProvisionEmailInput): Promise<ProvisionEmailResult>;
+  disableAlias?(input: ProvisionEmailInput): Promise<ProvisionEmailResult>;
+}
+
+⸻
+
+2. Constantes do sistema
+
+// src/modules/email-identity/constants.ts
+export const CARGOS = [
+  'medico',
+  'gestao',
+  'supervisao',
+  'enfermagem',
+  'consultoria',
+  'administrativo',
+  'financeiro',
+  'ouvidoria',
+] as const;
+export const MODOS = ['local', 'remote'] as const;
+export const HIERARQUIAS = ['alpha', 'beta'] as const;
+export const DOMAIN = 'padwards.com.br';
+export const BASE_USERS_BY_CARGO = {
+  medico: 'medico@padwards.com.br',
+  gestao: 'gestao@padwards.com.br',
+  supervisao: 'supervisao@padwards.com.br',
+  enfermagem: 'enfermagem@padwards.com.br',
+  consultoria: 'consultoria@padwards.com.br',
+  administrativo: 'administrativo@padwards.com.br',
+  financeiro: 'financeiro@padwards.com.br',
+  ouvidoria: 'ouvidoria@padwards.com.br',
+} as const;
+
+⸻
+
+3. Tipos principais
+
+// src/modules/email-identity/types.ts
+export type Cargo =
+  | 'medico'
+  | 'gestao'
+  | 'supervisao'
+  | 'enfermagem'
+  | 'consultoria'
+  | 'administrativo'
+  | 'financeiro'
+  | 'ouvidoria';
+export type Modo = 'local' | 'remote';
+export type Hierarquia = 'alpha' | 'beta';
+export type EmailIdentityStatus =
+  | 'available'
+  | 'selected'
+  | 'provisioning'
+  | 'provisioned'
+  | 'disabled'
+  | 'archived'
+  | 'failed';
+export interface ClinicEmailIdentity {
+  id: string;
+  clinicId: string;
+  cargo: Cargo;
+  modo: Modo;
+  hierarquia: Hierarquia;
+  email: string;
+  googleTargetUser?: string | null;
+  providerTargetUser?: string | null;
+  provider: 'zoho' | 'locaweb';
+  status: EmailIdentityStatus;
+  createdAt: Date;
+  selectedAt?: Date | null;
+  provisionedAt?: Date | null;
+  disabledAt?: Date | null;
+  lastError?: string | null;
+}
+
+⸻
+
+4. Gerador do catálogo
+
+// src/modules/email-identity/generator.ts
+import { CARGOS, MODOS, HIERARQUIAS, DOMAIN, BASE_USERS_BY_CARGO } from './constants';
+export function generateClinicEmailCatalog(
+  clinicId: string,
+  clinicSlug: string,
+  provider: 'zoho' | 'locaweb' = 'zoho'
+) {
+  const identities = [];
+  for (const cargo of CARGOS) {
+    for (const modo of MODOS) {
+      for (const hierarquia of HIERARQUIAS) {
+        const email = `${cargo}.${modo}.${hierarquia}.${clinicSlug}@${DOMAIN}`;
+        identities.push({
+          clinicId,
+          cargo,
+          modo,
+          hierarquia,
+          email,
+          provider,
+          providerTargetUser: BASE_USERS_BY_CARGO[cargo],
+          status: 'available',
+          createdAt: new Date(),
+          selectedAt: null,
+          provisionedAt: null,
+          disabledAt: null,
+          lastError: null,
+        });
+      }
+    }
+  }
+  return identities;
+}
+
+⸻
+
+5. Criação do catálogo ao cadastrar clínica
+
+// src/modules/email-identity/service.ts
+import { generateClinicEmailCatalog } from './generator';
+import { db } from '@/lib/db';
+export async function createClinicEmailCatalog(
+  clinicId: string,
+  clinicSlug: string,
+  provider: 'zoho' | 'locaweb' = 'zoho'
+) {
+  const catalog = generateClinicEmailCatalog(clinicId, clinicSlug, provider);
+  await db.clinicEmailIdentity.createMany({
+    data: catalog,
+    skipDuplicates: true,
+  });
+  return catalog;
+}
+
+⸻
+
+6. Toggle
+
+// src/modules/email-identity/toggle.ts
+import { db } from '@/lib/db';
+import { EmailIdentityStatus } from './types';
+export async function toggleEmailSelection(identityId: string, currentStatus: EmailIdentityStatus) {
+  if (currentStatus === 'available') {
+    return db.clinicEmailIdentity.update({
+      where: { id: identityId },
+      data: {
+        status: 'selected',
+        selectedAt: new Date(),
+      },
+    });
+  }
+  if (currentStatus === 'selected') {
+    return db.clinicEmailIdentity.update({
+      where: { id: identityId },
+      data: {
+        status: 'available',
+        selectedAt: null,
+      },
+    });
+  }
+  throw new Error('Status inválido para toggle');
+}
+
+⸻
+
+7. Provider Zoho — adapter inicial
+
+// src/modules/email-identity/providers/zoho.ts
+import {
+  EmailProvisionProvider,
+  ProvisionEmailInput,
+  ProvisionEmailResult,
+} from '../provider-types';
+export class ZohoProvisionProvider implements EmailProvisionProvider {
+  name = 'zoho' as const;
+  async provisionAlias(input: ProvisionEmailInput): Promise<ProvisionEmailResult> {
+    // IMPLEMENTAÇÃO REAL DEPOIS:
+    // 1. autenticar via OAuth Zoho
+    // 2. localizar conta-base (targetMailbox)
+    // 3. criar alias
+    // 4. retornar sucesso/erro
+    return {
+      success: true,
+      provider: 'zoho',
+      email: input.email,
+      message: `Alias preparado para provisionamento no Zoho para ${input.targetMailbox}`,
+    };
+  }
+  async disableAlias(input: ProvisionEmailInput): Promise<ProvisionEmailResult> {
+    return {
+      success: true,
+      provider: 'zoho',
+      email: input.email,
+      message: `Alias preparado para desativação no Zoho`,
+    };
+  }
+}
+
+⸻
+
+8. Provider Locaweb — adapter inicial
+
+// src/modules/email-identity/providers/locaweb.ts
+import {
+  EmailProvisionProvider,
+  ProvisionEmailInput,
+  ProvisionEmailResult,
+} from '../provider-types';
+export class LocawebProvisionProvider implements EmailProvisionProvider {
+  name = 'locaweb' as const;
+  async provisionAlias(input: ProvisionEmailInput): Promise<ProvisionEmailResult> {
+    // IMPLEMENTAÇÃO REAL DEPOIS:
+    // como a automação pública/documentada é menos clara do que no Zoho,
+    // deixamos este adapter pronto para futura implementação
+    return {
+      success: true,
+      provider: 'locaweb',
+      email: input.email,
+      message: `Provisionamento preparado para Locaweb em ${input.targetMailbox}`,
+    };
+  }
+  async disableAlias(input: ProvisionEmailInput): Promise<ProvisionEmailResult> {
+    return {
+      success: true,
+      provider: 'locaweb',
+      email: input.email,
+      message: `Desativação preparada para Locaweb`,
+    };
+  }
+}
+
+⸻
+
+9. Fábrica de providers
+
+// src/modules/email-identity/providers/factory.ts
+import { EmailProvider, EmailProvisionProvider } from '../provider-types';
+import { ZohoProvisionProvider } from './zoho';
+import { LocawebProvisionProvider } from './locaweb';
+export function getEmailProvider(provider: EmailProvider): EmailProvisionProvider {
+  if (provider === 'zoho') return new ZohoProvisionProvider();
+  if (provider === 'locaweb') return new LocawebProvisionProvider();
+  throw new Error(`Provider não suportado: ${provider}`);
+}
+
+⸻
+
+10. Provisionamento selecionado
+
+// src/modules/email-identity/provision.ts
+import { db } from '@/lib/db';
+import { getEmailProvider } from './providers/factory';
+export async function provisionSelectedEmails(clinicId: string) {
+  const selected = await db.clinicEmailIdentity.findMany({
+    where: {
+      clinicId,
+      status: 'selected',
+    },
+  });
+  let successCount = 0;
+  for (const item of selected) {
+    try {
+      await db.clinicEmailIdentity.update({
+        where: { id: item.id },
+        data: { status: 'provisioning' },
+      });
+      const provider = getEmailProvider(item.provider);
+      const result = await provider.provisionAlias({
+        email: item.email,
+        cargo: item.cargo,
+        clinicSlug: item.email.split('.').slice(-2, -1)[0] ?? '',
+        targetMailbox: item.providerTargetUser,
+      });
+      if (!result.success) {
+        throw new Error(result.message || 'Falha no provider');
+      }
+      await db.clinicEmailIdentity.update({
+        where: { id: item.id },
+        data: {
+          status: 'provisioned',
+          provisionedAt: new Date(),
+          lastError: null,
+        },
+      });
+      successCount++;
+    } catch (error: any) {
+      await db.clinicEmailIdentity.update({
+        where: { id: item.id },
+        data: {
+          status: 'failed',
+          lastError: String(error?.message || error),
+        },
+      });
+    }
+  }
+  return successCount;
+}
+
+⸻
+
+11. Desativação
+
+// src/modules/email-identity/disable.ts
+import { db } from '@/lib/db';
+import { getEmailProvider } from './providers/factory';
+export async function disableEmail(identityId: string) {
+  const item = await db.clinicEmailIdentity.findUniqueOrThrow({
+    where: { id: identityId },
+  });
+  const provider = getEmailProvider(item.provider);
+  if (provider.disableAlias) {
+    await provider.disableAlias({
+      email: item.email,
+      cargo: item.cargo,
+      clinicSlug: item.email.split('.').slice(-2, -1)[0] ?? '',
+      targetMailbox: item.providerTargetUser,
+    });
+  }
+  return db.clinicEmailIdentity.update({
+    where: { id: item.id },
+    data: {
+      status: 'disabled',
+      disabledAt: new Date(),
+    },
+  });
+}
+
+⸻
+
+12. Chamada no cadastro da clínica
+
+await createClinicEmailCatalog(clinic.id, clinic.slug, 'zoho');
+
+Ou, se depois quiser mudar:
+
+await createClinicEmailCatalog(clinic.id, clinic.slug, 'locaweb');
+
+⸻
+
+13. O que eu mandaria o Replit fazer agora
+
+Implementar o módulo OperationalEmailIdentity com arquitetura agnóstica de provider.
+Provider inicial: Zoho.
+Provider secundário preparado: Locaweb.
+Regras:
+1. Toda clínica criada deve gerar um catálogo interno completo de e-mails operacionais.
+2. Os e-mails não devem ser provisionados automaticamente.
+3. Cada item deve nascer com status available.
+4. A UI deve exibir os itens com toggle.
+5. O botão Criar selecionados deve chamar a camada de provider.
+6. O provider inicial é Zoho.
+7. A implementação deve deixar a troca para Locaweb preparada.
+8. O sistema deve tratar esses e-mails como identidades operacionais e logins, não como e-mails pessoais.
+9. Mesmo assim, a estrutura deve considerar recebimento de confirmação, redefinição de senha e verificação de identidade.
+10. O domínio oficial é padwards.com.br.
+11. Já existe a conta padwardsmedcore@gmail.com, mas ela não deve ser o centro da arquitetura operacional.
+
+⸻
+
+Minha resposta final para sua escolha
+
+Escolha recomendada hoje:
+
+Zoho Mail
+
+Motivo:
+
+* melhor para automação via Replit/TypeScript  ￼
+* suporte oficial a aliases  ￼
+* mais natural para arquitetura programável
+
+Cuidado:
+
+* limite de 30 aliases por conta no Zoho  ￼
+
+Quando eu escolheria Locaweb:
+
+* quando a prioridade absoluta for muitas caixas reais por preço baixo, com menos sofisticação de automação  ￼
+
+Se você quiser, no próximo passo eu escrevo a implementação real do adapter Zoho, já com estrutura de OAuth e endpoints organizados para o Replit.

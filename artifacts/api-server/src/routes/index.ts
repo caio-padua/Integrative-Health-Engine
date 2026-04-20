@@ -82,6 +82,7 @@ import monetizacaoPadconRouter from "./monetizacaoPadcon";
 import drivePawardsRouter from "./drivePawards";
 import painelNfeRouter from "./painelNfe";
 import credenciaisProvedoresRouter from "./credenciaisProvedores";
+import identidadeEmailsRouter from "./identidadeEmails";
 
 const router: IRouter = Router();
 
@@ -166,6 +167,7 @@ router.use(monetizacaoPadconRouter);
 router.use(drivePawardsRouter);
 router.use(painelNfeRouter);
 router.use(credenciaisProvedoresRouter);
+router.use(identidadeEmailsRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 

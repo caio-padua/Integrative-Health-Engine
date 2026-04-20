@@ -1,0 +1,401 @@
+Sim — e agora com a correção certa da parte do Google.
+
+O ponto principal é este: para criar e gerenciar aliases/usuários do seu domínio por API, o centro da operação deve ser o Google Workspace do domínio padwards.com.br, não a conta pessoal @gmail.com. O Google Workspace foi feito para e-mail profissional com domínio próprio, e o Admin SDK Directory API é a interface oficial para administrar usuários, grupos e aliases programaticamente. Além disso, um alias usa a mesma caixa de entrada do usuário principal, o que é exatamente a base do seu modelo de custo controlado.  ￼
+
+Então a arquitetura correta é:
+
+Registro.br → domínio padwards.com.br
+Google Workspace → conta administradora do domínio
+Seu sistema TypeScript → gera catálogo por clínica
+Provisionamento → cria aliases apenas quando você mandar
+
+A conta padwardsmedcoreg@gmail.com pode até continuar como conta pessoal de apoio ou recuperação, mas ela não deve ser a conta administradora operacional do domínio. O ideal é que a conta principal do Workspace seja algo como admin@padwards.com.br, diretoria@padwards.com.br ou master@padwards.com.br, depois de verificar domínio e ativar Gmail no Google Workspace. O Google exige domínio confirmado para criar usuários/aliases nesse domínio.  ￼
+
+O modelo certo para você é:
+
+[cargo].[modo].[hierarquia].[clinica]@padwards.com.br
+
+Com:
+
+* cargo: medico, gestao, supervisao, enfermagem, consultoria, administrativo, financeiro, ouvidoria
+* modo: local, remote
+* hierarquia inicial: alpha, beta
+
+Exemplo:
+administrativo.local.alpha.padua@padwards.com.br
+
+A lógica do nome é:
+
+* cargo representa a área institucional, não a pessoa
+* modo separa presencial de remoto
+* hierarquia separa slots operacionais sem depender do nome humano
+* clinica isola o tenant SaaS
+
+Isso mantém escala, clareza e custo sob controle.
+
+Agora, o que você precisa pedir para o Replit implementar dentro do sistema é isto:
+
+Especificação funcional para o Replit
+
+Crie um módulo chamado OperationalEmailIdentity.
+
+Esse módulo deve:
+
+1. Gerar automaticamente, ao cadastrar uma clínica, o catálogo interno de todos os e-mails possíveis daquela clínica.
+2. Não provisionar nenhum e-mail real no Google nessa etapa.
+3. Salvar cada e-mail com status inicial available.
+4. Exibir dentro da tela da clínica uma lista com toggle para selecionar quais e-mails serão liberados.
+5. Permitir que eu clique em Criar selecionados.
+6. Nessa ação, o sistema deve chamar uma rotina de provisionamento real no Google Workspace e, em caso de sucesso, mudar o status para provisioned.
+7. Deve permitir depois disable, sem apagar histórico.
+8. O sistema deve impedir duplicidade do mesmo e-mail por clínica.
+
+Estrutura de banco recomendada
+
+type Cargo =
+  | 'medico'
+  | 'gestao'
+  | 'supervisao'
+  | 'enfermagem'
+  | 'consultoria'
+  | 'administrativo'
+  | 'financeiro'
+  | 'ouvidoria';
+type Modo = 'local' | 'remote';
+type Hierarquia = 'alpha' | 'beta';
+type EmailIdentityStatus =
+  | 'available'
+  | 'selected'
+  | 'provisioning'
+  | 'provisioned'
+  | 'disabled'
+  | 'archived'
+  | 'failed';
+interface ClinicEmailIdentity {
+  id: string;
+  clinicId: string;
+  cargo: Cargo;
+  modo: Modo;
+  hierarquia: Hierarquia;
+  email: string;
+  status: EmailIdentityStatus;
+  googleTargetUser: string;
+  createdAt: Date;
+  selectedAt?: Date | null;
+  provisionedAt?: Date | null;
+  disabledAt?: Date | null;
+  lastError?: string | null;
+}
+
+Regra de custo
+
+Você não deve criar cada endereço como usuário pago.
+O modelo econômico é:
+
+* ter poucos usuários-base no Workspace
+* criar aliases apontando para esses usuários-base
+
+Exemplo:
+
+usuário-base:
+administrativo@padwards.com.br
+
+aliases:
+
+* administrativo.local.alpha.padua@padwards.com.br
+* administrativo.remote.beta.santos@padwards.com.br
+
+A documentação oficial do Google diz que alias é endereço alternativo que usa a mesma mailbox do usuário principal.  ￼
+
+Usuários-base que eu recomendo
+
+Crie no Google Workspace, como contas reais:
+
+* administrativo@padwards.com.br
+* enfermagem@padwards.com.br
+* consultoria@padwards.com.br
+* financeiro@padwards.com.br
+* supervisao@padwards.com.br
+* medico@padwards.com.br
+* gestao@padwards.com.br
+* ouvidoria@padwards.com.br
+
+Depois, cada alias gerado no sistema será vinculado ao usuário-base correspondente.
+
+Mapeamento de cargo para usuário-base
+
+const BASE_USERS_BY_CARGO = {
+  medico: 'medico@padwards.com.br',
+  gestao: 'gestao@padwards.com.br',
+  supervisao: 'supervisao@padwards.com.br',
+  enfermagem: 'enfermagem@padwards.com.br',
+  consultoria: 'consultoria@padwards.com.br',
+  administrativo: 'administrativo@padwards.com.br',
+  financeiro: 'financeiro@padwards.com.br',
+  ouvidoria: 'ouvidoria@padwards.com.br',
+} as const;
+
+Constantes
+
+export const CARGOS = [
+  'medico',
+  'gestao',
+  'supervisao',
+  'enfermagem',
+  'consultoria',
+  'administrativo',
+  'financeiro',
+  'ouvidoria',
+] as const;
+export const MODOS = ['local', 'remote'] as const;
+export const HIERARQUIAS = ['alpha', 'beta'] as const;
+export const DOMAIN = 'padwards.com.br';
+
+Gerador do catálogo
+
+export function generateClinicEmailCatalog(clinicId: string, clinicSlug: string) {
+  const rows = [];
+  for (const cargo of CARGOS) {
+    for (const modo of MODOS) {
+      for (const hierarquia of HIERARQUIAS) {
+        const email = `${cargo}.${modo}.${hierarquia}.${clinicSlug}@${DOMAIN}`;
+        rows.push({
+          clinicId,
+          cargo,
+          modo,
+          hierarquia,
+          email,
+          googleTargetUser: BASE_USERS_BY_CARGO[cargo],
+          status: 'available' as const,
+          createdAt: new Date(),
+          selectedAt: null,
+          provisionedAt: null,
+          disabledAt: null,
+          lastError: null,
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+Criação automática do catálogo quando nasce a clínica
+
+export async function createClinicEmailCatalog(clinicId: string, clinicSlug: string) {
+  const catalog = generateClinicEmailCatalog(clinicId, clinicSlug);
+  await db.clinicEmailIdentity.createMany({
+    data: catalog,
+    skipDuplicates: true,
+  });
+  return catalog;
+}
+
+Toggle
+
+export async function toggleEmailSelection(identityId: string, currentStatus: EmailIdentityStatus) {
+  if (currentStatus === 'available') {
+    return db.clinicEmailIdentity.update({
+      where: { id: identityId },
+      data: {
+        status: 'selected',
+        selectedAt: new Date(),
+      },
+    });
+  }
+  if (currentStatus === 'selected') {
+    return db.clinicEmailIdentity.update({
+      where: { id: identityId },
+      data: {
+        status: 'available',
+        selectedAt: null,
+      },
+    });
+  }
+  throw new Error('Status inválido para toggle');
+}
+
+Provisionamento real no Google Workspace
+
+Aqui entra a parte importante para o Replit.
+
+Você vai usar um service account com delegação no Google Workspace, ou OAuth de admin, para chamar o endpoint oficial users.aliases.insert do Admin SDK. O endpoint oficial para adicionar alias é esse do Directory API.  ￼
+
+Dependências
+
+npm install googleapis
+
+Função de autenticação
+
+import { google } from 'googleapis';
+export function getGoogleDirectoryClient() {
+  const auth = new google.auth.GoogleAuth({
+    credentials: {
+      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    },
+    scopes: ['https://www.googleapis.com/auth/admin.directory.user.alias'],
+    clientOptions: {
+      subject: process.env.GOOGLE_ADMIN_IMPERSONATION_EMAIL,
+    },
+  });
+  return google.admin({
+    version: 'directory_v1',
+    auth,
+  });
+}
+
+Criar alias
+
+export async function createGoogleAlias(userKey: string, aliasEmail: string) {
+  const admin = getGoogleDirectoryClient();
+  await admin.users.aliases.insert({
+    userKey,
+    requestBody: {
+      alias: aliasEmail,
+    },
+  });
+}
+
+Provisionar os selecionados
+
+export async function provisionSelectedEmails(clinicId: string) {
+  const selected = await db.clinicEmailIdentity.findMany({
+    where: {
+      clinicId,
+      status: 'selected',
+    },
+  });
+  let successCount = 0;
+  for (const item of selected) {
+    try {
+      await db.clinicEmailIdentity.update({
+        where: { id: item.id },
+        data: { status: 'provisioning' },
+      });
+      await createGoogleAlias(item.googleTargetUser, item.email);
+      await db.clinicEmailIdentity.update({
+        where: { id: item.id },
+        data: {
+          status: 'provisioned',
+          provisionedAt: new Date(),
+          lastError: null,
+        },
+      });
+      successCount++;
+    } catch (error: any) {
+      await db.clinicEmailIdentity.update({
+        where: { id: item.id },
+        data: {
+          status: 'failed',
+          lastError: String(error?.message || error),
+        },
+      });
+    }
+  }
+  return successCount;
+}
+
+Desativar
+
+Remover alias também pode ser feito pela API. A referência do Admin SDK inclui gerenciamento de aliases; para remoção, use a rota correspondente de aliases do mesmo recurso.  ￼
+
+export async function disableEmail(identityId: string) {
+  const item = await db.clinicEmailIdentity.findUniqueOrThrow({
+    where: { id: identityId },
+  });
+  // opcional: chamar delete do alias no Google aqui
+  return db.clinicEmailIdentity.update({
+    where: { id: identityId },
+    data: {
+      status: 'disabled',
+      disabledAt: new Date(),
+    },
+  });
+}
+
+O que você precisa fazer no Google Workspace
+
+Como você já tem o domínio no Registro.br, o caminho correto agora é:
+
+1. contratar/ativar Google Workspace para padwards.com.br
+2. verificar domínio
+3. apontar MX para Google
+4. criar a conta administradora principal do domínio
+5. criar os usuários-base
+6. ativar Admin SDK
+7. criar projeto no Google Cloud
+8. ativar Directory API
+9. configurar service account com delegação no domínio
+10. usar essa credencial no seu sistema
+
+A ajuda oficial do Google mostra que você precisa ativar Gmail para o domínio e gerenciar domínios no Admin Console. Ela também mostra que dá para adicionar domínios secundários ou alias domain sem custo extra por usuário quando aplicável, e que usuários podem ter endereços adicionais nesses domínios.  ￼
+
+Correção importante sobre sua conta atual
+
+O mais correto é separar assim:
+
+* conta pessoal atual: padwardsmedcoreg@gmail.com ou padwardsmedcore@gmail.com
+* conta administradora do Workspace: por exemplo admin@padwards.com.br
+
+Depois, dentro do Workspace, você cria:
+
+* administrativo@padwards.com.br
+* enfermagem@padwards.com.br
+* etc.
+
+A conta @gmail.com não é a estrutura certa para ser o centro da automação do domínio. O centro precisa ser o Workspace do domínio próprio.  ￼
+
+Estrutura de pastas
+
+Como você disse que depois vai criar estruturas de pastas de clientes e empresas, eu faria assim, no Google Drive da conta administradora operacional do domínio ou de uma conta central como master@padwards.com.br:
+
+/PADWARDS
+  /CLIENTES
+    /PADUA
+      /EMAILS
+      /DOCUMENTOS
+      /OPERACAO
+  /EMPRESAS
+  /MODELOS
+  /AUTOMACOES
+  /LOGS
+
+Mas eu deixaria isso para a segunda camada. Primeiro feche o módulo de identidades.
+
+Texto pronto para colar no Replit
+
+Implementar módulo OperationalEmailIdentity.
+Objetivo:
+Gerar um catálogo de e-mails operacionais por clínica, com seleção manual via toggle e provisionamento real no Google Workspace apenas quando o usuário mandar.
+Padrão:
+[cargo].[modo].[hierarquia].[clinica]@padwards.com.br
+Cargos:
+medico
+gestao
+supervisao
+enfermagem
+consultoria
+administrativo
+financeiro
+ouvidoria
+Modos:
+local
+remote
+Hierarquias iniciais:
+alpha
+beta
+Regras:
+1. Ao criar uma clínica, gerar catálogo interno completo de e-mails possíveis.
+2. Não criar aliases reais automaticamente no Google.
+3. Todos começam com status available.
+4. A interface da clínica deve mostrar lista de e-mails com toggle.
+5. Ao selecionar, status vira selected.
+6. Ao clicar em Criar selecionados, chamar Google Admin SDK users.aliases.insert.
+7. Se sucesso, status = provisioned.
+8. Se erro, status = failed e gravar lastError.
+9. Permitir disable depois.
+10. Mapear cada cargo para um usuário-base do Workspace.
+11. Usar domínio padwards.com.br.
+12. Preparar para futura expansão de alpha/beta para gamma/delta/epsilon.
+
+Sim, eu consigo transformar isso no próximo passo em um documento Word único, corrigido, com explicação, nomenclaturas, arquitetura Google Workspace e todos os códigos organizados para o Replit.
