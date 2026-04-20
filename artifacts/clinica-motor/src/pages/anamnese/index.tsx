@@ -29,12 +29,13 @@ export default function Anamneses() {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <ClipboardList className="h-8 w-8 text-primary" />
+          <div className="border-l-4 border-[var(--pw-dourado-vivo)] pl-5 py-1">
+            <div className="text-[10px] tracking-[0.32em] text-[var(--pw-dourado)] uppercase mb-1">PADCON · Capítulo II</div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--pw-petroleo)] flex items-center gap-2">
+              <ClipboardList className="h-6 w-6" />
               Anamneses
             </h1>
-            <p className="text-muted-foreground mt-1">Gerencie as avaliações clínicas dos pacientes.</p>
+            <p className="text-sm text-[var(--pw-tinta)] mt-1">Avaliações clínicas integrativas — escuta longa, gatilhos, terreno biopsicossocial.</p>
           </div>
           
           <Link href="/anamnese/nova">
