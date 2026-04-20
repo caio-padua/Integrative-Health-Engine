@@ -9,9 +9,11 @@ import {
   FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
   ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
   ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign, Stethoscope,
+  Volume2, VolumeX, Command as CommandIcon,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { CommandPalette } from "./CommandPalette";
+import { useSound } from "@/hooks/useSound";
 
 function ClinicSwitcher() {
   const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, escopo } = useClinic();
@@ -146,6 +148,8 @@ export function Layout({ children }: { children: ReactNode }) {
       return next;
     });
   };
+
+  const sound = useSound();
 
   if (!user) return <>{children}</>;
 
@@ -299,6 +303,18 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="text-sm font-semibold text-sidebar-foreground truncate">{user.nome}</div>
           <div className="text-[11px] text-muted-foreground capitalize tracking-wide">{user.perfil.replace("_", " ")}</div>
           <div className="text-[9px] text-primary/70 uppercase tracking-widest mt-0.5">{escopoLabel}</div>
+          <button
+            onClick={() => { sound.open(); window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true })); }}
+            className="mt-2 w-full flex items-center justify-between gap-2 px-2 py-1 border border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent transition-colors group"
+            data-testid="hint-cmdk"
+            title="Buscar comandos (Cmd/Ctrl + K)"
+          >
+            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground group-hover:text-sidebar-foreground transition-colors">
+              <CommandIcon className="w-3 h-3" />
+              Buscar
+            </span>
+            <kbd className="text-[9px] font-mono text-muted-foreground border border-sidebar-border px-1 py-0.5">⌘K</kbd>
+          </button>
         </div>
         <ClinicSwitcher />
         <nav className="flex-1 overflow-y-auto py-2 px-1">
@@ -351,7 +367,19 @@ export function Layout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="px-4 py-3 border-t border-border">
+        <div className="px-4 py-3 border-t border-border space-y-1">
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs"
+            onClick={() => { sound.tap(); sound.toggle(); }}
+            data-testid="toggle-som"
+            title={sound.enabled ? "Som curatorial ligado · clique pra silenciar" : "Som curatorial silenciado · clique pra ligar"}
+          >
+            {sound.enabled
+              ? <Volume2 className="mr-3 h-4 w-4" />
+              : <VolumeX className="mr-3 h-4 w-4" />}
+            {sound.enabled ? "Som ligado" : "Som silenciado"}
+          </Button>
           <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs" onClick={logout}>
             <LogOut className="mr-3 h-4 w-4" />
             Sair
