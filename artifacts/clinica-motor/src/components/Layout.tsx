@@ -8,7 +8,7 @@ import {
   Building2, Settings, LogOut, GitBranch, ShieldCheck, Database, FileText, FlaskConical, CalendarDays,
   FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
   ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
-  ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle,
+  ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign,
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -160,7 +160,7 @@ export function Layout({ children }: { children: ReactNode }) {
       "configuracoes", "delegacao", "colaboradores", "agentes-virtuais", "acompanhamento", "comissao", "comercial",
       "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens",
       "exames", "inundacao", "blueprint", "agendas", "governanca-matrix",
-      "painel-nfe", "gateways-pagamento", "credenciais-nfe",
+      "painel-nfe", "gateways-pagamento", "credenciais-nfe", "identidade-emails",
     ],
     consultor_campo: [
       "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
@@ -268,6 +268,7 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "DASH NFe", path: "/painel-nfe", icon: FileText, slug: "painel-nfe" },
         { name: "Gateways Pagto", path: "/gateways-pagamento", icon: CreditCard, slug: "gateways-pagamento" },
         { name: "Credenciais NFe & Logo", path: "/credenciais-nfe", icon: KeyRound, slug: "credenciais-nfe" },
+        { name: "Identidade de E-mails", path: "/identidade-emails", icon: AtSign, slug: "identidade-emails" },
         { name: "Fluxos Aprovação", path: "/fluxos", icon: GitBranch, slug: "fluxos" },
         { name: "Permissões", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
         { name: "Segurança", path: "/seguranca", icon: Lock, slug: "seguranca" },

@@ -24,6 +24,7 @@ import Financeiro from "@/pages/financeiro";
 import PainelNfe from "@/pages/painel-nfe";
 import GatewaysPagamento from "@/pages/gateways-pagamento";
 import CredenciaisNfe from "@/pages/credenciais-nfe";
+import IdentidadeEmails from "@/pages/identidade-emails";
 import Unidades from "@/pages/unidades";
 import Configuracoes from "@/pages/configuracoes";
 import Fluxos from "@/pages/fluxos";
@@ -112,6 +113,7 @@ function Router() {
       <Route path="/painel-nfe" component={PainelNfe} />
       <Route path="/gateways-pagamento" component={GatewaysPagamento} />
       <Route path="/credenciais-nfe" component={CredenciaisNfe} />
+      <Route path="/identidade-emails" component={IdentidadeEmails} />
       <Route path="/unidades" component={Unidades} />
       <Route path="/configuracoes" component={Configuracoes} />
       <Route path="/fluxos" component={Fluxos} />
