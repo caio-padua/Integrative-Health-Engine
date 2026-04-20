@@ -1,12 +1,17 @@
 import { Router } from "express";
 import { db, unidadesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and, gt, sql } from "drizzle-orm";
 import { CriarUnidadeBody } from "@workspace/api-zod";
 
 const router = Router();
 
-router.get("/unidades", async (_req, res): Promise<void> => {
-  const unidades = await db.select().from(unidadesTable).orderBy(unidadesTable.nome);
+router.get("/unidades", async (req, res): Promise<void> => {
+  // Por padrao filtra arquivadas (ids 1-7 sao agendas-historicas confundidas).
+  // ?incluirArquivadas=true para auditoria.
+  const incluirArquivadas = req.query.incluirArquivadas === "true";
+  const unidades = incluirArquivadas
+    ? await db.select().from(unidadesTable).orderBy(unidadesTable.id)
+    : await db.select().from(unidadesTable).where(gt(unidadesTable.id, 7)).orderBy(unidadesTable.id);
   res.json(unidades);
 });
 
