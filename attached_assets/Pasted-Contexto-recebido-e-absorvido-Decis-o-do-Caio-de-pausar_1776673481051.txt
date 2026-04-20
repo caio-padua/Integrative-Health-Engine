@@ -1,0 +1,99 @@
+Contexto recebido e absorvido. Decisão do Caio de pausar tudo em gateways/webhooks/NFe é inteligente dado o quadro — o que está cravado fica esperando em produção, e os 4 meses viram investimento puro em UX/frontend. Isso maximiza a dopamina do Caio (visual), minimiza a fricção cognitiva dele (um domínio só) e protege a reserva financeira dele (não há queima nova de custo operacional). Endosso.
+
+Agora a resposta às duas perguntas.
+
+---
+
+**A ordem que você propôs está correta. Eu manteria exatamente assim.**
+
+**Peek-and-Pop NÃO sobe pra antes de JWT.** Três razões curtas:
+
+1. **Dependência funcional.** JWT alimenta `req.usuario.perfil`, que alimenta a diferenciação de dashboards/rotas/permissões. A Fase A (passo 7) e os 3 Dashboards (passo 10) **dependem** de saber quem está logado. Construir Fase A antes de JWT cria retrabalho de amarração de permissões depois. Construir Fase A depois de JWT faz a Fase A nascer correta.
+
+2. **Custo assimétrico de adiar.** JWT é 2 dias. Peek-and-Pop é 1 semana. JWT primeiro atrasa Peek-and-Pop em 2 dias apenas. Peek-and-Pop primeiro atrasa JWT potencialmente por semanas — porque uma vez que o sistema está rodando sem JWT e visualmente bonito, o incentivo pra parar e fechar dívida de segurança despenca. Dívida técnica que vira confortável é dívida que não se paga.
+
+3. **SECURITY_DEBT.md só funciona com deadline curto.** Se o `.md` diz "JWT até X dias" e X é semana que vem, ele funciona como guardrail. Se X é "em algum momento antes do primeiro cliente externo daqui a 4 meses", ele vira TODO esquecido. Passo 3 no cronograma mantém X curto.
+
+A ordem de 14 passos está fechada. Dr. Replit pode começar pelo ⌘K amanhã.
+
+---
+
+**Uma entrega concreta que fecha o ciclo — o SECURITY_DEBT.md pronto:**
+
+```markdown
+# SECURITY_DEBT.md
+
+## Status: DÍVIDA TÉCNICA CONTROLADA
+
+### O que está provisório
+
+Este sistema opera hoje com autenticação por **token administrativo
+compartilhado** (`x-admin-token`) validado pelo middleware
+`requireAdminToken`. É autenticação de perímetro, não de usuário.
+
+Rotas sensíveis protegidas pelo token hoje:
+- POST/PUT/DELETE/PATCH em `/api/*`
+- CRUD de credenciais de gateway de pagamento
+- CRUD de credenciais de NFe
+- Emissão, cancelamento, edição e exclusão de NFe
+- Disparo de eventos cobráveis
+- Provisionamento de Drive
+
+### Por que é aceitável agora
+
+1. Acesso ao sistema é restrito ao Instituto Pádua (uma clínica)
+2. Usuários são conhecidos e confiáveis
+3. Não há clientes externos
+4. As 4 integrações externas (gateways + NFe) estão congeladas
+   aguardando ativação — nenhuma cobrança real está sendo disparada
+
+### Por que é inaceitável depois
+
+No minuto que um segundo tenant (cliente externo) receber acesso,
+`x-admin-token` compartilhado vira vazamento estrutural:
+- Token único compartilhado é replay-ável
+- Não há rastro de quem fez cada ação
+- Não há revogação por usuário
+- Não há diferenciação de perfil (admin vs operador vs paciente)
+
+### Compromisso formal
+
+**JWT real é pré-requisito bloqueante para qualquer uma destas ações:**
+
+- [ ] Abrir acesso do sistema a qualquer clínica além do Instituto Pádua
+- [ ] Ativar keys de produção nos gateways de pagamento
+- [ ] Ativar certificado A1 real pra emissão de NFe real
+- [ ] Publicar URL do sistema fora de `*.replit.dev`
+- [ ] Qualquer marketing externo mencionando "segurança enterprise"
+
+### Quem revisa
+
+- **Dr. Caio** (dono do sistema): revisa e assina liberação de produção
+- **Dr. Replit** (cirurgião): implementa JWT e valida testes E2E
+- **Dr. Claude** (orquestrador): valida que JWT está cravado antes de
+  aprovar qualquer passo da fase de captação (marketplace, Fase B real,
+  cliente externo)
+
+### Deadline interno
+
+JWT deve estar implementado e em produção **até o fim do Passo 3 do
+roadmap PADCON 2.0** (~2 dias de trabalho a partir do início do sprint
+pós-⌘K). Este documento é removido do repo quando JWT estiver
+em produção.
+
+### Assinaturas
+
+_Caio_: _______________________________ Data: ___________
+_Replit_: _____________________________ Data: ___________
+_Claude_: _____________________________ Data: ___________
+```
+
+Cola esse arquivo como `SECURITY_DEBT.md` no root do repo. Dr. Replit abre o PR do ⌘K já com esse arquivo incluído — vira parte do commit inicial do sprint de frontend. Isso formaliza o compromisso antes de começar, não depois.
+
+---
+
+**Próxima entrega que posso fazer:** spec detalhada do ⌘K (command palette universal) pronta pro Dr. Replit abrir PR. Cobre: lib escolhida (`cmdk`), arquitetura de registry de comandos extensível por módulo, atalhos de teclado padrão, categorias iniciais (Navegar, Ações, Criar, Buscar Paciente, Admin), gancho para módulos futuros registrarem seus próprios comandos, testes E2E esperados, critério de aceite.
+
+Se quiser que eu escreva essa spec agora pro Dr. Replit começar amanhã com tudo mapeado, me dá o sinal. Se preferir que ele arquitete sozinho e só revise depois, também está bem — ele provou nos últimos sprints que entrega sem precisar de mão guiada.
+
+Sua escolha.
