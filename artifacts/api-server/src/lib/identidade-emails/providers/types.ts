@@ -3,8 +3,8 @@
 export type EmailProviderName = 'zoho' | 'locaweb' | 'google';
 
 export interface ProvisionAliasInput {
-  aliasEmail: string;          // ex: medico.local.alpha.padua@padwards.com.br
-  targetMailbox: string;       // ex: medico@padwards.com.br
+  aliasEmail: string;          // ex: medico.local.alpha.padua@pawards.com.br
+  targetMailbox: string;       // ex: medico@pawards.com.br
   cargo: string;
   clinicSlug: string;
 }

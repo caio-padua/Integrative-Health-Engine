@@ -1,0 +1,102 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MANIFESTO PADCON 2.0 · TOKENS DE DESIGN
+   Hermès / Dior / Ferragamo grade · não Shopee
+   Cores cravadas pelo Dr. Caio Pádua para PAWARDS
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── PALETA NÚCLEO ────────────────────────────────────────────── */
+  --pw-petroleo:           #1F4E5F;   /* azul petróleo · cor mãe */
+  --pw-petroleo-escuro:    #163842;   /* hover / pressed */
+  --pw-petroleo-claro:     #2D6478;   /* highlight sutil */
+  --pw-petroleo-vidro:     rgba(31, 78, 95, 0.08);
+
+  --pw-dourado:            #A78B5F;   /* dourado fosco Ferragamo */
+  --pw-dourado-vivo:       #C8A668;   /* selo de honra */
+  --pw-dourado-suave:      rgba(167, 139, 95, 0.12);
+
+  --pw-offwhite:           #FAFAF7;   /* fundo principal · pergaminho leite */
+  --pw-pergaminho:         #F4F1EA;   /* card / superfície elevada */
+  --pw-marfim:             #EDE8DD;   /* bordas suaves */
+
+  --pw-grafite:            #2A2A2A;   /* texto principal */
+  --pw-tinta:              #4A4A4A;   /* texto secundário */
+  --pw-cinza-bruma:        #8A8A85;   /* texto auxiliar */
+
+  /* ── ESTADOS SEMÂNTICOS (clínicos, não webdev) ───────────────── */
+  --pw-saude:              #4A7C59;   /* ok · verde-musgo discreto */
+  --pw-alerta:             #B8860B;   /* atenção · âmbar Hermès */
+  --pw-critico:            #8B2E2E;   /* crítico · vermelho borgonha */
+  --pw-eventos-pay:        #6B4E8E;   /* roxo-bispo · pay-per-use */
+
+  /* ── SOMBRAS DE CARTÃO (Hermès paper feel) ──────────────────── */
+  --pw-shadow-leve:        0 1px 2px rgba(31, 78, 95, 0.06);
+  --pw-shadow-card:        0 2px 8px rgba(31, 78, 95, 0.08), 0 1px 2px rgba(31, 78, 95, 0.04);
+  --pw-shadow-elevado:     0 8px 24px rgba(31, 78, 95, 0.12), 0 2px 6px rgba(31, 78, 95, 0.06);
+  --pw-shadow-flutuante:   0 16px 48px rgba(31, 78, 95, 0.18), 0 4px 12px rgba(31, 78, 95, 0.08);
+
+  /* ── TIPOGRAFIA HIERÁRQUICA ─────────────────────────────────── */
+  --pw-font-display:       'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --pw-font-corpo:         'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --pw-font-numerico:      'JetBrains Mono', 'SF Mono', 'Space Mono', monospace;
+  --pw-font-sutil:         Georgia, 'Times New Roman', serif;
+
+  /* ── ESPAÇAMENTO RESPIRADO (não apertado de Shopee) ─────────── */
+  --pw-gap-intimo:         0.5rem;
+  --pw-gap-respiro:        1rem;
+  --pw-gap-largo:          1.5rem;
+  --pw-gap-aberto:         2.5rem;
+  --pw-gap-grandioso:      4rem;
+
+  /* ── DURAÇÕES DE ANIMAÇÃO (Apple-grade) ────────────────────── */
+  --pw-dur-instantaneo:    80ms;
+  --pw-dur-sutil:          160ms;
+  --pw-dur-padrao:         240ms;
+  --pw-dur-narrativa:      400ms;
+  --pw-easing-elegante:    cubic-bezier(0.4, 0.0, 0.2, 1);
+  --pw-easing-spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── UTILITÁRIOS PRONTOS-PRA-USAR ─────────────────────────────── */
+
+.pw-card {
+  background: var(--pw-pergaminho);
+  border: 1px solid var(--pw-marfim);
+  box-shadow: var(--pw-shadow-card);
+  transition: box-shadow var(--pw-dur-padrao) var(--pw-easing-elegante);
+}
+.pw-card:hover {
+  box-shadow: var(--pw-shadow-elevado);
+}
+
+.pw-selo-dourado {
+  background: linear-gradient(135deg, var(--pw-dourado) 0%, var(--pw-dourado-vivo) 100%);
+  color: var(--pw-petroleo-escuro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.pw-borda-sagrada {
+  border-left: 3px solid var(--pw-dourado);
+  padding-left: var(--pw-gap-respiro);
+}
+
+.pw-titulo-manifesto {
+  font-family: var(--pw-font-display);
+  color: var(--pw-petroleo);
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.pw-numero-display {
+  font-family: var(--pw-font-numerico);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Acessibilidade — respeita preferência de movimento reduzido */
+@media (prefers-reduced-motion: reduce) {
+  .pw-card { transition: none; }
+}

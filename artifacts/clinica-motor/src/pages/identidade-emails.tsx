@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AtSign, Shield, AlertTriangle, CheckCircle2, Power, Sparkles } from "lucide-react";
+import { AtSign, Shield, AlertTriangle, CheckCircle2, Power, Sparkles, ListChecks, Eraser, Filter } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   available: "bg-slate-100 text-slate-700",
@@ -12,13 +12,15 @@ const STATUS_COLORS: Record<string, string> = {
   provisioned: "bg-emerald-100 text-emerald-800",
   disabled: "bg-zinc-200 text-zinc-600",
   failed: "bg-red-100 text-red-800",
-  archived: "bg-stone-200 text-stone-600",
+  archived: "bg-[var(--pw-marfim)] text-[var(--pw-tinta)]",
 };
 
 export default function IdentidadeEmailsPage() {
   const qc = useQueryClient();
   const [adminToken, setAdminToken] = useState<string>(localStorage.getItem("padcon_admin_token") ?? "");
   const [unidadeId, setUnidadeId] = useState<number | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<string>("");
+  const [filtroCargo, setFiltroCargo] = useState<string>("");
   useEffect(() => { localStorage.setItem("padcon_admin_token", adminToken); }, [adminToken]);
 
   const { data: unidades } = useQuery<any[]>({
@@ -88,41 +90,80 @@ export default function IdentidadeEmailsPage() {
   });
 
   const stats = identidades?.stats;
-  const lista: any[] = identidades?.identidades ?? [];
+  const listaCompleta: any[] = identidades?.identidades ?? [];
+  const lista = listaCompleta.filter((it) =>
+    (!filtroStatus || it.status === filtroStatus) &&
+    (!filtroCargo || it.cargo === filtroCargo)
+  );
   const grouped: Record<string, any[]> = {};
   for (const it of lista) {
     if (!grouped[it.cargo]) grouped[it.cargo] = [];
     grouped[it.cargo].push(it);
   }
+  const cargosUnicos = Array.from(new Set(listaCompleta.map((it) => it.cargo))).sort();
+  const statusUnicos = Array.from(new Set(listaCompleta.map((it) => it.status))).sort();
+
+  const selecionarTodosVisiveis = useMutation({
+    mutationFn: async () => {
+      const alvos = lista.filter((it) => it.status === "available");
+      await Promise.all(alvos.map((it) =>
+        fetch(`/api/email-identity/${it.id}/toggle`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+          body: JSON.stringify({ acao: "selecionar" }),
+        })
+      ));
+      return { count: alvos.length };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-identity", unidadeId] }),
+  });
+
+  const limparSelecao = useMutation({
+    mutationFn: async () => {
+      const alvos = lista.filter((it) => it.status === "selected");
+      await Promise.all(alvos.map((it) =>
+        fetch(`/api/email-identity/${it.id}/toggle`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+          body: JSON.stringify({ acao: "desselecionar" }),
+        })
+      ));
+      return { count: alvos.length };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-identity", unidadeId] }),
+  });
 
   return (
-    <div className="p-6 space-y-6 bg-stone-50 min-h-screen">
-      <div className="flex items-center gap-3">
-        <AtSign className="w-7 h-7 text-[#1F4E5F]" />
-        <div>
-          <h1 className="text-2xl font-semibold text-[#1F4E5F]">Identidade de E-mails Operacionais</h1>
-          <p className="text-sm text-stone-600">Catálogo `cargo.modo.hierarquia.clinica@padwards.com.br` — provisionamento sob demanda no Google Workspace.</p>
+    <div className="p-6 space-y-6 bg-[var(--pw-pergaminho)] min-h-screen">
+      <div className="flex items-start gap-4 pw-borda-sagrada pl-4 py-1">
+        <AtSign className="w-7 h-7 text-[var(--pw-petroleo)] mt-1" />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-semibold text-[var(--pw-petroleo)] tracking-tight">Identidade de E-mails Operacionais</h1>
+            <span className="pw-selo-dourado text-[10px] tracking-[0.2em] font-semibold">PADCON · MÓDULO ZOHO</span>
+          </div>
+          <p className="text-sm text-[var(--pw-tinta)] mt-1">Catálogo <code className="font-mono text-[var(--pw-petroleo)]">cargo.modo.hierarquia.clinica@pawards.com.br</code> — provisionamento sob demanda.</p>
         </div>
       </div>
 
-      <Card className="p-4 bg-white border-stone-200 rounded-none">
+      <Card className="p-4 bg-white border-[var(--pw-marfim)] rounded-none">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-xs font-semibold text-stone-700">Admin Token</label>
+            <label className="text-xs font-semibold text-[var(--pw-grafite)]">Admin Token</label>
             <input
               type="password"
               value={adminToken}
               onChange={(e) => setAdminToken(e.target.value)}
-              className="w-full px-3 py-2 border border-stone-300 rounded-none text-sm font-mono"
+              className="w-full px-3 py-2 border border-[var(--pw-marfim)] rounded-none text-sm font-mono"
               placeholder="x-admin-token"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-stone-700">Clínica</label>
+            <label className="text-xs font-semibold text-[var(--pw-grafite)]">Clínica</label>
             <select
               value={unidadeId ?? ""}
               onChange={(e) => setUnidadeId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full px-3 py-2 border border-stone-300 rounded-none text-sm bg-white"
+              className="w-full px-3 py-2 border border-[var(--pw-marfim)] rounded-none text-sm bg-white"
             >
               <option value="">Selecione uma clínica…</option>
               {unidades?.filter((u: any) => !u.nome?.startsWith("(ARQUIVADA")).map((u: any) => (
@@ -135,7 +176,7 @@ export default function IdentidadeEmailsPage() {
               <Button
                 onClick={() => gerarCatalogo.mutate()}
                 disabled={gerarCatalogo.isPending}
-                className="bg-[#1F4E5F] hover:bg-[#163842] text-white rounded-none w-full"
+                className="bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white rounded-none w-full"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 {gerarCatalogo.isPending ? "Gerando..." : "Gerar / Sincronizar Catálogo (32 slots)"}
@@ -173,7 +214,7 @@ export default function IdentidadeEmailsPage() {
                 </div>
               )}
               {providerStatus.aliasLimitWarning && (
-                <p className="mt-2 text-xs text-stone-700 italic border-t border-current/20 pt-2">
+                <p className="mt-2 text-xs text-[var(--pw-grafite)] italic border-t border-current/20 pt-2">
                   ⚠ {providerStatus.aliasLimitWarning}
                 </p>
               )}
@@ -192,16 +233,16 @@ export default function IdentidadeEmailsPage() {
             { k: "failed", l: "Falharam" },
             { k: "disabled", l: "Desativados" },
           ].map((s) => (
-            <Card key={s.k} className="p-3 bg-white border-stone-200 rounded-none">
-              <p className="text-xs text-stone-600">{s.l}</p>
-              <p className="text-2xl font-mono font-semibold text-[#1F4E5F]">{(stats as any)[s.k] ?? 0}</p>
+            <Card key={s.k} className="p-3 bg-white border-[var(--pw-marfim)] rounded-none">
+              <p className="text-xs text-[var(--pw-tinta)]">{s.l}</p>
+              <p className="text-2xl font-mono font-semibold text-[var(--pw-petroleo)]">{(stats as any)[s.k] ?? 0}</p>
             </Card>
           ))}
         </div>
       )}
 
       {stats && stats.selected > 0 && (
-        <Card className="p-4 bg-[#1F4E5F] text-white rounded-none flex items-center justify-between">
+        <Card className="p-4 bg-[var(--pw-petroleo)] text-white rounded-none flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Shield className="w-5 h-5" />
             <div>
@@ -212,7 +253,7 @@ export default function IdentidadeEmailsPage() {
           <Button
             onClick={() => provisionar.mutate()}
             disabled={provisionar.isPending}
-            className="bg-amber-500 hover:bg-amber-600 text-[#1F4E5F] font-semibold rounded-none"
+            className="bg-[var(--pw-dourado-vivo)] hover:bg-[var(--pw-dourado)] text-[var(--pw-petroleo)] font-semibold rounded-none"
           >
             <CheckCircle2 className="w-4 h-4 mr-2" />
             {provisionar.isPending ? "Provisionando…" : "Provisionar Selecionados"}
@@ -238,16 +279,57 @@ export default function IdentidadeEmailsPage() {
         </Card>
       )}
 
+      {listaCompleta.length > 0 && (
+        <Card className="p-3 bg-white border-[var(--pw-marfim)] rounded-none flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+            <Filter className="w-4 h-4 text-[var(--pw-cinza-bruma)]" />
+            <select
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value)}
+              className="px-2 py-1 border border-[var(--pw-marfim)] rounded-none text-xs bg-white"
+            >
+              <option value="">Todos os status</option>
+              {statusUnicos.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select
+              value={filtroCargo}
+              onChange={(e) => setFiltroCargo(e.target.value)}
+              className="px-2 py-1 border border-[var(--pw-marfim)] rounded-none text-xs bg-white"
+            >
+              <option value="">Todos os cargos</option>
+              {cargosUnicos.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <span className="text-xs text-[var(--pw-cinza-bruma)]">
+              {lista.length} de {listaCompleta.length} visíveis
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="rounded-none text-xs"
+              onClick={() => selecionarTodosVisiveis.mutate()}
+              disabled={selecionarTodosVisiveis.isPending || !lista.some((it) => it.status === "available")}>
+              <ListChecks className="w-3 h-3 mr-1" />
+              {selecionarTodosVisiveis.isPending ? "Selecionando..." : `Selecionar disponíveis (${lista.filter((it) => it.status === "available").length})`}
+            </Button>
+            <Button size="sm" variant="outline" className="rounded-none text-xs text-red-700 border-red-200"
+              onClick={() => limparSelecao.mutate()}
+              disabled={limparSelecao.isPending || !lista.some((it) => it.status === "selected")}>
+              <Eraser className="w-3 h-3 mr-1" />
+              {limparSelecao.isPending ? "Limpando..." : `Limpar selecionados (${lista.filter((it) => it.status === "selected").length})`}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {Object.keys(grouped).length > 0 && (
         <div className="space-y-4">
           {Object.entries(grouped).map(([cargo, items]) => (
-            <Card key={cargo} className="bg-white border-stone-200 rounded-none">
-              <div className="px-4 py-2 border-b border-stone-200 bg-stone-100">
-                <h2 className="font-semibold text-[#1F4E5F] uppercase text-sm tracking-wide">{cargo}</h2>
+            <Card key={cargo} className="bg-white border-[var(--pw-marfim)] rounded-none">
+              <div className="px-4 py-2 border-b border-[var(--pw-marfim)] bg-[var(--pw-marfim)]">
+                <h2 className="font-semibold text-[var(--pw-petroleo)] uppercase text-sm tracking-wide">{cargo}</h2>
               </div>
               <table className="w-full text-sm">
-                <thead className="bg-stone-50">
-                  <tr className="text-left text-xs text-stone-600">
+                <thead className="bg-[var(--pw-pergaminho)]">
+                  <tr className="text-left text-xs text-[var(--pw-tinta)]">
                     <th className="px-4 py-2">E-mail</th>
                     <th className="px-4 py-2">Modo</th>
                     <th className="px-4 py-2">Hierarquia</th>
@@ -257,8 +339,8 @@ export default function IdentidadeEmailsPage() {
                 </thead>
                 <tbody>
                   {items.map((it) => (
-                    <tr key={it.id} className="border-t border-stone-100 hover:bg-stone-50">
-                      <td className="px-4 py-2 font-mono text-xs text-stone-800">{it.email}</td>
+                    <tr key={it.id} className="border-t border-[var(--pw-marfim)] hover:bg-[var(--pw-pergaminho)]">
+                      <td className="px-4 py-2 font-mono text-xs text-[var(--pw-grafite)]">{it.email}</td>
                       <td className="px-4 py-2 text-xs">{it.modo}</td>
                       <td className="px-4 py-2 text-xs">{it.hierarquia}</td>
                       <td className="px-4 py-2">
@@ -301,8 +383,8 @@ export default function IdentidadeEmailsPage() {
       )}
 
       {!unidadeId && (
-        <Card className="p-8 bg-white border-stone-200 rounded-none text-center text-stone-500">
-          <AtSign className="w-12 h-12 mx-auto mb-3 text-stone-300" />
+        <Card className="p-8 bg-white border-[var(--pw-marfim)] rounded-none text-center text-[var(--pw-cinza-bruma)]">
+          <AtSign className="w-12 h-12 mx-auto mb-3 text-[var(--pw-cinza-bruma)]" />
           <p>Selecione uma clínica acima para ver/gerar o catálogo de identidades.</p>
         </Card>
       )}

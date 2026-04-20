@@ -34,7 +34,7 @@ function missingEnvVars(): string[] {
 function setupSteps(): string[] {
   return [
     "1. Contratar Locaweb Email Pro (~R$5/conta/mes)",
-    "2. Apontar MX/SPF/DKIM do dominio padwards.com.br para Locaweb",
+    "2. Apontar MX/SPF/DKIM do dominio pawards.com.br para Locaweb",
     "3. Criar 8 contas-base via painel da Locaweb",
     "4. Solicitar acesso a API Locaweb (suporte tecnico) - automacao publica e limitada",
     "5. Setar secrets: LOCAWEB_API_KEY, LOCAWEB_API_SECRET, LOCAWEB_DOMAIN",

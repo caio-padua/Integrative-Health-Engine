@@ -9,7 +9,7 @@
 // Como cada cargo tem 4 aliases por clinica (local/remote x alpha/beta),
 // 1 conta-base por cargo aguenta no maximo 7-8 clinicas (28-32 aliases).
 // O sistema deve detectar isso e sugerir criar conta-base secundaria
-// (ex: administrativo2@padwards.com.br) quando passar de 28.
+// (ex: administrativo2@pawards.com.br) quando passar de 28.
 
 import type {
   EmailProvisionProvider,
@@ -54,9 +54,9 @@ function missingEnvVars(): string[] {
 
 function setupSteps(): string[] {
   return [
-    "1. Contratar Zoho Mail Lite (~US$1/usuario/mes) e verificar o dominio padwards.com.br",
+    "1. Contratar Zoho Mail Lite (~US$1/usuario/mes) e verificar o dominio pawards.com.br",
     "2. Configurar registros MX, SPF, DKIM e DMARC apontando para Zoho",
-    "3. Criar 8 contas-base no Zoho: medico@, gestao@, supervisao@, enfermagem@, consultoria@, administrativo@, financeiro@, ouvidoria@padwards.com.br",
+    "3. Criar 8 contas-base no Zoho: medico@, gestao@, supervisao@, enfermagem@, consultoria@, administrativo@, financeiro@, ouvidoria@pawards.com.br",
     "4. Criar 'Self Client' em https://api-console.zoho.com (tipo Server-based) com escopo ZohoMail.organization.accounts.UPDATE",
     "5. Gerar refresh_token via grant_type=authorization_code (uso unico) - guardar com seguranca",
     "6. Pegar o ZOID (organization ID) em Mail Admin Console > Settings > General",
@@ -142,7 +142,7 @@ async function provisionAlias(input: ProvisionAliasInput): Promise<ProvisionAlia
   if (currentCount >= ZOHO_ALIAS_LIMIT_PER_ACCOUNT) {
     throw new Error(
       `LIMITE ZOHO ATINGIDO: a conta-base ${input.targetMailbox} ja tem ${currentCount} aliases (max=${ZOHO_ALIAS_LIMIT_PER_ACCOUNT}). ` +
-      `Crie uma conta secundaria (ex: ${input.cargo}2@padwards.com.br) e atualize o mapeamento BASE_USERS_BY_CARGO.`
+      `Crie uma conta secundaria (ex: ${input.cargo}2@pawards.com.br) e atualize o mapeamento BASE_USERS_BY_CARGO.`
     );
   }
   const e = envs();

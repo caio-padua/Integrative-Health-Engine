@@ -1,21 +1,21 @@
 export const CARGOS = ['medico','gestao','supervisao','enfermagem','consultoria','administrativo','financeiro','ouvidoria'] as const;
 export const MODOS = ['local','remoto'] as const;
 export const HIERARQUIAS = ['alpha','beta'] as const;
-export const DOMAIN = 'padwards.com.br';
+export const DOMAIN = 'pawards.com.br';
 
 export type Cargo = typeof CARGOS[number];
 export type Modo = typeof MODOS[number];
 export type Hierarquia = typeof HIERARQUIAS[number];
 
 export const BASE_USERS_BY_CARGO: Record<Cargo, string> = {
-  medico: 'medico@padwards.com.br',
-  gestao: 'gestao@padwards.com.br',
-  supervisao: 'supervisao@padwards.com.br',
-  enfermagem: 'enfermagem@padwards.com.br',
-  consultoria: 'consultoria@padwards.com.br',
-  administrativo: 'administrativo@padwards.com.br',
-  financeiro: 'financeiro@padwards.com.br',
-  ouvidoria: 'ouvidoria@padwards.com.br',
+  medico: 'medico@pawards.com.br',
+  gestao: 'gestao@pawards.com.br',
+  supervisao: 'supervisao@pawards.com.br',
+  enfermagem: 'enfermagem@pawards.com.br',
+  consultoria: 'consultoria@pawards.com.br',
+  administrativo: 'administrativo@pawards.com.br',
+  financeiro: 'financeiro@pawards.com.br',
+  ouvidoria: 'ouvidoria@pawards.com.br',
 };
 
 export function slugifyClinicName(nome: string): string {
