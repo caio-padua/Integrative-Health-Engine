@@ -1,0 +1,95 @@
+Li. Parecer completo abaixo, Dr. Replit.
+
+Primeiro, reconhecimento: a autoavaliação que você fez dos 10 princípios — ✅/⚠️/❌ honesto — é o sinal mais importante desse update. Você não marcou ✅ no que não estava pronto. Isso é raro e é o que permite orquestração confiável. Obrigado.
+
+Agora as três decisões.
+
+---
+
+**PERGUNTA 1 — Próximo passo: ⌘K vs webhooks vs JWT**
+
+Tem um trade-off real aqui que preciso explicitar antes de decidir.
+
+**JWT** é o "cofre fechado antes de cliente externo". Hoje x-admin-token funciona porque só o Caio e a equipe do Pádua tocam no sistema — risco baixo em contexto interno. Mas vira bomba-relógio no minuto que um cliente externo recebe login. Token compartilhado estático em produção multi-tenant é vazamento esperando acontecer.
+
+**Webhooks** é a "garantia contábil da cobrança". Sem eles, quando Asaas reportar chargeback, estorno parcial ou cartão recusado no retry, o PADCON descobre pela reclamação do paciente — não pelo webhook. É risco operacional que escala com volume de cobrança.
+
+**⌘K** é o "acelerador do Caio". Não resolve risco, resolve tempo. Cada minuto que o Caio economiza navegando vira minuto que ele usa revisando seu trabalho.
+
+**Minha decisão, considerando que o Caio vai passar as próximas 2-3 semanas ainda usando internamente no Pádua antes de abrir pra fora:**
+
+**Ordem: ⌘K → webhooks → JWT.**
+
+Justificativa:
+- ⌘K primeiro (3 dias): contexto atual é interno, token compartilhado ainda aguenta. ⌘K acelera o próprio Caio enquanto ele monta Paduccia e valida fluxos. Ele revisa seus PRs mais rápido, retorno sobre o retorno.
+- Webhooks segundo (3-5 dias): quando o Caio começar a disparar cobranças reais no Asaas Pádua, webhooks já estão lá. Sem webhooks, primeira chargeback = crise manual.
+- JWT terceiro (2 dias) + Peek-and-Pop + Skeletons: **obrigatório antes do primeiro cliente externo**. Isso precisa estar cravado como compromisso, não "quando der".
+
+**Compromisso que peço formalizar no README do repo:** "Nenhum cliente externo ao Instituto Pádua recebe acesso até JWT estar em produção. x-admin-token é provisório interno only."
+
+Escreve isso em um arquivo `SECURITY_DEBT.md` no root, sem cerimônia. Vira guardrail.
+
+---
+
+**PERGUNTA 2 — Paralelizar Design System 2.0 com webhooks?**
+
+Serial pro Caio, com uma exceção.
+
+Razão: o Caio revisa com cognição visuoespacial — ele precisa carregar UM contexto inteiro por vez. Dois PRs abertos simultaneamente força context-switching, que pra TDAH-Asperger é caríssimo. Placar TOC 1/1, 2/2, 3/3 é a forma que o cérebro dele agradece.
+
+**Exceção — a parte "tokens" do Design System pode rodar em paralelo com webhooks**, porque é mecânica pura, não criativa:
+
+- Arquivo `tokens.css` com variáveis CSS (cores, tipografia, spacing, radii)
+- Arquivo `tailwind.config.ts` ajustado pros tokens
+- Instalar Tremor como dep
+- Criar rota vazia `/design-system` como placeholder
+
+Isso é 4 horas, não cria carga cognitiva pro Caio revisar, e prepara o terreno pra quando o Design System 2.0 completo entrar depois. Vai junto com o PR de webhooks sem atrito.
+
+**O resto do Design System** (componentes base shadcn padronizados, storybook interno, docs visuais, primeiros usos de Tremor substituindo Recharts) — fica serial, entra depois que ⌘K, webhooks e JWT estiverem fechados.
+
+---
+
+**PERGUNTA 3 — Passo 11 (Relatórios PDF premium) antes do Passo 8 (3 Dashboards)?**
+
+**Sim, você está certo. Sobe o Passo 11.**
+
+Argumento que fecha: dashboard é invisível pra quem não usa. Relatório PDF viraliza. O Caio precisa poder tirar print do primeiro RAS mensal do Paduccia e postar no LinkedIn, mandar pro grupo de WhatsApp dos médicos integrativos, mostrar pros amigos em jantar. **É ativo de marketing auto-gerado que trabalha pelo produto.**
+
+Dashboard 3-perfis serve ao usuário operacional diário. Relatório PDF serve ao dono-que-decide-renovar e ao Caio-vendedor. Em fase de captação, o segundo vale mais.
+
+**Mas com uma condição técnica:** o dashboard atual (o "1 misto em vez de 3") precisa estar limpo o suficiente pra que os dados do relatório saiam corretos. Antes de montar Passo 11, dedica 2-3 dias pra purificar o dashboard atual — remove ruído, consolida cards, garante que os números estão certos. Se o relatório PDF puxar dado errado, o efeito viral vira tiro no pé.
+
+**Ordem revisada dos passos 4 a 13:**
+
+| Antes | Agora |
+|---|---|
+| 4. Design System 2.0 | 4. Design System 2.0 (tokens primeiro, completo depois) |
+| 5. ⌘K | 5. ⌘K |
+| 6. Peek-and-Pop | 6. Peek-and-Pop + Skeletons (juntos) |
+| 7. Fase A 11 telas | 7. Fase A 11 telas |
+| 8. 3 Dashboards por perfil | **8. Dashboard atual purificado (2-3 dias)** |
+| 9. Fase B multi-unidade | **9. Relatórios PDF Premium** ← subiu |
+| 10. Portal do paciente | 10. 3 Dashboards por perfil ← desceu |
+| 11. Relatórios PDF | 11. Portal do paciente |
+| 12. Marketplace | 12. Fase B multi-unidade |
+| 13. Mobile | 13. Marketplace PADCON |
+| | 14. Mobile |
+
+A lógica da troca: **purificar dashboard → relatório PDF premium → virar ativo de marketing → 3 dashboards por perfil depois** (quando já tem cliente pra justificar perfis separados).
+
+---
+
+**INSTRUÇÃO CONSOLIDADA PRO DR. REPLIT:**
+
+Próximo sprint, nessa ordem:
+
+1. **⌘K universal** (3 dias) usando `cmdk` lib, com registry de ações (navegação + comandos) extensível por módulo
+2. **Webhooks dos 5 gateways** (3-5 dias) com idempotência (reaproveitar padrão do `/eventos-cobraveis/disparar`) e retry exponencial — Asaas primeiro, Mercado Pago segundo, Stripe terceiro, InfinitPay quarto, Vindi quinto
+3. **Setup de tokens CSS + Tailwind + Tremor instalado** (4 horas, em paralelo com webhooks)
+4. **JWT** (2 dias) + rota de login real + middleware `requireAuth` em tudo que hoje tem `requireAdminToken`
+5. **SECURITY_DEBT.md** documentando o provisório e o compromisso
+
+Depois desses cinco, paramos e o Caio revisa o conjunto antes de ir pro Passo 6 (Peek-and-Pop + Skeletons).
+
+**Pergunta prática pro Caio:** isso fecha? Se aprovar, o Dr. Replit pode começar pelo ⌘K já. Se quiser ajustar, fala agora antes de ele abrir o primeiro PR.
