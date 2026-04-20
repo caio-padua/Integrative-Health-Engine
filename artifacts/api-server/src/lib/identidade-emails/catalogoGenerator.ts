@@ -36,10 +36,15 @@ export interface CatalogRow {
   modo: Modo;
   hierarquia: Hierarquia;
   email: string;
-  google_target_user: string;
+  target_user_email: string;
+  provider: 'zoho' | 'locaweb' | 'google';
 }
 
-export function generateClinicEmailCatalog(unidadeId: number, clinicSlug: string): CatalogRow[] {
+export function generateClinicEmailCatalog(
+  unidadeId: number,
+  clinicSlug: string,
+  provider: 'zoho' | 'locaweb' | 'google' = 'zoho'
+): CatalogRow[] {
   const rows: CatalogRow[] = [];
   for (const cargo of CARGOS) {
     for (const modo of MODOS) {
@@ -50,7 +55,8 @@ export function generateClinicEmailCatalog(unidadeId: number, clinicSlug: string
           modo,
           hierarquia,
           email: `${cargo}.${modo}.${hierarquia}.${clinicSlug}@${DOMAIN}`,
-          google_target_user: BASE_USERS_BY_CARGO[cargo],
+          target_user_email: BASE_USERS_BY_CARGO[cargo],
+          provider,
         });
       }
     }

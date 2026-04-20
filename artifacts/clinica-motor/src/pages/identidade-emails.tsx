@@ -26,9 +26,9 @@ export default function IdentidadeEmailsPage() {
     queryFn: () => fetch("/api/unidades").then((r) => r.json()),
   });
 
-  const { data: googleStatus } = useQuery<any>({
-    queryKey: ["email-identity-google-status"],
-    queryFn: () => fetch("/api/email-identity/google-status").then((r) => r.json()),
+  const { data: providerStatus } = useQuery<any>({
+    queryKey: ["email-identity-provider-status"],
+    queryFn: () => fetch("/api/email-identity/provider-status").then((r) => r.json()),
   });
 
   const { data: identidades } = useQuery<any>({
@@ -145,16 +145,38 @@ export default function IdentidadeEmailsPage() {
         </div>
       </Card>
 
-      {googleStatus && !googleStatus.configured && (
-        <Card className="p-4 bg-amber-50 border-amber-300 rounded-none">
+      {providerStatus && (
+        <Card className={`p-4 rounded-none border ${providerStatus.configured ? "bg-emerald-50 border-emerald-300" : "bg-amber-50 border-amber-300"}`}>
           <div className="flex gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-semibold text-amber-900">Google Workspace ainda não configurado</p>
-              <p className="text-amber-800 mt-1">
-                Você pode gerar catálogos e fazer toggle livremente. A provisão real (criação dos aliases no Google) só funciona quando você plugar 3 variáveis: <code className="font-mono">GOOGLE_SERVICE_ACCOUNT_EMAIL</code>, <code className="font-mono">GOOGLE_PRIVATE_KEY</code>, <code className="font-mono">GOOGLE_ADMIN_IMPERSONATION_EMAIL</code>.
+            {providerStatus.configured
+              ? <CheckCircle2 className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" />
+              : <AlertTriangle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />}
+            <div className="text-sm flex-1">
+              <p className={`font-semibold ${providerStatus.configured ? "text-emerald-900" : "text-amber-900"}`}>
+                Provider ativo: <span className="uppercase font-mono">{providerStatus.activeProvider}</span> — {providerStatus.configured ? "Configurado e pronto" : "Aguardando credenciais"}
               </p>
-              <p className="text-amber-800 mt-1">Domínio configurado: <strong>{googleStatus.domain}</strong></p>
+              <p className={`mt-1 ${providerStatus.configured ? "text-emerald-800" : "text-amber-800"}`}>
+                Domínio: <strong>{providerStatus.domain}</strong>
+              </p>
+              {!providerStatus.configured && providerStatus.missingEnvVars?.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-amber-800 font-semibold">Variáveis pendentes:</p>
+                  <ul className="font-mono text-xs mt-1 text-amber-900">
+                    {providerStatus.missingEnvVars.map((v: string) => <li key={v}>• {v}</li>)}
+                  </ul>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-amber-900 font-semibold">Passos para ativar →</summary>
+                    <ol className="mt-2 text-xs text-amber-900 list-decimal list-inside space-y-1">
+                      {providerStatus.setupSteps?.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                    </ol>
+                  </details>
+                </div>
+              )}
+              {providerStatus.aliasLimitWarning && (
+                <p className="mt-2 text-xs text-stone-700 italic border-t border-current/20 pt-2">
+                  ⚠ {providerStatus.aliasLimitWarning}
+                </p>
+              )}
             </div>
           </div>
         </Card>
