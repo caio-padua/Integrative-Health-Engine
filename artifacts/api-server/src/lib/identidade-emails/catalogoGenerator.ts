@@ -1,5 +1,5 @@
 export const CARGOS = ['medico','gestao','supervisao','enfermagem','consultoria','administrativo','financeiro','ouvidoria'] as const;
-export const MODOS = ['local','remote'] as const;
+export const MODOS = ['local','remoto'] as const;
 export const HIERARQUIAS = ['alpha','beta'] as const;
 export const DOMAIN = 'padwards.com.br';
 
