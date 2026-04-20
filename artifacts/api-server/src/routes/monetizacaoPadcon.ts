@@ -1,8 +1,17 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { requireAdminToken } from "../middlewares/requireAdminToken.js";
 
 const router: IRouter = Router();
+
+const dispararSchema = z.object({
+  unidadeId: z.number().int().positive(),
+  eventoCodigo: z.string().min(1).max(32),
+  referenciaExterna: z.string().min(1).max(128).optional(),
+  metadados: z.record(z.string(), z.any()).optional(),
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // MÓDULOS PADCON (M1-M7) — catálogo + ativação por unidade
@@ -50,7 +59,7 @@ router.get("/modulos-padcon/matriz", async (_req, res): Promise<void> => {
   }
 });
 
-router.patch("/modulos-padcon/ativar/:unidadeId/:moduloId", async (req, res): Promise<void> => {
+router.patch("/modulos-padcon/ativar/:unidadeId/:moduloId", requireAdminToken, async (req, res): Promise<void> => {
   const { unidadeId, moduloId } = req.params;
   const { ativo, usuario, precoPersonalizado } = req.body ?? {};
   if (typeof ativo !== "boolean") {
@@ -89,13 +98,27 @@ router.get("/eventos-cobraveis", async (_req, res): Promise<void> => {
 });
 
 // CORAÇÃO: endpoint genérico que QUALQUER ação interna chama pra registrar consumo
+// Hardening: Zod + idempotência via referencia_externa (UNIQUE parcial no DB)
 router.post("/eventos-cobraveis/disparar", async (req, res): Promise<void> => {
-  const { unidadeId, eventoCodigo, referenciaExterna, metadados } = req.body ?? {};
-  if (!unidadeId || !eventoCodigo) {
-    res.status(400).json({ error: "unidadeId e eventoCodigo obrigatorios" });
+  const parsed = dispararSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Body invalido", detalhes: parsed.error.flatten() });
     return;
   }
+  const { unidadeId, eventoCodigo, referenciaExterna, metadados } = parsed.data;
+
   try {
+    // Idempotência: se já existe lançamento com mesma referência, retorna o existente (200, não 201)
+    if (referenciaExterna) {
+      const existente = await db.execute(sql`
+        SELECT * FROM unidade_eventos_ledger WHERE referencia_externa = ${referenciaExterna} LIMIT 1
+      `);
+      if (existente.rows.length > 0) {
+        res.status(200).json({ ...existente.rows[0], idempotente: true });
+        return;
+      }
+    }
+
     const evt = await db.execute(sql`
       SELECT id, preco_unitario FROM eventos_cobraveis WHERE codigo = ${eventoCodigo} AND ativo = TRUE
     `);
@@ -104,12 +127,32 @@ router.post("/eventos-cobraveis/disparar", async (req, res): Promise<void> => {
       return;
     }
     const evento: any = evt.rows[0];
-    const result = await db.execute(sql`
-      INSERT INTO unidade_eventos_ledger (unidade_id, evento_id, valor_cobrado, referencia_externa, metadados)
-      VALUES (${unidadeId}, ${evento.id}, ${evento.preco_unitario}, ${referenciaExterna ?? null}, ${metadados ? JSON.stringify(metadados) : null}::jsonb)
-      RETURNING *
-    `);
-    res.status(201).json(result.rows[0]);
+
+    // Confirma que unidade existe (4xx limpo se não)
+    const unid = await db.execute(sql`SELECT id FROM unidades WHERE id = ${unidadeId} LIMIT 1`);
+    if (unid.rows.length === 0) {
+      res.status(404).json({ error: `Unidade ${unidadeId} nao encontrada` });
+      return;
+    }
+
+    try {
+      const result = await db.execute(sql`
+        INSERT INTO unidade_eventos_ledger (unidade_id, evento_id, valor_cobrado, referencia_externa, metadados)
+        VALUES (${unidadeId}, ${evento.id}, ${evento.preco_unitario}, ${referenciaExterna ?? null}, ${metadados ? JSON.stringify(metadados) : null}::jsonb)
+        RETURNING *
+      `);
+      res.status(201).json(result.rows[0]);
+    } catch (insertErr: any) {
+      // Race condition: outra requisição inseriu entre nossa checagem e o INSERT
+      if (insertErr.code === "23505" && referenciaExterna) {
+        const existente = await db.execute(sql`
+          SELECT * FROM unidade_eventos_ledger WHERE referencia_externa = ${referenciaExterna} LIMIT 1
+        `);
+        res.status(200).json({ ...existente.rows[0], idempotente: true });
+        return;
+      }
+      throw insertErr;
+    }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
