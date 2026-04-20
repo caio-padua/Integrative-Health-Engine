@@ -1,21 +1,8 @@
 # 🍖 MOEDOR INDUSTRIAL — Pacote Total PADCON pra Opus Devorar
-**Single-click context bomb.** Tudo o que o Opus precisa pra fazer revisão estratégica e técnica, num só arquivo.
+**Gerado em:** 2026-04-20 06:54:33
+**Single-click context bomb.** Tudo que o Opus precisa em um arquivo.
 
-## 📋 ÍNDICE
-1. Memória persistente do projeto (replit.md)
-2. DNA do projeto (package.json + artifact.toml)
-3. Estrutura de pastas (tree completa)
-4. Regras de ferro (anti-padrões)
-5. Schema das 8 tabelas novas + 4 legadas críticas
-6. Seeds e dados vivos (liberações, preços, drive)
-7. Backend completo (monetização + drive + auxiliares)
-8. Frontend completo (layout + 3 páginas + contexts)
-9. Histórico git recente
-10. Achados do code review (críticos pendentes)
-
----
-
-## 1. 🧠 replit.md — memória persistente
+## 1. 🧠 replit.md
 ```markdown
 # Pawards — Plataforma de Gestão para Clínica Médica Integrativa
 
@@ -436,957 +423,1078 @@ Tabela `wd_operacionais_inventario` com 16 WDs catalogados. **10 ressuscitados (
 - ⏳ WD14 Worker assinatura notif · ⏳ WD15 Encarnar FISCAL · ⏳ WD16 OCR automático de PDF de exame
 ```
 
-## 2. 🧬 DNA — package.json raiz
-```json
-{
-  "name": "workspace",
-  "version": "0.0.0",
-  "license": "MIT",
-  "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
-  },
-  "private": true,
-  "devDependencies": {
-    "prettier": "^3.8.1",
-    "typescript": "~5.9.2"
-  },
-  "dependencies": {
-    "@replit/connectors-sdk": "^0.4.0",
-    "mammoth": "^1.12.0",
-    "pdf-parse": "1.1.1",
-    "pdfkit": "^0.18.0",
-    "tsx": "catalog:",
-    "yauzl": "^3.3.0"
-  }
-}
-```
-
-### artifact.toml api-server
-```toml
-```
-
-### artifact.toml clinica-motor
-```toml
-```
-
-## 3. 🗺️ Estrutura de pastas relevante
-```
-=== artifacts/api-server/src ===
-artifacts/api-server/src/app.ts
-artifacts/api-server/src/index.ts
-artifacts/api-server/src/lib/assinatura/adapters.ts
-artifacts/api-server/src/lib/assinatura/service.ts
-artifacts/api-server/src/lib/assinatura/types.ts
-artifacts/api-server/src/lib/branding.ts
-artifacts/api-server/src/lib/email-templates.ts
-artifacts/api-server/src/lib/google-calendar.ts
-artifacts/api-server/src/lib/google-drive.ts
-artifacts/api-server/src/lib/google-gmail.ts
-artifacts/api-server/src/lib/juridico/notaFiscalDrive.ts
-artifacts/api-server/src/lib/juridico/notaFiscal.ts
-artifacts/api-server/src/lib/juridico/sanitizer.ts
-artifacts/api-server/src/lib/laboratorio/motorClassificacaoIntegrativa.ts
-artifacts/api-server/src/lib/logger.ts
-artifacts/api-server/src/lib/motor-toggles.ts
-artifacts/api-server/src/lib/pacientes/autoProvisionDrive.ts
-artifacts/api-server/src/lib/ras-email-template.ts
-artifacts/api-server/src/lib/rasxEngine.ts
-artifacts/api-server/src/lib/recorrencia/motorPlanos.ts
-artifacts/api-server/src/lib/sheets/planilhaPacienteGPS.ts
-artifacts/api-server/src/lib/trello.ts
-artifacts/api-server/src/middleware/adminAuth.ts
-artifacts/api-server/src/middlewares/requireAdminToken.ts
-artifacts/api-server/src/middlewares/tenantContext.ts
-artifacts/api-server/src/payments/asaas.adapter.ts
-artifacts/api-server/src/payments/infinitpay.adapter.ts
-artifacts/api-server/src/payments/mercadopago.adapter.ts
-artifacts/api-server/src/payments/payment.service.ts
-artifacts/api-server/src/payments/stripe.adapter.ts
-artifacts/api-server/src/payments/types.ts
-artifacts/api-server/src/pdf/docsPdf.ts
-artifacts/api-server/src/pdf/gerarPedidoExame.ts
-artifacts/api-server/src/pdf/gerarRAS.ts
-artifacts/api-server/src/pdf/rasxMotorPdf.ts
-artifacts/api-server/src/pdf/rasxPdf.ts
-artifacts/api-server/src/routes/acompanhamento.ts
-artifacts/api-server/src/routes/agenda-motor.ts
-artifacts/api-server/src/routes/agendasProfissionais.ts
-artifacts/api-server/src/routes/agentesVirtuais.ts
-artifacts/api-server/src/routes/alertaPaciente.ts
-artifacts/api-server/src/routes/alertas.ts
-artifacts/api-server/src/routes/anamnese.ts
-artifacts/api-server/src/routes/assinaturaCRUD.ts
-artifacts/api-server/src/routes/assinaturas.ts
-artifacts/api-server/src/routes/assinaturasWebhook.ts
-artifacts/api-server/src/routes/auditoriaCascata.ts
-artifacts/api-server/src/routes/avaliacaoEnfermagem.ts
-artifacts/api-server/src/routes/avaliacoesCliente.ts
-artifacts/api-server/src/routes/backupDrive.ts
-artifacts/api-server/src/routes/blocos.ts
-artifacts/api-server/src/routes/catalogo.ts
-artifacts/api-server/src/routes/cavaloClinical.ts
-artifacts/api-server/src/routes/codigosSemanticos.ts
-artifacts/api-server/src/routes/colaboradores.ts
-artifacts/api-server/src/routes/comercialAdmin.ts
-artifacts/api-server/src/routes/comercial.ts
-artifacts/api-server/src/routes/comissao.ts
-artifacts/api-server/src/routes/consultoriasRoute.ts
-artifacts/api-server/src/routes/contratosRoute.ts
-artifacts/api-server/src/routes/dashboard.ts
-artifacts/api-server/src/routes/delegacao.ts
-artifacts/api-server/src/routes/direcaoExame.ts
-artifacts/api-server/src/routes/documentosReferencia.ts
-artifacts/api-server/src/routes/drivePawards.ts
-artifacts/api-server/src/routes/emailComunicacao.ts
-artifacts/api-server/src/routes/examesInteligente.ts
-artifacts/api-server/src/routes/exames.ts
-artifacts/api-server/src/routes/filas.ts
-artifacts/api-server/src/routes/financeiro.ts
-artifacts/api-server/src/routes/fluxos.ts
-artifacts/api-server/src/routes/followup.ts
-artifacts/api-server/src/routes/formulaBlend.ts
-artifacts/api-server/src/routes/genesisPopular.ts
-artifacts/api-server/src/routes/genesis.ts
-artifacts/api-server/src/routes/googleCalendar.ts
-artifacts/api-server/src/routes/googleDrive.ts
-artifacts/api-server/src/routes/googleGmail.ts
-artifacts/api-server/src/routes/governanca.ts
-artifacts/api-server/src/routes/health.ts
-
-=== artifacts/clinica-motor/src ===
-artifacts/clinica-motor/src/App.tsx
-artifacts/clinica-motor/src/components/DoencaSelector.tsx
-artifacts/clinica-motor/src/components/Layout.tsx
-artifacts/clinica-motor/src/components/PaymentModal.tsx
-artifacts/clinica-motor/src/components/RaclRacjPanel.tsx
-artifacts/clinica-motor/src/components/RevoPanel.tsx
-artifacts/clinica-motor/src/components/ui/accordion.tsx
-artifacts/clinica-motor/src/components/ui/alert-dialog.tsx
-artifacts/clinica-motor/src/components/ui/alert.tsx
-artifacts/clinica-motor/src/components/ui/aspect-ratio.tsx
-artifacts/clinica-motor/src/components/ui/avatar.tsx
-artifacts/clinica-motor/src/components/ui/badge.tsx
-artifacts/clinica-motor/src/components/ui/breadcrumb.tsx
-artifacts/clinica-motor/src/components/ui/button-group.tsx
-artifacts/clinica-motor/src/components/ui/button.tsx
-artifacts/clinica-motor/src/components/ui/calendar.tsx
-artifacts/clinica-motor/src/components/ui/card.tsx
-artifacts/clinica-motor/src/components/ui/carousel.tsx
-artifacts/clinica-motor/src/components/ui/chart.tsx
-artifacts/clinica-motor/src/components/ui/checkbox.tsx
-artifacts/clinica-motor/src/components/ui/collapsible.tsx
-artifacts/clinica-motor/src/components/ui/command.tsx
-artifacts/clinica-motor/src/components/ui/context-menu.tsx
-artifacts/clinica-motor/src/components/ui/dialog.tsx
-artifacts/clinica-motor/src/components/ui/drawer.tsx
-artifacts/clinica-motor/src/components/ui/dropdown-menu.tsx
-artifacts/clinica-motor/src/components/ui/empty.tsx
-artifacts/clinica-motor/src/components/ui/field.tsx
-artifacts/clinica-motor/src/components/ui/form.tsx
-artifacts/clinica-motor/src/components/ui/hover-card.tsx
-artifacts/clinica-motor/src/components/ui/input-group.tsx
-artifacts/clinica-motor/src/components/ui/input-otp.tsx
-artifacts/clinica-motor/src/components/ui/input.tsx
-artifacts/clinica-motor/src/components/ui/item.tsx
-artifacts/clinica-motor/src/components/ui/kbd.tsx
-artifacts/clinica-motor/src/components/ui/label.tsx
-artifacts/clinica-motor/src/components/ui/menubar.tsx
-artifacts/clinica-motor/src/components/ui/navigation-menu.tsx
-artifacts/clinica-motor/src/components/ui/pagination.tsx
-artifacts/clinica-motor/src/components/ui/popover.tsx
-artifacts/clinica-motor/src/components/ui/progress.tsx
-artifacts/clinica-motor/src/components/ui/radio-group.tsx
-artifacts/clinica-motor/src/components/ui/resizable.tsx
-artifacts/clinica-motor/src/components/ui/scroll-area.tsx
-artifacts/clinica-motor/src/components/ui/select.tsx
-artifacts/clinica-motor/src/components/ui/separator.tsx
-artifacts/clinica-motor/src/components/ui/sheet.tsx
-artifacts/clinica-motor/src/components/ui/sidebar.tsx
-artifacts/clinica-motor/src/components/ui/skeleton.tsx
-artifacts/clinica-motor/src/components/ui/slider.tsx
-artifacts/clinica-motor/src/components/ui/sonner.tsx
-artifacts/clinica-motor/src/components/ui/spinner.tsx
-artifacts/clinica-motor/src/components/ui/switch.tsx
-artifacts/clinica-motor/src/components/ui/table.tsx
-artifacts/clinica-motor/src/components/ui/tabs.tsx
-artifacts/clinica-motor/src/components/ui/textarea.tsx
-artifacts/clinica-motor/src/components/ui/toaster.tsx
-artifacts/clinica-motor/src/components/ui/toast.tsx
-artifacts/clinica-motor/src/components/ui/toggle-group.tsx
-artifacts/clinica-motor/src/components/ui/toggle.tsx
-artifacts/clinica-motor/src/components/ui/tooltip.tsx
-artifacts/clinica-motor/src/contexts/AuthContext.tsx
-artifacts/clinica-motor/src/contexts/ClinicContext.tsx
-artifacts/clinica-motor/src/hooks/useLembretesFalhasContagem.ts
-artifacts/clinica-motor/src/hooks/use-mobile.tsx
-artifacts/clinica-motor/src/hooks/use-payment.ts
-artifacts/clinica-motor/src/hooks/use-toast.ts
-artifacts/clinica-motor/src/lib/utils.ts
-artifacts/clinica-motor/src/main.tsx
-artifacts/clinica-motor/src/pages/acompanhamento.tsx
-artifacts/clinica-motor/src/pages/admin-comercial.tsx
-artifacts/clinica-motor/src/pages/agenda/index.tsx
-artifacts/clinica-motor/src/pages/agenda-motor.tsx
-artifacts/clinica-motor/src/pages/agendas.tsx
-artifacts/clinica-motor/src/pages/agentes-virtuais.tsx
-artifacts/clinica-motor/src/pages/anamnese/[id].tsx
-artifacts/clinica-motor/src/pages/anamnese/index.tsx
-artifacts/clinica-motor/src/pages/anamnese/nova.tsx
-artifacts/clinica-motor/src/pages/avaliacao-enfermagem/index.tsx
-artifacts/clinica-motor/src/pages/blueprint.tsx
-artifacts/clinica-motor/src/pages/catalogo/index.tsx
-artifacts/clinica-motor/src/pages/codigos-semanticos/index.tsx
-artifacts/clinica-motor/src/pages/codigos-validacao/index.tsx
-artifacts/clinica-motor/src/pages/colaboradores.tsx
-artifacts/clinica-motor/src/pages/comercial.tsx
-artifacts/clinica-motor/src/pages/comissao.tsx
-artifacts/clinica-motor/src/pages/configuracoes/index.tsx
-artifacts/clinica-motor/src/pages/consultorias/index.tsx
-artifacts/clinica-motor/src/pages/contratos/index.tsx
-artifacts/clinica-motor/src/pages/dashboard-local.tsx
-artifacts/clinica-motor/src/pages/dashboard.tsx
-artifacts/clinica-motor/src/pages/delegacao/index.tsx
-artifacts/clinica-motor/src/pages/demandas-resolucao.tsx
-artifacts/clinica-motor/src/pages/dietas/index.tsx
-artifacts/clinica-motor/src/pages/estoque/index.tsx
-artifacts/clinica-motor/src/pages/exames.tsx
-artifacts/clinica-motor/src/pages/filas/index.tsx
-artifacts/clinica-motor/src/pages/financeiro/index.tsx
-artifacts/clinica-motor/src/pages/fluxos/index.tsx
-artifacts/clinica-motor/src/pages/followup/index.tsx
-artifacts/clinica-motor/src/pages/governanca/index.tsx
-artifacts/clinica-motor/src/pages/governanca-matrix.tsx
-artifacts/clinica-motor/src/pages/inundacao.tsx
-artifacts/clinica-motor/src/pages/itens-terapeuticos/index.tsx
-artifacts/clinica-motor/src/pages/justificativas.tsx
-artifacts/clinica-motor/src/pages/laboratorio-validacao.tsx
-artifacts/clinica-motor/src/pages/lembretes-falhas.tsx
-artifacts/clinica-motor/src/pages/login.tsx
-artifacts/clinica-motor/src/pages/matriz-analitica.tsx
-artifacts/clinica-motor/src/pages/mensagens.tsx
-artifacts/clinica-motor/src/pages/monetizar.tsx
-artifacts/clinica-motor/src/pages/not-found.tsx
-artifacts/clinica-motor/src/pages/pacientes/exames-grafico.tsx
-artifacts/clinica-motor/src/pages/pacientes/[id].tsx
-artifacts/clinica-motor/src/pages/pacientes/index.tsx
-artifacts/clinica-motor/src/pages/pacientes/monitoramento.tsx
-artifacts/clinica-motor/src/pages/pacientes/questionario.tsx
-artifacts/clinica-motor/src/pages/padcom/admin-dashboard.tsx
-artifacts/clinica-motor/src/pages/padcom/admin-detalhe.tsx
-artifacts/clinica-motor/src/pages/padcom/admin.tsx
-```
-
-## 4. ⚠️ REGRAS DE FERRO (não-negociáveis)
-- **NUNCA** rodar `db:push` ou `drizzle-kit push` — drift de 32 tabelas, 31 FKs em `unidades.id`. Schema só via `ALTER`/`CREATE` direto no psql.
-- **Backend SEM auth real** ainda — `tenantContextMiddleware` só lê header da unidade. Status quo do projeto inteiro.
-- **Porta API**: 8080 (workflow externo mapeia 5000→8080).
-- **Preços cravados pelo Caio**: M1=297, M2=497, M3=197, M4=197, M5=397, M6=597, M7=397. E1=47, E2=0.80, E3=1.20, E4=0.15, E5=0.80, E6=4.90, E7=9.90, E8=1997, E9=97/mês.
-- **Visão Caio**: SaaS médico multi-tenant. DNA visual: azul petróleo #1F4E5F, off-white, dourado. NUVEM ☁️ (cofre-mãe global) + ROCHA ⛰️ (autonomia local).
-- **Pádua é a clínica-mãe** (id=15, ⭐). **Genesis é o cofre semente** (id=14, 🧬). Outras 8 são clientes. Lemos(9)/Barakat(19)=bloqueio_total. Pádua/Genesis=autonomia_plena.
-
-## 5. 📊 Schema das tabelas
+## 2. 📊 Schema completo (psql \dt + \d das tabelas críticas)
 ```sql
--- =========== 8 TABELAS NOVAS PADCON ===========
+                        List of relations
+ Schema |                Name                 | Type  |  Owner   
+--------+-------------------------------------+-------+----------
+ public | acoes_agente                        | table | postgres
+ public | acompanhamento_cavalo               | table | postgres
+ public | acompanhamento_formula              | table | postgres
+ public | adesoes_plano                       | table | postgres
+ public | agenda_audit_events                 | table | postgres
+ public | agenda_blocks                       | table | postgres
+ public | agenda_slots                        | table | postgres
+ public | agendas_nuvem_liberacao             | table | postgres
+ public | agendas_profissionais               | table | postgres
+ public | agent_actions                       | table | postgres
+ public | agentes_clinica                     | table | postgres
+ public | agentes_frases                      | table | postgres
+ public | agentes_identidade                  | table | postgres
+ public | agentes_motor_escrita               | table | postgres
+ public | agentes_personalidade               | table | postgres
+ public | agentes_regras                      | table | postgres
+ public | agentes_versionamento               | table | postgres
+ public | alerta_paciente                     | table | postgres
+ public | alertas_notificacao                 | table | postgres
+ public | analitos_catalogo                   | table | postgres
+ public | analitos_referencia_laboratorio     | table | postgres
+ public | analitos_validacoes_log             | table | postgres
+ public | anamnese_validacao_template         | table | postgres
+ public | anamneses                           | table | postgres
+ public | aplicacoes_substancias              | table | postgres
+ public | appointment_reschedules             | table | postgres
+ public | appointments                        | table | postgres
+ public | arquivos_exames                     | table | postgres
+ public | assinatura_drive_estrutura          | table | postgres
+ public | assinatura_notificacoes             | table | postgres
+ public | assinatura_pares_testemunhas        | table | postgres
+ public | assinatura_signatarios              | table | postgres
+ public | assinatura_solicitacoes             | table | postgres
+ public | assinatura_templates                | table | postgres
+ public | assinatura_testemunhas              | table | postgres
+ public | assinatura_textos_institucionais    | table | postgres
+ public | assinatura_toggles_admin            | table | postgres
+ public | assinatura_webhook_eventos          | table | postgres
+ public | assinaturas_digitais                | table | postgres
+ public | auditoria_cascata                   | table | postgres
+ public | availability_rules                  | table | postgres
+ public | avaliacao_enfermagem                | table | postgres
+ public | avaliacoes_cliente                  | table | postgres
+ public | blocos                              | table | postgres
+ public | cadernos_documentais                | table | postgres
+ public | capacidades_agente_clinica          | table | postgres
+ public | cascata_validacao_config            | table | postgres
+ public | casulo_eventos                      | table | postgres
+ public | catalogo_agentes                    | table | postgres
+ public | cid10                               | table | postgres
+ public | cirurgias                           | table | postgres
+ public | clinica_drive_estrutura             | table | postgres
+ public | cobertura_manifesto_topicos         | table | postgres
+ public | cobrancas_mensais_modulos           | table | postgres
+ public | codigos_semanticos                  | table | postgres
+ public | codigos_validacao                   | table | postgres
+ public | comissoes_config                    | table | postgres
+ public | commission_events                   | table | postgres
+ public | consultor_unidades                  | table | postgres
+ public | consultorias                        | table | postgres
+ public | contrato_clinica                    | table | postgres
+ public | dados_visita_clinica                | table | postgres
+ public | delegacoes                          | table | postgres
+ public | demandas_resolucao                  | table | postgres
+ public | demandas_servico                    | table | postgres
+ public | descontos_config                    | table | postgres
+ public | dicionario_graus                    | table | postgres
+ public | dietas                              | table | postgres
+ public | direcao_favoravel_exame             | table | postgres
+ public | disciplinary_events                 | table | postgres
+ public | documentos_referencia               | table | postgres
+ public | doencas                             | table | postgres
+ public | endovenosos                         | table | postgres
+ public | estado_saude_paciente               | table | postgres
+ public | estoque_itens                       | table | postgres
+ public | evento_start                        | table | postgres
+ public | eventos_clinicos                    | table | postgres
+ public | eventos_cobraveis                   | table | postgres
+ public | eventos_programados                 | table | postgres
+ public | eventos_saida_operacionais          | table | postgres
+ public | exames_base                         | table | postgres
+ public | exames_evolucao                     | table | postgres
+ public | execucoes_agente                    | table | postgres
+ public | farmacias_parceiras                 | table | postgres
+ public | fases_plano_template                | table | postgres
+ public | faturamento_mensal                  | table | postgres
+ public | feedback_formulas                   | table | postgres
+ public | feedback_pacientes                  | table | postgres
+ public | fila_preceptor                      | table | postgres
+ public | filas_operacionais                  | table | postgres
+ public | fluxos_aprovacoes                   | table | postgres
+ public | followups                           | table | postgres
+ public | formula_blend                       | table | postgres
+ public | formula_blend_ativo                 | table | postgres
+ public | formulas                            | table | postgres
+ public | formulas_master                     | table | postgres
+ public | implantes                           | table | postgres
+ public | injetaveis                          | table | postgres
+ public | itens_terapeuticos                  | table | postgres
+ public | juridico_termos_bloqueados          | table | postgres
+ public | kaizen_melhorias                    | table | postgres
+ public | linfonodos_paciente                 | table | postgres
+ public | linha_medicacao_evento              | table | postgres
+ public | manifestos_estrategicos             | table | postgres
+ public | mapa_aderencia_celular              | table | postgres
+ public | mapa_anamnese_motor                 | table | postgres
+ public | mapa_bloco_exame                    | table | postgres
+ public | mapeamento_documental               | table | postgres
+ public | matrix_governanca_categoria         | table | postgres
+ public | matriz_rastreio                     | table | postgres
+ public | memorias_contextuais_agente         | table | postgres
+ public | mensagens_catalogo                  | table | postgres
+ public | metas_consultor                     | table | postgres
+ public | modulos_clinica                     | table | postgres
+ public | modulos_contratados                 | table | postgres
+ public | modulos_padcon                      | table | postgres
+ public | modulos_sistema                     | table | postgres
+ public | monitoramento_sinais_vitais         | table | postgres
+ public | motor_decisao_clinica               | table | postgres
+ public | narrativas_agente                   | table | postgres
+ public | niveis_escala_nacional              | table | postgres
+ public | niveis_justificativa                | table | postgres
+ public | nota_fiscal_eventos                 | table | postgres
+ public | notas_fiscais_emitidas              | table | postgres
+ public | oportunidades_entrada_nacional      | table | postgres
+ public | pacientes                           | table | postgres
+ public | padcom_agendamentos                 | table | postgres
+ public | padcom_alertas                      | table | postgres
+ public | padcom_alertas_regras               | table | postgres
+ public | padcom_auditoria                    | table | postgres
+ public | padcom_bandas                       | table | postgres
+ public | padcom_competencias_regulatorias    | table | postgres
+ public | padcom_notificacoes                 | table | postgres
+ public | padcom_questionarios                | table | postgres
+ public | padcom_respostas                    | table | postgres
+ public | padcom_sessoes                      | table | postgres
+ public | padcom_validacoes_cascata           | table | postgres
+ public | padroes_formula_exame               | table | postgres
+ public | pagamentos                          | table | postgres
+ public | pedidos_exame                       | table | postgres
+ public | perfis_permissoes                   | table | postgres
+ public | periodos_dia                        | table | postgres
+ public | pesquisa_respostas                  | table | postgres
+ public | pesquisa_satisfacao                 | table | postgres
+ public | pingue_pongue_log                   | table | postgres
+ public | planos_consulta_config              | table | postgres
+ public | planos_saas_catalogo                | table | postgres
+ public | planos_terapeuticos_template        | table | postgres
+ public | procedimento_categorias_nf          | table | postgres
+ public | profissional_confianca              | table | postgres
+ public | protocolos                          | table | postgres
+ public | protocolos_acoes                    | table | postgres
+ public | protocolos_fases                    | table | postgres
+ public | protocolos_master                   | table | postgres
+ public | protocolos_paciente_catalogo        | table | postgres
+ public | provedores_assinatura_digital       | table | postgres
+ public | provedores_nfe                      | table | postgres
+ public | provedores_pagamento                | table | postgres
+ public | psicologia                          | table | postgres
+ public | queixas_cards                       | table | postgres
+ public | questionario_master                 | table | postgres
+ public | questionario_respostas              | table | postgres
+ public | ras                                 | table | postgres
+ public | ras_evolutivo                       | table | postgres
+ public | rasx_audit_log                      | table | postgres
+ public | recorrencia                         | table | postgres
+ public | registro_substancia_uso             | table | postgres
+ public | regras_endovenosos                  | table | postgres
+ public | regras_implantes                    | table | postgres
+ public | regras_injetaveis                   | table | postgres
+ public | regras_motor                        | table | postgres
+ public | regras_triagem                      | table | postgres
+ public | remedios_farmacia                   | table | postgres
+ public | remedios_farmacia_componentes       | table | postgres
+ public | revo_curvas                         | table | postgres
+ public | revo_eventos_medicacao              | table | postgres
+ public | revo_medicamentos                   | table | postgres
+ public | revo_orgaos                         | table | postgres
+ public | revo_patologias                     | table | postgres
+ public | revo_proxima_etapa                  | table | postgres
+ public | revo_snapshots                      | table | postgres
+ public | roteiros_chamada                    | table | postgres
+ public | sessoes                             | table | postgres
+ public | sintomas                            | table | postgres
+ public | sla_monitoring                      | table | postgres
+ public | slot_locks                          | table | postgres
+ public | smart_release_config                | table | postgres
+ public | soberania_config                    | table | postgres
+ public | sub_agendas                         | table | postgres
+ public | substancias                         | table | postgres
+ public | sugestoes_clinicas                  | table | postgres
+ public | suplementos_laboratorio             | table | postgres
+ public | suplementos_laboratorio_componentes | table | postgres
+ public | task_attempts                       | table | postgres
+ public | task_card_escalations               | table | postgres
+ public | task_card_justificativas            | table | postgres
+ public | task_cards                          | table | postgres
+ public | task_validations                    | table | postgres
+ public | team_members                        | table | postgres
+ public | team_positions                      | table | postgres
+ public | termos_assinados                    | table | postgres
+ public | termos_consentimento                | table | postgres
+ public | termos_juridicos                    | table | postgres
+ public | tracking_sintomas                   | table | postgres
+ public | tratamento_itens                    | table | postgres
+ public | tratamentos                         | table | postgres
+ public | unidade_eventos_ledger              | table | postgres
+ public | unidade_gateway_credenciais         | table | postgres
+ public | unidade_modulos_ativos              | table | postgres
+ public | unidade_nfe_credenciais             | table | postgres
+ public | unidades                            | table | postgres
+ public | unidades_conversao                  | table | postgres
+ public | usuarios                            | table | postgres
+ public | validacoes_cascata                  | table | postgres
+ public | validacoes_humanas_agente           | table | postgres
+ public | wd_operacionais_inventario          | table | postgres
+ public | whatsapp_config                     | table | postgres
+ public | whatsapp_mensagens_log              | table | postgres
+(218 rows)
 
--- modulos_padcon --
-                                                                   Table "public.modulos_padcon"
-    Column    |           Type           | Collation | Nullable |                  Default                   | Storage  | Compression | Stats target | Description 
---------------+--------------------------+-----------+----------+--------------------------------------------+----------+-------------+--------------+-------------
- id           | integer                  |           | not null | nextval('modulos_padcon_id_seq'::regclass) | plain    |             |              | 
- codigo       | text                     |           | not null |                                            | extended |             |              | 
- nome         | text                     |           | not null |                                            | extended |             |              | 
- descricao    | text                     |           |          |                                            | extended |             |              | 
- preco_mensal | numeric(10,2)            |           | not null | 0                                          | main     |             |              | 
- ordem        | integer                  |           | not null | 0                                          | plain    |             |              | 
- grupo        | text                     |           | not null |                                            | extended |             |              | 
- ativo        | boolean                  |           | not null | true                                       | plain    |             |              | 
- criado_em    | timestamp with time zone |           | not null | now()                                      | plain    |             |              | 
+
+-- TABELA unidades
+                                             Table "public.unidades"
+         Column         |           Type           | Collation | Nullable |               Default                
+------------------------+--------------------------+-----------+----------+--------------------------------------
+ id                     | integer                  |           | not null | nextval('unidades_id_seq'::regclass)
+ nome                   | text                     |           | not null | 
+ endereco               | text                     |           |          | 
+ cidade                 | text                     |           |          | 
+ estado                 | text                     |           |          | 
+ telefone               | text                     |           |          | 
+ ativa                  | boolean                  |           | not null | true
+ criado_em              | timestamp with time zone |           | not null | now()
+ atualizado_em          | timestamp with time zone |           | not null | now()
+ cnpj                   | text                     |           |          | 
+ cep                    | text                     |           |          | 
+ tipo                   | text                     |           | not null | 'clinic'::text
+ google_calendar_id     | text                     |           |          | 
+ cor                    | text                     |           | not null | '#3B82F6'::text
+ bairro                 | text                     |           |          | 
+ google_calendar_email  | text                     |           |          | 
+ consultoria_id         | integer                  |           |          | 
+ codigo_interno         | text                     |           |          | 
+ nick                   | text                     |           |          | 
+ email_geral            | text                     |           |          | 
+ email_agenda           | text                     |           |          | 
+ email_enfermagem01     | text                     |           |          | 
+ email_enfermagem02     | text                     |           |          | 
+ email_consultor01      | text                     |           |          | 
+ email_consultor02      | text                     |           |          | 
+ email_supervisor01     | text                     |           |          | 
+ email_supervisor02     | text                     |           |          | 
+ email_financeiro01     | text                     |           |          | 
+ email_ouvidoria01      | text                     |           |          | 
+ timezone               | text                     |           | not null | 'America/Sao_Paulo'::text
+ dono_id                | integer                  |           |          | 
+ dono_nome              | text                     |           |          | 
+ autoliberacao          | boolean                  |           | not null | true
+ logotipo_url           | text                     |           |          | 
+ logotipo_atualizado_em | timestamp with time zone |           |          | 
+Indexes:
+    "unidades_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "unidades_consultoria_id_consultorias_id_fk" FOREIGN KEY (consultoria_id) REFERENCES consultorias(id)
+Referenced by:
+    TABLE "agenda_blocks" CONSTRAINT "agenda_blocks_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "agenda_slots" CONSTRAINT "agenda_slots_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "agendas_nuvem_liberacao" CONSTRAINT "agendas_nuvem_liberacao_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "agendas_profissionais" CONSTRAINT "agendas_profissionais_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id) ON DELETE CASCADE
+    TABLE "agent_actions" CONSTRAINT "agent_actions_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "agentes_clinica" CONSTRAINT "agentes_clinica_clinica_id_unidades_id_fk" FOREIGN KEY (clinica_id) REFERENCES unidades(id)
+    TABLE "appointments" CONSTRAINT "appointments_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "availability_rules" CONSTRAINT "availability_rules_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "clinica_drive_estrutura" CONSTRAINT "clinica_drive_estrutura_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "cobrancas_mensais_modulos" CONSTRAINT "cobrancas_mensais_modulos_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "commission_events" CONSTRAINT "commission_events_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "consultor_unidades" CONSTRAINT "consultor_unidades_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "contrato_clinica" CONSTRAINT "contrato_clinica_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "delegacoes" CONSTRAINT "delegacoes_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "demandas_resolucao" CONSTRAINT "demandas_resolucao_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "demandas_servico" CONSTRAINT "demandas_servico_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "disciplinary_events" CONSTRAINT "disciplinary_events_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "evento_start" CONSTRAINT "evento_start_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "eventos_saida_operacionais" CONSTRAINT "eventos_saida_operacionais_clinica_id_unidades_id_fk" FOREIGN KEY (clinica_id) REFERENCES unidades(id)
+    TABLE "faturamento_mensal" CONSTRAINT "faturamento_mensal_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "feedback_pacientes" CONSTRAINT "feedback_pacientes_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "filas_operacionais" CONSTRAINT "filas_operacionais_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "followups" CONSTRAINT "followups_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "matrix_governanca_categoria" CONSTRAINT "matrix_governanca_categoria_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id) ON DELETE CASCADE
+    TABLE "modulos_clinica" CONSTRAINT "modulos_clinica_clinica_id_unidades_id_fk" FOREIGN KEY (clinica_id) REFERENCES unidades(id)
+    TABLE "notas_fiscais_emitidas" CONSTRAINT "notas_fiscais_emitidas_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "pacientes" CONSTRAINT "pacientes_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "pagamentos" CONSTRAINT "pagamentos_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "pesquisa_satisfacao" CONSTRAINT "pesquisa_satisfacao_clinica_id_unidades_id_fk" FOREIGN KEY (clinica_id) REFERENCES unidades(id)
+    TABLE "sessoes" CONSTRAINT "sessoes_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "sla_monitoring" CONSTRAINT "sla_monitoring_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "smart_release_config" CONSTRAINT "smart_release_config_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "sub_agendas" CONSTRAINT "sub_agendas_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "team_members" CONSTRAINT "team_members_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "team_positions" CONSTRAINT "team_positions_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "tratamentos" CONSTRAINT "tratamentos_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "unidade_eventos_ledger" CONSTRAINT "unidade_eventos_ledger_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "unidade_gateway_credenciais" CONSTRAINT "unidade_gateway_credenciais_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "unidade_modulos_ativos" CONSTRAINT "unidade_modulos_ativos_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "unidade_nfe_credenciais" CONSTRAINT "unidade_nfe_credenciais_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "usuarios" CONSTRAINT "usuarios_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+    TABLE "whatsapp_config" CONSTRAINT "whatsapp_config_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+
+
+-- TABELA pacientes
+                                             Table "public.pacientes"
+         Column         |           Type           | Collation | Nullable |                Default                
+------------------------+--------------------------+-----------+----------+---------------------------------------
+ id                     | integer                  |           | not null | nextval('pacientes_id_seq'::regclass)
+ nome                   | text                     |           | not null | 
+ cpf                    | text                     |           |          | 
+ data_nascimento        | date                     |           |          | 
+ telefone               | text                     |           | not null | 
+ email                  | text                     |           |          | 
+ unidade_id             | integer                  |           | not null | 
+ status_ativo           | boolean                  |           | not null | true
+ criado_em              | timestamp with time zone |           | not null | now()
+ atualizado_em          | timestamp with time zone |           | not null | now()
+ endereco               | text                     |           |          | 
+ cep                    | text                     |           |          | 
+ google_drive_folder_id | text                     |           |          | 
+ complemento            | text                     |           |          | 
+ bairro                 | text                     |           |          | 
+ cidade                 | text                     |           |          | 
+ estado                 | text                     |           |          | 
+ pais                   | text                     |           |          | 'Brasil'::text
+ senha_validacao        | text                     |           |          | 
+ foto_rosto             | text                     |           |          | 
+ foto_corpo             | text                     |           |          | 
+ plano_acompanhamento   | text                     |           |          | 'cobre'::text
+ senha_portal           | text                     |           |          | 
+ genero                 | text                     |           | not null | 'nao_informado'::text
+ altura_cm              | integer                  |           |          | 
+ peso_kg                | numeric(5,2)             |           |          | 
+ alergias               | text                     |           |          | 
+ condicoes_clinicas     | text                     |           |          | 
+ medicamentos_continuos | text                     |           |          | 
+ gestante               | boolean                  |           | not null | false
+ fototipo_fitzpatrick   | text                     |           |          | 
+ atividade_fisica       | text                     |           |          | 
+Indexes:
+    "pacientes_pkey" PRIMARY KEY, btree (id)
+Check constraints:
+    "pacientes_atividade_check" CHECK (atividade_fisica IS NULL OR (atividade_fisica = ANY (ARRAY['sedentario'::text, 'leve'::text, 'moderado'::text, 'intenso'::text, 'atleta'::text])))
+    "pacientes_fototipo_check" CHECK (fototipo_fitzpatrick IS NULL OR (fototipo_fitzpatrick = ANY (ARRAY['I'::text, 'II'::text, 'III'::text, 'IV'::text, 'V'::text, 'VI'::text])))
+    "pacientes_genero_check" CHECK (genero = ANY (ARRAY['masculino'::text, 'feminino'::text, 'outro'::text, 'nao_informado'::text]))
+Foreign-key constraints:
+    "pacientes_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+Referenced by:
+    TABLE "acompanhamento_cavalo" CONSTRAINT "acompanhamento_cavalo_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "acompanhamento_formula" CONSTRAINT "acompanhamento_formula_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "adesoes_plano" CONSTRAINT "adesoes_plano_paciente_id_fkey" FOREIGN KEY (paciente_id) REFERENCES pacientes(id) ON DELETE CASCADE
+    TABLE "alerta_paciente" CONSTRAINT "alerta_paciente_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "anamneses" CONSTRAINT "anamneses_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "appointments" CONSTRAINT "appointments_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "arquivos_exames" CONSTRAINT "arquivos_exames_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "assinatura_drive_estrutura" CONSTRAINT "assinatura_drive_estrutura_paciente_id_fkey" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "assinatura_solicitacoes" CONSTRAINT "assinatura_solicitacoes_paciente_id_fkey" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "assinaturas_digitais" CONSTRAINT "assinaturas_digitais_paciente_id_fkey" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "avaliacao_enfermagem" CONSTRAINT "avaliacao_enfermagem_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "avaliacoes_cliente" CONSTRAINT "avaliacoes_cliente_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "cadernos_documentais" CONSTRAINT "cadernos_documentais_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "codigos_validacao" CONSTRAINT "codigos_validacao_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "dados_visita_clinica" CONSTRAINT "dados_visita_clinica_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "demandas_servico" CONSTRAINT "demandas_servico_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "estado_saude_paciente" CONSTRAINT "estado_saude_paciente_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "evento_start" CONSTRAINT "evento_start_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "eventos_clinicos" CONSTRAINT "eventos_clinicos_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "eventos_programados" CONSTRAINT "eventos_programados_paciente_id_fkey" FOREIGN KEY (paciente_id) REFERENCES pacientes(id) ON DELETE CASCADE
+    TABLE "exames_evolucao" CONSTRAINT "exames_evolucao_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "feedback_formulas" CONSTRAINT "feedback_formulas_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "fila_preceptor" CONSTRAINT "fila_preceptor_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "filas_operacionais" CONSTRAINT "filas_operacionais_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "followups" CONSTRAINT "followups_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "linha_medicacao_evento" CONSTRAINT "linha_medicacao_evento_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "monitoramento_sinais_vitais" CONSTRAINT "monitoramento_sinais_vitais_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "notas_fiscais_emitidas" CONSTRAINT "notas_fiscais_emitidas_paciente_id_fkey" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "pagamentos" CONSTRAINT "pagamentos_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "questionario_respostas" CONSTRAINT "questionario_respostas_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "ras_evolutivo" CONSTRAINT "ras_evolutivo_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "ras" CONSTRAINT "ras_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "rasx_audit_log" CONSTRAINT "rasx_audit_log_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "registro_substancia_uso" CONSTRAINT "registro_substancia_uso_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "revo_curvas" CONSTRAINT "revo_curvas_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "revo_eventos_medicacao" CONSTRAINT "revo_eventos_medicacao_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "revo_medicamentos" CONSTRAINT "revo_medicamentos_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "revo_orgaos" CONSTRAINT "revo_orgaos_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "revo_patologias" CONSTRAINT "revo_patologias_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "revo_proxima_etapa" CONSTRAINT "revo_proxima_etapa_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "revo_snapshots" CONSTRAINT "revo_snapshots_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "sessoes" CONSTRAINT "sessoes_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "sugestoes_clinicas" CONSTRAINT "sugestoes_clinicas_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "task_cards" CONSTRAINT "task_cards_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "termos_assinados" CONSTRAINT "termos_assinados_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "tracking_sintomas" CONSTRAINT "tracking_sintomas_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "tratamentos" CONSTRAINT "tratamentos_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    TABLE "validacoes_cascata" CONSTRAINT "validacoes_cascata_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+
+
+-- TABELA appointments
+                                                 Table "public.appointments"
+             Column             |           Type           | Collation | Nullable |                 Default                  
+--------------------------------+--------------------------+-----------+----------+------------------------------------------
+ id                             | integer                  |           | not null | nextval('appointments_id_seq'::regclass)
+ slot_id                        | integer                  |           | not null | 
+ paciente_id                    | integer                  |           | not null | 
+ profissional_id                | integer                  |           | not null | 
+ unidade_id                     | integer                  |           | not null | 
+ sessao_id                      | integer                  |           |          | 
+ tipo_procedimento              | text                     |           | not null | 
+ data                           | text                     |           | not null | 
+ hora_inicio                    | text                     |           | not null | 
+ hora_fim                       | text                     |           | not null | 
+ duracao_min                    | integer                  |           | not null | 
+ status                         | text                     |           | not null | 'agendado'::text
+ google_event_id                | text                     |           |          | 
+ google_calendar_id             | text                     |           |          | 
+ observacoes                    | text                     |           |          | 
+ origem_agendamento             | text                     |           | not null | 'sistema'::text
+ criado_em                      | timestamp with time zone |           | not null | now()
+ atualizado_em                  | timestamp with time zone |           | not null | now()
+ reagendamento_automatico_de_id | integer                  |           |          | 
+ motivo_falta                   | text                     |           |          | 
+Indexes:
+    "appointments_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "appointments_paciente_id_pacientes_id_fk" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    "appointments_profissional_id_usuarios_id_fk" FOREIGN KEY (profissional_id) REFERENCES usuarios(id)
+    "appointments_slot_id_agenda_slots_id_fk" FOREIGN KEY (slot_id) REFERENCES agenda_slots(id)
+    "appointments_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+Referenced by:
+    TABLE "appointment_reschedules" CONSTRAINT "appointment_reschedules_appointment_id_appointments_id_fk" FOREIGN KEY (appointment_id) REFERENCES appointments(id)
+    TABLE "notas_fiscais_emitidas" CONSTRAINT "notas_fiscais_emitidas_appointment_id_fkey" FOREIGN KEY (appointment_id) REFERENCES appointments(id)
+
+
+-- TABELA notas_fiscais_emitidas
+                                           Table "public.notas_fiscais_emitidas"
+       Column        |           Type           | Collation | Nullable |                      Default                       
+---------------------+--------------------------+-----------+----------+----------------------------------------------------
+ id                  | integer                  |           | not null | nextval('notas_fiscais_emitidas_id_seq'::regclass)
+ paciente_id         | integer                  |           | not null | 
+ appointment_id      | integer                  |           |          | 
+ numero_externo      | text                     |           |          | 
+ data_emissao        | date                     |           | not null | CURRENT_DATE
+ valor               | numeric(12,2)            |           | not null | 
+ descricao_blindada  | text                     |           | not null | 
+ hash_descricao      | text                     |           | not null | 
+ status              | text                     |           | not null | 'RASCUNHO'::text
+ provedor_codigo     | text                     |           |          | 
+ pdf_url             | text                     |           |          | 
+ payload_provedor    | jsonb                    |           |          | 
+ criado_em           | timestamp with time zone |           | not null | now()
+ atualizado_em       | timestamp with time zone |           | not null | now()
+ categoria_codigo    | text                     |           |          | 
+ drive_file_id       | text                     |           |          | 
+ drive_file_url      | text                     |           |          | 
+ unidade_id          | integer                  |           |          | 
+ cancelado_em        | timestamp with time zone |           |          | 
+ cancelado_por       | text                     |           |          | 
+ motivo_cancelamento | text                     |           |          | 
+ xml_url             | text                     |           |          | 
+ pagamento_id        | integer                  |           |          | 
+Indexes:
+    "notas_fiscais_emitidas_pkey" PRIMARY KEY, btree (id)
+    "nfe_appointment_idx" btree (appointment_id)
+    "nfe_paciente_idx" btree (paciente_id)
+    "nfe_status_idx" btree (status)
+Check constraints:
+    "notas_fiscais_emitidas_status_check" CHECK (status = ANY (ARRAY['RASCUNHO'::text, 'EMITIDA'::text, 'CANCELADA'::text, 'ERRO'::text]))
+Foreign-key constraints:
+    "notas_fiscais_emitidas_appointment_id_fkey" FOREIGN KEY (appointment_id) REFERENCES appointments(id)
+    "notas_fiscais_emitidas_categoria_codigo_fkey" FOREIGN KEY (categoria_codigo) REFERENCES procedimento_categorias_nf(codigo)
+    "notas_fiscais_emitidas_paciente_id_fkey" FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+    "notas_fiscais_emitidas_provedor_codigo_fkey" FOREIGN KEY (provedor_codigo) REFERENCES provedores_assinatura_digital(codigo)
+    "notas_fiscais_emitidas_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+Referenced by:
+    TABLE "nota_fiscal_eventos" CONSTRAINT "nota_fiscal_eventos_nf_id_fkey" FOREIGN KEY (nf_id) REFERENCES notas_fiscais_emitidas(id)
+Triggers:
+    trg_nfe_validar BEFORE INSERT OR UPDATE OF descricao_blindada ON notas_fiscais_emitidas FOR EACH ROW EXECUTE FUNCTION fn_validar_descricao_nf()
+
+
+-- TABELA provedores_pagamento
+                             Table "public.provedores_pagamento"
+       Column       |           Type           | Collation | Nullable |       Default        
+--------------------+--------------------------+-----------+----------+----------------------
+ codigo             | text                     |           | not null | 
+ nome_exibicao      | text                     |           | not null | 
+ funcao             | text                     |           | not null | 
+ porque_existe      | text                     |           | not null | 
+ quando_usar        | text                     |           | not null | 
+ exemplo_pratico    | text                     |           | not null | 
+ metodos_suportados | text[]                   |           | not null | 
+ fonte_adapter      | text                     |           | not null | 
+ status_integracao  | text                     |           | not null | 'PROVISIONADO'::text
+ ativo              | boolean                  |           | not null | true
+ criado_em          | timestamp with time zone |           | not null | now()
+Indexes:
+    "provedores_pagamento_pkey" PRIMARY KEY, btree (codigo)
+Referenced by:
+    TABLE "unidade_gateway_credenciais" CONSTRAINT "unidade_gateway_credenciais_provedor_codigo_fkey" FOREIGN KEY (provedor_codigo) REFERENCES provedores_pagamento(codigo)
+
+
+-- TABELA provedores_nfe
+                             Table "public.provedores_nfe"
+          Column           |           Type           | Collation | Nullable | Default 
+---------------------------+--------------------------+-----------+----------+---------
+ codigo                    | text                     |           | not null | 
+ nome_exibicao             | text                     |           | not null | 
+ descricao                 | text                     |           | not null | 
+ funcionalidades           | text[]                   |           | not null | 
+ cobertura_municipios      | text                     |           | not null | 
+ preco_aproximado_por_nota | text                     |           | not null | 
+ url_documentacao          | text                     |           |          | 
+ recomendado               | boolean                  |           | not null | false
+ ativo                     | boolean                  |           | not null | true
+ criado_em                 | timestamp with time zone |           | not null | now()
+Indexes:
+    "provedores_nfe_pkey" PRIMARY KEY, btree (codigo)
+Referenced by:
+    TABLE "unidade_nfe_credenciais" CONSTRAINT "unidade_nfe_credenciais_provedor_codigo_fkey" FOREIGN KEY (provedor_codigo) REFERENCES provedores_nfe(codigo)
+
+
+-- TABELA unidade_gateway_credenciais
+                                         Table "public.unidade_gateway_credenciais"
+     Column      |           Type           | Collation | Nullable |                         Default                         
+-----------------+--------------------------+-----------+----------+---------------------------------------------------------
+ id              | integer                  |           | not null | nextval('unidade_gateway_credenciais_id_seq'::regclass)
+ unidade_id      | integer                  |           | not null | 
+ provedor_codigo | text                     |           | not null | 
+ ambiente        | text                     |           | not null | 'sandbox'::text
+ api_key_cifrada | text                     |           | not null | 
+ webhook_secret  | text                     |           |          | 
+ metadata        | jsonb                    |           |          | 
+ ativo           | boolean                  |           | not null | true
+ cadastrado_por  | text                     |           | not null | 
+ cadastrado_em   | timestamp with time zone |           | not null | now()
+Indexes:
+    "unidade_gateway_credenciais_pkey" PRIMARY KEY, btree (id)
+    "uq_gateway_unidade_amb" UNIQUE CONSTRAINT, btree (unidade_id, provedor_codigo, ambiente)
+Check constraints:
+    "ck_gateway_ambiente" CHECK (ambiente = ANY (ARRAY['sandbox'::text, 'producao'::text]))
+Foreign-key constraints:
+    "unidade_gateway_credenciais_provedor_codigo_fkey" FOREIGN KEY (provedor_codigo) REFERENCES provedores_pagamento(codigo)
+    "unidade_gateway_credenciais_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+
+
+-- TABELA unidade_nfe_credenciais
+                                              Table "public.unidade_nfe_credenciais"
+          Column           |           Type           | Collation | Nullable |                       Default                       
+---------------------------+--------------------------+-----------+----------+-----------------------------------------------------
+ id                        | integer                  |           | not null | nextval('unidade_nfe_credenciais_id_seq'::regclass)
+ unidade_id                | integer                  |           | not null | 
+ provedor_codigo           | text                     |           | not null | 
+ ambiente                  | text                     |           | not null | 'homologacao'::text
+ api_key_cifrada           | text                     |           | not null | 
+ certificado_a1_url        | text                     |           |          | 
+ certificado_senha_cifrada | text                     |           |          | 
+ cnpj_emissor              | text                     |           |          | 
+ inscricao_municipal       | text                     |           |          | 
+ serie_padrao              | text                     |           |          | 
+ proximo_numero            | integer                  |           | not null | 1
+ webhook_secret            | text                     |           |          | 
+ metadata                  | jsonb                    |           |          | 
+ ativo                     | boolean                  |           | not null | true
+ cadastrado_por            | text                     |           | not null | 
+ cadastrado_em             | timestamp with time zone |           | not null | now()
+Indexes:
+    "unidade_nfe_credenciais_pkey" PRIMARY KEY, btree (id)
+    "uq_nfe_unidade_amb" UNIQUE CONSTRAINT, btree (unidade_id, provedor_codigo, ambiente)
+Check constraints:
+    "ck_nfe_ambiente" CHECK (ambiente = ANY (ARRAY['homologacao'::text, 'producao'::text]))
+Foreign-key constraints:
+    "unidade_nfe_credenciais_provedor_codigo_fkey" FOREIGN KEY (provedor_codigo) REFERENCES provedores_nfe(codigo)
+    "unidade_nfe_credenciais_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+
+
+-- TABELA nota_fiscal_eventos
+                                       Table "public.nota_fiscal_eventos"
+   Column    |           Type           | Collation | Nullable |                     Default                     
+-------------+--------------------------+-----------+----------+-------------------------------------------------
+ id          | integer                  |           | not null | nextval('nota_fiscal_eventos_id_seq'::regclass)
+ nf_id       | integer                  |           | not null | 
+ tipo_evento | text                     |           | not null | 
+ descricao   | text                     |           | not null | 
+ payload     | jsonb                    |           |          | 
+ responsavel | text                     |           |          | 
+ ocorrido_em | timestamp with time zone |           | not null | now()
+Indexes:
+    "nota_fiscal_eventos_pkey" PRIMARY KEY, btree (id)
+    "idx_nf_eventos" btree (nf_id, ocorrido_em DESC)
+Foreign-key constraints:
+    "nota_fiscal_eventos_nf_id_fkey" FOREIGN KEY (nf_id) REFERENCES notas_fiscais_emitidas(id)
+
+
+-- TABELA modulos_padcon
+                                        Table "public.modulos_padcon"
+    Column    |           Type           | Collation | Nullable |                  Default                   
+--------------+--------------------------+-----------+----------+--------------------------------------------
+ id           | integer                  |           | not null | nextval('modulos_padcon_id_seq'::regclass)
+ codigo       | text                     |           | not null | 
+ nome         | text                     |           | not null | 
+ descricao    | text                     |           |          | 
+ preco_mensal | numeric(10,2)            |           | not null | 0
+ ordem        | integer                  |           | not null | 0
+ grupo        | text                     |           | not null | 
+ ativo        | boolean                  |           | not null | true
+ criado_em    | timestamp with time zone |           | not null | now()
 Indexes:
     "modulos_padcon_pkey" PRIMARY KEY, btree (id)
     "modulos_padcon_codigo_key" UNIQUE CONSTRAINT, btree (codigo)
 Referenced by:
+    TABLE "cobrancas_mensais_modulos" CONSTRAINT "cobrancas_mensais_modulos_modulo_id_fkey" FOREIGN KEY (modulo_id) REFERENCES modulos_padcon(id)
     TABLE "unidade_modulos_ativos" CONSTRAINT "unidade_modulos_ativos_modulo_id_fkey" FOREIGN KEY (modulo_id) REFERENCES modulos_padcon(id)
-Access method: heap
 
 
--- eventos_cobraveis --
-                                                                    Table "public.eventos_cobraveis"
-     Column     |           Type           | Collation | Nullable |                    Default                    | Storage  | Compression | Stats target | Description 
-----------------+--------------------------+-----------+----------+-----------------------------------------------+----------+-------------+--------------+-------------
- id             | integer                  |           | not null | nextval('eventos_cobraveis_id_seq'::regclass) | plain    |             |              | 
- codigo         | text                     |           | not null |                                               | extended |             |              | 
- nome           | text                     |           | not null |                                               | extended |             |              | 
- descricao      | text                     |           |          |                                               | extended |             |              | 
- preco_unitario | numeric(10,2)            |           | not null | 0                                             | main     |             |              | 
- unidade_medida | text                     |           | not null | 'evento'::text                                | extended |             |              | 
- grupo          | text                     |           | not null |                                               | extended |             |              | 
- trigger_origem | text                     |           |          |                                               | extended |             |              | 
- ativo          | boolean                  |           | not null | true                                          | plain    |             |              | 
- criado_em      | timestamp with time zone |           | not null | now()                                         | plain    |             |              | 
+-- TABELA eventos_cobraveis
+                                         Table "public.eventos_cobraveis"
+     Column     |           Type           | Collation | Nullable |                    Default                    
+----------------+--------------------------+-----------+----------+-----------------------------------------------
+ id             | integer                  |           | not null | nextval('eventos_cobraveis_id_seq'::regclass)
+ codigo         | text                     |           | not null | 
+ nome           | text                     |           | not null | 
+ descricao      | text                     |           |          | 
+ preco_unitario | numeric(10,2)            |           | not null | 0
+ unidade_medida | text                     |           | not null | 'evento'::text
+ grupo          | text                     |           | not null | 
+ trigger_origem | text                     |           |          | 
+ ativo          | boolean                  |           | not null | true
+ criado_em      | timestamp with time zone |           | not null | now()
 Indexes:
     "eventos_cobraveis_pkey" PRIMARY KEY, btree (id)
     "eventos_cobraveis_codigo_key" UNIQUE CONSTRAINT, btree (codigo)
 Referenced by:
     TABLE "pingue_pongue_log" CONSTRAINT "pingue_pongue_log_evento_cobravel_id_fkey" FOREIGN KEY (evento_cobravel_id) REFERENCES eventos_cobraveis(id)
     TABLE "unidade_eventos_ledger" CONSTRAINT "unidade_eventos_ledger_evento_id_fkey" FOREIGN KEY (evento_id) REFERENCES eventos_cobraveis(id)
-Access method: heap
 
 
--- unidade_modulos_ativos --
-                                                                      Table "public.unidade_modulos_ativos"
-       Column        |           Type           | Collation | Nullable |                      Default                       | Storage  | Compression | Stats target | Description 
----------------------+--------------------------+-----------+----------+----------------------------------------------------+----------+-------------+--------------+-------------
- id                  | integer                  |           | not null | nextval('unidade_modulos_ativos_id_seq'::regclass) | plain    |             |              | 
- unidade_id          | integer                  |           | not null |                                                    | plain    |             |              | 
- modulo_id           | integer                  |           | not null |                                                    | plain    |             |              | 
- ativo               | boolean                  |           | not null | false                                              | plain    |             |              | 
- preco_personalizado | numeric(10,2)            |           |          |                                                    | main     |             |              | 
- ativado_em          | timestamp with time zone |           |          |                                                    | plain    |             |              | 
- ativado_por         | text                     |           |          |                                                    | extended |             |              | 
- observacao          | text                     |           |          |                                                    | extended |             |              | 
-Indexes:
-    "unidade_modulos_ativos_pkey" PRIMARY KEY, btree (id)
-    "unidade_modulos_ativos_unidade_id_modulo_id_key" UNIQUE CONSTRAINT, btree (unidade_id, modulo_id)
-Foreign-key constraints:
-    "unidade_modulos_ativos_modulo_id_fkey" FOREIGN KEY (modulo_id) REFERENCES modulos_padcon(id)
-    "unidade_modulos_ativos_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
-Access method: heap
+-- TABELA assinatura_padcon
 
-
--- unidade_eventos_ledger --
-                                                                      Table "public.unidade_eventos_ledger"
-       Column       |           Type           | Collation | Nullable |                      Default                       | Storage  | Compression | Stats target | Description 
---------------------+--------------------------+-----------+----------+----------------------------------------------------+----------+-------------+--------------+-------------
- id                 | integer                  |           | not null | nextval('unidade_eventos_ledger_id_seq'::regclass) | plain    |             |              | 
- unidade_id         | integer                  |           | not null |                                                    | plain    |             |              | 
- evento_id          | integer                  |           | not null |                                                    | plain    |             |              | 
- valor_cobrado      | numeric(10,2)            |           | not null |                                                    | main     |             |              | 
- referencia_externa | text                     |           |          |                                                    | extended |             |              | 
- metadados          | jsonb                    |           |          |                                                    | extended |             |              | 
- ocorrido_em        | timestamp with time zone |           | not null | now()                                              | plain    |             |              | 
- competencia_mes    | text                     |           | not null | to_char(now(), 'YYYY-MM'::text)                    | extended |             |              | 
- faturado           | boolean                  |           | not null | false                                              | plain    |             |              | 
-Indexes:
-    "unidade_eventos_ledger_pkey" PRIMARY KEY, btree (id)
-    "idx_ledger_unid_comp" btree (unidade_id, competencia_mes)
-Foreign-key constraints:
-    "unidade_eventos_ledger_evento_id_fkey" FOREIGN KEY (evento_id) REFERENCES eventos_cobraveis(id)
-    "unidade_eventos_ledger_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
-Access method: heap
-
-
--- agendas_nuvem_liberacao --
-                                                                        Table "public.agendas_nuvem_liberacao"
-         Column         |           Type           | Collation | Nullable |                       Default                       | Storage  | Compression | Stats target | Description 
-------------------------+--------------------------+-----------+----------+-----------------------------------------------------+----------+-------------+--------------+-------------
- id                     | integer                  |           | not null | nextval('agendas_nuvem_liberacao_id_seq'::regclass) | plain    |             |              | 
- unidade_id             | integer                  |           | not null |                                                     | plain    |             |              | 
- agenda_template_codigo | text                     |           | not null |                                                     | extended |             |              | 
- liberada               | boolean                  |           | not null | false                                               | plain    |             |              | 
- estado                 | text                     |           | not null | 'bloqueio_total'::text                              | extended |             |              | 
- liberada_em            | timestamp with time zone |           |          |                                                     | plain    |             |              | 
- liberada_por           | text                     |           |          |                                                     | extended |             |              | 
-Indexes:
-    "agendas_nuvem_liberacao_pkey" PRIMARY KEY, btree (id)
-    "agendas_nuvem_liberacao_unidade_id_agenda_template_codigo_key" UNIQUE CONSTRAINT, btree (unidade_id, agenda_template_codigo)
-Foreign-key constraints:
-    "agendas_nuvem_liberacao_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
-Access method: heap
-
-
--- demandas_resolucao --
-                                                                       Table "public.demandas_resolucao"
-        Column        |           Type           | Collation | Nullable |                    Default                     | Storage  | Compression | Stats target | Description 
-----------------------+--------------------------+-----------+----------+------------------------------------------------+----------+-------------+--------------+-------------
- id                   | integer                  |           | not null | nextval('demandas_resolucao_id_seq'::regclass) | plain    |             |              | 
- unidade_id           | integer                  |           | not null |                                                | plain    |             |              | 
- paciente_id          | integer                  |           |          |                                                | plain    |             |              | 
- canal_origem         | text                     |           | not null |                                                | extended |             |              | 
- assunto              | text                     |           |          |                                                | extended |             |              | 
- resolvido            | boolean                  |           | not null | false                                          | plain    |             |              | 
- resolvido_por        | text                     |           |          |                                                | extended |             |              | 
- resolvido_em         | timestamp with time zone |           |          |                                                | plain    |             |              | 
- turnos_pingue_pongue | integer                  |           | not null | 0                                              | plain    |             |              | 
- caminho_resolucao    | text                     |           |          |                                                | extended |             |              | 
- valor_total_cobrado  | numeric(10,2)            |           | not null | 0                                              | main     |             |              | 
- metadados            | jsonb                    |           |          |                                                | extended |             |              | 
- criado_em            | timestamp with time zone |           | not null | now()                                          | plain    |             |              | 
-Indexes:
-    "demandas_resolucao_pkey" PRIMARY KEY, btree (id)
-    "idx_demandas_unid" btree (unidade_id, resolvido)
-Foreign-key constraints:
-    "demandas_resolucao_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
-Referenced by:
-    TABLE "pingue_pongue_log" CONSTRAINT "pingue_pongue_log_demanda_id_fkey" FOREIGN KEY (demanda_id) REFERENCES demandas_resolucao(id) ON DELETE CASCADE
-Access method: heap
-
-
--- pingue_pongue_log --
-                                                                      Table "public.pingue_pongue_log"
-       Column       |           Type           | Collation | Nullable |                    Default                    | Storage  | Compression | Stats target | Description 
---------------------+--------------------------+-----------+----------+-----------------------------------------------+----------+-------------+--------------+-------------
- id                 | integer                  |           | not null | nextval('pingue_pongue_log_id_seq'::regclass) | plain    |             |              | 
- demanda_id         | integer                  |           | not null |                                               | plain    |             |              | 
- turno              | integer                  |           | not null |                                               | plain    |             |              | 
- autor_tipo         | text                     |           | not null |                                               | extended |             |              | 
- autor_nome         | text                     |           |          |                                               | extended |             |              | 
- canal              | text                     |           | not null |                                               | extended |             |              | 
- mensagem           | text                     |           |          |                                               | extended |             |              | 
- evento_cobravel_id | integer                  |           |          |                                               | plain    |             |              | 
- ocorrido_em        | timestamp with time zone |           | not null | now()                                         | plain    |             |              | 
-Indexes:
-    "pingue_pongue_log_pkey" PRIMARY KEY, btree (id)
-    "idx_ppl_demanda" btree (demanda_id, turno)
-Foreign-key constraints:
-    "pingue_pongue_log_demanda_id_fkey" FOREIGN KEY (demanda_id) REFERENCES demandas_resolucao(id) ON DELETE CASCADE
-    "pingue_pongue_log_evento_cobravel_id_fkey" FOREIGN KEY (evento_cobravel_id) REFERENCES eventos_cobraveis(id)
-Access method: heap
-
-
--- clinica_drive_estrutura --
-                                                                       Table "public.clinica_drive_estrutura"
-        Column        |           Type           | Collation | Nullable |                       Default                       | Storage  | Compression | Stats target | Description 
-----------------------+--------------------------+-----------+----------+-----------------------------------------------------+----------+-------------+--------------+-------------
- id                   | integer                  |           | not null | nextval('clinica_drive_estrutura_id_seq'::regclass) | plain    |             |              | 
- unidade_id           | integer                  |           | not null |                                                     | plain    |             |              | 
- pasta_raiz_id        | text                     |           |          |                                                     | extended |             |              | 
- pasta_clientes_id    | text                     |           |          |                                                     | extended |             |              | 
- pasta_financeiro_id  | text                     |           |          |                                                     | extended |             |              | 
- pasta_recorrentes_id | text                     |           |          |                                                     | extended |             |              | 
- url_raiz             | text                     |           |          |                                                     | extended |             |              | 
- criada_em            | timestamp with time zone |           | not null | now()                                               | plain    |             |              | 
- criada_por           | text                     |           |          |                                                     | extended |             |              | 
-Indexes:
-    "clinica_drive_estrutura_pkey" PRIMARY KEY, btree (id)
-    "clinica_drive_estrutura_unidade_id_key" UNIQUE CONSTRAINT, btree (unidade_id)
-Foreign-key constraints:
-    "clinica_drive_estrutura_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
-Access method: heap
-
-
--- =========== 4 TABELAS LEGADAS CRÍTICAS (FKs apontam pra cá) ===========
-
--- unidades --
-                                                                       Table "public.unidades"
-        Column         |           Type           | Collation | Nullable |               Default                | Storage  | Compression | Stats target | Description 
------------------------+--------------------------+-----------+----------+--------------------------------------+----------+-------------+--------------+-------------
- id                    | integer                  |           | not null | nextval('unidades_id_seq'::regclass) | plain    |             |              | 
- nome                  | text                     |           | not null |                                      | extended |             |              | 
- endereco              | text                     |           |          |                                      | extended |             |              | 
- cidade                | text                     |           |          |                                      | extended |             |              | 
- estado                | text                     |           |          |                                      | extended |             |              | 
- telefone              | text                     |           |          |                                      | extended |             |              | 
- ativa                 | boolean                  |           | not null | true                                 | plain    |             |              | 
- criado_em             | timestamp with time zone |           | not null | now()                                | plain    |             |              | 
- atualizado_em         | timestamp with time zone |           | not null | now()                                | plain    |             |              | 
- cnpj                  | text                     |           |          |                                      | extended |             |              | 
- cep                   | text                     |           |          |                                      | extended |             |              | 
- tipo                  | text                     |           | not null | 'clinic'::text                       | extended |             |              | 
- google_calendar_id    | text                     |           |          |                                      | extended |             |              | 
- cor                   | text                     |           | not null | '#3B82F6'::text                      | extended |             |              | 
- bairro                | text                     |           |          |                                      | extended |             |              | 
- google_calendar_email | text                     |           |          |                                      | extended |             |              | 
- consultoria_id        | integer                  |           |          |                                      | plain    |             |              | 
- codigo_interno        | text                     |           |          |                                      | extended |             |              | 
- nick                  | text                     |           |          |                                      | extended |             |              | 
- email_geral           | text                     |           |          |                                      | extended |             |              | 
- email_agenda          | text                     |           |          |                                      | extended |             |              | 
- email_enfermagem01    | text                     |           |          |                                      | extended |             |              | 
- email_enfermagem02    | text                     |           |          |                                      | extended |             |              | 
- email_consultor01     | text                     |           |          |                                      | extended |             |              | 
- email_consultor02     | text                     |           |          |                                      | extended |             |              | 
- email_supervisor01    | text                     |           |          |                                      | extended |             |              | 
- email_supervisor02    | text                     |           |          |                                      | extended |             |              | 
- email_financeiro01    | text                     |           |          |                                      | extended |             |              | 
- email_ouvidoria01     | text                     |           |          |                                      | extended |             |              | 
- timezone              | text                     |           | not null | 'America/Sao_Paulo'::text            | extended |             |              | 
- dono_id               | integer                  |           |          |                                      | plain    |             |              | 
- dono_nome             | text                     |           |          |                                      | extended |             |              | 
- autoliberacao         | boolean                  |           | not null | true                                 | plain    |             |              | 
-Indexes:
-    "unidades_pkey" PRIMARY KEY, btree (id)
-Foreign-key constraints:
-    "unidades_consultoria_id_consultorias_id_fk" FOREIGN KEY (consultoria_id) REFERENCES consultorias(id)
-
--- usuarios --
-                                                                    Table "public.usuarios"
-     Column     |           Type           | Collation | Nullable |               Default                | Storage  | Compression | Stats target | Description 
-----------------+--------------------------+-----------+----------+--------------------------------------+----------+-------------+--------------+-------------
- id             | integer                  |           | not null | nextval('usuarios_id_seq'::regclass) | plain    |             |              | 
- nome           | text                     |           | not null |                                      | extended |             |              | 
- email          | text                     |           | not null |                                      | extended |             |              | 
- senha          | text                     |           | not null |                                      | extended |             |              | 
- perfil         | text                     |           | not null |                                      | extended |             |              | 
- unidade_id     | integer                  |           |          |                                      | plain    |             |              | 
- ativo          | boolean                  |           | not null | true                                 | plain    |             |              | 
- criado_em      | timestamp with time zone |           | not null | now()                                | plain    |             |              | 
- atualizado_em  | timestamp with time zone |           | not null | now()                                | plain    |             |              | 
- crm            | text                     |           |          |                                      | extended |             |              | 
- cpf            | text                     |           |          |                                      | extended |             |              | 
- cns            | text                     |           |          |                                      | extended |             |              | 
- especialidade  | text                     |           |          |                                      | extended |             |              | 
- telefone       | text                     |           |          |                                      | extended |             |              | 
- pode_validar   | boolean                  |           | not null | false                                | plain    |             |              | 
- pode_assinar   | boolean                  |           | not null | false                                | plain    |             |              | 
- pode_bypass    | boolean                  |           | not null | false                                | plain    |             |              | 
- nunca_opera    | boolean                  |           | not null | false                                | plain    |             |              | 
- escopo         | text                     |           | not null | 'clinica_enfermeira'::text           | extended |             |              | 
- consultoria_id | integer                  |           |          |                                      | plain    |             |              | 
- foto_rosto     | text                     |           |          |                                      | extended |             |              | 
- foto_corpo     | text                     |           |          |                                      | extended |             |              | 
-Indexes:
-    "usuarios_pkey" PRIMARY KEY, btree (id)
-    "usuarios_email_unique" UNIQUE CONSTRAINT, btree (email)
-Foreign-key constraints:
-    "usuarios_consultoria_id_consultorias_id_fk" FOREIGN KEY (consultoria_id) REFERENCES consultorias(id)
-    "usuarios_unidade_id_unidades_id_fk" FOREIGN KEY (unidade_id) REFERENCES unidades(id)
-Referenced by:
-    TABLE "acompanhamento_cavalo" CONSTRAINT "acompanhamento_cavalo_responsavel_id_usuarios_id_fk" FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
-    TABLE "acompanhamento_formula" CONSTRAINT "acompanhamento_formula_registrado_por_id_usuarios_id_fk" FOREIGN KEY (registrado_por_id) REFERENCES usuarios(id)
-    TABLE "agenda_audit_events" CONSTRAINT "agenda_audit_events_usuario_id_usuarios_id_fk" FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-    TABLE "agenda_blocks" CONSTRAINT "agenda_blocks_profissional_id_usuarios_id_fk" FOREIGN KEY (profissional_id) REFERENCES usuarios(id)
-    TABLE "agenda_slots" CONSTRAINT "agenda_slots_profissional_id_usuarios_id_fk" FOREIGN KEY (profissional_id) REFERENCES usuarios(id)
-    TABLE "alerta_paciente" CONSTRAINT "alerta_paciente_responsavel_id_usuarios_id_fk" FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
-    TABLE "alertas_notificacao" CONSTRAINT "alertas_notificacao_confirmado_por_id_usuarios_id_fk" FOREIGN KEY (confirmado_por_id) REFERENCES usuarios(id)
-    TABLE "alertas_notificacao" CONSTRAINT "alertas_notificacao_destinatario_id_usuarios_id_fk" FOREIGN KEY (destinatario_id) REFERENCES usuarios(id)
-
--- agendas_profissionais --
-                                                                   Table "public.agendas_profissionais"
-    Column    |           Type           | Collation | Nullable |                      Default                      | Storage  | Compression | Stats target | Description 
---------------+--------------------------+-----------+----------+---------------------------------------------------+----------+-------------+--------------+-------------
- id           | integer                  |           | not null | nextval('agendas_profissionais_id_seq'::regclass) | plain    |             |              | 
- unidade_id   | integer                  |           | not null |                                                   | plain    |             |              | 
- nome         | text                     |           | not null |                                                   | extended |             |              | 
- profissional | text                     |           | not null |                                                   | extended |             |              | 
- modo         | text                     |           | not null |                                                   | extended |             |              | 
- tipo         | text                     |           | not null |                                                   | extended |             |              | 
- ordem        | integer                  |           | not null | 0                                                 | plain    |             |              | 
- ativa        | boolean                  |           | not null | true                                              | plain    |             |              | 
- criado_em    | timestamp with time zone |           | not null | now()                                             | plain    |             |              | 
-Indexes:
-    "agendas_profissionais_pkey" PRIMARY KEY, btree (id)
-    "idx_agendas_unidade" btree (unidade_id)
-Check constraints:
-    "agendas_profissionais_modo_check" CHECK (modo = ANY (ARRAY['LOCAL'::text, 'REMOTO'::text, 'PESSOAL'::text]))
-    "agendas_profissionais_tipo_check" CHECK (tipo = ANY (ARRAY['MEDICO'::text, 'ENFERMAGEM'::text, 'PESSOAL'::text]))
-Foreign-key constraints:
-    "agendas_profissionais_unidade_id_fkey" FOREIGN KEY (unidade_id) REFERENCES unidades(id) ON DELETE CASCADE
-Access method: heap
-
-
--- consultorias --
-                                                                   Table "public.consultorias"
-    Column     |           Type           | Collation | Nullable |                 Default                  | Storage  | Compression | Stats target | Description 
----------------+--------------------------+-----------+----------+------------------------------------------+----------+-------------+--------------+-------------
- id            | integer                  |           | not null | nextval('consultorias_id_seq'::regclass) | plain    |             |              | 
- nome          | text                     |           | not null |                                          | extended |             |              | 
- cnpj          | text                     |           |          |                                          | extended |             |              | 
- responsavel   | text                     |           | not null |                                          | extended |             |              | 
- email         | text                     |           |          |                                          | extended |             |              | 
- telefone      | text                     |           |          |                                          | extended |             |              | 
- plano         | text                     |           | not null | 'starter'::text                          | extended |             |              | 
- max_unidades  | text                     |           | not null | '3'::text                                | extended |             |              | 
- ativa         | boolean                  |           | not null | true                                     | plain    |             |              | 
- criado_em     | timestamp with time zone |           | not null | now()                                    | plain    |             |              | 
- atualizado_em | timestamp with time zone |           | not null | now()                                    | plain    |             |              | 
-Indexes:
-    "consultorias_pkey" PRIMARY KEY, btree (id)
-Referenced by:
-    TABLE "contrato_clinica" CONSTRAINT "contrato_clinica_consultoria_id_consultorias_id_fk" FOREIGN KEY (consultoria_id) REFERENCES consultorias(id)
-    TABLE "unidades" CONSTRAINT "unidades_consultoria_id_consultorias_id_fk" FOREIGN KEY (consultoria_id) REFERENCES consultorias(id)
-    TABLE "usuarios" CONSTRAINT "usuarios_consultoria_id_consultorias_id_fk" FOREIGN KEY (consultoria_id) REFERENCES consultorias(id)
-Access method: heap
-
+-- TABELA faturamento_padcon
 ```
 
-## 6. 🌱 Seeds e dados vivos em produção
-### 6.1 Liberações de agenda (70 linhas)
-```
-ERROR:  column l.template_codigo does not exist
-LINE 1: SELECT u.nome AS clinica, l.template_codigo, l.tipo_liberaca...
-                                  ^
-```
+## 3. 🌱 Seeds vivos
+```sql
+-- Unidades:
+ id |                           nome                           |   cor   |        cnpj        |            logotipo_url            
+----+----------------------------------------------------------+---------+--------------------+------------------------------------
+  1 | (ARQUIVADA) AGENDA MEDICO - HIGIENOPOLIS - DR CAIO SOUZA | #1E40AF | 33.143.134/0001-10 | 
+  2 | (ARQUIVADA) AGENDA MEDICO - TATUAPE - DR CAIO PADUA      | #2563EB |                    | 
+  3 | (ARQUIVADA) AGENDA ENFERMAGEM - BIANCA                   | #A78BFA |                    | 
+  4 | (ARQUIVADA) AGENDA ENFERMAGEM - DOMICILIAR               | #F87171 |                    | 
+  5 | (ARQUIVADA) AGENDA ENFERMAGEM - GUAXUPE                  | #F59E0B |                    | 
+  6 | (ARQUIVADA) AGENDA MEDICO - ON LINE - DR CAIO FERNANDES  | #503cb2 |                    | 
+  7 | (ARQUIVADA) CAIO PADUA - PESSOAL                         | #4adfdf |                    | 
+  8 | INSTITUTO INTEGRATIVO                                    | #1B4F6C | 63.865.940/0001-63 | 
+  9 | INSTITUTO LEMOS                                          | #10B981 | 32.247.755/0002-62 | 
+ 10 | INSTITUTO BARROS                                         | #6366F1 | 44.555.666/0001-77 | 
+ 14 | INSTITUTO GENESIS                                        | #FFD700 | 63.865.940/0001-63 | 
+ 15 | INSTITUTO PADUA                                          | #3B82F6 |                    | https://example.com/logo-padua.png
+ 16 | INSTITUTO PALUZZE                                        | #3B82F6 |                    | 
+ 17 | INSTITUTO PADUZZI                                        | #3B82F6 |                    | 
+ 18 | INSTITUTO PAZIALLE                                       | #3B82F6 |                    | 
+ 19 | INSTITUTO BARAKAT                                        | #3B82F6 |                    | 
+ 20 | INSTITUTO ANDRADE                                        | #3B82F6 |                    | 
+(17 rows)
 
-### 6.2 Eventos cobráveis (preços vivos)
-```
-ERROR:  column "preco" does not exist
-LINE 1: SELECT codigo, nome, preco, unidade_cobranca, descricao FROM...
-                             ^
-```
+-- Provedores pagamento:
+   codigo    | nome_exibicao | status_integracao 
+-------------+---------------+-------------------
+ asaas       | Asaas         | PROVISIONADO
+ stripe      | Stripe        | PROVISIONADO
+ mercadopago | Mercado Pago  | PROVISIONADO
+ infinitpay  | InfinitePay   | PROVISIONADO
+ vindi       | Vindi         | PROVISIONADO
+(5 rows)
 
-### 6.3 Módulos PADCON (mensalidades)
-```
- codigo |             nome              | preco_mensal |   grupo    |                   descricao                   
---------+-------------------------------+--------------+------------+-----------------------------------------------
- M1     | Agendamento Sistema           |       297.00 | agenda     | Liberacao das agendas-nuvem dentro do PAWARDS
- M2     | Agendamento + Google Calendar |       497.00 | agenda     | M1 + sincronizacao bidirecional Google
- M3     | Criacao de Agenda Rocha       |       197.00 | agenda     | Autonomia local para criar agenda propria
- M4     | Mensagens WhatsApp            |       197.00 | mensageria | Envio automatico de lembrete e confirmacao
- M5     | IA Resposta (Trello+IA)       |       397.00 | mensageria | IA responde mensagens entrantes
- M6     | SAC Humano PADCON             |       597.00 | mensageria | Atendente humano responde apos IA
- M7     | Ligacao Humana pos-WhatsApp   |       397.00 | mensageria | Operadora liga quando IA+SAC nao fecham
-(7 rows)
+-- Provedores NFe:
+  codigo   | nome_exibicao  | recomendado 
+-----------+----------------+-------------
+ focus_nfe | Focus NFe      | t
+ enotas    | eNotas Gateway | t
+(2 rows)
 
-```
-
-### 6.4 Drive PAWARDS provisionado
-```
-         nome          |                                 url_raiz                                 
------------------------+--------------------------------------------------------------------------
- INSTITUTO ANDRADE     | https://drive.google.com/drive/folders/17-NEWHsw2ckXGHfEFQFI8_QWtEiVzG9T
- INSTITUTO BARAKAT     | https://drive.google.com/drive/folders/1eHO-ah9_yIRWQw1A_rTKKz_UWZYvXlA7
- INSTITUTO BARROS      | https://drive.google.com/drive/folders/189-TYzRy4mHqy0VaastW1r3kQPZUpiun
- INSTITUTO GENESIS     | https://drive.google.com/drive/folders/11vZllKpaEYbzrg4u3CFKwPMSvCjzTpPK
- INSTITUTO INTEGRATIVO | https://drive.google.com/drive/folders/1EB_Ri8_N1CMWkqdhMRZ1s1by5yBKoM4G
- INSTITUTO LEMOS       | https://drive.google.com/drive/folders/1P12arunFirDGlzmTZ9xx_dei6622P5aa
- INSTITUTO PADUA       | https://drive.google.com/drive/folders/1VlxM7l33CSdF88Qp78OoYlPKa9i_svgN
- INSTITUTO PADUZZI     | https://drive.google.com/drive/folders/1SlVt83nxCeXjDile5C6RTEBRq_9XW8Ks
- INSTITUTO PALUZZE     | https://drive.google.com/drive/folders/1oqX-aaqf5D3CP-EFLigI5qhv_L1HO0nv
- INSTITUTO PAZIALLE    | https://drive.google.com/drive/folders/1uxTRduErVqyzlqetXf5DDNPYm28Waff0
-(10 rows)
-
+-- Modulos PADCON:
+-- Eventos cobraveis:
 ```
 
-### 6.5 Matriz módulos × clínicas (estado atual)
-```
-         nome          | codigo | ativo 
------------------------+--------+-------
- INSTITUTO ANDRADE     | M1     | t
- INSTITUTO ANDRADE     | M2     | f
- INSTITUTO ANDRADE     | M3     | f
- INSTITUTO ANDRADE     | M4     | t
- INSTITUTO ANDRADE     | M5     | f
- INSTITUTO ANDRADE     | M6     | f
- INSTITUTO ANDRADE     | M7     | f
- INSTITUTO BARAKAT     | M1     | f
- INSTITUTO BARAKAT     | M2     | f
- INSTITUTO BARAKAT     | M3     | f
- INSTITUTO BARAKAT     | M4     | f
- INSTITUTO BARAKAT     | M5     | f
- INSTITUTO BARAKAT     | M6     | f
- INSTITUTO BARAKAT     | M7     | f
- INSTITUTO BARROS      | M1     | t
- INSTITUTO BARROS      | M2     | f
- INSTITUTO BARROS      | M3     | f
- INSTITUTO BARROS      | M4     | t
- INSTITUTO BARROS      | M5     | f
- INSTITUTO BARROS      | M6     | f
- INSTITUTO BARROS      | M7     | f
- INSTITUTO GENESIS     | M1     | t
- INSTITUTO GENESIS     | M2     | t
- INSTITUTO GENESIS     | M3     | t
- INSTITUTO GENESIS     | M4     | t
- INSTITUTO GENESIS     | M5     | t
- INSTITUTO GENESIS     | M6     | t
- INSTITUTO GENESIS     | M7     | t
- INSTITUTO INTEGRATIVO | M1     | f
- INSTITUTO INTEGRATIVO | M2     | f
- INSTITUTO INTEGRATIVO | M3     | f
- INSTITUTO INTEGRATIVO | M4     | t
- INSTITUTO INTEGRATIVO | M5     | f
- INSTITUTO INTEGRATIVO | M6     | f
- INSTITUTO INTEGRATIVO | M7     | f
- INSTITUTO LEMOS       | M1     | f
- INSTITUTO LEMOS       | M2     | f
- INSTITUTO LEMOS       | M3     | f
- INSTITUTO LEMOS       | M4     | f
- INSTITUTO LEMOS       | M5     | f
- INSTITUTO LEMOS       | M6     | f
- INSTITUTO LEMOS       | M7     | f
- INSTITUTO PADUA       | M1     | t
- INSTITUTO PADUA       | M2     | t
- INSTITUTO PADUA       | M3     | t
- INSTITUTO PADUA       | M4     | t
- INSTITUTO PADUA       | M5     | t
- INSTITUTO PADUA       | M6     | t
- INSTITUTO PADUA       | M7     | t
- INSTITUTO PADUZZI     | M1     | t
- INSTITUTO PADUZZI     | M2     | f
- INSTITUTO PADUZZI     | M3     | f
- INSTITUTO PADUZZI     | M4     | t
- INSTITUTO PADUZZI     | M5     | f
- INSTITUTO PADUZZI     | M6     | f
- INSTITUTO PADUZZI     | M7     | f
- INSTITUTO PALUZZE     | M1     | t
- INSTITUTO PALUZZE     | M2     | f
- INSTITUTO PALUZZE     | M3     | f
- INSTITUTO PALUZZE     | M4     | t
- INSTITUTO PALUZZE     | M5     | f
- INSTITUTO PALUZZE     | M6     | f
- INSTITUTO PALUZZE     | M7     | f
- INSTITUTO PAZIALLE    | M1     | t
- INSTITUTO PAZIALLE    | M2     | f
- INSTITUTO PAZIALLE    | M3     | f
- INSTITUTO PAZIALLE    | M4     | t
- INSTITUTO PAZIALLE    | M5     | f
- INSTITUTO PAZIALLE    | M6     | f
- INSTITUTO PAZIALLE    | M7     | f
-(70 rows)
+## 4. 🔧 Backend NOVOS (WD#1+#3+#4+#5+#6)
 
-```
-
-## 7. 🔧 BACKEND COMPLETO
-
-
-### `artifacts/api-server/src/app.ts`
+### artifacts/api-server/src/lib/crypto/credenciais.ts
 ```typescript
-import express, { type Express } from "express";
-import cors from "cors";
-import pinoHttp from "pino-http";
-import router from "./routes";
-import { tenantContextMiddleware } from "./middlewares/tenantContext";
-import { logger } from "./lib/logger";
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 
-const app: Express = express();
+const ALGORITHM = "aes-256-gcm";
+const IV_LEN = 12;
+const SALT_LEN = 16;
+const TAG_LEN = 16;
 
-app.use(
-  pinoHttp({
-    logger,
-    serializers: {
-      req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
-      },
-      res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
-      },
-    },
-  }),
-);
-app.use(cors());
-// Stripe webhook precisa do raw body para validar assinatura — DEVE vir antes do express.json
-app.use(
-  "/api/payments/webhooks/stripe",
-  express.raw({ type: "application/json" }),
-);
-// Webhooks Clicksign + ZapSign tambem usam raw body para HMAC SHA-256
-app.use("/api/webhooks/assinatura/clicksign", express.raw({ type: "*/*" }));
-app.use("/api/webhooks/assinatura/zapsign",   express.raw({ type: "*/*" }));
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+function getKey(salt: Buffer): Buffer {
+  const secret = process.env["SESSION_SECRET"] ?? process.env["ADMIN_TOKEN"] ?? "";
+  if (!secret) throw new Error("SESSION_SECRET/ADMIN_TOKEN nao configurado para cifragem de credenciais");
+  return scryptSync(secret, salt, 32);
+}
 
-app.use("/api", tenantContextMiddleware, router);
+export function cifrarCredencial(plaintext: string): string {
+  const salt = randomBytes(SALT_LEN);
+  const iv = randomBytes(IV_LEN);
+  const key = getKey(salt);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const enc = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([salt, iv, tag, enc]).toString("base64");
+}
 
-export default app;
+export function decifrarCredencial(payload: string): string {
+  const buf = Buffer.from(payload, "base64");
+  const salt = buf.subarray(0, SALT_LEN);
+  const iv = buf.subarray(SALT_LEN, SALT_LEN + IV_LEN);
+  const tag = buf.subarray(SALT_LEN + IV_LEN, SALT_LEN + IV_LEN + TAG_LEN);
+  const enc = buf.subarray(SALT_LEN + IV_LEN + TAG_LEN);
+  const key = getKey(salt);
+  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(enc), decipher.final()]).toString("utf8");
+}
+
+export function mascararCredencial(plaintext: string): string {
+  if (!plaintext) return "";
+  if (plaintext.length <= 8) return "•".repeat(plaintext.length);
+  return plaintext.slice(0, 4) + "•".repeat(Math.max(8, plaintext.length - 8)) + plaintext.slice(-4);
+}
 ```
 
-### `artifacts/api-server/src/routes/index.ts`
+### artifacts/api-server/src/lib/nfe/adapters/types.ts
 ```typescript
-import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import comercialAdminRouter from "./comercialAdmin";
-import paymentsRouter from "./payments";
-import unidadesRouter from "./unidades";
-import usuariosRouter from "./usuarios";
-import pacientesRouter from "./pacientes";
-import anamneseRouter from "./anamnese";
-import motorClinicoRouter from "./motorClinico";
-import blocosRouter from "./blocos";
-import protocolosRouter from "./protocolos";
-import filasRouter from "./filas";
-import followupRouter from "./followup";
-import financeiroRouter from "./financeiro";
-import dashboardRouter from "./dashboard";
-import fluxosRouter from "./fluxos";
-import catalogoRouter from "./catalogo";
-import questionarioPacienteRouter from "./questionarioPaciente";
-import pedidosExameRouter from "./pedidosExame";
-import substanciasRouter from "./substancias";
-import sessoesRouter from "./sessoes";
-import rasRouter from "./rasRoute";
-import codigosSemanticosRouter from "./codigosSemanticos";
-import googleCalendarRouter from "./googleCalendar";
-import googleDriveRouter from "./googleDrive";
-import googleGmailRouter from "./googleGmail";
-import avaliacaoEnfermagemRouter from "./avaliacaoEnfermagem";
-import taskCardsRouter from "./taskCards";
-import rasEvolutivoRouter from "./rasEvolutivo";
-import avaliacoesClienteRouter from "./avaliacoesCliente";
-import portalClienteRouter from "./portalCliente";
-import cavaloClinicalRouter from "./cavaloClinical";
-import soberaniaRouter from "./soberania";
-import auditoriaCascataRouter from "./auditoriaCascata";
-import alertasRouter from "./alertas";
-import mensagensRouter from "./mensagens";
-import governancaRouter from "./governanca";
-import examesInteligenteRouter from "./examesInteligente";
-import monitoramentoPacienteRouter from "./monitoramentoPaciente";
-import alertaPacienteRouter from "./alertaPaciente";
-import direcaoExameRouter from "./direcaoExame";
-import formulaBlendRouter from "./formulaBlend";
-import backupDriveRouter from "./backupDrive";
-import whatsappRouter from "./whatsapp";
-import seedSemanticoRouter from "./seedSemantico";
-import semanticoRouter from "./semantico";
-import segurancaRouter from "./seguranca";
-import delegacaoRouter from "./delegacao";
-import seedConsultoriaRouter from "./seedConsultoria";
-import acompanhamentoRouter from "./acompanhamento";
-import comissaoRouter from "./comissao";
-import comercialRouter from "./comercial";
-import slaRouter from "./sla";
-import matrixRouter from "./matrix";
-import agendaMotorRouter from "./agenda-motor";
-import colaboradoresRouter from "./colaboradores";
-import agentesVirtuaisRouter from "./agentesVirtuais";
-import rasDistribuirRouter from "./rasDistribuir";
-import consultoriasRouter from "./consultoriasRoute";
-import inundacaoRouter from "./inundacao";
-import contratosRouter from "./contratosRoute";
-import raclRacjRouter from "./raclRacj";
-import rasxRevoRouter from "./rasxRevo";
-import rasxArquRouter from "./rasxArqu";
-import emailComunicacaoRouter from "./emailComunicacao";
-import termosJuridicosRouter from "./termosJuridicos";
-import genesisRouter from "./genesis";
-import genesisPopularRouter from "./genesisPopular";
-import documentosReferenciaRouter from "./documentosReferencia";
-import assinaturasRouter from "./assinaturas";
-import assinaturasWebhookRouter from "./assinaturasWebhook";
-import juridicoNotaFiscalRouter from "./juridicoNotaFiscal";
-import assinaturaCRUDRouter from "./assinaturaCRUD";
-import manifestoNacionalRouter from "./manifestoNacional";
-import planosTerapeuticosRouter from "./planosTerapeuticos";
-import laboratorioIntegrativoRouter from "./laboratorioIntegrativo";
-import prescricoesLembreteRouter from "./prescricoesLembrete";
-import examesRouter from "./exames";
-import agendasProfissionaisRouter from "./agendasProfissionais";
-import matrixGovernancaCategoriaRouter from "./matrixGovernancaCategoria";
-import monetizacaoPadconRouter from "./monetizacaoPadcon";
-import drivePawardsRouter from "./drivePawards";
+export interface DadosEmissaoNFe {
+  unidadeId: number;
+  pacienteNome: string;
+  pacienteCpf?: string | null;
+  valor: number;
+  descricao: string;
+  serviceCode?: string;
+  numeroExterno?: string;
+  logotipoUrl?: string | null;
+  cnpjEmissor?: string;
+  inscricaoMunicipal?: string;
+  ambiente: "homologacao" | "producao";
+  apiKey: string;
+  metadata?: Record<string, any>;
+}
 
-const router: IRouter = Router();
+export interface ResultadoEmissaoNFe {
+  sucesso: boolean;
+  numeroNota?: string;
+  protocolo?: string;
+  pdfUrl?: string;
+  xmlUrl?: string;
+  status: "PROCESSANDO" | "EMITIDA" | "ERRO";
+  mensagem?: string;
+  payloadProvedor?: any;
+}
 
-router.use(healthRouter);
-router.use(unidadesRouter);
-router.use(usuariosRouter);
-router.use(pacientesRouter);
-router.use(anamneseRouter);
-router.use(motorClinicoRouter);
-router.use(blocosRouter);
-router.use(protocolosRouter);
-router.use(filasRouter);
-router.use(followupRouter);
-router.use(financeiroRouter);
-router.use(dashboardRouter);
-router.use(fluxosRouter);
-router.use("/catalogo", catalogoRouter);
-router.use(questionarioPacienteRouter);
-router.use("/pedidos-exame", pedidosExameRouter);
-router.use(substanciasRouter);
-router.use(sessoesRouter);
-router.use(rasRouter);
-router.use(codigosSemanticosRouter);
-router.use(googleCalendarRouter);
-router.use(googleDriveRouter);
-router.use(googleGmailRouter);
-router.use(avaliacaoEnfermagemRouter);
-router.use(taskCardsRouter);
-router.use(rasEvolutivoRouter);
-router.use(avaliacoesClienteRouter);
-router.use(portalClienteRouter);
-router.use(cavaloClinicalRouter);
-router.use(soberaniaRouter);
-router.use(auditoriaCascataRouter);
-router.use(alertasRouter);
-router.use(mensagensRouter);
-router.use(governancaRouter);
-router.use(examesInteligenteRouter);
-router.use(monitoramentoPacienteRouter);
-router.use(alertaPacienteRouter);
-router.use(direcaoExameRouter);
-router.use(formulaBlendRouter);
-router.use(backupDriveRouter);
-router.use(whatsappRouter);
-router.use("/seed-semantico", seedSemanticoRouter);
-router.use("/semantico", semanticoRouter);
-router.use(segurancaRouter);
-router.use("/delegacao", delegacaoRouter);
-router.use("/seed-consultoria", seedConsultoriaRouter);
-router.use(acompanhamentoRouter);
-router.use(comissaoRouter);
-router.use(comercialRouter);
-router.use(slaRouter);
-router.use(matrixRouter);
-router.use(agendaMotorRouter);
-router.use("/colaboradores", colaboradoresRouter);
-router.use("/agentes-virtuais", agentesVirtuaisRouter);
-router.use(rasDistribuirRouter);
-router.use(consultoriasRouter);
-router.use(inundacaoRouter);
-router.use(contratosRouter);
-router.use(raclRacjRouter);
-router.use(rasxRevoRouter);
-router.use(rasxArquRouter);
-router.use(emailComunicacaoRouter);
-router.use(termosJuridicosRouter);
-router.use("/genesis", genesisRouter);
-router.use("/genesis-popular", genesisPopularRouter);
-router.use(documentosReferenciaRouter);
-router.use(assinaturasRouter);
-router.use(assinaturasWebhookRouter);
-router.use(juridicoNotaFiscalRouter);
-router.use(assinaturaCRUDRouter);
-router.use(manifestoNacionalRouter);
-router.use(planosTerapeuticosRouter);
-router.use(laboratorioIntegrativoRouter);
-router.use(prescricoesLembreteRouter);
-router.use(examesRouter);
-router.use(agendasProfissionaisRouter);
-router.use(matrixGovernancaCategoriaRouter);
-router.use(monetizacaoPadconRouter);
-router.use(drivePawardsRouter);
-router.use("/payments", paymentsRouter);
-router.use(comercialAdminRouter);
+export interface DadosCancelamentoNFe {
+  numeroExterno: string;
+  motivo: string;
+  apiKey: string;
+  ambiente: "homologacao" | "producao";
+}
 
-// PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
-import padcomRouter from "./padcom";
-router.use(padcomRouter);
+export interface ResultadoCancelamento {
+  sucesso: boolean;
+  cancelamentoId?: string;
+  mensagem?: string;
+  payloadProvedor?: any;
+}
 
-export default router;
+export interface ProvedorNFeAdapter {
+  codigo: string;
+  emitir(dados: DadosEmissaoNFe): Promise<ResultadoEmissaoNFe>;
+  cancelar(dados: DadosCancelamentoNFe): Promise<ResultadoCancelamento>;
+  consultar(numeroExterno: string, apiKey: string, ambiente: "homologacao" | "producao"): Promise<ResultadoEmissaoNFe>;
+}
 ```
 
-### `artifacts/api-server/src/middlewares/tenantContext.ts`
+### artifacts/api-server/src/lib/nfe/adapters/focus.ts
 ```typescript
-import type { Request, Response, NextFunction } from "express";
+import type {
+  ProvedorNFeAdapter,
+  DadosEmissaoNFe,
+  DadosCancelamentoNFe,
+  ResultadoEmissaoNFe,
+  ResultadoCancelamento,
+} from "./types";
 
-declare global {
-  namespace Express {
-    interface Request {
-      tenantContext?: {
-        unidadeId: number | null;
-        origem: "header" | "query" | "session" | "default";
+const BASE = (amb: "homologacao" | "producao") =>
+  amb === "producao" ? "https://api.focusnfe.com.br" : "https://homologacao.focusnfe.com.br";
+
+function authHeader(apiKey: string): string {
+  return "Basic " + Buffer.from(`${apiKey}:`).toString("base64");
+}
+
+export const focusAdapter: ProvedorNFeAdapter = {
+  codigo: "focus_nfe",
+
+  async emitir(d: DadosEmissaoNFe): Promise<ResultadoEmissaoNFe> {
+    if (!d.apiKey) return { sucesso: false, status: "ERRO", mensagem: "Credencial Focus NFe nao cadastrada para esta unidade" };
+    if (!d.cnpjEmissor) return { sucesso: false, status: "ERRO", mensagem: "CNPJ emissor obrigatorio" };
+
+    const ref = d.numeroExterno ?? `PAW-${Date.now()}-${d.unidadeId}`;
+    const body = {
+      cnpj_prestador: d.cnpjEmissor.replace(/\D/g, ""),
+      data_emissao: new Date().toISOString().slice(0, 10),
+      valor_servicos: d.valor,
+      discriminacao: d.descricao,
+      tomador: { razao_social: d.pacienteNome, cpf: d.pacienteCpf?.replace(/\D/g, "") ?? "" },
+      ...(d.metadata ?? {}),
+    };
+
+    try {
+      const r = await fetch(`${BASE(d.ambiente)}/v2/nfse?ref=${encodeURIComponent(ref)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: authHeader(d.apiKey) },
+        body: JSON.stringify(body),
+      });
+      const json: any = await r.json().catch(() => ({}));
+      if (!r.ok) return { sucesso: false, status: "ERRO", mensagem: json?.mensagem ?? `HTTP ${r.status}`, payloadProvedor: json };
+      return {
+        sucesso: true,
+        status: json.status === "autorizado" ? "EMITIDA" : "PROCESSANDO",
+        numeroNota: json.numero ?? ref,
+        protocolo: json.codigo_verificacao ?? json.protocolo,
+        pdfUrl: json.url ?? json.caminho_xml_nota_fiscal,
+        xmlUrl: json.caminho_xml_nota_fiscal,
+        payloadProvedor: json,
       };
+    } catch (e: any) {
+      return { sucesso: false, status: "ERRO", mensagem: e.message };
     }
-  }
-}
+  },
 
-export function tenantContextMiddleware(req: Request, _res: Response, next: NextFunction) {
-  const headerVal = req.header("x-unidade-id");
-  const queryVal = typeof req.query["unidade_id"] === "string" ? req.query["unidade_id"] : undefined;
-  const sessionVal = (req as any).session?.unidadeId;
+  async cancelar(d: DadosCancelamentoNFe): Promise<ResultadoCancelamento> {
+    if (!d.apiKey) return { sucesso: false, mensagem: "Credencial Focus NFe nao cadastrada" };
+    try {
+      const r = await fetch(`${BASE(d.ambiente)}/v2/nfse/${encodeURIComponent(d.numeroExterno)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: authHeader(d.apiKey) },
+        body: JSON.stringify({ justificativa: d.motivo }),
+      });
+      const json: any = await r.json().catch(() => ({}));
+      if (!r.ok) return { sucesso: false, mensagem: json?.mensagem ?? `HTTP ${r.status}`, payloadProvedor: json };
+      return { sucesso: true, cancelamentoId: json.codigo_cancelamento ?? json.numero_protocolo, payloadProvedor: json };
+    } catch (e: any) {
+      return { sucesso: false, mensagem: e.message };
+    }
+  },
 
-  let unidadeId: number | null = null;
-  let origem: "header" | "query" | "session" | "default" = "default";
+  async consultar(ref, apiKey, ambiente): Promise<ResultadoEmissaoNFe> {
+    try {
+      const r = await fetch(`${BASE(ambiente)}/v2/nfse/${encodeURIComponent(ref)}`, {
+        headers: { Authorization: authHeader(apiKey) },
+      });
+      const json: any = await r.json().catch(() => ({}));
+      if (!r.ok) return { sucesso: false, status: "ERRO", mensagem: json?.mensagem };
+      return {
+        sucesso: true,
+        status: json.status === "autorizado" ? "EMITIDA" : json.status === "cancelado" ? "ERRO" : "PROCESSANDO",
+        numeroNota: json.numero,
+        pdfUrl: json.url,
+        payloadProvedor: json,
+      };
+    } catch (e: any) {
+      return { sucesso: false, status: "ERRO", mensagem: e.message };
+    }
+  },
+};
+```
 
-  if (headerVal && !Number.isNaN(Number(headerVal))) { unidadeId = Number(headerVal); origem = "header"; }
-  else if (queryVal && !Number.isNaN(Number(queryVal))) { unidadeId = Number(queryVal); origem = "query"; }
-  else if (sessionVal != null && !Number.isNaN(Number(sessionVal))) { unidadeId = Number(sessionVal); origem = "session"; }
+### artifacts/api-server/src/lib/nfe/adapters/enotas.ts
+```typescript
+import type {
+  ProvedorNFeAdapter,
+  DadosEmissaoNFe,
+  DadosCancelamentoNFe,
+  ResultadoEmissaoNFe,
+  ResultadoCancelamento,
+} from "./types";
 
-  req.tenantContext = { unidadeId, origem };
-  next();
+const BASE = "https://api.enotasgw.com.br/v2";
+
+export const enotasAdapter: ProvedorNFeAdapter = {
+  codigo: "enotas",
+
+  async emitir(d: DadosEmissaoNFe): Promise<ResultadoEmissaoNFe> {
+    if (!d.apiKey) return { sucesso: false, status: "ERRO", mensagem: "Credencial eNotas nao cadastrada para esta unidade" };
+    const empresaId = d.metadata?.["empresaId"];
+    if (!empresaId) return { sucesso: false, status: "ERRO", mensagem: "metadata.empresaId obrigatorio (cadastro eNotas)" };
+
+    const ref = d.numeroExterno ?? `PAW-${Date.now()}-${d.unidadeId}`;
+    const body = {
+      tipo: "NFS-e",
+      idExterno: ref,
+      ambienteEmissao: d.ambiente === "producao" ? "Producao" : "Homologacao",
+      cliente: {
+        nome: d.pacienteNome,
+        cpfCnpj: d.pacienteCpf?.replace(/\D/g, "") ?? "",
+        tipoPessoa: "F",
+      },
+      servico: {
+        descricao: d.descricao,
+        valorTotal: d.valor,
+        codigoServicoMunicipio: d.serviceCode ?? "",
+      },
+    };
+
+    try {
+      const r = await fetch(`${BASE}/empresas/${empresaId}/nfes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Basic ${d.apiKey}` },
+        body: JSON.stringify(body),
+      });
+      const json: any = await r.json().catch(() => ({}));
+      if (!r.ok) return { sucesso: false, status: "ERRO", mensagem: json?.mensagem ?? `HTTP ${r.status}`, payloadProvedor: json };
+      return {
+        sucesso: true,
+        status: "PROCESSANDO",
+        numeroNota: ref,
+        protocolo: json.id,
+        payloadProvedor: json,
+      };
+    } catch (e: any) {
+      return { sucesso: false, status: "ERRO", mensagem: e.message };
+    }
+  },
+
+  async cancelar(d: DadosCancelamentoNFe): Promise<ResultadoCancelamento> {
+    if (!d.apiKey) return { sucesso: false, mensagem: "Credencial eNotas nao cadastrada" };
+    try {
+      const r = await fetch(`${BASE}/nfes/${encodeURIComponent(d.numeroExterno)}/cancelamento`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Basic ${d.apiKey}` },
+        body: JSON.stringify({ motivo: d.motivo }),
+      });
+      const json: any = await r.json().catch(() => ({}));
+      if (!r.ok) return { sucesso: false, mensagem: json?.mensagem ?? `HTTP ${r.status}`, payloadProvedor: json };
+      return { sucesso: true, cancelamentoId: json.id, payloadProvedor: json };
+    } catch (e: any) {
+      return { sucesso: false, mensagem: e.message };
+    }
+  },
+
+  async consultar(ref, apiKey, _amb): Promise<ResultadoEmissaoNFe> {
+    try {
+      const r = await fetch(`${BASE}/nfes/porIdExterno/${encodeURIComponent(ref)}`, {
+        headers: { Authorization: `Basic ${apiKey}` },
+      });
+      const json: any = await r.json().catch(() => ({}));
+      if (!r.ok) return { sucesso: false, status: "ERRO", mensagem: json?.mensagem };
+      return {
+        sucesso: true,
+        status: json.status === "Autorizada" ? "EMITIDA" : json.status === "Cancelada" ? "ERRO" : "PROCESSANDO",
+        numeroNota: json.numero,
+        pdfUrl: json.linkDownloadPDF,
+        xmlUrl: json.linkDownloadXML,
+        payloadProvedor: json,
+      };
+    } catch (e: any) {
+      return { sucesso: false, status: "ERRO", mensagem: e.message };
+    }
+  },
+};
+
+export function getAdapterByCodigo(codigo: string): ProvedorNFeAdapter | null {
+  if (codigo === "focus_nfe") return require("./focus").focusAdapter;
+  if (codigo === "enotas") return enotasAdapter;
+  return null;
 }
 ```
 
-### `artifacts/api-server/src/middlewares/requireAdminToken.ts`
+### artifacts/api-server/src/lib/recorrencia/cobrancaMensal.ts
+```typescript
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+
+const COMPETENCIA_FORMAT = (d: Date) =>
+  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+
+const VENCIMENTO_DIA = 5;
+const INADIMPLENCIA_GRACE_DIAS = 5;
+
+export async function gerarCobrancasMensais(competenciaParam?: string) {
+  const hoje = new Date();
+  const competencia = competenciaParam ?? COMPETENCIA_FORMAT(hoje);
+  const [ano, mes] = competencia.split("-").map((n) => parseInt(n, 10));
+  const vencimento = new Date(Date.UTC(ano, (mes ?? 1) - 1, VENCIMENTO_DIA));
+
+  const ativos = await db.execute(sql`
+    SELECT
+      uma.unidade_id,
+      uma.modulo_id,
+      COALESCE(uma.preco_personalizado, m.preco_mensal) AS valor
+    FROM unidade_modulos_ativos uma
+    JOIN modulos_padcon m ON m.id = uma.modulo_id
+    JOIN unidades u ON u.id = uma.unidade_id
+    WHERE uma.ativo = TRUE
+      AND m.ativo = TRUE
+      AND u.id NOT BETWEEN 1 AND 7
+  `);
+
+  let inseridas = 0;
+  for (const row of ativos.rows as any[]) {
+    const r = await db.execute(sql`
+      INSERT INTO cobrancas_mensais_modulos (unidade_id, modulo_id, competencia_mes, valor, vencimento, status)
+      VALUES (${row.unidade_id}, ${row.modulo_id}, ${competencia}, ${row.valor}, ${vencimento.toISOString().slice(0, 10)}, 'PENDENTE')
+      ON CONFLICT (unidade_id, modulo_id, competencia_mes) DO NOTHING
+      RETURNING id
+    `);
+    if (r.rows.length > 0) inseridas++;
+  }
+  return { competencia, vencimento: vencimento.toISOString().slice(0, 10), candidatas: ativos.rows.length, inseridas };
+}
+
+export async function marcarInadimplencia() {
+  const r = await db.execute(sql`
+    UPDATE cobrancas_mensais_modulos
+    SET status = 'INADIMPLENTE',
+        inadimplente_desde = COALESCE(inadimplente_desde, CURRENT_DATE)
+    WHERE status = 'PENDENTE'
+      AND vencimento < CURRENT_DATE - (${INADIMPLENCIA_GRACE_DIAS}::int)
+    RETURNING id
+  `);
+  return { marcadas: r.rows.length };
+}
+
+let workerStarted = false;
+export function iniciarWorkerCobrancaMensal() {
+  if (workerStarted) return;
+  workerStarted = true;
+
+  const TICK_MS = 6 * 60 * 60 * 1000; // 6h: leve, idempotente
+  console.log("[cobrancaMensal] Worker iniciado (tick " + TICK_MS / 1000 / 60 + "min, vencimento dia " + VENCIMENTO_DIA + ", grace " + INADIMPLENCIA_GRACE_DIAS + "d)");
+
+  const tick = async () => {
+    try {
+      const ger = await gerarCobrancasMensais();
+      if (ger.inseridas > 0) {
+        console.log(`[cobrancaMensal] competencia ${ger.competencia}: ${ger.inseridas}/${ger.candidatas} cobrancas geradas`);
+      }
+      const inad = await marcarInadimplencia();
+      if (inad.marcadas > 0) {
+        console.log(`[cobrancaMensal] ${inad.marcadas} cobrancas marcadas como INADIMPLENTE`);
+      }
+    } catch (e) {
+      console.error("[cobrancaMensal] erro no tick:", (e as Error).message);
+    }
+  };
+
+  setTimeout(tick, 30 * 1000);
+  setInterval(tick, TICK_MS).unref();
+}
+```
+
+### artifacts/api-server/src/middlewares/requireAdminToken.ts
 ```typescript
 import type { Request, Response, NextFunction } from "express";
 
@@ -1403,13 +1511,447 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
 }
 ```
 
-### `artifacts/api-server/src/routes/monetizacaoPadcon.ts`
+### artifacts/api-server/src/routes/painelNfe.ts
 ```typescript
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { requireAdminToken } from "../middlewares/requireAdminToken.js";
+import { decifrarCredencial } from "../lib/crypto/credenciais.js";
+import { focusAdapter } from "../lib/nfe/adapters/focus.js";
+import { enotasAdapter } from "../lib/nfe/adapters/enotas.js";
 
 const router: IRouter = Router();
+
+function getAdapter(codigo: string) {
+  if (codigo === "focus_nfe") return focusAdapter;
+  if (codigo === "enotas") return enotasAdapter;
+  return null;
+}
+
+// ═════════════ CATÁLOGO ═════════════
+router.get("/provedores-nfe", async (_req, res): Promise<void> => {
+  try {
+    const r = await db.execute(sql`SELECT * FROM provedores_nfe WHERE ativo = TRUE ORDER BY recomendado DESC, codigo`);
+    res.json(r.rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.get("/provedores-pagamento", async (_req, res): Promise<void> => {
+  try {
+    const r = await db.execute(sql`SELECT * FROM provedores_pagamento WHERE ativo = TRUE ORDER BY codigo`);
+    res.json(r.rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════ DASH NFe — PAINEL VISUAL ═════════════
+router.get("/painel-nfe/dashboard", async (req, res): Promise<void> => {
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : null;
+  try {
+    const filtro = unidadeId ? sql`WHERE nf.unidade_id = ${unidadeId}` : sql``;
+    const stats = await db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'RASCUNHO') AS rascunho,
+        COUNT(*) FILTER (WHERE status = 'EMITIDA') AS emitida,
+        COUNT(*) FILTER (WHERE status = 'CANCELADA') AS cancelada,
+        COUNT(*) FILTER (WHERE status = 'ERRO') AS erro,
+        COALESCE(SUM(valor) FILTER (WHERE status = 'EMITIDA'), 0) AS valor_emitido,
+        COALESCE(SUM(valor) FILTER (WHERE status = 'CANCELADA'), 0) AS valor_cancelado
+      FROM notas_fiscais_emitidas nf ${filtro}
+    `);
+    const recentes = await db.execute(sql`
+      SELECT nf.id, nf.numero_externo, nf.data_emissao, nf.valor, nf.status, nf.provedor_codigo,
+             nf.unidade_id, u.nome AS unidade_nome, u.cor AS unidade_cor,
+             p.nome AS paciente_nome, nf.pdf_url, nf.cancelado_em, nf.motivo_cancelamento
+      FROM notas_fiscais_emitidas nf
+      LEFT JOIN unidades u ON u.id = nf.unidade_id
+      LEFT JOIN pacientes p ON p.id = nf.paciente_id
+      ${filtro}
+      ORDER BY nf.criado_em DESC
+      LIMIT 50
+    `);
+    res.json({ estatisticas: stats.rows[0], recentes: recentes.rows });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════ EMITIR ═════════════
+const emitirSchema = z.object({
+  unidadeId: z.number().int().positive(),
+  pacienteId: z.number().int().positive(),
+  appointmentId: z.number().int().positive().optional(),
+  valor: z.number().positive(),
+  descricao: z.string().min(10).max(2000),
+  categoriaCodigo: z.string().optional(),
+  serviceCode: z.string().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
+
+router.post("/painel-nfe/emitir", requireAdminToken, async (req, res): Promise<void> => {
+  const parsed = emitirSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Body invalido", detalhes: parsed.error.flatten() }); return; }
+  const d = parsed.data;
+  try {
+    const cred = await db.execute(sql`
+      SELECT c.*, p.codigo AS provedor FROM unidade_nfe_credenciais c
+      JOIN provedores_nfe p ON p.codigo = c.provedor_codigo
+      WHERE c.unidade_id = ${d.unidadeId} AND c.ativo = TRUE
+      ORDER BY c.cadastrado_em DESC LIMIT 1
+    `);
+    if (cred.rows.length === 0) { res.status(412).json({ error: "Unidade nao tem credencial NFe cadastrada. Va em Painel NFe > Credenciais." }); return; }
+    const c: any = cred.rows[0];
+
+    const pac = await db.execute(sql`SELECT id, nome, cpf FROM pacientes WHERE id = ${d.pacienteId} LIMIT 1`);
+    if (pac.rows.length === 0) { res.status(404).json({ error: "Paciente nao encontrado" }); return; }
+    const p: any = pac.rows[0];
+
+    const unid = await db.execute(sql`SELECT logotipo_url FROM unidades WHERE id = ${d.unidadeId} LIMIT 1`);
+    const logoUrl = (unid.rows[0] as any)?.logotipo_url ?? null;
+
+    const adapter = getAdapter(c.provedor);
+    if (!adapter) { res.status(412).json({ error: `Provedor ${c.provedor} sem adapter` }); return; }
+
+    const ref = `PAW-U${d.unidadeId}-N${Date.now()}`;
+    const apiKeyClara = decifrarCredencial(c.api_key_cifrada);
+
+    const ins = await db.execute(sql`
+      INSERT INTO notas_fiscais_emitidas (paciente_id, appointment_id, unidade_id, numero_externo, valor, descricao_blindada, hash_descricao, status, provedor_codigo, categoria_codigo)
+      VALUES (${d.pacienteId}, ${d.appointmentId ?? null}, ${d.unidadeId}, ${ref}, ${d.valor}, ${d.descricao}, ${"sha-" + Date.now()}, 'RASCUNHO', ${c.provedor}, ${d.categoriaCodigo ?? null})
+      RETURNING id
+    `);
+    const nfId = (ins.rows[0] as any).id;
+
+    const result = await adapter.emitir({
+      unidadeId: d.unidadeId,
+      pacienteNome: p.nome,
+      pacienteCpf: p.cpf,
+      valor: d.valor,
+      descricao: d.descricao,
+      serviceCode: d.serviceCode,
+      numeroExterno: ref,
+      logotipoUrl: logoUrl,
+      cnpjEmissor: c.cnpj_emissor,
+      inscricaoMunicipal: c.inscricao_municipal,
+      ambiente: c.ambiente,
+      apiKey: apiKeyClara,
+      metadata: { ...(c.metadata ?? {}), ...(d.metadata ?? {}) },
+    });
+
+    await db.execute(sql`
+      UPDATE notas_fiscais_emitidas
+      SET status = ${result.status === "EMITIDA" ? "EMITIDA" : result.status === "ERRO" ? "ERRO" : "RASCUNHO"},
+          pdf_url = ${result.pdfUrl ?? null},
+          xml_url = ${result.xmlUrl ?? null},
+          payload_provedor = ${JSON.stringify(result.payloadProvedor ?? {})}::jsonb,
+          atualizado_em = NOW()
+      WHERE id = ${nfId}
+    `);
+
+    await db.execute(sql`
+      INSERT INTO nota_fiscal_eventos (nf_id, tipo_evento, descricao, payload, responsavel)
+      VALUES (${nfId}, 'EMISSAO', ${result.sucesso ? "Emitida via " + c.provedor : "Erro: " + (result.mensagem ?? "?")},
+              ${JSON.stringify({ resultado: result, ref })}::jsonb, 'admin')
+    `);
+
+    res.status(result.sucesso ? 201 : 502).json({ nfId, ref, ...result });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════ CANCELAR ═════════════
+const cancelarSchema = z.object({ motivo: z.string().min(10).max(255) });
+
+router.post("/painel-nfe/:id/cancelar", requireAdminToken, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) { res.status(400).json({ error: "id invalido" }); return; }
+  const parsed = cancelarSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "motivo obrigatorio (10-255 chars)", detalhes: parsed.error.flatten() }); return; }
+
+  try {
+    const nf = await db.execute(sql`SELECT * FROM notas_fiscais_emitidas WHERE id = ${id} LIMIT 1`);
+    if (nf.rows.length === 0) { res.status(404).json({ error: "NF nao encontrada" }); return; }
+    const n: any = nf.rows[0];
+    if (n.status === "CANCELADA") { res.status(409).json({ error: "NF ja esta cancelada" }); return; }
+    if (!n.unidade_id || !n.provedor_codigo || !n.numero_externo) {
+      res.status(412).json({ error: "NF sem unidade/provedor/numero_externo (rascunho local). Use DELETE /painel-nfe/:id" });
+      return;
+    }
+    const cred = await db.execute(sql`
+      SELECT * FROM unidade_nfe_credenciais
+      WHERE unidade_id = ${n.unidade_id} AND provedor_codigo = ${n.provedor_codigo} AND ativo = TRUE LIMIT 1
+    `);
+    if (cred.rows.length === 0) { res.status(412).json({ error: "Credencial nao cadastrada" }); return; }
+    const c: any = cred.rows[0];
+
+    const adapter = getAdapter(c.provedor_codigo);
+    if (!adapter) { res.status(412).json({ error: "Adapter ausente" }); return; }
+
+    const result = await adapter.cancelar({
+      numeroExterno: n.numero_externo,
+      motivo: parsed.data.motivo,
+      apiKey: decifrarCredencial(c.api_key_cifrada),
+      ambiente: c.ambiente,
+    });
+
+    if (!result.sucesso) {
+      await db.execute(sql`
+        INSERT INTO nota_fiscal_eventos (nf_id, tipo_evento, descricao, payload, responsavel)
+        VALUES (${id}, 'CANCELAMENTO_FALHOU', ${result.mensagem ?? "?"}, ${JSON.stringify(result)}::jsonb, 'admin')
+      `);
+      res.status(502).json({ error: "Falha ao cancelar no provedor", detalhes: result }); return;
+    }
+
+    await db.execute(sql`
+      UPDATE notas_fiscais_emitidas
+      SET status = 'CANCELADA', cancelado_em = NOW(), cancelado_por = 'admin', motivo_cancelamento = ${parsed.data.motivo}, atualizado_em = NOW()
+      WHERE id = ${id}
+    `);
+    await db.execute(sql`
+      INSERT INTO nota_fiscal_eventos (nf_id, tipo_evento, descricao, payload, responsavel)
+      VALUES (${id}, 'CANCELAMENTO', ${"Motivo: " + parsed.data.motivo}, ${JSON.stringify(result)}::jsonb, 'admin')
+    `);
+    res.json({ sucesso: true, id, ...result });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════ EDITAR (só rascunho) ═════════════
+router.patch("/painel-nfe/:id", requireAdminToken, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) { res.status(400).json({ error: "id invalido" }); return; }
+  const { descricao, valor, categoriaCodigo } = req.body ?? {};
+  try {
+    const nf = await db.execute(sql`SELECT status FROM notas_fiscais_emitidas WHERE id = ${id} LIMIT 1`);
+    if (nf.rows.length === 0) { res.status(404).json({ error: "NF nao encontrada" }); return; }
+    if ((nf.rows[0] as any).status !== "RASCUNHO") { res.status(409).json({ error: "Edicao permitida apenas em RASCUNHO. Para emitidas, use cancelamento + reemissao." }); return; }
+
+    const r = await db.execute(sql`
+      UPDATE notas_fiscais_emitidas SET
+        descricao_blindada = COALESCE(${descricao ?? null}, descricao_blindada),
+        valor = COALESCE(${valor ?? null}, valor),
+        categoria_codigo = COALESCE(${categoriaCodigo ?? null}, categoria_codigo),
+        atualizado_em = NOW()
+      WHERE id = ${id} RETURNING *
+    `);
+    await db.execute(sql`
+      INSERT INTO nota_fiscal_eventos (nf_id, tipo_evento, descricao, payload, responsavel)
+      VALUES (${id}, 'EDICAO_RASCUNHO', 'Campos editados antes da emissao', ${JSON.stringify(req.body ?? {})}::jsonb, 'admin')
+    `);
+    res.json(r.rows[0]);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════ APAGAR (só rascunho) ═════════════
+router.delete("/painel-nfe/:id", requireAdminToken, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) { res.status(400).json({ error: "id invalido" }); return; }
+  try {
+    const nf = await db.execute(sql`SELECT status FROM notas_fiscais_emitidas WHERE id = ${id} LIMIT 1`);
+    if (nf.rows.length === 0) { res.status(404).json({ error: "NF nao encontrada" }); return; }
+    if ((nf.rows[0] as any).status !== "RASCUNHO") { res.status(409).json({ error: "Apagar so permitido em RASCUNHO. Para emitidas, cancele." }); return; }
+    await db.execute(sql`DELETE FROM nota_fiscal_eventos WHERE nf_id = ${id}`);
+    await db.execute(sql`DELETE FROM notas_fiscais_emitidas WHERE id = ${id}`);
+    res.json({ sucesso: true, id });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════ TIMELINE ═════════════
+router.get("/painel-nfe/:id/eventos", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) { res.status(400).json({ error: "id invalido" }); return; }
+  try {
+    const r = await db.execute(sql`SELECT * FROM nota_fiscal_eventos WHERE nf_id = ${id} ORDER BY ocorrido_em DESC`);
+    res.json(r.rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+export default router;
+```
+
+### artifacts/api-server/src/routes/credenciaisProvedores.ts
+```typescript
+import { Router, type IRouter } from "express";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { requireAdminToken } from "../middlewares/requireAdminToken.js";
+import { cifrarCredencial, mascararCredencial, decifrarCredencial } from "../lib/crypto/credenciais.js";
+
+const router: IRouter = Router();
+
+// ═════════════ GATEWAY DE PAGAMENTO ═════════════
+const gatewayCredSchema = z.object({
+  unidadeId: z.number().int().positive(),
+  provedorCodigo: z.enum(["asaas", "stripe", "mercadopago", "infinitpay", "vindi"]),
+  ambiente: z.enum(["sandbox", "producao"]).default("sandbox"),
+  apiKey: z.string().min(8).max(2048),
+  webhookSecret: z.string().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
+
+router.post("/credenciais/gateway", requireAdminToken, async (req, res): Promise<void> => {
+  const parsed = gatewayCredSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Body invalido", detalhes: parsed.error.flatten() }); return; }
+  const d = parsed.data;
+  try {
+    const cifrada = cifrarCredencial(d.apiKey);
+    const r = await db.execute(sql`
+      INSERT INTO unidade_gateway_credenciais (unidade_id, provedor_codigo, ambiente, api_key_cifrada, webhook_secret, metadata, cadastrado_por)
+      VALUES (${d.unidadeId}, ${d.provedorCodigo}, ${d.ambiente}, ${cifrada}, ${d.webhookSecret ?? null}, ${d.metadata ? JSON.stringify(d.metadata) : null}::jsonb, 'admin')
+      ON CONFLICT (unidade_id, provedor_codigo, ambiente) DO UPDATE SET
+        api_key_cifrada = EXCLUDED.api_key_cifrada,
+        webhook_secret = EXCLUDED.webhook_secret,
+        metadata = EXCLUDED.metadata,
+        ativo = TRUE,
+        cadastrado_em = NOW()
+      RETURNING id, unidade_id, provedor_codigo, ambiente, ativo, cadastrado_em
+    `);
+    res.status(201).json({ ...r.rows[0], apiKeyMasked: mascararCredencial(d.apiKey) });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.get("/credenciais/gateway", async (req, res): Promise<void> => {
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : null;
+  try {
+    const r = await db.execute(sql`
+      SELECT c.id, c.unidade_id, u.nome AS unidade_nome, u.cor AS unidade_cor,
+             c.provedor_codigo, p.nome_exibicao AS provedor_nome,
+             c.ambiente, c.api_key_cifrada, c.ativo, c.cadastrado_em
+      FROM unidade_gateway_credenciais c
+      JOIN unidades u ON u.id = c.unidade_id
+      JOIN provedores_pagamento p ON p.codigo = c.provedor_codigo
+      ${unidadeId ? sql`WHERE c.unidade_id = ${unidadeId}` : sql``}
+      ORDER BY c.unidade_id, c.provedor_codigo
+    `);
+    const rows = (r.rows as any[]).map((row) => ({
+      ...row,
+      api_key_cifrada: undefined,
+      apiKeyMasked: mascararCredencial(decifrarCredencial(row.api_key_cifrada)),
+    }));
+    res.json(rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete("/credenciais/gateway/:id", requireAdminToken, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) { res.status(400).json({ error: "id invalido" }); return; }
+  try {
+    await db.execute(sql`UPDATE unidade_gateway_credenciais SET ativo = FALSE WHERE id = ${id}`);
+    res.json({ sucesso: true, id });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════ NFe ═════════════
+const nfeCredSchema = z.object({
+  unidadeId: z.number().int().positive(),
+  provedorCodigo: z.enum(["focus_nfe", "enotas"]),
+  ambiente: z.enum(["homologacao", "producao"]).default("homologacao"),
+  apiKey: z.string().min(8).max(2048),
+  cnpjEmissor: z.string().min(14).max(20).optional(),
+  inscricaoMunicipal: z.string().max(40).optional(),
+  certificadoA1Url: z.string().url().optional(),
+  certificadoSenha: z.string().min(1).max(120).optional(),
+  webhookSecret: z.string().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
+
+router.post("/credenciais/nfe", requireAdminToken, async (req, res): Promise<void> => {
+  const parsed = nfeCredSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Body invalido", detalhes: parsed.error.flatten() }); return; }
+  const d = parsed.data;
+  try {
+    const apiCif = cifrarCredencial(d.apiKey);
+    const senhaCif = d.certificadoSenha ? cifrarCredencial(d.certificadoSenha) : null;
+    const r = await db.execute(sql`
+      INSERT INTO unidade_nfe_credenciais
+        (unidade_id, provedor_codigo, ambiente, api_key_cifrada, certificado_a1_url, certificado_senha_cifrada, cnpj_emissor, inscricao_municipal, webhook_secret, metadata, cadastrado_por)
+      VALUES (${d.unidadeId}, ${d.provedorCodigo}, ${d.ambiente}, ${apiCif}, ${d.certificadoA1Url ?? null}, ${senhaCif}, ${d.cnpjEmissor ?? null}, ${d.inscricaoMunicipal ?? null}, ${d.webhookSecret ?? null}, ${d.metadata ? JSON.stringify(d.metadata) : null}::jsonb, 'admin')
+      ON CONFLICT (unidade_id, provedor_codigo, ambiente) DO UPDATE SET
+        api_key_cifrada = EXCLUDED.api_key_cifrada,
+        certificado_a1_url = EXCLUDED.certificado_a1_url,
+        certificado_senha_cifrada = EXCLUDED.certificado_senha_cifrada,
+        cnpj_emissor = EXCLUDED.cnpj_emissor,
+        inscricao_municipal = EXCLUDED.inscricao_municipal,
+        webhook_secret = EXCLUDED.webhook_secret,
+        metadata = EXCLUDED.metadata,
+        ativo = TRUE,
+        cadastrado_em = NOW()
+      RETURNING id, unidade_id, provedor_codigo, ambiente, ativo, cadastrado_em
+    `);
+    res.status(201).json({ ...r.rows[0], apiKeyMasked: mascararCredencial(d.apiKey) });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.get("/credenciais/nfe", async (req, res): Promise<void> => {
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : null;
+  try {
+    const r = await db.execute(sql`
+      SELECT c.id, c.unidade_id, u.nome AS unidade_nome, u.cor AS unidade_cor,
+             c.provedor_codigo, p.nome_exibicao AS provedor_nome,
+             c.ambiente, c.api_key_cifrada, c.cnpj_emissor, c.inscricao_municipal,
+             c.certificado_a1_url, c.ativo, c.cadastrado_em
+      FROM unidade_nfe_credenciais c
+      JOIN unidades u ON u.id = c.unidade_id
+      JOIN provedores_nfe p ON p.codigo = c.provedor_codigo
+      ${unidadeId ? sql`WHERE c.unidade_id = ${unidadeId}` : sql``}
+      ORDER BY c.unidade_id, c.provedor_codigo
+    `);
+    const rows = (r.rows as any[]).map((row) => ({
+      ...row,
+      api_key_cifrada: undefined,
+      apiKeyMasked: mascararCredencial(decifrarCredencial(row.api_key_cifrada)),
+    }));
+    res.json(rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════ LOGOTIPO DA CLINICA ═════════════
+const logoSchema = z.object({
+  unidadeId: z.number().int().positive(),
+  logotipoUrl: z.string().url().max(2048),
+});
+
+router.put("/credenciais/logo", requireAdminToken, async (req, res): Promise<void> => {
+  const parsed = logoSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Body invalido", detalhes: parsed.error.flatten() }); return; }
+  try {
+    const r = await db.execute(sql`
+      UPDATE unidades SET logotipo_url = ${parsed.data.logotipoUrl}, logotipo_atualizado_em = NOW()
+      WHERE id = ${parsed.data.unidadeId}
+      RETURNING id, nome, logotipo_url, logotipo_atualizado_em
+    `);
+    if (r.rows.length === 0) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+    res.json(r.rows[0]);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.get("/credenciais/logo", async (_req, res): Promise<void> => {
+  try {
+    const r = await db.execute(sql`
+      SELECT id, nome, cor, logotipo_url, logotipo_atualizado_em
+      FROM unidades WHERE id NOT BETWEEN 1 AND 7 ORDER BY id
+    `);
+    res.json(r.rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+export default router;
+```
+
+### artifacts/api-server/src/routes/monetizacaoPadcon.ts
+```typescript
+import { Router, type IRouter } from "express";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { requireAdminToken } from "../middlewares/requireAdminToken.js";
+
+const router: IRouter = Router();
+
+const dispararSchema = z.object({
+  unidadeId: z.number().int().positive(),
+  eventoCodigo: z.string().min(1).max(32),
+  referenciaExterna: z.string().min(1).max(128).optional(),
+  metadados: z.record(z.string(), z.any()).optional(),
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // MÓDULOS PADCON (M1-M7) — catálogo + ativação por unidade
@@ -1457,7 +1999,7 @@ router.get("/modulos-padcon/matriz", async (_req, res): Promise<void> => {
   }
 });
 
-router.patch("/modulos-padcon/ativar/:unidadeId/:moduloId", async (req, res): Promise<void> => {
+router.patch("/modulos-padcon/ativar/:unidadeId/:moduloId", requireAdminToken, async (req, res): Promise<void> => {
   const { unidadeId, moduloId } = req.params;
   const { ativo, usuario, precoPersonalizado } = req.body ?? {};
   if (typeof ativo !== "boolean") {
@@ -1496,13 +2038,27 @@ router.get("/eventos-cobraveis", async (_req, res): Promise<void> => {
 });
 
 // CORAÇÃO: endpoint genérico que QUALQUER ação interna chama pra registrar consumo
+// Hardening: Zod + idempotência via referencia_externa (UNIQUE parcial no DB)
 router.post("/eventos-cobraveis/disparar", async (req, res): Promise<void> => {
-  const { unidadeId, eventoCodigo, referenciaExterna, metadados } = req.body ?? {};
-  if (!unidadeId || !eventoCodigo) {
-    res.status(400).json({ error: "unidadeId e eventoCodigo obrigatorios" });
+  const parsed = dispararSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Body invalido", detalhes: parsed.error.flatten() });
     return;
   }
+  const { unidadeId, eventoCodigo, referenciaExterna, metadados } = parsed.data;
+
   try {
+    // Idempotência: se já existe lançamento com mesma referência, retorna o existente (200, não 201)
+    if (referenciaExterna) {
+      const existente = await db.execute(sql`
+        SELECT * FROM unidade_eventos_ledger WHERE referencia_externa = ${referenciaExterna} LIMIT 1
+      `);
+      if (existente.rows.length > 0) {
+        res.status(200).json({ ...existente.rows[0], idempotente: true });
+        return;
+      }
+    }
+
     const evt = await db.execute(sql`
       SELECT id, preco_unitario FROM eventos_cobraveis WHERE codigo = ${eventoCodigo} AND ativo = TRUE
     `);
@@ -1511,12 +2067,32 @@ router.post("/eventos-cobraveis/disparar", async (req, res): Promise<void> => {
       return;
     }
     const evento: any = evt.rows[0];
-    const result = await db.execute(sql`
-      INSERT INTO unidade_eventos_ledger (unidade_id, evento_id, valor_cobrado, referencia_externa, metadados)
-      VALUES (${unidadeId}, ${evento.id}, ${evento.preco_unitario}, ${referenciaExterna ?? null}, ${metadados ? JSON.stringify(metadados) : null}::jsonb)
-      RETURNING *
-    `);
-    res.status(201).json(result.rows[0]);
+
+    // Confirma que unidade existe (4xx limpo se não)
+    const unid = await db.execute(sql`SELECT id FROM unidades WHERE id = ${unidadeId} LIMIT 1`);
+    if (unid.rows.length === 0) {
+      res.status(404).json({ error: `Unidade ${unidadeId} nao encontrada` });
+      return;
+    }
+
+    try {
+      const result = await db.execute(sql`
+        INSERT INTO unidade_eventos_ledger (unidade_id, evento_id, valor_cobrado, referencia_externa, metadados)
+        VALUES (${unidadeId}, ${evento.id}, ${evento.preco_unitario}, ${referenciaExterna ?? null}, ${metadados ? JSON.stringify(metadados) : null}::jsonb)
+        RETURNING *
+      `);
+      res.status(201).json(result.rows[0]);
+    } catch (insertErr: any) {
+      // Race condition: outra requisição inseriu entre nossa checagem e o INSERT
+      if (insertErr.code === "23505" && referenciaExterna) {
+        const existente = await db.execute(sql`
+          SELECT * FROM unidade_eventos_ledger WHERE referencia_externa = ${referenciaExterna} LIMIT 1
+        `);
+        res.status(200).json({ ...existente.rows[0], idempotente: true });
+        return;
+      }
+      throw insertErr;
+    }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1746,12 +2322,13 @@ router.get("/demandas-resolucao/:id/timeline", async (req, res): Promise<void> =
 export default router;
 ```
 
-### `artifacts/api-server/src/routes/drivePawards.ts`
+### artifacts/api-server/src/routes/drivePawards.ts
 ```typescript
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { getDriveClient, escapeDriveQuery } from "../lib/google-drive.js";
+import { requireAdminToken } from "../middlewares/requireAdminToken.js";
 
 const router: IRouter = Router();
 
@@ -1775,7 +2352,7 @@ async function findOrCreate(drive: any, name: string, parentId?: string): Promis
 }
 
 // Provisiona estrutura PAWARDS completa pra TODAS as 10 clínicas (ou só uma específica)
-router.post("/drive-pawards/provisionar", async (req, res): Promise<void> => {
+router.post("/drive-pawards/provisionar", requireAdminToken, async (req, res): Promise<void> => {
   const rawId = req.body?.unidadeId;
   const parsed = rawId !== undefined && rawId !== null && rawId !== "" ? Number(rawId) : null;
   if (rawId !== undefined && rawId !== null && rawId !== "" && !Number.isInteger(parsed)) {
@@ -1870,981 +2447,749 @@ router.get("/drive-pawards/estrutura", async (_req, res): Promise<void> => {
 export default router;
 ```
 
-### `artifacts/api-server/src/routes/unidades.ts`
-```typescript
-import { Router } from "express";
-import { db, unidadesTable } from "@workspace/db";
-import { eq, and, gt, sql } from "drizzle-orm";
-import { CriarUnidadeBody } from "@workspace/api-zod";
+## 5. 🎨 Frontend NOVOS
 
-const router = Router();
+### artifacts/clinica-motor/src/pages/painel-nfe.tsx
+```tsx
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Ban, Pencil, Trash2, Shield, Eye, RefreshCcw, AlertTriangle } from "lucide-react";
 
-router.get("/unidades", async (req, res): Promise<void> => {
-  // Por padrao filtra arquivadas (ids 1-7 sao agendas-historicas confundidas).
-  // ?incluirArquivadas=true para auditoria.
-  const incluirArquivadas = req.query.incluirArquivadas === "true";
-  const unidades = incluirArquivadas
-    ? await db.select().from(unidadesTable).orderBy(unidadesTable.id)
-    : await db.select().from(unidadesTable).where(gt(unidadesTable.id, 7)).orderBy(unidadesTable.id);
-  res.json(unidades);
-});
+const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtDate = (d: string) => d ? new Date(d).toLocaleString("pt-BR") : "—";
 
-router.post("/unidades", async (req, res): Promise<void> => {
-  const parsed = CriarUnidadeBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [unidade] = await db.insert(unidadesTable).values(parsed.data).returning();
-  res.status(201).json(unidade);
-});
+const STATUS_COR: Record<string, string> = {
+  RASCUNHO: "bg-amber-500/15 text-amber-700 border-amber-500/30",
+  EMITIDA: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+  CANCELADA: "bg-rose-500/15 text-rose-700 border-rose-500/30",
+  ERRO: "bg-red-500/15 text-red-700 border-red-500/30",
+};
 
-router.get("/unidades/:id", async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(raw, 10);
-  const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
-  if (!unidade) { res.status(404).json({ error: "Unidade não encontrada" }); return; }
-  res.json(unidade);
-});
+export default function PainelNfePage() {
+  const qc = useQueryClient();
+  const [adminToken, setAdminToken] = useState<string>(localStorage.getItem("padcon_admin_token") ?? "");
+  const [tokenSalvo, setTokenSalvo] = useState(!!adminToken);
+  const [nfSelecionada, setNfSelecionada] = useState<number | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [filtroUnidade, setFiltroUnidade] = useState<string>("");
 
-router.put("/unidades/:id", async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(raw, 10);
-  const [existente] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
-  if (!existente) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
-  if (existente.tipo === "genesis_seed") {
-    res.status(403).json({ error: "Instituto Genesis e semente perene — somente o administrador geral pode altera-la." });
-    return;
-  }
-  const allowedFields = [
-    "nome", "endereco", "bairro", "cidade", "estado", "cep", "cnpj",
-    "telefone", "tipo", "googleCalendarId", "googleCalendarEmail", "cor", "ativa", "nick",
-    "emailGeral", "emailAgenda", "emailEnfermagem01", "emailEnfermagem02",
-    "emailConsultor01", "emailConsultor02", "emailSupervisor01", "emailSupervisor02",
-    "emailFinanceiro01", "emailOuvidoria01",
-  ];
-  const updates: Record<string, any> = {};
-  for (const key of allowedFields) {
-    if (req.body[key] !== undefined) updates[key] = req.body[key];
-  }
-  if (Object.keys(updates).length === 0) {
-    res.status(400).json({ error: "Nenhum campo para atualizar" });
-    return;
-  }
-  const [updated] = await db.update(unidadesTable).set(updates).where(eq(unidadesTable.id, id)).returning();
-  if (!updated) { res.status(404).json({ error: "Unidade não encontrada" }); return; }
-  res.json(updated);
-});
-
-router.delete("/unidades/:id", async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(raw, 10);
-  const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
-  if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
-  if (unidade.tipo === "genesis_seed") {
-    res.status(403).json({ error: "Instituto Genesis e semente perene — nao pode ser excluido. Apenas adicoes sao permitidas." });
-    return;
-  }
-  const [deleted] = await db.delete(unidadesTable).where(eq(unidadesTable.id, id)).returning();
-  res.json({ ok: true });
-});
-
-export default router;
-```
-
-### `artifacts/api-server/src/routes/usuarios.ts`
-```typescript
-import { Router } from "express";
-import { db, usuariosTable, unidadesTable, consultorUnidadesTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
-import { CriarUsuarioBody, LoginUsuarioBody } from "@workspace/api-zod";
-
-const router = Router();
-
-router.get("/usuarios", async (req, res): Promise<void> => {
-  const perfil = req.query.perfil as string | undefined;
-  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
-
-  let usuarios = await db
-    .select({
-      id: usuariosTable.id,
-      nome: usuariosTable.nome,
-      email: usuariosTable.email,
-      perfil: usuariosTable.perfil,
-      escopo: usuariosTable.escopo,
-      unidadeId: usuariosTable.unidadeId,
-      unidadeNome: unidadesTable.nome,
-      consultoriaId: usuariosTable.consultoriaId,
-      crm: usuariosTable.crm,
-      cpf: usuariosTable.cpf,
-      cns: usuariosTable.cns,
-      especialidade: usuariosTable.especialidade,
-      telefone: usuariosTable.telefone,
-      ativo: usuariosTable.ativo,
-      podeValidar: usuariosTable.podeValidar,
-      podeAssinar: usuariosTable.podeAssinar,
-      podeBypass: usuariosTable.podeBypass,
-      nuncaOpera: usuariosTable.nuncaOpera,
-      criadoEm: usuariosTable.criadoEm,
-    })
-    .from(usuariosTable)
-    .leftJoin(unidadesTable, eq(usuariosTable.unidadeId, unidadesTable.id));
-
-  if (perfil) {
-    usuarios = usuarios.filter(u => u.perfil === perfil);
-  }
-  if (unidadeId) {
-    usuarios = usuarios.filter(u => u.unidadeId === unidadeId);
-  }
-
-  res.json(usuarios);
-});
-
-router.post("/usuarios", async (req, res): Promise<void> => {
-  const parsed = CriarUsuarioBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [usuario] = await db.insert(usuariosTable).values(parsed.data).returning();
-  const { senha: _senha, ...safeUsuario } = usuario;
-  res.status(201).json(safeUsuario);
-});
-
-router.post("/usuarios/login", async (req, res): Promise<void> => {
-  const parsed = LoginUsuarioBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const { email, senha } = parsed.data;
-  const [usuario] = await db
-    .select()
-    .from(usuariosTable)
-    .where(and(eq(usuariosTable.email, email), eq(usuariosTable.senha, senha)));
-  if (!usuario) {
-    res.status(401).json({ error: "Credenciais inválidas" });
-    return;
-  }
-  const { senha: _senha, ...safeUsuario } = usuario;
-
-  const vinculosConsultor = await db
-    .select({ unidadeId: consultorUnidadesTable.unidadeId, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor })
-    .from(consultorUnidadesTable)
-    .leftJoin(unidadesTable, eq(consultorUnidadesTable.unidadeId, unidadesTable.id))
-    .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
-
-  res.json({
-    token: `token-${usuario.id}-${Date.now()}`,
-    usuario: { ...safeUsuario, unidadesVinculadas: vinculosConsultor },
+  const { data: dash, isLoading } = useQuery<any>({
+    queryKey: ["painel-nfe", filtroUnidade],
+    queryFn: () => fetch(`/api/painel-nfe/dashboard${filtroUnidade ? `?unidadeId=${filtroUnidade}` : ""}`).then((r) => r.json()),
+    refetchInterval: 30_000,
   });
-});
 
-router.get("/usuarios/perfil-atual", async (_req, res): Promise<void> => {
-  const [usuario] = await db
-    .select({
-      id: usuariosTable.id,
-      nome: usuariosTable.nome,
-      email: usuariosTable.email,
-      perfil: usuariosTable.perfil,
-      escopo: usuariosTable.escopo,
-      unidadeId: usuariosTable.unidadeId,
-      consultoriaId: usuariosTable.consultoriaId,
-      unidadeNome: unidadesTable.nome,
-      ativo: usuariosTable.ativo,
-      criadoEm: usuariosTable.criadoEm,
-    })
-    .from(usuariosTable)
-    .leftJoin(unidadesTable, eq(usuariosTable.unidadeId, unidadesTable.id))
-    .where(eq(usuariosTable.perfil, "validador_mestre"))
-    .limit(1);
-  if (!usuario) {
-    res.status(404).json({ error: "Nenhum usuário encontrado" });
-    return;
-  }
+  const { data: provedoresNfe } = useQuery<any[]>({
+    queryKey: ["provedores-nfe"],
+    queryFn: () => fetch("/api/provedores-nfe").then((r) => r.json()),
+  });
 
-  let unidadesVinculadas: { unidadeId: number; unidadeNome: string | null; unidadeCor: string | null }[];
+  const { data: eventos } = useQuery<any[]>({
+    queryKey: ["nf-eventos", nfSelecionada],
+    queryFn: () => fetch(`/api/painel-nfe/${nfSelecionada}/eventos`).then((r) => r.json()),
+    enabled: !!nfSelecionada,
+  });
 
-  if (usuario.escopo === "consultoria_master") {
-    const vinculos = await db.selectDistinct({ unidadeId: consultorUnidadesTable.unidadeId }).from(consultorUnidadesTable);
-    const idsConsultoria = vinculos.map(v => v.unidadeId);
-    const todasUnidades = await db.select({ unidadeId: unidadesTable.id, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor }).from(unidadesTable);
-    unidadesVinculadas = idsConsultoria.length > 0
-      ? todasUnidades.filter(u => idsConsultoria.includes(u.unidadeId))
-      : todasUnidades;
-  } else {
-    unidadesVinculadas = await db
-      .select({ unidadeId: consultorUnidadesTable.unidadeId, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor })
-      .from(consultorUnidadesTable)
-      .leftJoin(unidadesTable, eq(consultorUnidadesTable.unidadeId, unidadesTable.id))
-      .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
-  }
-
-  res.json({ ...usuario, unidadesVinculadas });
-});
-
-router.put("/usuarios/:id", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
-  if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID invalido" }); return; }
-  const allowedFields = ["nome", "email", "perfil", "unidadeId", "ativo", "escopo", "consultoriaId", "crm", "cpf", "cns", "especialidade", "telefone", "podeValidar", "podeAssinar", "podeBypass", "nuncaOpera"];
-  const updateData: Record<string, any> = {};
-  for (const key of allowedFields) {
-    if (req.body[key] !== undefined) updateData[key] = req.body[key];
-  }
-  if (req.body.senha && req.body.senha.trim().length >= 6) {
-    updateData.senha = req.body.senha;
-  }
-  try {
-    const [updated] = await db.update(usuariosTable).set(updateData).where(eq(usuariosTable.id, id)).returning();
-    if (!updated) { res.status(404).json({ error: "Usuario nao encontrado" }); return; }
-    const { senha: _s, ...safe } = updated;
-    res.json(safe);
-  } catch (e: any) { res.status(500).json({ error: e.message || "Erro interno" }); }
-});
-
-router.delete("/usuarios/:id", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
-  if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID invalido" }); return; }
-  try {
-    const [deleted] = await db.delete(usuariosTable).where(eq(usuariosTable.id, id)).returning();
-    if (!deleted) { res.status(404).json({ error: "Usuario nao encontrado" }); return; }
-    res.json({ ok: true });
-  } catch (e: any) { res.status(500).json({ error: e.message || "Erro interno" }); }
-});
-
-export default router;
-```
-
-## 8. 🎨 FRONTEND COMPLETO
-
-
-### `artifacts/clinica-motor/src/App.tsx`
-```tsx
-import { Switch, Route } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ClinicProvider } from "@/contexts/ClinicContext";
-import NotFound from "@/pages/not-found";
-
-import Login from "@/pages/login";
-import Dashboard from "@/pages/dashboard";
-import Anamneses from "@/pages/anamnese";
-import NovaAnamnese from "@/pages/anamnese/nova";
-import AnamneseDetalhe from "@/pages/anamnese/[id]";
-import Validacao from "@/pages/validacao";
-import Filas from "@/pages/filas";
-import Pacientes from "@/pages/pacientes";
-import ExamesGrafico from "@/pages/pacientes/exames-grafico";
-import LaboratorioValidacao from "@/pages/laboratorio-validacao";
-import PacienteDetalhe from "@/pages/pacientes/[id]";
-import ItensTerapeuticos from "@/pages/itens-terapeuticos";
-import Protocolos from "@/pages/protocolos";
-import Followup from "@/pages/followup";
-import Financeiro from "@/pages/financeiro";
-import Unidades from "@/pages/unidades";
-import Configuracoes from "@/pages/configuracoes";
-import Fluxos from "@/pages/fluxos";
-import Permissoes from "@/pages/permissoes";
-import Catalogo from "@/pages/catalogo";
-import QuestionarioPaciente from "@/pages/pacientes/questionario";
-import PedidosExame from "@/pages/pedidos-exame";
-import Substancias from "@/pages/substancias";
-import AgendaSemanal from "@/pages/agenda";
-import CodigosSemanticos from "@/pages/codigos-semanticos";
-import RasPage from "@/pages/ras";
-import CodigosValidacaoPage from "@/pages/codigos-validacao";
-import EstoquePage from "@/pages/estoque";
-import TaskCardsPage from "@/pages/task-cards";
-import AvaliacaoEnfermagemPage from "@/pages/avaliacao-enfermagem";
-import RasEvolutivoPage from "@/pages/ras-evolutivo";
-import PortalClientePage from "@/pages/portal";
-import GovernancaPage from "@/pages/governanca";
-import MonitoramentoPacientePage from "@/pages/pacientes/monitoramento";
-import SegurancaPage from "@/pages/seguranca";
-import PainelComandoPage from "@/pages/painel-comando";
-import PainelTransmutacao from "@/pages/painel-transmutacao";
-import ProtocoloNatacha from "@/pages/protocolo-natacha";
-import DelegacaoPage from "@/pages/delegacao";
-import ColaboradoresPage from "@/pages/colaboradores";
-import AgentesVirtuaisPage from "@/pages/agentes-virtuais";
-import AcompanhamentoPage from "@/pages/acompanhamento";
-import ComissaoPage from "@/pages/comissao";
-import ComercialPage from "@/pages/comercial";
-import JustificativasPage from "@/pages/justificativas";
-import MatrizAnaliticaPage from "@/pages/matriz-analitica";
-import AgendaMotorPage from "@/pages/agenda-motor";
-import DietasPage from "@/pages/dietas";
-import PsicologiaPage from "@/pages/psicologia";
-import QuestionarioMasterPage from "@/pages/questionario-master";
-import ConsultoriasPage from "@/pages/consultorias";
-import ContratosPage from "@/pages/contratos";
-import AdminComercialPage from "@/pages/admin-comercial";
-import InundacaoPage from "@/pages/inundacao";
-import BlueprintPage from "@/pages/blueprint";
-// PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
-import PadcomPaciente from "@/pages/padcom/paciente";
-import PadcomConcluido from "@/pages/padcom/concluido";
-import PadcomAdmin from "@/pages/padcom/admin";
-import PadcomAdminDetalhe from "@/pages/padcom/admin-detalhe";
-import PadcomAdminDashboard from "@/pages/padcom/admin-dashboard";
-import PadcomGovernanca from "@/pages/padcom/governanca";
-import PadcomAgendaRetornos from "@/pages/padcom/agenda-retornos";
-import LembretesFalhasPage from "@/pages/lembretes-falhas";
-import MensagensPage from "@/pages/mensagens";
-import ExamesPage from "@/pages/exames";
-import AgendasPage from "@/pages/agendas";
-import GovernancaMatrixPage from "@/pages/governanca-matrix";
-import MonetizarPage from "@/pages/monetizar";
-import DashboardLocalPage from "@/pages/dashboard-local";
-import DemandasResolucaoPage from "@/pages/demandas-resolucao";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      refetchOnWindowFocus: false,
+  const cancelar = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/painel-nfe/${id}/cancelar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+        body: JSON.stringify({ motivo }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Falha");
+      return r.json();
     },
-  },
-});
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["painel-nfe"] }); setMotivo(""); setNfSelecionada(null); },
+  });
 
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Login} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/anamnese" component={Anamneses} />
-      <Route path="/anamnese/nova" component={NovaAnamnese} />
-      <Route path="/anamnese/:id" component={AnamneseDetalhe} />
-      <Route path="/validacao" component={Validacao} />
-      <Route path="/filas" component={Filas} />
-      <Route path="/pacientes" component={Pacientes} />
-      <Route path="/pacientes/:id/questionario" component={QuestionarioPaciente} />
-      <Route path="/pacientes/:id/exames-grafico" component={ExamesGrafico} />
-      <Route path="/laboratorio/validacao" component={LaboratorioValidacao} />
-      <Route path="/pacientes/:id" component={PacienteDetalhe} />
-      <Route path="/itens-terapeuticos" component={ItensTerapeuticos} />
-      <Route path="/protocolos" component={Protocolos} />
-      <Route path="/followup" component={Followup} />
-      <Route path="/financeiro" component={Financeiro} />
-      <Route path="/unidades" component={Unidades} />
-      <Route path="/configuracoes" component={Configuracoes} />
-      <Route path="/fluxos" component={Fluxos} />
-      <Route path="/permissoes" component={Permissoes} />
-      <Route path="/pedidos-exame" component={PedidosExame} />
-      <Route path="/catalogo" component={Catalogo} />
-      <Route path="/substancias" component={Substancias} />
-      <Route path="/agenda" component={AgendaSemanal} />
-      <Route path="/codigos-semanticos" component={CodigosSemanticos} />
-      <Route path="/ras" component={RasPage} />
-      <Route path="/codigos-validacao" component={CodigosValidacaoPage} />
-      <Route path="/inundacao" component={InundacaoPage} />
-      <Route path="/blueprint" component={BlueprintPage} />
-      <Route path="/agendas" component={AgendasPage} />
-      <Route path="/governanca-matrix" component={GovernancaMatrixPage} />
-      <Route path="/estoque" component={EstoquePage} />
-      <Route path="/task-cards" component={TaskCardsPage} />
-      <Route path="/avaliacao-enfermagem" component={AvaliacaoEnfermagemPage} />
-      <Route path="/ras-evolutivo" component={RasEvolutivoPage} />
-      <Route path="/pacientes/:id/monitoramento" component={MonitoramentoPacientePage} />
-      <Route path="/portal" component={PortalClientePage} />
-      <Route path="/governanca" component={GovernancaPage} />
-      <Route path="/seguranca" component={SegurancaPage} />
-      <Route path="/painel-comando" component={PainelComandoPage} />
-      <Route path="/painel-transmutacao" component={PainelTransmutacao} />
-      <Route path="/protocolo-natacha" component={ProtocoloNatacha} />
-      <Route path="/delegacao" component={DelegacaoPage} />
-      <Route path="/colaboradores" component={ColaboradoresPage} />
-      <Route path="/agentes-virtuais" component={AgentesVirtuaisPage} />
-      <Route path="/acompanhamento" component={AcompanhamentoPage} />
-      <Route path="/comissao" component={ComissaoPage} />
-      <Route path="/comercial" component={ComercialPage} />
-      <Route path="/justificativas" component={JustificativasPage} />
-      <Route path="/matriz-analitica" component={MatrizAnaliticaPage} />
-      <Route path="/agenda-motor" component={AgendaMotorPage} />
-      <Route path="/dietas" component={DietasPage} />
-      <Route path="/psicologia" component={PsicologiaPage} />
-      <Route path="/questionario-master" component={QuestionarioMasterPage} />
-      <Route path="/consultorias" component={ConsultoriasPage} />
-      <Route path="/contratos" component={ContratosPage} />
-      <Route path="/admin-comercial" component={AdminComercialPage} />
-      {/* ══════ PADCOM V15 — Anamnese Integrativa (Manus Bundle) ══════ */}
-      <Route path="/padcom" component={PadcomPaciente} />
-      <Route path="/padcom/concluido" component={PadcomConcluido} />
-      <Route path="/padcom-admin/dashboard" component={PadcomAdminDashboard} />
-      <Route path="/padcom-admin/:sessaoId" component={PadcomAdminDetalhe} />
-      <Route path="/padcom-admin" component={PadcomAdmin} />
-      <Route path="/padcom-governanca" component={PadcomGovernanca} />
-      <Route path="/padcom-agenda-retornos" component={PadcomAgendaRetornos} />
-      <Route path="/lembretes-falhas" component={LembretesFalhasPage} />
-      <Route path="/mensagens" component={MensagensPage} />
-      <Route path="/exames" component={ExamesPage} />
-      <Route path="/monetizar" component={MonetizarPage} />
-      <Route path="/dashboard-local" component={DashboardLocalPage} />
-      <Route path="/demandas-resolucao" component={DemandasResolucaoPage} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
+  const apagar = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/painel-nfe/${id}`, { method: "DELETE", headers: { "x-admin-token": adminToken } });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Falha");
+      return r.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["painel-nfe"] }),
+  });
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <ClinicProvider>
-            <Router />
-            <Toaster />
-          </ClinicProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
-
-export default App;
-```
-
-### `artifacts/clinica-motor/src/components/Layout.tsx`
-```tsx
-import { ReactNode, useState, useRef, useEffect } from "react";
-import { Link, useLocation } from "wouter";
-import { useAuth } from "@/contexts/AuthContext";
-import { useClinic } from "@/contexts/ClinicContext";
-import { useLembretesFalhasContagem } from "@/hooks/useLembretesFalhasContagem";
-import {
-  LayoutDashboard, ClipboardList, CheckSquare, ListOrdered, Users, Pill, BookOpen, CalendarClock, CreditCard,
-  Building2, Settings, LogOut, GitBranch, ShieldCheck, Database, FileText, FlaskConical, CalendarDays,
-  FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
-  ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
-  ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle,
-} from "lucide-react";
-import { Button } from "./ui/button";
-
-function ClinicSwitcher() {
-  const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, escopo } = useClinic();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const canSwitch = escopo === "consultoria_master" || (escopo === "consultor_campo" && unidadesDisponiveis.length > 1);
-  if (unidadesDisponiveis.length === 0) return null;
-
-  // Pádua (15) e Genesis (14) sobem pro topo com destaque
-  const padua = unidadesDisponiveis.find((u) => u.unidadeId === 15);
-  const genesis = unidadesDisponiveis.find((u) => u.unidadeId === 14);
-  const outras = unidadesDisponiveis.filter((u) => u.unidadeId !== 14 && u.unidadeId !== 15);
-
-  const decorarNome = (uid: number, nome: string) => {
-    if (uid === 15) return `⭐ ${nome}`;
-    if (uid === 14) return `🧬 ${nome}`;
-    return nome;
+  const salvarToken = () => {
+    localStorage.setItem("padcon_admin_token", adminToken);
+    setTokenSalvo(true);
   };
 
+  const stats = dash?.estatisticas ?? {};
+  const recentes = dash?.recentes ?? [];
+
   return (
-    <div ref={ref} className="px-3 py-2 border-b border-border relative">
-      <button
-        onClick={() => canSwitch && setOpen(!open)}
-        className={`w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors rounded ${canSwitch ? "hover:bg-sidebar-accent/50 cursor-pointer" : "cursor-default"}`}
-        data-testid="clinic-switcher-toggle"
-      >
-        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: corUnidadeSelecionada || "hsl(210, 45%, 65%)" }} />
-        <div className="flex-1 min-w-0">
-          <span className="text-[12px] font-medium text-sidebar-foreground truncate block">
-            {unidadeSelecionada ? decorarNome(unidadeSelecionada, nomeUnidadeSelecionada) : nomeUnidadeSelecionada}
-          </span>
-          <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: isTodasClinicas ? "hsl(210, 45%, 65%)" : corUnidadeSelecionada || "#6B7280" }}>
-            {isTodasClinicas ? "Visao Global" : "Visao Local"}
-          </span>
+    <div className="space-y-4">
+      <header className="flex items-center gap-3 pb-3 border-b border-border">
+        <FileText className="w-7 h-7 text-[#1F4E5F]" />
+        <div>
+          <h1 className="text-2xl font-bold uppercase tracking-tight text-[#1F4E5F]">📑 DASH NFe</h1>
+          <p className="text-xs text-muted-foreground">Painel interno: emitir, cancelar, editar e auditar notas — sem sair do PADCON</p>
         </div>
-        {canSwitch && <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />}
-      </button>
-      {open && (
-        <div className="absolute left-2 right-2 top-full mt-1 bg-card border border-border rounded shadow-lg z-50 py-1 max-h-72 overflow-y-auto">
-          {(escopo === "consultoria_master" || escopo === "consultor_campo") && (
-            <button
-              onClick={() => { setUnidadeSelecionada(null); setOpen(false); }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-sidebar-accent/50 transition-colors ${isTodasClinicas ? "bg-primary/10 text-primary font-semibold" : "text-sidebar-foreground"}`}
-              data-testid="clinic-option-todas"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              Todas as Clínicas
-            </button>
+        <div className="ml-auto flex items-center gap-2">
+          {tokenSalvo ? (
+            <Badge className="bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+              <Shield className="w-3 h-3 mr-1" />Master conectado
+            </Badge>
+          ) : (
+            <Badge className="bg-amber-500/15 text-amber-700 border border-amber-500/30">Master desconectado</Badge>
           )}
-          {padua && (
-            <button
-              key={padua.unidadeId}
-              onClick={() => { setUnidadeSelecionada(padua.unidadeId); setOpen(false); }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[#B8941F]/10 transition-colors border-l-2 ${unidadeSelecionada === padua.unidadeId ? "bg-[#B8941F]/15 font-semibold border-l-[#B8941F]" : "border-l-[#B8941F]/40 text-sidebar-foreground"}`}
-              data-testid="clinic-option-padua"
-            >
-              <span className="text-base">⭐</span>
-              <span className="font-medium">{padua.unidadeNome}</span>
-              <span className="ml-auto text-[9px] text-[#B8941F] uppercase font-bold">PRINCIPAL</span>
-            </button>
-          )}
-          {genesis && (
-            <button
-              key={genesis.unidadeId}
-              onClick={() => { setUnidadeSelecionada(genesis.unidadeId); setOpen(false); }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-purple-500/10 transition-colors border-l-2 ${unidadeSelecionada === genesis.unidadeId ? "bg-purple-500/15 font-semibold border-l-purple-500" : "border-l-purple-500/40 text-sidebar-foreground"}`}
-              data-testid="clinic-option-genesis"
-            >
-              <span className="text-base">🧬</span>
-              <span className="font-medium">{genesis.unidadeNome}</span>
-              <span className="ml-auto text-[9px] text-purple-500 uppercase font-bold">COFRE</span>
-            </button>
-          )}
-          {(padua || genesis) && outras.length > 0 && <div className="my-1 mx-3 border-t border-border" />}
-          {outras.map((u) => (
-            <button
-              key={u.unidadeId}
-              onClick={() => { setUnidadeSelecionada(u.unidadeId); setOpen(false); }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-sidebar-accent/50 transition-colors ${unidadeSelecionada === u.unidadeId ? "bg-primary/10 font-semibold" : "text-sidebar-foreground"}`}
-              data-testid={`clinic-option-${u.unidadeId}`}
-            >
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: u.unidadeCor || "#6B7280" }} />
-              {u.unidadeNome}
-            </button>
-          ))}
         </div>
+      </header>
+
+      {/* Master Token */}
+      <Card className="p-4 border-l-4 border-l-[#B8941F]">
+        <div className="flex items-center gap-3">
+          <Shield className="w-5 h-5 text-[#B8941F]" />
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-[#1F4E5F]">Código Master</div>
+            <div className="text-xs text-muted-foreground">Necessário pra cancelar, editar e apagar. Fica salvo só no seu navegador.</div>
+          </div>
+          <Input
+            type="password"
+            placeholder="Cole seu código master..."
+            value={adminToken}
+            onChange={(e) => { setAdminToken(e.target.value); setTokenSalvo(false); }}
+            className="max-w-xs"
+            data-testid="input-admin-token"
+          />
+          <Button onClick={salvarToken} size="sm" className="bg-[#B8941F] hover:bg-[#9a7a18]" data-testid="btn-salvar-token">Salvar</Button>
+        </div>
+      </Card>
+
+      {/* Provedores NFe disponíveis */}
+      <div className="grid grid-cols-2 gap-3">
+        {(provedoresNfe ?? []).map((p) => (
+          <Card key={p.codigo} className="p-4 border-l-4 border-l-[#1F4E5F]">
+            <div className="flex items-center justify-between mb-1">
+              <div className="font-bold text-[#1F4E5F]">{p.nome_exibicao}</div>
+              {p.recomendado && <Badge className="bg-[#B8941F]/15 text-[#B8941F] border border-[#B8941F]/30">Recomendado</Badge>}
+            </div>
+            <div className="text-xs text-muted-foreground mb-2">{p.descricao}</div>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {(p.funcionalidades ?? []).slice(0, 6).map((f: string) => (
+                <Badge key={f} variant="outline" className="text-[10px]">{f}</Badge>
+              ))}
+            </div>
+            <div className="text-[10px] text-muted-foreground">💸 {p.preco_aproximado_por_nota} • 🌎 {p.cobertura_municipios}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Estatísticas */}
+      <div className="grid grid-cols-6 gap-3">
+        {[
+          { label: "Rascunhos", val: stats.rascunho ?? 0, cor: "#A78B5F" },
+          { label: "Emitidas", val: stats.emitida ?? 0, cor: "#1F4E5F" },
+          { label: "Canceladas", val: stats.cancelada ?? 0, cor: "#B85C5C" },
+          { label: "Erros", val: stats.erro ?? 0, cor: "#7B6450" },
+          { label: "R$ Emitido", val: fmt(stats.valor_emitido), cor: "#B8941F" },
+          { label: "R$ Cancelado", val: fmt(stats.valor_cancelado), cor: "#5C7C8A" },
+        ].map((s) => (
+          <Card key={s.label} className="p-3 text-center">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</div>
+            <div className="text-lg font-bold mt-1" style={{ color: s.cor }}>{s.val}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Filtro */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Filtrar por unidade:</span>
+        <Input
+          type="number"
+          placeholder="ID da unidade (vazio = todas)"
+          value={filtroUnidade}
+          onChange={(e) => setFiltroUnidade(e.target.value)}
+          className="max-w-xs"
+          data-testid="input-filtro-unidade"
+        />
+        <Button size="sm" variant="ghost" onClick={() => qc.invalidateQueries({ queryKey: ["painel-nfe"] })}>
+          <RefreshCcw className="w-3 h-3 mr-1" />Atualizar
+        </Button>
+      </div>
+
+      {/* Tabela de notas */}
+      <Card className="overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">#</th>
+              <th className="px-3 py-2 text-left">Nº</th>
+              <th className="px-3 py-2 text-left">Data</th>
+              <th className="px-3 py-2 text-left">Paciente</th>
+              <th className="px-3 py-2 text-left">Unidade</th>
+              <th className="px-3 py-2 text-left">Provedor</th>
+              <th className="px-3 py-2 text-right">Valor</th>
+              <th className="px-3 py-2 text-center">Status</th>
+              <th className="px-3 py-2 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr><td colSpan={9} className="text-center py-6 text-muted-foreground">Carregando...</td></tr>
+            ) : recentes.length === 0 ? (
+              <tr><td colSpan={9} className="text-center py-10 text-muted-foreground">Nenhuma nota fiscal ainda.</td></tr>
+            ) : recentes.map((nf: any) => (
+              <tr key={nf.id} className="border-t border-border hover:bg-muted/30" data-testid={`nf-row-${nf.id}`}>
+                <td className="px-3 py-2 font-mono text-xs">{nf.id}</td>
+                <td className="px-3 py-2 font-mono text-xs">{nf.numero_externo ?? "—"}</td>
+                <td className="px-3 py-2 text-xs">{nf.data_emissao}</td>
+                <td className="px-3 py-2">{nf.paciente_nome ?? "—"}</td>
+                <td className="px-3 py-2">
+                  {nf.unidade_nome ? (
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: (nf.unidade_cor ?? "#1F4E5F") + "22", color: nf.unidade_cor ?? "#1F4E5F" }}>{nf.unidade_nome}</span>
+                  ) : "—"}
+                </td>
+                <td className="px-3 py-2 text-xs">{nf.provedor_codigo ?? "—"}</td>
+                <td className="px-3 py-2 text-right font-mono">{fmt(nf.valor)}</td>
+                <td className="px-3 py-2 text-center">
+                  <Badge className={`text-[10px] border ${STATUS_COR[nf.status] ?? ""}`}>{nf.status}</Badge>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-1 justify-center">
+                    <Button size="icon" variant="ghost" title="Ver eventos" onClick={() => setNfSelecionada(nf.id)} data-testid={`btn-ver-${nf.id}`}>
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
+                    {nf.pdf_url && (
+                      <a href={nf.pdf_url} target="_blank" rel="noreferrer" className="text-xs text-[#1F4E5F] hover:underline">PDF</a>
+                    )}
+                    {nf.status === "EMITIDA" && (
+                      <Button size="icon" variant="ghost" title="Cancelar" onClick={() => setNfSelecionada(nf.id)} disabled={!tokenSalvo} data-testid={`btn-cancelar-${nf.id}`}>
+                        <Ban className="w-3.5 h-3.5 text-rose-600" />
+                      </Button>
+                    )}
+                    {nf.status === "RASCUNHO" && (
+                      <>
+                        <Button size="icon" variant="ghost" title="Editar" disabled={!tokenSalvo}>
+                          <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" title="Apagar"
+                          onClick={() => { if (confirm("Apagar este rascunho?")) apagar.mutate(nf.id); }}
+                          disabled={!tokenSalvo}
+                          data-testid={`btn-apagar-${nf.id}`}>
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      {/* Drawer cancelar / eventos */}
+      {nfSelecionada && (
+        <Card className="p-4 border-l-4 border-l-[#B8941F]">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-[#1F4E5F]">NF #{nfSelecionada} — Eventos & Cancelamento</h3>
+            <Button size="sm" variant="ghost" onClick={() => setNfSelecionada(null)}>Fechar</Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Cancelar (motivo obrigatório)</h4>
+              <Textarea
+                placeholder="Ex: Pagamento estornado pelo banco em 20/04/2026..."
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                rows={4}
+                data-testid="textarea-motivo"
+              />
+              <Button
+                className="mt-2 w-full bg-rose-600 hover:bg-rose-700"
+                disabled={motivo.length < 10 || !tokenSalvo || cancelar.isPending}
+                onClick={() => cancelar.mutate(nfSelecionada)}
+                data-testid="btn-confirmar-cancelar"
+              >
+                <Ban className="w-4 h-4 mr-1" />
+                {cancelar.isPending ? "Cancelando..." : "Cancelar nota no provedor"}
+              </Button>
+              {cancelar.error && (
+                <div className="mt-2 text-xs text-rose-700 bg-rose-50 p-2 rounded flex items-start gap-1">
+                  <AlertTriangle className="w-3 h-3 mt-0.5" />{(cancelar.error as Error).message}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Timeline da nota</h4>
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {(eventos ?? []).length === 0 ? (
+                  <div className="text-xs text-muted-foreground">Sem eventos.</div>
+                ) : (eventos ?? []).map((ev: any) => (
+                  <div key={ev.id} className="text-xs border-l-2 border-[#1F4E5F]/30 pl-2 py-1">
+                    <div className="font-semibold text-[#1F4E5F]">{ev.tipo_evento}</div>
+                    <div className="text-muted-foreground">{ev.descricao}</div>
+                    <div className="text-[10px] text-muted-foreground">{fmtDate(ev.ocorrido_em)} · {ev.responsavel}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
       )}
     </div>
   );
 }
+```
 
-type Item = { name: string; path: string; icon: any; slug: string };
-type Grupo = { id: string; nome: string; icon: any; cor?: string; items: Item[] };
+### artifacts/clinica-motor/src/pages/gateways-pagamento.tsx
+```tsx
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { CreditCard, Plus, Shield, KeyRound, CheckCircle2 } from "lucide-react";
 
-export function Layout({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
-  const [location] = useLocation();
-  const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis } = useClinic();
-  const { total: falhasLembrete } = useLembretesFalhasContagem(unidadeSelecionada);
-
-  // Default Pádua APENAS na primeira sessão (não anula escolha "Todas as Clínicas")
-  useEffect(() => {
-    const jaInicializou = localStorage.getItem("padua_default_aplicado");
-    if (!jaInicializou && unidadeSelecionada === null && unidadesDisponiveis.length > 0) {
-      const padua = unidadesDisponiveis.find((u) => u.unidadeId === 15);
-      if (padua) {
-        setUnidadeSelecionada(15);
-        localStorage.setItem("padua_default_aplicado", "1");
-      }
-    }
-  }, [unidadesDisponiveis, unidadeSelecionada, setUnidadeSelecionada]);
-
-  // Estado de colapso por grupo (lembrar via localStorage) — DEVE vir antes do early return
-  const [colapsados, setColapsados] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("layout_grupos_colapsados") || "{}");
-    } catch { return {}; }
+export default function GatewaysPagamentoPage() {
+  const qc = useQueryClient();
+  const [adminToken, setAdminToken] = useState<string>(localStorage.getItem("padcon_admin_token") ?? "");
+  const [form, setForm] = useState({
+    unidadeId: "" as any,
+    provedorCodigo: "mercadopago" as "asaas" | "stripe" | "mercadopago" | "infinitpay" | "vindi",
+    ambiente: "sandbox" as "sandbox" | "producao",
+    apiKey: "",
+    webhookSecret: "",
   });
-  const toggleGrupo = (id: string) => {
-    setColapsados((prev) => {
-      const next = { ...prev, [id]: !prev[id] };
-      localStorage.setItem("layout_grupos_colapsados", JSON.stringify(next));
-      return next;
-    });
-  };
 
-  if (!user) return <>{children}</>;
+  const { data: provedores } = useQuery<any[]>({
+    queryKey: ["provedores-pagamento"],
+    queryFn: () => fetch("/api/provedores-pagamento").then((r) => r.json()),
+  });
 
-  const VISIBILIDADE_POR_ESCOPO: Record<string, string[]> = {
-    consultoria_master: [
-      "dashboard", "dashboard-local", "monetizar", "demandas-resolucao",
-      "painel-comando", "governanca", "justificativas", "matriz-analitica",
-      "agenda-motor", "anamnese", "validacao",
-      "filas", "pacientes", "itens-terapeuticos", "protocolos", "followup",
-      "financeiro", "unidades", "fluxos", "pedidos-exame", "substancias",
-      "agenda", "ras", "codigos-validacao", "estoque", "avaliacao-enfermagem",
-      "task-cards", "ras-evolutivo", "catalogo", "permissoes", "seguranca",
-      "configuracoes", "delegacao", "colaboradores", "agentes-virtuais", "acompanhamento", "comissao", "comercial",
-      "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens",
-      "exames", "inundacao", "blueprint", "agendas", "governanca-matrix",
-    ],
-    consultor_campo: [
-      "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
-      "task-cards", "filas", "avaliacao-enfermagem", "estoque", "acompanhamento", "comissao",
-      "justificativas", "lembretes-falhas", "dashboard-local", "demandas-resolucao",
-    ],
-    clinica_medico: ["anamnese","validacao","pacientes","itens-terapeuticos","pedidos-exame","agenda","ras","ras-evolutivo","followup","delegacao","colaboradores","lembretes-falhas","dashboard-local"],
-    clinica_enfermeira: ["anamnese","filas","pacientes","followup","agenda","estoque","avaliacao-enfermagem","task-cards","delegacao","colaboradores","lembretes-falhas","dashboard-local"],
-    clinica_admin: ["anamnese","filas","pacientes","followup","agenda","estoque","avaliacao-enfermagem","task-cards","financeiro","delegacao","colaboradores","lembretes-falhas","dashboard-local"],
-  };
+  const { data: cadastradas } = useQuery<any[]>({
+    queryKey: ["credenciais-gateway"],
+    queryFn: () => fetch("/api/credenciais/gateway").then((r) => r.json()),
+  });
 
-  const grupos: Grupo[] = [
-    {
-      id: "global",
-      nome: "DASHBOARD GLOBAL",
-      icon: Cloud,
-      cor: "#1F4E5F",
-      items: [
-        { name: "Visão Geral", path: "/dashboard", icon: LayoutDashboard, slug: "dashboard" },
-        { name: "Painel de Comando", path: "/painel-comando", icon: Radar, slug: "painel-comando" },
-        { name: "💰 Monetizar PADCON", path: "/monetizar", icon: Heart, slug: "monetizar" },
-        { name: "🛡️ Matrix Governança", path: "/governanca-matrix", icon: Shield, slug: "governanca-matrix" },
-        { name: "Governança Geral", path: "/governanca", icon: Shield, slug: "governanca" },
-        { name: "SLA Justificativas", path: "/justificativas", icon: Scale, slug: "justificativas" },
-        { name: "Matriz Analítica", path: "/matriz-analitica", icon: Grid3X3, slug: "matriz-analitica" },
-        { name: "🏛️ Blueprint Arquitetura", path: "/blueprint", icon: Building, slug: "blueprint" },
-        { name: "💧 Inundação Genesis", path: "/inundacao", icon: Database, slug: "inundacao" },
-      ],
-    },
-    {
-      id: "local",
-      nome: "DASHBOARD LOCAL",
-      icon: Mountain,
-      cor: "#A78B5F",
-      items: [
-        { name: "⛰️ Visão da Clínica", path: "/dashboard-local", icon: Mountain, slug: "dashboard-local" },
-        { name: "🏷️ Demandas Resolução", path: "/demandas-resolucao", icon: MessageCircle, slug: "demandas-resolucao" },
-        { name: "Lembretes & Falhas", path: "/lembretes-falhas", icon: BellRing, slug: "lembretes-falhas" },
-        { name: "Mensagens", path: "/mensagens", icon: MessageSquareText, slug: "mensagens" },
-        { name: "Acompanhamento", path: "/acompanhamento", icon: Diamond, slug: "acompanhamento" },
-      ],
-    },
-    {
-      id: "agendas",
-      nome: "AGENDAS & MOTOR",
-      icon: CalendarDays,
-      cor: "#5C7C8A",
-      items: [
-        { name: "🏔️ Matriz de Agenda", path: "/agendas", icon: CalendarDays, slug: "agendas" },
-        { name: "Motor de Agenda", path: "/agenda-motor", icon: CalendarDays, slug: "agenda-motor" },
-        { name: "Agenda Semanal", path: "/agenda", icon: CalendarDays, slug: "agenda" },
-        { name: "Follow-up", path: "/followup", icon: CalendarClock, slug: "followup" },
-      ],
-    },
-    {
-      id: "pacientes",
-      nome: "CLÍNICA & PACIENTES",
-      icon: Users,
-      cor: "#7B6450",
-      items: [
-        { name: "Anamnese", path: "/anamnese", icon: ClipboardList, slug: "anamnese" },
-        { name: "Validação", path: "/validacao", icon: CheckSquare, slug: "validacao" },
-        { name: "Filas", path: "/filas", icon: ListOrdered, slug: "filas" },
-        { name: "Pacientes", path: "/pacientes", icon: Users, slug: "pacientes" },
-        { name: "Pedidos de Exame", path: "/pedidos-exame", icon: FileText, slug: "pedidos-exame" },
-        { name: "RAS", path: "/ras", icon: FileCheck, slug: "ras" },
-        { name: "RAS Evolutivo", path: "/ras-evolutivo", icon: BarChart3, slug: "ras-evolutivo" },
-        { name: "Aval. Enfermagem", path: "/avaliacao-enfermagem", icon: ClipboardCheck, slug: "avaliacao-enfermagem" },
-        { name: "Task Cards", path: "/task-cards", icon: AlertTriangle, slug: "task-cards" },
-        { name: "Dietas", path: "/dietas", icon: Apple, slug: "dietas" },
-        { name: "Psicologia", path: "/psicologia", icon: Brain, slug: "psicologia" },
-      ],
-    },
-    {
-      id: "catalogos",
-      nome: "CATÁLOGOS GLOBAIS",
-      icon: Database,
-      cor: "#B8941F",
-      items: [
-        { name: "Catalogo Pawards", path: "/catalogo", icon: Database, slug: "catalogo" },
-        { name: "Itens Terapêuticos", path: "/itens-terapeuticos", icon: Pill, slug: "itens-terapeuticos" },
-        { name: "Protocolos", path: "/protocolos", icon: BookOpen, slug: "protocolos" },
-        { name: "Substâncias", path: "/substancias", icon: FlaskConical, slug: "substancias" },
-        { name: "Exames (Catálogo)", path: "/exames", icon: FlaskConical, slug: "exames" },
-        { name: "Estoque", path: "/estoque", icon: Package, slug: "estoque" },
-        { name: "Códigos Validação", path: "/codigos-validacao", icon: KeyRound, slug: "codigos-validacao" },
-        { name: "Questionário Master", path: "/questionario-master", icon: ClipboardListIcon, slug: "questionario-master" },
-      ],
-    },
-    {
-      id: "estrutura",
-      nome: "ESTRUTURA & RH",
-      icon: Building,
-      cor: "#1F4E5F",
-      items: [
-        { name: "Unidades", path: "/unidades", icon: Building2, slug: "unidades" },
-        { name: "Consultorias", path: "/consultorias", icon: Building, slug: "consultorias" },
-        { name: "Contratos", path: "/contratos", icon: FileSignature, slug: "contratos" },
-        { name: "Colaboradores & RH", path: "/colaboradores", icon: UserCheck, slug: "colaboradores" },
-        { name: "Delegação", path: "/delegacao", icon: Send, slug: "delegacao" },
-        { name: "Agentes Virtuais", path: "/agentes-virtuais", icon: Bot, slug: "agentes-virtuais" },
-        { name: "Comissão & Metas", path: "/comissao", icon: DollarSign, slug: "comissao" },
-        { name: "Comercial", path: "/comercial", icon: TrendingUp, slug: "comercial" },
-        { name: "Financeiro", path: "/financeiro", icon: CreditCard, slug: "financeiro" },
-        { name: "Fluxos Aprovação", path: "/fluxos", icon: GitBranch, slug: "fluxos" },
-        { name: "Permissões", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
-        { name: "Segurança", path: "/seguranca", icon: Lock, slug: "seguranca" },
-        { name: "Configurações", path: "/configuracoes", icon: Settings, slug: "configuracoes" },
-      ],
-    },
-  ];
+  const { data: unidades } = useQuery<any[]>({
+    queryKey: ["unidades-cadastradas"],
+    queryFn: () => fetch("/api/unidades").then((r) => r.json()),
+  });
 
-  const escopo = (user as any).escopo || "consultoria_master";
-  const modulosPermitidos = VISIBILIDADE_POR_ESCOPO[escopo] || VISIBILIDADE_POR_ESCOPO.consultoria_master;
-  const escopoLabel = escopo === "consultoria_master" ? "Master" : escopo === "consultor_campo" ? "Consultor" : escopo.replace("clinica_", "").replace("_", " ");
+  const cadastrar = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/credenciais/gateway", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+        body: JSON.stringify({
+          unidadeId: parseInt(form.unidadeId, 10),
+          provedorCodigo: form.provedorCodigo,
+          ambiente: form.ambiente,
+          apiKey: form.apiKey,
+          webhookSecret: form.webhookSecret || undefined,
+        }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Falha");
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["credenciais-gateway"] });
+      setForm((f) => ({ ...f, apiKey: "", webhookSecret: "" }));
+    },
+  });
+
+  const desativar = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/credenciais/gateway/${id}`, { method: "DELETE", headers: { "x-admin-token": adminToken } });
+      if (!r.ok) throw new Error("Falha");
+      return r.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["credenciais-gateway"] }),
+  });
 
   return (
-    <div className="min-h-screen flex bg-background">
-      <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
-        <div className="h-16 flex items-center px-5 border-b border-border">
-          <div className="w-9 h-9 flex items-center justify-center bg-white/90 border border-border mr-3 p-1">
-            <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain invert-0" />
+    <div className="space-y-4">
+      <header className="flex items-center gap-3 pb-3 border-b border-border">
+        <CreditCard className="w-7 h-7 text-[#1F4E5F]" />
+        <div>
+          <h1 className="text-2xl font-bold uppercase tracking-tight text-[#1F4E5F]">💳 Gateways de Pagamento</h1>
+          <p className="text-xs text-muted-foreground">5 braços disponíveis. Cadastre as credenciais sandbox/produção por clínica.</p>
+        </div>
+      </header>
+
+      {/* Master Token */}
+      <Card className="p-4 border-l-4 border-l-[#B8941F]">
+        <div className="flex items-center gap-3">
+          <Shield className="w-5 h-5 text-[#B8941F]" />
+          <div className="flex-1 text-sm">Código master pra cadastrar credenciais</div>
+          <Input
+            type="password"
+            placeholder="Master token..."
+            value={adminToken}
+            onChange={(e) => setAdminToken(e.target.value)}
+            className="max-w-xs"
+            data-testid="input-admin-token"
+          />
+          <Button size="sm" className="bg-[#B8941F] hover:bg-[#9a7a18]"
+            onClick={() => localStorage.setItem("padcon_admin_token", adminToken)}>Salvar</Button>
+        </div>
+      </Card>
+
+      {/* Catálogo de provedores */}
+      <div className="grid grid-cols-5 gap-3">
+        {(provedores ?? []).map((p) => (
+          <Card key={p.codigo} className="p-3 text-center border-l-4 border-l-[#1F4E5F]">
+            <div className="font-bold text-[#1F4E5F] text-sm">{p.nome_exibicao}</div>
+            <div className="text-[10px] text-muted-foreground mt-1 line-clamp-3">{p.funcao}</div>
+            <div className="mt-2 flex flex-wrap gap-1 justify-center">
+              {(p.metodos_suportados ?? []).slice(0, 3).map((m: string) => (
+                <Badge key={m} variant="outline" className="text-[9px]">{m}</Badge>
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Cadastrar credencial */}
+      <Card className="p-4 border-l-4 border-l-[#B8941F]">
+        <h3 className="font-bold text-[#1F4E5F] mb-3 flex items-center gap-2">
+          <Plus className="w-4 h-4" />Cadastrar / atualizar credencial
+        </h3>
+        <div className="grid grid-cols-5 gap-2">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Unidade</label>
+            <select
+              className="w-full border border-border rounded px-2 py-1.5 text-sm bg-background"
+              value={form.unidadeId}
+              onChange={(e) => setForm({ ...form, unidadeId: e.target.value })}
+              data-testid="select-unidade"
+            >
+              <option value="">Selecione...</option>
+              {(unidades ?? []).filter((u) => u.id > 7).map((u) => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+            </select>
           </div>
           <div>
-            <span className="font-bold text-sm text-sidebar-foreground tracking-tight uppercase">Pawards</span>
-            <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">Developed by Pawards MedCore</span>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Provedor</label>
+            <select
+              className="w-full border border-border rounded px-2 py-1.5 text-sm bg-background"
+              value={form.provedorCodigo}
+              onChange={(e) => setForm({ ...form, provedorCodigo: e.target.value as any })}
+              data-testid="select-provedor"
+            >
+              <option value="mercadopago">Mercado Pago</option>
+              <option value="asaas">Asaas</option>
+              <option value="stripe">Stripe</option>
+              <option value="infinitpay">InfinitePay</option>
+              <option value="vindi">Vindi</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Ambiente</label>
+            <select
+              className="w-full border border-border rounded px-2 py-1.5 text-sm bg-background"
+              value={form.ambiente}
+              onChange={(e) => setForm({ ...form, ambiente: e.target.value as any })}
+              data-testid="select-ambiente"
+            >
+              <option value="sandbox">Sandbox</option>
+              <option value="producao">Produção</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">API Key</label>
+            <Input type="password" placeholder="API Key" value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} data-testid="input-api-key" />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Webhook Secret (opc)</label>
+            <Input type="password" placeholder="Webhook secret" value={form.webhookSecret} onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })} data-testid="input-webhook-secret" />
           </div>
         </div>
-        <div className="px-5 py-3 border-b border-border">
-          <div className="text-sm font-semibold text-sidebar-foreground truncate">{user.nome}</div>
-          <div className="text-[11px] text-muted-foreground capitalize tracking-wide">{user.perfil.replace("_", " ")}</div>
-          <div className="text-[9px] text-primary/70 uppercase tracking-widest mt-0.5">{escopoLabel}</div>
-        </div>
-        <ClinicSwitcher />
-        <nav className="flex-1 overflow-y-auto py-2 px-1">
-          {grupos.map((g) => {
-            const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
-            if (items.length === 0) return null;
-            const colapsado = !!colapsados[g.id];
-            const GIcon = g.icon;
-            return (
-              <div key={g.id} className="mb-1.5">
-                <button
-                  onClick={() => toggleGrupo(g.id)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground transition-colors"
-                  data-testid={`grupo-toggle-${g.id}`}
-                >
-                  <GIcon className="w-3 h-3" style={{ color: g.cor }} />
-                  <span className="flex-1 text-left">{g.nome}</span>
-                  <ChevronRight className={`w-3 h-3 transition-transform ${colapsado ? "" : "rotate-90"}`} />
-                </button>
-                {!colapsado && (
-                  <div className="space-y-0.5">
-                    {items.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = location === item.path || location.startsWith(item.path + "/");
-                      return (
-                        <Link
-                          key={item.path}
-                          href={item.path}
-                          className={`flex items-center px-3 py-1.5 text-[12px] transition-colors border-l-2 ${
-                            isActive
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-l-primary"
-                              : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground border-l-transparent"
-                          }`}
-                          data-testid={`menu-${item.slug}`}
-                        >
-                          <Icon className="mr-2.5 h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="flex-1 truncate">{item.name}</span>
-                          {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
-                            <span data-testid="badge-lembretes-falhas"
-                              className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-600 text-white text-[10px] font-semibold leading-none">
-                              {falhasLembrete > 99 ? "99+" : falhasLembrete}
-                            </span>
-                          ) : null}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-        <div className="px-4 py-3 border-t border-border">
-          <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs" onClick={logout}>
-            <LogOut className="mr-3 h-4 w-4" />
-            Sair
-          </Button>
-        </div>
-      </aside>
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
-        </div>
-      </main>
+        <Button
+          className="mt-3 bg-[#1F4E5F] hover:bg-[#163e4d]"
+          disabled={!form.unidadeId || form.apiKey.length < 8 || cadastrar.isPending}
+          onClick={() => cadastrar.mutate()}
+          data-testid="btn-cadastrar"
+        >
+          <KeyRound className="w-4 h-4 mr-1" />{cadastrar.isPending ? "Salvando..." : "Salvar credencial"}
+        </Button>
+        {cadastrar.error && <div className="mt-2 text-xs text-rose-700">{(cadastrar.error as Error).message}</div>}
+        {cadastrar.isSuccess && <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Credencial cadastrada/atualizada.</div>}
+      </Card>
+
+      {/* Credenciais cadastradas */}
+      <Card className="overflow-hidden">
+        <div className="px-4 py-2 bg-muted/50 text-xs uppercase tracking-widest font-bold text-muted-foreground">Credenciais cadastradas</div>
+        <table className="w-full text-sm">
+          <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Unidade</th>
+              <th className="px-3 py-2 text-left">Provedor</th>
+              <th className="px-3 py-2 text-center">Ambiente</th>
+              <th className="px-3 py-2 text-left">API Key</th>
+              <th className="px-3 py-2 text-center">Status</th>
+              <th className="px-3 py-2 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(cadastradas ?? []).length === 0 ? (
+              <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">Nenhuma credencial ainda.</td></tr>
+            ) : (cadastradas ?? []).map((c: any) => (
+              <tr key={c.id} className="border-t border-border" data-testid={`cred-row-${c.id}`}>
+                <td className="px-3 py-2">
+                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: (c.unidade_cor ?? "#1F4E5F") + "22", color: c.unidade_cor ?? "#1F4E5F" }}>{c.unidade_nome}</span>
+                </td>
+                <td className="px-3 py-2">{c.provedor_nome}</td>
+                <td className="px-3 py-2 text-center text-xs">{c.ambiente}</td>
+                <td className="px-3 py-2 font-mono text-xs">{c.apiKeyMasked}</td>
+                <td className="px-3 py-2 text-center">
+                  {c.ativo ? <Badge className="bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">Ativa</Badge> : <Badge variant="outline">Desativada</Badge>}
+                </td>
+                <td className="px-3 py-2 text-center">
+                  {c.ativo && (
+                    <Button size="sm" variant="ghost" className="text-rose-600" onClick={() => { if (confirm("Desativar credencial?")) desativar.mutate(c.id); }} data-testid={`btn-desativar-${c.id}`}>
+                      Desativar
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
     </div>
   );
 }
 ```
 
-### `artifacts/clinica-motor/src/contexts/AuthContext.tsx`
+### artifacts/clinica-motor/src/pages/credenciais-nfe.tsx
 ```tsx
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { useObterPerfilAtual, useLoginUsuario, Usuario, LoginBody } from "@workspace/api-client-react";
-import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Receipt, Shield, KeyRound, Image as ImageIcon, CheckCircle2 } from "lucide-react";
 
-interface AuthContextType {
-  user: Usuario | null;
-  isLoading: boolean;
-  login: (data: LoginBody) => void;
-  logout: () => void;
-}
+export default function CredenciaisNfePage() {
+  const qc = useQueryClient();
+  const [adminToken, setAdminToken] = useState<string>(localStorage.getItem("padcon_admin_token") ?? "");
+  const [form, setForm] = useState({
+    unidadeId: "" as any,
+    provedorCodigo: "focus_nfe" as "focus_nfe" | "enotas",
+    ambiente: "homologacao" as "homologacao" | "producao",
+    apiKey: "",
+    cnpjEmissor: "",
+    inscricaoMunicipal: "",
+    certificadoA1Url: "",
+    certificadoSenha: "",
+    metadataExtra: "",
+  });
+  const [logoForm, setLogoForm] = useState({ unidadeId: "" as any, logotipoUrl: "" });
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const { data: perfilAtual, isLoading: isLoadingPerfil, error } = useObterPerfilAtual({
-    query: {
-      retry: false,
-    }
+  const { data: provedoresNfe } = useQuery<any[]>({
+    queryKey: ["provedores-nfe"],
+    queryFn: () => fetch("/api/provedores-nfe").then((r) => r.json()),
+  });
+  const { data: cadastradas } = useQuery<any[]>({
+    queryKey: ["credenciais-nfe"],
+    queryFn: () => fetch("/api/credenciais/nfe").then((r) => r.json()),
+  });
+  const { data: unidades } = useQuery<any[]>({
+    queryKey: ["unidades-cadastradas"],
+    queryFn: () => fetch("/api/unidades").then((r) => r.json()),
+  });
+  const { data: logos } = useQuery<any[]>({
+    queryKey: ["logos-clinicas"],
+    queryFn: () => fetch("/api/credenciais/logo").then((r) => r.json()),
   });
 
-  const [user, setUser] = useState<Usuario | null>(null);
-  const { toast } = useToast();
-
-  const loginMutation = useLoginUsuario();
-
-  useEffect(() => {
-    if (perfilAtual) {
-      setUser(perfilAtual);
-    }
-  }, [perfilAtual]);
-
-  const login = (data: LoginBody) => {
-    loginMutation.mutate({ data }, {
-      onSuccess: (res) => {
-        setUser(res.usuario);
-        toast({ title: "Login realizado com sucesso." });
-      },
-      onError: () => {
-        toast({ title: "Erro no login", variant: "destructive" });
+  const cadastrarNfe = useMutation({
+    mutationFn: async () => {
+      let metadata: any = undefined;
+      if (form.metadataExtra.trim()) {
+        try { metadata = JSON.parse(form.metadataExtra); } catch { throw new Error("Metadata extra precisa ser JSON válido"); }
       }
-    });
-  };
+      const r = await fetch("/api/credenciais/nfe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+        body: JSON.stringify({
+          unidadeId: parseInt(form.unidadeId, 10),
+          provedorCodigo: form.provedorCodigo,
+          ambiente: form.ambiente,
+          apiKey: form.apiKey,
+          cnpjEmissor: form.cnpjEmissor || undefined,
+          inscricaoMunicipal: form.inscricaoMunicipal || undefined,
+          certificadoA1Url: form.certificadoA1Url || undefined,
+          certificadoSenha: form.certificadoSenha || undefined,
+          metadata,
+        }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Falha");
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["credenciais-nfe"] });
+      setForm((f) => ({ ...f, apiKey: "", certificadoSenha: "" }));
+    },
+  });
 
-  const logout = () => {
-    setUser(null);
-  };
+  const salvarLogo = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/credenciais/logo", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+        body: JSON.stringify({ unidadeId: parseInt(logoForm.unidadeId, 10), logotipoUrl: logoForm.logotipoUrl }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Falha");
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["logos-clinicas"] });
+      setLogoForm({ unidadeId: "", logotipoUrl: "" });
+    },
+  });
 
   return (
-    <AuthContext.Provider value={{ user, isLoading: isLoadingPerfil, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+    <div className="space-y-4">
+      <header className="flex items-center gap-3 pb-3 border-b border-border">
+        <Receipt className="w-7 h-7 text-[#1F4E5F]" />
+        <div>
+          <h1 className="text-2xl font-bold uppercase tracking-tight text-[#1F4E5F]">📜 Credenciais NFe & Logos</h1>
+          <p className="text-xs text-muted-foreground">Cadastre Focus NFe / eNotas e o logotipo de cada clínica (puxado pra notas, RAS e receitas)</p>
+        </div>
+      </header>
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+      {/* Master Token */}
+      <Card className="p-4 border-l-4 border-l-[#B8941F]">
+        <div className="flex items-center gap-3">
+          <Shield className="w-5 h-5 text-[#B8941F]" />
+          <div className="flex-1 text-sm">Código master pra cadastrar credenciais e logos</div>
+          <Input type="password" placeholder="Master token..." value={adminToken} onChange={(e) => setAdminToken(e.target.value)} className="max-w-xs" data-testid="input-admin-token" />
+          <Button size="sm" className="bg-[#B8941F] hover:bg-[#9a7a18]" onClick={() => localStorage.setItem("padcon_admin_token", adminToken)}>Salvar</Button>
+        </div>
+      </Card>
+
+      {/* Catálogo */}
+      <div className="grid grid-cols-2 gap-3">
+        {(provedoresNfe ?? []).map((p) => (
+          <Card key={p.codigo} className="p-4 border-l-4 border-l-[#1F4E5F]">
+            <div className="flex items-center justify-between mb-1">
+              <div className="font-bold text-[#1F4E5F]">{p.nome_exibicao}</div>
+              {p.recomendado && <Badge className="bg-[#B8941F]/15 text-[#B8941F] border border-[#B8941F]/30">Recomendado</Badge>}
+            </div>
+            <div className="text-xs text-muted-foreground mb-2">{p.descricao}</div>
+            <div className="text-[10px] text-muted-foreground">💸 {p.preco_aproximado_por_nota} • 🌎 {p.cobertura_municipios}</div>
+            <a href={p.url_documentacao} target="_blank" rel="noreferrer" className="text-[10px] text-[#1F4E5F] hover:underline">📖 Documentação →</a>
+          </Card>
+        ))}
+      </div>
+
+      {/* Cadastrar credencial NFe */}
+      <Card className="p-4 border-l-4 border-l-[#B8941F]">
+        <h3 className="font-bold text-[#1F4E5F] mb-3 flex items-center gap-2"><KeyRound className="w-4 h-4" />Cadastrar credencial NFe</h3>
+        <div className="grid grid-cols-3 gap-2">
+          <select className="border border-border rounded px-2 py-1.5 text-sm bg-background" value={form.unidadeId} onChange={(e) => setForm({ ...form, unidadeId: e.target.value })} data-testid="select-unidade">
+            <option value="">Unidade...</option>
+            {(unidades ?? []).filter((u) => u.id > 7).map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+          </select>
+          <select className="border border-border rounded px-2 py-1.5 text-sm bg-background" value={form.provedorCodigo} onChange={(e) => setForm({ ...form, provedorCodigo: e.target.value as any })} data-testid="select-provedor">
+            <option value="focus_nfe">Focus NFe</option>
+            <option value="enotas">eNotas</option>
+          </select>
+          <select className="border border-border rounded px-2 py-1.5 text-sm bg-background" value={form.ambiente} onChange={(e) => setForm({ ...form, ambiente: e.target.value as any })}>
+            <option value="homologacao">Homologação</option>
+            <option value="producao">Produção</option>
+          </select>
+          <Input type="password" placeholder="API Key" value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} data-testid="input-api-key" />
+          <Input placeholder="CNPJ emissor" value={form.cnpjEmissor} onChange={(e) => setForm({ ...form, cnpjEmissor: e.target.value })} />
+          <Input placeholder="Inscrição municipal" value={form.inscricaoMunicipal} onChange={(e) => setForm({ ...form, inscricaoMunicipal: e.target.value })} />
+          <Input placeholder="URL do certificado A1 (opc)" value={form.certificadoA1Url} onChange={(e) => setForm({ ...form, certificadoA1Url: e.target.value })} />
+          <Input type="password" placeholder="Senha do certificado (opc)" value={form.certificadoSenha} onChange={(e) => setForm({ ...form, certificadoSenha: e.target.value })} />
+          <Input placeholder='Metadata extra JSON (ex: {"empresaId":"abc"})' value={form.metadataExtra} onChange={(e) => setForm({ ...form, metadataExtra: e.target.value })} />
+        </div>
+        <Button className="mt-3 bg-[#1F4E5F] hover:bg-[#163e4d]" disabled={!form.unidadeId || form.apiKey.length < 8 || cadastrarNfe.isPending} onClick={() => cadastrarNfe.mutate()} data-testid="btn-cadastrar-nfe">
+          {cadastrarNfe.isPending ? "Salvando..." : "Salvar credencial NFe"}
+        </Button>
+        {cadastrarNfe.error && <div className="mt-2 text-xs text-rose-700">{(cadastrarNfe.error as Error).message}</div>}
+        {cadastrarNfe.isSuccess && <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Credencial cadastrada.</div>}
+      </Card>
+
+      {/* Tabela credenciais NFe */}
+      <Card className="overflow-hidden">
+        <div className="px-4 py-2 bg-muted/50 text-xs uppercase tracking-widest font-bold text-muted-foreground">Credenciais NFe cadastradas</div>
+        <table className="w-full text-sm">
+          <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Unidade</th>
+              <th className="px-3 py-2 text-left">Provedor</th>
+              <th className="px-3 py-2 text-center">Ambiente</th>
+              <th className="px-3 py-2 text-left">CNPJ</th>
+              <th className="px-3 py-2 text-left">API Key</th>
+              <th className="px-3 py-2 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(cadastradas ?? []).length === 0 ? (
+              <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">Nenhuma credencial ainda.</td></tr>
+            ) : (cadastradas ?? []).map((c: any) => (
+              <tr key={c.id} className="border-t border-border" data-testid={`cred-nfe-${c.id}`}>
+                <td className="px-3 py-2">
+                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: (c.unidade_cor ?? "#1F4E5F") + "22", color: c.unidade_cor ?? "#1F4E5F" }}>{c.unidade_nome}</span>
+                </td>
+                <td className="px-3 py-2">{c.provedor_nome}</td>
+                <td className="px-3 py-2 text-center text-xs">{c.ambiente}</td>
+                <td className="px-3 py-2 text-xs font-mono">{c.cnpj_emissor ?? "—"}</td>
+                <td className="px-3 py-2 text-xs font-mono">{c.apiKeyMasked}</td>
+                <td className="px-3 py-2 text-center">
+                  {c.ativo ? <Badge className="bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">Ativa</Badge> : <Badge variant="outline">Desativada</Badge>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      {/* Logotipos */}
+      <Card className="p-4 border-l-4 border-l-[#A78B5F]">
+        <h3 className="font-bold text-[#1F4E5F] mb-3 flex items-center gap-2"><ImageIcon className="w-4 h-4" />Logotipo da clínica</h3>
+        <p className="text-xs text-muted-foreground mb-3">O logo é puxado automaticamente pras receitas (RAS), notas fiscais e documentos. Cole a URL pública (Drive, S3, CDN).</p>
+        <div className="grid grid-cols-3 gap-2">
+          <select className="border border-border rounded px-2 py-1.5 text-sm bg-background" value={logoForm.unidadeId} onChange={(e) => setLogoForm({ ...logoForm, unidadeId: e.target.value })} data-testid="select-unidade-logo">
+            <option value="">Unidade...</option>
+            {(unidades ?? []).filter((u) => u.id > 7).map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+          </select>
+          <Input className="col-span-2" placeholder="https://..." value={logoForm.logotipoUrl} onChange={(e) => setLogoForm({ ...logoForm, logotipoUrl: e.target.value })} data-testid="input-logo-url" />
+        </div>
+        <Button className="mt-3 bg-[#A78B5F] hover:bg-[#8a724b]" disabled={!logoForm.unidadeId || !logoForm.logotipoUrl || salvarLogo.isPending} onClick={() => salvarLogo.mutate()} data-testid="btn-salvar-logo">
+          {salvarLogo.isPending ? "Salvando..." : "Salvar logotipo"}
+        </Button>
+        {salvarLogo.error && <div className="mt-2 text-xs text-rose-700">{(salvarLogo.error as Error).message}</div>}
+
+        <div className="grid grid-cols-5 gap-3 mt-4">
+          {(logos ?? []).map((u: any) => (
+            <Card key={u.id} className="p-2 text-center">
+              <div className="text-[10px] font-semibold text-[#1F4E5F] truncate">{u.nome}</div>
+              {u.logotipo_url ? (
+                <img src={u.logotipo_url} alt={u.nome} className="w-full h-16 object-contain mt-1 bg-white rounded border" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+              ) : (
+                <div className="w-full h-16 mt-1 bg-muted rounded flex items-center justify-center text-[10px] text-muted-foreground">Sem logo</div>
+              )}
+            </Card>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
 }
 ```
 
-### `artifacts/clinica-motor/src/contexts/ClinicContext.tsx`
-```tsx
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useAuth } from "./AuthContext";
-
-interface UnidadeVinculada {
-  unidadeId: number;
-  unidadeNome: string;
-  unidadeCor: string;
-}
-
-type ModoVisao = "arquiteto_mestre" | "dono_clinica" | "consultor" | "operacional";
-
-interface ClinicContextType {
-  unidadeSelecionada: number | null;
-  setUnidadeSelecionada: (id: number | null) => void;
-  unidadesDisponiveis: UnidadeVinculada[];
-  nomeUnidadeSelecionada: string;
-  corUnidadeSelecionada: string | null;
-  isTodasClinicas: boolean;
-  escopo: string;
-  modoVisao: ModoVisao;
-  modoLabel: string;
-}
-
-const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
-
-export function ClinicProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const [unidadeSelecionada, setUnidadeSelecionada] = useState<number | null>(null);
-
-  const escopo = (user as any)?.escopo || "consultoria_master";
-  const unidadesVinculadas: UnidadeVinculada[] = (user as any)?.unidadesVinculadas || [];
-
-  const unidadesDisponiveis: UnidadeVinculada[] = (() => {
-    if (escopo === "consultoria_master") {
-      return unidadesVinculadas;
-    }
-    if (escopo === "consultor_campo") {
-      return unidadesVinculadas;
-    }
-    if ((user as any)?.unidadeId) {
-      return [{
-        unidadeId: (user as any).unidadeId,
-        unidadeNome: (user as any).unidadeNome || "Minha Clínica",
-        unidadeCor: "#6B7280",
-      }];
-    }
-    return [];
-  })();
-
-  useEffect(() => {
-    if (escopo === "consultoria_master") {
-      setUnidadeSelecionada(null);
-    } else if (escopo === "consultor_campo") {
-      setUnidadeSelecionada(null);
-    } else if (unidadesDisponiveis.length === 1) {
-      setUnidadeSelecionada(unidadesDisponiveis[0].unidadeId);
-    }
-  }, [escopo, user]);
-
-  const selecionada = unidadesDisponiveis.find(u => u.unidadeId === unidadeSelecionada);
-  const nomeUnidadeSelecionada = selecionada?.unidadeNome || "Todas as Clínicas";
-  const corUnidadeSelecionada = selecionada?.unidadeCor || null;
-  const isTodasClinicas = unidadeSelecionada === null;
-
-  const modoVisao: ModoVisao = (() => {
-    if (escopo === "consultoria_master" && isTodasClinicas) return "arquiteto_mestre";
-    if (escopo === "consultoria_master" && !isTodasClinicas) return "dono_clinica";
-    if (escopo === "consultor_campo") return "consultor";
-    return "operacional";
-  })();
-
-  const modoLabel = (() => {
-    switch (modoVisao) {
-      case "arquiteto_mestre": return "Visao Global";
-      case "dono_clinica": return "Visao Local";
-      case "consultor": return "Consultor";
-      case "operacional": return "Operacional";
-    }
-  })();
-
-  return (
-    <ClinicContext.Provider value={{
-      unidadeSelecionada,
-      setUnidadeSelecionada,
-      unidadesDisponiveis,
-      nomeUnidadeSelecionada,
-      corUnidadeSelecionada,
-      isTodasClinicas,
-      escopo,
-      modoVisao,
-      modoLabel,
-    }}>
-      {children}
-    </ClinicContext.Provider>
-  );
-}
-
-export function useClinic() {
-  const context = useContext(ClinicContext);
-  if (!context) {
-    throw new Error("useClinic must be used within a ClinicProvider");
-  }
-  return context;
-}
-```
-
-### `artifacts/clinica-motor/src/pages/monetizar.tsx`
+### artifacts/clinica-motor/src/pages/monetizar.tsx
 ```tsx
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -3120,219 +3465,17 @@ function FaturamentoLive() {
 }
 ```
 
-### `artifacts/clinica-motor/src/pages/dashboard-local.tsx`
-```tsx
-import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
-import { useClinic } from "@/contexts/ClinicContext";
-import { AlertTriangle, Activity, Syringe, MessageSquareWarning, CalendarClock, FileText, DollarSign, Mountain } from "lucide-react";
-
-const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-
-export default function DashboardLocalPage() {
-  const { unidadeSelecionada, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas } = useClinic();
-
-  const competencia = new Date().toISOString().slice(0, 7);
-  const { data: faturamento } = useQuery<any>({
-    queryKey: ["faturamento-live-local", competencia, unidadeSelecionada],
-    queryFn: () => fetch(`/api/ledger/faturamento-live?competencia=${competencia}`).then((r) => r.json()),
-    refetchInterval: 15000,
-    enabled: !isTodasClinicas,
-  });
-
-  if (isTodasClinicas) {
-    return (
-      <Card className="p-6 text-center">
-        <Mountain className="w-12 h-12 mx-auto text-[#1F4E5F]/40 mb-3" />
-        <h2 className="text-lg font-bold text-[#1F4E5F]">Selecione uma clínica no canto superior esquerdo</h2>
-        <p className="text-sm text-muted-foreground mt-1">O Dashboard Local mostra o que está acontecendo dentro da unidade escolhida.</p>
-      </Card>
-    );
-  }
-
-  const meuFat = faturamento?.totaisPorUnidade?.find((t: any) => t.unidade_id === unidadeSelecionada);
-  const totalLocal = Number(meuFat?.total_eventos ?? 0) + Number(meuFat?.total_modulos ?? 0);
-
-  const cards = [
-    { titulo: "Pacientes com demanda atrasada", valor: "—", icon: AlertTriangle, cor: "#C0392B" },
-    { titulo: "Em atendimento agora", valor: "—", icon: Activity, cor: "#27AE60" },
-    { titulo: "Atrasos de aplicação semanal", valor: "—", icon: Syringe, cor: "#E67E22" },
-    { titulo: "Reclamações da unidade", valor: "—", icon: MessageSquareWarning, cor: "#8E44AD" },
-    { titulo: "Reagendamentos pendentes", valor: "—", icon: CalendarClock, cor: "#2980B9" },
-    { titulo: "Log de atividades local", valor: "—", icon: FileText, cor: "#5C7C8A" },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-3 pb-3 border-b border-border">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: corUnidadeSelecionada || "#999" }} />
-        <div>
-          <h1 className="text-2xl font-bold uppercase tracking-tight text-[#1F4E5F]">⛰️ {nomeUnidadeSelecionada}</h1>
-          <p className="text-xs text-muted-foreground">Dashboard Local · visão da clínica selecionada</p>
-        </div>
-      </header>
-
-      <Card className="p-4 bg-gradient-to-r from-[#B8941F]/10 to-transparent">
-        <div className="flex items-center gap-3">
-          <DollarSign className="w-8 h-8 text-[#B8941F]" />
-          <div className="flex-1">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Consumo PADCON · {competencia}</div>
-            <div className="text-3xl font-mono font-bold text-[#1F4E5F]">{fmt(totalLocal)}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              Módulos: {fmt(meuFat?.total_modulos)} · Eventos: {fmt(meuFat?.total_eventos)}
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {cards.map((c, i) => {
-          const Icon = c.icon;
-          return (
-            <Card key={i} className="p-4 hover:shadow-md transition-shadow" data-testid={`local-card-${i}`}>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">{c.titulo}</div>
-                  <div className="text-3xl font-mono font-bold mt-1" style={{ color: c.cor }}>{c.valor}</div>
-                </div>
-                <Icon className="w-6 h-6 opacity-60" style={{ color: c.cor }} />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-2 italic">Em breve · ligando ao banco real</p>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+## 6. 📜 Git log (últimos 30)
 ```
-
-### `artifacts/clinica-motor/src/pages/demandas-resolucao.tsx`
-```tsx
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useClinic } from "@/contexts/ClinicContext";
-import { Bot, Brain, User, CheckCircle2, MessageCircle, Phone } from "lucide-react";
-
-const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-
-const RESOLVEDORES = [
-  { tipo: "robo", nome: "🤖 Robô", icon: Bot, cor: "#5C7C8A" },
-  { tipo: "ia", nome: "🧠 IA", icon: Brain, cor: "#7B6450" },
-  { tipo: "humano", nome: "🙋 Humano", icon: User, cor: "#B8941F" },
-];
-
-export default function DemandasResolucaoPage() {
-  const { unidadeSelecionada, isTodasClinicas } = useClinic();
-  const qc = useQueryClient();
-  const [demandaAberta, setDemandaAberta] = useState<number | null>(null);
-
-  const { data: demandas = [] } = useQuery<any[]>({
-    queryKey: ["demandas-resolucao", unidadeSelecionada],
-    queryFn: () =>
-      fetch(`/api/demandas-resolucao${!isTodasClinicas ? `?unidadeId=${unidadeSelecionada}` : ""}`).then((r) => r.json()),
-  });
-
-  const concluir = useMutation({
-    mutationFn: ({ id, resolvidoPor }: any) =>
-      fetch(`/api/demandas-resolucao/${id}/concluir`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resolvidoPor, caminhoResolucao: `concluido-via-${resolvidoPor}` }),
-      }).then((r) => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["demandas-resolucao"] }),
-  });
-
-  const criarSeed = useMutation({
-    mutationFn: () =>
-      fetch(`/api/demandas-resolucao`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          unidadeId: unidadeSelecionada || 15,
-          canalOrigem: "whatsapp",
-          assunto: "Confirmação de retorno - paciente teste",
-        }),
-      }).then((r) => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["demandas-resolucao"] }),
-  });
-
-  return (
-    <div className="space-y-4">
-      <header className="flex items-center justify-between pb-3 border-b border-border">
-        <div>
-          <h1 className="text-2xl font-bold uppercase tracking-tight text-[#1F4E5F]">🏷️ Demandas de Resolução</h1>
-          <p className="text-xs text-muted-foreground">Pingue-pongue até a conclusão · Robô / IA / Humano</p>
-        </div>
-        <Button onClick={() => criarSeed.mutate()} variant="outline" data-testid="btn-criar-demanda-teste">
-          + Demanda de teste
-        </Button>
-      </header>
-
-      <Card className="p-4">
-        {demandas.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nenhuma demanda registrada ainda. Clique em "+ Demanda de teste".</p>
-        ) : (
-          <div className="space-y-2">
-            {demandas.map((d: any) => (
-              <div key={d.id} className="border border-border/50 rounded p-3 hover:bg-muted/30 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="font-mono text-[10px]">#{d.id}</Badge>
-                      <span className="text-xs text-muted-foreground">{d.unidade_nome}</span>
-                      {d.resolvido && (
-                        <Badge className="bg-green-600 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" /> Concluída</Badge>
-                      )}
-                    </div>
-                    <div className="text-sm font-medium mt-1">{d.assunto || "(sem assunto)"}</div>
-                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-1">
-                      <span className="flex items-center gap-1">
-                        {d.canal_origem === "whatsapp" ? <MessageCircle className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
-                        {d.canal_origem}
-                      </span>
-                      <span>🔁 {d.turnos_pingue_pongue} turnos</span>
-                      <span className="font-mono font-semibold text-[#B8941F]">{fmt(d.valor_total_cobrado)}</span>
-                      {d.resolvido_por && <span>Resolvido por: <strong>{d.resolvido_por}</strong></span>}
-                    </div>
-                  </div>
-                  {!d.resolvido && (
-                    <div className="flex gap-1">
-                      {RESOLVEDORES.map((r) => {
-                        const Icon = r.icon;
-                        return (
-                          <Button
-                            key={r.tipo}
-                            size="sm"
-                            variant="outline"
-                            onClick={() => concluir.mutate({ id: d.id, resolvidoPor: r.tipo })}
-                            data-testid={`btn-concluir-${d.id}-${r.tipo}`}
-                            style={{ borderColor: r.cor, color: r.cor }}
-                            className="text-[10px] h-7"
-                          >
-                            <Icon className="w-3 h-3 mr-1" /> {r.nome}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-```
-
-## 9. 📜 Histórico git recente
-```
+84c6d8c feat(WD#1+#5): Painel NFe + 5 gateways + 2 provedores NFe + logo por clinica
+51805cc WD#3,4,6: Zod+idempotencia em /eventos-cobraveis/disparar + requireAdminToken nos sensiveis + worker cobrancaMensal (geracao M1-M7 + inadimplencia automatica)
+ce92304 Add a new image asset to the project
+e878262 Add a new image asset to the project
+6314487 Add industrial meat grinder for processing information
+2836af1 Add industrial meat grinder for processing information
+adfb13a MOEDOR INDUSTRIAL: contexto total PADCON em arquivo único pra Opus
 770dd14 Pacote Opus completo + limpeza Walking Dead (2 ícones zumbis)
+3aadbb7 Add images to the assets folder for clinic resources
 488dc32 Add images to the assets folder for clinic resources
 698fd1e Consolida pacote PADCON monetização para revisão Opus
 a272baa Update images related to user interface elements
@@ -3347,16 +3490,58 @@ a377688 Add dashboard cards displaying key metrics for Padua and Genesis institu
 43cb5b9 Add dashboard cards displaying key metrics for Padua and Genesis institutes
 376ddfb Update visual confirmation for agenda data
 704e2e6 Update visual confirmation for agenda data
+22dd50c Add professional and nursing schedules to the application interface
+880b568 Add professional and nursing schedules to the application interface
+c1c1836 Update component map to include Sahara Noir panel
+fde919c Update component map to include Sahara Noir panel
+df4f150 Update clinic schedules to use generic medical professional names
+9910678 Update clinic schedules to use generic medical professional names
+a6f34dd Update clinic agenda naming conventions to avoid conflicts
 ```
 
-## 10. 🚨 Achados de code review pendentes (próxima rodada)
-Da última revisão arquitetural (severidade ↓):
-
-- **[CRITICAL] Broken access control**: `monetizacaoPadcon.ts` e `drivePawards.ts` expõem operações sensíveis (ativação de módulos, lançamento em ledger, provisionamento Drive) sem validação de perfil. Status quo do projeto inteiro — não há `req.user` no servidor.
-- **[HIGH] `/eventos-cobraveis/disparar` precisa endurecer**: validação Zod, idempotência por `referenciaExterna`, respostas 4xx previsíveis, transação quando encadeado.
-- **[MEDIUM] Inconsistência de padrão DB**: novos endpoints misturam `drizzle query builder` com `db.execute(sql``)`. Falta camada Zod comum.
-- **[MEDIUM] Tratamento de erro**: alguns endpoints retornam 200 null para não-encontrado em vez de 404. Operações multi-step sem transação.
-- **[LOW]**: React hooks no Layout estão respeitados. NaN guard no Drive já corrigido. Default Pádua não anula mais 'Todas as Clínicas'.
+## 7. 🚨 REGRAS DE FERRO
+- **NUNCA db:push** — drift de 32 tabelas / 31 FKs em unidades.id
+- SEMPRE ALTER/CREATE direto via psql
+- NUNCA renomear coluna existente (só ADD)
+- Naming: `perfil` nunca `role`, `auditoria_cascata` nunca `aud_cascata`
+- Multi-tenant: toda nova tabela com dados clínicos precisa unidade_id FK
+- requireAdminToken em todo POST/PUT/DELETE/PATCH sensível
+- Cifragem: SESSION_SECRET + scrypt + AES-256-GCM
 
 ---
-**Fim do moedor.** Bom apetite, Opus. 🦾
+
+## 11. 🎨 ADERÊNCIA AO MANIFESTO PADCON 2.0 (Dr. Claude, 20.04.26)
+
+**Manifesto completo:** `exports/MANIFESTO_PADCON_2_DESIGN_VIDENCIA.md`
+
+### Gap-analysis dos 10 princípios:
+
+| # | Princípio | Status | Gap concreto |
+|---|---|---|---|
+| 1 | 6 cores monocromia + acentos | ✅ | Auditar gradientes residuais |
+| 2 | Tipografia 3 tamanhos / 2 pesos / mono tabular | ⚠️ | Tokens `text-title/subtitle/body` não formalizados |
+| 3 | Densidade contextual | ⚠️ | Dashboards têm ruído visual |
+| 4 | Movimento com propósito (150ms) | ✅ | OK |
+| 5 | Peek-and-Pop universal (drawer + breadcrumb) | ❌ | Não implementado |
+| 6 | Command Palette ⌘K (cmdk) | ❌ | Não instalado |
+| 7 | shadcn + Tremor + Visx | ⚠️ | shadcn ✅, Tremor ❌, Visx ❌ |
+| 8 | 3 Dashboards por perfil (Global/Clínico/Operacional) | ⚠️ | Existe 1 misto |
+| 9 | Tabelas: sticky + sort + pills + cursor pagination | ⚠️ | Sort ✅, pills/cursor ❌ |
+| 10 | Skeletons em vez de spinners | ❌ | Spinners em todo lugar |
+
+### Roadmap dos 10 passos (Dr. Claude):
+
+- ✅ **Passos 1+2** (gateways + NFe) — DONE em 20.04.26 — commits `84c6d8c` + `b7de072`
+- ⏳ **Passo 3** (auth JWT) — usando `x-admin-token` provisório
+- 📅 **Passo 4** Design System 2.0 formalizado — 1 semana
+- 📅 **Passo 5** Command Palette ⌘K — 3 dias
+- 📅 **Passo 6** Peek-and-Pop em Paciente/Sessão/Fatura/NFe — 1 semana
+- 📅 **Passo 7** Fase A 11 telas reconstruídas — 3 semanas
+- 📅 **Passo 8** 3 Dashboards por perfil — 1 semana
+- 📅 **Passo 9** Multi-unidade real Pádua + Genesis staging — 2 semanas
+- 📅 **Passo 10** Portal do paciente redesenhado — 2 semanas
+- 📅 **Passo 11** Motor de Relatórios Premium PDF — 1 semana
+- 📅 **Passo 12** Marketplace PADCON landing — 2 semanas
+- 📅 **Passo 13** Mobile App Expo (após 3 clientes pagantes) — 4 semanas
+
+**Total Passos 4-13: ~16 semanas (4 meses).**

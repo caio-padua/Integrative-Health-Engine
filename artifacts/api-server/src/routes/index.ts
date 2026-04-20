@@ -80,6 +80,8 @@ import agendasProfissionaisRouter from "./agendasProfissionais";
 import matrixGovernancaCategoriaRouter from "./matrixGovernancaCategoria";
 import monetizacaoPadconRouter from "./monetizacaoPadcon";
 import drivePawardsRouter from "./drivePawards";
+import painelNfeRouter from "./painelNfe";
+import credenciaisProvedoresRouter from "./credenciaisProvedores";
 
 const router: IRouter = Router();
 
@@ -162,6 +164,8 @@ router.use(agendasProfissionaisRouter);
 router.use(matrixGovernancaCategoriaRouter);
 router.use(monetizacaoPadconRouter);
 router.use(drivePawardsRouter);
+router.use(painelNfeRouter);
+router.use(credenciaisProvedoresRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 

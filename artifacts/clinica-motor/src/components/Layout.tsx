@@ -160,6 +160,7 @@ export function Layout({ children }: { children: ReactNode }) {
       "configuracoes", "delegacao", "colaboradores", "agentes-virtuais", "acompanhamento", "comissao", "comercial",
       "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens",
       "exames", "inundacao", "blueprint", "agendas", "governanca-matrix",
+      "painel-nfe", "gateways-pagamento", "credenciais-nfe",
     ],
     consultor_campo: [
       "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
@@ -264,6 +265,9 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Comissão & Metas", path: "/comissao", icon: DollarSign, slug: "comissao" },
         { name: "Comercial", path: "/comercial", icon: TrendingUp, slug: "comercial" },
         { name: "Financeiro", path: "/financeiro", icon: CreditCard, slug: "financeiro" },
+        { name: "DASH NFe", path: "/painel-nfe", icon: FileText, slug: "painel-nfe" },
+        { name: "Gateways Pagto", path: "/gateways-pagamento", icon: CreditCard, slug: "gateways-pagamento" },
+        { name: "Credenciais NFe & Logo", path: "/credenciais-nfe", icon: KeyRound, slug: "credenciais-nfe" },
         { name: "Fluxos Aprovação", path: "/fluxos", icon: GitBranch, slug: "fluxos" },
         { name: "Permissões", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
         { name: "Segurança", path: "/seguranca", icon: Lock, slug: "seguranca" },

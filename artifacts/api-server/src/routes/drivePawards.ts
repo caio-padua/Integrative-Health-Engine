@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { getDriveClient, escapeDriveQuery } from "../lib/google-drive.js";
+import { requireAdminToken } from "../middlewares/requireAdminToken.js";
 
 const router: IRouter = Router();
 
@@ -25,7 +26,7 @@ async function findOrCreate(drive: any, name: string, parentId?: string): Promis
 }
 
 // Provisiona estrutura PAWARDS completa pra TODAS as 10 clínicas (ou só uma específica)
-router.post("/drive-pawards/provisionar", async (req, res): Promise<void> => {
+router.post("/drive-pawards/provisionar", requireAdminToken, async (req, res): Promise<void> => {
   const rawId = req.body?.unidadeId;
   const parsed = rawId !== undefined && rawId !== null && rawId !== "" ? Number(rawId) : null;
   if (rawId !== undefined && rawId !== null && rawId !== "" && !Number.isInteger(parsed)) {
