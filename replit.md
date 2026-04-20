@@ -16,6 +16,28 @@ The user prefers that all names be complete and semantic, never abbreviated. For
 - **Auth reaproveitada**: `AuthContext` + `useLoginUsuario` + `useObterPerfilAtual` mantidos — apenas o visual da tela de login foi endurecido (não houve reescrita de JWT).
 - **Domínio `pawards.com.br` + Zoho Mail Lite**: plano anual US$48 / 4 contas (medico@, enfermagem@, supervisao@, consultoria@). TXT de verificação salvo no registro.br (`zoho-verification=zb24073810.zmverify.zoho.com`); aguarda propagação DNS para liberar 3 MX + SPF + DKIM e provisionar aliases via Zoho Admin SDK.
 
+## Onda PRESCRIÇÃO PADCON UNIVERSAL — Fundação (20/abr/2026)
+
+**Origem**: Caio cravou as regras-de-ouro da prescrição (motivo de existir do projeto): pré-seleção de fórmulas pelo motor → médico aceita/tira/acrescenta blocos no pico do atendimento; cada bloco vira um "cartão" com **título de 3 retângulos** (CATEGORIA + ABREV-4-LETRAS + APELIDO), corpo de ativos+dose, via, período, e **posologia escalonada por semana** (semana ativa/não ativada). **Unidade canônica = DOSE** (jamais "comprimido"/"cápsula" no domínio — 1 dose pode = 1cp, 2cp, 1cápsula, X gotas).
+
+**Migration `001_prescricao_universal.sql`** (SQL idempotente, ZERO destruição, convive com `formulas`/`formula_blend`/`formulas_master` antigas):
+
+12 tabelas novas:
+- `tipos_receita_anvisa` — catálogo legal (Branca Simples, Branca Antibiótico RDC 20/2011, Branca C1, Azul B1/B2, Amarela A1/A2/A3, Magistral RDC 67/2007, Lilás Hormonal, Verde Fito, Amarela Contínuo PADCON). 12 tipos semeados com cor visual, validade, retenção de via, norma legal.
+- `grupos_clinicos` (24 grupos: TIREOIDE, METABOLISMO, INTESTINO, DETOX_HEPATICO, METILACAO, MITOCONDRIAL, NEURO_SONO, HORMONAL_F, HORMONAL_M, CARDIO_VASCULAR, IMUNE, EMAGRECIMENTO, LONGEVIDADE, PERFORMANCE, ANTIBIOTICO, ANTIFUNGICO, ANTIINFLAMATORIO, REPRODUTIVA, MULHER_40_PLUS, ONCO_SUPORTE, DERMATOLOGIA, OSTEOMUSCULAR, NUTRACEUTICO, GINECO) com emoji + cor.
+- `subgrupos_clinicos` (13 subgrupos exemplares: TIREOIDE→Modulação/Reposição/Antiinflamação, PERFORMANCE→Libido/Foco/VigorFísico, ANTIBIOTICO→Gram+/Gram-/Ginecológico, etc.)
+- `bloco_template` (biblioteca-mestra do médico) com `titulo_categoria`, `titulo_abrev_principal`, `titulo_apelido`, `tipo_bloco` (`MANIPULADO_FARMACIA`/`INDUSTRIALIZADO`/`MANIPULADO_DE_INDUSTRIALIZADO`/`FITO`/`BLEND_INJETAVEL`), `tipo_receita_id`, `cor_visual`, `via_administracao`, `forma_farmaceutica`, `veiculo_excipiente`, `apresentacao`, `qtd_doses`, `duracao_dias`, `restricoes_alimentares`, `favorito`, `contagem_uso`, FK opcional a `medico_id` (template-mestre se null).
+- `bloco_template_ativo` — ingredientes (`nome_ativo`, `dose_valor`, `dose_unidade` em mg/mcg/g/UI/ml/gotas, `observacao`).
+- `bloco_template_semana` — linearidade: `numero_semana` + `ativa boolean` (semana 2 não ativada = paciente faz pausa).
+- `bloco_template_dose` — dose-em-período-em-semana: FK a `periodos_dia` (canônico Pádua: J/IM/MM/AL/T/IN/N/NF/C com emoji+cor) + `qtd_doses` + `hora_especifica time` opcional (sobrescreve janela do período).
+- `prescricoes` (cabeçalho da receita: `paciente_id`, `medico_id`, `cids[]`, `duracao_dias`, `status` rascunho/emitida/dispensada/cancelada, `versao`, `prescricao_pai_id` para renovação, `origem` CONSULTA/RENOVACAO/MOTOR_SUGESTAO).
+- `prescricao_blocos` — snapshot imutável dos campos do template no momento da emissão (receita emitida não muda se template for editado depois) + `destino_dispensacao` (`FARMACIA_COMUM`/`MANIPULACAO`/`AMBOS_OPCAO_PACIENTE`) + `farmacia_indicada_id` + `bloco_template_origem_id` + `editado_manualmente`.
+- `prescricao_bloco_ativos`, `prescricao_bloco_semana`, `prescricao_bloco_dose` — espelham a estrutura do template para imutabilidade.
+
+**Exemplo vivo cadastrado**: bloco "Libido e Desejo" (FÓRMULA | ASHW | Libido e Desejo) — Performance & Libido > Libido & Desejo, MANIPULADO_FARMACIA, Receita Magistral roxa, ORAL cápsula vegetal qsp 500mg, 30 doses/14 dias. Ativos: Ashwagandha KSM-66 100mg + Mucuna 200mg + Maca 300mg + Rhodiola 500mg. Semana 1 (titulação) = 1 dose IM + 1 dose Tarde; Semana 2 (dose plena) = 2 doses IM + 2 doses Tarde. Renderização confirmada.
+
+**Próximos passos**: (1) endpoints REST `/api/prescricoes` + `/api/blocos-template` no api-server; (2) tela `/prescricao/nova/:pacienteId` em 3 colunas (biblioteca → receita em construção → preview PDF colorido); (3) editor inline do bloco com toggle de semana ativa/não-ativada; (4) renderizador de PDF multi-cor (1 PDF por tipo_receita_anvisa); (5) importador dos 8 docs Drive como sementeira da biblioteca; (6) anastomose anamnese↔templates (motor sugere, médico aprova).
+
 ## Onda Blindagem JWT (concluída — 20/abr/2026)
 
 Antes do domínio `pawards.com.br` entrar no ar com aliases reais, a API foi blindada com autenticação JWT real. A auth anterior emitia token fake (`token-{id}-{timestamp}`) e `/perfil-atual` ignorava o token e devolvia o primeiro `validador_mestre` — qualquer um com acesso à URL conseguia operar como Caio.
