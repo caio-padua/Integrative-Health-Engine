@@ -74,6 +74,9 @@ import MensagensPage from "@/pages/mensagens";
 import ExamesPage from "@/pages/exames";
 import AgendasPage from "@/pages/agendas";
 import GovernancaMatrixPage from "@/pages/governanca-matrix";
+import MonetizarPage from "@/pages/monetizar";
+import DashboardLocalPage from "@/pages/dashboard-local";
+import DemandasResolucaoPage from "@/pages/demandas-resolucao";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -155,6 +158,9 @@ function Router() {
       <Route path="/lembretes-falhas" component={LembretesFalhasPage} />
       <Route path="/mensagens" component={MensagensPage} />
       <Route path="/exames" component={ExamesPage} />
+      <Route path="/monetizar" component={MonetizarPage} />
+      <Route path="/dashboard-local" component={DashboardLocalPage} />
+      <Route path="/demandas-resolucao" component={DemandasResolucaoPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -78,6 +78,8 @@ import prescricoesLembreteRouter from "./prescricoesLembrete";
 import examesRouter from "./exames";
 import agendasProfissionaisRouter from "./agendasProfissionais";
 import matrixGovernancaCategoriaRouter from "./matrixGovernancaCategoria";
+import monetizacaoPadconRouter from "./monetizacaoPadcon";
+import drivePawardsRouter from "./drivePawards";
 
 const router: IRouter = Router();
 
@@ -158,6 +160,8 @@ router.use(prescricoesLembreteRouter);
 router.use(examesRouter);
 router.use(agendasProfissionaisRouter);
 router.use(matrixGovernancaCategoriaRouter);
+router.use(monetizacaoPadconRouter);
+router.use(drivePawardsRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
