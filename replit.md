@@ -16,6 +16,21 @@ The user prefers that all names be complete and semantic, never abbreviated. For
 - **Auth reaproveitada**: `AuthContext` + `useLoginUsuario` + `useObterPerfilAtual` mantidos — apenas o visual da tela de login foi endurecido (não houve reescrita de JWT).
 - **Domínio `pawards.com.br` + Zoho Mail Lite**: plano anual US$48 / 4 contas (medico@, enfermagem@, supervisao@, consultoria@). TXT de verificação salvo no registro.br (`zoho-verification=zb24073810.zmverify.zoho.com`); aguarda propagação DNS para liberar 3 MX + SPF + DKIM e provisionar aliases via Zoho Admin SDK.
 
+## Onda Blindagem JWT (concluída — 20/abr/2026)
+
+Antes do domínio `pawards.com.br` entrar no ar com aliases reais, a API foi blindada com autenticação JWT real. A auth anterior emitia token fake (`token-{id}-{timestamp}`) e `/perfil-atual` ignorava o token e devolvia o primeiro `validador_mestre` — qualquer um com acesso à URL conseguia operar como Caio.
+
+- **HS256 manual via `node:crypto`** (`api-server/src/lib/auth/jwt.ts`) — sem dependência nova; secret via `JWT_SECRET` ou `SESSION_SECRET`; TTL 8h; header fixo (resiste a `alg:none`); `timingSafeEqual` na verificação.
+- **Middleware `requireAuth`** (`api-server/src/middlewares/requireAuth.ts`) montado globalmente em `/api/*` antes do router. Whitelist com **match exato** para rotas estáticas + **prefix com slash** para dinâmicas (evita bypass via `startsWith`). Públicas: `/healthz`, `/health`, `/usuarios/login`, `/portal/*` (paciente), `/padcom-sessoes`, `/padcom-questionarios`, `/padcom-bandas`, `/questionario-paciente`, webhooks de pagamento e assinatura.
+- **`/usuarios/login` reescrito**: bcrypt compare (suporta hash `$2*` ou plaintext legacy com auto-upgrade após login bem-sucedido); emite JWT real com `{sub, email, perfil, escopo, unidadeId, consultoriaId}`.
+- **`/usuarios/perfil-atual` reescrito**: lê `req.user.sub` do token e busca o usuário real (não mais hardcoded).
+- **`PUT /usuarios/:id` endurecido**: campos editáveis split em `SELF_FIELDS` (próprio user) vs `ADMIN_ONLY_FIELDS` (perfil/escopo/permissões só admin); senha exige `senhaAtual` e só o próprio user pode trocar a sua; bcrypt hash sempre.
+- **`POST /usuarios` e `DELETE /usuarios/:id`**: só admin (`validador_mestre`/`consultoria_master`); admin não pode se autodeletar.
+- **Frontend** (`AuthContext.tsx` + `custom-fetch.ts`): token persistido em `localStorage` (`pawards.auth.token`); `setAuthTokenGetter` registrado no top-level do módulo (injeta `Authorization: Bearer` automaticamente); auto-logout em 401; `queryClient.clear()` no logout.
+- **Pen-test interno (Dr. Claude checklist)**: 9/9 passaram — sem token = 401, JWT inválido = 401, JWT expirado = 401, traversal = 401, escalada de perfil bloqueada, senha de outro user bloqueada (403), delete cross-user bloqueado (403), criação de admin por não-admin bloqueada (403), próprio nome editável (200).
+- **`SECURITY_DEBT.md` removido do root** (compromisso cumprido).
+- **Deferido (próximas ondas)**: cross-tenant isolation total nos handlers (validar `unidadeId` do path bate com escopo do token); refresh token em HttpOnly cookie; access token de 15min ao invés de 8h; rota dedicada de "esqueci minha senha".
+
 ## Fix Worker Lembrete Prescrição (concluído)
 
 - **Bug**: worker `[lembretePrescricao]` quebrava a cada 60s porque a tabela master `prescricoes_lembrete` não existia no banco (somente a tabela filha `prescricao_lembrete_envios` estava criada).
