@@ -336,6 +336,8 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
+              <DuploEspelhoPaduaGenesis />
+
               <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
                 <Card className="bg-card border-border/50 border-l-4 border-l-green-500">
                   <CardContent className="pt-4 pb-3">
@@ -663,6 +665,8 @@ export default function Dashboard() {
             {unidadeSelecionada && <p className="text-sm text-muted-foreground mt-1">{nomeUnidadeSelecionada}</p>}
           </div>
         </div>
+        <DuploEspelhoPaduaGenesis />
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Pacientes" value={dashboard?.totalPacientes ?? "..."} icon={Users} colorClass="text-blue-500" loading={loadingDash} subtitle="total cadastrados" />
           <StatCard title="Anamneses Pendentes" value={dashboard?.anamnesesPendentes ?? "..."} icon={ClipboardList} colorClass="text-orange-500" loading={loadingDash} />
@@ -706,5 +710,90 @@ export default function Dashboard() {
         )}
       </div>
     </Layout>
+  );
+}
+
+function DuploEspelhoPaduaGenesis() {
+  const { data } = useQuery<Array<{ unidade_id: number; unidade_nome: string; total_agendas: number; total_pacientes: number }>>({
+    queryKey: ["resumo-agendas-padua-genesis"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/agendas-profissionais/resumo`);
+      if (!res.ok) throw new Error("erro");
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const padua = data?.find(d => d.unidade_id === 15);
+  const genesis = data?.find(d => d.unidade_id === 14);
+  const paduaPac = padua?.total_pacientes ?? "...";
+  const paduaAg = padua?.total_agendas ?? "...";
+  const genPac = genesis?.total_pacientes ?? "...";
+  const genAg = genesis?.total_agendas ?? "...";
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Card className="bg-gradient-to-br from-[#1F4E5F]/30 to-[#1F4E5F]/10 border-2 border-[#FFD700]/60 shadow-lg">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-[#FFD700]">
+              <Trophy className="w-5 h-5" />
+              INSTITUTO PADUA
+              <span className="text-xl">⭐</span>
+            </CardTitle>
+            <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-[#FFD700]/20 text-[#FFD700] font-bold">
+              CLINICA ATIVA · ONDE EU TRABALHO
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-3xl font-bold text-foreground">{paduaPac ?? "..."}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Pacientes Reais</p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-foreground">{paduaAg ?? "..."}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Agendas Ativas</p>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3 italic">
+            Toda validacao visual aparece aqui — Dr Caio Padua, dados de producao
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-purple-950/40 to-fuchsia-950/20 border-2 border-purple-400/60 shadow-lg">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-purple-300">
+              <Flame className="w-5 h-5" />
+              INSTITUTO GENESIS
+              <span className="text-xl">🧬</span>
+            </CardTitle>
+            <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-purple-400/20 text-purple-200 font-bold">
+              COFRE-MAE · BASE ANATOMICA
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-3xl font-bold text-foreground">{genPac ?? "..."}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Pacientes Semente</p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-foreground">{genAg ?? "..."}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Agendas-Espelho</p>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-purple-200/80">
+            <span>Sangue · Linfa · Ossos · Musculo · Cerebro</span>
+            <span className="text-purple-400">→</span>
+            <span className="font-bold">espelha PADUA automaticamente</span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
