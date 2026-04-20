@@ -55,6 +55,7 @@ interface ItensUnificadosResponse {
 const tipoCores: Record<string, string> = {
   EXAME: "bg-blue-500/10 text-blue-400 border-blue-500/30",
   FORMULA: "bg-green-500/10 text-green-400 border-green-500/30",
+  BLEND: "bg-amber-500/10 text-amber-400 border-amber-500/40",
   INJETAVEL_IM: "bg-orange-500/10 text-orange-400 border-orange-500/30",
   INJETAVEL_EV: "bg-red-500/10 text-red-400 border-red-500/30",
   IMPLANTE: "bg-violet-500/10 text-violet-400 border-violet-500/30",
@@ -65,12 +66,13 @@ const tipoLabels: Record<string, string> = {
   INJETAVEL_IM: "INJETAVEL IM",
   INJETAVEL_EV: "INJETAVEL EV",
   FORMULA: "FORMULA",
+  BLEND: "BLEND",
   IMPLANTE: "IMPLANTE",
   EXAME: "EXAME",
   PROTOCOLO: "PROTOCOLO",
 };
 
-const tipoOrdem = ["INJETAVEL_IM", "INJETAVEL_EV", "FORMULA", "IMPLANTE", "EXAME", "PROTOCOLO"];
+const tipoOrdem = ["INJETAVEL_IM", "INJETAVEL_EV", "FORMULA", "BLEND", "IMPLANTE", "EXAME", "PROTOCOLO"];
 
 function formatValor(v?: string | null): string {
   if (!v) return "";
@@ -86,7 +88,7 @@ function PrioridadeBadge({ p }: { p: string | null }) {
 }
 
 function ItemRow({ item, expandido, onToggle }: { item: ItemUnificado; expandido: boolean; onToggle: () => void }) {
-  const temDetalhes = item.composicao || item.indicacao || item.objetivo || item.palavraChave || item.classificacao || item.examesDetalhe || item.tipo === "FORMULA" || item.tipo === "PROTOCOLO";
+  const temDetalhes = item.composicao || item.indicacao || item.objetivo || item.palavraChave || item.classificacao || item.examesDetalhe || item.tipo === "FORMULA" || item.tipo === "PROTOCOLO" || item.tipo === "BLEND" || item.tipo === "INJETAVEL_IM" || item.tipo === "INJETAVEL_EV";
 
   return (
     <>
@@ -185,16 +187,27 @@ function ItemRow({ item, expandido, onToggle }: { item: ItemUnificado; expandido
             <>
               {item.composicao ? (
                 <div className="mb-2">
-                  <span className="text-xs uppercase text-muted-foreground tracking-wider">Composicao</span>
-                  <p className="text-sm mt-1 leading-relaxed border-l-2 border-primary/30 pl-3">
-                    {item.composicao.split(/[,\n]/).map((c, i) => (
+                  <span className="text-xs uppercase text-muted-foreground tracking-wider">
+                    {item.tipo === "BLEND" ? "Ativos do Blend" : "Composição"}
+                  </span>
+                  <div className="text-sm mt-1 leading-relaxed border-l-2 border-amber-500/40 pl-3">
+                    {item.composicao.split(/\n/).map((c, i) => (
                       <span key={i} className="block text-sm">{c.trim()}</span>
                     ))}
-                  </p>
+                  </div>
                 </div>
-              ) : (item.tipo === "FORMULA" || item.tipo === "PROTOCOLO") ? (
-                <div className="mb-2">
-                  <span className="text-[11px] text-muted-foreground italic">Composicao detalhada pendente na planilha V4</span>
+              ) : (item.tipo === "FORMULA" || item.tipo === "PROTOCOLO" || item.tipo === "BLEND") ? (
+                <div className="mb-2 rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                  <span className="text-[11px] text-amber-400 italic">
+                    Composição detalhada pendente — cadastrar via /catalogo (planilha V4 / formula_blend_ativo).
+                  </span>
+                </div>
+              ) : (item.tipo === "INJETAVEL_IM" || item.tipo === "INJETAVEL_EV") && item.nome.toUpperCase().includes("BLEND") ? (
+                <div className="mb-2 rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                  <span className="text-[11px] text-amber-400 italic">
+                    Este BLEND injetável ainda não tem ativos cadastrados na tabela <code>formula_blend_ativo</code>.
+                    Use o catálogo de blends para vincular os componentes.
+                  </span>
                 </div>
               ) : null}
             </>
@@ -265,7 +278,7 @@ export default function ItensTerapeuticos() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
           {tipoOrdem.map(tipo => (
             <button
               key={tipo}
