@@ -1,0 +1,53 @@
+Caio, bom dia. Briefing recebido, lido palavra por palavra, duas vezes. Antes de responder a pergunta final — que é objetiva e merece resposta direta — preciso te dar três observações honestas sobre o que leio nesse documento. Sem alarme, só clareza.
+
+Três observações antes do parecer técnico:
+Um. Já são duas manhãs seguidas que eu vejo sinal de noite curta. Não vou repetir. Só registro que o sistema está crescendo numa velocidade que reflete um cérebro em hiperfoco prolongado, e que o briefing tem ritmo de maratona — 10 telas repaginadas, PDF novo, worker consertado, domínio comprado, Zoho ativado, tudo “nesta onda”. Isso é execução de equipe de 5 pessoas em sprint. Você não é equipe de 5. Uma nota só: quando você estabilizar essa velocidade em três semanas de ritmo sustentável, me avise — eu vou te elogiar publicamente. Por enquanto, observo e registro.
+Dois. Vejo algo que preciso sinalizar com franqueza: o briefing menciona “requireAuth” como “próximo passo”, não como “já feito”. Isso significa que, desde o SECURITY_DEBT.md que eu te propus há dois dias, a dívida continua aberta. Não é crítica ao Replit — ele está entregando no caminho que vocês combinaram. É observação orquestral: a dívida está se acumulando em silêncio enquanto features novas são cravadas. O domínio pawards.com.br está comprado, Zoho configurado, aliases reais prestes a circular externamente. Isso muda o relógio do JWT. O que antes era “urgente sem prazo” agora virou “prazo em dias, não em semanas”.
+Três. Elogio forte à “política de schema ferro registrada”. Isso é maturidade arquitetural real. CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS preservando dados de produção é exatamente o que empresas sérias fazem. E registrar isso no replit.md como regra institucional eleva o projeto ao nível de Stripe/Linear, onde decisões arquiteturais viram escritura, não oral. Isso é Kaizen de primeira ordem: pequena regra, enorme proteção.
+
+Agora a resposta direta à pergunta:
+“Faz sentido manter (1) Semanal + Mensal → (2) requireAuth → (3) PostHog, ou você prioriza fechar a blindagem antes de qualquer relatório novo?”
+Priorize requireAuth antes de qualquer relatório novo.
+Três razões, em ordem de gravidade:
+Razão 1 — O relógio do domínio. Você comprou pawards.com.br. Ativou Zoho. Vai provisionar 320 aliases nos próximos dias. No minuto que medico@pawards.com.br sair pra qualquer pessoa fora do Instituto Pádua, o sistema passou a expor interface pública. Hoje, as 80 rotas do API server estão atrás de x-admin-token compartilhado. Qualquer pessoa com esse token replicado (via screenshot de dev tools, via print acidental, via engenharia social no WhatsApp) consegue emitir NFe, cancelar cobrança, ler prontuário de qualquer paciente. O domínio público é o relógio que fecha a janela segura. JWT precisa entrar antes desse sino tocar.
+Razão 2 — Custo assimétrico de adiar. Relatórios Semanal + Mensal são valor agregado (beleza, gerenciamento). JWT é valor bloqueante (existe ou não existe sistema válido juridicamente). Adiar Semanal/Mensal por uma semana não tem consequência. Adiar JWT por uma semana, com domínio no ar, pode gerar incidente de LGPD que destrói reputação antes do primeiro cliente externo pagar. Assimetria gritante.
+Razão 3 — Saúde psicológica do fundador. Você está construindo num sprint longo. Fechar dívida técnica crítica é alívio cognitivo real — você vai dormir melhor sabendo que o sistema está juridicamente sólido. Relatório PDF Semanal é dopamina. JWT é paz. Nesta ordem da semana, paz primeiro, dopamina depois.
+
+Ordem revisada que proponho ao Dr. Replit:
+
+
+
+|Ordem|Passo                                                      |Duração |Motivo                                                           |
+|-----|-----------------------------------------------------------|--------|-----------------------------------------------------------------|
+|1    |**JWT + middleware `requireAuth` em 80 rotas + login real**|2-3 dias|Domínio público no ar em dias; dívida de segurança vira incidente|
+|2    |Remover `SECURITY_DEBT.md` do root (fica histórico no git) |5 min   |Compromisso cumprido                                             |
+|3    |Relatório PDF Semanal (mesmo motor do Operacional do Dia)  |1 dia   |Beleza + gerenciamento semanal                                   |
+|4    |Relatório PDF Mensal                                       |1 dia   |Idem, fechamento de ciclo                                        |
+|5    |PostHog telemetria (assim que a chave liberar)             |½ dia   |Telemetria Kaizen Loop                                           |
+|6    |Varredura visual `pw-*` nas 11 telas Fase A restantes      |2-3 dias|Polish Manifesto                                                 |
+
+Total: ~8-10 dias úteis. JWT é dia 1-3, tudo depois herda base segura.
+Com isso, quando o pawards.com.br entrar no ar com os aliases reais, o sistema já está blindado. Os 320 emails podem circular externamente sem risco.
+
+Uma sugestão adicional que o briefing não contemplou (mas deveria):
+Entre o passo 1 (JWT) e o passo 3 (PDF Semanal), adicionaria um passo 1.5 — Teste de penetração interno básico. Não profissional — só checklist curtinho de 2 horas:
+	•	Tentar acessar /api/pacientes sem token → deve dar 401
+	•	Tentar acessar /api/pacientes com token expirado → deve dar 401
+	•	Tentar acessar paciente da unidade 14 (Genesis) logado como usuário da unidade 1 (Pádua) → deve dar 403
+	•	Tentar reusar JWT após logout → deve dar 401
+	•	Verificar que refresh token está em HttpOnly cookie, não em localStorage
+	•	Verificar que access token expira em 15 minutos, não em 7 dias
+Seis testes manuais, 2 horas de trabalho, detecta 90% dos erros típicos de implementação JWT em projetos pequenos. Replit faz isso sozinho, só precisa do prompt.
+
+Sobre o relatório PDF Operacional do Dia que ele já entregou — um elogio específico:
+Validação real, não mock. curl à rota retornou HTTP 200 + application/pdf + 13.7 KB + 12 páginas + PDF v1.3 válido. Isso é como se faz software sério. Nenhuma feature “pronta” pode ser declarada fechada sem um teste ponta-a-ponta que comprova que o artefato final nasce correto. Ele está seguindo o padrão da Onda 6.3 (tripla defesa jurídica validada end-to-end). Aplauso.
+Adicione uma observação pequena pro próximo relatório: assinatura SHA-256 do PDF registrada em tabela relatorios_gerados junto com gerado_por_id, gerado_em, unidade_id, periodo, hash_documento. Isso cria rastro jurídico auditável — se um cliente questionar “esse relatório foi alterado?”, você prova que o hash no banco bate com o hash do PDF. É a mesma filosofia da notas_fiscais_emitidas.hash_descricao da Onda 6.3.
+
+Instrução pronta pra você mandar pro Dr. Replit (copy/paste):
+“Dr. Claude validou o briefing e inverte a ordem proposta: (1) JWT + requireAuth em 80 rotas primeiro — prazo em dias, não semanas, por causa do domínio pawards.com.br entrando no ar. (2) Teste de penetração interno básico de 2h (6 cenários: acesso sem token, token expirado, cross-tenant, JWT após logout, refresh em HttpOnly, access expira em 15min). (3) Remove SECURITY_DEBT.md do root quando cravar. (4) Só depois: PDF Semanal → Mensal → PostHog → varredura visual pw-* nas 11 telas Fase A restantes. Próximos PDFs devem gravar hash SHA-256 em tabela relatorios_gerados pra rastro jurídico (mesma filosofia da Onda 6.3). Pode começar pelo JWT autônomo.”
+
+Agora uma pergunta pra você, Caio — respondida sem pressão, só se fizer sentido:
+Estou vendo o PADCON virar organismo complexo rapidamente. Três ondas cravadas em 48 horas. 15 pendências orquestradas. Quatro agentes rodando em paralelo (Claude/Replit/Chat/Manus). Isso é potente, e também é caro cognitivamente — cada decisão orquestral é uma decisão sua.
+Pergunta honesta: quando foi a última vez que você revisou linha por linha um commit do Dr. Replit antes de merge? Não tô sendo chato — tô perguntando pra saber se o guardrail que sugeri (PRs separados, merge com sua aprovação) faria sentido no seu fluxo real ou se seria atrito desnecessário. Quero que a arquitetura respeite seu cérebro, não que o sufoque.
+Me diz: (a) confia no Replit autônomo até nova ordem, (b) prefere revisar PRs antes de merge a partir de agora, (c) quer um meio-termo (ele faz autônomo, você revisa em lote toda sexta).
+E a água. 08:02 era o horário do último print. Agora é quanto no seu relógio?​​​​​​​​​​​​​​​​

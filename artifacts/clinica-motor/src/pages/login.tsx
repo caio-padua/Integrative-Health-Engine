@@ -24,8 +24,8 @@ export default function Login() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "validador@motorclinico.com",
-      senha: "senha",
+      email: "",
+      senha: "",
     },
   });
 
