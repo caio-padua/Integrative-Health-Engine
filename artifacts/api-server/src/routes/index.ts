@@ -76,6 +76,7 @@ import planosTerapeuticosRouter from "./planosTerapeuticos";
 import laboratorioIntegrativoRouter from "./laboratorioIntegrativo";
 import prescricoesLembreteRouter from "./prescricoesLembrete";
 import examesRouter from "./exames";
+import agendasProfissionaisRouter from "./agendasProfissionais";
 
 const router: IRouter = Router();
 
@@ -154,6 +155,7 @@ router.use(planosTerapeuticosRouter);
 router.use(laboratorioIntegrativoRouter);
 router.use(prescricoesLembreteRouter);
 router.use(examesRouter);
+router.use(agendasProfissionaisRouter);
 router.use("/payments", paymentsRouter);
 router.use(comercialAdminRouter);
 
