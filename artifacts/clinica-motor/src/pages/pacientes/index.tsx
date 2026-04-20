@@ -120,12 +120,23 @@ export default function Pacientes() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Pacientes</h1>
+      <div className="p-6 space-y-6 bg-[var(--pw-pergaminho)] min-h-screen">
+        <div className="flex items-start justify-between gap-4 pw-borda-sagrada py-1">
+          <div className="flex items-start gap-4">
+            <UserPlus className="w-7 h-7 text-[var(--pw-petroleo)] mt-1" />
+            <div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="pw-titulo-manifesto text-2xl">Pacientes</h1>
+                <span className="pw-selo-dourado px-2 py-1 text-[10px] tracking-[0.2em]">PADCON · CADASTRO CLÍNICO</span>
+              </div>
+              <p className="text-sm text-[var(--pw-tinta)] mt-1">
+                Pessoas sob cuidado integrativo — anamnese, alergias, comorbidades e protocolos.
+              </p>
+            </div>
+          </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white rounded-none">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Novo Paciente
               </Button>
@@ -369,19 +380,19 @@ export default function Pacientes() {
           </Dialog>
         </div>
 
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="pw-card rounded-none">
+          <CardHeader className="pb-3 border-b border-[var(--pw-marfim)]">
             <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
+              <Search className="h-4 w-4 text-[var(--pw-cinza-bruma)]" />
               <Input
                 placeholder="Buscar pacientes por nome ou CPF..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                className="max-w-sm"
+                className="max-w-sm border-[var(--pw-marfim)] rounded-none focus:border-[var(--pw-petroleo)]"
               />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             {isLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -415,18 +426,18 @@ export default function Pacientes() {
                           <TableCell>{paciente.telefone}</TableCell>
                           <TableCell>
                             {paciente.statusAtivo ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-500">
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[var(--pw-saude)]/10 text-[var(--pw-saude)] border border-[var(--pw-saude)]/30">
                                 Ativo
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500">
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[var(--pw-critico)]/10 text-[var(--pw-critico)] border border-[var(--pw-critico)]/30">
                                 Inativo
                               </span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Link href={`/pacientes/${paciente.id}`} className="text-primary hover:underline text-sm">
-                              Ver Detalhes
+                            <Link href={`/pacientes/${paciente.id}`} className="text-[var(--pw-petroleo)] hover:text-[var(--pw-dourado)] hover:underline text-sm font-medium transition-colors">
+                              Ver Detalhes →
                             </Link>
                           </TableCell>
                         </TableRow>
