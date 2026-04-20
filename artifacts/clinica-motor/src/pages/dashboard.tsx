@@ -91,19 +91,19 @@ export default function Dashboard() {
   });
 
   const StatCard = ({ title, value, icon: Icon, colorClass, subtitle, loading }: any) => (
-    <Card className="bg-card border-border/50">
+    <Card className="pw-card rounded-none bg-white">
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <Icon className={`w-5 h-5 ${colorClass}`} />
+        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-[var(--pw-tinta)]">{title}</CardTitle>
+        <Icon className={`w-5 h-5 ${colorClass || "text-[var(--pw-petroleo)]"}`} />
       </CardHeader>
       <CardContent>
         {loading ? (
           <Skeleton className="h-8 w-20 mb-1" />
         ) : (
-          <div className="text-3xl font-bold tracking-tighter" data-testid={`stat-${title}`}>{value}</div>
+          <div className="pw-numero-display text-3xl font-bold text-[var(--pw-petroleo)]" data-testid={`stat-${title}`}>{value}</div>
         )}
         {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+          <p className="text-xs text-[var(--pw-cinza-bruma)] mt-1">{subtitle}</p>
         )}
       </CardContent>
     </Card>
@@ -126,8 +126,11 @@ export default function Dashboard() {
               )}
               <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }} />
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Unidade</h1>
-                <p className="text-sm mt-1" style={{ color: corUnidadeSelecionada || "#6B7280" }}>{nomeUnidadeSelecionada}</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="pw-titulo-manifesto text-3xl">Dashboard Unidade</h1>
+                  <span className="pw-selo-dourado px-2 py-1 text-[10px] tracking-[0.2em]">PADCON · VISÃO LOCAL</span>
+                </div>
+                <p className="text-sm mt-1 font-semibold" style={{ color: corUnidadeSelecionada || "var(--pw-petroleo)" }}>{nomeUnidadeSelecionada}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm" style={{ color: corUnidadeSelecionada || "#6B7280" }}>
