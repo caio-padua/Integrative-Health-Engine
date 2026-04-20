@@ -36,7 +36,7 @@ router.get("/email-identity/provider-status", async (_req, res): Promise<void> =
     modos: MODOS,
     hierarquias: HIERARQUIAS,
     aliasLimitWarning: activeName === 'zoho'
-      ? "Zoho limita 30 aliases por conta-base. Cada cargo aguenta ~7-8 clinicas. Apos isso, criar conta-base secundaria (ex: medico2@padwards.com.br)."
+      ? "Zoho limita 30 aliases por conta-base. Cada cargo aguenta ~7-8 clinicas. Apos isso, criar conta-base secundaria (ex: medico2@pawards.com.br)."
       : null,
     allProviders: ALL_PROVIDERS.map((p) => ({
       name: p.name,

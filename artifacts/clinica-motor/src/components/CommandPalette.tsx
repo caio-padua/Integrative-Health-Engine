@@ -42,7 +42,7 @@ const COMANDOS: Cmd[] = [
   { id: "nav:agenda",              label: "Agenda Semanal",               hint: "7 dias",             group: "Agenda & Comunicação", icon: CalendarDays,     path: "/agenda",        keywords: "agenda semana horário" },
   { id: "nav:followup",            label: "Follow-up",                    hint: "Próximos contatos",  group: "Agenda & Comunicação", icon: CalendarClock,    path: "/followup",      keywords: "retorno acompanhar" },
   { id: "nav:mensagens",           label: "Mensageria",                   hint: "Catálogo Opus",      group: "Agenda & Comunicação", icon: MessageSquareText, path: "/mensagens",    keywords: "mensagem whatsapp opus" },
-  { id: "nav:identidade-emails",   label: "Identidade de E-mails",        hint: "@padwards.com.br",   group: "Agenda & Comunicação", icon: AtSign,           path: "/identidade-emails", keywords: "email zoho aliases" },
+  { id: "nav:identidade-emails",   label: "Identidade de E-mails",        hint: "@pawards.com.br",   group: "Agenda & Comunicação", icon: AtSign,           path: "/identidade-emails", keywords: "email zoho aliases" },
 
   // ── Catálogo & Estoque ──
   { id: "nav:itens-terapeuticos",  label: "Itens Terapêuticos",           hint: "Insumos",            group: "Catálogo & Estoque", icon: Pill,         path: "/itens-terapeuticos", keywords: "item insumo" },
