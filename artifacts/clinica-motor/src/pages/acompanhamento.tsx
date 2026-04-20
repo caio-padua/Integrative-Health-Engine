@@ -75,21 +75,20 @@ export default function AcompanhamentoPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Acompanhamento & Demandas</h1>
-            <p className="text-sm text-muted-foreground mt-1">Planos de acompanhamento e rastreamento de serviços por demanda</p>
-          </div>
+        <div className="border-l-4 border-[var(--pw-dourado-vivo)] pl-5 py-1">
+          <div className="text-[10px] tracking-[0.32em] text-[var(--pw-dourado)] uppercase mb-1">PADCON · Capítulo VI</div>
+          <h1 className="text-2xl font-semibold text-[var(--pw-petroleo)] tracking-tight">Acompanhamento &amp; Demandas</h1>
+          <p className="text-sm text-[var(--pw-tinta)] mt-1">Planos Diamante · Ouro · Prata · Cobre — rastreamento por SLA e complexidade.</p>
         </div>
 
-        <div className="flex gap-1 bg-muted/30 p-1 rounded">
+        <div className="flex gap-1 border border-[var(--pw-petroleo)]/15 bg-[var(--pw-marfim)] p-1">
           {tabs.map(t => {
             const Icon = t.icon;
             return (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-sm rounded transition-colors ${tab === t.id ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+                className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${tab === t.id ? "bg-[var(--pw-petroleo)] text-white font-semibold" : "text-[var(--pw-tinta)] hover:text-[var(--pw-petroleo)]"}`}
               >
                 <Icon className="w-4 h-4" />
                 {t.label}

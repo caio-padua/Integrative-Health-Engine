@@ -64,13 +64,13 @@ export default function AgendasPage() {
   return (
     <Layout>
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-[#1F4E5F] flex items-center gap-2">
-            <CalendarDays className="w-8 h-8" /> Agendas Profissionais
+        <div className="mb-6 border-l-4 border-[var(--pw-dourado-vivo)] pl-5 py-1">
+          <div className="text-[10px] tracking-[0.32em] text-[var(--pw-dourado)] uppercase mb-1">PADCON · Capítulo IV</div>
+          <h1 className="text-2xl font-semibold text-[var(--pw-petroleo)] tracking-tight flex items-center gap-2">
+            <CalendarDays className="w-6 h-6" /> Agendas Profissionais
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Validação visual: <strong>{agendas.length}</strong> agendas distribuídas em <strong>{resumo.length}</strong> clínicas.
-            Cada clínica = 7 agendas (Médico LOCAL + REMOTO + PESSOAL · Assistente LOCAL + REMOTO · Enfermagem LOCAL + REMOTO).
+          <p className="text-sm text-[var(--pw-tinta)] mt-1">
+            <strong className="text-[var(--pw-petroleo)]">{agendas.length}</strong> agendas em <strong className="text-[var(--pw-petroleo)]">{resumo.length}</strong> clínicas — Médico (LOCAL · REMOTO · PESSOAL) · Assistente (LOCAL · REMOTO) · Enfermagem (LOCAL · REMOTO).
           </p>
         </div>
 

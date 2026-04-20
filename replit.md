@@ -8,6 +8,19 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Onda Manifesto PADCON 2.0 — Identidade Visual Premium (em andamento)
+
+- **Tokens CSS Manifesto** (`src/styles/manifesto-tokens.css`): paleta petróleo `#1F4E5F`, marfim `#F5F0E8`, dourado vivo, tinta serif — variáveis `--pw-*` aplicadas globalmente.
+- **6 telas repaginadas com header petróleo + barra dourada Hermès**: `/login` (pergaminho + selo PADCON·MEDCORE + citação serif), `/dashboard` (StatCard mono dourado), `/pacientes` (tabela marfim + status verde-musgo/borgonha), `/demandas-resolucao` (pingue-pongue Robô/IA/Humano), `/identidade-emails`, `/agendas`, `/acompanhamento`, `/estoque`, `/anamnese`.
+- **Auth reaproveitada**: `AuthContext` + `useLoginUsuario` + `useObterPerfilAtual` mantidos — apenas o visual da tela de login foi endurecido (não houve reescrita de JWT).
+- **Domínio `pawards.com.br` + Zoho Mail Lite**: plano anual US$48 / 4 contas (medico@, enfermagem@, supervisao@, consultoria@). TXT de verificação salvo no registro.br (`zoho-verification=zb24073810.zmverify.zoho.com`); aguarda propagação DNS para liberar 3 MX + SPF + DKIM e provisionar aliases via Zoho Admin SDK.
+
+## Fix Worker Lembrete Prescrição (concluído)
+
+- **Bug**: worker `[lembretePrescricao]` quebrava a cada 60s porque a tabela master `prescricoes_lembrete` não existia no banco (somente a tabela filha `prescricao_lembrete_envios` estava criada).
+- **Correção**: criada a tabela `prescricoes_lembrete` via SQL puro com schema idêntico ao definido em `lib/db/src/schema/prescricoesLembrete.ts` — `id serial PRIMARY KEY`, `paciente_id`/`unidade_id` com FKs, `periodos` jsonb, `horarios_envio` jsonb, timestamps. Padrão de IDs preservado (todas as novas tabelas seguem `serial` consistente com o schema Drizzle).
+- **Política de schema deste projeto**: alterações de schema são feitas via SQL puro (sem `db:push`) por causa de ~10 tabelas auxiliares operacionais com dados de produção que existem fora do schema Drizzle, conforme preferência absoluta do usuário ("never dropping tables with data").
+
 ## Onda 7 — Motor de Recorrência Programada + Blindagem Multi-Tenant (concluída)
 
 - **4 tabelas novas**: `planos_terapeuticos_template`, `fases_plano_template`, `adesoes_plano`, `eventos_programados`.

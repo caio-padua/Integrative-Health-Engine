@@ -140,28 +140,29 @@ export default function EstoquePage() {
     <Layout>
       <div className="p-6 max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Package className="h-6 w-6 text-primary" />
-              Estoque de Substancias
+          <div className="border-l-4 border-[var(--pw-dourado-vivo)] pl-5 py-1">
+            <div className="text-[10px] tracking-[0.32em] text-[var(--pw-dourado)] uppercase mb-1">PADCON · Capítulo III</div>
+            <h1 className="text-2xl font-semibold text-[var(--pw-petroleo)] tracking-tight flex items-center gap-2">
+              <Package className="h-6 w-6" />
+              Estoque de Substâncias
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {items.length} itens em estoque
+            <p className="text-sm text-[var(--pw-tinta)] mt-1">
+              <strong className="text-[var(--pw-petroleo)]">{items.length}</strong> itens catalogados
               {lowCount > 0 && (
-                <span className="text-red-500 ml-2">
-                  ({lowCount} abaixo do minimo)
+                <span className="text-[#7A1F2B] ml-2 font-semibold">
+                  · {lowCount} abaixo do mínimo
                 </span>
               )}
             </p>
           </div>
           <div className="flex gap-2">
             {lowCount > 0 && (
-              <Button variant={filterLow ? "default" : "outline"} onClick={() => setFilterLow(!filterLow)} className={filterLow ? "bg-red-500 hover:bg-red-600" : "text-red-500 border-red-500/30"}>
+              <Button variant="outline" onClick={() => setFilterLow(!filterLow)} className={`rounded-none ${filterLow ? "bg-[#7A1F2B] hover:bg-[#5e1721] text-white border-[#7A1F2B]" : "text-[#7A1F2B] border-[#7A1F2B]/40"}`}>
                 <AlertTriangle className="mr-2 h-4 w-4" />
-                {filterLow ? "Mostrando Baixos" : `${lowCount} Abaixo Minimo`}
+                {filterLow ? "Mostrando Baixos" : `${lowCount} Abaixo Mínimo`}
               </Button>
             )}
-            <Button onClick={openCreate}>
+            <Button onClick={openCreate} className="bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white rounded-none">
               <Plus className="mr-2 h-4 w-4" />
               Adicionar Item
             </Button>
