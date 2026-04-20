@@ -73,6 +73,7 @@ import LembretesFalhasPage from "@/pages/lembretes-falhas";
 import MensagensPage from "@/pages/mensagens";
 import ExamesPage from "@/pages/exames";
 import AgendasPage from "@/pages/agendas";
+import GovernancaMatrixPage from "@/pages/governanca-matrix";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -116,6 +117,7 @@ function Router() {
       <Route path="/inundacao" component={InundacaoPage} />
       <Route path="/blueprint" component={BlueprintPage} />
       <Route path="/agendas" component={AgendasPage} />
+      <Route path="/governanca-matrix" component={GovernancaMatrixPage} />
       <Route path="/estoque" component={EstoquePage} />
       <Route path="/task-cards" component={TaskCardsPage} />
       <Route path="/avaliacao-enfermagem" component={AvaliacaoEnfermagemPage} />
