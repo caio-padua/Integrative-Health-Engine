@@ -102,7 +102,7 @@ router.get("/acoes", async (_req, res) => {
 });
 
 router.get("/itens-unificados", async (_req, res) => {
-  const [inj, endo, impl, form, proto, blocos, exames, examesBase] = await Promise.all([
+  const [inj, endo, impl, form, proto, blocos, exames, examesBase, blends, blendAtivos, formulasMaster] = await Promise.all([
     db.select().from(injetaveisTable).orderBy(injetaveisTable.codigoPadcom),
     db.select().from(endovenososTable).orderBy(endovenososTable.codigoPadcom),
     db.select().from(implantesTable).orderBy(implantesTable.codigoPadcom),
@@ -111,7 +111,21 @@ router.get("/itens-unificados", async (_req, res) => {
     db.select().from(blocosTableRef).orderBy(blocosTableRef.codigoBloco),
     db.select().from(mapaBlockExameTableRef),
     db.select().from(examesBaseTable),
+    db.execute(sql`SELECT id, codigo_blend, nome_blend, funcao, via, forma, posologia, duracao, objetivo, ativo FROM formula_blend ORDER BY codigo_blend`),
+    db.execute(sql`SELECT blend_id, ordem, componente, dosagem, unidade, observacao FROM formula_blend_ativo ORDER BY blend_id, ordem`),
+    db.execute(sql`SELECT id, codigo_formula, nome_formula, funcao_principal, classe_terapeutica, posologia_padrao, duracao_padrao, valor_estimado, ativa FROM formulas_master ORDER BY codigo_formula`).catch(() => ({ rows: [] as any[] })),
   ]);
+
+  const blendRows = (blends as any).rows || (blends as any) || [];
+  const blendAtivosRows = (blendAtivos as any).rows || (blendAtivos as any) || [];
+  const formulasMasterRows = (formulasMaster as any).rows || (formulasMaster as any) || [];
+
+  const ativosPorBlend = new Map<number, Array<{ ordem: number; componente: string; dosagem: number; unidade: string }>>();
+  for (const a of blendAtivosRows) {
+    const arr = ativosPorBlend.get(a.blend_id) ?? [];
+    arr.push({ ordem: a.ordem, componente: a.componente, dosagem: a.dosagem, unidade: a.unidade });
+    ativosPorBlend.set(a.blend_id, arr);
+  }
 
   const examesBaseMap = new Map<string, typeof examesBase[0]>();
   examesBase.forEach(e => examesBaseMap.set(e.nomeExame.toUpperCase(), e));
@@ -178,6 +192,42 @@ router.get("/itens-unificados", async (_req, res) => {
     valor: i.valorTotal, status: i.status,
   }));
 
+  for (const b of blendRows) {
+    const ativos = ativosPorBlend.get(b.id) ?? [];
+    const composicao = ativos
+      .sort((x, y) => x.ordem - y.ordem)
+      .map(a => `${a.componente} ${a.dosagem} ${a.unidade}`)
+      .join('\n');
+    items.push({
+      id: `BLEND-${b.id}`,
+      tipo: "BLEND",
+      codigo: b.codigo_blend,
+      nome: b.nome_blend,
+      via: b.via,
+      dosagem: b.forma,
+      frequencia: b.posologia,
+      composicao: composicao || null,
+      objetivo: b.objetivo,
+      classificacao: b.funcao,
+      status: b.ativo ? "ATIVO" : "INATIVO",
+    });
+  }
+
+  for (const fm of formulasMasterRows) {
+    items.push({
+      id: `FMASTER-${fm.id}`,
+      tipo: "FORMULA",
+      codigo: fm.codigo_formula,
+      nome: fm.nome_formula,
+      classificacao: fm.classe_terapeutica,
+      frequencia: fm.posologia_padrao,
+      dosagem: fm.duracao_padrao,
+      valor: fm.valor_estimado != null ? String(fm.valor_estimado) : null,
+      objetivo: fm.funcao_principal,
+      status: fm.ativa ? "ATIVO" : "INATIVO",
+    });
+  }
+
   const blocosExameMap = new Map<string, typeof exames>();
   exames.forEach(e => {
     const key = `${e.blocoId}-${e.grau}`;
@@ -229,7 +279,8 @@ router.get("/itens-unificados", async (_req, res) => {
       INJETAVEL_IM: inj.length,
       INJETAVEL_EV: endo.length,
       IMPLANTE: impl.length,
-      FORMULA: formulaMap.size,
+      FORMULA: formulaMap.size + formulasMasterRows.length,
+      BLEND: blendRows.length,
       PROTOCOLO: proto.length,
       EXAME: items.filter(i => i.tipo === "EXAME").length,
     },
