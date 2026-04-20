@@ -1,0 +1,28 @@
+Às vezes em um bloco de fórmula pode haver receita C1 azul B1 e azul B2
+
+por exemplo
+
+FÓRMULA [fama ou faco ou famx] - [Apelido cadastrado e editavel pre ato clinico ou intra ato clinico] quando for revisar o medico no ato ok
+FORMULA FAMX Performance Foco Ansiedade
+venvanse 5mg
+Sertralina 50mg
+clonazepa 2mg
+Dipirona 500mg
+[ observacao - Capsulas Oleaodas ou capsulas de liberacwo lenra ] aqui entra a "forma farmacêutica"
+1 Dose(s) - Via Oral - No Inicio da Manha : 07h
+2 Dose(e) - Via Oral - Inicio da Noite : tal hora
+.
+Regra nova V: B1 B2 se tiver os 2 tipos BX A1 A2 A3 - se A1 +A2 = Ax Se A1 + A3 = AY , agora temos também a C. Só que queria dar um jeito de agrupar em 1 segundo bloco com quatro caracteres como podemos fazer uma matriz onde caiba todas as variáveis em quatro caracteres para não poluir, a farmácia que vai receber a receita comum ou o fármaco manipulado não precisa saber identificar esse código isso é internamente pra nós que estamos prescrevendo e visivelmente na fórmula para qualquer um ver mas essa numeração ou esse código somente nós Replit Cloud e o Dr. Caio irá entender é algo interno nosso é um código da máfia colombiana Rsrs me ajuda a criar essa criptografia ?
+Regra nova W: na primeira parte vai o número " quantidade " da dose espaço-espaço puxa placehoad " via de administração " espaço-espaço período com primeiras letras maiúscula espaço: espaço horário específico da administração do fármaco
+Nova regra: quando selecionamos a via e a forma terapêutica e a via para toda a posologia
+nova regra x : precisamos colocar o campo forma farmacêutica
+Nova regra Y: a forma farmacêutica obrigatoriamente vai uma linha abaixo da última substância do bloco da
+fórmula
+
+regra nova Z:cada periodo assum 1 linha hierárquica mente
+1 periodo primeira liha, depois pula linha
+2 perdo segunda linha e assimpo diante
+entende ? Como entao deve haver na formula
+FAMX = mistura me FAMA + FACO entendeu cons
+
+E vamos ter que pôr um espaço no cadastro para essa tal de codificação da Anvisa e que pode ser também colocada no ato da consulta até a gente descobrir se pode ser automatizada mas por enquanto deixa isso em White Label
