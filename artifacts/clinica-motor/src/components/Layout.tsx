@@ -11,6 +11,7 @@ import {
   ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign, Stethoscope,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { CommandPalette } from "./CommandPalette";
 
 function ClinicSwitcher() {
   const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, escopo } = useClinic();
@@ -362,6 +363,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="max-w-7xl mx-auto">{children}</div>
         </div>
       </main>
+      <CommandPalette />
     </div>
   );
 }
