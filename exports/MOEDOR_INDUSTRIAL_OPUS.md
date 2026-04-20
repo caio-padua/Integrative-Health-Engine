@@ -3507,3 +3507,41 @@ a6f34dd Update clinic agenda naming conventions to avoid conflicts
 - Multi-tenant: toda nova tabela com dados clínicos precisa unidade_id FK
 - requireAdminToken em todo POST/PUT/DELETE/PATCH sensível
 - Cifragem: SESSION_SECRET + scrypt + AES-256-GCM
+
+---
+
+## 11. 🎨 ADERÊNCIA AO MANIFESTO PADCON 2.0 (Dr. Claude, 20.04.26)
+
+**Manifesto completo:** `exports/MANIFESTO_PADCON_2_DESIGN_VIDENCIA.md`
+
+### Gap-analysis dos 10 princípios:
+
+| # | Princípio | Status | Gap concreto |
+|---|---|---|---|
+| 1 | 6 cores monocromia + acentos | ✅ | Auditar gradientes residuais |
+| 2 | Tipografia 3 tamanhos / 2 pesos / mono tabular | ⚠️ | Tokens `text-title/subtitle/body` não formalizados |
+| 3 | Densidade contextual | ⚠️ | Dashboards têm ruído visual |
+| 4 | Movimento com propósito (150ms) | ✅ | OK |
+| 5 | Peek-and-Pop universal (drawer + breadcrumb) | ❌ | Não implementado |
+| 6 | Command Palette ⌘K (cmdk) | ❌ | Não instalado |
+| 7 | shadcn + Tremor + Visx | ⚠️ | shadcn ✅, Tremor ❌, Visx ❌ |
+| 8 | 3 Dashboards por perfil (Global/Clínico/Operacional) | ⚠️ | Existe 1 misto |
+| 9 | Tabelas: sticky + sort + pills + cursor pagination | ⚠️ | Sort ✅, pills/cursor ❌ |
+| 10 | Skeletons em vez de spinners | ❌ | Spinners em todo lugar |
+
+### Roadmap dos 10 passos (Dr. Claude):
+
+- ✅ **Passos 1+2** (gateways + NFe) — DONE em 20.04.26 — commits `84c6d8c` + `b7de072`
+- ⏳ **Passo 3** (auth JWT) — usando `x-admin-token` provisório
+- 📅 **Passo 4** Design System 2.0 formalizado — 1 semana
+- 📅 **Passo 5** Command Palette ⌘K — 3 dias
+- 📅 **Passo 6** Peek-and-Pop em Paciente/Sessão/Fatura/NFe — 1 semana
+- 📅 **Passo 7** Fase A 11 telas reconstruídas — 3 semanas
+- 📅 **Passo 8** 3 Dashboards por perfil — 1 semana
+- 📅 **Passo 9** Multi-unidade real Pádua + Genesis staging — 2 semanas
+- 📅 **Passo 10** Portal do paciente redesenhado — 2 semanas
+- 📅 **Passo 11** Motor de Relatórios Premium PDF — 1 semana
+- 📅 **Passo 12** Marketplace PADCON landing — 2 semanas
+- 📅 **Passo 13** Mobile App Expo (após 3 clientes pagantes) — 4 semanas
+
+**Total Passos 4-13: ~16 semanas (4 meses).**
