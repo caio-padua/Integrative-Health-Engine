@@ -263,3 +263,9 @@ id = "tPa_r4fe3di9NGLj526F1"
 uri = "file://output/natacha/dados/dados_clinicos_completos.json"
 type = "unspecified"
 title = "📊 Dados clínicos brutos (paciente+anamnese+patologias+meds+itens)"
+
+[[outputs]]
+id = "w12f5cGg4NuzsRNlpBCPr"
+uri = "file://exports/operacional-dia-preview.pdf"
+type = "pdf"
+title = "PDF Operacional do Dia — Manifesto PADCON 2.0"

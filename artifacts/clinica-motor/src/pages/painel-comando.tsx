@@ -7,8 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, Calendar, AlertTriangle, Pill, Activity,
   TrendingUp, Heart, Clock, XCircle, CheckCircle2,
-  Flame, Eye, ChevronRight, Shield
+  Flame, Eye, ChevronRight, Shield, FileDown
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import { useClinic } from "@/contexts/ClinicContext";
 
@@ -210,24 +211,39 @@ export default function PainelComando() {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-              <Shield className="w-8 h-8 text-primary" />
+          <div className="border-l-4 border-[var(--pw-dourado-vivo)] pl-5 py-1">
+            <div className="text-[10px] tracking-[0.32em] text-[var(--pw-dourado)] uppercase mb-1">PADCON · Capítulo V</div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--pw-petroleo)] flex items-center gap-3">
+              <Shield className="w-6 h-6" />
               Painel de Comando
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-[var(--pw-tinta)] mt-1">
               {isTodasClinicas
-                ? "Visao em tempo real de toda a operacao clinica"
-                : <span>Operacao clinica — <span style={{ color: corUnidadeSelecionada || "#6B7280" }} className="font-medium">{nomeUnidadeSelecionada}</span></span>
+                ? "Visão em tempo real de toda a operação clínica"
+                : <span>Operação clínica — <span style={{ color: corUnidadeSelecionada || "var(--pw-petroleo)" }} className="font-semibold">{nomeUnidadeSelecionada}</span></span>
               }
             </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
-            Atualizado agora
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="rounded-none border-[var(--pw-petroleo)] text-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo)] hover:text-white"
+              onClick={() => {
+                const hoje = new Date().toISOString().slice(0, 10);
+                const u = unidadeSelecionada ? `&unidadeId=${unidadeSelecionada}` : "";
+                window.open(`/api/relatorios/operacional-dia/pdf?data=${hoje}${u}`, "_blank");
+              }}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              PDF Operacional do Dia
+            </Button>
+            <div className="flex items-center gap-2 text-xs text-[var(--pw-tinta)]">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--pw-dourado-vivo)] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--pw-dourado-vivo)]"></span>
+              </span>
+              Atualizado agora
+            </div>
           </div>
         </div>
 
