@@ -8,7 +8,7 @@ import {
   Building2, Settings, LogOut, GitBranch, ShieldCheck, Database, FileText, FlaskConical, CalendarDays,
   FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
   ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
-  ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign,
+  ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign, Stethoscope,
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -211,6 +211,7 @@ export function Layout({ children }: { children: ReactNode }) {
       items: [
         { name: "🏔️ Matriz de Agenda", path: "/agendas", icon: CalendarDays, slug: "agendas" },
         { name: "Motor de Agenda", path: "/agenda-motor", icon: CalendarDays, slug: "agenda-motor" },
+        { name: "Sessões Clínicas", path: "/sessoes", icon: Stethoscope, slug: "sessoes" },
         { name: "Agenda Semanal", path: "/agenda", icon: CalendarDays, slug: "agenda" },
         { name: "Follow-up", path: "/followup", icon: CalendarClock, slug: "followup" },
       ],

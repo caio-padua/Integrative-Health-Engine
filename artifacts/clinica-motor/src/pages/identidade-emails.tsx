@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AtSign, Shield, AlertTriangle, CheckCircle2, Power, Sparkles } from "lucide-react";
+import { AtSign, Shield, AlertTriangle, CheckCircle2, Power, Sparkles, ListChecks, Eraser, Filter } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   available: "bg-slate-100 text-slate-700",
@@ -19,6 +19,8 @@ export default function IdentidadeEmailsPage() {
   const qc = useQueryClient();
   const [adminToken, setAdminToken] = useState<string>(localStorage.getItem("padcon_admin_token") ?? "");
   const [unidadeId, setUnidadeId] = useState<number | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<string>("");
+  const [filtroCargo, setFiltroCargo] = useState<string>("");
   useEffect(() => { localStorage.setItem("padcon_admin_token", adminToken); }, [adminToken]);
 
   const { data: unidades } = useQuery<any[]>({
@@ -88,12 +90,48 @@ export default function IdentidadeEmailsPage() {
   });
 
   const stats = identidades?.stats;
-  const lista: any[] = identidades?.identidades ?? [];
+  const listaCompleta: any[] = identidades?.identidades ?? [];
+  const lista = listaCompleta.filter((it) =>
+    (!filtroStatus || it.status === filtroStatus) &&
+    (!filtroCargo || it.cargo === filtroCargo)
+  );
   const grouped: Record<string, any[]> = {};
   for (const it of lista) {
     if (!grouped[it.cargo]) grouped[it.cargo] = [];
     grouped[it.cargo].push(it);
   }
+  const cargosUnicos = Array.from(new Set(listaCompleta.map((it) => it.cargo))).sort();
+  const statusUnicos = Array.from(new Set(listaCompleta.map((it) => it.status))).sort();
+
+  const selecionarTodosVisiveis = useMutation({
+    mutationFn: async () => {
+      const alvos = lista.filter((it) => it.status === "available");
+      await Promise.all(alvos.map((it) =>
+        fetch(`/api/email-identity/${it.id}/toggle`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+          body: JSON.stringify({ acao: "selecionar" }),
+        })
+      ));
+      return { count: alvos.length };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-identity", unidadeId] }),
+  });
+
+  const limparSelecao = useMutation({
+    mutationFn: async () => {
+      const alvos = lista.filter((it) => it.status === "selected");
+      await Promise.all(alvos.map((it) =>
+        fetch(`/api/email-identity/${it.id}/toggle`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+          body: JSON.stringify({ acao: "desselecionar" }),
+        })
+      ));
+      return { count: alvos.length };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-identity", unidadeId] }),
+  });
 
   return (
     <div className="p-6 space-y-6 bg-stone-50 min-h-screen">
@@ -235,6 +273,47 @@ export default function IdentidadeEmailsPage() {
         <Card className="p-4 bg-red-50 border-red-300 rounded-none">
           <p className="font-semibold text-red-900">Erro:</p>
           <pre className="text-xs text-red-800 mt-1 whitespace-pre-wrap">{(provisionar.error as Error).message}</pre>
+        </Card>
+      )}
+
+      {listaCompleta.length > 0 && (
+        <Card className="p-3 bg-white border-stone-200 rounded-none flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+            <Filter className="w-4 h-4 text-stone-500" />
+            <select
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value)}
+              className="px-2 py-1 border border-stone-300 rounded-none text-xs bg-white"
+            >
+              <option value="">Todos os status</option>
+              {statusUnicos.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select
+              value={filtroCargo}
+              onChange={(e) => setFiltroCargo(e.target.value)}
+              className="px-2 py-1 border border-stone-300 rounded-none text-xs bg-white"
+            >
+              <option value="">Todos os cargos</option>
+              {cargosUnicos.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <span className="text-xs text-stone-500">
+              {lista.length} de {listaCompleta.length} visíveis
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="rounded-none text-xs"
+              onClick={() => selecionarTodosVisiveis.mutate()}
+              disabled={selecionarTodosVisiveis.isPending || !lista.some((it) => it.status === "available")}>
+              <ListChecks className="w-3 h-3 mr-1" />
+              {selecionarTodosVisiveis.isPending ? "Selecionando..." : `Selecionar disponíveis (${lista.filter((it) => it.status === "available").length})`}
+            </Button>
+            <Button size="sm" variant="outline" className="rounded-none text-xs text-red-700 border-red-200"
+              onClick={() => limparSelecao.mutate()}
+              disabled={limparSelecao.isPending || !lista.some((it) => it.status === "selected")}>
+              <Eraser className="w-3 h-3 mr-1" />
+              {limparSelecao.isPending ? "Limpando..." : `Limpar selecionados (${lista.filter((it) => it.status === "selected").length})`}
+            </Button>
+          </div>
         </Card>
       )}
 
