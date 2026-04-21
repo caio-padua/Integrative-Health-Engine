@@ -4,10 +4,12 @@
 // editáveis em linha. Salva via PATCH /painel-pawards/metas-faturamento/:id
 // (backend aceita PATCH e PUT, mesmo handler).
 
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { PAWARDS, fmtBRL } from "@/lib/pawards-tokens";
+import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 
 const API_BASE: string = import.meta.env.VITE_API_URL ?? "/api";
+const ADMIN_TOKEN_KEY = "padcon_admin_token";
 
 interface Unidade {
   id: number;
@@ -36,7 +38,7 @@ interface MetasPatchBody {
 }
 
 function authHeaders(): Record<string, string> {
-  const t = typeof window !== "undefined" ? localStorage.getItem("padcon_admin_token") : null;
+  const t = typeof window !== "undefined" ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
   const h: Record<string, string> = { "Content-Type": "application/json" };
   if (t) h["x-admin-token"] = t;
   return h;
@@ -70,6 +72,13 @@ export default function MetasFaturamentoAdmin() {
   const [saving, setSaving] = useState<number | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [filtro, setFiltro] = useState("");
+
+  // Auto-logout por inatividade nas telas administrativas.
+  const inactivityLogout = useCallback(() => {
+    try { localStorage.removeItem(ADMIN_TOKEN_KEY); } catch { /* ignore */ }
+    if (typeof window !== "undefined") window.location.reload();
+  }, []);
+  useInactivityLogout(inactivityLogout);
 
   const load = async () => {
     setLoading(true); setError(null);
