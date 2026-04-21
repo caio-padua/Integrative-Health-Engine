@@ -5,10 +5,26 @@
 //
 // Auth: usa middleware existente (req.user?.perfil). MASTER vê todas; demais filtram unidadeId.
 
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { pool } from "@workspace/db";
+import type { JwtPayload } from "../lib/auth/jwt";
 
 const router = Router();
+
+// Request com user opcional — espelha a augmentation declarada em requireAuth.ts
+// sem depender da resolucao do modulo "express-serve-static-core" no tsconfig.
+type AuthedRequest = Request & { user?: JwtPayload };
+
+// Log identificado de cada acesso ao Painel PAWARDS — substitui o log "admin generico"
+// herdado do x-admin-token. Mostra quem (email/perfil/sub) tocou cada endpoint.
+router.use((req: AuthedRequest, _res: Response, next: NextFunction) => {
+  const u = req.user;
+  const who = u
+    ? `user=${u.email} perfil=${u.perfil} sub=${u.sub}`
+    : "user=<sem-jwt>";
+  console.log(`[painel-pawards] ${req.method} ${req.originalUrl} ${who}`);
+  next();
+});
 
 const MASTER_PERFIS = new Set([
   "validador_mestre",

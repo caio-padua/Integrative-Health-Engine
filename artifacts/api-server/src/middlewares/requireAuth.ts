@@ -43,8 +43,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
+  // Bypass via x-admin-token NAO e aceito para o Painel PAWARDS — esses endpoints
+  // exigem identidade JWT para que o log "[painel-pawards]" sempre tenha quem acessou.
+  const isPainelPawards = path === "/painel-pawards" || path.startsWith("/painel-pawards/");
   const adminToken = process.env["ADMIN_TOKEN"];
-  if (adminToken && adminToken.length >= 16 && req.header("x-admin-token") === adminToken) {
+  if (!isPainelPawards && adminToken && adminToken.length >= 16 && req.header("x-admin-token") === adminToken) {
     req.user = { id: -1, perfil: "admin", nome: "ADMIN_TOKEN", email: "admin@pawards", unidadeId: null } as any;
     next();
     return;

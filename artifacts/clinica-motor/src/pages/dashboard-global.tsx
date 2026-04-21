@@ -3,9 +3,12 @@
 // Atualiza KPIs a cada 60s, ranking a cada 60s, trend a cada 5min.
 
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
+
+const TOKEN_KEY = "pawards.auth.token";
 import { KpiCard } from "@/components/pawards/KpiCard";
 import { Gauge } from "@/components/pawards/Gauge";
 import { Led } from "@/components/pawards/Led";
@@ -49,23 +52,32 @@ interface TrendPoint {
 }
 
 export default function DashboardGlobal() {
-  const { data: globalKpi, lastUpdate, error: errKpi, refresh: refreshKpi } = useRealtimeDashboard<GlobalKPI>(
-    "/painel-pawards/global", 60_000
+  const [, setLocation] = useLocation();
+  const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
+
+  useEffect(() => {
+    if (!hasToken) {
+      setLocation("/admin/login");
+    }
+  }, [hasToken, setLocation]);
+
+  const { data: globalKpi, lastUpdate, error: errKpi } = useRealtimeDashboard<GlobalKPI>(
+    "/painel-pawards/global", 60_000, { enabled: hasToken }
   );
-  const { data: ranking, refresh: refreshRanking } = useRealtimeDashboard<RankingRow[]>(
-    "/painel-pawards/clinicas/ranking", 60_000
+  const { data: ranking } = useRealtimeDashboard<RankingRow[]>(
+    "/painel-pawards/clinicas/ranking", 60_000, { enabled: hasToken }
   );
-  const { data: trend, refresh: refreshTrend } = useRealtimeDashboard<TrendPoint[]>(
-    "/painel-pawards/global/trend?dias=30", 5 * 60_000
+  const { data: trend } = useRealtimeDashboard<TrendPoint[]>(
+    "/painel-pawards/global/trend?dias=30", 5 * 60_000, { enabled: hasToken }
   );
-  const { data: agenda, refresh: refreshAgenda } = useRealtimeDashboard<{ origem: "real" | "sintetico"; consultas: AgendaItem[] }>(
-    "/painel-pawards/agenda-hoje", 60_000
+  const { data: agenda } = useRealtimeDashboard<{ origem: "real" | "sintetico"; consultas: AgendaItem[] }>(
+    "/painel-pawards/agenda-hoje", 60_000, { enabled: hasToken }
   );
-  const { data: alertas, refresh: refreshAlertas } = useRealtimeDashboard<AlertasData>(
-    "/painel-pawards/alertas", 60_000
+  const { data: alertas } = useRealtimeDashboard<AlertasData>(
+    "/painel-pawards/alertas", 60_000, { enabled: hasToken }
   );
-  const { data: caixa, refresh: refreshCaixa } = useRealtimeDashboard<CaixaData>(
-    "/painel-pawards/caixa-30d", 5 * 60_000
+  const { data: caixa } = useRealtimeDashboard<CaixaData>(
+    "/painel-pawards/caixa-30d", 5 * 60_000, { enabled: hasToken }
   );
 
   const [now, setNow] = useState(new Date());
@@ -75,25 +87,11 @@ export default function DashboardGlobal() {
   }, []);
 
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const at = url.searchParams.get("at");
-    if (at && at.length >= 16) {
-      localStorage.setItem("padcon_admin_token", at);
-      url.searchParams.delete("at");
-      window.history.replaceState({}, "", url.toString());
-      window.location.reload();
+    if (errKpi?.includes("401")) {
+      try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+      setLocation("/admin/login");
     }
-  }, []);
-
-  const [tokenInput, setTokenInput] = useState<string>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("padcon_admin_token") ?? "" : ""
-  );
-  const needsAuth = errKpi?.includes("401");
-  const saveToken = () => {
-    localStorage.setItem("padcon_admin_token", tokenInput.trim());
-    refreshKpi(); refreshRanking(); refreshTrend();
-    refreshAgenda(); refreshAlertas(); refreshCaixa();
-  };
+  }, [errKpi, setLocation]);
 
   const realizado = Number(globalKpi?.fat_realizado_mes ?? 0);
   const meta = Number(globalKpi?.fat_meta_total ?? 0);
@@ -109,47 +107,6 @@ export default function DashboardGlobal() {
 
   return (
     <div style={{ background: PAWARDS.colors.bg[950], minHeight: "100vh", color: PAWARDS.colors.text.primary }}>
-      {needsAuth && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "rgba(2,4,6,0.92)", display: "flex",
-          alignItems: "center", justifyContent: "center", padding: 24,
-        }}>
-          <div style={{
-            background: PAWARDS.colors.bg[900], border: `1px solid ${PAWARDS.colors.gold[600]}`,
-            borderRadius: 12, padding: 32, maxWidth: 480, width: "100%",
-          }}>
-            <h2 style={{ color: PAWARDS.colors.gold[500], fontSize: 18, marginBottom: 8, letterSpacing: 1 }}>
-              PAWARDS · MEDCORE
-            </h2>
-            <p style={{ color: PAWARDS.colors.text.muted, fontSize: 13, marginBottom: 16 }}>
-              Cole seu admin token para acessar o dashboard global.
-            </p>
-            <input
-              type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="x-admin-token"
-              style={{
-                width: "100%", padding: "10px 12px", borderRadius: 6,
-                background: PAWARDS.colors.bg[950], color: "#fff",
-                border: `1px solid ${PAWARDS.colors.bg[700] ?? "#1a2530"}`,
-                fontFamily: "monospace", fontSize: 13, marginBottom: 12,
-              }}
-              onKeyDown={(e) => { if (e.key === "Enter") saveToken(); }}
-            />
-            <button
-              onClick={saveToken}
-              style={{
-                width: "100%", padding: "10px 16px", borderRadius: 6,
-                background: PAWARDS.colors.gold[500], color: PAWARDS.colors.bg[950],
-                border: "none", fontWeight: 600, cursor: "pointer",
-                letterSpacing: 0.5,
-              }}
-            >Entrar</button>
-          </div>
-        </div>
-      )}
       {/* HEADER */}
       <div
         style={{
