@@ -191,12 +191,13 @@ export default function PainelComando() {
 
   const { resumoGeral, statusSessoes, substanciasResumo, alertasDetalhes, faltasDetalhes, sessoesUltimaSemana } = data;
 
+  const ss = statusSessoes ?? { concluidas: 0, agendadas: 0, confirmadas: 0, faltas: 0, canceladas: 0 } as any;
   const pieData = [
-    { name: "Concluidas", value: statusSessoes.concluidas, fill: "#22c55e" },
-    { name: "Agendadas", value: statusSessoes.agendadas, fill: "#3b82f6" },
-    { name: "Confirmadas", value: statusSessoes.confirmadas, fill: "#10b981" },
-    { name: "Faltas", value: statusSessoes.faltas, fill: "#ef4444" },
-    { name: "Canceladas", value: statusSessoes.canceladas, fill: "#71717a" },
+    { name: "Concluidas", value: ss.concluidas ?? 0, fill: "#22c55e" },
+    { name: "Agendadas", value: ss.agendadas ?? 0, fill: "#3b82f6" },
+    { name: "Confirmadas", value: ss.confirmadas ?? 0, fill: "#10b981" },
+    { name: "Faltas", value: ss.faltas ?? 0, fill: "#ef4444" },
+    { name: "Canceladas", value: ss.canceladas ?? 0, fill: "#71717a" },
   ].filter(d => d.value > 0);
 
   const substBarData = substanciasResumo.slice(0, 8).map(s => ({
