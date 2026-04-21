@@ -224,14 +224,149 @@ router.get("/parclaim/:unidade_id/previsao", async (req, res) => {
 });
 
 // ===========================================================================
-// 7) PARMAVAULT — bloqueado por anastomose (tabela inexistente)
+// 7) PARMAVAULT — painel das farmácias parceiras (anastomose 9 fechada).
 // ===========================================================================
-router.get("/parmavault/:farmacia_id/termometros", (_req, res) => {
-  res.status(501).json({
-    error: "PARMAVAULT pendente",
-    motivo: "Tabela farmacias_parmavault inexistente. Anastomose registrada.",
-    anastomose_id: 9,
-  });
+
+// 7a) Ranking global das farmácias PARMAVAULT (visível ao master).
+router.get("/parmavault/farmacias/ranking", async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        f.id, f.nome_fantasia, f.cidade, f.estado, f.percentual_comissao,
+        f.meta_receitas_mes, f.meta_valor_mes,
+        COALESCE(rec_mes.qtd, 0)::int                       AS receitas_mes,
+        COALESCE(rec_mes.valor, 0)::numeric(14,2)           AS valor_mes,
+        COALESCE(rec_semana.qtd, 0)::int                    AS receitas_semana,
+        COALESCE(rec_hoje.qtd, 0)::int                      AS receitas_hoje,
+        COALESCE(comissao_mes.valor, 0)::numeric(14,2)      AS comissao_mes,
+        CASE WHEN f.meta_receitas_mes > 0
+             THEN ROUND(COALESCE(rec_mes.qtd, 0)::numeric / f.meta_receitas_mes * 100, 1)
+             ELSE 0 END                                     AS pct_meta_receitas,
+        CASE WHEN f.meta_valor_mes > 0
+             THEN ROUND(COALESCE(rec_mes.valor, 0) / f.meta_valor_mes * 100, 1)
+             ELSE 0 END                                     AS pct_meta_valor
+      FROM farmacias_parmavault f
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS qtd, COALESCE(SUM(valor_formula_real), SUM(valor_formula_estimado)) AS valor
+        FROM parmavault_receitas r
+        WHERE r.farmacia_id = f.id
+          AND r.entregue_em >= date_trunc('month', CURRENT_DATE)
+          AND r.status IN ('entregue', 'retirada')
+      ) rec_mes ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS qtd
+        FROM parmavault_receitas r
+        WHERE r.farmacia_id = f.id
+          AND r.entregue_em >= date_trunc('week', CURRENT_DATE)
+          AND r.status IN ('entregue', 'retirada')
+      ) rec_semana ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS qtd
+        FROM parmavault_receitas r
+        WHERE r.farmacia_id = f.id
+          AND r.entregue_em::date = CURRENT_DATE
+          AND r.status IN ('entregue', 'retirada')
+      ) rec_hoje ON true
+      LEFT JOIN LATERAL (
+        SELECT SUM(comissao_estimada) AS valor
+        FROM parmavault_receitas r
+        WHERE r.farmacia_id = f.id
+          AND r.entregue_em >= date_trunc('month', CURRENT_DATE)
+          AND r.status IN ('entregue', 'retirada')
+      ) comissao_mes ON true
+      WHERE f.ativo
+      ORDER BY valor_mes DESC NULLS LAST
+    `);
+    res.json(rows);
+  } catch (e: any) {
+    console.error("[painel-pawards/parmavault/ranking]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 7b) Termômetros de uma farmácia específica.
+router.get("/parmavault/:farmacia_id/termometros", async (req, res) => {
+  const fid = Number(req.params.farmacia_id);
+  if (!Number.isFinite(fid)) return res.status(400).json({ error: "farmacia_id inválido" });
+  try {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        f.nome_fantasia, f.meta_receitas_semana, f.meta_receitas_mes,
+        f.meta_valor_mes, f.percentual_comissao,
+        COALESCE((SELECT COUNT(*) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em::date = CURRENT_DATE
+            AND status IN ('entregue','retirada')), 0)::int AS receitas_hoje,
+        COALESCE((SELECT COUNT(*) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= date_trunc('week', CURRENT_DATE)
+            AND status IN ('entregue','retirada')), 0)::int AS receitas_semana,
+        COALESCE((SELECT COUNT(*) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= date_trunc('month', CURRENT_DATE)
+            AND status IN ('entregue','retirada')), 0)::int AS receitas_mes,
+        COALESCE((SELECT SUM(valor_formula_real) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= date_trunc('month', CURRENT_DATE)
+            AND status IN ('entregue','retirada')), 0)::numeric(14,2) AS valor_mes,
+        COALESCE((SELECT AVG(valor_formula_real) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= CURRENT_DATE - INTERVAL '7 days'
+            AND status IN ('entregue','retirada')), 0)::numeric(10,2) AS ticket_medio_semana,
+        COALESCE((SELECT SUM(comissao_estimada) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= date_trunc('month', CURRENT_DATE)
+            AND status IN ('entregue','retirada')), 0)::numeric(14,2) AS comissao_mes
+      FROM farmacias_parmavault f WHERE f.id = $1
+    `,
+      [fid]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "Farmácia não encontrada" });
+    const r = rows[0];
+    const pct_meta = r.meta_receitas_mes > 0
+      ? Math.round((r.receitas_mes / r.meta_receitas_mes) * 100)
+      : 0;
+    const pct_valor = r.meta_valor_mes > 0
+      ? Math.round((Number(r.valor_mes) / Number(r.meta_valor_mes)) * 100)
+      : 0;
+    const falta_meta = Math.max(0, r.meta_receitas_mes - r.receitas_mes);
+    res.json({
+      ...r,
+      pct_meta,
+      pct_valor,
+      falta_meta,
+      vai_bater: pct_meta >= 80,
+      alerta: pct_meta < 50,
+      banda: pct_meta >= 100 ? "excelente"
+           : pct_meta >= 80 ? "boa"
+           : pct_meta >= 50 ? "atencao"
+           : "critica",
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/parmavault/termometros]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 7c) Série diária da farmácia (últimos 30 dias) — pra gráfico de linha.
+router.get("/parmavault/:farmacia_id/trend", async (req, res) => {
+  const fid = Number(req.params.farmacia_id);
+  if (!Number.isFinite(fid)) return res.status(400).json({ error: "farmacia_id inválido" });
+  try {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        d::date AS data,
+        COALESCE(COUNT(r.id) FILTER (WHERE r.status IN ('entregue','retirada')), 0)::int AS receitas,
+        COALESCE(SUM(r.valor_formula_real) FILTER (WHERE r.status IN ('entregue','retirada')), 0)::numeric(14,2) AS valor,
+        COALESCE(SUM(r.comissao_estimada) FILTER (WHERE r.status IN ('entregue','retirada')), 0)::numeric(14,2) AS comissao
+      FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day') AS d
+      LEFT JOIN parmavault_receitas r
+        ON r.farmacia_id = $1 AND r.entregue_em::date = d::date
+      GROUP BY d ORDER BY d
+    `,
+      [fid]
+    );
+    res.json(rows);
+  } catch (e: any) {
+    console.error("[painel-pawards/parmavault/trend]", e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===========================================================================
