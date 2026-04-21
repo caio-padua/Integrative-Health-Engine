@@ -236,6 +236,17 @@ O médico (ou o motor autônomo) escolhe o estilo em runtime via `pedidos_exame.
 
 8. **Auto-validador de docstrings** (`scripts/src/validar-docstrings.ts`, novo): script que percorre 11 arquivos TS críticos, detecta cada `function`/`const = (...)` e classifica o JSDoc anterior em 4 estados (OK / SEM_JSDOC / JSDOC_SEM_EXEMPLO / JSDOC_SEM_PORQUE). Padrão obrigatório PAWARDS = triade **(Função, Por que existe, Exemplo prático)**. Execução: `pnpm --filter @workspace/scripts exec tsx src/validar-docstrings.ts`. **Estado inicial revelado: 99 funções, 0% com JSDoc completo, 97 sem nada — alvo crítico de documentação para próximas ondas.** As 6 funções dos scripts de encarnação (encarnar-natacha + encarnar-exames-pawards) já foram documentadas como exemplo do padrão.
 
+**Onda GESTÃO CLÍNICA + AUDITORIA — 4 Auditores Virtuais:**
+- **Migration 003**: 8 tabelas (`auditor_areas_atuacao`, `auditores`, `auditor_visibilidade_regras`, `auditor_mensagens`, `auditor_eventos_drive`, `anastomoses_pendentes`, `paciente_email_semanal`, `drive_anchors`) — todas serial PK.
+- **4 auditores fictícios**: Arquio 🛡️ TÉCNICO (07h diário), Klara 🩺 CLÍNICO (18h diário, única LGPD-full), Vitrine 📈 LOCAL (seg 08h), Horizonte 🌐 GLOBAL (sex 17h).
+- **28 regras de visibilidade LGPD-granular** (PACIENTES/PRESCRICOES/RAS/FINANCEIRO/EXAMES/DRIVE_EVENTOS/MARKETING × NENHUM/AGREGADO/ANONIMIZADO/IDENTIFICAVEL).
+- **Hierarquia Drive**: `PAWARDS/GESTAO CLINICA/{Empresas/CNPJ, AUDITORIA/{- DASHBOARD, - ATIVA, - LEGADO}}`. Pastas criadas e ancoradas em `drive_anchors`. Planilha `AA.MM.DD - AUDITORIA` criada em `- ATIVA` com abas EVENTOS/DASHBOARD/CONFIG.
+- **Rotas API** (`/api/auditores`, `/api/auditor-mensagens`, `/api/auditor-eventos`, `/api/anastomoses`): GET/POST/PATCH com botões `LI | DECIDIR | ADIAR`.
+- **Template HTML e-mail semanal paciente** (A4, page-break-inside avoid, blocos RESUMO/PEDIMOS/INDICADORES).
+- **18 stress tests** motor PADCON (entradas vazias, 50 ativos, REGRA 14.3 explosão FAMA, B2/A3, magistral solo, idempotência, Lilás/Verde, unicode).
+- **Anastomoses críticas registradas**: `withTenantScope` global, watcher Drive Activity, scheduler 48h ATIVA→LEGADO, assinatura PAdES/ICP, posologia dinâmica PDF.
+- **Nomenclatura ferro-fundida**: MAIÚSCULAS, sem acentos/hífen/underline, só espaços. Arquivos `AA.MM.DD - PALAVRA`.
+
 **Onda 5 — Assinatura Digital + Mapa Fiscal/Gateways:**
 
 1. **Tabela `provedores_assinatura_digital`** (nova, autoexplicativa, 6 linhas): catálogo dos 6 provedores cobertos pelo PAWARDS, com mesma tríade (`funcao` + `porque_existe` + `quando_usar` + `exemplo_pratico`) + colunas extras (`tipo_assinatura`, `evidencias_capturadas[]`, `valor_juridico`, `modelo_cobranca`):
