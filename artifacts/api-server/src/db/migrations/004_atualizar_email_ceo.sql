@@ -14,5 +14,5 @@
 UPDATE usuarios
    SET email = 'ceo@pawards.com.br',
        nome  = 'Dr Caio Henrique Fernandes Padua'
- WHERE (id = 1 OR email = 'caio@clinica.com')
+ WHERE id = 1
    AND (email <> 'ceo@pawards.com.br' OR nome <> 'Dr Caio Henrique Fernandes Padua');
