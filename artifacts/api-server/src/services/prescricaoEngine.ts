@@ -378,12 +378,17 @@ export function aplicarRegra14(bloco: BlocoEntrada): BlocoProcessado[] {
     return out;
   }
 
-  // Caso padrão — sem controlados
+  // Caso padrão — sem controlados.
+  // Mesmo sem REGRA 14, cada bloco MANIPULADO_FARMACIA representa UMA
+  // fórmula composta distinta — preservamos o apelido como chave de
+  // agrupamento para que cada fórmula vire seu próprio PDF (a farmácia
+  // magistral precisa de 1 receita por fórmula a manipular).
   return [
     {
       ...bloco,
       destino_dispensacao: deduzirDestino(ativos),
       codigo_mafia4: deduzirMafia4(ativos),
+      formula_composta_apelido: bloco.apelido,
     },
   ];
 }
