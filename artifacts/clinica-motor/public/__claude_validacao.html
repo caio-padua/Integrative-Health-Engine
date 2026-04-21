@@ -1,32 +1,125 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>PAWARDS · Validação Dr Claude</title>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PAWARDS · MEDCORE · Tour de Validação</title>
 <style>
-  body{margin:0;background:#020406;color:#C89B3C;font:600 16px system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:24px;box-sizing:border-box}
-  h1{font-size:22px;letter-spacing:.18em;margin:0 0 12px;color:#C89B3C}
-  p{color:#7a8794;margin:6px 0;max-width:640px;line-height:1.5}
-  .links{margin-top:28px;display:flex;flex-direction:column;gap:10px}
-  a{color:#020406;background:#C89B3C;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:700;letter-spacing:.08em;min-width:340px}
-  a:hover{filter:brightness(1.1)}
-  small{color:#4a5560;margin-top:24px;letter-spacing:.06em}
-</style></head><body>
+  *{box-sizing:border-box}
+  body{margin:0;background:#020406;color:#e8d8b0;font:500 15px/1.4 system-ui,-apple-system,Segoe UI,Inter;padding:32px 20px 80px;min-height:100vh}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:26px;letter-spacing:.18em;margin:0 0 4px;color:#C89B3C;font-weight:700}
+  .sub{color:#7a8794;letter-spacing:.06em;margin:0 0 28px;font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+  section{margin:28px 0 6px}
+  h2{font-size:13px;letter-spacing:.22em;color:#C89B3C;border-bottom:1px solid #1a2530;padding:0 0 8px;margin:0 0 14px;font-weight:700;text-transform:uppercase}
+  a{display:block;background:#0a1218;border:1px solid #1a2530;color:#e8d8b0;padding:13px 16px;border-radius:8px;text-decoration:none;transition:all .15s;font-weight:600}
+  a:hover{border-color:#C89B3C;background:#0f1a23;transform:translateY(-1px)}
+  a small{display:block;color:#5a6772;font-weight:400;font-size:11px;letter-spacing:.06em;margin-top:3px;font-family:ui-monospace,Menlo}
+  .top{background:linear-gradient(135deg,#1a1306,#0a1218);border:1px solid #C89B3C}
+  .top:hover{background:linear-gradient(135deg,#241a08,#0f1a23)}
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid #1a2530;color:#4a5560;font-size:12px;letter-spacing:.06em;text-align:center}
+</style></head><body><div class="wrap">
 <h1>PAWARDS · MEDCORE</h1>
-<p>Bridge de validação. Clique em qualquer tela abaixo para entrar autenticado como CEO master e ver o dashboard renderizando ao vivo.</p>
-<div class="links">
-  <a href="#" data-to="/painel-pawards">Dashboard CEO Master · /painel-pawards</a>
-  <a href="#" data-to="/admin/dashboard-global">Dashboard Global (rota antiga) · /admin/dashboard-global</a>
-  <a href="#" data-to="/admin/pacientes">Pacientes</a>
-  <a href="#" data-to="/admin/farmacias">Farmácias</a>
-  <a href="#" data-to="/admin/agenda">Agenda</a>
-</div>
-<small>Token de sessão válido por 12h · ceo@pawards.com.br · perfil validador_mestre</small>
-<script>
-const TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoiY2VvQHBhd2FyZHMuY29tLmJyIiwicGVyZmlsIjoidmFsaWRhZG9yX21lc3RyZSIsImVzY29wbyI6bnVsbCwidW5pZGFkZUlkIjpudWxsLCJjb25zdWx0b3JpYUlkIjpudWxsLCJpYXQiOjE3NzY4MDkwOTAsImV4cCI6MTc3Njg1MjI5MH0.ye4P4gYRbep6FqlHXMYq0opF1KXhjceztRCwsirlkYM';
+<p class="sub">Tour de validação · sessão CEO master · token válido por 24h · clique para entrar autenticado</p>
+
+<section><h2>★ Dashboards executivos</h2><div class="grid">
+  <a class="top" data-to="/painel-pawards">Dashboard CEO Master<small>/painel-pawards</small></a>
+  <a class="top" data-to="/admin/dashboard-global">Dashboard Global (multi-clínica)<small>/admin/dashboard-global</small></a>
+  <a data-to="/dashboard-local">Dashboard Local (unidade)<small>/dashboard-local</small></a>
+  <a data-to="/dashboard">Dashboard padrão<small>/dashboard</small></a>
+  <a data-to="/painel-comando">Painel de Comando<small>/painel-comando</small></a>
+  <a data-to="/painel-transmutacao">Painel Transmutação<small>/painel-transmutacao</small></a>
+</div></section>
+
+<section><h2>★ Fórmulas, blends e ativos (PADCON)</h2><div class="grid">
+  <a class="top" data-to="/catalogo">Catálogo de Blends/Fórmulas<small>/catalogo</small></a>
+  <a class="top" data-to="/substancias">Substâncias / Ativos<small>/substancias</small></a>
+  <a class="top" data-to="/itens-terapeuticos">Itens Terapêuticos (intra/endo, injetáveis, implantes)<small>/itens-terapeuticos</small></a>
+  <a data-to="/protocolos">Protocolos clínicos<small>/protocolos</small></a>
+  <a data-to="/protocolo-natacha">Protocolo Natacha<small>/protocolo-natacha</small></a>
+  <a data-to="/dietas">Dietas terapêuticas<small>/dietas</small></a>
+  <a data-to="/estoque">Estoque<small>/estoque</small></a>
+</div></section>
+
+<section><h2>★ Pacientes e prontuário</h2><div class="grid">
+  <a data-to="/pacientes">Lista de pacientes<small>/pacientes</small></a>
+  <a data-to="/pacientes/3">Ficha · João da Silva (id 3)<small>/pacientes/3</small></a>
+  <a data-to="/pacientes/3/questionario">Questionário<small>/pacientes/3/questionario</small></a>
+  <a data-to="/pacientes/3/exames-grafico">Exames · gráfico evolutivo<small>/pacientes/3/exames-grafico</small></a>
+  <a data-to="/pacientes/3/monitoramento">Monitoramento contínuo<small>/pacientes/3/monitoramento</small></a>
+  <a data-to="/anamnese">Anamneses<small>/anamnese</small></a>
+  <a data-to="/exames">Exames laboratoriais<small>/exames</small></a>
+  <a data-to="/laboratorio/validacao">Laboratório · validação<small>/laboratorio/validacao</small></a>
+  <a data-to="/avaliacao-enfermagem">Avaliação de enfermagem<small>/avaliacao-enfermagem</small></a>
+  <a data-to="/pedidos-exame">Pedidos de exame<small>/pedidos-exame</small></a>
+</div></section>
+
+<section><h2>★ Agenda e operação</h2><div class="grid">
+  <a class="top" data-to="/agenda">Agenda semanal<small>/agenda</small></a>
+  <a data-to="/agendas">Agendas (multi-profissional)<small>/agendas</small></a>
+  <a data-to="/agenda-motor">Motor da agenda<small>/agenda-motor</small></a>
+  <a data-to="/padcom-agenda-retornos">PADCOM · agenda de retornos<small>/padcom-agenda-retornos</small></a>
+  <a data-to="/filas">Filas operacionais<small>/filas</small></a>
+  <a data-to="/followup">Follow-up<small>/followup</small></a>
+  <a data-to="/acompanhamento">Acompanhamento<small>/acompanhamento</small></a>
+</div></section>
+
+<section><h2>★ PADCOM (motor de prescrição universal)</h2><div class="grid">
+  <a data-to="/padcom-admin/dashboard">PADCOM admin · dashboard<small>/padcom-admin/dashboard</small></a>
+  <a data-to="/padcom-admin">PADCOM admin · lista<small>/padcom-admin</small></a>
+  <a data-to="/padcom">PADCOM paciente<small>/padcom</small></a>
+  <a data-to="/padcom-governanca">PADCOM governança<small>/padcom-governanca</small></a>
+  <a data-to="/padcom/concluido">PADCOM concluído<small>/padcom/concluido</small></a>
+</div></section>
+
+<section><h2>★ Farmácias parceiras (PARMAVAULT)</h2><div class="grid">
+  <a class="top" data-to="/admin/farmacias">PARMAVAULT · farmácias<small>/admin/farmacias</small></a>
+  <a data-to="/portal">Portal cliente (farmácia)<small>/portal</small></a>
+</div></section>
+
+<section><h2>★ Financeiro e fiscal</h2><div class="grid">
+  <a data-to="/financeiro">Financeiro<small>/financeiro</small></a>
+  <a data-to="/admin/metas-faturamento">Metas de faturamento<small>/admin/metas-faturamento</small></a>
+  <a data-to="/comissao">Comissões<small>/comissao</small></a>
+  <a data-to="/comercial">Comercial<small>/comercial</small></a>
+  <a data-to="/painel-nfe">Painel NF-e<small>/painel-nfe</small></a>
+  <a data-to="/credenciais-nfe">Credenciais NF-e<small>/credenciais-nfe</small></a>
+  <a data-to="/gateways-pagamento">Gateways de pagamento<small>/gateways-pagamento</small></a>
+</div></section>
+
+<section><h2>★ Governança, parâmetros e configuração</h2><div class="grid">
+  <a data-to="/admin/parametros-referencia">Parâmetros de referência<small>/admin/parametros-referencia</small></a>
+  <a data-to="/governanca">Governança<small>/governanca</small></a>
+  <a data-to="/governanca-matrix">Matriz de governança<small>/governanca-matrix</small></a>
+  <a data-to="/matriz-analitica">Matriz analítica<small>/matriz-analitica</small></a>
+  <a data-to="/unidades">Unidades<small>/unidades</small></a>
+  <a data-to="/colaboradores">Colaboradores<small>/colaboradores</small></a>
+  <a data-to="/permissoes">Permissões<small>/permissoes</small></a>
+  <a data-to="/configuracoes">Configurações<small>/configuracoes</small></a>
+  <a data-to="/sessoes">Sessões<small>/sessoes</small></a>
+  <a data-to="/seguranca">Segurança<small>/seguranca</small></a>
+  <a data-to="/identidade-emails">Identidade de e-mails<small>/identidade-emails</small></a>
+</div></section>
+
+<section><h2>★ Inteligência e fluxos</h2><div class="grid">
+  <a data-to="/agentes-virtuais">Agentes virtuais<small>/agentes-virtuais</small></a>
+  <a data-to="/fluxos">Fluxos<small>/fluxos</small></a>
+  <a data-to="/delegacao">Delegação<small>/delegacao</small></a>
+  <a data-to="/codigos-semanticos">Códigos semânticos<small>/codigos-semanticos</small></a>
+  <a data-to="/codigos-validacao">Códigos de validação<small>/codigos-validacao</small></a>
+  <a data-to="/justificativas">Justificativas<small>/justificativas</small></a>
+  <a data-to="/blueprint">Blueprint<small>/blueprint</small></a>
+  <a data-to="/inundacao">Inundação<small>/inundacao</small></a>
+  <a data-to="/ras">RAS<small>/ras</small></a>
+  <a data-to="/ras-evolutivo">RAS evolutivo<small>/ras-evolutivo</small></a>
+</div></section>
+
+<footer>Sessão master ceo@pawards.com.br · perfil validador_mestre · expira em 24h<br>Para sair: clique em SAIR dentro de qualquer tela e volte a esta URL</footer>
+</div><script>
+const TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoiY2VvQHBhd2FyZHMuY29tLmJyIiwicGVyZmlsIjoidmFsaWRhZG9yX21lc3RyZSIsImVzY29wbyI6bnVsbCwidW5pZGFkZUlkIjpudWxsLCJjb25zdWx0b3JpYUlkIjpudWxsLCJpYXQiOjE3NzY4MDk3MzMsImV4cCI6MTc3Njg5NjEzM30.cc2wv0M3rE2sAZBRQ5H01zr5l0yUQBov_mxJK3fBKC4';
 const USER={id:1,email:'ceo@pawards.com.br',nome:'Dr Caio Henrique Fernandes Padua',perfil:'validador_mestre'};
+function entrar(to){
+  localStorage.setItem('pawards.auth.token', TOKEN);
+  localStorage.setItem('pawards.auth.user', JSON.stringify(USER));
+  location.href = to;
+}
 document.querySelectorAll('a[data-to]').forEach(a=>{
-  a.addEventListener('click',e=>{
-    e.preventDefault();
-    localStorage.setItem('pawards.auth.token', TOKEN);
-    localStorage.setItem('pawards.auth.user', JSON.stringify(USER));
-    location.href = a.dataset.to;
-  });
+  a.addEventListener('click',e=>{e.preventDefault(); entrar(a.dataset.to);});
 });
 </script></body></html>
