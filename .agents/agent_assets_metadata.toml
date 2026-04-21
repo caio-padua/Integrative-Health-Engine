@@ -269,3 +269,33 @@ id = "w12f5cGg4NuzsRNlpBCPr"
 uri = "file://exports/operacional-dia-preview.pdf"
 type = "pdf"
 title = "PDF Operacional do Dia — Manifesto PADCON 2.0"
+
+[[outputs]]
+id = "IHkXBLcxDkkgb9Tnoczf0"
+uri = "file://screenshots/1-login-master.jpeg"
+type = "image"
+title = "1 — Login Master (/admin/login)"
+
+[[outputs]]
+id = "11Y2wh96Uryd5RhVPLKHp"
+uri = "file://screenshots/2-dashboard-global-ceo.jpeg"
+type = "image"
+title = "2 — Dashboard Global CEO (caiu de volta pro login!)"
+
+[[outputs]]
+id = "rOeJqV66GqIe641Lp1YbC"
+uri = "file://screenshots/3-pacientes.jpeg"
+type = "image"
+title = "3 — Pacientes (logado)"
+
+[[outputs]]
+id = "CqSS803EPoDoTWhujNaZD"
+uri = "file://screenshots/4-farmacias-parmavault.jpeg"
+type = "image"
+title = "4 — Parmavault Farmácias (com modal antigo aparecendo)"
+
+[[outputs]]
+id = "2MpDmG_aBO8wX8OImq1q6"
+uri = "file://screenshots/5-agenda-semanal.jpeg"
+type = "image"
+title = "5 — Agenda Semanal (logado)"

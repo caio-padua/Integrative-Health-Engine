@@ -11,6 +11,9 @@ import {
 const TOKEN_KEY = "pawards.auth.token";
 const USER_KEY = "pawards.auth.user";
 
+// Tempo (em minutos) sem interação até deslogar automaticamente o painel global.
+const INACTIVITY_TIMEOUT_MINUTES = 30;
+
 interface SessionUser {
   email?: string | null;
   nome?: string | null;
@@ -85,6 +88,36 @@ export default function DashboardGlobal() {
     if (!hasToken) {
       setLocation("/admin/login");
     }
+  }, [hasToken, setLocation]);
+
+  // Auto-logout por inatividade: zera o timer a cada mousemove/keydown/click.
+  useEffect(() => {
+    if (!hasToken) return;
+    const timeoutMs = INACTIVITY_TIMEOUT_MINUTES * 60_000;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const doLogout = () => {
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+      } catch { /* ignore */ }
+      setSessionUser(null);
+      setLocation("/admin/login");
+    };
+
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(doLogout, timeoutMs);
+    };
+
+    const events: Array<keyof WindowEventMap> = ["mousemove", "keydown", "click"];
+    events.forEach((ev) => window.addEventListener(ev, reset, { passive: true }));
+    reset();
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach((ev) => window.removeEventListener(ev, reset));
+    };
   }, [hasToken, setLocation]);
 
   const { data: globalKpi, lastUpdate, error: errKpi } = useRealtimeDashboard<GlobalKPI>(
