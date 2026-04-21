@@ -8,6 +8,7 @@ import { useLoginUsuario, type LoginResponse } from "@workspace/api-client-react
 import { PAWARDS } from "@/lib/pawards-tokens";
 
 const TOKEN_KEY = "pawards.auth.token";
+const USER_KEY = "pawards.auth.user";
 const MASTER_PERFIS = new Set(["validador_mestre", "consultoria_master", "master", "admin"]);
 
 export default function AdminLogin() {
@@ -38,6 +39,17 @@ export default function AdminLogin() {
           }
           if (res.token) {
             localStorage.setItem(TOKEN_KEY, res.token);
+            try {
+              const usr = res.usuario;
+              localStorage.setItem(
+                USER_KEY,
+                JSON.stringify({
+                  email: usr?.email ?? email.trim(),
+                  nome: usr?.nome ?? null,
+                  perfil,
+                }),
+              );
+            } catch { /* ignore */ }
             setLocation("/admin/dashboard-global");
           } else {
             setErro("Resposta de login sem token.");
