@@ -2,14 +2,17 @@
 // Rota: /admin/farmacias
 // Reusa pawards-tokens, KpiCard, Led, useRealtimeDashboard.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
 import { KpiCard } from "@/components/pawards/KpiCard";
 import { Led } from "@/components/pawards/Led";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
+import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { PAWARDS, fmtBRL, fmtInt } from "@/lib/pawards-tokens";
+
+const ADMIN_TOKEN_KEY = "padcon_admin_token";
 
 interface FarmaciaRanking {
   id: number;
@@ -70,7 +73,7 @@ export default function FarmaciasParmavault() {
     const url = new URL(window.location.href);
     const at = url.searchParams.get("at");
     if (at && at.length >= 16) {
-      localStorage.setItem("padcon_admin_token", at);
+      localStorage.setItem(ADMIN_TOKEN_KEY, at);
       url.searchParams.delete("at");
       window.history.replaceState({}, "", url.toString());
       window.location.reload();
@@ -78,13 +81,20 @@ export default function FarmaciasParmavault() {
   }, []);
 
   const [tokenInput, setTokenInput] = useState<string>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("padcon_admin_token") ?? "" : ""
+    typeof window !== "undefined" ? localStorage.getItem(ADMIN_TOKEN_KEY) ?? "" : ""
   );
   const needsAuth = errRanking?.includes("401");
   const saveToken = () => {
-    localStorage.setItem("padcon_admin_token", tokenInput.trim());
+    localStorage.setItem(ADMIN_TOKEN_KEY, tokenInput.trim());
     refreshRanking();
   };
+
+  // Auto-logout por inatividade nas telas administrativas.
+  const inactivityLogout = useCallback(() => {
+    try { localStorage.removeItem(ADMIN_TOKEN_KEY); } catch { /* ignore */ }
+    if (typeof window !== "undefined") window.location.reload();
+  }, []);
+  useInactivityLogout(inactivityLogout, { enabled: !needsAuth });
 
   const totais = (ranking ?? []).reduce(
     (acc, f) => ({

@@ -2,7 +2,7 @@
 // Rota: /admin/dashboard-global
 // Atualiza KPIs a cada 60s, ranking a cada 60s, trend a cada 5min.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -13,6 +13,8 @@ const USER_KEY = "pawards.auth.user";
 
 // Tempo (em minutos) sem interação até deslogar automaticamente o painel global.
 const INACTIVITY_TIMEOUT_MINUTES = 30;
+// Quantos segundos antes do logout exibir o aviso com contagem regressiva.
+const INACTIVITY_WARNING_SECONDS = 60;
 
 interface SessionUser {
   email?: string | null;
@@ -90,11 +92,23 @@ export default function DashboardGlobal() {
     }
   }, [hasToken, setLocation]);
 
+  // Estado do modal de aviso de inatividade: segundos restantes ou null (oculto).
+  const [warningSecondsLeft, setWarningSecondsLeft] = useState<number | null>(null);
+  const inactivityResetRef = useRef<(() => void) | null>(null);
+
+  const handleStayLoggedIn = () => {
+    inactivityResetRef.current?.();
+  };
+
   // Auto-logout por inatividade: zera o timer a cada mousemove/keydown/click.
+  // Ao entrar nos últimos INACTIVITY_WARNING_SECONDS, exibe modal com contagem.
   useEffect(() => {
     if (!hasToken) return;
     const timeoutMs = INACTIVITY_TIMEOUT_MINUTES * 60_000;
-    let timer: ReturnType<typeof setTimeout>;
+    const warningMs = INACTIVITY_WARNING_SECONDS * 1000;
+    let warningTimer: ReturnType<typeof setTimeout>;
+    let logoutTimer: ReturnType<typeof setTimeout>;
+    let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
     const doLogout = () => {
       try {
@@ -105,18 +119,57 @@ export default function DashboardGlobal() {
       setLocation("/admin/login");
     };
 
+    const showWarning = () => {
+      setWarningSecondsLeft(INACTIVITY_WARNING_SECONDS);
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        setWarningSecondsLeft((prev) => {
+          if (prev === null) return null;
+          if (prev <= 1) {
+            if (countdownInterval) {
+              clearInterval(countdownInterval);
+              countdownInterval = null;
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    };
+
     const reset = () => {
-      clearTimeout(timer);
-      timer = setTimeout(doLogout, timeoutMs);
+      clearTimeout(warningTimer);
+      clearTimeout(logoutTimer);
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      setWarningSecondsLeft(null);
+      warningTimer = setTimeout(showWarning, Math.max(0, timeoutMs - warningMs));
+      logoutTimer = setTimeout(doLogout, timeoutMs);
     };
 
     const events: Array<keyof WindowEventMap> = ["mousemove", "keydown", "click"];
-    events.forEach((ev) => window.addEventListener(ev, reset, { passive: true }));
+    const handleActivity = () => {
+      // Enquanto o aviso estiver aberto, ignoramos a interação implícita —
+      // o usuário precisa clicar em "Continuar logado" explicitamente.
+      setWarningSecondsLeft((current) => {
+        if (current === null) reset();
+        return current;
+      });
+    };
+    events.forEach((ev) => window.addEventListener(ev, handleActivity, { passive: true }));
     reset();
 
+    // Expõe a função de reset para o botão do modal.
+    inactivityResetRef.current = reset;
+
     return () => {
-      clearTimeout(timer);
-      events.forEach((ev) => window.removeEventListener(ev, reset));
+      clearTimeout(warningTimer);
+      clearTimeout(logoutTimer);
+      if (countdownInterval) clearInterval(countdownInterval);
+      events.forEach((ev) => window.removeEventListener(ev, handleActivity));
+      inactivityResetRef.current = null;
     };
   }, [hasToken, setLocation]);
 
@@ -169,6 +222,103 @@ export default function DashboardGlobal() {
 
   return (
     <div style={{ background: PAWARDS.colors.bg[950], minHeight: "100vh", color: PAWARDS.colors.text.primary }}>
+      {warningSecondsLeft !== null && (
+        <div
+          data-testid="modal-inactivity-warning"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.72)",
+            backdropFilter: "blur(4px)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: PAWARDS.colors.bg.panel,
+              border: `1px solid ${PAWARDS.colors.gold[700]}`,
+              borderRadius: PAWARDS.radii.panel,
+              boxShadow: PAWARDS.shadows.blackPiano,
+              padding: 32,
+              maxWidth: 420,
+              width: "100%",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.20em",
+                color: PAWARDS.colors.gold[500],
+                fontWeight: 700,
+                textTransform: "uppercase",
+                marginBottom: 10,
+              }}
+            >
+              Sessão prestes a expirar
+            </div>
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: PAWARDS.colors.text.primary,
+                marginBottom: 18,
+                lineHeight: 1.4,
+              }}
+            >
+              Você será deslogado por inatividade
+            </div>
+            <div
+              data-testid="text-inactivity-countdown"
+              style={{
+                fontFamily: "ui-monospace, monospace",
+                fontSize: 56,
+                fontWeight: 700,
+                color: PAWARDS.colors.digital.amber,
+                textShadow: `0 0 16px ${PAWARDS.colors.digital.amber}66`,
+                letterSpacing: "0.06em",
+                marginBottom: 18,
+              }}
+            >
+              {warningSecondsLeft}s
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: PAWARDS.colors.text.tertiary,
+                marginBottom: 22,
+                lineHeight: 1.5,
+              }}
+            >
+              Clique em <strong style={{ color: PAWARDS.colors.text.primary }}>Continuar logado</strong> para
+              manter sua sessão ativa.
+            </div>
+            <button
+              type="button"
+              onClick={handleStayLoggedIn}
+              data-testid="button-stay-logged-in"
+              style={{
+                padding: "10px 22px",
+                background: PAWARDS.colors.gold[500],
+                color: "#000",
+                border: "none",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              Continuar logado
+            </button>
+          </div>
+        </div>
+      )}
       {/* HEADER */}
       <div
         style={{
