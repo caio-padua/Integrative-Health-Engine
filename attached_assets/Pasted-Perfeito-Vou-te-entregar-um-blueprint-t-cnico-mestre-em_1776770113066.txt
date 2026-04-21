@@ -1,0 +1,1127 @@
+Perfeito. Vou te entregar um blueprint técnico-mestre, em texto puro, para copiar e colar no Replit, no Claude e também usar como base no Lovable se quiser.
+
+Vou ser rigorosamente honesto em um ponto: como as imagens geradas são renderizações artísticas e não arquivos vetoriais técnicos nativos, os códigos abaixo são uma tradução de engenharia de altíssima fidelidade da linguagem visual que você aprovou, e não um “eyedropper exato de pixel por pixel” de cada imagem. Em compensação, o que estou te entregando aqui é melhor para desenvolvimento real, porque já vem sistematizado, normalizado, componentizado e pronto para implementação.
+
+⸻
+
+PAWARDS MEDCORE
+
+BLUEPRINT TÉCNICO ABSOLUTO DO FRONT-END
+
+Versão master para Replit / Claude / TypeScript / React
+
+⸻
+
+1. DIRETRIZ CENTRAL DO PROJETO
+
+O Pawards Medcore deve ser implementado como um sistema visual de alto luxo tecnológico, com três camadas combinadas:
+
+1. Base institucional premium
+    * black piano
+    * navy profundo
+    * ouro escovado
+    * leitura clínica séria
+    * acabamento executivo
+2. Camada instrumental retrô-futurista
+    * LEDs de status
+    * gauges analógicos
+    * displays digitais segmentados
+    * leitura imediata
+    * sensação de painel de comando
+3. Camada operacional cognitiva
+    * grid matemático
+    * separação absoluta dos módulos
+    * hierarquia impecável
+    * densidade de informação sem bagunça
+    * visual “cada dado na sua casa”
+
+⸻
+
+2. SISTEMA DE PALETAS
+
+2.1. PALETA MESTRE FINAL APROVADA
+
+Use esta como paleta principal do produto.
+
+export const PAWARDS_MASTER_PALETTE = {
+  bg: {
+    950: '#020406',
+    925: '#04070B',
+    900: '#05070B',
+    875: '#070B10',
+    850: '#0A0F17',
+    825: '#0D131B',
+    800: '#101720',
+    775: '#131B26',
+  },
+  navy: {
+    950: '#020812',
+    900: '#06101D',
+    850: '#091729',
+    800: '#0C1C30',
+    750: '#10233B',
+    700: '#16304C',
+  },
+  piano: {
+    blackBase: '#07090D',
+    blackGlossTop: 'rgba(255,255,255,0.085)',
+    blackGlossMid: 'rgba(255,255,255,0.028)',
+    blackGlossBottom: 'rgba(255,255,255,0.008)',
+    blackEdge: 'rgba(255,255,255,0.06)',
+    blackInset: 'rgba(0,0,0,0.42)',
+  },
+  gold: {
+    100: '#F7E7B2',
+    200: '#F1D789',
+    300: '#E5C160',
+    400: '#D4AA46',
+    500: '#C89B3C',
+    600: '#B8872A',
+    700: '#A97822',
+    800: '#8A611B',
+    brushedLight: '#F3D38A',
+    brushedMid: '#C89B3C',
+    brushedDark: '#7E5A19',
+  },
+  text: {
+    primary: '#F5F7FA',
+    secondary: '#AAB4C3',
+    tertiary: '#7F8A99',
+    muted: '#5E6773',
+    darkOnGold: '#11151B',
+  },
+  status: {
+    critical: '#FF3B30',
+    low: '#FFD60A',
+    mid: '#FF9F0A',
+    good: '#34C759',
+    excellent: '#0A84FF',
+    info: '#64D2FF',
+    offline: '#FF453A',
+    warning: '#FFB340',
+    online: '#30D158',
+    syncing: '#5AC8FA',
+    paused: '#8E8E93',
+  },
+  neon: {
+    greenSoft: 'rgba(52,199,89,0.22)',
+    blueSoft: 'rgba(10,132,255,0.22)',
+    amberSoft: 'rgba(255,159,10,0.22)',
+    redSoft: 'rgba(255,59,48,0.22)',
+    goldSoft: 'rgba(200,155,60,0.18)',
+  },
+  analog: {
+    blueArc: '#2D8CFF',
+    greenArc: '#6DDA62',
+    amberArc: '#F5B82E',
+    orangeArc: '#FF8F1F',
+    redArc: '#FF4D3A',
+    violetArc: '#B06CFF',
+    cyanArc: '#58D7FF',
+  },
+  digital: {
+    greenDigits: '#8FFF6A',
+    amberDigits: '#FFC94A',
+    redDigits: '#FF6A55',
+    blueDigits: '#64B5FF',
+    whiteDigits: '#F3F8FF',
+    dimDigits: '#41505C',
+  }
+};
+
+⸻
+
+2.2. PALETA “DASH 1”
+
+Linha limpa premium navy + ouro
+
+Essa é a paleta do primeiro dashboard mais elegante e controlado.
+
+export const DASH_1_PALETTE = {
+  background: '#07111A',
+  backgroundGradientTop: '#0B1723',
+  backgroundGradientBottom: '#04080D',
+  card: '#0D1621',
+  card2: '#101A26',
+  cardEdge: 'rgba(255,255,255,0.06)',
+  cardHighlight: 'rgba(255,255,255,0.08)',
+  primaryGold: '#C89B3C',
+  primaryGoldLight: '#E8C978',
+  primaryGoldDark: '#8D6620',
+  white: '#F5F7FA',
+  secondaryText: '#A7B0BC',
+  tertiaryText: '#67717E',
+  lineBlue: '#5EB3FF',
+  lineOrange: '#F5A623',
+  barBlue: '#3E8DFF',
+  barBlueDark: '#1C4E8A',
+  green: '#34C759',
+  orange: '#FF9F0A',
+  yellow: '#FFD60A',
+  red: '#FF3B30'
+};
+
+⸻
+
+2.3. PALETA “DASH 2”
+
+Linha sensorial, mais viva, mais cockpit
+
+export const DASH_2_PALETTE = {
+  background: '#081118',
+  background2: '#0C141B',
+  panel: '#101A24',
+  panelGlow: 'rgba(10,132,255,0.06)',
+  gold: '#C89B3C',
+  goldAccent: '#E4C062',
+  blue: '#2196FF',
+  cyan: '#64D2FF',
+  green: '#30D158',
+  orange: '#FF9F0A',
+  red: '#FF453A',
+  violet: '#A970FF',
+  digitalAmber: '#FFCE54',
+  digitalGreen: '#9AF76E',
+  chartLinePrimary: '#4CA8FF',
+  chartLineSecondary: '#FFAE2A',
+  chartBarPrimary: '#328BFF',
+  chartBarSecondary: '#F3B13A',
+};
+
+⸻
+
+2.4. PALETA “DASH 3 RETRÔ REFINADO”
+
+Linha black piano + retrô técnico + displays segmentados
+
+export const DASH_3_RETRO_PALETTE = {
+  background: '#060808',
+  background2: '#0B0D0B',
+  blackPanel: '#090B0D',
+  blackPanelGloss: '#12161B',
+  blackPanelEdge: 'rgba(255,255,255,0.07)',
+  goldFrame: '#B8872A',
+  goldFrameBright: '#E2C470',
+  goldFrameDark: '#795516',
+  ledGreen: '#44F05A',
+  ledYellow: '#FFD84B',
+  ledOrange: '#FF9F1F',
+  ledRed: '#FF4B3A',
+  ledBlue: '#4BA8FF',
+  digitalGreen: '#8FFF6A',
+  digitalAmber: '#FFC948',
+  digitalRed: '#FF6D57',
+  digitalBlue: '#67B5FF',
+  analogBlue: '#2A8CFF',
+  analogGreen: '#67D84B',
+  analogYellow: '#FFD447',
+  analogOrange: '#FF9F1A',
+  analogRed: '#FF503A',
+  analogViolet: '#A56DFF',
+};
+
+⸻
+
+3. SISTEMA DE CORES POR ESTADO
+
+REGRA ABSOLUTA DOS TERMÔMETROS, BARRAS E LEDs
+
+export const STATUS_BANDS = {
+  critical: {
+    color: '#FF3B30',
+    glow: 'rgba(255,59,48,0.22)',
+    label: 'CRÍTICO',
+    range: [0, 32]
+  },
+  low: {
+    color: '#FFD60A',
+    glow: 'rgba(255,214,10,0.18)',
+    label: 'INFERIOR',
+    range: [33, 49]
+  },
+  mid: {
+    color: '#FF9F0A',
+    glow: 'rgba(255,159,10,0.20)',
+    label: 'MÉDIO',
+    range: [50, 66]
+  },
+  good: {
+    color: '#34C759',
+    glow: 'rgba(52,199,89,0.20)',
+    label: 'SUPERIOR',
+    range: [67, 89]
+  },
+  excellent: {
+    color: '#0A84FF',
+    glow: 'rgba(10,132,255,0.20)',
+    label: 'EXCELENTE',
+    range: [90, 999]
+  }
+};
+
+Regra visual obrigatória
+
+A transição entre faixas não deve ser um degradê longo.
+Usar:
+
+* faixa base principal
+* micro transição de 4% a 7% da largura
+* próxima faixa
+
+Exemplo:
+
+* vermelho até 32%
+* transição curta até 35%
+* amarelo até 49%
+* transição curta até 52%
+* laranja até 66%
+* transição curta até 69%
+* verde até 89%
+* transição curta até 92%
+* azul acima
+
+⸻
+
+4. TIPOGRAFIA
+
+4.1. FONTES PRINCIPAIS
+
+Fonte institucional / títulos
+
+Sugestão para Replit:
+
+* Inter
+* Manrope
+* Sora
+* Rajdhani apenas em displays técnicos específicos
+* Orbitron apenas em títulos mecânicos muito pontuais, nunca no sistema todo
+
+Combinação recomendada
+
+* Títulos e interface geral: Inter
+* Elementos premium/tech: Sora
+* Displays segmentados: fonte custom digital segment ou fallback monospace
+
+⸻
+
+4.2. ESCALA TIPOGRÁFICA
+
+export const TYPE_SCALE = {
+  displayXL: { size: '40px', line: '44px', weight: 700, letter: '-0.03em' },
+  displayLG: { size: '32px', line: '36px', weight: 700, letter: '-0.02em' },
+  h1: { size: '28px', line: '32px', weight: 700, letter: '-0.02em' },
+  h2: { size: '24px', line: '28px', weight: 700, letter: '-0.02em' },
+  h3: { size: '20px', line: '24px', weight: 600, letter: '-0.015em' },
+  h4: { size: '18px', line: '22px', weight: 600, letter: '-0.01em' },
+  bodyLG: { size: '16px', line: '24px', weight: 400, letter: '-0.005em' },
+  bodyMD: { size: '14px', line: '20px', weight: 400, letter: '-0.003em' },
+  bodySM: { size: '13px', line: '18px', weight: 400, letter: '0em' },
+  labelLG: { size: '13px', line: '16px', weight: 600, letter: '0.06em' },
+  labelMD: { size: '12px', line: '14px', weight: 600, letter: '0.08em' },
+  labelSM: { size: '11px', line: '13px', weight: 600, letter: '0.10em' },
+  metricXL: { size: '38px', line: '40px', weight: 700, letter: '-0.04em' },
+  metricLG: { size: '30px', line: '32px', weight: 700, letter: '-0.03em' },
+  metricMD: { size: '24px', line: '28px', weight: 700, letter: '-0.02em' },
+  metricSM: { size: '18px', line: '22px', weight: 600, letter: '-0.01em' },
+};
+
+⸻
+
+4.3. ESCALA DOS DISPLAYS DIGITAIS
+
+export const DIGITAL_TYPE_SCALE = {
+  huge: { size: '42px', line: '42px', letter: '0.03em' },
+  large: { size: '32px', line: '32px', letter: '0.025em' },
+  medium: { size: '24px', line: '24px', letter: '0.02em' },
+  small: { size: '18px', line: '18px', letter: '0.015em' },
+  tiny: { size: '14px', line: '14px', letter: '0.015em' },
+};
+
+⸻
+
+5. ESPAÇAMENTO, GRID E DIMENSÕES
+
+5.1. GRID BASE
+
+export const GRID = {
+  pageMaxWidth: '1680px',
+  sidebarWidth: '236px',
+  topbarHeight: '84px',
+  contentGap: '18px',
+  sectionGap: '22px',
+  cardRadius: '18px',
+  cardRadiusSm: '14px',
+  innerPadding: '18px',
+  innerPaddingLg: '24px',
+};
+
+5.2. ESCALA DE ESPAÇAMENTO
+
+export const SPACE = {
+  2: '2px',
+  4: '4px',
+  6: '6px',
+  8: '8px',
+  10: '10px',
+  12: '12px',
+  14: '14px',
+  16: '16px',
+  18: '18px',
+  20: '20px',
+  24: '24px',
+  28: '28px',
+  32: '32px',
+  40: '40px',
+  48: '48px',
+  56: '56px',
+};
+
+⸻
+
+6. SOMBRAS, BRILHOS E BLACK PIANO
+
+6.1. SOMBRAS GERAIS
+
+export const SHADOWS = {
+  panelBase: `
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 -1px 0 rgba(0,0,0,0.42),
+    0 12px 28px rgba(0,0,0,0.42)
+  `,
+  panelPremium: `
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 0 0 1px rgba(255,255,255,0.04),
+    inset 0 -2px 4px rgba(0,0,0,0.25),
+    0 14px 30px rgba(0,0,0,0.45)
+  `,
+  blackPiano: `
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 8px 16px rgba(255,255,255,0.02),
+    inset 0 -10px 18px rgba(0,0,0,0.28),
+    0 10px 24px rgba(0,0,0,0.48)
+  `,
+  glowGold: `0 0 18px rgba(200,155,60,0.20)`,
+  glowGreen: `0 0 16px rgba(52,199,89,0.24)`,
+  glowBlue: `0 0 16px rgba(10,132,255,0.22)`,
+  glowRed: `0 0 14px rgba(255,59,48,0.20)`,
+};
+
+6.2. CSS BASE DO CARD BLACK PIANO
+
+.pawards-panel {
+  position: relative;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.085) 0%,
+      rgba(255,255,255,0.028) 10%,
+      rgba(255,255,255,0.012) 18%,
+      rgba(0,0,0,0.10) 58%,
+      rgba(0,0,0,0.22) 100%
+    ),
+    linear-gradient(180deg, #0B1018 0%, #06090F 100%);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(0,0,0,0.42),
+    0 12px 28px rgba(0,0,0,0.42);
+  overflow: hidden;
+}
+.pawards-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg,
+      rgba(255,255,255,0.09) 0%,
+      rgba(255,255,255,0.03) 12%,
+      rgba(255,255,255,0.00) 30%
+    );
+  pointer-events: none;
+}
+
+⸻
+
+7. LEDS DE STATUS
+
+7.1. TAMANHOS
+
+export const LED_SIZES = {
+  sm: 8,
+  md: 10,
+  lg: 12,
+};
+
+7.2. CORES
+
+export const LED_COLORS = {
+  online: '#30D158',
+  warning: '#FFD60A',
+  attention: '#FF9F0A',
+  critical: '#FF453A',
+  excellent: '#0A84FF',
+  neutral: '#8E8E93',
+};
+
+7.3. CSS
+
+.led {
+  border-radius: 999px;
+  position: relative;
+}
+.led::after {
+  content: '';
+  position: absolute;
+  inset: 18%;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.55);
+  filter: blur(1px);
+}
+.led--online {
+  background: #30D158;
+  box-shadow:
+    0 0 4px rgba(48,209,88,0.9),
+    0 0 10px rgba(48,209,88,0.5),
+    0 0 18px rgba(48,209,88,0.18);
+}
+.led--warning {
+  background: #FFD60A;
+  box-shadow:
+    0 0 4px rgba(255,214,10,0.85),
+    0 0 10px rgba(255,214,10,0.42),
+    0 0 18px rgba(255,214,10,0.16);
+}
+.led--critical {
+  background: #FF453A;
+  box-shadow:
+    0 0 4px rgba(255,69,58,0.85),
+    0 0 10px rgba(255,69,58,0.42),
+    0 0 18px rgba(255,69,58,0.16);
+}
+.led--excellent {
+  background: #0A84FF;
+  box-shadow:
+    0 0 4px rgba(10,132,255,0.85),
+    0 0 10px rgba(10,132,255,0.42),
+    0 0 18px rgba(10,132,255,0.16);
+}
+
+Uso dos LEDs no topo
+
+* sistema
+* agenda
+* consultas
+* financeiro
+* whatsapp
+* e-mail
+* integrações
+* backup
+* segurança
+* atualização
+
+⸻
+
+8. DISPLAYS DIGITAIS SEGMENTADOS
+
+8.1. PAPEL DOS DISPLAYS
+
+Usar para:
+
+* faturamento mês
+* saldo
+* data e hora
+* contador de pacientes
+* consultas do dia
+* número de autorizações
+* total de mensagens
+
+8.2. CSS BASE
+
+.digital-display {
+  font-family: 'Rajdhani', 'Inter', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 4px rgba(255,255,255,0.04),
+    0 0 10px currentColor;
+}
+.digital-display--green { color: #8FFF6A; }
+.digital-display--amber { color: #FFC948; }
+.digital-display--red { color: #FF6D57; }
+.digital-display--blue { color: #67B5FF; }
+
+8.3. CORES DOS DIGITAIS POR SEMÂNTICA
+
+export const DIGITAL_SEMANTIC = {
+  time: '#8FFF6A',
+  billing: '#FFC948',
+  deficit: '#FF6D57',
+  excellent: '#67B5FF',
+  neutral: '#F3F8FF',
+};
+
+⸻
+
+9. GAUGES / VELOCÍMETROS ANALÓGICOS
+
+9.1. TAMANHOS
+
+export const GAUGE_DIMENSIONS = {
+  sm: 132,
+  md: 164,
+  lg: 196,
+  xl: 228,
+};
+export const GAUGE_RING = {
+  outerStroke: 14,
+  innerStroke: 8,
+  tickStroke: 2,
+  needleWidth: 3,
+  hubRadius: 9,
+};
+
+Como você pediu
+
+* circunferência mais grossa
+* ponteiros mantidos finos
+* aro forte
+* fundo elegante
+* sem aparência de velocímetro popular
+
+9.2. MAPEAMENTO DE COR DO ARO
+
+export const GAUGE_ARC_COLORS = {
+  critical: '#FF4D3A',
+  low: '#FFD447',
+  mid: '#FF9F1A',
+  good: '#67D84B',
+  excellent: '#2A8CFF',
+  violet: '#A56DFF',
+};
+
+9.3. ESTRUTURA SVG RECOMENDADA
+
+Cada gauge deve conter:
+
+* arco de fundo escuro
+* arco colorido principal
+* marcações finas
+* ponteiro
+* hub central
+* valor central
+* label inferior
+* meta inferior menor
+
+Props do componente
+
+type GaugeProps = {
+  size: number;
+  value: number;
+  min?: number;
+  max?: number;
+  target?: number;
+  label: string;
+  mode?: 'percentage' | 'currency' | 'score';
+  statusBand: 'critical' | 'low' | 'mid' | 'good' | 'excellent';
+  accent?: string;
+};
+
+9.4. DADOS QUE ALIMENTAM CADA GAUGE
+
+Os gauges devem se conectar a agregados de backend como:
+
+* taxa de ocupação
+* NPS
+* taxa de conversão
+* retorno de pacientes
+* recebíveis
+* ticket médio
+* aderência à meta
+* SLA operacional
+
+Exemplo de resposta de API
+
+type GaugeMetricApi = {
+  id: string;
+  label: string;
+  value: number;
+  target: number;
+  min: number;
+  max: number;
+  unit: '%' | 'R$' | 'score';
+  band: 'critical' | 'low' | 'mid' | 'good' | 'excellent';
+  updatedAt: string;
+};
+
+⸻
+
+10. TERMÔMETROS E BARRAS SEGMENTADAS
+
+10.1. LÓGICA
+
+Os termômetros devem ser usados para:
+
+* faturamento versus meta
+* taxa de retorno
+* novos pacientes
+* consultas
+* procedimentos
+* metas clínicas e financeiras
+
+10.2. VISUAL
+
+* trilho escuro
+* preenchimento com mudança curta de cor
+* sem degradê extenso
+* com highlight superior sutil
+* borda mínima
+
+10.3. CSS BASE
+
+.metric-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #11161D 0%, #080B10 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.05),
+    inset 0 -1px 2px rgba(0,0,0,0.35);
+  overflow: hidden;
+}
+.metric-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    0 0 10px rgba(255,255,255,0.06);
+}
+
+⸻
+
+11. GRÁFICOS
+
+11.1. LINHA
+
+export const LINE_CHART_STYLE = {
+  primaryLine: '#4CA8FF',
+  secondaryLine: '#FFAE2A',
+  primaryGlow: 'rgba(76,168,255,0.20)',
+  secondaryGlow: 'rgba(255,174,42,0.16)',
+  grid: 'rgba(255,255,255,0.05)',
+  axis: '#66707D',
+  label: '#AAB4C3',
+};
+
+11.2. BARRAS
+
+export const BAR_CHART_STYLE = {
+  barBlueTop: '#4EA0FF',
+  barBlueBottom: '#1B4C8A',
+  barGoldTop: '#E2B44D',
+  barGoldBottom: '#8F631D',
+  pedestal: '#1A2028',
+  pedestalHighlight: 'rgba(255,255,255,0.05)',
+};
+
+11.3. PIZZA / DONUT
+
+export const DONUT_STYLE = {
+  ringBase: '#151A20',
+  ringShadow: 'rgba(0,0,0,0.22)',
+  categories: [
+    '#2A8CFF',
+    '#6DDA62',
+    '#FFB82E',
+    '#FF6A3D',
+    '#9E71FF',
+  ]
+};
+
+⸻
+
+12. BACK-END: ONDE CADA COISA SE CONECTA
+
+12.1. HERO KPIs
+
+Conexão: /api/dashboard/hero
+
+type HeroMetrics = {
+  pacientesAtivos: number;
+  consultasHoje: number;
+  faturamentoMes: number;
+  taxaOcupacao: number;
+  procedimentosMes: number;
+  nps: number;
+};
+
+12.2. FLUXO DE CONSULTAS
+
+Conexão: /api/dashboard/appointments-trend
+
+type AppointmentTrend = {
+  date: string;
+  realizadas: number;
+  agendadas: number;
+};
+
+12.3. CATEGORIAS DE PROCEDIMENTO
+
+Conexão: /api/dashboard/procedure-categories
+
+type ProcedureCategory = {
+  name: string;
+  value: number;
+  percent: number;
+  band?: 'critical' | 'low' | 'mid' | 'good' | 'excellent';
+};
+
+12.4. AGENDA
+
+Conexão: /api/dashboard/today-schedule
+
+type ScheduleItem = {
+  time: string;
+  patientName: string;
+  procedureName: string;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'delayed';
+  room?: string;
+};
+
+12.5. ALERTAS
+
+Conexão: /api/dashboard/alerts
+
+type AlertItem = {
+  id: string;
+  type: 'critical' | 'warning' | 'info';
+  title: string;
+  description: string;
+  time: string;
+  actionUrl?: string;
+};
+
+12.6. STATUS DOS SERVIÇOS
+
+Conexão: /api/dashboard/status
+
+type ServiceStatus = {
+  service: 'servidor' | 'banco' | 'backup' | 'integracoes' | 'agenda' | 'whatsapp' | 'email';
+  state: 'online' | 'warning' | 'offline' | 'excellent';
+  latencyMs?: number;
+  lastSyncAt?: string;
+};
+
+12.7. FINANCEIRO
+
+Conexão: /api/dashboard/financial
+
+type FinancialMetrics = {
+  entradas: number;
+  saidas: number;
+  saldo: number;
+  ticketMedio: number;
+  metaMes: number;
+  realizadoMes: number;
+  progressoMetaPercent: number;
+  fluxoCaixa: Array<{
+    date: string;
+    entradas: number;
+    saidas: number;
+    saldo: number;
+  }>;
+};
+
+⸻
+
+13. “CABOS” MECÂNICOS POR TRÁS DOS VELOCÍMETROS
+
+Você falou algo muito importante: “onde os velocímetros vão se conectar, aqueles cabos”.
+
+Na engenharia do front isso significa:
+
+13.1. Cada gauge não é um gráfico solto
+
+Ele deve ser concebido como um componente acoplado a um “motor de métrica”.
+
+Estrutura recomendada
+
+type MetricEngine<T> = {
+  key: string;
+  source: string;
+  intervalMs: number;
+  transform: (raw: T) => number;
+  target?: (raw: T) => number;
+  bandResolver?: (value: number, target?: number) => StatusBand;
+};
+
+13.2. Exemplo: Gauge de ocupação
+
+const occupancyGaugeEngine: MetricEngine<{ ocupacaoHoje: number; meta: number }> = {
+  key: 'ocupacaoHoje',
+  source: '/api/dashboard/hero',
+  intervalMs: 60000,
+  transform: (raw) => raw.ocupacaoHoje,
+  target: (raw) => raw.meta,
+  bandResolver: (value, target) => {
+    if (!target) return 'mid';
+    const p = (value / target) * 100;
+    if (p < 50) return 'critical';
+    if (p < 70) return 'low';
+    if (p < 85) return 'mid';
+    if (p < 100) return 'good';
+    return 'excellent';
+  }
+};
+
+Tradução do “cabo”
+
+O “cabo” do gauge é:
+
+* endpoint
+* transformação
+* frequência de atualização
+* regra da cor
+* meta
+* unidade
+
+⸻
+
+14. FERRAMENTAS RECOMENDADAS PARA IMPLEMENTAÇÃO
+
+14.1. Base principal
+
+* React
+* TypeScript
+* Vite
+* Tailwind CSS
+* Zustand ou TanStack Query
+* Framer Motion
+* ECharts
+* SVG customizado
+
+14.2. O que usar para cada peça
+
+Cards / vidro / black piano
+
+* CSS custom + Tailwind
+
+Gauges analógicos
+
+* SVG custom
+* não usar gauge pronto genérico
+
+Displays digitais
+
+* componente próprio em React
+* CSS com brilho segmentado
+* opcionalmente fonte custom segmentada
+
+Gráficos de linha e barra
+
+* Apache ECharts
+* ou Recharts se quiser menos poder e mais simplicidade
+
+Tempo real
+
+* WebSocket
+* SSE
+* polling inteligente com TanStack Query
+
+⸻
+
+15. ARQUITETURA DE PASTAS PARA O REPLIT
+
+src/
+  app/
+    layout/
+      AppShell.tsx
+      Sidebar.tsx
+      TopBar.tsx
+      DashboardGrid.tsx
+  components/
+    cards/
+      KpiCard.tsx
+      GaugeCard.tsx
+      DigitalDisplayCard.tsx
+      TargetsCard.tsx
+      ComparisonCard.tsx
+      AlertsCard.tsx
+      ScheduleCard.tsx
+      StatusCard.tsx
+    indicators/
+      Led.tsx
+      Gauge.tsx
+      SegmentedDisplay.tsx
+      StatusBadge.tsx
+      MetricBar.tsx
+    charts/
+      TrendLineChart.tsx
+      RevenueBarChart.tsx
+      CategoryDonutChart.tsx
+      CashFlowChart.tsx
+    primitives/
+      Panel.tsx
+      PanelHeader.tsx
+      GlossSurface.tsx
+      GoldDivider.tsx
+  theme/
+    colors.ts
+    shadows.ts
+    spacing.ts
+    typography.ts
+    radii.ts
+    status.ts
+  services/
+    api.ts
+    dashboard.ts
+    realtime.ts
+  hooks/
+    useHeroMetrics.ts
+    useFinancialMetrics.ts
+    useStatusServices.ts
+    useSchedule.ts
+    useAlerts.ts
+  types/
+    dashboard.ts
+    metrics.ts
+    status.ts
+
+⸻
+
+16. EXEMPLO DE TOKENS PRONTOS PARA COLAR
+
+export const pawardsTheme = {
+  colors: {
+    bg950: '#020406',
+    bg925: '#04070B',
+    bg900: '#05070B',
+    bg850: '#0A0F17',
+    panel: '#0B1018',
+    panelAlt: '#101720',
+    textPrimary: '#F5F7FA',
+    textSecondary: '#AAB4C3',
+    textMuted: '#5E6773',
+    gold100: '#F7E7B2',
+    gold300: '#E5C160',
+    gold500: '#C89B3C',
+    gold700: '#A97822',
+    critical: '#FF3B30',
+    low: '#FFD60A',
+    mid: '#FF9F0A',
+    good: '#34C759',
+    excellent: '#0A84FF',
+    digitalGreen: '#8FFF6A',
+    digitalAmber: '#FFC948',
+    digitalRed: '#FF6D57',
+    digitalBlue: '#67B5FF',
+  },
+  radii: {
+    panel: '18px',
+    panelSm: '14px',
+    pill: '999px',
+  },
+  shadows: {
+    panel: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.42), 0 12px 28px rgba(0,0,0,0.42)',
+    glowGold: '0 0 18px rgba(200,155,60,0.20)',
+    glowBlue: '0 0 16px rgba(10,132,255,0.22)',
+    glowGreen: '0 0 16px rgba(52,199,89,0.24)',
+    glowRed: '0 0 14px rgba(255,59,48,0.20)',
+  },
+  spacing: {
+    xs: '6px',
+    sm: '10px',
+    md: '16px',
+    lg: '18px',
+    xl: '24px',
+    xxl: '32px',
+  },
+  typography: {
+    h1: { fontSize: '28px', lineHeight: '32px', fontWeight: 700 },
+    h2: { fontSize: '24px', lineHeight: '28px', fontWeight: 700 },
+    body: { fontSize: '14px', lineHeight: '20px', fontWeight: 400 },
+    label: { fontSize: '12px', lineHeight: '14px', fontWeight: 600, letterSpacing: '0.08em' },
+    metric: { fontSize: '30px', lineHeight: '32px', fontWeight: 700 },
+    digital: { fontSize: '32px', lineHeight: '32px', fontWeight: 700, letterSpacing: '0.03em' },
+  }
+};
+
+⸻
+
+17. PROMPT TÉCNICO BRUTO PARA O REPLIT / CLAUDE
+
+Cole isto diretamente:
+
+Implementar o front-end do Pawards Medcore em React + TypeScript com estética premium black piano, navy profundo, ouro escovado e semântica clínica instrumental. O layout deve ser modular, matematicamente alinhado, com cards em alto relevo black piano, LEDs de status funcionais, gauges analógicos customizados em SVG, displays digitais segmentados estilo anos 80/90 refinados, barras segmentadas com transição curta entre estados sem degradê longo, gráficos de linha e barras com glow discreto e forte legibilidade, tipografia premium com hierarquia impecável e densidade informacional alta sem poluição visual. Criar design system centralizado com tokens de cor, sombra, brilho, radius, spacing, tipografia e estados. Todo componente deve ser reutilizável, responsivo, conectado a dados de API agregada e preparado para WebSocket/SSE em módulos de status, agenda, alertas e métricas críticas.
+
+⸻
+
+18. PROMPT TÉCNICO AINDA MAIS DENSO PARA O CLAUDE
+
+Você é o arquiteto de front-end do Pawards Medcore. Gere uma base de design system + componentes React + TypeScript para um dashboard clínico premium com visual black piano e ouro escovado, inspirado em cockpit executivo, painéis retrô-futuristas e instrumentação analógica refinada. Requisitos: grid invisível matemático; sidebar premium; top status bar com LEDs; KPI cards; gauges analógicos SVG com aros grossos e ponteiros finos; displays digitais segmentados para horários, faturamento e contagens; barras segmentadas por faixas semânticas; gráficos com ECharts; tema centralizado; arquivos separados por responsabilidade; hooks para dados; componentes 100% reutilizáveis; estados de loading/skeleton elegantes; sem visual infantil; sem molduras parafusadas; sem degradês longos entre vermelho/amarelo/laranja/verde/azul; uso de glow controlado; forte separação entre módulos clínicos, financeiros, alertas, agenda e status de serviços.
+
+⸻
+
+19. MELHORIAS QUE O REPLIT DEVE FAZER ALÉM DO QUE FOI APROVADO
+
+Pedir explicitamente para melhorar nestes pontos:
+
+1. microalinhamento
+    * todos os títulos alinhados em baseline
+    * padding padronizado
+    * espaçamento interno consistente
+2. sistema de brilho
+    * glow controlado
+    * sem excesso neon
+    * brilho concentrado nos pontos certos
+3. mecânica visual dos cards
+    * black piano real
+    * relevo suave
+    * borda nobre
+    * encaixe no fundo
+4. sistema de leitura
+    * sempre label > valor > contexto > delta > meta
+    * nenhuma métrica sem legenda
+    * nenhuma cor sem semântica
+5. componentes com motor de dados
+    * cada gauge e display deve aceitar props tipadas e atualização em tempo real
+
+⸻
+
+20. FECHAMENTO EXECUTIVO
+
+O que está acima já é um material suficientemente denso para o Replit e para o Claude trabalharem com precisão alta.
+
+Mas se você quiser, eu posso te entregar na próxima mensagem uma continuação ainda mais pesada, em um destes dois formatos:
+
+Formato A — ESPECIFICAÇÃO COMPONENTE POR COMPONENTE
+com:
+
+* Sidebar
+* TopBar
+* KpiCard
+* GaugeCard
+* DigitalDisplayCard
+* AlertsCard
+* ScheduleCard
+* FinancialCard
+* MetricBar
+* DonutChart
+* TrendLineChart
+* estados hover, active, focus, loading, empty, erro
+
+Formato B — CSS/Tailwind blueprint absoluto
+com:
+
+* classes
+* tokens
+* estrutura de theme
+* trechos de código
+* gradientes
+* sombras
+* bordas
+* glass/black piano
+* glow por cor
+* exemplos JSX
+
+Responda só com:
+A ou B.
