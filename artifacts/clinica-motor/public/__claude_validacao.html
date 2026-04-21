@@ -1,0 +1,32 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>PAWARDS · Validação Dr Claude</title>
+<style>
+  body{margin:0;background:#020406;color:#C89B3C;font:600 16px system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:24px;box-sizing:border-box}
+  h1{font-size:22px;letter-spacing:.18em;margin:0 0 12px;color:#C89B3C}
+  p{color:#7a8794;margin:6px 0;max-width:640px;line-height:1.5}
+  .links{margin-top:28px;display:flex;flex-direction:column;gap:10px}
+  a{color:#020406;background:#C89B3C;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:700;letter-spacing:.08em;min-width:340px}
+  a:hover{filter:brightness(1.1)}
+  small{color:#4a5560;margin-top:24px;letter-spacing:.06em}
+</style></head><body>
+<h1>PAWARDS · MEDCORE</h1>
+<p>Bridge de validação. Clique em qualquer tela abaixo para entrar autenticado como CEO master e ver o dashboard renderizando ao vivo.</p>
+<div class="links">
+  <a href="#" data-to="/painel-pawards">Dashboard CEO Master · /painel-pawards</a>
+  <a href="#" data-to="/admin/dashboard-global">Dashboard Global (rota antiga) · /admin/dashboard-global</a>
+  <a href="#" data-to="/admin/pacientes">Pacientes</a>
+  <a href="#" data-to="/admin/farmacias">Farmácias</a>
+  <a href="#" data-to="/admin/agenda">Agenda</a>
+</div>
+<small>Token de sessão válido por 12h · ceo@pawards.com.br · perfil validador_mestre</small>
+<script>
+const TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoiY2VvQHBhd2FyZHMuY29tLmJyIiwicGVyZmlsIjoidmFsaWRhZG9yX21lc3RyZSIsImVzY29wbyI6bnVsbCwidW5pZGFkZUlkIjpudWxsLCJjb25zdWx0b3JpYUlkIjpudWxsLCJpYXQiOjE3NzY4MDkwOTAsImV4cCI6MTc3Njg1MjI5MH0.ye4P4gYRbep6FqlHXMYq0opF1KXhjceztRCwsirlkYM';
+const USER={id:1,email:'ceo@pawards.com.br',nome:'Dr Caio Henrique Fernandes Padua',perfil:'validador_mestre'};
+document.querySelectorAll('a[data-to]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    localStorage.setItem('pawards.auth.token', TOKEN);
+    localStorage.setItem('pawards.auth.user', JSON.stringify(USER));
+    location.href = a.dataset.to;
+  });
+});
+</script></body></html>
