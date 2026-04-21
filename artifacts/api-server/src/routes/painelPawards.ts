@@ -5,10 +5,26 @@
 //
 // Auth: usa middleware existente (req.user?.perfil). MASTER vê todas; demais filtram unidadeId.
 
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { pool } from "@workspace/db";
+import type { JwtPayload } from "../lib/auth/jwt";
 
 const router = Router();
+
+// Request com user opcional — espelha a augmentation declarada em requireAuth.ts
+// sem depender da resolucao do modulo "express-serve-static-core" no tsconfig.
+type AuthedRequest = Request & { user?: JwtPayload };
+
+// Log identificado de cada acesso ao Painel PAWARDS — substitui o log "admin generico"
+// herdado do x-admin-token. Mostra quem (email/perfil/sub) tocou cada endpoint.
+router.use((req: AuthedRequest, _res: Response, next: NextFunction) => {
+  const u = req.user;
+  const who = u
+    ? `user=${u.email} perfil=${u.perfil} sub=${u.sub}`
+    : "user=<sem-jwt>";
+  console.log(`[painel-pawards] ${req.method} ${req.originalUrl} ${who}`);
+  next();
+});
 
 const MASTER_PERFIS = new Set([
   "validador_mestre",
@@ -32,8 +48,9 @@ function unidadeIdParam(req: any): number | null {
 // ===========================================================================
 // 1) GLOBAL — soma de todas as clínicas (CEO master)
 // ===========================================================================
-router.get("/global", async (_req, res) => {
+router.get("/global", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     const { rows } = await pool.query(`
       SELECT
         (SELECT COUNT(*) FROM unidades WHERE fat_meta_mensal > 0)::int AS total_clinicas,
@@ -58,8 +75,9 @@ router.get("/global", async (_req, res) => {
 // ===========================================================================
 // 2) RANKING — clínicas ordenadas por % da meta no mês
 // ===========================================================================
-router.get("/clinicas/ranking", async (_req, res) => {
+router.get("/clinicas/ranking", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     const { rows } = await pool.query(`
       SELECT
         u.id, u.nome, COALESCE(u.nick, u.nome) AS nick, u.slug,
@@ -224,14 +242,152 @@ router.get("/parclaim/:unidade_id/previsao", async (req, res) => {
 });
 
 // ===========================================================================
-// 7) PARMAVAULT — bloqueado por anastomose (tabela inexistente)
+// 7) PARMAVAULT — painel das farmácias parceiras (anastomose 9 fechada).
 // ===========================================================================
-router.get("/parmavault/:farmacia_id/termometros", (_req, res) => {
-  res.status(501).json({
-    error: "PARMAVAULT pendente",
-    motivo: "Tabela farmacias_parmavault inexistente. Anastomose registrada.",
-    anastomose_id: 9,
-  });
+
+// 7a) Ranking global das farmácias PARMAVAULT (visível ao master).
+router.get("/parmavault/farmacias/ranking", async (req, res) => {
+  try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+    const { rows } = await pool.query(`
+      SELECT
+        f.id, f.nome_fantasia, f.cidade, f.estado, f.percentual_comissao,
+        f.meta_receitas_mes, f.meta_valor_mes,
+        COALESCE(rec_mes.qtd, 0)::int                       AS receitas_mes,
+        COALESCE(rec_mes.valor, 0)::numeric(14,2)           AS valor_mes,
+        COALESCE(rec_semana.qtd, 0)::int                    AS receitas_semana,
+        COALESCE(rec_hoje.qtd, 0)::int                      AS receitas_hoje,
+        COALESCE(comissao_mes.valor, 0)::numeric(14,2)      AS comissao_mes,
+        CASE WHEN f.meta_receitas_mes > 0
+             THEN ROUND(COALESCE(rec_mes.qtd, 0)::numeric / f.meta_receitas_mes * 100, 1)
+             ELSE 0 END                                     AS pct_meta_receitas,
+        CASE WHEN f.meta_valor_mes > 0
+             THEN ROUND(COALESCE(rec_mes.valor, 0) / f.meta_valor_mes * 100, 1)
+             ELSE 0 END                                     AS pct_meta_valor
+      FROM farmacias_parmavault f
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS qtd, COALESCE(SUM(valor_formula_real), SUM(valor_formula_estimado)) AS valor
+        FROM parmavault_receitas r
+        WHERE r.farmacia_id = f.id
+          AND r.entregue_em >= date_trunc('month', CURRENT_DATE)
+          AND r.status IN ('entregue', 'retirada')
+      ) rec_mes ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS qtd
+        FROM parmavault_receitas r
+        WHERE r.farmacia_id = f.id
+          AND r.entregue_em >= date_trunc('week', CURRENT_DATE)
+          AND r.status IN ('entregue', 'retirada')
+      ) rec_semana ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS qtd
+        FROM parmavault_receitas r
+        WHERE r.farmacia_id = f.id
+          AND r.entregue_em::date = CURRENT_DATE
+          AND r.status IN ('entregue', 'retirada')
+      ) rec_hoje ON true
+      LEFT JOIN LATERAL (
+        SELECT SUM(comissao_estimada) AS valor
+        FROM parmavault_receitas r
+        WHERE r.farmacia_id = f.id
+          AND r.entregue_em >= date_trunc('month', CURRENT_DATE)
+          AND r.status IN ('entregue', 'retirada')
+      ) comissao_mes ON true
+      WHERE f.ativo
+      ORDER BY valor_mes DESC NULLS LAST
+    `);
+    res.json(rows);
+  } catch (e: any) {
+    console.error("[painel-pawards/parmavault/ranking]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 7b) Termômetros de uma farmácia específica.
+router.get("/parmavault/:farmacia_id/termometros", async (req, res) => {
+  if (!isMaster(req)) { res.status(403).json({ error: "Acesso restrito ao perfil master" }); return; }
+  const fid = Number(req.params.farmacia_id);
+  if (!Number.isFinite(fid)) { res.status(400).json({ error: "farmacia_id inválido" }); return; }
+  try {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        f.nome_fantasia, f.meta_receitas_semana, f.meta_receitas_mes,
+        f.meta_valor_mes, f.percentual_comissao,
+        COALESCE((SELECT COUNT(*) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em::date = CURRENT_DATE
+            AND status IN ('entregue','retirada')), 0)::int AS receitas_hoje,
+        COALESCE((SELECT COUNT(*) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= date_trunc('week', CURRENT_DATE)
+            AND status IN ('entregue','retirada')), 0)::int AS receitas_semana,
+        COALESCE((SELECT COUNT(*) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= date_trunc('month', CURRENT_DATE)
+            AND status IN ('entregue','retirada')), 0)::int AS receitas_mes,
+        COALESCE((SELECT SUM(valor_formula_real) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= date_trunc('month', CURRENT_DATE)
+            AND status IN ('entregue','retirada')), 0)::numeric(14,2) AS valor_mes,
+        COALESCE((SELECT AVG(valor_formula_real) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= CURRENT_DATE - INTERVAL '7 days'
+            AND status IN ('entregue','retirada')), 0)::numeric(10,2) AS ticket_medio_semana,
+        COALESCE((SELECT SUM(comissao_estimada) FROM parmavault_receitas
+          WHERE farmacia_id=$1 AND entregue_em >= date_trunc('month', CURRENT_DATE)
+            AND status IN ('entregue','retirada')), 0)::numeric(14,2) AS comissao_mes
+      FROM farmacias_parmavault f WHERE f.id = $1
+    `,
+      [fid]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "Farmácia não encontrada" });
+    const r = rows[0];
+    const pct_meta = r.meta_receitas_mes > 0
+      ? Math.round((r.receitas_mes / r.meta_receitas_mes) * 100)
+      : 0;
+    const pct_valor = r.meta_valor_mes > 0
+      ? Math.round((Number(r.valor_mes) / Number(r.meta_valor_mes)) * 100)
+      : 0;
+    const falta_meta = Math.max(0, r.meta_receitas_mes - r.receitas_mes);
+    res.json({
+      ...r,
+      pct_meta,
+      pct_valor,
+      falta_meta,
+      vai_bater: pct_meta >= 80,
+      alerta: pct_meta < 50,
+      banda: pct_meta >= 100 ? "excelente"
+           : pct_meta >= 80 ? "boa"
+           : pct_meta >= 50 ? "atencao"
+           : "critica",
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/parmavault/termometros]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 7c) Série diária da farmácia (últimos 30 dias) — pra gráfico de linha.
+router.get("/parmavault/:farmacia_id/trend", async (req, res) => {
+  if (!isMaster(req)) { res.status(403).json({ error: "Acesso restrito ao perfil master" }); return; }
+  const fid = Number(req.params.farmacia_id);
+  if (!Number.isFinite(fid)) { res.status(400).json({ error: "farmacia_id inválido" }); return; }
+  try {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        d::date AS data,
+        COALESCE(COUNT(r.id) FILTER (WHERE r.status IN ('entregue','retirada')), 0)::int AS receitas,
+        COALESCE(SUM(r.valor_formula_real) FILTER (WHERE r.status IN ('entregue','retirada')), 0)::numeric(14,2) AS valor,
+        COALESCE(SUM(r.comissao_estimada) FILTER (WHERE r.status IN ('entregue','retirada')), 0)::numeric(14,2) AS comissao
+      FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day') AS d
+      LEFT JOIN parmavault_receitas r
+        ON r.farmacia_id = $1 AND r.entregue_em::date = d::date
+      GROUP BY d ORDER BY d
+    `,
+      [fid]
+    );
+    res.json(rows);
+  } catch (e: any) {
+    console.error("[painel-pawards/parmavault/trend]", e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===========================================================================
@@ -332,7 +488,10 @@ router.delete("/parametros-referencia/:codigo/unidade/:unidade_id", async (req, 
 // ===========================================================================
 // 9) METAS de unidade (atalho — edita fat_minimo/maximo/meta direto em unidades)
 // ===========================================================================
-router.put("/metas-faturamento/:unidade_id", async (req, res) => {
+// Aceita PUT (legado) e PATCH (UI admin) — mesmo handler.
+router.patch("/metas-faturamento/:unidade_id", (req, res) => metasFaturamentoHandler(req, res));
+router.put("/metas-faturamento/:unidade_id", (req, res) => metasFaturamentoHandler(req, res));
+async function metasFaturamentoHandler(req: any, res: any) {
   const uid = unidadeIdParam(req);
   if (!uid) { res.status(400).json({ error: "unidade_id inválido" }); return; }
   const { fat_minimo_mensal, fat_maximo_mensal, fat_meta_mensal, percentual_comissao_magistral } = req.body ?? {};
@@ -352,7 +511,7 @@ router.put("/metas-faturamento/:unidade_id", async (req, res) => {
     console.error("[painel-pawards/metas PUT]", e);
     res.status(500).json({ error: e.message });
   }
-});
+}
 
 // ===========================================================================
 // 10) SNAPSHOT KPI global — atualiza o registro mais recente (job leve)
@@ -388,10 +547,220 @@ router.post("/snapshot/global", async (_req, res) => {
 });
 
 // ===========================================================================
+// 11A) AGENDA HOJE — consultas do dia (real se houver, fallback sintético determinístico)
+// ===========================================================================
+router.get("/agenda-hoje", async (req, res) => {
+  try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+    // Tenta tabela real primeiro
+    const real = await pool.query(`
+      SELECT
+        a.id,
+        a.hora_inicio AS horario,
+        a.tipo_procedimento AS procedimento,
+        a.status,
+        COALESCE(p.nome, 'Paciente') AS paciente,
+        COALESCE(u.nome, 'Profissional') AS profissional,
+        COALESCE(un.nick, un.nome, '—') AS unidade,
+        un.id AS unidade_id
+      FROM appointments a
+      LEFT JOIN pacientes  p  ON p.id  = a.paciente_id
+      LEFT JOIN usuarios   u  ON u.id  = a.profissional_id
+      LEFT JOIN unidades   un ON un.id = a.unidade_id
+      WHERE a.data = CURRENT_DATE
+      ORDER BY a.hora_inicio ASC, un.nome ASC
+      LIMIT 80
+    `).catch(() => ({ rows: [] as any[] }));
+
+    if (real.rows.length > 0) {
+      res.json({ origem: "real", consultas: real.rows });
+      return;
+    }
+
+    // Fallback sintético: gera N slots por clínica usando consultas_agendadas de hoje
+    // (ou estimativa default 12) e atribui pacientes reais da clínica.
+    const sintetico = await pool.query(`
+      WITH base AS (
+        SELECT
+          un.id AS unidade_id,
+          COALESCE(un.nick, un.nome) AS unidade,
+          COALESCE(
+            (SELECT consultas_agendadas FROM faturamento_diario
+              WHERE unidade_id = un.id AND data = CURRENT_DATE LIMIT 1),
+            12
+          ) AS slots
+        FROM unidades un
+        WHERE un.fat_meta_mensal > 0
+      ),
+      pacientes_por_unidade AS (
+        SELECT
+          p.id, p.nome, p.unidade_id,
+          ROW_NUMBER() OVER (PARTITION BY p.unidade_id ORDER BY p.id) AS rn
+        FROM pacientes p
+        WHERE p.status_ativo = true
+      ),
+      profissionais_por_unidade AS (
+        SELECT
+          u.id, u.nome, u.unidade_id, u.especialidade,
+          ROW_NUMBER() OVER (PARTITION BY u.unidade_id ORDER BY u.id) AS rn
+        FROM usuarios u
+        WHERE u.unidade_id IS NOT NULL
+      )
+      SELECT
+        (b.unidade_id * 1000 + s.slot) AS id,
+        TO_CHAR((TIME '08:00' + (s.slot * INTERVAL '40 min')), 'HH24:MI') AS horario,
+        CASE (s.slot % 4)
+          WHEN 0 THEN 'Consulta'
+          WHEN 1 THEN 'Retorno'
+          WHEN 2 THEN 'Avaliação'
+          ELSE        'Procedimento'
+        END AS procedimento,
+        CASE (s.slot % 5)
+          WHEN 4 THEN 'aguardando'
+          WHEN 3 THEN 'em_atendimento'
+          WHEN 2 THEN 'concluido'
+          ELSE        'agendado'
+        END AS status,
+        COALESCE(pu.nome, 'Paciente ' || s.slot) AS paciente,
+        COALESCE(pp.nome, 'Profissional') AS profissional,
+        b.unidade,
+        b.unidade_id
+      FROM base b
+      CROSS JOIN LATERAL generate_series(0, LEAST(b.slots, 14) - 1) AS s(slot)
+      LEFT JOIN pacientes_por_unidade pu
+             ON pu.unidade_id = b.unidade_id
+            AND pu.rn = ((s.slot % 50) + 1)
+      LEFT JOIN profissionais_por_unidade pp
+             ON pp.unidade_id = b.unidade_id
+            AND pp.rn = ((s.slot % 4) + 1)
+      ORDER BY horario ASC, b.unidade ASC
+      LIMIT 80
+    `);
+    res.json({ origem: "sintetico", consultas: sintetico.rows });
+  } catch (e: any) {
+    console.error("[painel-pawards/agenda-hoje]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
+// 11B) ALERTAS — clínicas abaixo do mínimo, KPIs fora da faixa
+// ===========================================================================
+router.get("/alertas", async (req, res) => {
+  try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+    // 1) Clínicas abaixo do mínimo no mês
+    const abaixoMin = await pool.query(`
+      SELECT
+        u.id, COALESCE(u.nick, u.nome) AS unidade,
+        u.fat_minimo_mensal::numeric AS minimo,
+        COALESCE(SUM(fd.valor_realizado), 0)::numeric AS realizado,
+        ROUND(
+          COALESCE(SUM(fd.valor_realizado), 0) / NULLIF(u.fat_minimo_mensal, 0) * 100, 1
+        ) AS pct_minimo
+      FROM unidades u
+      LEFT JOIN faturamento_diario fd ON fd.unidade_id = u.id
+        AND fd.data >= date_trunc('month', CURRENT_DATE)
+      WHERE u.fat_minimo_mensal > 0
+      GROUP BY u.id
+      HAVING COALESCE(SUM(fd.valor_realizado), 0) < u.fat_minimo_mensal
+      ORDER BY pct_minimo ASC
+    `);
+
+    // 2) KPIs fora da faixa: ocupação ou NPS abaixo do faixa_baixa_max do parâmetro global
+    const kpiOcupacao = await pool.query(`
+      SELECT
+        u.id, COALESCE(u.nick, u.nome) AS unidade,
+        ROUND(COALESCE(AVG(fd.taxa_ocupacao), 0)::numeric, 1) AS valor,
+        (SELECT faixa_baixa_max FROM parametros_referencia_global WHERE codigo='OCUPACAO') AS limite,
+        'OCUPACAO' AS kpi, 'Taxa de ocupação baixa' AS label, '%' AS unidade_medida
+      FROM unidades u
+      LEFT JOIN faturamento_diario fd ON fd.unidade_id = u.id
+        AND fd.data >= date_trunc('month', CURRENT_DATE)
+      WHERE u.fat_meta_mensal > 0
+      GROUP BY u.id
+      HAVING COALESCE(AVG(fd.taxa_ocupacao), 0) <
+             (SELECT faixa_baixa_max FROM parametros_referencia_global WHERE codigo='OCUPACAO')
+    `);
+
+    const kpiNps = await pool.query(`
+      SELECT
+        u.id, COALESCE(u.nick, u.nome) AS unidade,
+        ROUND(COALESCE(AVG(fd.nps), 0)::numeric, 1) AS valor,
+        (SELECT faixa_baixa_max FROM parametros_referencia_global WHERE codigo='NPS') AS limite,
+        'NPS' AS kpi, 'NPS abaixo do esperado' AS label, 'pts' AS unidade_medida
+      FROM unidades u
+      LEFT JOIN faturamento_diario fd ON fd.unidade_id = u.id
+        AND fd.data >= date_trunc('month', CURRENT_DATE)
+      WHERE u.fat_meta_mensal > 0
+      GROUP BY u.id
+      HAVING COALESCE(AVG(fd.nps), 0) <
+             (SELECT faixa_baixa_max FROM parametros_referencia_global WHERE codigo='NPS')
+    `);
+
+    // 3) Anastomoses abertas (proxy de "exames vencidos / pendências")
+    const anastomoses = await pool.query(`
+      SELECT id, modulo, criticidade, titulo
+      FROM anastomoses_pendentes
+      WHERE status = 'aberta'
+      ORDER BY
+        CASE criticidade WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 ELSE 4 END,
+        criado_em DESC
+      LIMIT 6
+    `).catch(() => ({ rows: [] as any[] }));
+
+    res.json({
+      clinicas_abaixo_minimo: abaixoMin.rows,
+      kpis_fora_faixa: [...kpiOcupacao.rows, ...kpiNps.rows],
+      pendencias: anastomoses.rows,
+      total: abaixoMin.rows.length + kpiOcupacao.rows.length + kpiNps.rows.length + anastomoses.rows.length,
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/alertas]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
+// 11C) FLUXO DE CAIXA 30d — entradas reais (faturamento_diario) vs saídas estimadas
+// ===========================================================================
+router.get("/caixa-30d", async (req, res) => {
+  try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+    // Saídas estimadas: 58% do realizado (operação) + comissão magistral devida.
+    const { rows } = await pool.query(`
+      SELECT
+        data,
+        SUM(valor_realizado)::numeric AS entradas,
+        ROUND(
+          (SUM(valor_realizado) * 0.58 + SUM(comissao_magistral_estimada))::numeric, 2
+        )::numeric AS saidas
+      FROM faturamento_diario
+      WHERE data >= CURRENT_DATE - INTERVAL '30 days'
+        AND data <= CURRENT_DATE
+      GROUP BY data
+      ORDER BY data ASC
+    `);
+    const entradas = rows.reduce((a, r) => a + Number(r.entradas), 0);
+    const saidas = rows.reduce((a, r) => a + Number(r.saidas), 0);
+    res.json({
+      pontos: rows,
+      total_entradas: Number(entradas.toFixed(2)),
+      total_saidas: Number(saidas.toFixed(2)),
+      saldo: Number((entradas - saidas).toFixed(2)),
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/caixa-30d]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
 // 11) BLENDS com valor — preview pra prescritor
 // ===========================================================================
-router.get("/blends/precificados", async (_req, res) => {
+router.get("/blends/precificados", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     const { rows } = await pool.query(`
       SELECT id, codigo_blend, nome_blend, valor_brl::numeric AS valor_brl
       FROM formula_blend

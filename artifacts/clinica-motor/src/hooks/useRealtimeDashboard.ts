@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || "/api";
+const TOKEN_KEY = "pawards.auth.token";
 
 export function useRealtimeDashboard<T>(
   endpoint: string,
@@ -18,9 +19,9 @@ export function useRealtimeDashboard<T>(
       const url = endpoint.startsWith("http") || endpoint.startsWith("/api")
         ? endpoint
         : `${API_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
-      const adminToken = typeof window !== "undefined" ? localStorage.getItem("padcon_admin_token") : null;
+      const jwt = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
       const headers: Record<string, string> = {};
-      if (adminToken) headers["x-admin-token"] = adminToken;
+      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
       const res = await fetch(url, { credentials: "include", headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as T;
