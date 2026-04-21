@@ -299,3 +299,9 @@ id = "2MpDmG_aBO8wX8OImq1q6"
 uri = "file://screenshots/5-agenda-semanal.jpeg"
 type = "image"
 title = "5 — Agenda Semanal (logado)"
+
+[[outputs]]
+id = "-LN6aPivAA5TnPnCS4iu2"
+uri = "file://screenshots/dashboard-global-completo.jpeg"
+type = "image"
+title = "Dashboard Global · CEO Master — ao vivo, dados reais"
