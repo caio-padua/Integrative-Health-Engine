@@ -332,7 +332,10 @@ router.delete("/parametros-referencia/:codigo/unidade/:unidade_id", async (req, 
 // ===========================================================================
 // 9) METAS de unidade (atalho — edita fat_minimo/maximo/meta direto em unidades)
 // ===========================================================================
-router.put("/metas-faturamento/:unidade_id", async (req, res) => {
+// Aceita PUT (legado) e PATCH (UI admin) — mesmo handler.
+router.patch("/metas-faturamento/:unidade_id", (req, res) => metasFaturamentoHandler(req, res));
+router.put("/metas-faturamento/:unidade_id", (req, res) => metasFaturamentoHandler(req, res));
+async function metasFaturamentoHandler(req: any, res: any) {
   const uid = unidadeIdParam(req);
   if (!uid) { res.status(400).json({ error: "unidade_id inválido" }); return; }
   const { fat_minimo_mensal, fat_maximo_mensal, fat_meta_mensal, percentual_comissao_magistral } = req.body ?? {};
@@ -352,7 +355,7 @@ router.put("/metas-faturamento/:unidade_id", async (req, res) => {
     console.error("[painel-pawards/metas PUT]", e);
     res.status(500).json({ error: e.message });
   }
-});
+}
 
 // ===========================================================================
 // 10) SNAPSHOT KPI global — atualiza o registro mais recente (job leve)
