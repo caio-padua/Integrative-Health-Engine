@@ -683,7 +683,7 @@ router.get("/backup-drive/atual/json", async (_req, res) => {
         ui: "TDAH-FRIENDLY SUB-DASHBOARDS MACRO > DETAIL > MICRO",
       },
       usuariosDemo: [
-        { email: "caio@clinica.com", perfil: "validador_mestre", papel: "Diretor Clinico", senha: "senha123" },
+        { email: "ceo@pawards.com.br", perfil: "validador_mestre", papel: "Diretor Clinico", senha: "senha123" },
         { email: "helena@clinica.com", perfil: "medico_tecnico", papel: "Medica", senha: "senha123" },
         { email: "ana@clinica.com", perfil: "enfermeira", papel: "Enfermagem", senha: "senha123" },
         { email: "carlos@clinica.com", perfil: "validador_enfermeiro", papel: "Enfermeiro Validador", senha: "senha123" },

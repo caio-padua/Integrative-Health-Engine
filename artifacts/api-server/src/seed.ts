@@ -65,7 +65,7 @@ async function seed() {
   const [uCaio, uHelena, uSecretaria, uValidador] = await db.insert(usuariosTable).values([
     {
       nome: "Dr Caio Henrique Fernandes Padua",
-      email: "caio@clinica.com",
+      email: "ceo@pawards.com.br",
       senha: senhaHash,
       perfil: "validador_mestre",
       unidadeId: unidade1.id,
@@ -941,7 +941,7 @@ async function seed() {
   console.log("  - 15 regras do motor clinico");
   console.log("  - 3 protocolos, 2 anamneses, 5 filas, 2 followups, 2 pagamentos");
   console.log("\nLogin de acesso:");
-  console.log("  caio@clinica.com | helena@clinica.com | ana@clinica.com | carlos@clinica.com");
+  console.log("  ceo@pawards.com.br | helena@clinica.com | ana@clinica.com | carlos@clinica.com");
   console.log("  Senha: senha123");
 }
 
