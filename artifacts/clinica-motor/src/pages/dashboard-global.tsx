@@ -10,6 +10,9 @@ import { KpiCard } from "@/components/pawards/KpiCard";
 import { Gauge } from "@/components/pawards/Gauge";
 import { Led } from "@/components/pawards/Led";
 import { RankingClinicas } from "@/components/pawards/RankingClinicas";
+import { AgendaHoje, type AgendaItem } from "@/components/pawards/AgendaHoje";
+import { AlertasPanel, type AlertasData } from "@/components/pawards/AlertasPanel";
+import { CaixaPanel, type CaixaData } from "@/components/pawards/CaixaPanel";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { PAWARDS, fmtBRL, fmtInt } from "@/lib/pawards-tokens";
 
@@ -55,6 +58,15 @@ export default function DashboardGlobal() {
   const { data: trend, refresh: refreshTrend } = useRealtimeDashboard<TrendPoint[]>(
     "/painel-pawards/global/trend?dias=30", 5 * 60_000
   );
+  const { data: agenda, refresh: refreshAgenda } = useRealtimeDashboard<{ origem: "real" | "sintetico"; consultas: AgendaItem[] }>(
+    "/painel-pawards/agenda-hoje", 60_000
+  );
+  const { data: alertas, refresh: refreshAlertas } = useRealtimeDashboard<AlertasData>(
+    "/painel-pawards/alertas", 60_000
+  );
+  const { data: caixa, refresh: refreshCaixa } = useRealtimeDashboard<CaixaData>(
+    "/painel-pawards/caixa-30d", 5 * 60_000
+  );
 
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -80,6 +92,7 @@ export default function DashboardGlobal() {
   const saveToken = () => {
     localStorage.setItem("padcon_admin_token", tokenInput.trim());
     refreshKpi(); refreshRanking(); refreshTrend();
+    refreshAgenda(); refreshAlertas(); refreshCaixa();
   };
 
   const realizado = Number(globalKpi?.fat_realizado_mes ?? 0);
@@ -321,6 +334,20 @@ export default function DashboardGlobal() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+        </div>
+
+        {/* AGENDA + ALERTAS + CAIXA */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 18,
+            marginBottom: 18,
+          }}
+        >
+          <AgendaHoje consultas={agenda?.consultas ?? []} origem={agenda?.origem} />
+          <AlertasPanel data={alertas ?? null} />
+          <CaixaPanel data={caixa ?? null} />
         </div>
 
         {/* FOOTER */}

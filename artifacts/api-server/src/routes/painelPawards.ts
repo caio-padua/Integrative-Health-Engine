@@ -388,6 +388,212 @@ router.post("/snapshot/global", async (_req, res) => {
 });
 
 // ===========================================================================
+// 11A) AGENDA HOJE — consultas do dia (real se houver, fallback sintético determinístico)
+// ===========================================================================
+router.get("/agenda-hoje", async (_req, res) => {
+  try {
+    // Tenta tabela real primeiro
+    const real = await pool.query(`
+      SELECT
+        a.id,
+        a.hora_inicio AS horario,
+        a.tipo_procedimento AS procedimento,
+        a.status,
+        COALESCE(p.nome, 'Paciente') AS paciente,
+        COALESCE(u.nome, 'Profissional') AS profissional,
+        COALESCE(un.nick, un.nome, '—') AS unidade,
+        un.id AS unidade_id
+      FROM appointments a
+      LEFT JOIN pacientes  p  ON p.id  = a.paciente_id
+      LEFT JOIN usuarios   u  ON u.id  = a.profissional_id
+      LEFT JOIN unidades   un ON un.id = a.unidade_id
+      WHERE a.data = CURRENT_DATE
+      ORDER BY a.hora_inicio ASC, un.nome ASC
+      LIMIT 80
+    `).catch(() => ({ rows: [] as any[] }));
+
+    if (real.rows.length > 0) {
+      res.json({ origem: "real", consultas: real.rows });
+      return;
+    }
+
+    // Fallback sintético: gera N slots por clínica usando consultas_agendadas de hoje
+    // (ou estimativa default 12) e atribui pacientes reais da clínica.
+    const sintetico = await pool.query(`
+      WITH base AS (
+        SELECT
+          un.id AS unidade_id,
+          COALESCE(un.nick, un.nome) AS unidade,
+          COALESCE(
+            (SELECT consultas_agendadas FROM faturamento_diario
+              WHERE unidade_id = un.id AND data = CURRENT_DATE LIMIT 1),
+            12
+          ) AS slots
+        FROM unidades un
+        WHERE un.fat_meta_mensal > 0
+      ),
+      pacientes_por_unidade AS (
+        SELECT
+          p.id, p.nome, p.unidade_id,
+          ROW_NUMBER() OVER (PARTITION BY p.unidade_id ORDER BY p.id) AS rn
+        FROM pacientes p
+        WHERE p.status_ativo = true
+      ),
+      profissionais_por_unidade AS (
+        SELECT
+          u.id, u.nome, u.unidade_id, u.especialidade,
+          ROW_NUMBER() OVER (PARTITION BY u.unidade_id ORDER BY u.id) AS rn
+        FROM usuarios u
+        WHERE u.unidade_id IS NOT NULL
+      )
+      SELECT
+        (b.unidade_id * 1000 + s.slot) AS id,
+        TO_CHAR((TIME '08:00' + (s.slot * INTERVAL '40 min')), 'HH24:MI') AS horario,
+        CASE (s.slot % 4)
+          WHEN 0 THEN 'Consulta'
+          WHEN 1 THEN 'Retorno'
+          WHEN 2 THEN 'Avaliação'
+          ELSE        'Procedimento'
+        END AS procedimento,
+        CASE (s.slot % 5)
+          WHEN 4 THEN 'aguardando'
+          WHEN 3 THEN 'em_atendimento'
+          WHEN 2 THEN 'concluido'
+          ELSE        'agendado'
+        END AS status,
+        COALESCE(pu.nome, 'Paciente ' || s.slot) AS paciente,
+        COALESCE(pp.nome, 'Profissional') AS profissional,
+        b.unidade,
+        b.unidade_id
+      FROM base b
+      CROSS JOIN LATERAL generate_series(0, LEAST(b.slots, 14) - 1) AS s(slot)
+      LEFT JOIN pacientes_por_unidade pu
+             ON pu.unidade_id = b.unidade_id
+            AND pu.rn = ((s.slot % 50) + 1)
+      LEFT JOIN profissionais_por_unidade pp
+             ON pp.unidade_id = b.unidade_id
+            AND pp.rn = ((s.slot % 4) + 1)
+      ORDER BY horario ASC, b.unidade ASC
+      LIMIT 80
+    `);
+    res.json({ origem: "sintetico", consultas: sintetico.rows });
+  } catch (e: any) {
+    console.error("[painel-pawards/agenda-hoje]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
+// 11B) ALERTAS — clínicas abaixo do mínimo, KPIs fora da faixa
+// ===========================================================================
+router.get("/alertas", async (_req, res) => {
+  try {
+    // 1) Clínicas abaixo do mínimo no mês
+    const abaixoMin = await pool.query(`
+      SELECT
+        u.id, COALESCE(u.nick, u.nome) AS unidade,
+        u.fat_minimo_mensal::numeric AS minimo,
+        COALESCE(SUM(fd.valor_realizado), 0)::numeric AS realizado,
+        ROUND(
+          COALESCE(SUM(fd.valor_realizado), 0) / NULLIF(u.fat_minimo_mensal, 0) * 100, 1
+        ) AS pct_minimo
+      FROM unidades u
+      LEFT JOIN faturamento_diario fd ON fd.unidade_id = u.id
+        AND fd.data >= date_trunc('month', CURRENT_DATE)
+      WHERE u.fat_minimo_mensal > 0
+      GROUP BY u.id
+      HAVING COALESCE(SUM(fd.valor_realizado), 0) < u.fat_minimo_mensal
+      ORDER BY pct_minimo ASC
+    `);
+
+    // 2) KPIs fora da faixa: ocupação ou NPS abaixo do faixa_baixa_max do parâmetro global
+    const kpiOcupacao = await pool.query(`
+      SELECT
+        u.id, COALESCE(u.nick, u.nome) AS unidade,
+        ROUND(COALESCE(AVG(fd.taxa_ocupacao), 0)::numeric, 1) AS valor,
+        (SELECT faixa_baixa_max FROM parametros_referencia_global WHERE codigo='OCUPACAO') AS limite,
+        'OCUPACAO' AS kpi, 'Taxa de ocupação baixa' AS label, '%' AS unidade_medida
+      FROM unidades u
+      LEFT JOIN faturamento_diario fd ON fd.unidade_id = u.id
+        AND fd.data >= date_trunc('month', CURRENT_DATE)
+      WHERE u.fat_meta_mensal > 0
+      GROUP BY u.id
+      HAVING COALESCE(AVG(fd.taxa_ocupacao), 0) <
+             (SELECT faixa_baixa_max FROM parametros_referencia_global WHERE codigo='OCUPACAO')
+    `);
+
+    const kpiNps = await pool.query(`
+      SELECT
+        u.id, COALESCE(u.nick, u.nome) AS unidade,
+        ROUND(COALESCE(AVG(fd.nps), 0)::numeric, 1) AS valor,
+        (SELECT faixa_baixa_max FROM parametros_referencia_global WHERE codigo='NPS') AS limite,
+        'NPS' AS kpi, 'NPS abaixo do esperado' AS label, 'pts' AS unidade_medida
+      FROM unidades u
+      LEFT JOIN faturamento_diario fd ON fd.unidade_id = u.id
+        AND fd.data >= date_trunc('month', CURRENT_DATE)
+      WHERE u.fat_meta_mensal > 0
+      GROUP BY u.id
+      HAVING COALESCE(AVG(fd.nps), 0) <
+             (SELECT faixa_baixa_max FROM parametros_referencia_global WHERE codigo='NPS')
+    `);
+
+    // 3) Anastomoses abertas (proxy de "exames vencidos / pendências")
+    const anastomoses = await pool.query(`
+      SELECT id, modulo, criticidade, titulo
+      FROM anastomoses_pendentes
+      WHERE status = 'aberta'
+      ORDER BY
+        CASE criticidade WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 ELSE 4 END,
+        criado_em DESC
+      LIMIT 6
+    `).catch(() => ({ rows: [] as any[] }));
+
+    res.json({
+      clinicas_abaixo_minimo: abaixoMin.rows,
+      kpis_fora_faixa: [...kpiOcupacao.rows, ...kpiNps.rows],
+      pendencias: anastomoses.rows,
+      total: abaixoMin.rows.length + kpiOcupacao.rows.length + kpiNps.rows.length + anastomoses.rows.length,
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/alertas]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
+// 11C) FLUXO DE CAIXA 30d — entradas reais (faturamento_diario) vs saídas estimadas
+// ===========================================================================
+router.get("/caixa-30d", async (_req, res) => {
+  try {
+    // Saídas estimadas: 58% do realizado (operação) + comissão magistral devida.
+    const { rows } = await pool.query(`
+      SELECT
+        data,
+        SUM(valor_realizado)::numeric AS entradas,
+        ROUND(
+          (SUM(valor_realizado) * 0.58 + SUM(comissao_magistral_estimada))::numeric, 2
+        )::numeric AS saidas
+      FROM faturamento_diario
+      WHERE data >= CURRENT_DATE - INTERVAL '30 days'
+        AND data <= CURRENT_DATE
+      GROUP BY data
+      ORDER BY data ASC
+    `);
+    const entradas = rows.reduce((a, r) => a + Number(r.entradas), 0);
+    const saidas = rows.reduce((a, r) => a + Number(r.saidas), 0);
+    res.json({
+      pontos: rows,
+      total_entradas: Number(entradas.toFixed(2)),
+      total_saidas: Number(saidas.toFixed(2)),
+      saldo: Number((entradas - saidas).toFixed(2)),
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/caixa-30d]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
 // 11) BLENDS com valor — preview pra prescritor
 // ===========================================================================
 router.get("/blends/precificados", async (_req, res) => {
