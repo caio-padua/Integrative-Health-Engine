@@ -537,4 +537,115 @@ router.get("/dashboard/cockpit", async (req, res): Promise<void> => {
   }
 });
 
+// =============================================================================
+// /dashboard/local — agregador da clinica selecionada (Dashboard Local)
+// Substitui os 6 cartoes "Em breve" por dados reais do banco.
+// =============================================================================
+router.get("/dashboard/local", async (req, res): Promise<void> => {
+  try {
+    const unidadeId = parseInt((req.query.unidadeId as string) || "0", 10);
+    if (!unidadeId || Number.isNaN(unidadeId)) {
+      res.status(400).json({ error: "unidadeId obrigatorio" });
+      return;
+    }
+
+    const agora = new Date();
+    const hojeISO = agora.toISOString().slice(0, 10);
+    const dezMinAtras = new Date(agora.getTime() - 10 * 60 * 1000);
+    const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const trintaDiasAtras = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const vinteQuatroHorasAtras = new Date(agora.getTime() - 24 * 60 * 60 * 1000);
+
+    // 1) pacientes com demanda em aberto (=atrasada na fila)
+    const r1 = await db.execute(sql`
+      SELECT COUNT(DISTINCT paciente_id)::int AS n
+      FROM demandas_servico
+      WHERE unidade_id = ${unidadeId}
+        AND status IN ('aberta', 'em_atendimento')
+    `);
+    const demandasAtrasadas = Number((r1.rows?.[0] as any)?.n ?? 0);
+
+    // 2) em atendimento agora — sessoes do dia que passaram do horario marcado e nao concluidas
+    const r2 = await db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM sessoes
+      WHERE unidade_id = ${unidadeId}
+        AND data_agendada = ${hojeISO}
+        AND status IN ('confirmada', 'em_andamento', 'agendada')
+        AND (hora_agendada IS NULL OR hora_agendada::time <= now()::time)
+    `);
+    const emAtendimentoAgora = Number((r2.rows?.[0] as any)?.n ?? 0);
+
+    // 3) atrasos de aplicacao na semana — aplicacoes pendentes de sessoes que ja passaram
+    const r3 = await db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM aplicacoes_substancias a
+      JOIN sessoes s ON s.id = a.sessao_id
+      WHERE s.unidade_id = ${unidadeId}
+        AND a.status IN ('PENDENTE', 'pendente')
+        AND s.data_agendada::date < ${hojeISO}
+        AND s.data_agendada::date >= ${seteDiasAtras.toISOString().slice(0, 10)}
+    `);
+    const atrasosAplicacaoSemana = Number((r3.rows?.[0] as any)?.n ?? 0);
+
+    // 4) reclamacoes — feedback nota <= 3 ultimos 30d
+    const r4 = await db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM feedback_pacientes
+      WHERE unidade_id = ${unidadeId}
+        AND nota <= 3
+        AND criado_em >= ${trintaDiasAtras.toISOString()}
+    `);
+    const reclamacoes30d = Number((r4.rows?.[0] as any)?.n ?? 0);
+
+    // 5) reagendamentos pendentes — sessoes canceladas sem nova marcacao no futuro
+    const r5 = await db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM sessoes
+      WHERE unidade_id = ${unidadeId}
+        AND status IN ('cancelada', 'faltou')
+        AND data_agendada::date >= ${seteDiasAtras.toISOString().slice(0, 10)}
+    `);
+    const reagendamentosPendentes = Number((r5.rows?.[0] as any)?.n ?? 0);
+
+    // 6) log de atividade local — eventos audit nas ultimas 24h tocando pacientes desta unidade
+    const r6 = await db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM rasx_audit_log al
+      JOIN pacientes p ON p.id = al.paciente_id
+      WHERE p.unidade_id = ${unidadeId}
+        AND al.criado_em >= ${vinteQuatroHorasAtras.toISOString()}
+    `);
+    const atividadeLocal24h = Number((r6.rows?.[0] as any)?.n ?? 0);
+
+    // Bonus: alertas criticos abertos (gravidade GRAVE/CRITICO) — alimenta um sub-card opcional
+    const r7 = await db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM alerta_paciente al
+      JOIN pacientes p ON p.id = al.paciente_id
+      WHERE p.unidade_id = ${unidadeId}
+        AND al.status = 'ABERTO'
+        AND al.gravidade IN ('GRAVE', 'CRITICO')
+    `);
+    const alertasCriticos = Number((r7.rows?.[0] as any)?.n ?? 0);
+
+    res.json({
+      unidadeId,
+      atualizadoEm: agora.toISOString(),
+      cards: {
+        demandasAtrasadas,
+        emAtendimentoAgora,
+        atrasosAplicacaoSemana,
+        reclamacoes30d,
+        reagendamentosPendentes,
+        atividadeLocal24h,
+      },
+      alertasCriticos,
+    });
+  } catch (err) {
+    console.error("[dashboard/local]", err);
+    res.status(500).json({ error: "Erro ao carregar dashboard local" });
+  }
+});
+
 export default router;

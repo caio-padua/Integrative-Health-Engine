@@ -68,7 +68,7 @@ export default function FarmaciasParmavault() {
     return () => clearInterval(t);
   }, []);
 
-  // Auto-set token via ?at= na URL
+  // Auto-set token via ?at= na URL (legado — mantido pro uso pelo bridge antigo)
   useEffect(() => {
     const url = new URL(window.location.href);
     const at = url.searchParams.get("at");
@@ -80,18 +80,19 @@ export default function FarmaciasParmavault() {
     }
   }, []);
 
-  const [tokenInput, setTokenInput] = useState<string>(() =>
-    typeof window !== "undefined" ? localStorage.getItem(ADMIN_TOKEN_KEY) ?? "" : ""
-  );
+  // O modal "x-admin-token" foi removido. A autenticacao agora vem 100% do JWT
+  // (cookie pawards.auth.token + Authorization header) que ja e injetado pelo
+  // useRealtimeDashboard. Mantemos apenas um banner discreto se vier 401, com
+  // link pro bridge de validacao.
   const needsAuth = errRanking?.includes("401");
-  const saveToken = () => {
-    localStorage.setItem(ADMIN_TOKEN_KEY, tokenInput.trim());
-    refreshRanking();
-  };
 
-  // Auto-logout por inatividade nas telas administrativas.
+  // Auto-logout por inatividade nas telas administrativas (limpa o JWT do master).
   const inactivityLogout = useCallback(() => {
-    try { localStorage.removeItem(ADMIN_TOKEN_KEY); } catch { /* ignore */ }
+    try {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      localStorage.removeItem("pawards.auth.token");
+      localStorage.removeItem("pawards.auth.user");
+    } catch { /* ignore */ }
     if (typeof window !== "undefined") window.location.reload();
   }, []);
   useInactivityLogout(inactivityLogout, { enabled: !needsAuth });
@@ -122,42 +123,25 @@ export default function FarmaciasParmavault() {
     <div style={{ background: PAWARDS.colors.bg[950], minHeight: "100vh", color: PAWARDS.colors.text.primary }}>
       {needsAuth && (
         <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "rgba(2,4,6,0.92)", display: "flex",
-          alignItems: "center", justifyContent: "center", padding: 24,
+          padding: "12px 18px",
+          background: "rgba(200, 60, 60, 0.10)",
+          borderBottom: `1px solid ${PAWARDS.colors.gold[500]}55`,
+          color: PAWARDS.colors.text.primary,
+          fontSize: 13, display: "flex", alignItems: "center", gap: 12,
         }}>
-          <div style={{
-            background: PAWARDS.colors.bg[900], border: `1px solid ${PAWARDS.colors.gold[500]}`,
-            borderRadius: 12, padding: 32, maxWidth: 480, width: "100%",
-          }}>
-            <h2 style={{ color: PAWARDS.colors.gold[500], fontSize: 18, marginBottom: 8, letterSpacing: 1 }}>
-              PAWARDS · PARMAVAULT
-            </h2>
-            <p style={{ color: PAWARDS.colors.text.muted, fontSize: 13, marginBottom: 16 }}>
-              Cole seu admin token para acessar o painel das farmácias parceiras.
-            </p>
-            <input
-              type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="x-admin-token"
-              style={{
-                width: "100%", padding: "10px 12px", borderRadius: 6,
-                background: PAWARDS.colors.bg[950], color: "#fff",
-                border: `1px solid ${PAWARDS.colors.bg[800]}`,
-                fontFamily: "monospace", fontSize: 13, marginBottom: 12,
-              }}
-              onKeyDown={(e) => { if (e.key === "Enter") saveToken(); }}
-            />
-            <button
-              onClick={saveToken}
-              style={{
-                width: "100%", padding: "10px 16px", borderRadius: 6,
-                background: PAWARDS.colors.gold[500], color: PAWARDS.colors.bg[950],
-                border: "none", fontWeight: 600, cursor: "pointer", letterSpacing: 0.5,
-              }}
-            >Entrar</button>
-          </div>
+          <span style={{ color: PAWARDS.colors.gold[500], fontWeight: 700 }}>SESSÃO EXPIRADA ·</span>
+          <span style={{ color: PAWARDS.colors.text.muted }}>
+            Sua autenticação caiu. Volte ao bridge de validação para renovar o acesso master.
+          </span>
+          <a
+            href="/__claude_validacao.html"
+            style={{
+              marginLeft: "auto",
+              padding: "6px 14px", borderRadius: 6,
+              background: PAWARDS.colors.gold[500], color: PAWARDS.colors.bg[950],
+              fontWeight: 600, textDecoration: "none", fontSize: 12,
+            }}
+          >Renovar acesso</a>
         </div>
       )}
 

@@ -9,6 +9,24 @@ import { Search, ChevronDown, ChevronRight, Syringe, Droplets, CircleDot, FlaskC
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
+async function catFetch(url: string): Promise<any[]> {
+  const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
+  const headers: Record<string, string> = {};
+  if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
+  try {
+    const res = await fetch(url, { credentials: "include", headers });
+    const j = await res.json();
+    if (!Array.isArray(j)) {
+      console.warn("[catFetch] resposta não-array:", url, j);
+      return [];
+    }
+    return j;
+  } catch (err) {
+    console.error("[catFetch] erro:", url, err);
+    return [];
+  }
+}
+
 async function apiPut(url: string, data: any): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
@@ -115,7 +133,7 @@ function InjetaveisTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-injetaveis"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/injetaveis`); return res.json(); },
+    queryFn: () => catFetch(`${BASE_URL}api/catalogo/injetaveis`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -238,7 +256,7 @@ function EndovenososTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-endovenosos"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/endovenosos`); return res.json(); },
+    queryFn: () => catFetch(`${BASE_URL}api/catalogo/endovenosos`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -368,7 +386,7 @@ function ImplantesTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-implantes"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/implantes`); return res.json(); },
+    queryFn: () => catFetch(`${BASE_URL}api/catalogo/implantes`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -473,7 +491,7 @@ function FormulasTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-formulas"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/formulas`); return res.json(); },
+    queryFn: () => catFetch(`${BASE_URL}api/catalogo/formulas`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -605,7 +623,7 @@ function ProtocolosTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-protocolos"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/protocolos-master`); return res.json(); },
+    queryFn: () => catFetch(`${BASE_URL}api/catalogo/protocolos-master`),
   });
 
   const PROTO_FIELDS = [
@@ -729,7 +747,7 @@ function ExamesTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-exames-base"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/exames-base`); return res.json(); },
+    queryFn: () => catFetch(`${BASE_URL}api/catalogo/exames-base`),
   });
 
   const filtered = data.filter((e: any) =>
@@ -855,7 +873,7 @@ function DoencasTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-doencas"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/doencas`); return res.json(); },
+    queryFn: () => catFetch(`${BASE_URL}api/catalogo/doencas`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -946,12 +964,12 @@ export default function CatalogoPage() {
 
   const { data: resumo } = useQuery({
     queryKey: ["catalogo-resumo"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/resumo`); return res.json(); },
+    queryFn: () => catFetch(`${BASE_URL}api/catalogo/resumo`),
   });
 
   const { data: examesCount } = useQuery({
     queryKey: ["catalogo-exames-count"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/exames-base`); const data = await res.json(); return data.length; },
+    queryFn: async () => (await catFetch(`${BASE_URL}api/catalogo/exames-base`)).length,
   });
 
   const tabCounts: Record<TabKey, number> = {
