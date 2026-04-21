@@ -22,7 +22,7 @@ router.post("/", async (_req: Request, res: Response) => {
       nome: "PADCOM Consultoria Medica",
       cnpj: "12.345.678/0001-90",
       responsavel: "Dr Caio Henrique Fernandes Padua",
-      email: "caio@clinica.com",
+      email: "ceo@pawards.com.br",
       telefone: "(11) 99999-0001",
       plano: "enterprise",
       maxUnidades: "20",
@@ -53,7 +53,7 @@ router.post("/", async (_req: Request, res: Response) => {
 
   await db.update(unidadesTable).set({ consultoriaId }).where(eq(unidadesTable.id, unidadesExistentes[0]?.id ?? 1));
 
-  const [caio] = await db.select().from(usuariosTable).where(eq(usuariosTable.email, "caio@clinica.com"));
+  const [caio] = await db.select().from(usuariosTable).where(eq(usuariosTable.email, "ceo@pawards.com.br"));
   if (caio) {
     await db.update(usuariosTable).set({ escopo: "consultoria_master", consultoriaId }).where(eq(usuariosTable.id, caio.id));
   }

@@ -41,7 +41,7 @@ async function seedFictitiousData() {
   console.log("═══════════════════════════════════════════\n");
 
   const existingUsers = await db.select().from(usuariosTable);
-  const caio = existingUsers.find(u => u.email === "caio@clinica.com");
+  const caio = existingUsers.find(u => u.email === "ceo@pawards.com.br");
   const helena = existingUsers.find(u => u.email === "helena@clinica.com");
   const ana = existingUsers.find(u => u.email === "ana@clinica.com");
   const carlos = existingUsers.find(u => u.email === "carlos@clinica.com");
