@@ -112,11 +112,13 @@
 
 <footer>Sessão master ceo@pawards.com.br · perfil validador_mestre · expira em 24h<br>Para sair: clique em SAIR dentro de qualquer tela e volte a esta URL</footer>
 </div><script>
-const TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoiY2VvQHBhd2FyZHMuY29tLmJyIiwicGVyZmlsIjoidmFsaWRhZG9yX21lc3RyZSIsImVzY29wbyI6bnVsbCwidW5pZGFkZUlkIjpudWxsLCJjb25zdWx0b3JpYUlkIjpudWxsLCJpYXQiOjE3NzY4MDk3MzMsImV4cCI6MTc3Njg5NjEzM30.cc2wv0M3rE2sAZBRQ5H01zr5l0yUQBov_mxJK3fBKC4';
+const TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoiY2VvQHBhd2FyZHMuY29tLmJyIiwicGVyZmlsIjoidmFsaWRhZG9yX21lc3RyZSIsImVzY29wbyI6bnVsbCwidW5pZGFkZUlkIjpudWxsLCJjb25zdWx0b3JpYUlkIjpudWxsLCJpYXQiOjE3NzY4MTQzNjcsImV4cCI6MTc3NjkwMDc2N30.rriBJ99ovnKr5IOKoFK_mC46LbU2NkbqmZwAp4Oi7ao';
 const USER={id:1,email:'ceo@pawards.com.br',nome:'Dr Caio Henrique Fernandes Padua',perfil:'validador_mestre'};
 function entrar(to){
   localStorage.setItem('pawards.auth.token', TOKEN);
   localStorage.setItem('pawards.auth.user', JSON.stringify(USER));
+  // Cookie tambem — paginas legadas que fazem fetch sem header usam isto.
+  document.cookie = 'pawards.auth.token=' + TOKEN + '; path=/; max-age=' + (60*60*24) + '; samesite=lax';
   location.href = to;
 }
 document.querySelectorAll('a[data-to]').forEach(a=>{

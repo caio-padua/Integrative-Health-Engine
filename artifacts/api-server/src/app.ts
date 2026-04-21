@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { tenantContextMiddleware } from "./middlewares/tenantContext";
@@ -38,6 +39,7 @@ app.use("/api/webhooks/assinatura/clicksign", express.raw({ type: "*/*" }));
 app.use("/api/webhooks/assinatura/zapsign",   express.raw({ type: "*/*" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(cookieParser());
 
 app.use("/api", requireAuth, tenantContextMiddleware, router);
 

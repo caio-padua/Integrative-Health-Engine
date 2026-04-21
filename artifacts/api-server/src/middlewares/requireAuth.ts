@@ -53,15 +53,21 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
+  // Aceita o JWT em 3 lugares: header Authorization (preferencial), cookie
+  // "pawards.auth.token" (para bridges/SSR e paginas legadas que nao injetam
+  // header), e query string ?_token= (debug pontual).
   const header = req.header("authorization") || "";
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match) {
+  const headerMatch = header.match(/^Bearer\s+(.+)$/i);
+  const cookieToken = (req as any).cookies?.["pawards.auth.token"] as string | undefined;
+  const queryToken = typeof req.query?._token === "string" ? (req.query._token as string) : undefined;
+  const token = headerMatch?.[1] || cookieToken || queryToken;
+  if (!token) {
     res.status(401).json({ error: "Autenticacao necessaria (Bearer token ausente)" });
     return;
   }
 
   try {
-    req.user = verifyJwt(match[1]);
+    req.user = verifyJwt(token);
     next();
   } catch (err: any) {
     res.status(401).json({ error: err?.message || "Token invalido" });
