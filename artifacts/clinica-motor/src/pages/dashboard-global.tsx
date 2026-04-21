@@ -9,6 +9,13 @@ import {
 } from "recharts";
 
 const TOKEN_KEY = "pawards.auth.token";
+const USER_KEY = "pawards.auth.user";
+
+interface SessionUser {
+  email?: string | null;
+  nome?: string | null;
+  perfil?: string | null;
+}
 import { KpiCard } from "@/components/pawards/KpiCard";
 import { Gauge } from "@/components/pawards/Gauge";
 import { Led } from "@/components/pawards/Led";
@@ -55,6 +62,25 @@ export default function DashboardGlobal() {
   const [, setLocation] = useLocation();
   const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
 
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(USER_KEY);
+      return raw ? (JSON.parse(raw) as SessionUser) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    } catch { /* ignore */ }
+    setSessionUser(null);
+    setLocation("/admin/login");
+  };
+
   useEffect(() => {
     if (!hasToken) {
       setLocation("/admin/login");
@@ -88,7 +114,10 @@ export default function DashboardGlobal() {
 
   useEffect(() => {
     if (errKpi?.includes("401")) {
-      try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+      } catch { /* ignore */ }
       setLocation("/admin/login");
     }
   }, [errKpi, setLocation]);
@@ -142,21 +171,71 @@ export default function DashboardGlobal() {
             <Led state={pctMeta >= 67 ? "excellent" : pctMeta >= 50 ? "online" : "warning"} label="Meta global" />
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <div style={{ textAlign: "right" }}>
+            <div
+              style={{
+                fontFamily: "ui-monospace, monospace",
+                fontSize: 28, fontWeight: 700,
+                color: PAWARDS.colors.digital.amber,
+                textShadow: `0 0 12px ${PAWARDS.colors.digital.amber}55`,
+                letterSpacing: "0.06em",
+              }}
+            >
+              {now.toLocaleTimeString("pt-BR")}
+            </div>
+            <div style={{ fontSize: 11, color: PAWARDS.colors.text.tertiary, marginTop: 2 }}>
+              {now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+              {lastUpdate && ` · sync ${lastUpdate.toLocaleTimeString("pt-BR")}`}
+            </div>
+          </div>
           <div
             style={{
-              fontFamily: "ui-monospace, monospace",
-              fontSize: 28, fontWeight: 700,
-              color: PAWARDS.colors.digital.amber,
-              textShadow: `0 0 12px ${PAWARDS.colors.digital.amber}55`,
-              letterSpacing: "0.06em",
+              display: "flex", flexDirection: "column", alignItems: "flex-end",
+              gap: 6, paddingLeft: 18,
+              borderLeft: "1px solid rgba(255,255,255,0.08)",
             }}
           >
-            {now.toLocaleTimeString("pt-BR")}
-          </div>
-          <div style={{ fontSize: 11, color: PAWARDS.colors.text.tertiary, marginTop: 2 }}>
-            {now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
-            {lastUpdate && ` · sync ${lastUpdate.toLocaleTimeString("pt-BR")}`}
+            <div style={{ textAlign: "right", lineHeight: 1.3 }}>
+              <div
+                style={{
+                  fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase",
+                  color: PAWARDS.colors.text.tertiary, fontWeight: 600,
+                }}
+              >
+                Logado como
+              </div>
+              <div
+                style={{ fontSize: 12, color: PAWARDS.colors.text.primary, fontWeight: 600 }}
+                data-testid="text-usuario-logado"
+              >
+                {sessionUser?.nome || sessionUser?.email || "—"}
+              </div>
+              {sessionUser?.nome && sessionUser?.email && (
+                <div style={{ fontSize: 11, color: PAWARDS.colors.text.tertiary }}>
+                  {sessionUser.email}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              data-testid="button-logout"
+              style={{
+                padding: "6px 14px",
+                background: "transparent",
+                color: PAWARDS.colors.gold[500],
+                border: `1px solid ${PAWARDS.colors.gold[700]}`,
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              Sair
+            </button>
           </div>
         </div>
       </div>

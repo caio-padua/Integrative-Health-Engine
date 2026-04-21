@@ -16,13 +16,45 @@ const router = Router();
 type AuthedRequest = Request & { user?: JwtPayload };
 
 // Log identificado de cada acesso ao Painel PAWARDS — substitui o log "admin generico"
-// herdado do x-admin-token. Mostra quem (email/perfil/sub) tocou cada endpoint.
+// herdado do x-admin-token. Mostra quem (email/perfil/sub) tocou cada endpoint
+// e persiste em painel_pawards_auditoria pra trilha de compliance/LGPD.
+function clientIp(req: Request): string | null {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.length > 0) return fwd.split(",")[0]!.trim();
+  if (Array.isArray(fwd) && fwd.length > 0) return String(fwd[0]).split(",")[0]!.trim();
+  return req.ip ?? req.socket?.remoteAddress ?? null;
+}
+
 router.use((req: AuthedRequest, _res: Response, next: NextFunction) => {
   const u = req.user;
   const who = u
     ? `user=${u.email} perfil=${u.perfil} sub=${u.sub}`
     : "user=<sem-jwt>";
   console.log(`[painel-pawards] ${req.method} ${req.originalUrl} ${who}`);
+
+  // Persiste apenas leituras (GET) — endpoints PUT/DELETE de parametros ja tem trilha propria
+  // em outras camadas e geram ruido grande aqui. Falha de auditoria nunca bloqueia o request.
+  if (req.method === "GET") {
+    const ua = req.header("user-agent") ?? null;
+    const ip = clientIp(req);
+    pool
+      .query(
+        `INSERT INTO painel_pawards_auditoria
+          (usuario_id, email, perfil, metodo, endpoint, ip, user_agent)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          u?.sub ?? null,
+          u?.email ?? null,
+          u?.perfil ?? null,
+          req.method,
+          req.originalUrl,
+          ip,
+          ua,
+        ]
+      )
+      .catch((err) => console.error("[painel-pawards/auditoria]", err.message));
+  }
+
   next();
 });
 
@@ -770,6 +802,43 @@ router.get("/blends/precificados", async (req, res) => {
     res.json(rows);
   } catch (e: any) {
     console.error("[painel-pawards/blends]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
+// 12) AUDITORIA — trilha de acessos ao Painel PAWARDS (master only)
+// ===========================================================================
+router.get("/auditoria/acessos", async (req, res) => {
+  try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+    const limit = Math.min(Math.max(Number(req.query.limit ?? 100) || 100, 1), 500);
+    const usuarioId = req.query.usuario_id ? Number(req.query.usuario_id) : null;
+    const desde = typeof req.query.desde === "string" ? req.query.desde : null;
+
+    const where: string[] = [];
+    const params: (string | number)[] = [];
+    if (usuarioId && Number.isFinite(usuarioId)) {
+      params.push(usuarioId);
+      where.push(`usuario_id = $${params.length}`);
+    }
+    if (desde) {
+      params.push(desde);
+      where.push(`acessado_em >= $${params.length}::timestamptz`);
+    }
+    params.push(limit);
+
+    const sql = `
+      SELECT id, usuario_id, email, perfil, metodo, endpoint, ip, user_agent, acessado_em
+      FROM painel_pawards_auditoria
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY acessado_em DESC
+      LIMIT $${params.length}
+    `;
+    const { rows } = await pool.query(sql, params);
+    res.json(rows);
+  } catch (e: any) {
+    console.error("[painel-pawards/auditoria/acessos]", e);
     res.status(500).json({ error: e.message });
   }
 });
