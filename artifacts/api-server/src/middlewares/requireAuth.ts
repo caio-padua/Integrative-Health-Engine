@@ -45,6 +45,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   const adminToken = process.env["ADMIN_TOKEN"];
   if (adminToken && adminToken.length >= 16 && req.header("x-admin-token") === adminToken) {
+    req.user = { id: -1, perfil: "admin", nome: "ADMIN_TOKEN", email: "admin@pawards", unidadeId: null } as any;
     next();
     return;
   }

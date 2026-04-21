@@ -247,10 +247,10 @@ WHERE cp.paciente_id IS NOT NULL AND cp.medico_id IS NOT NULL
 -- 7. SNAPSHOTS KPI globais (30 snapshots, 1 por dia, últimos 30 dias)
 -- ============================================================
 INSERT INTO kpi_global_snapshot (
-  snapshot_em, total_clinicas, total_pacientes, fat_total_mes,
-  fat_meta_total, fat_minimo_total, fat_maximo_total, media_nps,
+  snapshot_em, total_clinicas, total_pacientes, fat_realizado_mes,
+  fat_meta_total_mes, fat_minimo_total_mes, fat_maximo_total_mes, media_nps, media_ocupacao,
   total_consultas_hoje, total_receitas_fama_mes, comissao_magistral_total,
-  clinica_maior_fat_id, clinica_menor_fat_id
+  clinica_topo_id, clinica_lanterna_id
 )
 SELECT
   (CURRENT_DATE - g.dia)::timestamptz + interval '20 hours',
@@ -258,13 +258,14 @@ SELECT
   (SELECT count(*) FROM pacientes WHERE status_ativo),
   COALESCE((SELECT SUM(valor_realizado) FROM faturamento_diario
     WHERE data BETWEEN date_trunc('month', CURRENT_DATE - g.dia) AND (CURRENT_DATE - g.dia)), 0),
-  (SELECT SUM(fat_meta_mensal) FROM unidades WHERE fat_meta_mensal > 0),
+  (SELECT SUM(fat_meta_mensal)   FROM unidades WHERE fat_meta_mensal > 0),
   (SELECT SUM(fat_minimo_mensal) FROM unidades WHERE fat_meta_mensal > 0),
   (SELECT SUM(fat_maximo_mensal) FROM unidades WHERE fat_meta_mensal > 0),
   78 + (random() * 8)::numeric,
-  (SELECT consultas_count FROM faturamento_diario
-    WHERE data = CURRENT_DATE - g.dia LIMIT 1),
-  COALESCE((SELECT SUM(receitas_fama) FROM faturamento_diario
+  70 + (random() * 12)::numeric,
+  COALESCE((SELECT SUM(consultas_realizadas) FROM faturamento_diario
+    WHERE data = CURRENT_DATE - g.dia), 0),
+  COALESCE((SELECT SUM(receitas_fama_count) FROM faturamento_diario
     WHERE data BETWEEN date_trunc('month', CURRENT_DATE - g.dia) AND (CURRENT_DATE - g.dia)), 0),
   COALESCE((SELECT SUM(comissao_magistral_estimada) FROM faturamento_diario
     WHERE data BETWEEN date_trunc('month', CURRENT_DATE - g.dia) AND (CURRENT_DATE - g.dia)), 0),

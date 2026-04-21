@@ -32,8 +32,9 @@ function unidadeIdParam(req: any): number | null {
 // ===========================================================================
 // 1) GLOBAL — soma de todas as clínicas (CEO master)
 // ===========================================================================
-router.get("/global", async (_req, res) => {
+router.get("/global", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     const { rows } = await pool.query(`
       SELECT
         (SELECT COUNT(*) FROM unidades WHERE fat_meta_mensal > 0)::int AS total_clinicas,
@@ -58,8 +59,9 @@ router.get("/global", async (_req, res) => {
 // ===========================================================================
 // 2) RANKING — clínicas ordenadas por % da meta no mês
 // ===========================================================================
-router.get("/clinicas/ranking", async (_req, res) => {
+router.get("/clinicas/ranking", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     const { rows } = await pool.query(`
       SELECT
         u.id, u.nome, COALESCE(u.nick, u.nome) AS nick, u.slug,
@@ -228,8 +230,9 @@ router.get("/parclaim/:unidade_id/previsao", async (req, res) => {
 // ===========================================================================
 
 // 7a) Ranking global das farmácias PARMAVAULT (visível ao master).
-router.get("/parmavault/farmacias/ranking", async (_req, res) => {
+router.get("/parmavault/farmacias/ranking", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     const { rows } = await pool.query(`
       SELECT
         f.id, f.nome_fantasia, f.cidade, f.estado, f.percentual_comissao,
@@ -286,8 +289,9 @@ router.get("/parmavault/farmacias/ranking", async (_req, res) => {
 
 // 7b) Termômetros de uma farmácia específica.
 router.get("/parmavault/:farmacia_id/termometros", async (req, res) => {
+  if (!isMaster(req)) { res.status(403).json({ error: "Acesso restrito ao perfil master" }); return; }
   const fid = Number(req.params.farmacia_id);
-  if (!Number.isFinite(fid)) return res.status(400).json({ error: "farmacia_id inválido" });
+  if (!Number.isFinite(fid)) { res.status(400).json({ error: "farmacia_id inválido" }); return; }
   try {
     const { rows } = await pool.query(
       `
@@ -345,8 +349,9 @@ router.get("/parmavault/:farmacia_id/termometros", async (req, res) => {
 
 // 7c) Série diária da farmácia (últimos 30 dias) — pra gráfico de linha.
 router.get("/parmavault/:farmacia_id/trend", async (req, res) => {
+  if (!isMaster(req)) { res.status(403).json({ error: "Acesso restrito ao perfil master" }); return; }
   const fid = Number(req.params.farmacia_id);
-  if (!Number.isFinite(fid)) return res.status(400).json({ error: "farmacia_id inválido" });
+  if (!Number.isFinite(fid)) { res.status(400).json({ error: "farmacia_id inválido" }); return; }
   try {
     const { rows } = await pool.query(
       `
@@ -528,8 +533,9 @@ router.post("/snapshot/global", async (_req, res) => {
 // ===========================================================================
 // 11A) AGENDA HOJE — consultas do dia (real se houver, fallback sintético determinístico)
 // ===========================================================================
-router.get("/agenda-hoje", async (_req, res) => {
+router.get("/agenda-hoje", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     // Tenta tabela real primeiro
     const real = await pool.query(`
       SELECT
@@ -624,8 +630,9 @@ router.get("/agenda-hoje", async (_req, res) => {
 // ===========================================================================
 // 11B) ALERTAS — clínicas abaixo do mínimo, KPIs fora da faixa
 // ===========================================================================
-router.get("/alertas", async (_req, res) => {
+router.get("/alertas", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     // 1) Clínicas abaixo do mínimo no mês
     const abaixoMin = await pool.query(`
       SELECT
@@ -701,8 +708,9 @@ router.get("/alertas", async (_req, res) => {
 // ===========================================================================
 // 11C) FLUXO DE CAIXA 30d — entradas reais (faturamento_diario) vs saídas estimadas
 // ===========================================================================
-router.get("/caixa-30d", async (_req, res) => {
+router.get("/caixa-30d", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     // Saídas estimadas: 58% do realizado (operação) + comissão magistral devida.
     const { rows } = await pool.query(`
       SELECT
@@ -734,8 +742,9 @@ router.get("/caixa-30d", async (_req, res) => {
 // ===========================================================================
 // 11) BLENDS com valor — preview pra prescritor
 // ===========================================================================
-router.get("/blends/precificados", async (_req, res) => {
+router.get("/blends/precificados", async (req, res) => {
   try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     const { rows } = await pool.query(`
       SELECT id, codigo_blend, nome_blend, valor_brl::numeric AS valor_brl
       FROM formula_blend
