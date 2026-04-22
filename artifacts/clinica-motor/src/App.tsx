@@ -74,6 +74,7 @@ import AdminClinicas from "@/pages/admin-clinicas";
 import AdminPermissoesDelegadas from "@/pages/admin-permissoes-delegadas";
 import AdminCobrancasAdicionais from "@/pages/admin-cobrancas-adicionais";
 import AdminAnalytics from "@/pages/admin-analytics";
+import AdminNotificacoes from "@/pages/admin-notificacoes";
 import AdminLogin from "@/pages/admin-login";
 // PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
 import PadcomPaciente from "@/pages/padcom/paciente";
@@ -115,6 +116,7 @@ function Router() {
       <Route path="/admin/permissoes-delegadas" component={AdminPermissoesDelegadas} />
       <Route path="/admin/cobrancas-adicionais" component={AdminCobrancasAdicionais} />
       <Route path="/admin/analytics" component={AdminAnalytics} />
+      <Route path="/admin/notificacoes" component={AdminNotificacoes} />
       <Route path="/painel-pawards" component={DashboardGlobal} />
       <Route path="/anamnese" component={Anamneses} />
       <Route path="/anamnese/nova" component={NovaAnamnese} />
