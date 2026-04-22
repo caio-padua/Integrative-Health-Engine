@@ -125,18 +125,9 @@ const COR_POR_CODIGO: Record<CodigoReceitaAnvisa, CorPdf> = {
   VERDE_FITO: "verde",
 };
 
-/** Códigos considerados "controlados" para REGRA 14 */
-const SAO_CONTROLADOS: Set<CodigoReceitaAnvisa> = new Set([
-  "C1",
-  "C2",
-  "C3",
-  "C5",
-  "B1",
-  "B2",
-  "A1",
-  "A2",
-  "A3",
-]);
+// Removido em 22/abr/2026 (PARMASUPRA-TSUNAMI T1): SAO_CONTROLADOS estava
+// definido mas nunca consultado. A flag `controlado` no proprio AtivoEntrada
+// e a fonte de verdade. Code review architect apontou como dead code.
 
 // =====================================================================
 // REGRA 05 — deduzirMafia4()
@@ -298,7 +289,8 @@ export function aplicarRegra14(bloco: BlocoEntrada): BlocoProcessado[] {
 
   // Caso 14.1 — controlado sozinho num bloco mononumtrico
   if (controlados.length === 1 && naoControlados.length === 0) {
-    const codigo = controlados[0].tipo_receita_anvisa_codigo;
+    // Removida variavel `codigo` nao consultada (PARMASUPRA-TSUNAMI T1).
+    // O codigo_mafia4 vem de deduzirMafia4(ativos) abaixo.
     return [
       {
         ...bloco,

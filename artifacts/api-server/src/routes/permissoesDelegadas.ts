@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { requireMasterEstrito } from "../middlewares/requireMasterEstrito";
 
 const router = Router();
 
@@ -20,6 +21,7 @@ const PERMISSOES_VALIDAS = [
 router.get(
   "/admin/permissoes-delegadas",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (_req, res): Promise<void> => {
     const result = await db.execute(sql`
       SELECT
@@ -57,6 +59,7 @@ router.get(
 router.get(
   "/admin/permissoes-delegadas/:unidade_id",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (req, res): Promise<void> => {
     const unidadeId = parseInt(req.params.unidade_id, 10);
     if (Number.isNaN(unidadeId)) {
@@ -87,6 +90,7 @@ router.get(
 router.patch(
   "/admin/permissoes-delegadas/:unidade_id",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (req, res): Promise<void> => {
     const unidadeId = parseInt(req.params.unidade_id, 10);
     const { permissao, ativo, preco_mensal_brl, preco_inclusao_substancia_brl } = req.body ?? {};

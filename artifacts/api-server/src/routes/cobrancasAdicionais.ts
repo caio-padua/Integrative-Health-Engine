@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { requireMasterEstrito } from "../middlewares/requireMasterEstrito";
 
 const router = Router();
 
@@ -19,6 +20,7 @@ const router = Router();
 router.get(
   "/admin/cobrancas-adicionais",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (req, res): Promise<void> => {
     const unidadeId = req.query.unidade_id ? Number(req.query.unidade_id) : null;
     const status = typeof req.query.status === "string" ? req.query.status : null;
@@ -72,6 +74,7 @@ router.get(
 router.post(
   "/admin/cobrancas-adicionais",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (req, res): Promise<void> => {
     const { unidade_id, tipo, descricao, valor_brl, status } = req.body ?? {};
 
@@ -109,6 +112,7 @@ router.post(
 router.patch(
   "/admin/cobrancas-adicionais/:id",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (req, res): Promise<void> => {
     const id = parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
