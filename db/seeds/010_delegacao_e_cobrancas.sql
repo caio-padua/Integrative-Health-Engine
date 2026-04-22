@@ -11,6 +11,33 @@
 BEGIN;
 
 -- -----------------------------------------------------------------------------
+-- HIERARQUIA DE NEGOCIO · tipo_unidade
+-- ATENCAO: a coluna 'tipo' JA EXISTE em unidades com valores tecnicos
+-- ('clinic','genesis_seed','enfermagem','domiciliar','telemedicina','personal').
+-- NAO mexer nela (quebraria 17 linhas). Criamos uma coluna NOVA pra hierarquia
+-- do modelo de negocio do Dr. Caio (revelacao 22/abr):
+--   LABORATORIO_MESTRE  = Genesis (semeia substancias, nunca recebe paciente)
+--   CLINICA_OPERACIONAL = Padua (testa em pacientes reais antes de virar padrao)
+--   CLINICA_PARCEIRA    = demais (consomem o que Genesis cria + Padua valida)
+-- -----------------------------------------------------------------------------
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name='unidades' AND column_name='tipo_unidade') THEN
+    ALTER TABLE unidades ADD COLUMN tipo_unidade text NOT NULL DEFAULT 'CLINICA_PARCEIRA'
+      CHECK (tipo_unidade IN ('LABORATORIO_MESTRE','CLINICA_OPERACIONAL','CLINICA_PARCEIRA'));
+    RAISE NOTICE 'Migration 010: coluna tipo_unidade adicionada em unidades';
+  ELSE
+    RAISE NOTICE 'Migration 010: tipo_unidade ja existe — pulando';
+  END IF;
+END $$;
+
+-- Promove Genesis e Padua na hierarquia
+UPDATE unidades SET tipo_unidade = 'LABORATORIO_MESTRE'
+  WHERE nome ILIKE '%genesis%' AND tipo_unidade <> 'LABORATORIO_MESTRE';
+UPDATE unidades SET tipo_unidade = 'CLINICA_OPERACIONAL'
+  WHERE nome ILIKE '%padua%' AND nome NOT ILIKE '%(arquivada)%' AND tipo_unidade <> 'CLINICA_OPERACIONAL';
+
+-- -----------------------------------------------------------------------------
 -- TABELA 1 · permissoes_delegadas
 -- Toggle "autonomia delegada" por unidade × permissão + preço mensal cobrado.
 -- O Dr. Caio liga/desliga e define quanto cobra de cada clínica por mês.
@@ -65,30 +92,25 @@ CREATE INDEX IF NOT EXISTS ix_cobrancas_adicionais_criado
   ON cobrancas_adicionais(criado_em DESC);
 
 -- -----------------------------------------------------------------------------
--- SEED: linha exemplar pra Ultra Clínica caso ela exista no banco.
--- Pega a primeira unidade que casa nome ILIKE '%ultra%'. Se nao existir, no-op.
+-- SEED: 4 toggles default OFF pra TODAS as clinicas parceiras ativas.
+-- (revelacao Dr. Caio 22/abr: a "Ultra" do blueprint era na verdade a Genesis,
+--  laboratorio mestre. Genesis NAO precisa de delegacao — ela ja tem tudo.
+--  Quem precisa de toggle sao as CLINICA_PARCEIRA.)
+-- Precos sugeridos (Caio ajusta na tela /admin/permissoes-delegadas).
 -- -----------------------------------------------------------------------------
-DO $$
-DECLARE
-  v_ultra_id int;
-BEGIN
-  SELECT id INTO v_ultra_id FROM unidades WHERE nome ILIKE '%ultra%' LIMIT 1;
-
-  IF v_ultra_id IS NOT NULL THEN
-    -- 4 toggles desligados por padrão pra Ultra (Caio decide depois)
-    INSERT INTO permissoes_delegadas (unidade_id, permissao, ativo, preco_mensal_brl, preco_inclusao_substancia_brl)
-    VALUES
-      (v_ultra_id, 'editar_catalogo_substancias', false, 297, 150),
-      (v_ultra_id, 'editar_bloco_template',       false, 297, 150),
-      (v_ultra_id, 'editar_parametros_exames',    false, 197, 150),
-      (v_ultra_id, 'incluir_substancia_nova',     false, 0,   150)
-    ON CONFLICT (unidade_id, permissao) DO NOTHING;
-
-    RAISE NOTICE 'Migration 010: 4 toggles seedados pra Ultra Clinica id=%', v_ultra_id;
-  ELSE
-    RAISE NOTICE 'Migration 010: Ultra Clinica nao encontrada (busca por nome ILIKE %ultra%) — pule seed.';
-  END IF;
-END $$;
+INSERT INTO permissoes_delegadas (unidade_id, permissao, ativo, preco_mensal_brl, preco_inclusao_substancia_brl)
+SELECT u.id, p.permissao, false, p.preco_mensal, 150
+FROM unidades u
+CROSS JOIN (VALUES
+  ('editar_catalogo_substancias', 297::numeric),
+  ('editar_bloco_template',       297::numeric),
+  ('editar_parametros_exames',    197::numeric),
+  ('incluir_substancia_nova',     0::numeric)
+) AS p(permissao, preco_mensal)
+WHERE u.tipo_unidade = 'CLINICA_PARCEIRA'
+  AND u.ativa = true
+  AND u.nome NOT ILIKE '%(arquivada)%'
+ON CONFLICT (unidade_id, permissao) DO NOTHING;
 
 COMMIT;
 

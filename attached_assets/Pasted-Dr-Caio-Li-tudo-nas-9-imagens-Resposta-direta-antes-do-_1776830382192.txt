@@ -1,0 +1,134 @@
+Dr. Caio. Li tudo nas 9 imagens. Resposta direta antes do handoff.
+
+O Dr. Replit acertou em cheio na análise
+A tabela que ele fez comparando Dr. Claude vs Dr. Replit é honesta e correta. Cada um tem sua força. A conclusão dele é exatamente certa:
+“Use os dois em pipeline. Dr. Claude desenha e audita. Eu implemento e testo no banco vivo.”
+Os programadores de 6 anos cobravam para esconder. Nós dois cobramos para mostrar. Essa frase resume tudo.
+As correções #1 (tenantContext só JWT) e #2 (remover ?_token=) já foram aplicadas e testadas. Ótimo.
+
+O que é a Ultra Clínica — e você já respondeu sozinho
+Você descreveu perfeitamente o modelo sem precisar do nome. Deixa eu só organizar:
+Instituto Gênesis = o silo mestre. É onde tudo nasce. Novas substâncias, novos injetáveis, novos blends, novos protocolos — são criados aqui primeiro. Nunca recebe paciente real. É o laboratório do método.
+Instituto Pádua = a clínica real em operação. Recebe as criações do Gênesis depois de validadas. É onde você testa na prática com pacientes reais. O que funciona no Pádua vira padrão para as clínicas parceiras.
+“Ultra Clínica” que o Dr. Replit mencionou = ele estava se referindo a uma clínica de teste fictícia para o seed. Não é um conceito seu — é uma lacuna dele. A resposta é simples: não existe Ultra Clínica. O que existe no seu modelo é Gênesis + Pádua.
+
+Handoff completo para o Dr. Replit — com tudo
+Cole isso para ele agora:
+
+“Dr. Replit — handoff final com todas as diretrizes. Execute na ordem.
+SOBRE A ULTRA CLÍNICA — RESPOSTA DIRETA
+Não existe Ultra Clínica no modelo do Dr. Caio. O modelo correto é:
+INSTITUTO GÊNESIS = unidade mestre de criação. Nunca recebe paciente real. É o silo onde novas substâncias, blends, injetáveis e protocolos são criados e testados antes de ir para produção. No banco, é a unidade com slug = 'genesis' e tipo = 'LABORATORIO_MESTRE'.
+INSTITUTO PÁDUA = clínica real em operação. Recebe as criações validadas do Gênesis. É a prova de conceito viva do método. No banco, é a unidade com slug = 'padua' e tipo = 'CLINICA_OPERACIONAL'.
+Adicionar campo tipo na tabela unidades:
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name='unidades' AND column_name='tipo') THEN
+    ALTER TABLE unidades ADD COLUMN tipo text NOT NULL DEFAULT 'CLINICA_PARCEIRA'
+      CHECK (tipo IN ('LABORATORIO_MESTRE','CLINICA_OPERACIONAL','CLINICA_PARCEIRA'));
+  END IF;
+END $$;
+
+UPDATE unidades SET tipo = 'LABORATORIO_MESTRE' WHERE slug = 'genesis';
+UPDATE unidades SET tipo = 'CLINICA_OPERACIONAL' WHERE slug = 'padua';
+
+
+Regra de negócio: só LABORATORIO_MESTRE pode criar novas substâncias sem delegação. Clínicas CLINICA_PARCEIRA precisam de permissoes_delegadas para isso.
+MIGRATION 010 — aplicar agora
+A migration 010 está escrita. Aplicar agora. É aditiva, idempotente, zero risco. Cria permissoes_delegadas e cobrancas_adicionais.
+Depois de aplicar, os 4 campos de cobrança nascem:
+	•	/admin/clinicas com fat_meta_mensal por clínica
+	•	/admin/permissoes-delegadas com preco_mensal_brl por toggle recorrente
+	•	/admin/permissoes-delegadas com preco_inclusao_substancia_brl por inclusão avulsa (default R$150)
+	•	/admin/cobrancas-adicionais com linha nova por cada evento cobrado
+TOGGLE DE DELEGAÇÃO — o modelo correto
+O Dr. Caio não quer simplesmente deixar o dono da clínica editar substâncias. Ele quer vender essa autonomia como produto. O modelo é:
+CEO master tem um painel com lista de todas as clínicas parceiras. Para cada clínica, tem uma linha de toggles:
+
+Clínica X — PARMAVAULT        [ON]  R$297/mês
+Clínica X — Incluir substância [ON]  R$150/inclusão
+Clínica X — Editar bloco       [OFF] R$197/mês
+Clínica X — Analytics avançado [ON]  R$197/mês
+
+
+Quando o toggle está OFF, o dono da clínica vê o botão na interface mas recebe mensagem: ‘Esta funcionalidade não está ativa para sua unidade. Entre em contato com Dr. Caio para ativar.’
+Quando o toggle está ON com cobrança avulsa, cada uso gera uma linha em cobrancas_adicionais automaticamente.
+CORREÇÃO DOS 4 FUROS QUE O DR. REPLIT IDENTIFICOU NO MEU BLUEPRINT
+Furo 1: WHERE u.ativo = true → corrigir para WHERE u.ativa = true conforme coluna real do banco.
+Furo 2: usar Drizzle db.execute(sql\…`)em vez depool.query` cru — padrão já estabelecido no projeto.
+Furo 3: adicionar requireRole('validador_mestre') nos endpoints /api/admin/* para garantir que só CEO vê analytics da rede inteira.
+Furo 4: implementar o switch faturamento / receitas / consultas na query de crescimento — hoje está hardcoded em faturamento_total.
+MIGRATION 011 — Analytics + Snapshots
+Criar tabelas analytics_snapshots e analytics_clinica_mes conforme handoff anterior. Popular retroativamente os últimos 6 meses com dados seed realistas para o dashboard funcionar no primeiro acesso.
+ENDPOINTS ANALYTICS — com os 4 furos corrigidos
+
+// requireRole helper
+function requireRole(...perfis: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!perfis.includes(req.user?.perfil ?? '')) {
+      res.status(403).json({ error: 'Acesso negado' });
+      return;
+    }
+    next();
+  };
+}
+
+// Aplicar em todos os endpoints /admin/analytics:
+router.get('/admin/analytics/crescimento-clinicas',
+  requireRole('validador_mestre', 'consultoria_master'),
+  async (req, res) => {
+    const { periodo_a, periodo_b, metrica = 'faturamento' } = req.query;
+    const [ano_a, mes_a] = String(periodo_a).split('-').map(Number);
+    const [ano_b, mes_b] = String(periodo_b).split('-').map(Number);
+
+    // Switch de métrica — furo 4 corrigido
+    const coluna = metrica === 'receitas' ? 'receitas_count'
+      : metrica === 'consultas' ? 'consultas_count'
+      : 'faturamento_total';
+
+    const result = await db.execute(sql`
+      SELECT
+        u.id AS unidade_id,
+        u.nome,
+        u.tipo,
+        COALESCE(a.${sql.raw(coluna)}, 0) AS valor_a,
+        COALESCE(b.${sql.raw(coluna)}, 0) AS valor_b,
+        CASE
+          WHEN COALESCE(a.${sql.raw(coluna)}, 0) = 0 THEN NULL
+          ELSE ROUND(
+            ((COALESCE(b.${sql.raw(coluna)}, 0) - COALESCE(a.${sql.raw(coluna)}, 0))
+             / COALESCE(a.${sql.raw(coluna)}, 1)::float) * 100, 1
+          )
+        END AS variacao_pct,
+        COALESCE(b.${sql.raw(coluna)}, 0) - COALESCE(a.${sql.raw(coluna)}, 0) AS variacao_absoluta
+      FROM unidades u
+      LEFT JOIN analytics_clinica_mes a
+        ON a.unidade_id = u.id AND a.ano = ${ano_a} AND a.mes = ${mes_a}
+      LEFT JOIN analytics_clinica_mes b
+        ON b.unidade_id = u.id AND b.ano = ${ano_b} AND b.mes = ${mes_b}
+      WHERE u.ativa = true
+      ORDER BY variacao_pct DESC NULLS LAST
+    `);
+
+    res.json(result.rows.map((r: any) => ({
+      ...r,
+      tendencia: r.variacao_pct > 5 ? 'CRESCENDO'
+        : r.variacao_pct < -5 ? 'CAINDO' : 'ESTAVEL'
+    })));
+  }
+);
+
+
+REGRA PARA TODOS OS NÚMEROS NO SISTEMA — sem exceção
+Nenhum número aparece isolado. Todo KPI card mostra: valor principal + variação % vs período anterior (cor verde/amarelo/vermelho) + variação absoluta em unidades ou R$ + sparkline de tendência quando espaço permitir.
+ORDEM DE EXECUÇÃO:
+	1.	Aplicar campo tipo na tabela unidades + atualizar Gênesis e Pádua
+	2.	Aplicar migration 010 (permissões delegadas + cobranças)
+	3.	Rotas admin/unidades com gestão de clínicas
+	4.	requireRole nos endpoints analytics
+	5.	Switch de métrica nos endpoints analytics
+	6.	Migration 011 (analytics_snapshots + seed retroativo 6 meses)
+	7.	Endpoints analytics com os 4 furos corrigidos
+	8.	Tela front analytics com seletor + matriz + drill-down
+	9.	Toggle de delegação no painel CEO com cobrança automática por uso”​​​​​​​​​​​​​​​​
