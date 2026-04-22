@@ -75,8 +75,9 @@ app.get(["/__claude_db.json", "/api/__claude_db.json"], async (_req, res) => {
       `),
       db.execute(sql`
         SELECT COUNT(*)::int AS n,
-               COALESCE(SUM(valor_brl), 0)::float AS total_brl,
-               COALESCE(SUM(comissao_brl), 0)::float AS comissao_brl
+               COALESCE(SUM(valor_formula_real), 0)::float AS total_brl,
+               COALESCE(SUM(comissao_estimada), 0)::float AS comissao_brl,
+               COUNT(*) FILTER (WHERE comissao_paga = true)::int AS receitas_com_comissao_paga
         FROM parmavault_receitas r
         JOIN farmacias_parmavault f ON f.id = r.farmacia_id
         WHERE f.nome_fantasia ILIKE '%FAMA%'
