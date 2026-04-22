@@ -70,6 +70,9 @@ import DashboardGlobal from "@/pages/dashboard-global";
 import FarmaciasParmavault from "@/pages/farmacias-parmavault";
 import ParametrosReferenciaAdmin from "@/pages/parametros-referencia";
 import MetasFaturamentoAdmin from "@/pages/metas-faturamento";
+import AdminClinicas from "@/pages/admin-clinicas";
+import AdminPermissoesDelegadas from "@/pages/admin-permissoes-delegadas";
+import AdminCobrancasAdicionais from "@/pages/admin-cobrancas-adicionais";
 import AdminLogin from "@/pages/admin-login";
 // PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
 import PadcomPaciente from "@/pages/padcom/paciente";
@@ -107,6 +110,9 @@ function Router() {
       <Route path="/admin/farmacias" component={FarmaciasParmavault} />
       <Route path="/admin/parametros-referencia" component={ParametrosReferenciaAdmin} />
       <Route path="/admin/metas-faturamento" component={MetasFaturamentoAdmin} />
+      <Route path="/admin/clinicas" component={AdminClinicas} />
+      <Route path="/admin/permissoes-delegadas" component={AdminPermissoesDelegadas} />
+      <Route path="/admin/cobrancas-adicionais" component={AdminCobrancasAdicionais} />
       <Route path="/painel-pawards" component={DashboardGlobal} />
       <Route path="/anamnese" component={Anamneses} />
       <Route path="/anamnese/nova" component={NovaAnamnese} />

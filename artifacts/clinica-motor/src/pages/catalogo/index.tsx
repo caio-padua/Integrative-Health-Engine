@@ -9,6 +9,24 @@ import { Search, ChevronDown, ChevronRight, Syringe, Droplets, CircleDot, FlaskC
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
+async function catFetch(url: string): Promise<any[]> {
+  const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
+  const headers: Record<string, string> = {};
+  if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
+  try {
+    const res = await fetch(url, { credentials: "include", headers });
+    const j = await res.json();
+    if (!Array.isArray(j)) {
+      console.warn("[catFetch] resposta não-array:", url, j);
+      return [];
+    }
+    return j;
+  } catch (err) {
+    console.error("[catFetch] erro:", url, err);
+    return [];
+  }
+}
+
 async function apiPut(url: string, data: any): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
@@ -115,7 +133,7 @@ function InjetaveisTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-injetaveis"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/injetaveis`); return res.json(); },
+    queryFn: () => catFetch(`/api/catalogo/injetaveis`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -145,18 +163,18 @@ function InjetaveisTab() {
   ];
 
   const handleSave = async (form: any) => {
-    const r = await apiPut(`${BASE_URL}api/catalogo/injetaveis/${editing.id}`, form);
+    const r = await apiPut(`/api/catalogo/injetaveis/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-injetaveis"] });
   };
   const handleCreate = async (form: any) => {
-    const r = await apiPost(`${BASE_URL}api/catalogo/injetaveis`, form);
+    const r = await apiPost(`/api/catalogo/injetaveis`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-injetaveis"] }); toast({ title: "Injetavel criado" });
   };
   const handleDelete = async () => {
     if (!confirm("Excluir este injetavel?")) return;
-    const r = await apiDelete(`${BASE_URL}api/catalogo/injetaveis/${editing.id}`);
+    const r = await apiDelete(`/api/catalogo/injetaveis/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-injetaveis"] });
   };
@@ -238,7 +256,7 @@ function EndovenososTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-endovenosos"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/endovenosos`); return res.json(); },
+    queryFn: () => catFetch(`/api/catalogo/endovenosos`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -276,18 +294,18 @@ function EndovenososTab() {
   ];
 
   const handleSave = async (form: any) => {
-    const r = await apiPut(`${BASE_URL}api/catalogo/endovenosos/${editing.id}`, form);
+    const r = await apiPut(`/api/catalogo/endovenosos/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-endovenosos"] });
   };
   const handleCreate = async (form: any) => {
-    const r = await apiPost(`${BASE_URL}api/catalogo/endovenosos`, form);
+    const r = await apiPost(`/api/catalogo/endovenosos`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-endovenosos"] }); toast({ title: "Endovenoso criado" });
   };
   const handleDelete = async () => {
     if (!confirm("Excluir este endovenoso?")) return;
-    const r = await apiDelete(`${BASE_URL}api/catalogo/endovenosos/${editing.id}`);
+    const r = await apiDelete(`/api/catalogo/endovenosos/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-endovenosos"] });
   };
@@ -368,7 +386,7 @@ function ImplantesTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-implantes"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/implantes`); return res.json(); },
+    queryFn: () => catFetch(`/api/catalogo/implantes`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -397,18 +415,18 @@ function ImplantesTab() {
   ];
 
   const handleSave = async (form: any) => {
-    const r = await apiPut(`${BASE_URL}api/catalogo/implantes/${editing.id}`, form);
+    const r = await apiPut(`/api/catalogo/implantes/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-implantes"] });
   };
   const handleCreate = async (form: any) => {
-    const r = await apiPost(`${BASE_URL}api/catalogo/implantes`, form);
+    const r = await apiPost(`/api/catalogo/implantes`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-implantes"] }); toast({ title: "Implante criado" });
   };
   const handleDelete = async () => {
     if (!confirm("Excluir este implante?")) return;
-    const r = await apiDelete(`${BASE_URL}api/catalogo/implantes/${editing.id}`);
+    const r = await apiDelete(`/api/catalogo/implantes/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-implantes"] });
   };
@@ -473,7 +491,7 @@ function FormulasTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-formulas"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/formulas`); return res.json(); },
+    queryFn: () => catFetch(`/api/catalogo/formulas`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -501,18 +519,18 @@ function FormulasTab() {
   ];
 
   const handleSave = async (form: any) => {
-    const r = await apiPut(`${BASE_URL}api/catalogo/formulas/${editing.id}`, form);
+    const r = await apiPut(`/api/catalogo/formulas/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-formulas"] });
   };
   const handleCreate = async (form: any) => {
-    const r = await apiPost(`${BASE_URL}api/catalogo/formulas`, form);
+    const r = await apiPost(`/api/catalogo/formulas`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-formulas"] }); toast({ title: "Formula criada" });
   };
   const handleDelete = async () => {
     if (!confirm("Excluir esta formula?")) return;
-    const r = await apiDelete(`${BASE_URL}api/catalogo/formulas/${editing.id}`);
+    const r = await apiDelete(`/api/catalogo/formulas/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-formulas"] });
   };
@@ -605,7 +623,7 @@ function ProtocolosTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-protocolos"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/protocolos-master`); return res.json(); },
+    queryFn: () => catFetch(`/api/catalogo/protocolos-master`),
   });
 
   const PROTO_FIELDS = [
@@ -624,18 +642,18 @@ function ProtocolosTab() {
   ];
 
   const handleSave = async (form: any) => {
-    const r = await apiPut(`${BASE_URL}api/catalogo/protocolos-master/${editing.id}`, form);
+    const r = await apiPut(`/api/catalogo/protocolos-master/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-protocolos"] });
   };
   const handleCreate = async (form: any) => {
-    const r = await apiPost(`${BASE_URL}api/catalogo/protocolos-master`, form);
+    const r = await apiPost(`/api/catalogo/protocolos-master`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-protocolos"] }); toast({ title: "Protocolo criado" });
   };
   const handleDeleteProto = async () => {
     if (!confirm("Excluir este protocolo?")) return;
-    const r = await apiDelete(`${BASE_URL}api/catalogo/protocolos-master/${editing.id}`);
+    const r = await apiDelete(`/api/catalogo/protocolos-master/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-protocolos"] });
   };
@@ -729,7 +747,7 @@ function ExamesTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-exames-base"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/exames-base`); return res.json(); },
+    queryFn: () => catFetch(`/api/catalogo/exames-base`),
   });
 
   const filtered = data.filter((e: any) =>
@@ -763,18 +781,18 @@ function ExamesTab() {
   ];
 
   const handleSave = async (form: any) => {
-    const r = await apiPut(`${BASE_URL}api/catalogo/exames-base/${editing.id}`, form);
+    const r = await apiPut(`/api/catalogo/exames-base/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-exames-base"] });
   };
   const handleCreate = async (form: any) => {
-    const r = await apiPost(`${BASE_URL}api/catalogo/exames-base`, form);
+    const r = await apiPost(`/api/catalogo/exames-base`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-exames-base"] }); toast({ title: "Exame criado" });
   };
   const handleDeleteExame = async () => {
     if (!confirm("Excluir este exame?")) return;
-    const r = await apiDelete(`${BASE_URL}api/catalogo/exames-base/${editing.id}`);
+    const r = await apiDelete(`/api/catalogo/exames-base/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-exames-base"] });
   };
@@ -855,7 +873,7 @@ function DoencasTab() {
   const { toast } = useToast();
   const { data = [], isLoading } = useQuery({
     queryKey: ["catalogo-doencas"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/doencas`); return res.json(); },
+    queryFn: () => catFetch(`/api/catalogo/doencas`),
   });
 
   const filtered = data.filter((i: any) =>
@@ -879,18 +897,18 @@ function DoencasTab() {
   ];
 
   const handleSave = async (form: any) => {
-    const r = await apiPut(`${BASE_URL}api/catalogo/doencas/${editing.id}`, form);
+    const r = await apiPut(`/api/catalogo/doencas/${editing.id}`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-doencas"] });
   };
   const handleCreate = async (form: any) => {
-    const r = await apiPost(`${BASE_URL}api/catalogo/doencas`, form);
+    const r = await apiPost(`/api/catalogo/doencas`, form);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setCreating(false); qc.invalidateQueries({ queryKey: ["catalogo-doencas"] }); toast({ title: "Doenca criada" });
   };
   const handleDeleteDoenca = async () => {
     if (!confirm("Excluir esta doenca?")) return;
-    const r = await apiDelete(`${BASE_URL}api/catalogo/doencas/${editing.id}`);
+    const r = await apiDelete(`/api/catalogo/doencas/${editing.id}`);
     if (!r.ok) { toast({ title: r.error, variant: "destructive" }); return; }
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-doencas"] });
   };
@@ -946,12 +964,12 @@ export default function CatalogoPage() {
 
   const { data: resumo } = useQuery({
     queryKey: ["catalogo-resumo"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/resumo`); return res.json(); },
+    queryFn: () => catFetch(`/api/catalogo/resumo`),
   });
 
   const { data: examesCount } = useQuery({
     queryKey: ["catalogo-exames-count"],
-    queryFn: async () => { const res = await fetch(`${BASE_URL}api/catalogo/exames-base`); const data = await res.json(); return data.length; },
+    queryFn: async () => (await catFetch(`/api/catalogo/exames-base`)).length,
   });
 
   const tabCounts: Record<TabKey, number> = {

@@ -233,7 +233,7 @@ export default function ItensTerapeuticos() {
   const { data, isLoading } = useQuery<ItensUnificadosResponse>({
     queryKey: ["catalogo", "itens-unificados"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/catalogo/itens-unificados`);
+      const res = await fetch(`/api/catalogo/itens-unificados`);
       return res.json();
     },
   });

@@ -39,7 +39,7 @@ export default function TaskCardsPage() {
   const { data: cards = [], isLoading } = useQuery<any[]>({
     queryKey: ["task-cards", filterRole, filterStatus, filterCor],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/task-cards?${params.toString()}`);
+      const res = await fetch(`/api/task-cards?${params.toString()}`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -47,7 +47,7 @@ export default function TaskCardsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const res = await fetch(`${BASE_URL}api/task-cards/${id}`, {
+      const res = await fetch(`/api/task-cards/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -63,7 +63,7 @@ export default function TaskCardsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${BASE_URL}api/task-cards/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/task-cards/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },

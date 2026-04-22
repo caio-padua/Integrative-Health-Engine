@@ -502,11 +502,15 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
     setLoading(true);
     try {
       const params = unidadeId ? `?unidadeId=${unidadeId}` : "";
-      const res = await fetch(`${API_BASE}/agenda-motor/sub-agendas${params}`);
+      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
+      const headers: Record<string, string> = {};
+      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
+      const res = await fetch(`${API_BASE}/agenda-motor/sub-agendas${params}`, { credentials: "include", headers });
       const data = await res.json();
-      setSubAgendas(data);
+      setSubAgendas(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
+      setSubAgendas([]);
     } finally {
       setLoading(false);
     }

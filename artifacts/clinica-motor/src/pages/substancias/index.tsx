@@ -314,7 +314,7 @@ export default function Substancias() {
       if (search) params.set("search", search);
       if (categoriaFiltro !== "Todos") params.set("categoria", categoriaFiltro);
       if (viaFiltro !== "Todos") params.set("via", viaFiltro);
-      const res = await fetch(`${BASE_URL}api/substancias?${params}`);
+      const res = await fetch(`/api/substancias?${params}`);
       if (!res.ok) throw new Error("Erro ao carregar substancias");
       return res.json();
     },
@@ -419,7 +419,7 @@ export default function Substancias() {
             onClose={() => setEditing(null)}
             onSave={async (data) => {
               try {
-                const res = await fetch(`${BASE_URL}api/substancias/${editing.id}`, {
+                const res = await fetch(`/api/substancias/${editing.id}`, {
                   method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
                 });
                 if (!res.ok) { alert("Erro ao salvar substancia"); return; }
@@ -430,7 +430,7 @@ export default function Substancias() {
             onDelete={async () => {
               if (!confirm("Excluir esta substancia permanentemente?")) return;
               try {
-                const res = await fetch(`${BASE_URL}api/substancias/${editing.id}`, { method: "DELETE" });
+                const res = await fetch(`/api/substancias/${editing.id}`, { method: "DELETE" });
                 if (!res.ok) { alert("Erro ao excluir"); return; }
                 setEditing(null);
                 qc.invalidateQueries({ queryKey: ["substancias"] });

@@ -200,8 +200,8 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const url = isEdit
-        ? `${BASE_URL}api/unidades/${unidade!.id}`
-        : `${BASE_URL}api/unidades`;
+        ? `/api/unidades/${unidade!.id}`
+        : `/api/unidades`;
       const method = isEdit ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
@@ -462,7 +462,7 @@ export default function UnidadesPage() {
   const { data: unidades = [], isLoading } = useQuery<Unidade[]>({
     queryKey: ["unidades"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/unidades`);
+      const res = await fetch(`/api/unidades`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -475,7 +475,7 @@ export default function UnidadesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${BASE_URL}api/unidades/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/unidades/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erro");
     },
     onSuccess: () => { refresh(); toast({ title: "Unidade excluida" }); },

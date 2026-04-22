@@ -46,8 +46,12 @@ export default function DietasPage() {
   const { data, isLoading } = useQuery<Dieta[]>({
     queryKey: ["dietas"],
     queryFn: async () => {
-      const r = await fetch(`${BASE}api/catalogo/dietas`);
-      return r.json();
+      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
+      const headers: Record<string, string> = {};
+      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
+      const r = await fetch(`${BASE}api/catalogo/dietas`, { credentials: "include", headers });
+      const j = await r.json();
+      return Array.isArray(j) ? j : [];
     },
   });
 

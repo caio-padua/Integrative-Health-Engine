@@ -55,7 +55,7 @@ export default function LaboratorioValidacao() {
   const [validador, setValidador] = useState("");
 
   function carregar() {
-    fetch(`${BASE_URL}api/laboratorio/analitos`)
+    fetch(`/api/laboratorio/analitos`)
       .then(r => r.json())
       .then(j => setAnalitos(j.analitos || []))
       .catch(e => setErro(String(e)));
@@ -68,7 +68,7 @@ export default function LaboratorioValidacao() {
     setObs(a.observacao_clinica ?? "");
     setOrigem(a.origem_referencia ?? "");
     setValidador("");
-    fetch(`${BASE_URL}api/laboratorio/analitos/${a.codigo}/historico-validacoes`)
+    fetch(`/api/laboratorio/analitos/${a.codigo}/historico-validacoes`)
       .then(r => r.json()).then(j => setHistorico(j.validacoes || []))
       .catch(() => setHistorico([]));
   }
@@ -77,7 +77,7 @@ export default function LaboratorioValidacao() {
     if (!editando) return;
     setSalvando(true);
     try {
-      const resp = await fetch(`${BASE_URL}api/laboratorio/analitos/${editando.codigo}`, {
+      const resp = await fetch(`/api/laboratorio/analitos/${editando.codigo}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

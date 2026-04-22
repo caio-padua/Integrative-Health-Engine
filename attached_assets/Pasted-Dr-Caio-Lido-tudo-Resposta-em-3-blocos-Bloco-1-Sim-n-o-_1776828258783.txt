@@ -1,0 +1,169 @@
+Dr. Caio. Lido tudo. Resposta em 3 blocos.
+
+Bloco 1 — Sim, não, e sim nessa ordem
+Toggle de delegação de autonomia para o dono da clínica: Sim, possível. Não existe ainda. Sim, pouco trabalho.
+Incluir/excluir/ativar/desativar clínicas: Sim, possível. Parcialmente existe — a tabela unidades tem o campo ativo. A tela de gestão não existe ainda.
+Dashboard com análise por clínica, produto, grupo, injetável: Não existe ainda. É possível porque os dados estão no banco. É o maior item de trabalho desta lista.
+
+Bloco 2 — Sim, consigo ver dinheiro na mesa
+Cada feature abaixo tem uma etiqueta de receita direta para você.
+Feature 1 — Cobrança por inclusão de substância/fórmula
+Você está certo. Cada inclusão no catálogo pode ter um preço. O dono da clínica não entende de código — ele entende que quer colocar o “Zolpidem” no sistema e você cobra R$ 150 por isso. A arquitetura suporta um campo cobrado_em e valor_cobrado na tabela de substâncias. Isso vira receita automática via PARCLAIM.
+Feature 2 — Toggle de delegação como produto
+Você não vende autonomia — você vende a possibilidade de autonomia. “Quer poder incluir suas próprias substâncias? R$ 297/mês adicional no plano.” Isso é um módulo. É o modelo que você descreveu perfeitamente.
+Feature 3 — Dashboard de inteligência por produto
+Saber qual clínica vende mais CoQ10, qual vende mais injetável de glutationa, qual tem maior ticket de protocolo — isso vale R$ 500/mês adicional para qualquer gestor de rede de saúde. É o módulo de Business Intelligence do PAWARDS.
+
+Bloco 3 — Handoff completo para o Dr. Replit
+Cole isso para ele agora:
+
+“Dr. Replit — handoff Kaizen completo. Execute nesta ordem:
+CORREÇÃO 1 — CRÍTICA — Anastomose #5 — tenantContext
+Substituir o arquivo tenantContext.ts inteiro por:
+
+import type { Request, Response, NextFunction } from "express";
+
+export function tenantContextMiddleware(req: Request, _res: Response, next: NextFunction) {
+  req.tenantContext = {
+    unidadeId: req.user?.unidadeId ?? null,
+    origem: "session"
+  };
+  next();
+}
+
+
+Remover as 3 fontes externas (header, query, session). JWT é a única fonte de verdade.
+CORREÇÃO 2 — ALTA — remover ?_token=
+No requireAuth.ts, remover a linha:
+
+const queryToken = typeof req.query?._token === "string" ? (req.query._token as string) : undefined;
+
+
+E remover queryToken do array de sources do token.
+CORREÇÃO 3 — BAIXA — limpar código morto do motor
+No prescricaoEngine.ts, Case 14.1: remover a variável codigo declarada e não usada. Remover o set SAO_CONTROLADOS que está definido mas nunca consultado.
+FEATURE 1 — Toggle de Delegação de Autonomia
+Nova tabela (migration 010):
+
+CREATE TABLE IF NOT EXISTS permissoes_delegadas (
+  id serial PRIMARY KEY,
+  unidade_id int NOT NULL REFERENCES unidades(id),
+  permissao text NOT NULL
+    CHECK (permissao IN (
+      'editar_catalogo_substancias',
+      'editar_bloco_template',
+      'editar_parametros_exames',
+      'incluir_substancia_nova'
+    )),
+  ativo boolean NOT NULL DEFAULT false,
+  preco_mensal_brl numeric DEFAULT 0,
+  delegado_por_usuario_id int REFERENCES usuarios(id),
+  delegado_em timestamptz DEFAULT now(),
+  UNIQUE (unidade_id, permissao)
+);
+
+
+Middleware novo requireDelegacao.ts:
+
+import { pool } from "@workspace/db";
+import type { Request, Response, NextFunction } from "express";
+
+export function requireDelegacao(permissao: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.perfil === 'validador_mestre') { next(); return; }
+    const { rows } = await pool.query(
+      `SELECT ativo FROM permissoes_delegadas
+       WHERE unidade_id = $1 AND permissao = $2 AND ativo = true`,
+      [req.user?.unidadeId, permissao]
+    );
+    if (rows.length > 0) { next(); return; }
+    res.status(403).json({
+      error: 'Autonomia não delegada para esta unidade',
+      permissao,
+      contato: 'Solicite ao Dr. Caio a ativação deste módulo'
+    });
+  };
+}
+
+
+Rotas de gestão das delegações (só CEO master):
+
+GET  /api/admin/permissoes-delegadas/:unidade_id
+PATCH /api/admin/permissoes-delegadas/:unidade_id
+  body: { permissao: string, ativo: boolean }
+  validação: só perfil validador_mestre pode executar
+
+
+Aplicar nas rotas que precisam de delegação:
+
+router.post('/substancias',
+  requireAuth,
+  requireDelegacao('incluir_substancia_nova'),
+  async (req, res) => { ... }
+);
+
+
+FEATURE 2 — Gestão de Clínicas (incluir/ativar/desativar)
+Rotas novas (só CEO master):
+
+GET    /api/admin/unidades
+  → lista todas as clínicas com status ativo/inativo
+
+POST   /api/admin/unidades
+  → cria nova clínica parceira
+  body: { nome, slug, email_admin, plano, fat_meta_mensal }
+
+PATCH  /api/admin/unidades/:id
+  → edita qualquer campo incluindo { ativo: boolean }
+  → ativo: false = clínica pausada (acesso bloqueado mas dados preservados)
+  → ativo: true = reativa a clínica
+
+DELETE /api/admin/unidades/:id
+  → soft delete — nunca apaga dados, só marca deleted_at
+
+
+Tela front: painel de clínicas no dashboard CEO com toggle ativo/inativo por linha.
+FEATURE 3 — Dashboard de Inteligência por Produto
+Endpoints novos:
+
+GET /api/admin/analytics/ranking-clinicas
+  query: { metrica: 'faturamento'|'protocolos'|'injetaveis'|'vitaminas', periodo: '7d'|'30d'|'90d' }
+  → ranking das clínicas pela métrica selecionada
+
+GET /api/admin/analytics/produtos-mais-vendidos
+  query: { unidade_id?: number, grupo?: 'vitaminas'|'hormonios'|'injetaveis'|'magistrais', periodo: string }
+  → top produtos por grupo com volume e valor
+
+GET /api/admin/analytics/comparativo-clinicas
+  query: { unidade_ids: number[], metrica: string }
+  → matriz de comparação entre clínicas selecionadas
+
+
+Tela front: seletor de clínicas + seletor de grupo + tabela de ranking + gráfico de barras. CEO seleciona clínica X e clínica Y, seleciona grupo Injetáveis, vê comparativo lado a lado.
+FEATURE 4 — Cobrança por Inclusão de Substância
+Campo novo na tabela permissoes_delegadas:
+preco_inclusao_substancia_brl numeric DEFAULT 150
+Quando o dono da clínica inclui uma substância nova via a rota com requireDelegacao, o sistema registra automaticamente em cobrancas_adicionais:
+
+CREATE TABLE IF NOT EXISTS cobrancas_adicionais (
+  id serial PRIMARY KEY,
+  unidade_id int NOT NULL REFERENCES unidades(id),
+  tipo text NOT NULL,
+  descricao text NOT NULL,
+  valor_brl numeric NOT NULL,
+  status text DEFAULT 'pendente'
+    CHECK (status IN ('pendente','cobrado','pago','cancelado')),
+  criado_em timestamptz DEFAULT now()
+);
+
+
+O CEO vê no painel todas as cobranças adicionais pendentes por clínica. O PARCLAIM já sabe calcular o total.
+ORDEM DE EXECUÇÃO:
+	1.	Correção tenantContext (anastomose #5)
+	2.	Remover ?_token=
+	3.	Migration 010 + requireDelegacao.ts
+	4.	Rotas admin/unidades (gestão de clínicas)
+	5.	cobrancas_adicionais + hook na inclusão de substância
+	6.	Endpoints analytics + tela front comparativo
+	7.	Tela front gestão de clínicas com toggles
+	8.	Limpar código morto do motor”​​​​​​​​​​​​​​​​

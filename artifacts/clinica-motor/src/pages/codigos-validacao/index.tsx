@@ -38,7 +38,7 @@ export default function CodigosValidacaoPage() {
   const { data: codigos = [], isLoading } = useQuery<CodigoValidacao[]>({
     queryKey: ["codigos-validacao"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/codigos-validacao`);
+      const res = await fetch(`/api/codigos-validacao`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -46,7 +46,7 @@ export default function CodigosValidacaoPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${BASE_URL}api/codigos-validacao`, {
+      const res = await fetch(`/api/codigos-validacao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -71,7 +71,7 @@ export default function CodigosValidacaoPage() {
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${BASE_URL}api/codigos-validacao/verificar`, {
+      const res = await fetch(`/api/codigos-validacao/verificar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codigo: codigoInput.toUpperCase() }),

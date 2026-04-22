@@ -19,7 +19,18 @@ import { adminAuth } from "../middleware/adminAuth";
 import { invalidarCacheCategorias } from "../lib/juridico/notaFiscal";
 
 const router: IRouter = Router();
-router.use("/admin", adminAuth);
+// FIX 22/abr/2026 (Onda PARMASUPRA): trocar gate generico /admin/* por gate
+// escopado SO nas rotas deste router. O wildcard /admin estava interceptando
+// /admin/permissoes-delegadas e /admin/cobrancas-adicionais (rotas novas com
+// requireAuth + requireRole proprios, fluxo JWT). Mantemos fail-closed nas
+// rotas antigas que ainda dependem do header X-Admin-Token.
+router.use([
+  "/admin/testemunhas",
+  "/admin/textos",
+  "/admin/templates",
+  "/admin/categorias-procedimento",
+  "/admin/termos-bloqueados",
+], adminAuth);
 
 function rows<T>(r: unknown): T[] {
   return (r as { rows?: T[] }).rows || [];

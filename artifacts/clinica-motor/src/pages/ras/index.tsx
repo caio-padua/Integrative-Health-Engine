@@ -54,7 +54,7 @@ export default function RasPage() {
   const { data: rasList = [], isLoading } = useQuery<Ras[]>({
     queryKey: ["ras"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/ras`);
+      const res = await fetch(`/api/ras`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -62,7 +62,7 @@ export default function RasPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${BASE_URL}api/ras`, {
+      const res = await fetch(`/api/ras`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessaoId: Number(sessaoIdInput), observacoes: obsInput || null }),

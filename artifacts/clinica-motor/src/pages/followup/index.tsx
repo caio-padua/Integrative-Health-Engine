@@ -75,7 +75,7 @@ export default function FollowupPage() {
   const saveEditFw = async () => {
     setEditSaving(true);
     try {
-      const res = await fetch(`${BASE_URL}api/followup/${editingFw.id}`, {
+      const res = await fetch(`/api/followup/${editingFw.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
       });
@@ -94,7 +94,7 @@ export default function FollowupPage() {
   const deleteEditFw = async () => {
     if (!confirm("Excluir este follow-up permanentemente?")) return;
     try {
-      const res = await fetch(`${BASE_URL}api/followup/${editingFw.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/followup/${editingFw.id}`, { method: "DELETE" });
       if (res.ok) {
         toast({ title: "Follow-up removido" });
         queryClient.invalidateQueries({ queryKey: getListarFollowupsQueryKey({}) });

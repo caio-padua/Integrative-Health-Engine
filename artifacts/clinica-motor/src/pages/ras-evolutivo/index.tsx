@@ -17,7 +17,7 @@ export default function RasEvolutivoPage() {
   const { data: evolutivos = [], isLoading } = useQuery<any[]>({
     queryKey: ["ras-evolutivo"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/ras-evolutivo`);
+      const res = await fetch(`/api/ras-evolutivo`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },

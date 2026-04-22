@@ -153,7 +153,7 @@ export default function FinanceiroPage() {
     if (!editingTrat) return;
     setEditTratSaving(true);
     try {
-      const res = await fetch(`${BASE_URL}api/financeiro/tratamentos/${editingTrat.id}`, {
+      const res = await fetch(`/api/financeiro/tratamentos/${editingTrat.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editTratForm),
       });

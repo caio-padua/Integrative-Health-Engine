@@ -130,7 +130,7 @@ export default function PacienteDetalhe() {
     const digits = cep.replace(/\D/g, '');
     if (digits.length !== 8) return;
     try {
-      const resp = await fetch(`${BASE_URL}api/cep/${digits}`);
+      const resp = await fetch(`/api/cep/${digits}`);
       if (!resp.ok) return;
       const data = await resp.json();
       form.setValue("endereco", data.endereco || "");
@@ -154,7 +154,7 @@ export default function PacienteDetalhe() {
     if (payload.condicoesClinicas === "") payload.condicoesClinicas = null;
     if (payload.medicamentosContinuos === "") payload.medicamentosContinuos = null;
     try {
-      const res = await fetch(`${BASE_URL}api/pacientes/${id}`, {
+      const res = await fetch(`/api/pacientes/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -186,7 +186,7 @@ export default function PacienteDetalhe() {
     reader.onload = async () => {
       const base64 = reader.result as string;
       try {
-        const res = await fetch(`${BASE_URL}api/pacientes/${id}/fotos`, {
+        const res = await fetch(`/api/pacientes/${id}/fotos`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ [tipo]: base64 }),
@@ -254,7 +254,7 @@ export default function PacienteDetalhe() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const apiBase = `${BASE_URL}api/ras/pdf/paciente/${id}`;
+                    const apiBase = `/api/ras/pdf/paciente/${id}`;
                     window.open(apiBase, "_blank");
                   }}
                 >

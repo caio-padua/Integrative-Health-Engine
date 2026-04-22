@@ -94,7 +94,7 @@ export default function AvaliacaoEnfermagemPage() {
   const { data: avaliacoes = [], isLoading } = useQuery<any[]>({
     queryKey: ["avaliacoes-enfermagem"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/avaliacao-enfermagem`);
+      const res = await fetch(`/api/avaliacao-enfermagem`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -103,7 +103,7 @@ export default function AvaliacaoEnfermagemPage() {
   const { data: pacientes = [] } = useQuery<any[]>({
     queryKey: ["pacientes-lista"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/pacientes`);
+      const res = await fetch(`/api/pacientes`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -111,7 +111,7 @@ export default function AvaliacaoEnfermagemPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch(`${BASE_URL}api/avaliacao-enfermagem`, {
+      const res = await fetch(`/api/avaliacao-enfermagem`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
