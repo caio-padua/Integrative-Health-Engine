@@ -8,6 +8,40 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Onda PARMASUPRA — Handoff Dr. Claude + 4 Campos de Cobrança (22/abr/2026)
+
+**T1-T2 CORREÇÕES CRÍTICAS DE SEGURANÇA** (já commitadas):
+- `tenantContext.ts`: única fonte de verdade é o JWT decodificado. Removidos header/query/session externos como possíveis fontes (anti-spoofing cross-tenant).
+- `requireAuth.ts`: removida aceitação de `?_token=` (token via header Bearer ou cookie `pawards.auth.token` apenas).
+
+**T4 MIGRATION 010** (`db/seeds/010_delegacao_e_cobrancas.sql`, aplicada via psql — REGRA FERRO mantida):
+- Coluna nova `unidades.tipo_unidade` enum: `LABORATORIO_MESTRE` (Genesis id 14), `CLINICA_OPERACIONAL` (Pádua id 15), `CLINICA_PARCEIRA` (8 demais).
+- Tabela `permissoes_delegadas`: `unidade_id` × `permissao` × `ativo` + `preco_mensal_brl` (CAMPO #2) + `preco_inclusao_substancia_brl` (CAMPO #3). UNIQUE(unidade_id, permissao). 32 toggles seedados OFF (8 clínicas × 4 permissões) com defaults R$297/297/197/0 mensais e R$150 por inclusão.
+- Tabela `cobrancas_adicionais`: extrato auditável (id, unidade, tipo, descrição, valor_brl, status pendente/cobrado/pago/cancelado, timestamps criado/cobrado/pago, FKs).
+
+**T5 MIDDLEWARES** (`artifacts/api-server/src/middlewares/`):
+- `requireRole(...perfis)`: gate genérico de perfil. Bypass automático: `admin` (ADMIN_TOKEN). Aceita `validador_mestre` e outros explicitamente.
+- `requireDelegacao(permissao)`: gate de autonomia. Bypass: `validador_mestre`, `admin`, e qualquer unidade `LABORATORIO_MESTRE`. Demais consultam `permissoes_delegadas` e recebem 403 com mensagem amigável.
+
+**T6 ENDPOINTS** (`routes/permissoesDelegadas.ts` + `routes/cobrancasAdicionais.ts`):
+- `GET    /api/admin/permissoes-delegadas` (matriz: cada unidade ativa + array de toggles agregado).
+- `GET    /api/admin/permissoes-delegadas/:unidade_id` (toggles de 1 clínica).
+- `PATCH  /api/admin/permissoes-delegadas/:unidade_id` (UPSERT por unidade+permissao, valida enum de permissões).
+- `GET    /api/admin/cobrancas-adicionais?unidade_id=&status=&desde=` (extrato + resumo agregado por status).
+- `POST   /api/admin/cobrancas-adicionais` (lançamento manual avulso).
+- `PATCH  /api/admin/cobrancas-adicionais/:id` (mudar status com timestamps automáticos cobrado_em/pago_em).
+
+**T7-T9 TELAS FRONTEND** (`artifacts/clinica-motor/src/pages/admin-*.tsx`):
+- `/admin/clinicas`: tabela com toggle ATIVA/PAUSADA + input editável `fat_meta_mensal` (CAMPO COBRANÇA #1) + rodapé com soma das metas das parceiras ativas.
+- `/admin/permissoes-delegadas`: matriz clínica × 4 permissões com toggle ON/OFF + input `preco_mensal_brl` (CAMPO #2) + coluna dourada `preco_inclusao_substancia_brl` (CAMPO #3) + badge de receita recorrente ativa total.
+- `/admin/cobrancas-adicionais`: 5 cards de resumo + formulário "+ Nova cobrança avulsa" (CAMPO #4) + tabela extrato com filtros + botões inline pra mudar status (pendente→cobrado→pago).
+
+**FIX CIRÚRGICO no gate antigo**: `assinaturaCRUD.ts` fazia `router.use("/admin", adminAuth)` (wildcard) e estava interceptando as rotas novas com 401 "X-Admin-Token invalido". Trocado por array escopado nas 5 rotas legadas que ainda usam header (testemunhas, textos, templates, categorias-procedimento, termos-bloqueados). Smoke pós-fix: 200 nas 4 rotas novas, 401 mantido em /admin/testemunhas.
+
+**SMOKE TEST T5-T9 VERDE**: `GET /admin/permissoes-delegadas` (200, retorna Genesis R$190k meta + 8 parceiras), `PATCH` (UPSERT R$297→R$350), `POST /admin/cobrancas-adicionais` (id=1 PRIMEIRA cobrança de receita PAWARDS: consultoria abril R$2.500 pra Paluzze), `GET extrato` (200 + resumo por status).
+
+**PENDENTE**: T3 (limpar código morto), T10-T15 (Analytics multiplanar comparativo + 4 componentes de gráfico + tela /admin/analytics + PDF universal TDAH/TOC friendly em 9 telas).
+
 ## Onda LAVAGEM PAWARDS — Walking Dead Caçados (noite 21/abr/2026)
 - **Dashboard Local religado ao banco real** (`pages/dashboard-local.tsx` + novo endpoint `GET /api/dashboard/local?unidadeId=N`): 6 cards "Em breve" exterminados, agora retornam SQL direto contra `demandas_servico`, `sessoes`, `aplicacoes_substancias`, `feedback_pacientes`, `rasx_audit_log` + bonus `alertasCriticos` (alerta_paciente GRAVE/CRITICO ABERTO). Refresh 30s, JWT via cookie/Bearer. Smoke validado (unidade 1 = 3 reclamações, demais zeros esperados nas 5 unidades arquivadas).
 - **Modal x-admin-token PARMAVAULT exorcizado** (`pages/farmacias-parmavault.tsx`): substituído por banner topo discreto "SESSÃO EXPIRADA · Renovar acesso" linkando ao bridge `/__claude_validacao.html`. JWT cookie já entregava 200 — modal era 100% legado.
