@@ -317,3 +317,9 @@ id = "759hOluFxnGwo61DniU40"
 uri = "file://exports/pdfs-ficticios/02_comparativo_genesis_vs_paziale.pdf"
 type = "pdf"
 title = "2. Comparativo Estratégico - Genesis vs Paziale (2 meses)"
+
+[[outputs]]
+id = "snQvHkj5eI6Kq4-OAX1eK"
+uri = "file://exports/handoffs/handoff-tsunami-dr-claude-2026-04-22.md"
+type = "text"
+title = "Handoff Dr. Claude — Onda PARMASUPRA-TSUNAMI 22-abr-2026 (5 commits, smoke 10/10)"

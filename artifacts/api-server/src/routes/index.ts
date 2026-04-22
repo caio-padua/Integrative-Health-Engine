@@ -189,8 +189,10 @@ router.use(padcomRouter);
 import permissoesDelegadasRouter from "./permissoesDelegadas";
 import cobrancasAdicionaisRouter from "./cobrancasAdicionais";
 import adminAnalyticsRouter from "./adminAnalytics";
+import relatoriosPdfRouter from "./relatoriosPdf";
 router.use(permissoesDelegadasRouter);
 router.use(cobrancasAdicionaisRouter);
 router.use(adminAnalyticsRouter);
+router.use(relatoriosPdfRouter);
 
 export default router;

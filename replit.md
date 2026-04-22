@@ -8,6 +8,23 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Onda PARMASUPRA-TSUNAMI — Convergência Multiplanar (22/abr/2026)
+Tsunami única absorvendo feedback Dr. Claude + 2 PDFs aprovados + backlog. Filosofia
+Mike Tyson × Éder Jofre: variação manda, número absoluto isolado é proibido.
+
+- **T1 faxina prescricaoEngine** — vars não usadas removidas, tsc limpo (commit `76d7048`).
+- **T2 /admin/analytics PAWARDS** — banner navy/gold #020406 #C89B3C, sparkline 6M, tópicos TDAH/TOC friendly, hash auditoria, botão "Baixar PDF (rede)" (commit `0c0bbbc`).
+- **T3 seed analytics 6 meses** — `db/seeds/012_analytics_seed_6m.sql`, 66 linhas, 11 unidades, 6 meses (nov/25→abr/26), Pádua e Andrade com tendências divergentes (commit `76d7048`).
+- **T4 PDF server-side PDFKit** — `routes/relatoriosPdf.ts` (300 linhas), `rede-mensal` 200 OK 6830 bytes magic %PDF, comparativo-2unidades + drill-paciente em 501 (próxima onda), `requireMasterEstrito` (commit `0c0bbbc`).
+- **T5 hook cobranças automáticas** — `lib/cobrancasAuto.ts` `registrarInclusaoSubstancia` plugado em `routes/substancias.ts` POST. Idempotente por (tipo, referencia_id), defensivo, headers `X-Cobranca-Gerada/Motivo`. Smoke: substância em unidade 15 → cobrança id=3 valor 250.00 pendente (commit `da46bc2`).
+- **T6 worker mensal recorrente** — `registrarCobrancasMensaisRecorrentes` plugado dentro de `iniciarWorkerCobrancaMensal` existente (tick 6h, idempotente UNIQUE por (unidade, permissão_id, mês)). Sem timer duplicado (commit `da46bc2`).
+- **T7 e-mail responsável** — stub `enviarEmailCobranca` log-only por ora (google-mail SKILL.md vazia, integração real pendente credenciais reais) (commit `da46bc2`).
+- **T8 drill paciente vs unidade vs rede** — `/laboratorio/pacientes/:id/serie/:codigo` retorna `comparativo: { serie_unidade, serie_rede }` por mês. UI `exames-grafico.tsx` ganha 2 linhas (azul unidade, cinza tracejado rede) sobre as barras + bloco "Variação" Mike Tyson com cor semântica nos deltas. Smoke: paciente 1 retorna 4 pontos paciente + 4 unidade + 4 rede (commit `1e8a5e0`).
+- **T9 requireMasterEstrito drift** — 6 rotas admin (cobranças, permissões, unidades, módulos) auditadas (commit `76d7048`).
+- **T10 smoke E2E final** — bateria 10/10 verde: cobranças 200/403, PDF 200 6830 bytes, drill comparativo true, 3 cobranças pendentes unidade 15, 3 permissões delegadas ativas, 66 rows analytics, /crescimento-clinicas 200, /produtos-comparativo 200, /admin/permissoes-delegadas 200.
+
+Filosofia técnica reforçada: psql + seeds idempotentes ON CONFLICT (zero db:push), defesa silenciosa em todos os hooks (try/catch sem derrubar resposta), variação % com cor semântica em todo lugar (verde ≥10%, azul ≥0%, âmbar ≥-10%, vermelho <-10%).
+
 ## Onda PARMASUPRA — Handoff Dr. Claude + 4 Campos de Cobrança (22/abr/2026)
 
 **T1-T2 CORREÇÕES CRÍTICAS DE SEGURANÇA** (já commitadas):

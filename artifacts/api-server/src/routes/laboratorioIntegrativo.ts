@@ -226,6 +226,45 @@ router.get("/laboratorio/pacientes/:id/serie/:codigo", async (req: Request, res:
       }
     }
 
+    // T8 PARMASUPRA-TSUNAMI · drill-down evolutivo paciente vs media unidade vs media rede.
+    // Filosofia Mike Tyson: numero do paciente NUNCA isolado — sempre comparado com pares.
+    // Defensivo: se queries de media falharem, segue com [] e nao derruba a resposta.
+    let serieUnidade: Array<{ mes: string; valor_medio: number; n_pacientes: number }> = [];
+    let serieRede: Array<{ mes: string; valor_medio: number; n_pacientes: number }> = [];
+    let pacienteUnidadeId: number | null = null;
+    try {
+      const pac: any = await db.execute(sql`SELECT unidade_id FROM pacientes WHERE id = ${id}`);
+      pacienteUnidadeId = Number((pac.rows ?? pac)[0]?.unidade_id ?? 0) || null;
+      if (pacienteUnidadeId) {
+        const u: any = await db.execute(sql`
+          SELECT TO_CHAR(ee.data_coleta, 'YYYY-MM') AS mes,
+                 ROUND(AVG(ee.valor)::numeric, 4)::float AS valor_medio,
+                 COUNT(DISTINCT ee.paciente_id)::int AS n_pacientes
+          FROM exames_evolucao ee
+          JOIN pacientes p ON p.id = ee.paciente_id
+          WHERE ee.nome_exame = ${catRow.nome}
+            AND p.unidade_id = ${pacienteUnidadeId}
+            AND ee.data_coleta IS NOT NULL
+            AND ee.valor IS NOT NULL
+          GROUP BY mes ORDER BY mes ASC
+        `);
+        serieUnidade = (u.rows ?? u);
+      }
+      const r: any = await db.execute(sql`
+        SELECT TO_CHAR(ee.data_coleta, 'YYYY-MM') AS mes,
+               ROUND(AVG(ee.valor)::numeric, 4)::float AS valor_medio,
+               COUNT(DISTINCT ee.paciente_id)::int AS n_pacientes
+        FROM exames_evolucao ee
+        WHERE ee.nome_exame = ${catRow.nome}
+          AND ee.data_coleta IS NOT NULL
+          AND ee.valor IS NOT NULL
+        GROUP BY mes ORDER BY mes ASC
+      `);
+      serieRede = (r.rows ?? r);
+    } catch (compErr) {
+      console.warn("[T8] medias unidade/rede falharam (silencioso):", String(compErr));
+    }
+
     res.json({
       paciente_id: id,
       analito: {
@@ -237,6 +276,12 @@ router.get("/laboratorio/pacientes/:id/serie/:codigo", async (req: Request, res:
         observacao_clinica: catRow.observacao_clinica,
       },
       serie,
+      // T8: comparativo evolutivo (Mike Tyson — variacao manda, nunca numero isolado).
+      comparativo: {
+        unidade_id: pacienteUnidadeId,
+        serie_unidade: serieUnidade,
+        serie_rede: serieRede,
+      },
       sugestao_venda: venda,
     });
   } catch (e) {

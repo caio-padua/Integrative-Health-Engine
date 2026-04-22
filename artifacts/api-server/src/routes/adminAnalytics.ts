@@ -2,23 +2,9 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { requireMasterEstrito } from "../middlewares/requireMasterEstrito";
 
 const router = Router();
-
-/**
- * Guard explicito EXCLUSIVO de Dr. Caio (validador_mestre) — sem bypass de
- * ADMIN_TOKEN. Analytics multiplanar eh visao CEO real, nao ferramenta admin.
- * Aplicar APOS requireRole pra defender em profundidade.
- */
-function requireMasterEstrito(req: Request, res: Response, next: NextFunction): void {
-  if ((req as any).user?.perfil !== "validador_mestre") {
-    res.status(403).json({
-      error: "Acesso restrito ao Dr. Caio (perfil validador_mestre exclusivo)",
-    });
-    return;
-  }
-  next();
-}
 
 /** Valida formato YYYY-MM. Retorna a string se valida, null caso contrario. */
 function validaAnoMes(v: string): string | null {
