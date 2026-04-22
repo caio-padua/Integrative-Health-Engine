@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Save, RefreshCw, DollarSign, Plus, Filter } from "lucide-react";
+import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
 type Cobranca = {
   id: number;
@@ -103,6 +104,7 @@ export default function AdminCobrancasAdicionais() {
     <Layout>
       <div className="p-6 max-w-7xl mx-auto">
         <header className="mb-6">
+          <BotaoImprimirFlutuante titulo="Admin · Extrato de Cobranças Adicionais" />
           <h1 className="text-2xl font-bold text-amber-400 flex items-center gap-2">
             <DollarSign size={28} /> Cobranças Adicionais — Extrato Cobrável
           </h1>

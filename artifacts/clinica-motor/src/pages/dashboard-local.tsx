@@ -5,6 +5,7 @@ import {
   AlertTriangle, Activity, Syringe, MessageSquareWarning,
   CalendarClock, FileText, DollarSign, Mountain, ShieldAlert,
 } from "lucide-react";
+import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
 const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
@@ -62,6 +63,7 @@ export default function DashboardLocalPage() {
 
   return (
     <div className="space-y-4">
+      <BotaoImprimirFlutuante titulo={`Dashboard Local · ${nomeUnidadeSelecionada ?? ""}`} />
       <header className="flex items-center gap-3 pb-3 border-b border-border">
         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: corUnidadeSelecionada || "#999" }} />
         <div className="flex-1">

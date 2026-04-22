@@ -40,7 +40,31 @@ The user prefers that all names be complete and semantic, never abbreviated. For
 
 **SMOKE TEST T5-T9 VERDE**: `GET /admin/permissoes-delegadas` (200, retorna Genesis R$190k meta + 8 parceiras), `PATCH` (UPSERT R$297→R$350), `POST /admin/cobrancas-adicionais` (id=1 PRIMEIRA cobrança de receita PAWARDS: consultoria abril R$2.500 pra Paluzze), `GET extrato` (200 + resumo por status).
 
-**PENDENTE**: T3 (limpar código morto), T10-T15 (Analytics multiplanar comparativo + 4 componentes de gráfico + tela /admin/analytics + PDF universal TDAH/TOC friendly em 9 telas).
+**T10 MIGRATION 011** (`db/seeds/011_analytics_multiplanar.sql`, aplicada via psql — REGRA FERRO mantida):
+- Tabela `analytics_clinica_mes`: snapshot fechado mensal por unidade (faturamento_brl, comissao_brl, receitas_count, pacientes_unicos, blends_distintos, ticket_medio_brl, origem `real_query|sintetico_seed`). UNIQUE(unidade_id, ano_mes).
+- Tabela `analytics_snapshots`: jsonb genérico pra dimensões futuras (farmacia, blend, médico).
+- Populate: abril/2026 com dados REAIS de `parmavault_receitas` (5 unidades, R$ 9,15M total, 8.725 receitas) + 5 meses sintéticos retroativos com curva crescente (nov/25 R$ 5,28M → abr/26 R$ 9,15M = +73% no período, variação mensal não-linear 3.91%~20.38%).
+
+**T11 ENDPOINTS ANALYTICS MULTIPLANAR** (`routes/adminAnalytics.ts` + helpers `variacaoPct()`/`semanticoCor()`):
+- `GET /api/admin/analytics/crescimento-clinicas?periodo_a=&periodo_b=` (default = penúltimo vs último mês). Retorna consolidado + ranking ordenado por var_pct, cada item com (faturamento, receitas, pacientes) × (periodo_a, periodo_b, variacao_abs, variacao_pct, cor) + sparkline 6 meses.
+- `GET /api/admin/analytics/produtos-comparativo?ano_mes=` (matriz unidade × métricas-chave do mês com posicao_ranking + percentil + heatmap_cor `ouro|verde|amarelo|vermelho`).
+- `GET /api/admin/analytics/tendencia-produto?unidade_id=&meses=6` (série temporal com pico/vale marcados + variação mês a mês + crescimento_periodo_pct + narrativa textual).
+- Threshold de cor semântica universal: ≥+10% excelente · 0~10% bom · -10~0% atenção · <-10% crítico.
+- SMOKE VERDE: 200 nas 3 rotas, consolidado abr × mar = +13.04% "excelente" R$ 1,05M de variação.
+
+**T12+T13 TELA /admin/analytics** (`pages/admin-analytics.tsx`, 4 componentes inline + 5 seções):
+- 4 componentes Recharts: `CrescimentoBarChart` (barras agrupadas A vs B em zinc-500/gold-C89B3C), `MatrizComparativoClinicas` (cards heatmap clicáveis), `TendenciaLineChart` (linha + ReferenceDot pico verde + vale vermelho + narrativa), `SparklineVariacao` (mini gráfico inline 80×30 pra coluna de tabela).
+- 5 seções: header consolidado com cor semântica + barras comparativas + matriz heatmap + tendência drill-down (clique numa clínica abre 12 meses) + tabela ranking com sparklines de evolução em cada linha.
+- REGRA-OURO codificada: cada métrica vem com (anterior · atual · variação_abs · variação_pct · cor · sparkline). Nada de número isolado.
+
+**T14 PDF UNIVERSAL TDAH/TOC FRIENDLY** (sem deps novas — usa `window.print()` nativo + CSS @media print):
+- `components/BotaoImprimirRelatorio.tsx`: componente `<BotaoImprimirFlutuante titulo="..." />` plugado via React Portal (canto superior direito, fixed, classe `nao-imprimir` pra sumir do PDF).
+- `styles/print-relatorio.css`: cabeçalho dourado #C89B3C com título lido de `data-pdf-titulo`, subtítulo com data/período, esconde nav/sidebar/buttons, preserva cores semânticas (verde/azul/amarelo/vermelho convertidas pra tons claros legíveis em papel branco), `break-inside: avoid` em sections/tables/recharts pra não rasgar gráfico no meio, legenda obrigatória de cores no rodapé (`#root::after`), página A4 com margens 14mm.
+- Plugado em **9 telas analíticas**: `/dashboard`, `/dashboard-local`, `/admin/dashboard-global`, `/admin/analytics`, `/admin/clinicas`, `/admin/cobrancas-adicionais`, `/financeiro`, `/pacientes/:id/exames-grafico`, `/ras-evolutivo`. Botão dispara o diálogo nativo "Salvar como PDF" do navegador (qualidade vetorial, zero dependência adicional).
+
+**FILOSOFIA ANALYTICS REGISTRADA**: Mike Tyson 20 anos × Éder Jofre +1.000% em 5 anos. O que importa é a EVOLUÇÃO, não o número absoluto. Threshold agressivo (10% = ouro) reflete essa exigência. Documentação inline em `routes/adminAnalytics.ts` e `pages/admin-analytics.tsx`.
+
+**PENDENTE**: T3 (limpar código morto `prescricaoEngine.ts` Case 14.1).
 
 ## Onda LAVAGEM PAWARDS — Walking Dead Caçados (noite 21/abr/2026)
 - **Dashboard Local religado ao banco real** (`pages/dashboard-local.tsx` + novo endpoint `GET /api/dashboard/local?unidadeId=N`): 6 cards "Em breve" exterminados, agora retornam SQL direto contra `demandas_servico`, `sessoes`, `aplicacoes_substancias`, `feedback_pacientes`, `rasx_audit_log` + bonus `alertasCriticos` (alerta_paciente GRAVE/CRITICO ABERTO). Refresh 30s, JWT via cookie/Bearer. Smoke validado (unidade 1 = 3 reclamações, demais zeros esperados nas 5 unidades arquivadas).

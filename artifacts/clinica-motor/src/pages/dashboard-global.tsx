@@ -28,6 +28,7 @@ import { RankingClinicas } from "@/components/pawards/RankingClinicas";
 import { AgendaHoje, type AgendaItem } from "@/components/pawards/AgendaHoje";
 import { AlertasPanel, type AlertasData } from "@/components/pawards/AlertasPanel";
 import { CaixaPanel, type CaixaData } from "@/components/pawards/CaixaPanel";
+import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { PAWARDS, fmtBRL, fmtInt } from "@/lib/pawards-tokens";
 
@@ -222,6 +223,7 @@ export default function DashboardGlobal() {
 
   return (
     <div style={{ background: PAWARDS.colors.bg[950], minHeight: "100vh", color: PAWARDS.colors.text.primary }}>
+      <BotaoImprimirFlutuante titulo="Dashboard Global · Visão CEO PAWARDS" />
       {warningSecondsLeft !== null && (
         <div
           data-testid="modal-inactivity-warning"
