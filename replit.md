@@ -704,3 +704,69 @@ Pós-tick:
   1 EMAIL    ENVIADO  resposta_provedor={"id":"19db6bbe87276de6","provider":"google-mail",...}
   2 WHATSAPP ENVIADO  resposta_provedor={"logId":40,"msgId":"SMdb89418fc...","provider":"whatsapp"}
 ```
+
+## DRIVE-TSUNAMI · Wave 1 (22/abr/2026 noite)
+Encerra o último canal pendente do WD14: canal DRIVE plugado real,
+fechando de vez `drive_upload_pendente`. Commit `38c4806` em
+`feat/dominio-pawards` (mesmo SHA em `main` via push direto).
+
+Primeira wave do tsunami quádruplo (DRIVE → MENSAGERIA → FATURAMENTO →
+PACIENTE) autorizado pelo Caio.
+
+### Plug DRIVE real no WD14
+- `notifAssinatura.ts` agora importa `getOrCreateClientFolder`,
+  `uploadToClientSubfolder` e `formatFileName` de `lib/google-drive.ts`.
+- Parse `drive://paciente/<id>` (formato emitido por
+  `lib/assinatura/service.ts:313`).
+- Busca paciente; se sem `google_drive_folder_id`, auto-provision via
+  `getOrCreateClientFolder` (cria root `CLINICA PADUA - CLIENTES` +
+  pasta paciente `NOME - CPF XXX` + 21 subpastas) e persiste o
+  folder_id em `pacientes.google_drive_folder_id`.
+- Conteúdo do upload:
+  - Se `anexo_url` for `http(s)`: baixa o binário via fetch e usa o
+    `content-type` retornado.
+  - Senão: gera TXT do `corpo` (registro textual de evento, útil
+    enquanto gerador de PDF assinado real não foi plugado).
+- Upload na subpasta `ASSINATURAS` com filename padronizado
+  `formatFileName(hoje, "ASSINATURA", paciente_nome, momento)`.
+- Resposta retorna `fileId`, `fileUrl`, `subfolderId`, `folderId`,
+  `paciente_id` para rastreabilidade.
+
+### Smoke E2E completo · 9/9 ENVIADO real
+As 9 notificações em FALHA permanente da Onda 1 (que tinham marcado as
+falhas estruturadas `google_mail_pendente_credenciais_real`,
+`whatsapp_provedor_pendente`, `drive_upload_pendente`) foram resetadas
+para PENDENTE — com o destinatário EMAIL trocado para loopback
+`clinica.padua.agenda@gmail.com` (proteção anti-spam para terceiros);
+WHATSAPP e DRIVE mantidos. Tick processou 9/9 ENVIADO REAL:
+```
+POST /api/admin/notif-assinatura/tick →
+  {"ok":true,"processadas":9,"enviadas":9,"retry_agendado":0,"falha_permanente":0}
+
+Resultado por id:
+  3  EMAIL    ENVIADO  Gmail msg 19db6d0e9997392c
+  4  WHATSAPP ENVIADO  Twilio SID SMead0daa21a83a567f8da2900c5c62803
+  5  EMAIL    ENVIADO  Gmail msg 19db6d0ee3060fc7
+  6  WHATSAPP ENVIADO  Twilio SID SM0cabbb3846069dcc9560c5dcdbd891fa
+  7  WHATSAPP ENVIADO  Twilio SID SM2e8172fb1ee6d86b6a035b8d33bba4b3
+  8  EMAIL    ENVIADO  Gmail msg 19db6d0fb02d7412
+  9  DRIVE    ENVIADO  fileId 1JbwKDlAly1IM_Y_LFbK7jt5a0mc5DqXA (Google Drive real)
+  10 EMAIL    ENVIADO  Gmail msg 19db6d13d844997d
+  11 WHATSAPP ENVIADO  Twilio SID SM224cd872f63fd3d41fffddb9d2ace81a
+
+Auto-provision colateral:
+  Paciente 51 (Patricia Oliveira Rocha FICTICIA) ganhou
+  google_drive_folder_id = 1MMoTcDN3YwB8MiWIdtMLOK9bI23iCV6r
+  com 21 subpastas (CADASTRO, RECEITAS, ASSINATURAS, NOTAS FISCAIS, ...).
+```
+
+### Próximas Waves do tsunami quádruplo (autorizado, ainda não iniciadas)
+- **Wave 2 · MENSAGERIA-TSUNAMI**: templates HTML branded MEDCORE
+  (navy+gold) pra todos os emails do WD14 + quiet hours + opt-out por
+  paciente + dashboard `/admin/notificacoes` (filtros + reenvio manual).
+- **Wave 3 · FATURAMENTO-TSUNAMI**: Asaas adapter real (boleto/PIX/
+  cartão) + webhook conciliação + dashboard inadimplência + cobrança
+  auto via WD14 (templates W2 + boleto/recibo no Drive W1).
+- **Wave 4 · PACIENTE-TSUNAMI**: portal `/paciente` com login OTP
+  (usa W2) + histórico de receitas/RAS/cobranças + links Drive (W1)
+  pros PDFs + atalho WhatsApp pro Dr. Caio.
