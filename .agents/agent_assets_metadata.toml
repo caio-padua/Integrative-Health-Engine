@@ -305,3 +305,15 @@ id = "-LN6aPivAA5TnPnCS4iu2"
 uri = "file://screenshots/dashboard-global-completo.jpeg"
 type = "image"
 title = "Dashboard Global · CEO Master — ao vivo, dados reais"
+
+[[outputs]]
+id = "VqtZSvPA9pIJtbAfGPqNl"
+uri = "file://exports/pdfs-ficticios/01_relatorio_mensal_todas_unidades.pdf"
+type = "pdf"
+title = "1. Relatório Mensal - Todas as Unidades (Mar vs Abr/2026)"
+
+[[outputs]]
+id = "759hOluFxnGwo61DniU40"
+uri = "file://exports/pdfs-ficticios/02_comparativo_genesis_vs_paziale.pdf"
+type = "pdf"
+title = "2. Comparativo Estratégico - Genesis vs Paziale (2 meses)"
