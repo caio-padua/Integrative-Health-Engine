@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { substanciasTable, insertSubstanciaSchema } from "@workspace/db/schema";
 import { eq, ilike, sql } from "drizzle-orm";
+import { registrarInclusaoSubstancia } from "../lib/cobrancasAuto";
 
 const router = Router();
 
@@ -30,6 +31,23 @@ router.post("/substancias", async (req, res) => {
     return;
   }
   const [created] = await db.insert(substanciasTable).values(parsed.data).returning();
+
+  // T5 PARMASUPRA-TSUNAMI · hook cobranca automatica de inclusao de substancia
+  // Defensivo: registrarInclusaoSubstancia trata todos os casos (sem unidade,
+  // permissao inativa, ja cobrado, erro interno). Nunca derruba a resposta.
+  try {
+    const reqUser = (req as any).user;
+    const unidadeOrigem =
+      reqUser?.unidadeId ??
+      (req.body?.unidade_origem ? Number(req.body.unidade_origem) : null);
+    const userId = reqUser?.id ?? null;
+    const r = await registrarInclusaoSubstancia(unidadeOrigem, created.id, userId);
+    if (r.cobrado) res.setHeader("X-Cobranca-Gerada", String(r.cobranca_id));
+    res.setHeader("X-Cobranca-Motivo", r.motivo);
+  } catch (e) {
+    console.warn("[T5] hook cobranca substancia falhou (silencioso):", String(e));
+  }
+
   res.status(201).json(created);
 });
 

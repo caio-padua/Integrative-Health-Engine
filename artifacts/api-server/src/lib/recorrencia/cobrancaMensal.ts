@@ -1,5 +1,6 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { registrarCobrancasMensaisRecorrentes } from "../cobrancasAuto";
 
 const COMPETENCIA_FORMAT = (d: Date) =>
   `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -68,6 +69,12 @@ export function iniciarWorkerCobrancaMensal() {
       const inad = await marcarInadimplencia();
       if (inad.marcadas > 0) {
         console.log(`[cobrancaMensal] ${inad.marcadas} cobrancas marcadas como INADIMPLENTE`);
+      }
+      // T6 PARMASUPRA-TSUNAMI: cobrancas recorrentes de permissoes_delegadas
+      // Idempotente por (unidade, permissao_id, mes) — seguro rodar todo tick.
+      const recor = await registrarCobrancasMensaisRecorrentes();
+      if (recor.geradas > 0 || recor.erros > 0) {
+        console.log(`[cobrancaMensal] T6 permissoes_delegadas mes ${recor.mes}: ${recor.geradas} geradas, ${recor.ja_existentes} ja existentes, ${recor.erros} erros`);
       }
     } catch (e) {
       console.error("[cobrancaMensal] erro no tick:", (e as Error).message);
