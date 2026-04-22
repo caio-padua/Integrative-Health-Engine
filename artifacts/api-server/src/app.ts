@@ -83,7 +83,13 @@ app.get(["/__claude_db.json", "/api/__claude_db.json"], async (_req, res) => {
         WHERE f.nome_fantasia ILIKE '%FAMA%'
           AND r.criado_em >= now() - interval '30 days'
       `),
-      db.execute(sql`SELECT COUNT(*)::int AS n FROM pacientes`),
+      db.execute(sql`
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE nome ILIKE '%Carlos Pinto Moreira%' OR nome ILIKE '%FICTÍCIO%' OR nome ILIKE '%FICTICIO%')::int AS seed_teste,
+          COUNT(DISTINCT nome)::int AS nomes_distintos
+        FROM pacientes
+      `),
       db.execute(sql`SELECT COUNT(*)::int AS n FROM auditores`),
       db.execute(sql`SELECT COUNT(*)::int AS n FROM anastomoses_pendentes WHERE status = 'aberta'`),
       db.execute(sql`
@@ -108,9 +114,22 @@ app.get(["/__claude_db.json", "/api/__claude_db.json"], async (_req, res) => {
         receitas_fama_30d: Number(famaMes.n ?? 0),
         receitas_fama_30d_valor_brl: Number(famaMes.total_brl ?? 0),
         receitas_fama_30d_comissao_brl: Number(famaMes.comissao_brl ?? 0),
-        pacientes: Number((pacientes.rows?.[0] as any)?.n ?? 0),
+        pacientes_total: Number((pacientes.rows?.[0] as any)?.total ?? 0),
+        pacientes_seed_teste: Number((pacientes.rows?.[0] as any)?.seed_teste ?? 0),
+        pacientes_nomes_distintos: Number((pacientes.rows?.[0] as any)?.nomes_distintos ?? 0),
+        pacientes_provavelmente_reais: Math.max(
+          0,
+          Number((pacientes.rows?.[0] as any)?.total ?? 0) - Number((pacientes.rows?.[0] as any)?.seed_teste ?? 0),
+        ),
         auditores: Number((auditores.rows?.[0] as any)?.n ?? 0),
         anastomoses_pendentes_abertas: Number((anastomosesAbertas.rows?.[0] as any)?.n ?? 0),
+      },
+      transparencia_origem_dados: {
+        aviso: "Endpoint pos-auditoria 22/abr/2026. Dados marcados honestamente: parte e seed de teste.",
+        pacientes: "1500 dos ~1557 sao 'Carlos Pinto Moreira' (seed de carga sintetica). Veja contagens.pacientes_seed_teste.",
+        receitas_fama: "Total e 30d sao iguais → toda a base FAMA foi seedada num batch unico (migration 006). Nao sao receitas reais entrando do consultorio.",
+        blocos_template: "13 blocos: 12 vieram do seed 008 (blends do Caio) + 1 manual. Codigo SQL em db/seeds/008_blends_para_blocos_template.sql no repo GitHub.",
+        codigo_auditavel: "https://github.com/caio-padua/Integrative-Health-Engine/tree/feat/dominio-pawards (push feito em 22/abr/2026 01:5x UTC)",
       },
       acao1_blends_candidatos_a_bloco_template: (blendsLista.rows ?? []).map((r: any) => ({
         id: r.id,
