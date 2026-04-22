@@ -5,9 +5,9 @@
  * `lib/assinatura/service.ts` já enfileirava sem consumer.
  *
  * Comportamento por canal:
- *  - EMAIL    : tenta via integration google-mail; sem credencial real,
- *               marca FALHA com erro estruturado e agenda retry.
- *  - WHATSAPP : provedor (Z-API/Twilio) ainda não plugado — FALHA estruturada.
+ *  - EMAIL    : envia via Gmail integration real (lib/google-gmail.ts).
+ *  - WHATSAPP : envia via lib/services/whatsappService.ts (Twilio/Gupshup
+ *               conforme config ativa em whatsapp_config).
  *  - DRIVE    : upload Drive ainda não plugado — FALHA estruturada.
  *
  * Retry exponencial: tentativa 1 → +10min, 2 → +1h, 3 → FALHA permanente.
@@ -16,6 +16,8 @@
 
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { getGmailClient } from "../google-gmail";
+import { enviarWhatsapp } from "../../services/whatsappService";
 
 const TICK_MS = 5 * 60 * 1000; // 5 min
 const MAX_TENTATIVAS = 3;
@@ -37,32 +39,79 @@ type ProcResult =
   | { status: "ENVIADO"; resposta?: any }
   | { status: "FALHA"; erro: string };
 
+/** Sanitiza email/header — remove CRLF (anti-injection). */
+function sanitizeHeader(s: string): string {
+  return String(s ?? "").replace(/[\r\n]/g, "").trim();
+}
+
+/** Codifica RFC 5322 minimal (assunto base64-UTF8 + corpo HTML base64). */
+function buildEmailRaw(to: string, subject: string, htmlBody: string): string {
+  const fromAddr = "clinica.padua.agenda@gmail.com";
+  const parts = [
+    `From: PAWARDS - Instituto Padua <${fromAddr}>`,
+    `To: ${sanitizeHeader(to)}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from(htmlBody).toString("base64"),
+  ];
+  return Buffer.from(parts.join("\r\n")).toString("base64url");
+}
+
 /** Processa uma única notificação. Defensivo: nunca lança. */
 export async function processarNotificacao(row: NotifRow): Promise<ProcResult> {
   try {
     const canal = String(row.canal).toUpperCase();
 
     if (canal === "EMAIL") {
-      // Por ora, sem credencial real do conector google-mail no API server,
-      // marca FALHA com erro estruturado para que o retry seja agendado e
-      // a fila não trave. Quando a integração real for plugada, basta trocar
-      // este bloco pela chamada gmail.users.messages.send().
-      const credenciaisOk = !!process.env["GOOGLE_MAIL_REAL_OK"]; // gate explícito
-      if (!credenciaisOk) {
-        return {
-          status: "FALHA",
-          erro: "google_mail_pendente_credenciais_real",
-        };
+      // Gmail real via integration google-mail (token gerenciado pelo Replit
+      // via REPLIT_CONNECTORS_HOSTNAME). Erro vira FALHA estruturada com
+      // mensagem do provedor — retry exponencial pega de novo no próximo tick.
+      const dest = sanitizeHeader(row.destinatario);
+      if (!dest || !dest.includes("@")) {
+        return { status: "FALHA", erro: `email_invalido:${dest}` };
       }
-      // Branch ativada apenas se GOOGLE_MAIL_REAL_OK=1 (placeholder de wiring).
-      return { status: "ENVIADO", resposta: { provider: "google-mail-stub" } };
+      const assunto = row.assunto || "Notificação PAWARDS";
+      // Se corpo veio como HTML usa direto; senão envolve em <pre> para preservar formatação.
+      const corpo = row.corpo || "";
+      const htmlBody = /<[a-z][\s\S]*>/i.test(corpo)
+        ? corpo
+        : `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap">${corpo}</pre>`;
+
+      const gmail = await getGmailClient();
+      const raw = buildEmailRaw(dest, assunto, htmlBody);
+      const res = await gmail.users.messages.send({
+        userId: "me",
+        requestBody: { raw },
+      });
+      return {
+        status: "ENVIADO",
+        resposta: { provider: "google-mail", id: res.data?.id, threadId: res.data?.threadId },
+      };
     }
 
     if (canal === "WHATSAPP") {
-      return { status: "FALHA", erro: "whatsapp_provedor_pendente" };
+      // WhatsApp via lib/services/whatsappService — usa config ativa em
+      // whatsapp_config (TWILIO ou GUPSHUP, decidido pelo provedor da row).
+      const dest = sanitizeHeader(row.destinatario);
+      if (!dest) return { status: "FALHA", erro: "whatsapp_destinatario_vazio" };
+      const corpo = row.corpo || row.assunto || "";
+      if (!corpo) return { status: "FALHA", erro: "whatsapp_corpo_vazio" };
+
+      const r = await enviarWhatsapp(dest, corpo);
+      if (r.sucesso) {
+        return {
+          status: "ENVIADO",
+          resposta: { provider: "whatsapp", msgId: r.provedorMsgId, logId: r.logId },
+        };
+      }
+      return { status: "FALHA", erro: `whatsapp:${r.erro ?? "desconhecido"}` };
     }
 
     if (canal === "DRIVE") {
+      // Upload Drive ainda não plugado nesta onda (Caio não pediu).
       return { status: "FALHA", erro: "drive_upload_pendente" };
     }
 
