@@ -578,3 +578,34 @@ Tabela `wd_operacionais_inventario` com 16 WDs catalogados. **10 ressuscitados (
 - ✅ WD08 Avisar renovação · ✅ WD09 Calcular comissão · ✅ WD10 **Receber exame e classificar (esta onda)**
 - ⏳ WD11 Gerar receita · ⏳ WD12 Materializar 507 sessões · ⏳ WD13 Persistir RAS evolutivo
 - ⏳ WD14 Worker assinatura notif · ⏳ WD15 Encarnar FISCAL · ⏳ WD16 OCR automático de PDF de exame
+
+## PARMASUPRA-TSUNAMI WAVE-5 (Dr. Claude audit fix · 2026-04-22)
+Auditoria ao vivo do Dr. Claude (Sonnet 4.6) sobre os 5 arquivos da TSUNAMI aprovou
+4/5 como produção-ready (`requireMasterEstrito.ts`, `cobrancasAuto.ts`,
+`adminAnalytics.ts`, `permissoesDelegadas.ts`). O único arquivo com gaps reais foi
+`routes/substancias.ts`, com 3 problemas corrigidos nesta wave:
+
+1. **PATCH `/substancias/:id` — `controlado` e `tipoReceitaAnvisaCodigo` ausentes
+   do `allowedFields`**: impedia atualizar a classificação ANVISA quando a lei muda
+   (ex.: Zolpidem virar B1). Adicionados ambos + `farmaciaPadrao` à whitelist única.
+2. **PUT `/substancias/:id` — mass assignment via `req.body` direto**: qualquer
+   usuário autenticado podia sobrescrever `id`, `criadoEm`, etc. Substituído por
+   `filtrarCamposPermitidos(body)` usando a mesma whitelist do PATCH.
+3. **DELETE `/substancias/:id` — hard delete deixava prescrições históricas
+   órfãs**: convertido para soft delete via `deletedAt = now()`. GET / GET-:id /
+   PUT / PATCH passaram a filtrar `isNull(deletedAt)`. Listagem aceita
+   `?incluir_removidas=true` para auditoria.
+
+**Migration 013** (`db/seeds/013_substancias_soft_delete.sql`) adiciona
+`deleted_at timestamptz NULL` + índice parcial `WHERE deleted_at IS NULL`,
+aplicado via `psql` (idempotente, aditivo, **sem `db:push`**, sem ALTER PK).
+Schema Drizzle (`lib/db/src/schema/substancias.ts`) ganhou os 4 campos
+(`controlado`, `tipoReceitaAnvisaCodigo`, `farmaciaPadrao`, `deletedAt`) que
+existiam fisicamente na tabela mas estavam fora do mapping (drift fechado).
+
+**Smoke E2E 10/10 verde**: POST cria, PATCH altera `controlado` e
+`tipoReceitaAnvisaCodigo=B1`, PUT bloqueia mass assignment (id permanece 19
+mesmo enviando `id:99999` no body), DELETE retorna `deletedAt` timestamp,
+GET-:id pós-delete retorna 404, DELETE repetido é idempotente (404), listagem
+padrão oculta a deletada, `?incluir_removidas=true` mostra, e psql confirma
+linha física com `deleted_at IS NOT NULL`.

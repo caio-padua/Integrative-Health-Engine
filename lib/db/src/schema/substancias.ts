@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, real, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, real, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -39,8 +39,12 @@ export const substanciasTable = pgTable("substancias", {
   evidenciaCientifica: text("evidencia_cientifica"),
   notas: text("notas"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  controlado: boolean("controlado").notNull().default(false),
+  tipoReceitaAnvisaCodigo: text("tipo_receita_anvisa_codigo"),
+  farmaciaPadrao: text("farmacia_padrao"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const insertSubstanciaSchema = createInsertSchema(substanciasTable).omit({ id: true, criadoEm: true });
+export const insertSubstanciaSchema = createInsertSchema(substanciasTable).omit({ id: true, criadoEm: true, deletedAt: true });
 export type InsertSubstancia = z.infer<typeof insertSubstanciaSchema>;
 export type Substancia = typeof substanciasTable.$inferSelect;
