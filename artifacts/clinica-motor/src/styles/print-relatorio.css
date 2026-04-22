@@ -1,0 +1,138 @@
+/* =====================================================================
+ * PRINT RELATORIO PAWARDS · Onda PARMASUPRA · 22/abr/2026
+ * Layout TDAH/TOC friendly pra TODA tela analítica (9 telas).
+ * ===================================================================== */
+
+/* Por padrão na tela: esconde elementos que só aparecem no PDF */
+.apenas-impressao { display: none !important; }
+
+/* =================================================================
+ * MODO IMPRESSÃO ATIVO
+ * ================================================================= */
+@media print {
+  /* Reset agressivo: nada de cores escuras, nada de sombras, nada de scroll */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #18181b !important;
+    font-size: 11pt;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+
+  /* Esconde sidebars, navbars, botões, tudo que não é conteúdo */
+  .nao-imprimir,
+  nav, aside, header[role="banner"],
+  button:not(.imprimir-tambem) {
+    display: none !important;
+  }
+
+  /* Mostra elementos que só existem no PDF */
+  .apenas-impressao { display: block !important; }
+
+  /* ==============================================================
+   * CABEÇALHO FIXO PAWARDS — repete em toda página
+   * ============================================================== */
+  body.modo-impressao-pawards::before {
+    content: "PAWARDS MEDCORE · " attr(data-pdf-titulo);
+    display: block;
+    background: #020406;
+    color: #C89B3C;
+    padding: 12pt 16pt;
+    font-weight: 700;
+    font-size: 14pt;
+    letter-spacing: 0.5pt;
+    border-bottom: 3pt solid #C89B3C;
+    margin-bottom: 8pt;
+  }
+  html[data-pdf-subtitulo] body.modo-impressao-pawards::after {
+    content: attr(data-pdf-subtitulo);
+    display: none; /* o ::before já carrega título; subtítulo vai numa div separada */
+  }
+
+  /* Subtítulo (data/período) logo abaixo do cabeçalho dourado */
+  body.modo-impressao-pawards main::before,
+  body.modo-impressao-pawards #root::before {
+    content: attr(data-pdf-subtitulo);
+    display: block;
+    font-size: 10pt;
+    color: #52525b;
+    padding: 0 16pt 8pt 16pt;
+    border-bottom: 1pt solid #d4d4d8;
+    margin-bottom: 12pt;
+  }
+
+  /* ==============================================================
+   * CORES SEMÂNTICAS PRESERVADAS (verde/azul/amarelo/vermelho)
+   * ============================================================== */
+  .text-emerald-300, .text-emerald-400 { color: #047857 !important; }
+  .text-blue-300,    .text-blue-400    { color: #1d4ed8 !important; }
+  .text-amber-300,   .text-amber-400   { color: #b45309 !important; }
+  .text-red-300,     .text-red-400     { color: #b91c1c !important; }
+  .text-zinc-100, .text-zinc-200, .text-zinc-300 { color: #18181b !important; }
+  .text-zinc-400, .text-zinc-500, .text-zinc-600 { color: #52525b !important; }
+
+  .bg-emerald-500\/20 { background: #d1fae5 !important; border-color: #047857 !important; }
+  .bg-blue-500\/20    { background: #dbeafe !important; border-color: #1d4ed8 !important; }
+  .bg-amber-500\/20   { background: #fef3c7 !important; border-color: #b45309 !important; }
+  .bg-red-500\/20     { background: #fee2e2 !important; border-color: #b91c1c !important; }
+  .bg-zinc-500\/20    { background: #f4f4f5 !important; border-color: #52525b !important; }
+
+  .bg-zinc-900, .bg-zinc-900\/50, .bg-zinc-900\/80,
+  .bg-zinc-800, .bg-zinc-800\/30, .bg-zinc-800\/50, .bg-zinc-800\/80 {
+    background: #ffffff !important;
+    border: 1pt solid #d4d4d8 !important;
+  }
+
+  /* ==============================================================
+   * QUEBRA DE PÁGINA INTELIGENTE
+   * ============================================================== */
+  section, .bg-zinc-900\/50, table, .recharts-wrapper {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
+  table { width: 100% !important; border-collapse: collapse; }
+  table th, table td {
+    border: 1pt solid #d4d4d8 !important;
+    padding: 4pt 6pt !important;
+    color: #18181b !important;
+  }
+  table thead { background: #f4f4f5 !important; }
+
+  /* Gráficos Recharts: força tamanho fixo pra não distorcer */
+  .recharts-wrapper, .recharts-surface {
+    background: #ffffff !important;
+  }
+
+  /* ==============================================================
+   * LEGENDA OBRIGATÓRIA (TDAH/TOC friendly)
+   * Aparece NO FINAL de toda página impressa
+   * ============================================================== */
+  body.modo-impressao-pawards #root::after {
+    content:
+      "LEGENDA DE CORES — VERDE/EXCELENTE: variação ≥ +10% ·  AZUL/BOM: 0 a +10% ·  AMARELO/ATENÇÃO: -10% a 0 ·  VERMELHO/CRÍTICO: abaixo de -10%   |||   Filosofia analítica: nenhum número aparece isolado — sempre acompanhado de variação % + variação absoluta + cor semântica + sparkline de evolução. PAWARDS MEDCORE · documento gerado em " attr(data-pdf-subtitulo);
+    display: block;
+    margin-top: 16pt;
+    padding: 8pt 16pt;
+    font-size: 8pt;
+    color: #52525b;
+    border-top: 2pt solid #C89B3C;
+    background: #fafafa;
+    page-break-before: avoid;
+  }
+
+  /* ==============================================================
+   * MARGENS DA PÁGINA
+   * ============================================================== */
+  @page {
+    size: A4;
+    margin: 14mm 12mm 14mm 12mm;
+  }
+}

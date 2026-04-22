@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, TrendingUp, ShoppingCart, AlertTriangle } from "lucide-react";
+import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import {
   ComposedChart, Bar, XAxis, YAxis, Tooltip, Legend,
   ReferenceLine, ResponsiveContainer, Cell, CartesianGrid,
@@ -91,6 +92,7 @@ export default function ExamesGrafico() {
 
   return (
     <Layout>
+      <BotaoImprimirFlutuante titulo={`Linha do Tempo de Exames · Paciente #${pacienteId ?? ""}`} />
       <div className="p-6 space-y-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
           <Link href={`/pacientes/${pacienteId}`}>

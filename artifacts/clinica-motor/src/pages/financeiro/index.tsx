@@ -27,6 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
@@ -265,6 +266,7 @@ export default function FinanceiroPage() {
 
   return (
     <Layout>
+      <BotaoImprimirFlutuante titulo="Financeiro · Tratamentos, Pagamentos e Faturamento" />
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

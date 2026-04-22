@@ -184,10 +184,13 @@ import padcomRouter from "./padcom";
 router.use(padcomRouter);
 
 // PARMASUPRA · Onda 22/abr/2026 — Handoff Dr. Claude
-// 4 features de receita pra Dr. Caio cobrar das clinicas parceiras
+// 4 features de receita pra Dr. Caio cobrar das clinicas parceiras +
+// Analytics multiplanar comparativo (filosofia Mike Tyson × Eder Jofre)
 import permissoesDelegadasRouter from "./permissoesDelegadas";
 import cobrancasAdicionaisRouter from "./cobrancasAdicionais";
+import adminAnalyticsRouter from "./adminAnalytics";
 router.use(permissoesDelegadasRouter);
 router.use(cobrancasAdicionaisRouter);
+router.use(adminAnalyticsRouter);
 
 export default router;

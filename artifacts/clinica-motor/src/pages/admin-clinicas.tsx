@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Save, RefreshCw, Building2, Power, PowerOff, Target } from "lucide-react";
+import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
 type Unidade = {
   id: number;
@@ -71,6 +72,7 @@ export default function AdminClinicas() {
       <div className="p-6 max-w-7xl mx-auto">
         <header className="flex items-center justify-between mb-6">
           <div>
+            <BotaoImprimirFlutuante titulo="Admin · Clínicas Parceiras PAWARDS" />
             <h1 className="text-2xl font-bold text-amber-400 flex items-center gap-2">
               <Building2 size={28} /> Gestão de Clínicas
             </h1>

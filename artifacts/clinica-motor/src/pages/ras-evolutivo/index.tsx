@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, TrendingUp, Clock, User, BarChart3 } from "lucide-react";
+import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
@@ -25,6 +26,7 @@ export default function RasEvolutivoPage() {
 
   return (
     <Layout>
+      <BotaoImprimirFlutuante titulo="RAS Evolutivo · Aderência e Tolerância Longitudinal" />
       <div className="space-y-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight">RAS Evolutivo</h1>

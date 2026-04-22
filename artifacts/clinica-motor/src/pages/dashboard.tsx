@@ -16,6 +16,7 @@ import { Activity, Users, ClipboardList, CheckSquare, TrendingUp, AlertTriangle,
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { useQuery } from "@tanstack/react-query";
+import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
 const API_BASE = "/api";
 
@@ -127,6 +128,7 @@ export default function Dashboard() {
               <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }} />
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
+                  <BotaoImprimirFlutuante titulo="Dashboard Unidade · PADCON Local" />
                   <h1 className="pw-titulo-manifesto text-3xl">Dashboard Unidade</h1>
                   <span className="pw-selo-dourado px-2 py-1 text-[10px] tracking-[0.2em]">PADCON · VISÃO LOCAL</span>
                 </div>
