@@ -1,5 +1,6 @@
 /**
  * PARMASUPRA-FECHAMENTO · F4 / WD14 · Worker assinatura notificações
+ * + DRIVE-TSUNAMI Wave 1 (22/abr/2026): canal DRIVE plugado real.
  *
  * Consumidor da fila `assinatura_notificacoes` (status PENDENTE) que o
  * `lib/assinatura/service.ts` já enfileirava sem consumer.
@@ -8,7 +9,10 @@
  *  - EMAIL    : envia via Gmail integration real (lib/google-gmail.ts).
  *  - WHATSAPP : envia via lib/services/whatsappService.ts (Twilio/Gupshup
  *               conforme config ativa em whatsapp_config).
- *  - DRIVE    : upload Drive ainda não plugado — FALHA estruturada.
+ *  - DRIVE    : parseia `drive://paciente/<id>`, garante folder do paciente
+ *               (auto-provision se preciso), faz upload na subpasta ASSINATURAS.
+ *               Se anexo_url for http(s), baixa o binário e usa como conteúdo;
+ *               senão usa `corpo` como texto/markdown (registro de evento).
  *
  * Retry exponencial: tentativa 1 → +10min, 2 → +1h, 3 → FALHA permanente.
  * Idempotente: tick pega só PENDENTE com proxima_tentativa_em <= now().
@@ -18,6 +22,11 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { getGmailClient } from "../google-gmail";
 import { enviarWhatsapp } from "../../services/whatsappService";
+import {
+  getOrCreateClientFolder,
+  uploadToClientSubfolder,
+  formatFileName,
+} from "../google-drive";
 
 const TICK_MS = 5 * 60 * 1000; // 5 min
 const MAX_TENTATIVAS = 3;
@@ -111,8 +120,87 @@ export async function processarNotificacao(row: NotifRow): Promise<ProcResult> {
     }
 
     if (canal === "DRIVE") {
-      // Upload Drive ainda não plugado nesta onda (Caio não pediu).
-      return { status: "FALHA", erro: "drive_upload_pendente" };
+      // DRIVE-TSUNAMI Wave 1 plug real:
+      // 1. Parse `drive://paciente/<id>` (formato emitido pelo service.ts).
+      // 2. Busca paciente; se sem google_drive_folder_id, auto-provision via
+      //    getOrCreateClientFolder (cria root CLINICA PADUA + pasta paciente
+      //    + 21 subpastas) e persiste o id em pacientes.
+      // 3. Conteúdo do upload:
+      //    - Se anexo_url for http(s), baixa o binário e usa como Buffer.
+      //    - Senão, gera um TXT com o `corpo` (registro textual do evento,
+      //      útil enquanto o gerador de PDF assinado real não foi plugado).
+      // 4. Upload na subpasta ASSINATURAS com filename padronizado
+      //    formatFileName(hoje, "ASSINATURA", paciente_nome, momento).
+      const dest = sanitizeHeader(row.destinatario);
+      const m = /^drive:\/\/paciente\/(\d+)$/.exec(dest);
+      if (!m) return { status: "FALHA", erro: `drive_destinatario_invalido:${dest}` };
+      const pacienteId = Number(m[1]);
+      if (!Number.isFinite(pacienteId) || pacienteId <= 0) {
+        return { status: "FALHA", erro: `drive_paciente_id_invalido:${dest}` };
+      }
+
+      // Busca paciente
+      const pq: any = await db.execute(sql`
+        SELECT id, nome, cpf, google_drive_folder_id
+        FROM pacientes
+        WHERE id = ${pacienteId}
+        LIMIT 1
+      `);
+      const prow = (pq.rows ?? pq)[0];
+      if (!prow) return { status: "FALHA", erro: `drive_paciente_nao_encontrado:${pacienteId}` };
+
+      const pacienteNome: string = String(prow.nome ?? "PACIENTE SEM NOME");
+      const pacienteCpf: string = String(prow.cpf ?? "SEM-CPF");
+      let folderId: string | null = prow.google_drive_folder_id ?? null;
+
+      // Auto-provision se preciso
+      if (!folderId) {
+        const f = await getOrCreateClientFolder(pacienteNome, pacienteCpf);
+        folderId = f.folderId;
+        await db.execute(sql`
+          UPDATE pacientes SET google_drive_folder_id = ${folderId} WHERE id = ${pacienteId}
+        `);
+      }
+
+      // Decide conteúdo
+      let content: Buffer;
+      let mimeType: string;
+      let extra: string;
+      const anexo = (row.anexo_url ?? "").trim();
+      if (anexo && /^https?:\/\//i.test(anexo)) {
+        const r = await fetch(anexo);
+        if (!r.ok) return { status: "FALHA", erro: `drive_download_falhou:${r.status}` };
+        const ab = await r.arrayBuffer();
+        content = Buffer.from(ab);
+        mimeType = r.headers.get("content-type") || "application/octet-stream";
+        extra = "ANEXO";
+      } else {
+        const txt = row.corpo || row.assunto || "(notificação sem corpo)";
+        content = Buffer.from(txt, "utf8");
+        mimeType = "text/plain; charset=utf-8";
+        extra = String(row.momento ?? "EVENTO");
+      }
+
+      const fileName = formatFileName(new Date(), "ASSINATURA", pacienteNome, extra);
+      const up = await uploadToClientSubfolder({
+        clientFolderId: folderId!,
+        subfolder: "ASSINATURAS",
+        fileName,
+        mimeType,
+        content,
+      });
+
+      return {
+        status: "ENVIADO",
+        resposta: {
+          provider: "google-drive",
+          fileId: up.fileId,
+          fileUrl: up.fileUrl,
+          subfolderId: up.subfolderId,
+          folderId,
+          paciente_id: pacienteId,
+        },
+      };
     }
 
     return { status: "FALHA", erro: `canal_desconhecido:${canal}` };
