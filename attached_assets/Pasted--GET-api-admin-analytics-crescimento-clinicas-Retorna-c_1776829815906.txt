@@ -1,0 +1,115 @@
+// GET /api/admin/analytics/crescimento-clinicas
+// Retorna crescimento/decrescimento de cada clínica comparando 2 períodos
+// query: { periodo_a: '2026-03', periodo_b: '2026-04', metrica: 'faturamento'|'receitas'|'consultas' }
+//
+// Resposta para cada clínica:
+// {
+//   unidade_id, nome,
+//   valor_periodo_a: 18000,
+//   valor_periodo_b: 27000,
+//   variacao_pct: +50.0,        ← +50% de crescimento
+//   variacao_absoluta: +9000,   ← equivale a R$9.000 ou N unidades
+//   tendencia: 'CRESCENDO' | 'CAINDO' | 'ESTAVEL'
+// }
+
+router.get('/analytics/crescimento-clinicas', requireAuth, async (req, res) => {
+  const { periodo_a, periodo_b, metrica = 'faturamento' } = req.query;
+  const [ano_a, mes_a] = String(periodo_a).split('-').map(Number);
+  const [ano_b, mes_b] = String(periodo_b).split('-').map(Number);
+
+  const { rows } = await pool.query(`
+    SELECT
+      u.id AS unidade_id,
+      u.nome,
+      COALESCE(a.faturamento_total, 0) AS valor_a,
+      COALESCE(b.faturamento_total, 0) AS valor_b,
+      CASE
+        WHEN COALESCE(a.faturamento_total, 0) = 0 THEN NULL
+        ELSE ROUND(
+          ((COALESCE(b.faturamento_total, 0) - COALESCE(a.faturamento_total, 0))
+           / COALESCE(a.faturamento_total, 1)) * 100, 1
+        )
+      END AS variacao_pct,
+      COALESCE(b.faturamento_total, 0) - COALESCE(a.faturamento_total, 0) AS variacao_absoluta
+    FROM unidades u
+    LEFT JOIN analytics_clinica_mes a ON a.unidade_id = u.id AND a.ano = $1 AND a.mes = $2
+    LEFT JOIN analytics_clinica_mes b ON b.unidade_id = u.id AND b.ano = $3 AND b.mes = $4
+    WHERE u.ativo = true
+    ORDER BY variacao_pct DESC NULLS LAST
+  `, [ano_a, mes_a, ano_b, mes_b]);
+
+  res.json(rows.map(r => ({
+    ...r,
+    tendencia: r.variacao_pct > 5 ? 'CRESCENDO' : r.variacao_pct < -5 ? 'CAINDO' : 'ESTAVEL'
+  })));
+});
+
+// GET /api/admin/analytics/produtos-comparativo
+// Compara produtos entre 2 clínicas ou 2 períodos com variação
+// query: {
+//   unidade_ids: '14,16',        ← 2 clínicas para comparar
+//   grupo: 'vitaminas'|'hormonios'|'injetaveis'|'magistrais'|'todos',
+//   periodo_a: '2026-03',
+//   periodo_b: '2026-04'
+// }
+
+router.get('/analytics/produtos-comparativo', requireAuth, async (req, res) => {
+  const { unidade_ids, grupo, periodo_a, periodo_b } = req.query;
+  const ids = String(unidade_ids).split(',').map(Number);
+  const [ano_a, mes_a] = String(periodo_a).split('-').map(Number);
+  const [ano_b, mes_b] = String(periodo_b).split('-').map(Number);
+
+  const grupoFilter = grupo && grupo !== 'todos'
+    ? `AND s.grupo_produto = $5`
+    : '';
+
+  const { rows } = await pool.query(`
+    SELECT
+      s.produto_nome,
+      s.grupo_produto,
+      u.nome AS clinica,
+      COALESCE(a.quantidade_vendida, 0) AS qtd_periodo_a,
+      COALESCE(b.quantidade_vendida, 0) AS qtd_periodo_b,
+      COALESCE(a.valor_total_brl, 0) AS valor_periodo_a,
+      COALESCE(b.valor_total_brl, 0) AS valor_periodo_b,
+      CASE
+        WHEN COALESCE(a.quantidade_vendida, 0) = 0 THEN NULL
+        ELSE ROUND(
+          ((COALESCE(b.quantidade_vendida, 0) - COALESCE(a.quantidade_vendida, 0))
+           / COALESCE(a.quantidade_vendida, 1)::float) * 100, 1
+        )
+      END AS variacao_qtd_pct,
+      COALESCE(b.quantidade_vendida, 0) - COALESCE(a.quantidade_vendida, 0) AS variacao_qtd_absoluta
+    FROM analytics_snapshots s
+    JOIN unidades u ON u.id = s.unidade_id
+    LEFT JOIN analytics_snapshots a
+      ON a.unidade_id = s.unidade_id AND a.produto_nome = s.produto_nome
+      AND a.ano = $2 AND a.mes = $3
+    LEFT JOIN analytics_snapshots b
+      ON b.unidade_id = s.unidade_id AND b.produto_nome = s.produto_nome
+      AND b.ano = $4 AND b.mes = $5
+    WHERE s.unidade_id = ANY($1::int[])
+    ${grupoFilter}
+    GROUP BY s.produto_nome, s.grupo_produto, u.nome, a.quantidade_vendida, b.quantidade_vendida, a.valor_total_brl, b.valor_total_brl
+    ORDER BY variacao_qtd_pct DESC NULLS LAST
+  `, [ids, ano_a, mes_a, ano_b, mes_b]);
+
+  res.json(rows);
+});
+
+// GET /api/admin/analytics/tendencia-produto
+// Série temporal de 1 produto específico — últimos N meses
+// query: { produto_nome: 'Vitamina D', unidade_id: 14, meses: 6 }
+
+router.get('/analytics/tendencia-produto', requireAuth, async (req, res) => {
+  const { produto_nome, unidade_id, meses = 6 } = req.query;
+  const { rows } = await pool.query(`
+    SELECT ano, mes, quantidade_vendida, valor_total_brl, ticket_medio
+    FROM analytics_snapshots
+    WHERE produto_nome ILIKE $1
+      AND unidade_id = $2
+    ORDER BY ano ASC, mes ASC
+    LIMIT $3
+  `, [`%${produto_nome}%`, unidade_id, meses]);
+  res.json(rows);
+});

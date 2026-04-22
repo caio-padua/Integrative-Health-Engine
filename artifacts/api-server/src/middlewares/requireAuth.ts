@@ -53,14 +53,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
-  // Aceita o JWT em 3 lugares: header Authorization (preferencial), cookie
-  // "pawards.auth.token" (para bridges/SSR e paginas legadas que nao injetam
-  // header), e query string ?_token= (debug pontual).
+  // HARDENED 22/abr/2026 (Dr. Claude correcao 2): JWT aceito apenas via
+  // header Authorization (preferencial) ou cookie "pawards.auth.token".
+  // REMOVIDO ?_token= — token na query string vaza em logs/referer/historico.
   const header = req.header("authorization") || "";
   const headerMatch = header.match(/^Bearer\s+(.+)$/i);
   const cookieToken = (req as any).cookies?.["pawards.auth.token"] as string | undefined;
-  const queryToken = typeof req.query?._token === "string" ? (req.query._token as string) : undefined;
-  const token = headerMatch?.[1] || cookieToken || queryToken;
+  const token = headerMatch?.[1] || cookieToken;
   if (!token) {
     res.status(401).json({ error: "Autenticacao necessaria (Bearer token ausente)" });
     return;

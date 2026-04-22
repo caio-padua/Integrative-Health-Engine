@@ -5,24 +5,20 @@ declare global {
     interface Request {
       tenantContext?: {
         unidadeId: number | null;
-        origem: "header" | "query" | "session" | "default";
+        origem: "session" | "default";
       };
     }
   }
 }
 
+// HARDENED 22/abr/2026 (anastomose #5 do Dr. Claude):
+// JWT é a ÚNICA fonte de verdade pra unidade_id.
+// Removido: x-unidade-id (header) e ?unidade_id= (query).
+// Motivo: cross-tenant attack — qualquer cliente podia setar header e ler outra clinica.
 export function tenantContextMiddleware(req: Request, _res: Response, next: NextFunction) {
-  const headerVal = req.header("x-unidade-id");
-  const queryVal = typeof req.query["unidade_id"] === "string" ? req.query["unidade_id"] : undefined;
-  const sessionVal = (req as any).session?.unidadeId;
-
-  let unidadeId: number | null = null;
-  let origem: "header" | "query" | "session" | "default" = "default";
-
-  if (headerVal && !Number.isNaN(Number(headerVal))) { unidadeId = Number(headerVal); origem = "header"; }
-  else if (queryVal && !Number.isNaN(Number(queryVal))) { unidadeId = Number(queryVal); origem = "query"; }
-  else if (sessionVal != null && !Number.isNaN(Number(sessionVal))) { unidadeId = Number(sessionVal); origem = "session"; }
-
-  req.tenantContext = { unidadeId, origem };
+  req.tenantContext = {
+    unidadeId: req.user?.unidadeId ?? null,
+    origem: req.user?.unidadeId != null ? "session" : "default",
+  };
   next();
 }
