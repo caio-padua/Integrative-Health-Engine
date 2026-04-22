@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { iniciarWorkerRecorrencia } from "./lib/recorrencia/motorPlanos";
 import { iniciarWorkerLembretesPrescricao } from "./services/prescricaoLembreteService";
 import { iniciarWorkerCobrancaMensal } from "./lib/recorrencia/cobrancaMensal";
+import { iniciarWorkerNotifAssinatura } from "./lib/recorrencia/notifAssinatura";
 
 const rawPort = process.env["PORT"];
 
@@ -28,4 +29,5 @@ app.listen(port, (err) => {
   iniciarWorkerRecorrencia();
   iniciarWorkerLembretesPrescricao();
   iniciarWorkerCobrancaMensal();
+  iniciarWorkerNotifAssinatura();
 });

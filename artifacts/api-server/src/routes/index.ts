@@ -190,9 +190,11 @@ import permissoesDelegadasRouter from "./permissoesDelegadas";
 import cobrancasAdicionaisRouter from "./cobrancasAdicionais";
 import adminAnalyticsRouter from "./adminAnalytics";
 import relatoriosPdfRouter from "./relatoriosPdf";
+import notifAssinaturaRouter from "./notifAssinatura";
 router.use(permissoesDelegadasRouter);
 router.use(cobrancasAdicionaisRouter);
 router.use(adminAnalyticsRouter);
 router.use(relatoriosPdfRouter);
+router.use(notifAssinaturaRouter);
 
 export default router;

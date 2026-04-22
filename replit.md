@@ -609,3 +609,51 @@ mesmo enviando `id:99999` no body), DELETE retorna `deletedAt` timestamp,
 GET-:id pós-delete retorna 404, DELETE repetido é idempotente (404), listagem
 padrão oculta a deletada, `?incluir_removidas=true` mostra, e psql confirma
 linha física com `deleted_at IS NOT NULL`.
+
+## PARMASUPRA-FECHAMENTO (Onda 22/abr/2026 · escolha "mais difícil e eficiente")
+
+Fecha 100% dos débitos confessos da TSUNAMI + ressuscita WD14 numa onda só.
+3 commits atômicos pushados em `feat/dominio-pawards` (`bed355c` → `8354fff` → `3029b24`).
+
+### F1 — `routes/substancias.ts` híbrido Dr. Claude + extras locais
+Substituído integralmente pela versão canônica que o Dr. Claude gerou na auditoria
+de 22/abr (`attached_assets/substancias_1776845568663.ts`). Mantidos 2 extras da
+versão WAVE-5: `?incluir_removidas=true` (auditoria) e `farmaciaPadrao` na whitelist.
+Resposta do DELETE agora retorna `{message, id, deletedAt}`. Smoke ciclo
+DELETE→deletedAt confirmado no DB.
+
+### F2 — `routes/relatoriosPdf.ts` D1 comparativo-2unidades real (era 501)
+`consultaComparativo2Unidades(uA, uB, periodoA, periodoB)` agrega
+`analytics_clinica_mes` em 6 métricas (faturamento, comissão, receitas, pacientes
+únicos, blends distintos, ticket médio). `renderComparativo2Unidades` desenha 2
+colunas lado a lado, vencedor por variação % destacado em gold + placar final.
+Smoke: `unidade_a=1&unidade_b=8&periodo_a=2026-03&periodo_b=2026-04` → 200, 6150
+bytes, magic `%PDF`.
+
+### F3 — `routes/relatoriosPdf.ts` D2 drill-paciente real (era 501)
+`consultaDrillPaciente(pacienteId, analito)` reusa lógica T8 (paciente vs média
+unidade vs média rede) agregada YYYY-MM. `renderDrillPaciente` desenha 3 blocos
+Mike Tyson coloridos (delta paciente, vs unidade, vs rede) + tabela mês a mês com
+3 séries alinhadas. Smoke: `paciente_id=1&analito=Vitamina D 25(OH)` → 200, 4964
+bytes, magic `%PDF`.
+
+### F4 — `lib/recorrencia/notifAssinatura.ts` worker WD14 ressuscitado
+A fila `assinatura_notificacoes` ficou com 11 PENDENTE sem consumer desde T7.
+Worker novo com tick de 5 min, batch 50, retry exponencial (10min → 1h → FALHA
+permanente em 3 tentativas). Por canal:
+- **EMAIL**: gate `process.env.GOOGLE_MAIL_REAL_OK`; sem credencial real, marca
+  FALHA estruturada `google_mail_pendente_credenciais_real` e agenda retry.
+- **WHATSAPP**: FALHA estruturada `whatsapp_provedor_pendente`.
+- **DRIVE**: FALHA estruturada `drive_upload_pendente`.
+
+Endpoint admin `POST /api/admin/notif-assinatura/tick` (requireMasterEstrito) para
+smoke manual. Plug em `index.ts` ao lado de `iniciarWorkerCobrancaMensal`. Smoke:
+o tick AUTO 20s pós-restart processou as 11/11 com `tentativas=1`, todas com
+`erro` estruturado e `proxima_tentativa_em = +10min` (retry agendado).
+
+### Handoff Dr. Claude (URLs raw branch `feat/dominio-pawards`)
+- substancias.ts:           https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/substancias.ts
+- relatoriosPdf.ts:         https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/relatoriosPdf.ts
+- notifAssinatura.ts (lib): https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/notifAssinatura.ts
+- notifAssinatura.ts (rota):https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/notifAssinatura.ts
+- index.ts (plug worker):   https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/index.ts
