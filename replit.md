@@ -760,13 +760,78 @@ Auto-provision colateral:
   com 21 subpastas (CADASTRO, RECEITAS, ASSINATURAS, NOTAS FISCAIS, ...).
 ```
 
-### Próximas Waves do tsunami quádruplo (autorizado, ainda não iniciadas)
-- **Wave 2 · MENSAGERIA-TSUNAMI**: templates HTML branded MEDCORE
-  (navy+gold) pra todos os emails do WD14 + quiet hours + opt-out por
-  paciente + dashboard `/admin/notificacoes` (filtros + reenvio manual).
+### Próximas Waves do tsunami quádruplo (Wave 2 ✅, Wave 3-4 pendentes)
 - **Wave 3 · FATURAMENTO-TSUNAMI**: Asaas adapter real (boleto/PIX/
   cartão) + webhook conciliação + dashboard inadimplência + cobrança
   auto via WD14 (templates W2 + boleto/recibo no Drive W1).
 - **Wave 4 · PACIENTE-TSUNAMI**: portal `/paciente` com login OTP
   (usa W2) + histórico de receitas/RAS/cobranças + links Drive (W1)
   pros PDFs + atalho WhatsApp pro Dr. Caio.
+
+## MENSAGERIA-TSUNAMI · Wave 2 (22/abr/2026 noite, commit `43fba9b`)
+**Status:** ✅ FECHADA — smoke E2E 9/9 verde, push duplo main+feat.
+
+Segunda wave do tsunami: templates HTML branded MEDCORE pra emails WD14
++ quiet hours global + opt-out por paciente + dashboard admin completo.
+
+### Migration 014 (aditiva, via psql — REGRA FERRO obedecida)
+Arquivo: `artifacts/api-server/src/db/migrations/014_wave2_mensageria.sql`
+- `pacientes.notif_opt_out_email` BOOLEAN DEFAULT FALSE
+- `pacientes.notif_opt_out_whatsapp` BOOLEAN DEFAULT FALSE
+- `pacientes.opt_out_token` TEXT (placeholder pra link de unsubscribe)
+- Tabela `notif_config` (singleton id=1, quiet 22:00-07:00 SP, ON default)
+- Status novos: `PULADO_QUIET` (não-terminal, reagenda) e
+  `PULADO_OPTOUT` (terminal) no check de assinatura_notificacoes
+
+### Backend
+- **`lib/recorrencia/notifTemplate.ts`** (novo, 130 linhas):
+  `wrapEmailMedcore({ subject, bodyHtmlOrText, momento, pacienteNome,
+  unidadeNick, optOutUrl })` → HTML responsive 600px com header navy
+  (#020406) + divisor gold 3px (#C89B3C) + body card branco com sombra
+  + footer cream com aviso LGPD + opt-out + assinatura "Powered by
+  Pawards MedCore". Detecta HTML vs plain text e escapa.
+- **`lib/recorrencia/notifAssinatura.ts`** (modificado):
+  - Helpers: `getNotifConfig()` (cache 60s), `horaLocal(tz)` (Intl real
+    pra SP), `dentroDoQuiet()` (handles wrap 22→07), `calcProximoQuietFim()`,
+    `invalidarCacheNotifConfig()` (exportado pra rota PUT config).
+  - SELECT do tick agora faz LEFT JOIN com `assinatura_solicitacoes` →
+    `pacientes` → `unidades` pra trazer paciente_nome, opt-out flags e
+    nick da unidade.
+  - **Pre-check 1** (terminal): se paciente opted-out no canal, marca
+    PULADO_OPTOUT e segue (não conta tentativa).
+  - **Pre-check 2** (não-terminal): se está em quiet hours (EMAIL/WHATSAPP
+    apenas — DRIVE roda 24/7), marca PULADO_QUIET e agenda
+    proxima_tentativa_em pra próximo quiet_fim. Tick aceita
+    `status IN ('PENDENTE','PULADO_QUIET')` no SELECT.
+  - Canal EMAIL agora aplica `wrapEmailMedcore()` automaticamente
+    com optOutUrl construída como
+    `${PUBLIC_APP_URL}/opt-out?paciente=<id>&canal=email`.
+- **`routes/notifAssinatura.ts`** (modificado, +5 endpoints):
+  - `GET  /admin/notif-assinatura/list?status=&canal=&dia=&q=&page=&pageSize=`
+  - `POST /admin/notif-assinatura/:id/reenviar` (reset → PENDENTE)
+  - `GET  /admin/notif-config`
+  - `PUT  /admin/notif-config` (invalida cache)
+  - `GET  /admin/notif-assinatura/preview/:id` (renderiza HTML branded)
+
+### Frontend
+- **`pages/admin-notificacoes.tsx`** (novo, 350 linhas):
+  - 5 KPIs por status (PENDENTE/ENVIADO/FALHA/PULADO_QUIET/PULADO_OPTOUT)
+  - Card de quiet hours config (HH:MM inputs + tz + checkbox + Save)
+  - Filtros (status, canal, dia, busca por destinatário/assunto/paciente)
+  - Tabela paginada (50/page) com badges navy/gold consistentes
+  - Ação reenviar (POST) + preview branded (GET HTML em nova tab)
+  - Botão "Rodar Tick Agora" (POST, mostra resultado em alert)
+- **`App.tsx`**: rota `/admin/notificacoes` → AdminNotificacoes
+
+### Smoke E2E (`/tmp/preview-wave2.html` salvo pra inspeção visual)
+1. **FASE 1 quiet hours** (3/3 PULADO_QUIET, agendado pra 00:00 SP) ✅
+2. **FASE 2 opt-out** (3/3 PULADO_OPTOUT, terminal) ✅
+3. **FASE 3 template branded** — 9/9 markers presentes:
+   navy `#020406`, gold `#C89B3C`, "PAWARDS" header, paciente_nome,
+   unidade_nick, momento label, opt-out URL, "LGPD", "Pawards MedCore" ✅
+4. Estado restaurado pra prod default (config 22-07 ON, opt-out 51 OFF,
+   notifs teste deletadas, fila final = 11 ENVIADO).
+
+### Push duplo
+- `feat/dominio-pawards`: `801ab21..43fba9b` ✅
+- `main` (direto via `git push origin HEAD:main`): `801ab21..43fba9b` ✅
