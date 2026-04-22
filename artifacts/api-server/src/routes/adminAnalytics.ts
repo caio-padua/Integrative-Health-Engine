@@ -1,9 +1,29 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
+
+/**
+ * Guard explicito EXCLUSIVO de Dr. Caio (validador_mestre) — sem bypass de
+ * ADMIN_TOKEN. Analytics multiplanar eh visao CEO real, nao ferramenta admin.
+ * Aplicar APOS requireRole pra defender em profundidade.
+ */
+function requireMasterEstrito(req: Request, res: Response, next: NextFunction): void {
+  if ((req as any).user?.perfil !== "validador_mestre") {
+    res.status(403).json({
+      error: "Acesso restrito ao Dr. Caio (perfil validador_mestre exclusivo)",
+    });
+    return;
+  }
+  next();
+}
+
+/** Valida formato YYYY-MM. Retorna a string se valida, null caso contrario. */
+function validaAnoMes(v: string): string | null {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(v) ? v : null;
+}
 
 /**
  * Helper: calcula variacao percentual entre dois numeros, com guarda contra
@@ -39,6 +59,7 @@ function semanticoCor(varPct: number | null): string {
 router.get(
   "/admin/analytics/crescimento-clinicas",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (req, res): Promise<void> => {
     let periodoA = (req.query.periodo_a as string) || "";
     let periodoB = (req.query.periodo_b as string) || "";
@@ -54,6 +75,15 @@ router.get(
       }
       periodoB = (ult.rows[0] as any).ano_mes;
       periodoA = (ult.rows[1] as any).ano_mes;
+    } else {
+      const a = validaAnoMes(periodoA);
+      const b = validaAnoMes(periodoB);
+      if (!a || !b) {
+        res.status(400).json({ error: "periodo_a/periodo_b devem ser YYYY-MM (ex: 2026-04)" });
+        return;
+      }
+      periodoA = a;
+      periodoB = b;
     }
 
     // Pega dados dos 2 periodos + sparkline (ultimos 6 meses) por unidade
@@ -71,6 +101,10 @@ router.get(
         FROM (
           SELECT unidade_id, ano_mes, faturamento_brl
           FROM analytics_clinica_mes
+          WHERE ano_mes >= TO_CHAR(
+            (TO_DATE(${periodoB} || '-01', 'YYYY-MM-DD') - INTERVAL '5 months'),
+            'YYYY-MM'
+          )
           ORDER BY ano_mes DESC
         ) sub GROUP BY unidade_id
       )
@@ -157,10 +191,18 @@ router.get(
 router.get(
   "/admin/analytics/produtos-comparativo",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (req, res): Promise<void> => {
     const anoMes = (req.query.ano_mes as string) || "";
     let mesAlvo = anoMes;
-    if (!mesAlvo) {
+    if (mesAlvo) {
+      const v = validaAnoMes(mesAlvo);
+      if (!v) {
+        res.status(400).json({ error: "ano_mes deve ser YYYY-MM (ex: 2026-04)" });
+        return;
+      }
+      mesAlvo = v;
+    } else {
       const ult = await db.execute(sql`
         SELECT MAX(ano_mes) AS m FROM analytics_clinica_mes
       `);
@@ -216,12 +258,16 @@ router.get(
 router.get(
   "/admin/analytics/tendencia-produto",
   requireRole("validador_mestre"),
+  requireMasterEstrito,
   async (req, res): Promise<void> => {
     const unidadeId = req.query.unidade_id ? Number(req.query.unidade_id) : null;
-    const meses = req.query.meses ? Math.min(24, Number(req.query.meses)) : 6;
+    const mesesRaw = req.query.meses ? Number(req.query.meses) : 6;
+    const meses = Number.isFinite(mesesRaw) && mesesRaw > 0
+      ? Math.min(24, Math.floor(mesesRaw))
+      : 6;
 
-    if (!unidadeId || Number.isNaN(unidadeId)) {
-      res.status(400).json({ error: "unidade_id obrigatorio" });
+    if (!unidadeId || Number.isNaN(unidadeId) || unidadeId <= 0) {
+      res.status(400).json({ error: "unidade_id obrigatorio (inteiro positivo)" });
       return;
     }
 

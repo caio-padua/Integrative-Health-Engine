@@ -30,15 +30,19 @@ export function BotaoImprimirRelatorio({
   flutuante?: boolean;
 }) {
   function imprimir() {
-    // injeta meta-info no DOM antes de imprimir (lida pelo CSS print)
-    const root = document.documentElement;
-    root.setAttribute("data-pdf-titulo", tituloRelatorio);
-    root.setAttribute(
-      "data-pdf-subtitulo",
-      subtituloRelatorio ??
-        new Date().toLocaleString("pt-BR", { dateStyle: "long", timeStyle: "short" })
-    );
-    document.body.classList.add("modo-impressao-pawards");
+    // injeta meta-info no DOM antes de imprimir (lida pelo CSS print).
+    // IMPORTANTE: setAttribute precisa ser no <body> porque os pseudo-elementos
+    // ::before/::after estao em body/main/#root e attr() resolve no proprio
+    // elemento que possui o pseudo. Setar no <html> deixava o cabecalho vazio.
+    const html = document.documentElement;
+    const body = document.body;
+    const subt = subtituloRelatorio ??
+      new Date().toLocaleString("pt-BR", { dateStyle: "long", timeStyle: "short" });
+    html.setAttribute("data-pdf-titulo", tituloRelatorio);
+    html.setAttribute("data-pdf-subtitulo", subt);
+    body.setAttribute("data-pdf-titulo", tituloRelatorio);
+    body.setAttribute("data-pdf-subtitulo", subt);
+    body.classList.add("modo-impressao-pawards");
     // dispara após o próximo paint pra garantir CSS aplicado
     setTimeout(() => {
       window.print();
@@ -79,6 +83,8 @@ export function BotaoImprimirFlutuante({ titulo, subtitulo }: { titulo: string; 
     return () => {
       document.documentElement.removeAttribute("data-pdf-titulo");
       document.documentElement.removeAttribute("data-pdf-subtitulo");
+      document.body.removeAttribute("data-pdf-titulo");
+      document.body.removeAttribute("data-pdf-subtitulo");
     };
   }, []);
   if (typeof document === "undefined") return null;
