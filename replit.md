@@ -657,3 +657,50 @@ o tick AUTO 20s pós-restart processou as 11/11 com `tentativas=1`, todas com
 - notifAssinatura.ts (lib): https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/notifAssinatura.ts
 - notifAssinatura.ts (rota):https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/notifAssinatura.ts
 - index.ts (plug worker):   https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/index.ts
+
+## PARMASUPRA-FECHAMENTO · Onda 2 (22/abr/2026 noite)
+Plug das integrações reais Gmail + Twilio no worker WD14 da Onda 1, fechando
+de vez os erros estruturados `google_mail_pendente_credenciais_real` e
+`whatsapp_provedor_pendente`. Commit `96449e0` em `feat/dominio-pawards`.
+
+### Plug Gmail real
+- `notifAssinatura.ts` agora importa `getGmailClient()` de `lib/google-gmail.ts`,
+  que já usa a connection `google-mail` ativa via `REPLIT_CONNECTORS_HOSTNAME`
+  (token gerenciado pelo Replit, sem secret manual).
+- Helper `buildEmailRaw` com `sanitizeHeader` (anti-injection CRLF), assunto
+  base64-UTF8, corpo HTML base64. Detecta se `row.corpo` já é HTML; senão
+  envolve em `<pre>`.
+- Validação: destinatário precisa ter `@`, senão FALHA estruturada
+  `email_invalido:<dest>` (sem expor PII no log).
+- **Smoke ENVIADO real**: notificação id=1 → Gmail message
+  `19db6bbe87276de6` entregue para `clinica.padua.agenda@gmail.com`
+  (loopback FROM → não gera spam pra terceiros).
+
+### Plug WhatsApp real (Twilio)
+- `notifAssinatura.ts` agora importa `enviarWhatsapp()` de
+  `services/whatsappService.ts`, que já roteia TWILIO/GUPSHUP conforme o
+  provedor da row em `whatsapp_config` (config ativa global: TWILIO sandbox
+  `+14155238886`).
+- Validações: destinatário não-vazio, corpo não-vazio.
+- **Smoke ENVIADO real**: notificação id=2 → SID Twilio
+  `SMdb89418fc236f9d35a006155d1905678` (autenticação API confirmada,
+  entrega depende do número estar joined no sandbox).
+
+### DRIVE permanece pendente
+Caio não pediu nesta onda. `drive_upload_pendente` continua sendo a FALHA
+estruturada do canal DRIVE; Drive client em `lib/google-drive.ts` está
+pronto pra ser plugado na próxima onda quando solicitado.
+
+### Smoke E2E completo da Onda 2
+```
+Reset id=1 (EMAIL → loopback) e id=2 (WHATSAPP, mantém número fake):
+  1 EMAIL    clinica.padua.agenda@gmail.com  PENDENTE  tentativas=0
+  2 WHATSAPP (11) 99000-1005                 PENDENTE  tentativas=0
+
+POST /api/admin/notif-assinatura/tick →
+  {"ok":true,"processadas":2,"enviadas":2,"retry_agendado":0,"falha_permanente":0}
+
+Pós-tick:
+  1 EMAIL    ENVIADO  resposta_provedor={"id":"19db6bbe87276de6","provider":"google-mail",...}
+  2 WHATSAPP ENVIADO  resposta_provedor={"logId":40,"msgId":"SMdb89418fc...","provider":"whatsapp"}
+```
