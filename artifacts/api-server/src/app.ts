@@ -52,21 +52,49 @@ app.get(["/__claude_db.json", "/api/__claude_db.json"], async (_req, res) => {
   try {
     const [
       formulaBlend,
+      blendsLista,
       blocoTemplate,
       blocosLista,
-      magistraisFama,
+      receitasFama,
+      receitasFamaMes,
       pacientes,
       auditores,
       anastomosesAbertas,
+      anastomosesLista,
+      farmaciasAtivas,
     ] = await Promise.all([
       db.execute(sql`SELECT COUNT(*)::int AS n FROM formula_blend`),
+      db.execute(sql`SELECT id, codigo_blend, nome_blend, funcao, via, forma, valor_brl FROM formula_blend ORDER BY id`),
       db.execute(sql`SELECT COUNT(*)::int AS n FROM bloco_template`),
       db.execute(sql`SELECT titulo_apelido, via_administracao, tipo_bloco FROM bloco_template ORDER BY id LIMIT 20`),
-      db.execute(sql`SELECT COUNT(*)::int AS n FROM substancias WHERE farmacia_padrao = 'FAMA'`),
+      db.execute(sql`
+        SELECT COUNT(*)::int AS n
+        FROM parmavault_receitas r
+        JOIN farmacias_parmavault f ON f.id = r.farmacia_id
+        WHERE f.nome_fantasia ILIKE '%FAMA%'
+      `),
+      db.execute(sql`
+        SELECT COUNT(*)::int AS n,
+               COALESCE(SUM(valor_brl), 0)::float AS total_brl,
+               COALESCE(SUM(comissao_brl), 0)::float AS comissao_brl
+        FROM parmavault_receitas r
+        JOIN farmacias_parmavault f ON f.id = r.farmacia_id
+        WHERE f.nome_fantasia ILIKE '%FAMA%'
+          AND r.criado_em >= now() - interval '30 days'
+      `),
       db.execute(sql`SELECT COUNT(*)::int AS n FROM pacientes`),
       db.execute(sql`SELECT COUNT(*)::int AS n FROM auditores`),
       db.execute(sql`SELECT COUNT(*)::int AS n FROM anastomoses_pendentes WHERE status = 'aberta'`),
+      db.execute(sql`
+        SELECT id, titulo, criticidade, modulo, proximo_passo
+        FROM anastomoses_pendentes
+        WHERE status = 'aberta'
+        ORDER BY criticidade DESC, id ASC
+      `),
+      db.execute(sql`SELECT id, nome_fantasia, percentual_comissao FROM farmacias_parmavault WHERE ativo = true ORDER BY id`),
     ]);
+
+    const famaMes = (receitasFamaMes.rows?.[0] as any) ?? {};
 
     res.json({
       validador: "Dr. Claude · Sonnet 4.6",
@@ -75,15 +103,42 @@ app.get(["/__claude_db.json", "/api/__claude_db.json"], async (_req, res) => {
       contagens: {
         formula_blend: Number((formulaBlend.rows?.[0] as any)?.n ?? 0),
         bloco_template: Number((blocoTemplate.rows?.[0] as any)?.n ?? 0),
-        substancias_magistrais_fama: Number((magistraisFama.rows?.[0] as any)?.n ?? 0),
+        receitas_fama_total: Number((receitasFama.rows?.[0] as any)?.n ?? 0),
+        receitas_fama_30d: Number(famaMes.n ?? 0),
+        receitas_fama_30d_valor_brl: Number(famaMes.total_brl ?? 0),
+        receitas_fama_30d_comissao_brl: Number(famaMes.comissao_brl ?? 0),
         pacientes: Number((pacientes.rows?.[0] as any)?.n ?? 0),
         auditores: Number((auditores.rows?.[0] as any)?.n ?? 0),
         anastomoses_pendentes_abertas: Number((anastomosesAbertas.rows?.[0] as any)?.n ?? 0),
       },
-      blocos_prescricao_amostra: (blocosLista.rows ?? []).map((r: any) => ({
+      acao1_blends_candidatos_a_bloco_template: (blendsLista.rows ?? []).map((r: any) => ({
+        id: r.id,
+        codigo: r.codigo_blend,
+        nome: r.nome_blend,
+        funcao: r.funcao,
+        via: r.via,
+        forma: r.forma,
+        valor_brl: r.valor_brl,
+      })),
+      acao1_blocos_template_ja_cadastrados: (blocosLista.rows ?? []).map((r: any) => ({
         nome: r.titulo_apelido,
         via_administracao: r.via_administracao,
         tipo: r.tipo_bloco,
+      })),
+      acao2_correcao_aplicada: {
+        observacao: "Query agora bate em parmavault_receitas (substituiu substancias.farmacia_padrao). Numeros ao vivo nas contagens acima.",
+      },
+      acao3_anastomoses_pendentes: (anastomosesLista.rows ?? []).map((r: any) => ({
+        id: r.id,
+        titulo: r.titulo,
+        criticidade: r.criticidade,
+        modulo: r.modulo,
+        proximo_passo: r.proximo_passo,
+      })),
+      farmacias_parmavault_ativas: (farmaciasAtivas.rows ?? []).map((r: any) => ({
+        id: r.id,
+        nome: r.nome_fantasia,
+        comissao_pct: r.percentual_comissao,
       })),
     });
   } catch (err) {
