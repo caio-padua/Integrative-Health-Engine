@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
-const apiBase = `${window.location.origin}${BASE_URL}api`.replace(/\/+/g, "/").replace(":/", "://");
+const apiBase = `${window.location.origin}/api`.replace(/\/+/g, "/").replace(":/", "://");
 
 const INTENSIDADE_COLORS: Record<string, string> = {
   leve: "bg-green-500/20 text-green-400",

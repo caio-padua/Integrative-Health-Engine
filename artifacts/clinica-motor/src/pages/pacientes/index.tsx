@@ -91,7 +91,7 @@ export default function Pacientes() {
     const digits = cep.replace(/\D/g, '');
     if (digits.length !== 8) return;
     try {
-      const resp = await fetch(`${BASE_URL}api/cep/${digits}`);
+      const resp = await fetch(`/api/cep/${digits}`);
       if (!resp.ok) return;
       const data = await resp.json();
       form.setValue("endereco", data.endereco || "");

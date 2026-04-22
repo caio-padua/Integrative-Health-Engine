@@ -60,7 +60,7 @@ export default function FluxosPage() {
   const { data, isLoading, isError } = useQuery<{ fluxos: Record<string, Etapa[]>; total: number }>({
     queryKey: ["fluxos"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/fluxos`);
+      const res = await fetch(`/api/fluxos`);
       if (!res.ok) throw new Error("Erro ao carregar fluxos");
       return res.json();
     },
@@ -68,7 +68,7 @@ export default function FluxosPage() {
 
   const save = useMutation({
     mutationFn: async (d: any) => {
-      const url = d.id ? `${BASE_URL}api/fluxos/${d.id}` : `${BASE_URL}api/fluxos`;
+      const url = d.id ? `/api/fluxos/${d.id}` : `/api/fluxos`;
       const r = await fetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
       if (!r.ok) throw new Error("Erro ao salvar");
       return r.json();
@@ -79,7 +79,7 @@ export default function FluxosPage() {
 
   const del = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`${BASE_URL}api/fluxos/${id}`, { method: "DELETE" });
+      const r = await fetch(`/api/fluxos/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Erro");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["fluxos"] }); toast({ title: "Etapa excluida" }); },

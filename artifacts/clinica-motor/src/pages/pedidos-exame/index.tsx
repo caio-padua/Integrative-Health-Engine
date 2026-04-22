@@ -106,18 +106,18 @@ export default function PedidosExame() {
 
   async function carregarPedidos() {
     setLoading(true);
-    const res = await fetch(`${BASE_URL}api/pedidos-exame`);
+    const res = await fetch(`/api/pedidos-exame`);
     if (res.ok) setPedidos(await res.json());
     setLoading(false);
   }
 
   async function carregarPacientes() {
-    const res = await fetch(`${BASE_URL}api/pacientes`);
+    const res = await fetch(`/api/pacientes`);
     if (res.ok) setPacientes(await res.json());
   }
 
   async function carregarExames() {
-    const res = await fetch(`${BASE_URL}api/catalogo/exames-base`);
+    const res = await fetch(`/api/catalogo/exames-base`);
     if (res.ok) {
       const data = await res.json();
       setExamesDisponiveis(data);
@@ -137,7 +137,7 @@ export default function PedidosExame() {
 
   async function criarPedido() {
     if (!pacienteSelecionado || examesSelecionados.length === 0) return;
-    const res = await fetch(`${BASE_URL}api/pedidos-exame`, {
+    const res = await fetch(`/api/pedidos-exame`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -157,7 +157,7 @@ export default function PedidosExame() {
 
   async function carregarPreviasJustificativa(pedidoId: number) {
     setCarregandoPrevias(true);
-    const res = await fetch(`${BASE_URL}api/pedidos-exame/${pedidoId}/previa-justificativas`);
+    const res = await fetch(`/api/pedidos-exame/${pedidoId}/previa-justificativas`);
     if (res.ok) {
       const data = await res.json();
       setPrevias(data.exames);
@@ -166,7 +166,7 @@ export default function PedidosExame() {
   }
 
   async function validarPedido(pedidoId: number) {
-    const res = await fetch(`${BASE_URL}api/pedidos-exame/${pedidoId}/validar`, {
+    const res = await fetch(`/api/pedidos-exame/${pedidoId}/validar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -195,7 +195,7 @@ export default function PedidosExame() {
   }
 
   function abrirPdf(pedidoId: number, tipo: "solicitacao" | "justificativa") {
-    window.open(`${BASE_URL}api/pedidos-exame/${pedidoId}/pdf/${tipo}`, "_blank");
+    window.open(`/api/pedidos-exame/${pedidoId}/pdf/${tipo}`, "_blank");
   }
 
   const pacientesFiltrados = pacientes.filter(

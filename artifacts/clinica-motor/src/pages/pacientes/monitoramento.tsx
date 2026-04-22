@@ -59,10 +59,10 @@ export default function MonitoramentoPacientePage() {
   useEffect(() => {
     if (!pacienteId) return;
     Promise.all([
-      fetch(`${BASE_URL}api/pacientes/${pacienteId}/sinais-vitais`).then(r => r.json()),
-      fetch(`${BASE_URL}api/pacientes/${pacienteId}/sintomas-grafico`).then(r => r.json()),
-      fetch(`${BASE_URL}api/pacientes/${pacienteId}/acompanhamento-formulas`).then(r => r.json()),
-      fetch(`${BASE_URL}api/pacientes/${pacienteId}/alertas`).then(r => r.json()),
+      fetch(`/api/pacientes/${pacienteId}/sinais-vitais`).then(r => r.json()),
+      fetch(`/api/pacientes/${pacienteId}/sintomas-grafico`).then(r => r.json()),
+      fetch(`/api/pacientes/${pacienteId}/acompanhamento-formulas`).then(r => r.json()),
+      fetch(`/api/pacientes/${pacienteId}/alertas`).then(r => r.json()),
     ]).then(([s, st, f, a]) => {
       setSinais(s);
       setSintomas(st);
@@ -294,12 +294,12 @@ export default function MonitoramentoPacientePage() {
     if (!resposta) return;
     const contatouTelefone = confirm("Realizou contato telefonico?");
     try {
-      await fetch(`${BASE_URL}api/alerta-paciente/${alertaId}/responder`, {
+      await fetch(`/api/alerta-paciente/${alertaId}/responder`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ respostaAssistente: resposta, contatoTelefone: contatouTelefone }),
       });
-      const updatedAlertas = await fetch(`${BASE_URL}api/pacientes/${pacienteId}/alertas`).then(r => r.json());
+      const updatedAlertas = await fetch(`/api/pacientes/${pacienteId}/alertas`).then(r => r.json());
       setAlertas(updatedAlertas);
     } catch {
       alert("Erro ao responder alerta");

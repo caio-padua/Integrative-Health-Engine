@@ -60,7 +60,7 @@ export default function PermissoesPage() {
   const { data, isLoading, isError } = useQuery<{ perfis: PerfilPermissao[]; total: number }>({
     queryKey: ["permissoes"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/permissoes`);
+      const res = await fetch(`/api/permissoes`);
       if (!res.ok) throw new Error("Erro ao carregar permissoes");
       return res.json();
     },
@@ -68,7 +68,7 @@ export default function PermissoesPage() {
 
   const save = useMutation({
     mutationFn: async (d: any) => {
-      const url = d.id ? `${BASE_URL}api/permissoes/${d.id}` : `${BASE_URL}api/permissoes`;
+      const url = d.id ? `/api/permissoes/${d.id}` : `/api/permissoes`;
       const r = await fetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
       if (!r.ok) throw new Error("Erro ao salvar");
       return r.json();
@@ -79,7 +79,7 @@ export default function PermissoesPage() {
 
   const del = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`${BASE_URL}api/permissoes/${id}`, { method: "DELETE" });
+      const r = await fetch(`/api/permissoes/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Erro");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["permissoes"] }); toast({ title: "Perfil excluido" }); },

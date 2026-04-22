@@ -58,7 +58,7 @@ export default function ExamesGrafico() {
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${BASE_URL}api/laboratorio/analitos`)
+    fetch(`/api/laboratorio/analitos`)
       .then(r => r.json())
       .then(j => setAnalitos(j.analitos || []))
       .catch(e => setErro(String(e)));
@@ -67,7 +67,7 @@ export default function ExamesGrafico() {
   useEffect(() => {
     if (!pacienteId || !analitoSelecionado) return;
     setCarregando(true); setErro(null);
-    fetch(`${BASE_URL}api/laboratorio/pacientes/${pacienteId}/serie/${analitoSelecionado}`)
+    fetch(`/api/laboratorio/pacientes/${pacienteId}/serie/${analitoSelecionado}`)
       .then(r => r.json())
       .then(j => { if (j.error) setErro(j.error); else setSerie(j); })
       .catch(e => setErro(String(e)))

@@ -65,7 +65,7 @@ function BaseDadosTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["seguranca-base-dados"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/seguranca/base-dados`);
+      const res = await fetch(`/api/seguranca/base-dados`);
       if (!res.ok) throw new Error("Erro ao carregar dados");
       return res.json();
     },
@@ -145,7 +145,7 @@ function RegrasNomenclaturaTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["seguranca-regras"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/seguranca/regras-nomenclatura`);
+      const res = await fetch(`/api/seguranca/regras-nomenclatura`);
       if (!res.ok) throw new Error("Erro ao carregar regras");
       return res.json();
     },
@@ -300,7 +300,7 @@ function ItensPendentesTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["seguranca-itens-sem-codigo"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/seguranca/itens-sem-codigo`);
+      const res = await fetch(`/api/seguranca/itens-sem-codigo`);
       if (!res.ok) throw new Error("Erro ao carregar itens pendentes");
       return res.json();
     },

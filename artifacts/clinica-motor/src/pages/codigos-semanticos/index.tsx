@@ -142,7 +142,7 @@ export default function CodigosSemanticos() {
   const { data: metaData } = useQuery<{ tipos: string[]; grupos: string[] }>({
     queryKey: ["codigos-semanticos-tipos"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/codigos-semanticos/tipos`);
+      const res = await fetch(`/api/codigos-semanticos/tipos`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -155,7 +155,7 @@ export default function CodigosSemanticos() {
       if (search) params.set("search", search);
       if (tipoFiltro !== "Todos") params.set("tipo", tipoFiltro);
       if (grupoFiltro !== "Todos") params.set("grupo", grupoFiltro);
-      const res = await fetch(`${BASE_URL}api/codigos-semanticos?${params}`);
+      const res = await fetch(`/api/codigos-semanticos?${params}`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -163,7 +163,7 @@ export default function CodigosSemanticos() {
 
   const saveMutation = useMutation({
     mutationFn: async (d: any) => {
-      const url = d.id ? `${BASE_URL}api/codigos-semanticos/${d.id}` : `${BASE_URL}api/codigos-semanticos`;
+      const url = d.id ? `/api/codigos-semanticos/${d.id}` : `/api/codigos-semanticos`;
       const method = d.id ? "PUT" : "POST";
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || "Erro ao salvar"); }
@@ -180,7 +180,7 @@ export default function CodigosSemanticos() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${BASE_URL}api/codigos-semanticos/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/codigos-semanticos/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erro");
     },
     onSuccess: () => {

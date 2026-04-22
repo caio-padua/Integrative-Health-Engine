@@ -59,7 +59,7 @@ export default function EstoquePage() {
   const { data: items = [], isLoading } = useQuery<EstoqueItem[]>({
     queryKey: ["estoque"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/estoque`);
+      const res = await fetch(`/api/estoque`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -68,7 +68,7 @@ export default function EstoquePage() {
   const { data: substancias = [] } = useQuery<{ id: number; nome: string }[]>({
     queryKey: ["substancias-list"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}api/substancias`);
+      const res = await fetch(`/api/substancias`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -87,7 +87,7 @@ export default function EstoquePage() {
         fornecedor: form.fornecedor || null,
         custoUnitario: form.custoUnitario ? Number(form.custoUnitario) : null,
       };
-      const url = isEdit ? `${BASE_URL}api/estoque/${editItem!.item.id}` : `${BASE_URL}api/estoque`;
+      const url = isEdit ? `/api/estoque/${editItem!.item.id}` : `/api/estoque`;
       const method = isEdit ? "PUT" : "POST";
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error("Erro");
