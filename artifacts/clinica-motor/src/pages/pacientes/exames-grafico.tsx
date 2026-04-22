@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, TrendingUp, ShoppingCart, AlertTriangle } from "lucide-react";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import {
-  ComposedChart, Bar, XAxis, YAxis, Tooltip, Legend,
+  ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend,
   ReferenceLine, ResponsiveContainer, Cell, CartesianGrid,
 } from "recharts";
 
@@ -24,12 +24,23 @@ type SeriePonto = {
   classificacao: string; data_coleta: string; laboratorio: string;
 };
 
+type MediaMensal = { mes: string; valor_medio: number; n_pacientes: number };
+
 type SerieResp = {
   paciente_id: number;
   analito: { codigo: string; nome: string; grupo: string; unidade_padrao: string; terco_excelente: string; observacao_clinica?: string };
   serie: SeriePonto[];
+  comparativo?: { unidade_id: number | null; serie_unidade: MediaMensal[]; serie_rede: MediaMensal[] };
   sugestao_venda: { titulo: string; produto: string; valor_estimado: number; motivo: string } | null;
 };
+
+// T8 PARMASUPRA-TSUNAMI · cor semantica de variacao (Mike Tyson — variacao manda).
+function corVariacao(deltaPct: number): string {
+  if (deltaPct >= 10) return "#2f8f4a";   // verde excelente
+  if (deltaPct >= 0) return "#3274b8";    // azul bom
+  if (deltaPct >= -10) return "#c98a1f";  // ambar atencao
+  return "#b53030";                        // vermelho critico
+}
 
 const COR: Record<string, string> = {
   CRITICO: "#dc2626",     // VERMELHO
@@ -77,13 +88,40 @@ export default function ExamesGrafico() {
 
   const dadosGrafico = useMemo(() => {
     if (!serie) return [];
-    return serie.serie.map(p => ({
-      data: formatarData(p.data_coleta),
-      valor: Number(p.valor),
-      classificacao: p.classificacao,
-      laboratorio: p.laboratorio,
-      cor: COR[p.classificacao] ?? "#6b7280",
-    }));
+    const mapaUnidade = new Map<string, number>();
+    const mapaRede = new Map<string, number>();
+    for (const m of serie.comparativo?.serie_unidade ?? []) mapaUnidade.set(m.mes, Number(m.valor_medio));
+    for (const m of serie.comparativo?.serie_rede ?? []) mapaRede.set(m.mes, Number(m.valor_medio));
+    return serie.serie.map(p => {
+      const mes = p.data_coleta ? String(p.data_coleta).slice(0, 7) : null;
+      return {
+        data: formatarData(p.data_coleta),
+        valor: Number(p.valor),
+        media_unidade: mes && mapaUnidade.has(mes) ? mapaUnidade.get(mes)! : null,
+        media_rede: mes && mapaRede.has(mes) ? mapaRede.get(mes)! : null,
+        classificacao: p.classificacao,
+        laboratorio: p.laboratorio,
+        cor: COR[p.classificacao] ?? "#6b7280",
+      };
+    });
+  }, [serie]);
+
+  // T8 PARMASUPRA-TSUNAMI · resumo Mike Tyson: ultimo paciente vs ultima media unidade vs rede.
+  const resumoMike = useMemo(() => {
+    if (!serie || serie.serie.length === 0) return null;
+    const ultimo = serie.serie[serie.serie.length - 1];
+    const valorPaciente = Number(ultimo!.valor);
+    const u = serie.comparativo?.serie_unidade ?? [];
+    const r = serie.comparativo?.serie_rede ?? [];
+    const mediaUnidade = u.length ? Number(u[u.length - 1]!.valor_medio) : null;
+    const mediaRede = r.length ? Number(r[r.length - 1]!.valor_medio) : null;
+    const deltaUnidade = mediaUnidade && mediaUnidade !== 0
+      ? Math.round(((valorPaciente - mediaUnidade) / mediaUnidade) * 1000) / 10 : null;
+    const deltaRede = mediaRede && mediaRede !== 0
+      ? Math.round(((valorPaciente - mediaRede) / mediaRede) * 1000) / 10 : null;
+    return { valorPaciente, mediaUnidade, mediaRede, deltaUnidade, deltaRede,
+             nUnidade: u.length ? u[u.length - 1]!.n_pacientes : 0,
+             nRede: r.length ? r[r.length - 1]!.n_pacientes : 0 };
   }, [serie]);
 
   const refMin = serie?.serie[0]?.valor_minimo;
@@ -164,9 +202,14 @@ export default function ExamesGrafico() {
                     {refMax != null && (
                       <ReferenceLine y={refMax} stroke="#16a34a" strokeDasharray="6 3" label={{ value: `Máx ref ${refMax}`, position: "left", fill: "#16a34a", fontSize: 11 }} />
                     )}
-                    <Bar dataKey="valor" name="Valor medido" radius={[6, 6, 0, 0]}>
+                    <Bar dataKey="valor" name="Paciente" radius={[6, 6, 0, 0]}>
                       {dadosGrafico.map((d, i) => <Cell key={i} fill={d.cor} />)}
                     </Bar>
+                    {/* T8: linhas de comparativo (Mike Tyson — paciente vs unidade vs rede) */}
+                    <Line type="monotone" dataKey="media_unidade" name="Média da unidade"
+                          stroke="#3274b8" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                    <Line type="monotone" dataKey="media_rede" name="Média da rede"
+                          stroke="#6b7280" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 2 }} connectNulls />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -179,6 +222,44 @@ export default function ExamesGrafico() {
                   </div>
                 ))}
               </div>
+
+              {/* T8 PARMASUPRA-TSUNAMI · resumo Mike Tyson (variacao manda, nunca numero isolado) */}
+              {resumoMike && (resumoMike.deltaUnidade != null || resumoMike.deltaRede != null) && (
+                <div className="mt-5 rounded-md border-2 p-3" style={{ borderColor: "#C89B3C", background: "#fffbf2" }}>
+                  <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#020406" }}>
+                    Variação do paciente vs pares (último mês com dados)
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Paciente (último)</div>
+                      <div className="text-xl font-bold" style={{ color: "#020406" }}>
+                        {resumoMike.valorPaciente} <span className="text-xs font-normal">{serie.analito.unidade_padrao}</span>
+                      </div>
+                    </div>
+                    {resumoMike.deltaUnidade != null && resumoMike.mediaUnidade != null && (
+                      <div>
+                        <div className="text-xs text-muted-foreground">vs média da unidade ({resumoMike.nUnidade} pacientes)</div>
+                        <div className="text-xl font-bold" style={{ color: corVariacao(resumoMike.deltaUnidade) }}>
+                          {resumoMike.deltaUnidade >= 0 ? "+" : ""}{resumoMike.deltaUnidade}%
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">média {resumoMike.mediaUnidade}</div>
+                      </div>
+                    )}
+                    {resumoMike.deltaRede != null && resumoMike.mediaRede != null && (
+                      <div>
+                        <div className="text-xs text-muted-foreground">vs média da rede ({resumoMike.nRede} pacientes)</div>
+                        <div className="text-xl font-bold" style={{ color: corVariacao(resumoMike.deltaRede) }}>
+                          {resumoMike.deltaRede >= 0 ? "+" : ""}{resumoMike.deltaRede}%
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">média {resumoMike.mediaRede}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-2 italic">
+                    Verde ≥ +10% · Azul ≥ 0% · Âmbar ≥ -10% · Vermelho &lt; -10%. Para alguns analitos (ex: PCR, insulina) menor é melhor — interprete com clínica.
+                  </div>
+                </div>
+              )}
 
               {serie.analito.observacao_clinica && (
                 <p className="mt-4 text-sm text-muted-foreground italic">
