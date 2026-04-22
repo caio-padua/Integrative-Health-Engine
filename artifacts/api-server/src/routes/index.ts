@@ -183,4 +183,11 @@ router.use(comercialAdminRouter);
 import padcomRouter from "./padcom";
 router.use(padcomRouter);
 
+// PARMASUPRA · Onda 22/abr/2026 — Handoff Dr. Claude
+// 4 features de receita pra Dr. Caio cobrar das clinicas parceiras
+import permissoesDelegadasRouter from "./permissoesDelegadas";
+import cobrancasAdicionaisRouter from "./cobrancasAdicionais";
+router.use(permissoesDelegadasRouter);
+router.use(cobrancasAdicionaisRouter);
+
 export default router;
