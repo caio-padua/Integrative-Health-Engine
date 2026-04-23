@@ -31,6 +31,13 @@ Braço PACIENTE↔UNIDADE em produção — main + feat/dominio-pawards.
   `uniq_pwe_gateway_pid_event` (WHERE gateway_payment_id IS NOT NULL) +
   `uniq_pwe_gateway_extref_event` (WHERE gateway_payment_id IS NULL).
   Handler usa INSERT...ON CONFLICT DO UPDATE RETURNING id (zero MAX, zero race).
+- **Migration 018** (psql aditiva, fix observação Dr. Claude pre-Wave 5) —
+  índice btree `ix_cob_lembrete_lookup` em `cobrancas_adicionais
+  (referencia_tipo, referencia_id, tipo, criado_em DESC)` acelera pre-check.
+  Em `enviarLembreteInadimplencia` substituído `ON CONFLICT DO NOTHING`
+  silencioso (sem UNIQUE) por **idempotência semântica** com janela 5 min
+  (SELECT pre-check antes do envio Gmail → retorna `lembrete_recente_ja_enviado`).
+  Solução superior a UNIQUE rígido: permite reenvio legítimo dias depois.
 - **Smoke regressivo** — `artifacts/api-server/scripts/smoke_wave3.sh`:
   6 cenários sem dependência externa (dedupe gateway_payment_id+external_ref,
   reconciliação com fallback+backfill, auth gate /admin/inadimplencia*).
