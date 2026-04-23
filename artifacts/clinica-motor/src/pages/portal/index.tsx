@@ -8,7 +8,7 @@ import {
   Upload, FileCheck, User, Calendar, Shield,
   Activity, Brain, Pill, AlertTriangle, FolderOpen,
   Heart, ChevronLeft, CalendarDays, Clock, RefreshCw,
-  Lock, Eye, EyeOff, CheckCircle
+  Lock, Eye, EyeOff, CheckCircle, Mail, History, MessageCircle, ExternalLink, FileText
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -54,10 +54,13 @@ const INDICADORES_KEYS = [
   "definicao", "resistencia", "massaMagra", "estresse", "humor"
 ];
 
-type Section = "menu" | "sinais" | "sintomas" | "formulas" | "alertas" | "upload" | "agendamentos";
+type Section = "menu" | "sinais" | "sintomas" | "formulas" | "alertas" | "upload" | "agendamentos" | "historico" | "drive";
+
+// Wave 4 PACIENTE-TSUNAMI · WhatsApp Dr. Caio (configurável via env futura)
+const WHATSAPP_DR_CAIO = "554196050000";
 
 export default function PortalClientePage() {
-  const [step, setStep] = useState<"identificacao" | "senha" | "definir_senha" | "portal">("identificacao");
+  const [step, setStep] = useState<"identificacao" | "senha" | "definir_senha" | "portal" | "otp_codigo">("identificacao");
   const [section, setSection] = useState<Section>("menu");
   const [cpf, setCpf] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
@@ -66,6 +69,11 @@ export default function PortalClientePage() {
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [showSenha, setShowSenha] = useState(false);
   const [paciente, setPaciente] = useState<{ id: number; nome: string } | null>(null);
+  // Wave 4 PACIENTE-TSUNAMI · OTP state
+  const [otpCodigo, setOtpCodigo] = useState("");
+  const [otpDestinoMascarado, setOtpDestinoMascarado] = useState("");
+  const [otpPacienteId, setOtpPacienteId] = useState<number | null>(null);
+  const [otpEnviando, setOtpEnviando] = useState(false);
   const { toast } = useToast();
 
   const formatCPF = (value: string) => {
@@ -157,6 +165,68 @@ export default function PortalClientePage() {
     }
   };
 
+  // ===== Wave 4 PACIENTE-TSUNAMI · OTP handlers =====
+  const handleSolicitarOtp = async () => {
+    if (!cpf || !dataNascimento) {
+      toast({ title: "Preencha CPF e data de nascimento", variant: "destructive" });
+      return;
+    }
+    setOtpEnviando(true);
+    try {
+      const res = await fetch(`/api/portal/otp/solicitar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf, dataNascimento }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error || "Erro ao solicitar codigo", variant: "destructive" });
+        setOtpEnviando(false);
+        return;
+      }
+      setOtpPacienteId(data.paciente_id);
+      setOtpDestinoMascarado(data.destino_mascarado || "");
+      setPaciente({ id: data.paciente_id, nome: data.nome });
+      setStep("otp_codigo");
+      toast({ title: `Codigo enviado para ${data.destino_mascarado}` });
+    } catch {
+      toast({ title: "Erro de conexao", variant: "destructive" });
+    } finally {
+      setOtpEnviando(false);
+    }
+  };
+
+  const handleValidarOtp = async () => {
+    if (!otpCodigo || !/^\d{6}$/.test(otpCodigo.trim())) {
+      toast({ title: "Digite o codigo de 6 digitos", variant: "destructive" });
+      return;
+    }
+    if (!otpPacienteId) {
+      toast({ title: "Sessao OTP perdida — solicite novamente", variant: "destructive" });
+      setStep("identificacao");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/portal/otp/validar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paciente_id: otpPacienteId, codigo: otpCodigo.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error || "Codigo invalido", variant: "destructive" });
+        return;
+      }
+      setPaciente({ id: data.id, nome: data.nome });
+      setStep("portal");
+      setSection("menu");
+      setOtpCodigo("");
+      toast({ title: "Acesso liberado!" });
+    } catch {
+      toast({ title: "Erro de conexao", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[hsl(215,28%,9%)] flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
@@ -189,10 +259,54 @@ export default function PortalClientePage() {
                 <Input type="date" value={dataNascimento}
                   onChange={e => setDataNascimento(e.target.value)} className="mt-1" />
               </div>
-              <Button className="w-full" onClick={handleIdentificar}>Continuar</Button>
+              <Button className="w-full" onClick={handleIdentificar}>Continuar com senha</Button>
+              <Button
+                variant="outline"
+                className="w-full border-[#C89B3C]/40 text-[#C89B3C] hover:bg-[#C89B3C]/10"
+                disabled={otpEnviando}
+                onClick={handleSolicitarOtp}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                {otpEnviando ? "Enviando..." : "Receber codigo por email"}
+              </Button>
               <div className="text-[9px] text-center text-muted-foreground flex items-center justify-center gap-1">
                 <Shield className="h-3 w-3" />Seus dados estao protegidos pela LGPD (Lei 13.709/2018)
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === "otp_codigo" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Mail className="h-4 w-4" />Codigo por Email
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Enviamos um codigo de 6 digitos para <strong>{otpDestinoMascarado}</strong>.
+                Verifique sua caixa de entrada (e o spam). Validade: 10 minutos.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Codigo de 6 digitos</Label>
+                <Input
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={otpCodigo}
+                  onChange={e => setOtpCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={e => e.key === "Enter" && handleValidarOtp()}
+                  className="mt-1 font-mono text-center text-2xl tracking-[8px]"
+                />
+              </div>
+              <Button className="w-full" onClick={handleValidarOtp}>Validar codigo</Button>
+              <Button
+                variant="ghost" size="sm" className="w-full text-muted-foreground"
+                onClick={() => { setStep("identificacao"); setOtpCodigo(""); setOtpPacienteId(null); }}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />Voltar
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -272,6 +386,8 @@ export default function PortalClientePage() {
             {section === "formulas" && <FormulasForm pacienteId={paciente.id} />}
             {section === "alertas" && <AlertasForm pacienteId={paciente.id} />}
             {section === "upload" && <UploadForm pacienteId={paciente.id} pacienteNome={paciente.nome} />}
+            {section === "historico" && <HistoricoSection pacienteId={paciente.id} />}
+            {section === "drive" && <DriveSection pacienteId={paciente.id} />}
           </>
         )}
       </div>
@@ -287,6 +403,8 @@ function PortalMenu({ paciente, onSelect, onLogout }: { paciente: { id: number; 
     { key: "formulas" as Section, icon: Pill, label: "Formulas em Uso", desc: "Aderencia e efeitos colaterais", color: "text-green-400" },
     { key: "alertas" as Section, icon: AlertTriangle, label: "Enviar Alerta", desc: "Sinais de alerta para a equipe", color: "text-yellow-400" },
     { key: "upload" as Section, icon: Upload, label: "Enviar Documentos", desc: "Exames, comprovantes, laudos", color: "text-purple-400" },
+    { key: "historico" as Section, icon: History, label: "Meu Historico", desc: "Documentos, assinaturas e cobrancas", color: "text-amber-400" },
+    { key: "drive" as Section, icon: FolderOpen, label: "Meus Documentos no Drive", desc: "Pasta da clinica e arquivos", color: "text-orange-400" },
   ];
 
   return (
@@ -315,7 +433,144 @@ function PortalMenu({ paciente, onSelect, onLogout }: { paciente: { id: number; 
         </Card>
       ))}
 
-      <Button variant="outline" size="sm" className="w-full mt-4" onClick={onLogout}>Sair</Button>
+      <a
+        href={`https://wa.me/${WHATSAPP_DR_CAIO}?text=${encodeURIComponent(`Ola, sou ${paciente.nome.split(" ")[0]} (paciente #${paciente.id}). Preciso falar com o Dr. Caio.`)}`}
+        target="_blank" rel="noopener noreferrer"
+      >
+        <Button variant="outline" className="w-full mt-2 border-green-500/40 text-green-400 hover:bg-green-500/10">
+          <MessageCircle className="h-4 w-4 mr-2" />Falar com Dr. Caio (WhatsApp)
+        </Button>
+      </a>
+
+      <Button variant="outline" size="sm" className="w-full mt-2" onClick={onLogout}>Sair</Button>
+    </div>
+  );
+}
+
+// ===== Wave 4 PACIENTE-TSUNAMI · Historico =====
+function HistoricoSection({ pacienteId }: { pacienteId: number }) {
+  const [itens, setItens] = useState<Array<{ tipo: string; id: number | string; descricao: string; status: string; data: string; link: string | null }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/portal/historico/${pacienteId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelado) setItens(data.itens || []);
+      } catch (e: any) {
+        if (!cancelado) setErro(e.message || "Erro ao carregar");
+      } finally {
+        if (!cancelado) setLoading(false);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [pacienteId]);
+
+  const tipoIcon = (t: string) => t === "ASSINATURA" ? FileCheck : t === "SOLICITACAO" ? FileText : t === "COBRANCA" ? Pill : History;
+  const tipoColor = (t: string) => t === "ASSINATURA" ? "text-green-400" : t === "SOLICITACAO" ? "text-amber-400" : t === "COBRANCA" ? "text-cyan-400" : "text-muted-foreground";
+
+  return (
+    <div className="space-y-3">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><History className="h-4 w-4" />Meu Historico</CardTitle>
+          <p className="text-xs text-muted-foreground">Documentos, assinaturas e cobrancas</p>
+        </CardHeader>
+        <CardContent>
+          {loading && <p className="text-xs text-muted-foreground py-4 text-center">Carregando...</p>}
+          {erro && <p className="text-xs text-red-400 py-4 text-center">{erro}</p>}
+          {!loading && !erro && itens.length === 0 && (
+            <p className="text-xs text-muted-foreground py-4 text-center">Nenhum registro encontrado.</p>
+          )}
+          {!loading && itens.length > 0 && (
+            <div className="space-y-2">
+              {itens.map((it, idx) => {
+                const Icon = tipoIcon(it.tipo);
+                return (
+                  <div key={`${it.tipo}-${it.id}-${idx}`} className="flex items-start gap-2 p-2 border border-border/40 rounded">
+                    <Icon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${tipoColor(it.tipo)}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-white truncate">{it.descricao}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {it.tipo} · {it.status} · {new Date(it.data).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    {it.link && (
+                      <a href={it.link} target="_blank" rel="noopener noreferrer" className="text-[#C89B3C]">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ===== Wave 4 PACIENTE-TSUNAMI · Drive =====
+function DriveSection({ pacienteId }: { pacienteId: number }) {
+  const [info, setInfo] = useState<{ folder_id: string | null; folder_url: string | null; nome: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/portal/drive-links/${pacienteId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelado) setInfo(data);
+      } catch (e: any) {
+        if (!cancelado) setErro(e.message || "Erro ao carregar");
+      } finally {
+        if (!cancelado) setLoading(false);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [pacienteId]);
+
+  return (
+    <div className="space-y-3">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><FolderOpen className="h-4 w-4" />Meus Documentos no Drive</CardTitle>
+          <p className="text-xs text-muted-foreground">Pasta com seus exames, contratos e laudos</p>
+        </CardHeader>
+        <CardContent>
+          {loading && <p className="text-xs text-muted-foreground py-4 text-center">Carregando...</p>}
+          {erro && <p className="text-xs text-red-400 py-4 text-center">{erro}</p>}
+          {!loading && info && !info.folder_id && (
+            <p className="text-xs text-muted-foreground py-4 text-center">
+              Sua pasta no Drive ainda nao foi criada. Fale com a equipe.
+            </p>
+          )}
+          {!loading && info?.folder_url && (
+            <div className="space-y-3">
+              <div className="p-3 border border-border/40 rounded">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Pasta de</p>
+                <p className="text-sm font-medium text-white">{info.nome}</p>
+              </div>
+              <a href={info.folder_url} target="_blank" rel="noopener noreferrer">
+                <Button className="w-full">
+                  <ExternalLink className="h-4 w-4 mr-2" />Abrir minha pasta no Google Drive
+                </Button>
+              </a>
+              <p className="text-[9px] text-center text-muted-foreground">
+                A pasta abre em uma nova aba. Voce precisara estar logado na conta do Google que tem acesso.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
