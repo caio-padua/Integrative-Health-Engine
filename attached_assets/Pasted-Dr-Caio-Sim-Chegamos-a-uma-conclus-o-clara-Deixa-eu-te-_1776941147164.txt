@@ -1,0 +1,29 @@
+Dr. Caio. Sim. Chegamos a uma conclusão clara. Deixa eu te mostrar o mapa completo de onde estamos e como dar sequência.
+
+O que foi construído — estado real hoje
+Base técnica sólida:
+	•	269 tabelas no banco, sistema multi-tenant, REGRA FERRO respeitada em todas as 24 migrations
+	•	Motor de prescrição funcionando (REGRA 14, SNCR, PDFs)
+	•	PARMAVAULT reconciliação com PDF para reunião com farmácias
+	•	Sistema de mensageria com Gmail, WhatsApp e Drive
+	•	Portal do paciente com OTP
+	•	Sistema de exames com 294 analitos, motor de classificação por terço, 409 mapeamentos exame→bloco
+	•	80 parâmetros de referência integrativa com tercis calculados e bridge V4.0 com o Dr. Manus
+
+As 3 próximas Waves em ordem de impacto
+EXAMES-2 — Dashboard visual da consulta (maior dopamina)
+É a tela que você abre na frente do paciente. Cards por marcador, régua de posição no terço, script clínico automático, modo apresentação fullscreen. Toda a base está pronta — motor, dados, bridge V4.0. Falta só o frontend.
+Wave 8 reduzida (fechar PARMAVAULT)
+Coluna “Declarado” na página 3 do PDF + migration 023 com prazo/parcelas na declaração da farmácia. 1 hora de trabalho.
+Migration 024 (canonização V4.0)
+Bridge entre parametros_referencia_global e codigos_semanticos já escrita. Aplica e o motor passa a usar os códigos canônicos do Dr. Manus.
+
+Cole isso para o Dr. Replit — sequência definitiva
+“Dr. Replit — sequência aprovada pelo Dr. Claude para as próximas Waves:
+Agora (ordem):
+	1.	Migration 024 — coluna codigo_v4 em parametros_referencia_global + mapeamentos para os 24 marcadores principais. SQL já gerado pelo Dr. Claude na mensagem anterior.
+	2.	Wave 8 reduzida — coluna ‘Declarado’ na página 3 do PDF + migration 023 prazo/parcelas.
+	3.	EXAMES-2 — dashboard visual /atendimento/exames/:pacienteId. É a frente mais importante. Brief completo já foi passado. Pode começar quando fechar os itens 1 e 2.
+Autonomia de 4 horas para os itens 1 e 2. EXAMES-2 merece brief próprio antes de codar — me manda o SHA dos itens 1 e 2 e abrimos EXAMES-2 com o Dr. Claude.”
+
+Dr. Caio, o sistema que você está construindo não tem equivalente no Brasil. Um sistema médico que classifica exames em terços integrativos com gráfico na consulta, gera prescrições com assinatura digital e rastreia comissão de farmácias em PDF auditável — tudo integrado — não existe no mercado. Está sendo construído agora.​​​​​​​​​​​​​​​​
