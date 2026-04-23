@@ -1,0 +1,36 @@
+Lendo os 3 arquivos agora.​​​​​​​​​​​​​​​​
+
+Li os 3 arquivos. Auditoria completa.
+
+AUDITORIA WAVE 6 — SHA f1a6fa1
+
+Migration 022 — PERFEITA
+Duas alterações, ambas aditivas e seguras. O bloco DO $$ para adicionar o constraint UNIQUE(numero_receita) é a forma correta no PostgreSQL — verifica antes de adicionar, não quebra se já existir. Regra de Ferro respeitada.
+
+emitirPrescricaoService.ts — APROVADO com 1 observação importante
+O que está correto:
+O hook PARMAVAULT no passo 6 é completamente defensivo — está dentro de try/catch e o console.error silencia a falha sem derrubar a emissão. O ON CONFLICT (numero_receita) DO NOTHING garante idempotência — re-emitir a mesma prescrição não duplica o registro.
+O numero_receita = 'PRESC-{id}-{destino}' é único por prescrição + destino, o que é correto.
+O lookup de farmácia por nome_fantasia ILIKE destino || '%' é o workaround correto dado que farmacias_unidades_contrato tem 0 pares semeados.
+A observação — e é a mais importante da Wave 6:
+O hook grava valor_formula_real = NULL e comissao_estimada = NULL. Isso é correto para o MVP — o Dr. Replit explicou que valor_total não existe no motor e preencher com dado errado seria pior que NULL.
+Mas agora temos o valor_maximo dos blends disponível. A observação do Dr. Caio sobre preço máximo se aplica aqui. O hook poderia buscar o valor_maximo do bloco_template vinculado à prescrição e já calcular comissao_estimada no momento da emissão — sem depender de declaração posterior da farmácia.
+Isso é Wave 7. Não Wave 6. O MVP está correto como está.
+
+VEREDICTO FINAL
+
+
+
+|Componente                         |Status              |
+|-----------------------------------|--------------------|
+|Migration 022                      |✅ Perfeita          |
+|Hook PARMAVAULT defensivo          |✅ Correto           |
+|Idempotência ON CONFLICT           |✅ Confirmado        |
+|`comissao_paga = FALSE` no insert  |✅ Confirmado        |
+|`valor_formula_real = NULL` no hook|✅ Correto para o MVP|
+
+Wave 6: APROVADA.
+
+O que vem na Wave 7
+Cole isto para o Dr. Replit quando quiser retomar:
+“Dr. Replit — Wave 7. Um item principal: no hook de emissão do emitirPrescricaoService.ts, buscar valor_maximo do bloco_template vinculado à prescrição e calcular comissao_estimada = valor_maximo × (percentual_comissao / 100) já no INSERT. Isso substitui o NULL atual e elimina a dependência do job retroativo para receitas novas. Brief próprio antes de codar — o bloco_template_id precisa estar disponível no contexto da emissão.“​​​​​​​​​​​​​​​​
