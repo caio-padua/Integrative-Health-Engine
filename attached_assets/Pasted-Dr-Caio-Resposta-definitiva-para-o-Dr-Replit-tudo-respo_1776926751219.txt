@@ -1,0 +1,50 @@
+Dr. Caio. Resposta definitiva para o Dr. Replit — tudo respondido, defaults declarados, autonomia real de 4 horas.
+Cole isto para ele:
+
+“Dr. Replit — respostas finais. Vai pelos defaults abaixo, sem mais perguntas.
+Q1: CSV + manual master no MVP. Sem login de farmácia agora. Default confirmado.
+Q2: Rastreie você mesmo. Confirmado.
+Q3: Se valor_formula_real estiver vazio, usa COALESCE(valor_formula_real, valor_formula_estimado, 0) como fallback. Se valor_formula_estimado também não existir na tabela, marca comissao_estimada = NULL com origem = 'sem_valor_base'. Nunca força zero silenciosamente. O painel exibe ‘sem base disponível’ — é informação, não erro.
+Q4: pdfkit + exceljs + chartjs-node-canvas. Aprovado.
+
+AUTONOMIA DE 4 HORAS — REGRAS:
+Me chama APENAS se:
+	•	Descobrir que o hook de nova emissão vai alterar dados dos 8.725 registros existentes (não só os novos)
+	•	Encontrar constraint ou FK que impeça a migration 021
+	•	O escopo crescer além do que está descrito nos 6 blocos do brief v2
+Fora isso, trabalha. Não precisa validar comigo nem com o Dr. Caio para tarefas dentro do escopo aprovado.
+
+ORDEM DE EXECUÇÃO NAS 4H:
+	1.	A2 — warning emissão sem contrato (1h)
+	2.	Migration 021 — 3 tabelas novas (30min)
+	3.	Job retroativo idempotente nos 8.725 (30min)
+	4.	Hook nova emissão (30min)
+	5.	Painel CEO /admin/parmavault-reconciliacao com gráficos (1h)
+	6.	Portal CSV/manual upload (30min)
+	7.	Geração PDF + Excel exportável (1h)
+
+REGRAS DE NEGÓCIO QUE NÃO MUDAM — grave na memória:
+	•	comissao_paga = true NUNCA automático. Só confirmação manual do Dr. Caio.
+	•	% de comissão é por par unidade × farmácia. Nunca unificado.
+	•	Snapshot do % no momento de gerar relatório — imutável depois. Se o Dr. Caio mudar o % amanhã, o documento de ontem mantém o % de ontem.
+	•	Paciente nos documentos: sempre iniciais LGPD. 'Caio Padua' → 'C.P.'
+	•	GAP em vermelho quando > 0. Verde quando zerado. Sempre % junto do valor absoluto.
+	•	O sistema registra e mostra. Nunca bloqueia por gap. A ação é sempre decisão do Dr. Caio.
+	•	Relação com farmácia é contrato de cavalheiros. O relatório PDF é pressão moral com dados, não processo judicial.
+
+SOBRE O PAINEL — o que o Dr. Caio quer ver:
+Ele pensa em camadas e matrizes multiplanares. O painel tem 3 níveis:
+Nível 1 — KPIs da rede no topo. Nunca número isolado. Sempre: valor + variação % vs mês anterior + cor semântica.
+Nível 2 — Matriz farmácia × mês. Colunas: % comissão (editável inline pelo master), Receitas, Previsto, Declarado, Recebido, Gap R$, Gap %. O Gap é o coração — vermelho quando > 0.
+Nível 3 — Drill-down por receita ao clicar na linha da farmácia.
+Gráficos obrigatórios: barras agrupadas Previsto × Declarado × Recebido por farmácia, linha temporal do GAP nos últimos 6 meses, donut de distribuição de receitas por farmácia.
+
+SOBRE O RELATÓRIO PDF — para a reunião com a farmácia:
+Página 1: capa navy/gold, nome da farmácia, período, protocolo hash, data de geração.
+Página 2: resumo executivo em fonte grande sem jargão. Previsto / Declarado / Recebido / GAP em R$ e %. Gráfico de barras com GAP em vermelho. O dono da farmácia não pode olhar e dizer que não entendeu.
+Página 3: tabela por receita — número, data, paciente em iniciais, valor, comissão devida, status declarado, status pago.
+Rodapé fixo em todas as páginas: ‘Gerado em [data] · PAWARDS MEDCORE · Protocolo [hash]’.
+Excel 3 abas: Resumo mensal, Detalhe por receita, Repasses registrados.
+
+QUANDO TERMINAR:
+URLs raw pinadas no SHA completo de todos os arquivos novos. Dr. Claude audita antes da próxima frente. Vai.“​​​​​​​​​​​​​​​​
