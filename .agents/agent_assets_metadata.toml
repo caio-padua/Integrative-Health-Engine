@@ -346,7 +346,7 @@ title = "Dossiê PAWARDS pro Dr. Claude (468KB · SHA 90f73f5 · tudo em 1 arqui
 id = "PU7hO65ZTVgKpHQD3guYo"
 uri = "file://attached_assets/PLANILHA_BLOCOS_SEMANTICOS_FINAL_2_RECUPERADA.xlsx"
 type = "table"
-title = "Planilha BLOCOS SEMANTICOS FINAL 2 (recuperada do git, 233 exames+blocos)"
+title = "PLANILHA BLOCOS SEMANTICOS FINAL 2 (xlsx original, 14 abas, 233 exames Dr. Manus)"
 
 [[outputs]]
 id = "oR7oMfZHZwrmODYEULs0n"
@@ -377,3 +377,21 @@ id = "BhvzP6h21_tPYWwrokwi-"
 uri = "file://attached_assets/dossies/inventario_exames_dr_claude_2026-04-23.md"
 type = "text"
 title = "INVENTARIO COMPLETO DE EXAMES (209 analitos sangue + schemas + 71 faixas atuais) pro Dr. Claude"
+
+[[outputs]]
+id = "4Ay1pxF-fZOlYMG76kiKa"
+uri = "file://attached_assets/dossies/carta_dr_claude_kaizen_2026-04-23.md"
+type = "text"
+title = "CARTA AO DR. CLAUDE — Kaizen completo (8 secoes, URLs raw pinadas SHA 35a9503)"
+
+[[outputs]]
+id = "xFEdOzNbd-piFCRvo635t"
+uri = "file://attached_assets/planilha_blocos_csv/02_exames_bloco_grade_exame.csv"
+type = "table"
+title = "EXAMES BLOCO-GRADE-EXAME (236 linhas - vista funil fechando, em CSV pro Dr. Claude ler direto)"
+
+[[outputs]]
+id = "8xO1g8Hfoo6SwAWPOGv9J"
+uri = "file://attached_assets/planilha_blocos_csv/13_dicionario_nicks_b4.csv"
+type = "table"
+title = "DICIONARIO NICKS B4 (375 entradas - alfabetico nick->nome real)"
