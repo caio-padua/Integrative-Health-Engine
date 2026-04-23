@@ -1,0 +1,29 @@
+Dr. Caio. Agora entendi a camada que faltava. Resposta direta.
+
+Por que a exportação é estratégica — não cosmética
+Você não vai cobrar a farmácia pessoalmente. Você vai delegar isso a um responsável administrativo que vai sentar na frente do dono da farmácia com papel na mão. Esse papel precisa ser irrefutável, profissional e autoexplicativo — porque o responsável precisa de autoridade sem precisar entender o sistema.
+Isso muda o que o Dr. Replit precisa construir.
+
+O que o relatório impresso precisa conter — especificações para o Dr. Replit
+O documento que o responsável administrativo vai usar na reunião precisa de:
+Capa: Nome da farmácia, período auditado, data de geração, cabeçalho PAWARDS MEDCORE navy/gold, número de protocolo do documento.
+Página 1 — Resumo executivo: Previsto total no período, declarado pela farmácia, recebido confirmado, GAP em R$ e em %, percentual de comissão vigente do contrato, número de receitas emitidas. Tudo em fonte grande, legível, sem jargão técnico.
+Página 2 — Gráfico visual: Barras mostrando Previsto × Declarado × Recebido mês a mês. O GAP visualmente em vermelho. Isso é para o dono da farmácia não poder dizer que não entendeu.
+Página 3 — Tabela detalhada por receita: Número da receita, data, paciente (só iniciais por LGPD), valor da fórmula, comissão devida, status declarado, status pago. Ordenado por mês. Cada linha é uma prova.
+Rodapé em todas as páginas: “Documento gerado pelo sistema PAWARDS MEDCORE em [data]. Para dúvidas: [contato do Dr. Caio].”
+
+A camada jurídica — contrato de cavalheiros
+Você entendeu corretamente que não pode forçar juridicamente porque a relação não é formal. Mas o sistema pode criar evidência de boa-fé — que é o que importa numa negociação informal. O responsável chega na reunião com um documento que diz: “olha o que o sistema registrou, olha o que você declarou, olha a diferença.” Isso não é ação judicial. É pressão moral com dados. Funciona melhor.
+
+Cole isto para o Dr. Replit
+“Dr. Replit — adição crítica ao MVP de reconciliação. O relatório exportado não é para análise interna — é para o responsável administrativo usar em reunião presencial com o dono da farmácia. Isso muda o que precisa ter:
+PDF exportável com 3 páginas estruturadas:
+	1.	Capa com nome da farmácia, período, protocolo, logo PAWARDS navy/gold
+	2.	Resumo executivo: Previsto / Declarado / Recebido / GAP em R$ e % — fonte grande, sem jargão
+	3.	Tabela detalhada por receita com paciente em iniciais (LGPD), valor, comissão devida, status
+Excel exportável: 3 abas — Resumo mensal, Detalhe por receita, Histórico de repasses. Para o responsável cruzar com extrato bancário.
+Gráfico obrigatório no PDF: barras Previsto × Declarado × Recebido por mês, GAP em vermelho. O dono da farmácia não pode olhar e dizer que não entendeu.
+Regras de privacidade no documento: paciente exibido só com iniciais (ex: C.P. em vez de Caio Padua). Valor, data e número da receita aparecem completos.
+Rodapé em todas as páginas: ‘Documento gerado em [data] · PAWARDS MEDCORE · Protocolo [hash]’
+O % de comissão de cada farmácia aparece no documento — puxado de farmacias_parmavault.percentual_comissao — e é editável pelo CEO master antes de gerar o relatório (caso queira ajustar antes de uma reunião).
+Contexto de negócio: a relação com as farmácias é contrato de cavalheiros, não jurídico. O documento não é para processo — é para pressão moral com dados. Precisa ser irrefutável visualmente.“​​​​​​​​​​​​​​​​
