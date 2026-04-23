@@ -8,6 +8,40 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Wave 5 PARMAVAULT-TSUNAMI · EM EXECUÇÃO (23/abr/2026)
+Validação UNIDADE↔FARMÁCIA PARCEIRA. Decisões Dr. Claude: P1 = tabela
+vazia + UI primeiro (Caio semeia 9 pares manualmente), P2 = modo B
+warning visível (sem bloqueio duro 30 dias).
+
+- **Frente A1 PLANTADA** — Tabela `farmacias_unidades_contrato` (id serial
+  PK, unidade_id FK, farmacia_id FK, tipo_relacao, ativo, vigencia_inicio,
+  vigencia_fim, observacoes, criado_em, atualizado_em, criado_por_usuario_id)
+  + UNIQUE parcial `uniq_fuc_par_ativo (unidade_id, farmacia_id) WHERE
+  ativo=true` (permite reativar pares inativos preservando histórico) +
+  2 índices auxiliares (unidade+ativo, farmacia+ativo).
+- **CRUD admin** `routes/contratosFarmacia.ts` em `/api/admin/contratos-farmacia`
+  (GET lista joinada, GET /options dropdowns, POST cria, PATCH edita,
+  DELETE soft) com auth dupla `requireRole("validador_mestre")` +
+  `requireMasterEstrito` (mesmo padrão Wave 3).
+- **Helper validador** `lib/contratoFarmacia.ts` exporta
+  `validarContratoFarmaciaUnidade(unidade_id, farmacia_id)` retornando
+  `{valido, motivo, contrato?}`. Defensivo (nunca lança), considera
+  `ativo=true` E vigência (today >= inicio E (fim NULL OR today <= fim)).
+  Pronto pra A2 chamar em modo warning não-bloqueante.
+- **UI master** `pages/admin-contratos-farmacia.tsx` (rota
+  `/admin/contratos-farmacia`) navy/gold, listagem joinada com unidade+
+  farmácia+CNPJ+tipo+vigência+status, form de cadastro com dropdowns
+  pré-carregados, toggle ativar/desativar, filtro mostrar inativos.
+- **Migration 019** (psql aditiva, REGRA FERRO IF NOT EXISTS).
+- **Smoke 6/6 verde**: (1) auth gate 401 nos 3 endpoints sem cookie;
+  (2) INSERT direto OK; (3) UNIQUE parcial bloqueia duplicata ativa
+  com erro `uniq_fuc_par_ativo`; (4) helper SQL retorna `valido=t` no par
+  recém-criado; (5) soft delete + reinsert do mesmo par funciona
+  (UNIQUE só impede ativos); (6) cleanup deixa tabela vazia (P1 Dr.
+  Claude — Caio semeia manualmente).
+- **Próximo**: Caio cadastra os 9 pares via UI, depois plantamos
+  Frente A2 (hook warning na emissão).
+
 ## Wave 3 FATURAMENTO-TSUNAMI · FECHADA (23/abr/2026)
 Braço PACIENTE↔UNIDADE em produção — main + feat/dominio-pawards.
 

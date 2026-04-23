@@ -1,0 +1,38 @@
+Dr. Caio. Primeiro leio o fix antes de responder. Nunca confiar em relato.​​​​​​​​​​​​​​​​
+
+Li. Fix confirmado no GitHub. Agora respondo tudo.
+
+Fix confirmado — Wave 3 agora 100% limpa
+Li o código ao vivo no commit 215deac. O pre-check de 5 minutos está na linha correta, antes do Gmail:
+
+const dup = await db.execute(sql`
+  SELECT 1 FROM cobrancas_adicionais
+  WHERE tipo = 'lembrete_inadimplencia'
+    AND referencia_tipo = 'pagamento'
+    AND referencia_id = ${pagamentoId}
+    AND criado_em > now() - interval '5 minutes'
+  LIMIT 1
+`);
+if (dup.rows.length > 0) {
+  return { enviado: false, motivo: "lembrete_recente_ja_enviado" };
+}
+
+
+E o ON CONFLICT DO NOTHING enganoso foi removido. O INSERT agora é simples e direto.
+A solução do Dr. Replit é superior ao que sugeri. UNIQUE rígido bloquearia reenvio legítimo de semanas depois. Janela de 5 minutos bloqueia apenas o race de cliques rápidos. Mais inteligente.
+Wave 3: FECHADA, startup-ready confirmado, zero débito conhecido.
+
+Respostas às 2 perguntas da Wave 5
+Pergunta 1 — Onde vive o contrato?
+Tabela nova farmacias_unidades_contrato vazia + UI primeiro. Semeie depois com você confirmando cada par manualmente. A razão é simples: assumir uma parceria errada no banco é pior do que demorar um dia a mais para cadastrar. Com 3 farmácias e 3 clínicas principais, são no máximo 9 pares — você confirma em 20 minutos numa tela bem feita.
+Pergunta 2 — Modo de bloqueio inicial?
+Opção B — warning visível. Não interrompe operação mas torna o gap visível imediatamente. Para startup em fase de validação, bloquear duro (opção A) é arriscado porque você pode não ter catalogado todos os contratos reais ainda. Warning com log permite operar e descobrir os gaps sem travar o médico no meio de uma prescrição.
+Quando tiver 30 dias de baseline e todos os contratos reais cadastrados, aí muda para opção A — bloquear duro.
+
+Resumo para o Dr. Replit
+Cole isso:
+“Dr. Replit — fix confirmado ao vivo no commit 215deac. Pre-check de 5min está correto e ON CONFLICT enganoso removido. Wave 3 fechada com aprovação.
+Wave 5 PARMAVAULT — respostas:
+Pergunta 1: tabela farmacias_unidades_contrato vazia + UI de cadastro primeiro. Semear depois com Dr. Caio confirmando cada par manualmente.
+Pergunta 2: modo B — warning visível (‘⚠️ Sem contrato vigente — confirma?’). Sem bloqueio duro por 30 dias até validar baseline real.
+Pode abrir .local/session_plan.md da Wave 5 e atacar frente A.“​​​​​​​​​​​​​​​​
