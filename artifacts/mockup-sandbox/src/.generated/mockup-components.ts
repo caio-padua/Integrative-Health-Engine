@@ -22,6 +22,6 @@ export const modules: ModuleMap = {
   "./components/mockups/pawards-showcase/ShieldC.tsx": () => import("../components/mockups/pawards-showcase/ShieldC.tsx"),
   "./components/mockups/pawards-showcase/ShieldD.tsx": () => import("../components/mockups/pawards-showcase/ShieldD.tsx"),
   "./components/mockups/pawards-showcase/SistemaHeader.tsx": () => import("../components/mockups/pawards-showcase/SistemaHeader.tsx"),
-  "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx"),
-  "./components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx": () => import("../components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx")
+  "./components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx": () => import("../components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx"),
+  "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx")
 };
