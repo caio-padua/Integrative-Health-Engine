@@ -1,0 +1,22 @@
+NOMENCLATURA UNIVERSAL PADCOM V4.0 — DEFINITIVA CORRIGIDA,,,,,
+"Dr. Manus — Fonte: V14.1 (AUDITORIA SEMANTICA) — 233 exames, TODOS com bloco | 11/04/2026",,,,,
+,,,,,
+FORMATO UNIVERSAL:,XXXX XXXX XXXX XXXX NNNN,,,,
+BLOCO,NOME,SIGNIFICADO,TAMANHO,REGRA,EXEMPLO
+B1,DOMINIO,O que e,4 letras,Fixo por tipo,EXAM
+B2,AREA/BLOCO,Onde e usado / sistema,4 letras,Correlacao clinica,TIRE
+B3,FUNCAO/GRADE,Para que serve / grade,4 letras,Acao/proposito,GBAS
+B4,NICK,Identificador da substancia,4 letras,Alfabetico do nome real,TSHX
+SEQ,SEQUENCIAL,Numero unico ou dosagem,4 digitos,Dosagem (mg) ou seq,0001
+,,,,,
+REGRA SEQ PARA INJETAVEIS/IMPLANTES:,,,,,
+SEQ = DOSAGEM em mg,Ex: 0010 = 10mg,0300 = 300mg,0600 = 600mg,1000 = 1g,
+,,,,,
+REGRA DE EXCLUSIVIDADE (EXAMES):,,,,,
+1 exame = 1 bloco + 1 grade,Grade mais baixa onde aparece,Grades superiores herdam,,,
+,,,,,
+DOMINIOS (B1):,,,,,
+EXAM,Exame,INJE,Injetavel,IMPL,Implante
+FORM,Formula,DOEN,Doenca,ENDO,Endovenoso/Soro
+BLCO,Bloco,SINT,Sintoma/Queixa,CIRU,Cirurgia
+DIET,Dieta,,,,

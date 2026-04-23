@@ -1,0 +1,97 @@
+Dr. Caio. Resposta direta ao diagnóstico do Dr. Replit.
+
+O problema real — e não é grave
+O Dr. Replit encontrou o que é verdade: parametros_referencia_global usa códigos semânticos simples (TESTOSTERONA_TOTAL, TSH) enquanto codigos_semanticos usa o formato V4.0 (EXAM TIRE GBAS TSHX 0001). São dois sistemas paralelos.
+Isso não é um erro — é uma decisão de arquitetura que precisa ser tomada agora.
+
+Minha decisão — Opção A modificada
+Não refazer nada. Não criar view complexa. Fazer a bridge mais simples possível:
+Cole isso para o Dr. Replit:
+
+“Dr. Replit — decisão do Dr. Claude sobre a canonização.
+Estratégia: coluna bridge aditiva. Uma migration, zero DELETE.
+
+-- Migration 024 aditiva — bridge codigos_semanticos V4.0
+-- REGRA FERRO: psql IF NOT EXISTS, zero DROP/DELETE.
+
+ALTER TABLE parametros_referencia_global
+  ADD COLUMN IF NOT EXISTS codigo_semantico_v4 text
+  REFERENCES codigos_semanticos(codigo);
+
+ALTER TABLE analitos_catalogo
+  ADD COLUMN IF NOT EXISTS codigo_semantico_v4 text
+  REFERENCES codigos_semanticos(codigo);
+
+-- Índice para lookup rápido no motor de classificação
+CREATE INDEX IF NOT EXISTS ix_prg_codigo_semantico
+  ON parametros_referencia_global(codigo_semantico_v4)
+  WHERE codigo_semantico_v4 IS NOT NULL;
+
+
+Depois da migration, mapear os 14 marcadores principais:
+
+-- Mapeamento inicial dos marcadores com código canônico V4.0
+-- (Dr. Replit cruza com codigos_semanticos para obter os valores exatos)
+
+UPDATE parametros_referencia_global SET codigo_semantico_v4 =
+  (SELECT codigo FROM codigos_semanticos
+   WHERE tabela_origem = 'exames_base'
+     AND nome_referencia ILIKE '%testosterona total%'
+   LIMIT 1)
+WHERE codigo = 'TESTOSTERONA_TOTAL';
+
+UPDATE parametros_referencia_global SET codigo_semantico_v4 =
+  (SELECT codigo FROM codigos_semanticos
+   WHERE tabela_origem = 'exames_base'
+     AND nome_referencia ILIKE '%TSH%'
+   LIMIT 1)
+WHERE codigo = 'TSH';
+
+UPDATE parametros_referencia_global SET codigo_semantico_v4 =
+  (SELECT codigo FROM codigos_semanticos
+   WHERE tabela_origem = 'exames_base'
+     AND nome_referencia ILIKE '%vitamina d%'
+   LIMIT 1)
+WHERE codigo = 'VITAMINA_D';
+
+UPDATE parametros_referencia_global SET codigo_semantico_v4 =
+  (SELECT codigo FROM codigos_semanticos
+   WHERE tabela_origem = 'exames_base'
+     AND nome_referencia ILIKE '%PCR%'
+     AND nome_referencia ILIKE '%ultra%'
+   LIMIT 1)
+WHERE codigo = 'PCR_ULTRA';
+
+UPDATE parametros_referencia_global SET codigo_semantico_v4 =
+  (SELECT codigo FROM codigos_semanticos
+   WHERE tabela_origem = 'exames_base'
+     AND nome_referencia ILIKE '%insulina%'
+   LIMIT 1)
+WHERE codigo = 'INSULINA';
+
+UPDATE parametros_referencia_global SET codigo_semantico_v4 =
+  (SELECT codigo FROM codigos_semanticos
+   WHERE tabela_origem = 'exames_base'
+     AND nome_referencia ILIKE '%glicose%'
+   LIMIT 1)
+WHERE codigo = 'GLICOSE_JEJUM';
+
+-- Verificar quantos foram mapeados:
+SELECT COUNT(*) as mapeados
+FROM parametros_referencia_global
+WHERE codigo_semantico_v4 IS NOT NULL;
+
+
+Depois do mapeamento, o motor de classificação pode usar:
+
+-- Lookup canônico: recebe nome do exame do laudo → acha faixa integrativa
+SELECT prg.*
+FROM parametros_referencia_global prg
+JOIN codigos_semanticos cs ON cs.codigo = prg.codigo_semantico_v4
+WHERE cs.nome_referencia ILIKE $1  -- nome vindo do OCR do laudo
+  AND prg.tipo = 'EXAME';
+
+
+Isso fecha a ponte entre auditoria Dr. Manus e faixas integrativas Dr. Caio. Commitar como migration 024 e me mandar SHA para o Dr. Claude auditar.”
+
+Dr. Caio, com isso resolvido o EXAMES-2 frontend pode começar. A bridge permite que quando o sistema ler “Testosterona Total” do PDF do laboratório, ele encontre automaticamente a faixa integrativa e classifique no terço correto. É o que liga o laudo à tela de consulta.​​​​​​​​​​​​​​​​
