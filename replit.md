@@ -8,38 +8,94 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
-## DOMÍNIO PENDENTE — PARMAVAULT / PARCLAIM (memória 23/abr/2026)
-**Tópico levantado pelo Caio em 23/abr/2026 — guardado pra discussão futura, NÃO codado ainda.**
+## Wave 3 FATURAMENTO-TSUNAMI · FECHADA (23/abr/2026)
+Braço PACIENTE↔UNIDADE em produção — main + feat/dominio-pawards.
 
-Contexto: a Wave 3 FATURAMENTO-TSUNAMI codou o braço PACIENTE↔UNIDADE
-(cobrança parcelada via Asaas, dashboard inadimplência, webhook real). Caio
-sinalizou que existe um **braço diferente** que precisa atenção própria:
-**UNIDADE↔FARMÁCIA PARCEIRA** — pipeline de prescrições que saem da unidade
-(Instituto Pádua, Instituto Lemos, etc.) e vão pra farmácias parceiras com
-CNPJ separado (relação parceria-confiança, não hierárquica).
+- **Frente A** — `enviarEmailCobranca` real (Gmail + wrapEmailMedcore navy/gold) +
+  nova `enviarLembreteInadimplencia(pagamentoId)` em `lib/cobrancasAuto.ts`.
+- **Frente B** — Webhook reconciliação real em `routes/payments.ts`: auditoria
+  sempre primeiro em `pagamento_webhook_eventos`, reconciliação UPDATE
+  `pagamentos` com fallback duplo (gateway+payment_id → external_ref +
+  backfill defensivo), mapa paid→pago / failed→falhou / etc.
+- **Frente C** — `GET /api/admin/inadimplencia` (com buckets aging ≤7/8-30/31-60/>60)
+  + `POST /admin/inadimplencia/:pagamentoId/reenviar` + UI navy/gold em
+  `pages/admin-inadimplencia.tsx` + rota `/admin/inadimplencia` no App.tsx.
+  Auth: `requireRole("validador_mestre")` + `requireMasterEstrito` (defesa
+  em profundidade).
+- **Migration 016** (psql aditiva, IF NOT EXISTS) — `cobrancas_adicionais`
+  +enviado_em/erro_envio/tentativas_envio/paciente_id; `pagamentos`
+  +external_ref/gateway_name/gateway_payment_id (+2 índices); CREATE TABLE
+  `pagamento_webhook_eventos` (auditoria idempotente).
+- **Migration 017** (psql aditiva, dedupe webhook architect tech debt) — 2
+  índices únicos parciais em `pagamento_webhook_eventos`:
+  `uniq_pwe_gateway_pid_event` (WHERE gateway_payment_id IS NOT NULL) +
+  `uniq_pwe_gateway_extref_event` (WHERE gateway_payment_id IS NULL).
+  Handler usa INSERT...ON CONFLICT DO UPDATE RETURNING id (zero MAX, zero race).
+- **Smoke regressivo** — `artifacts/api-server/scripts/smoke_wave3.sh`:
+  6 cenários sem dependência externa (dedupe gateway_payment_id+external_ref,
+  reconciliação com fallback+backfill, auth gate /admin/inadimplencia*).
+  6/6 verde local, reproduzível em qualquer ambiente.
+- **Frente E (handoff opcional)** — Smoke E2E real Asaas aguardando secret
+  `ASAAS_API_KEY`. Pipeline e adapter (`payments/asaas.adapter.ts` 235L)
+  prontos. Quando vier o secret: criar cobrança → simular pagamento no painel
+  sandbox → ver webhook chegar → reconciliar status real.
+- **Commits** (push duplo main + feat/dominio-pawards):
+  `7b58eaf` (Wave 3 inicial) → `71b29fb` (architect fix identifier+auth) →
+  `cd1bb3e` (dedupe migration 017) → `90bea64` (smoke regressivo).
 
-Domínio JÁ EXISTE no schema (não tocado pela Wave 3):
-- `farmacias_parceiras` (cnpj)
-- `farmacias_parmavault` (cnpj, parceira_desde) — **PARMAVAULT** = pipeline
-- `parmavault_receitas` (prescricao_id ↔ farmacia_id)
-- `prescricao_blocos.farmacia_indicada_id` — roteamento por bloco
-- `bloco_template_ativo.farmacia_padrao`, `substancias.farmacia_padrao`,
-  `prescricao_bloco_ativos.farmacia_padrao` — defaults de roteamento
-- `parclaim_metas_clinica.farmacia_id` — **PARCLAIM** = camada métricas
+---
 
-Necessidades sinalizadas pelo Caio (não detalhadas, guardar e perguntar):
-1. Validação de CNPJ da unidade nas prescrições roteadas pra farmácia parceira.
-2. Roteamento intra-prescrição entre N farmácias parceiras (regra prévia,
-   intra-prescrição, ou por volume — "atingiu X vai pra Y").
-3. Reconciliação do que a unidade orçou/negociou vs o que a farmácia
-   parceira efetivamente recebeu — **com bom senso de parceria**: nada
-   que obrigue funcionário da farmácia a alimentar dashboard só pro Caio
-   ter visibilidade. Régua: usar só o que a infra captura passivamente,
-   oferecer ferramentas que sirvam aos DOIS lados, exigências contratuais
-   (não operacionais cotidianas).
+## Wave 5 PARMAVAULT-TSUNAMI · MAPEAMENTO (23/abr/2026 · ATIVO)
+**Próximo braço prioritário do Caio: UNIDADE↔FARMÁCIA PARCEIRA.**
+Não confundir com Wave 3 (PACIENTE↔UNIDADE). Módulos vizinhos, domínios separados.
 
-Quando voltar a este domínio: NÃO confundir com o braço PACIENTE↔UNIDADE.
-São módulos vizinhos no mesmo SaaS, mas separados.
+### Inventário operacional (banco real, não seed):
+- `farmacias_parmavault` (3 farmácias com `meta_receitas_semana/mes`,
+  `meta_valor_mes`, `percentual_comissao`) — **PARMAVAULT** = pipeline
+- `parmavault_receitas` — **8.725 registros reais** (`farmacia_id`,
+  `unidade_id`, `paciente_id`, `medico_id`, `prescricao_id`, `numero_receita`,
+  `emitida_em`, `entregue_em`, `status`, `valor_formula_estimado`,
+  `valor_formula_real`, `comissao_estimada`, `comissao_paga`, `blend_id`)
+- `parclaim_metas_clinica` (15 metas: `unidade_id` × `farmacia_id` ×
+  `receitas_minimas/meta_semana` + `valor_minimo/meta_semana`) — **PARCLAIM**
+- `farmacias_parceiras` (5 do legado: `cnpj`, `comissao_percentual`,
+  `modelo_integracao` portal/api, `capacidades` jsonb)
+- Roteamento manual: `prescricao_blocos.farmacia_indicada_id` (FK → parceiras),
+  `substancias.farmacia_padrao` (TEXT livre — DIRTY), `prescricao_bloco_ativos.farmacia_padrao` (TEXT livre)
+
+### Backend já existente:
+- `GET /parclaim/:unidade_id/previsao` (projeção comissão + fee 2.5%)
+- `GET /parmavault/farmacias/ranking` (ranking master-only)
+- `GET /parmavault/:farmacia_id/termometros` (KPI meta vs realizado)
+- `GET /parmavault/:farmacia_id/trend` (série histórica)
+- `GET /global` (KPI consolidado com `comissao_total_mes`)
+
+### Frontend já existente:
+- `pages/farmacias-parmavault.tsx` (dashboard)
+- `pages/metas-faturamento.tsx` (definir metas PARCLAIM)
+- `pages/admin-comercial.tsx` (config comissionamento)
+- `components/pawards/KpiCard.tsx` (termômetros)
+
+### GAPS explícitos vs as 3 validações do Caio:
+- **A. Validação CNPJ unidade↔farmácia** — INEXISTENTE. Aceita `unidade_id`
+  e `farmacia_id` independentes; nenhum guard verifica compatibilidade
+  contratual (ex: farmácia X só atende unidade Y por contrato).
+- **B. Roteamento por regra** — só manual (`farmacia_indicada_id`) ou texto
+  livre. Falta: seleção prévia por contrato, intra-prescrição, e por volume
+  ("atingiu R$X na farmácia A vai pra B").
+- **C. Reconciliação estimado→real** — colunas existem (`valor_formula_estimado`,
+  `valor_formula_real`, `comissao_estimada`, `comissao_paga`) mas
+  `valor_real`/`comissao_paga` NÃO são populados automaticamente. Sem ciclo
+  de fechamento.
+- **D. Dirty data `farmacia_padrao` TEXT** — sem FK em `substancias` e
+  `prescricao_bloco_ativos`. Risco de inconsistência ("Farmácia A" vs "Farma A").
+
+### Régua de bom senso (CAIO 23/abr/2026):
+A farmácia parceira é EMPRESA EXTERNA, parceria de confiança. **Proibido**
+exigir que funcionário da farmácia alimente dashboard só pra Caio ter
+visibilidade. Régua: (1) usar só o que a infra captura passivamente, (2)
+oferecer ferramentas que sirvam aos DOIS lados (não vigilância unilateral),
+(3) exigências quando houver são CONTRATUAIS, não operacionais cotidianas.
 
 ---
 
