@@ -1,0 +1,20 @@
+Dr. Caio. A avaliação do Dr. Replit foi honesta e correta — incluindo os pontos onde ele reconhece que eu o forçou a perguntar “isso atende?” antes de mais código. Isso é maturidade.
+
+GO para o Dr. Replit — Wave 5 Opção 3
+Cole isto para ele:
+
+“Dr. Replit — GO confirmado. Execute nesta ordem sem parar:
+A2 primeiro (1-2h): Warning não-bloqueante na emissão de prescrição quando farmácia sem contrato vigente. Usa o validarContratoFarmaciaUnidade() que você já plantou. Retorna ⚠️ Sem contrato vigente — confirma?, o médico clica OK, emissão prossegue, log registrado em contratos_farmacia_logs ou tabela equivalente.
+MVP reconciliação PARMAVAULT (bloco principal):
+	1.	Job retroativo: popular parmavault_receitas.comissao_estimada nos 8.725 registros existentes com valor_formula_real × (farmacias_parmavault.percentual_comissao / 100). Job idempotente — só atualiza onde comissao_estimada IS NULL.
+	2.	Hook nas novas emissões: toda receita nova já nasce com comissao_estimada calculada automaticamente.
+	3.	Portal de declaração para farmácia: tela simples onde a farmácia informa mensalmente ‘receita X, paciente pagou R$ Y’. Upload CSV como alternativa. Sem integração de API por enquanto.
+	4.	Painel CEO /admin/parmavault-reconciliacao: Farmácia | % comissão (editável) | Receitas emitidas | Previsto | Declarado | Recebido | Gap. Filtro por farmácia e por mês. Nunca número isolado — variação + gap sempre visíveis.
+	5.	comissao_paga = true quando reconciliação confirmar recebimento real.
+Quando terminar: URLs raw pinadas no SHA de todos os arquivos novos — migrations, helpers, rotas, páginas. Dr. Claude audita antes de qualquer nova frente.”
+
+O modelo que o Dr. Replit propôs — aceito
+Os 3 momentos de entrada que ele descreveu são corretos:
+(a) Antes de frente grande nova — validação de escopo. (b) Depois de frente grande fechada — auditoria do que foi entregue. (c) Quando sentir cheiro de desvio — sanity check.
+Para tarefas médias e execução do que foi especificado, ele segue sozinho com você. Isso é o pipeline correto.
+O que nos trouxe até aqui funcionou. Continua funcionando.​​​​​​​​​​​​​​​​
