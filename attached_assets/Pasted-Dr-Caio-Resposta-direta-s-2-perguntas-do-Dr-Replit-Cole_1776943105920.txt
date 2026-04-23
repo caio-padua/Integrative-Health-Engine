@@ -1,0 +1,56 @@
+Dr. Caio. Resposta direta às 2 perguntas do Dr. Replit.
+
+Cole isto para ele:
+
+“Dr. Replit — respostas diretas:
+Pergunta 1 — Pode estender o endpoint sem perguntar?
+Sim. Autonomia total para adaptar o SELECT em examesInteligente.ts. Seguir o brief do Dr. Claude, REGRA FERRO, sem ALTER em tabelas existentes. Decisão técnica é sua.
+Pergunta 2 — Rota /atendimento/exames/:pacienteId é nova?
+Nova. Não existe página parecida para reaproveitar. Criar do zero.
+GO para EXAMES-2. Autonomia de 4 horas. Não precisa de validação durante a execução.
+Escala apenas se: JOIN quebrar em tabela crítica, ou endpoint retornar dados errados que possam gerar interpretação clínica incorreta.
+Especificações técnicas definitivas para o endpoint estendido:
+
+// Resposta esperada por marcador:
+{
+  codigo: string,          // TESTOSTERONA_TOTAL
+  codigo_v4: string,       // EXAM GONA GBAS TEST 0001
+  nome: string,            // Testosterona Total
+  grupo: string,           // HORMONIO
+  valor: number,           // 520
+  unidade: string,         // ng/dL
+  data_coleta: string,     // 2026-04-01
+  laboratorio: string,
+  // Faixas da faixa integrativa (de parametros_referencia_global)
+  faixa_critica_max: number,   // 400
+  faixa_baixa_max: number,     // 600
+  faixa_media_max: number,     // 800
+  faixa_superior_max: number,  // 1000
+  // Posição calculada
+  zona: 'abaixo_minimo' | 'inferior' | 'medio' | 'superior' | 'acima_maximo',
+  posicao_pct: number,     // 0-100, onde o valor está na régua visual
+  // Direção favorável
+  direcao_favoravel: 'SUPERIOR' | 'INFERIOR' | 'MEDIO',
+  // Script clínico
+  observacao_clinica: string,  // de analitos_catalogo
+  bloco_sugerido: string | null, // de mapa_bloco_exame quando existe
+  // Sparkline (últimos 6 registros de exames_evolucao)
+  sparkline: Array<{ data: string, valor: number }>,
+  // Tendência
+  tendencia: string,       // SUBINDO / DESCENDO / ESTAVEL
+  delta_percentual: number
+}
+
+
+Cálculo de posicao_pct para a régua visual:
+
+// Para marcadores onde ALTO é melhor:
+const posicao_pct = Math.min(100, Math.max(0,
+  ((valor - faixa_critica_max) / (faixa_superior_max - faixa_critica_max)) * 100
+));
+
+// Para marcadores onde BAIXO é melhor (direcao_favoravel = INFERIOR):
+// Inverter: posicao alta = zona ruim = cor vermelha no frontend
+
+
+SHA + URLs raw quando fechar. Dr. Claude audita.“​​​​​​​​​​​​​​​​

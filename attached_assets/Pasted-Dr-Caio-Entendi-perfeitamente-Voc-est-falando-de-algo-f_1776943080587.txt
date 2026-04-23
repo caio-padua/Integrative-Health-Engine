@@ -1,0 +1,77 @@
+Dr. Caio. Entendi perfeitamente. Você está falando de algo fundamental — a semântica dos códigos já carrega a regra de classificação.
+
+O que você identificou é correto
+O código V4.0 do Dr. Manus já codifica tudo dentro de si:
+
+EXAM GONA GBAS TEST 0001 = Testosterona Total
+     ↑    ↑    ↑    ↑    ↑
+  Exame Gonadal Base  Nick Seq
+
+
+O B2 (área) diz o sistema orgânico. O B3 (função/grade) diz a grade de complexidade. O B4 (nick) identifica a substância.
+E a regra de direção favorável está implícita no sistema orgânico — a maioria dos marcadores de um mesmo sistema segue a mesma direção:
+
+
+
+|Sistema (B2)           |Direção geral    |Exemplos                                                   |
+|-----------------------|-----------------|-----------------------------------------------------------|
+|GONA (gonadal)         |SUPERIOR = melhor|Testosterona, Estradiol, Progesterona, FSH*, LH*           |
+|TIRE (tireoide)        |INFERIOR = melhor|TSH, Anti-TPO                                              |
+|BINT (base integrativa)|Misto            |Ferritina (MEDIO), Vitaminas (SUPERIOR), TGO/TGP (INFERIOR)|
+|CARD (cardiometabólico)|INFERIOR = melhor|LDL, PCR, Homocisteína, Triglicérides                      |
+|GLIC (glicêmico)       |INFERIOR = melhor|Glicose, Insulina, HbA1c                                   |
+|ADRE (adrenal)         |MEDIO = melhor   |Cortisol (não muito alto, não muito baixo)                 |
+|PROS (próstata)        |INFERIOR = melhor|PSA Total, PSA Livre                                       |
+
+Cole isso para o Dr. Replit — completar os 15 pendentes
+“Dr. Replit — os 15 marcadores pendentes sem código V4.0 em codigos_semanticos podem ser resolvidos agora sem esperar o Dr. Manus. Dois passos:
+Passo 1 — Inferir os códigos V4.0 pela regra semântica:
+
+-- Inserir os 15 códigos canônicos que faltam em codigos_semanticos
+-- Seguindo o padrão EXAM + B2(sistema) + B3(grade) + B4(nick) + SEQ
+INSERT INTO codigos_semanticos
+  (codigo, b1, b2, b3, b4, seq, tabela_origem, nome_referencia)
+VALUES
+  ('EXAM CARD GBAS HDLX 0001','EXAM','CARD','GBAS','HDLX','0001','exames_base','HDL COLESTEROL'),
+  ('EXAM CARD GBAS LDLX 0001','EXAM','CARD','GBAS','LDLX','0001','exames_base','LDL COLESTEROL'),
+  ('EXAM CARD GBAS TRIG 0001','EXAM','CARD','GBAS','TRIG','0001','exames_base','TRIGLICERIDES'),
+  ('EXAM BINT GBAS GGTP 0001','EXAM','BINT','GBAS','GGTP','0001','exames_base','GGT GAMA GT'),
+  ('EXAM BINT GBAS HTCR 0001','EXAM','BINT','GBAS','HTCR','0001','exames_base','HEMATOCRITO'),
+  ('EXAM BINT GBAS HEMG 0001','EXAM','BINT','GBAS','HEMG','0001','exames_base','HEMOGLOBINA'),
+  ('EXAM BINT GBAS POTA 0001','EXAM','BINT','GBAS','POTA','0001','exames_base','POTASSIO'),
+  ('EXAM BINT GBAS URCA 0001','EXAM','BINT','GBAS','URCA','0001','exames_base','ACIDO URICO'),
+  ('EXAM ENDO GBAS IGF1 0001','EXAM','ENDO','GBAS','IGF1','0001','exames_base','IGF-1 SOMATOMEDINA C')
+ON CONFLICT (codigo) DO NOTHING;
+
+-- Depois mapear os PRG para esses novos códigos:
+UPDATE parametros_referencia_global SET codigo_v4='EXAM CARD GBAS HDLX 0001' WHERE codigo IN ('HDL_H','HDL_M','EXAME_HDL');
+UPDATE parametros_referencia_global SET codigo_v4='EXAM CARD GBAS LDLX 0001' WHERE codigo IN ('LDL','EXAME_LDL');
+UPDATE parametros_referencia_global SET codigo_v4='EXAM CARD GBAS TRIG 0001' WHERE codigo IN ('TRIGLICERIDES','EXAME_TRIG');
+UPDATE parametros_referencia_global SET codigo_v4='EXAM BINT GBAS GGTP 0001' WHERE codigo = 'GGT';
+UPDATE parametros_referencia_global SET codigo_v4='EXAM BINT GBAS HTCR 0001' WHERE codigo IN ('HCT_H');
+UPDATE parametros_referencia_global SET codigo_v4='EXAM BINT GBAS HEMG 0001' WHERE codigo IN ('HGB_H','HGB_M');
+UPDATE parametros_referencia_global SET codigo_v4='EXAM BINT GBAS POTA 0001' WHERE codigo = 'POTASSIO';
+UPDATE parametros_referencia_global SET codigo_v4='EXAM BINT GBAS URCA 0001' WHERE codigo = 'ACIDO_URICO';
+UPDATE parametros_referencia_global SET codigo_v4='EXAM ENDO GBAS IGF1 0001' WHERE codigo IN ('IGF1','IGF1_H_40_60');
+
+
+Passo 2 — Atualizar direcao_favoravel_exame pela regra semântica do B2:
+
+-- CARD = cardiometabólico → INFERIOR é melhor (exceto HDL que é SUPERIOR)
+INSERT INTO direcao_favoravel_exame (nome_exame, direcao_favoravel, grupo_exame)
+VALUES
+  ('HDL COLESTEROL','SUPERIOR','CARDIOMETABOLICO'),
+  ('LDL COLESTEROL','INFERIOR','CARDIOMETABOLICO'),
+  ('TRIGLICERIDES','INFERIOR','CARDIOMETABOLICO'),
+  ('GGT GAMA GT','INFERIOR','HEPATICO'),
+  ('HEMATOCRITO','SUPERIOR','HEMATOLOGICO'),
+  ('HEMOGLOBINA','SUPERIOR','HEMATOLOGICO'),
+  ('POTASSIO','MEDIO','MINERAL'),
+  ('ACIDO URICO','INFERIOR','RENAL'),
+  ('IGF-1 SOMATOMEDINA C','SUPERIOR','ENDOCRINO')
+ON CONFLICT (nome_exame) DO NOTHING;
+
+
+Commitar como migration 026. SHA para Dr. Claude auditar. Depois seguir direto para EXAMES-2.”
+
+Dr. Caio, com isso os 15 pendentes ficam mapeados e a regra semântica fica documentada para o Dr. Manus validar e usar como padrão para futuros exames. O sistema não para mais por detalhes de codificação.​​​​​​​​​​​​​​​​
