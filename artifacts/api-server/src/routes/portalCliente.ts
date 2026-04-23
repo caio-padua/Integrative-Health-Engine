@@ -10,8 +10,9 @@ import {
   unidadesTable,
   TIPOS_PROCEDIMENTO,
 } from "@workspace/db/schema";
-import { eq, and, gte, or, desc, inArray } from "drizzle-orm";
+import { eq, and, gte, or, desc, inArray, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { solicitarOtp, validarOtp } from "../lib/portalPaciente/otpService";
 
 const router = Router();
 
@@ -371,6 +372,223 @@ router.post("/portal/upload/:pacienteId", async (req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Erro ao processar upload" });
+  }
+});
+
+// =====================================================================
+// Wave 4 PACIENTE-TSUNAMI · OTP login + histórico unificado + Drive links
+// =====================================================================
+
+/**
+ * POST /portal/otp/solicitar
+ * Body: { cpf, dataNascimento }
+ * Retorna: { ok, paciente_id, nome, destino_mascarado, expira_em }
+ * Envia código 6 dígitos por email (template branded MEDCORE) — Wave 2 reuse.
+ */
+router.post("/portal/otp/solicitar", async (req, res) => {
+  try {
+    const { cpf, dataNascimento } = req.body || {};
+    if (!cpf || !dataNascimento) {
+      res.status(400).json({ error: "CPF e data de nascimento obrigatorios" });
+      return;
+    }
+    const cpfLimpo = String(cpf).replace(/\D/g, "");
+    const pacientes = await db.select().from(pacientesTable);
+    const paciente = pacientes.find(p => (p.cpf || "").replace(/\D/g, "") === cpfLimpo);
+    if (!paciente) {
+      res.status(401).json({ error: "Dados nao conferem" });
+      return;
+    }
+    if (paciente.dataNascimento && String(paciente.dataNascimento) !== String(dataNascimento)) {
+      res.status(401).json({ error: "Dados nao conferem" });
+      return;
+    }
+    if (!paciente.email) {
+      res.status(400).json({
+        error: "Paciente nao tem email cadastrado. Use login com senha ou contate a clinica.",
+      });
+      return;
+    }
+
+    let unidadeNick: string | undefined;
+    if (paciente.unidadeId) {
+      const u = await db.execute(sql`SELECT nick, nome FROM unidades WHERE id = ${paciente.unidadeId} LIMIT 1`);
+      const uRows = ((u as any).rows ?? u) as any[];
+      unidadeNick = uRows[0]?.nick || uRows[0]?.nome || undefined;
+    }
+
+    const result = await solicitarOtp({
+      pacienteId: paciente.id,
+      pacienteNome: paciente.nome,
+      email: paciente.email,
+      unidadeNick,
+      ipOrigem: (req.ip || "").split(",")[0].trim() || undefined,
+    });
+
+    if (!result.ok) {
+      const isFlood = result.erro === "aguarde_60_segundos";
+      res.status(isFlood ? 429 : 502).json({ error: result.erro, destino_mascarado: result.destino_mascarado });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      paciente_id: paciente.id,
+      nome: paciente.nome,
+      destino_mascarado: result.destino_mascarado,
+      expira_em: result.expiraEm,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Erro ao solicitar OTP" });
+  }
+});
+
+/**
+ * POST /portal/otp/validar
+ * Body: { paciente_id, codigo }
+ * Retorna: { id, nome, categorias }
+ */
+router.post("/portal/otp/validar", async (req, res) => {
+  try {
+    const { paciente_id, codigo } = req.body || {};
+    const pid = Number(paciente_id);
+    if (!pid || !codigo) {
+      res.status(400).json({ error: "paciente_id e codigo obrigatorios" });
+      return;
+    }
+    const r = await validarOtp({ pacienteId: pid, codigo: String(codigo) });
+    if (!r.ok) {
+      const isFmt = r.erro === "codigo_formato_invalido";
+      res.status(isFmt ? 400 : 401).json({ error: r.erro });
+      return;
+    }
+    const paciente = (await db.select().from(pacientesTable).where(eq(pacientesTable.id, pid)))[0];
+    if (!paciente) {
+      res.status(404).json({ error: "paciente_nao_encontrado" });
+      return;
+    }
+    res.json({
+      id: paciente.id,
+      nome: paciente.nome,
+      categorias: Object.keys(CATEGORIAS_UPLOAD),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Erro ao validar OTP" });
+  }
+});
+
+/**
+ * GET /portal/historico/:pacienteId
+ * Retorna lista unificada (assinaturas digitais + cobranças adicionais),
+ * ordenada DESC por data. Cada item tem { tipo, descricao, status, data, link }.
+ */
+router.get("/portal/historico/:pacienteId", async (req, res) => {
+  try {
+    const pid = Number(req.params.pacienteId);
+    if (!pid) {
+      res.status(400).json({ error: "paciente_id invalido" });
+      return;
+    }
+
+    // 1) Assinaturas digitais (PDFs assinados/pendentes)
+    const assRes = await db.execute(sql`
+      SELECT id, documento_tipo, status, criado_em, assinado_em, pdf_assinado_url
+      FROM assinaturas_digitais
+      WHERE paciente_id = ${pid}
+      ORDER BY criado_em DESC
+      LIMIT 100
+    `);
+    const assRows = ((assRes as any).rows ?? assRes) as any[];
+    const assinaturas = assRows.map(r => ({
+      tipo: "ASSINATURA",
+      id: r.id,
+      descricao: r.documento_tipo || "Documento",
+      status: r.status,
+      data: r.assinado_em || r.criado_em,
+      link: r.pdf_assinado_url || null,
+    }));
+
+    // 2) Solicitações de assinatura (envios pendentes)
+    const solRes = await db.execute(sql`
+      SELECT s.id, s.status, s.criado_em, s.concluido_em, s.pdf_assinado_url, t.nome_exibicao AS template_nome
+      FROM assinatura_solicitacoes s
+      LEFT JOIN assinatura_templates t ON t.id = s.template_id
+      WHERE s.paciente_id = ${pid}
+      ORDER BY s.criado_em DESC
+      LIMIT 100
+    `);
+    const solRows = ((solRes as any).rows ?? solRes) as any[];
+    const solicitacoes = solRows.map(r => ({
+      tipo: "SOLICITACAO",
+      id: r.id,
+      descricao: r.template_nome || "Solicitação de assinatura",
+      status: r.status,
+      data: r.concluido_em || r.criado_em,
+      link: r.pdf_assinado_url || null,
+    }));
+
+    // 3) Cobranças adicionais (referencia_id pode apontar pro paciente)
+    const cobRes = await db.execute(sql`
+      SELECT id, tipo, descricao, valor_brl, status, criado_em, pago_em
+      FROM cobrancas_adicionais
+      WHERE referencia_tipo = 'paciente' AND referencia_id = ${pid}
+      ORDER BY criado_em DESC
+      LIMIT 100
+    `);
+    const cobRows = ((cobRes as any).rows ?? cobRes) as any[];
+    const cobrancas = cobRows.map(r => ({
+      tipo: "COBRANCA",
+      id: r.id,
+      descricao: `${r.tipo}: ${r.descricao}`,
+      valor_brl: Number(r.valor_brl),
+      status: r.status,
+      data: r.pago_em || r.criado_em,
+      link: null,
+    }));
+
+    const unificado = [...assinaturas, ...solicitacoes, ...cobrancas]
+      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+
+    res.json({
+      paciente_id: pid,
+      total: unificado.length,
+      itens: unificado,
+      por_tipo: {
+        assinaturas: assinaturas.length,
+        solicitacoes: solicitacoes.length,
+        cobrancas: cobrancas.length,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Erro ao listar historico" });
+  }
+});
+
+/**
+ * GET /portal/drive-links/:pacienteId
+ * Retorna folder_id do Google Drive do paciente + URL pública (Wave 1).
+ */
+router.get("/portal/drive-links/:pacienteId", async (req, res) => {
+  try {
+    const pid = Number(req.params.pacienteId);
+    if (!pid) {
+      res.status(400).json({ error: "paciente_id invalido" });
+      return;
+    }
+    const paciente = (await db.select().from(pacientesTable).where(eq(pacientesTable.id, pid)))[0];
+    if (!paciente) {
+      res.status(404).json({ error: "paciente_nao_encontrado" });
+      return;
+    }
+    const folderId = paciente.googleDriveFolderId;
+    res.json({
+      paciente_id: pid,
+      folder_id: folderId || null,
+      drive_url: folderId ? `https://drive.google.com/drive/folders/${folderId}` : null,
+      tem_drive: !!folderId,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Erro ao buscar drive" });
   }
 });
 

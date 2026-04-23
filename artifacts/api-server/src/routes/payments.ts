@@ -170,17 +170,66 @@ router.post(
         finalStatus = statusMap[s] ?? event.event
       }
 
-      // ── Aqui você dispara a lógica de negócio ──────────────────────────────
-      // Exemplos:
-      //   1. Paciente pagou → atualiza funil para PAGO, libera protocolo
-      //   2. Clínica pagou → ativa plano
-      //   3. Falhou → notifica pelo WhatsApp / CRM
-      // Substitua por chamada ao seu repositório real:
-      console.log('[webhook]', gateway, finalStatus, event.paymentId, event.externalRef)
-      // await db.payments.updateStatus(event.paymentId, finalStatus)
-      // await funnelService.onPayment(event.externalRef, finalStatus)
+      // ── FATURAMENTO-TSUNAMI Wave 3 · Reconciliação real + auditoria ──
+      // 1. Audita evento bruto em pagamento_webhook_eventos (idempotente).
+      // 2. Localiza pagamento por gateway+payment_id OU external_ref.
+      // 3. Atualiza status (mapeando finalStatus → 'pago'|'pendente'|'cancelado'|'falhou').
+      const statusMapDb: Record<string, string> = {
+        paid: 'pago', failed: 'falhou', cancelled: 'cancelado',
+        refunded: 'cancelado', expired: 'cancelado', pending: 'pendente',
+      }
+      const statusDb = statusMapDb[finalStatus] || 'pendente'
 
-      res.status(200).json({ received: true, event: finalStatus })
+      const { db } = await import('@workspace/db')
+      const { sql } = await import('drizzle-orm')
+
+      // Audita primeiro (sempre) — antes de qualquer falha de update.
+      await db.execute(sql`
+        INSERT INTO pagamento_webhook_eventos
+          (gateway, gateway_payment_id, external_ref, event_type, status_aplicado, payload_json)
+        VALUES
+          (${gateway}, ${event.paymentId ?? null}, ${event.externalRef ?? null},
+           ${finalStatus}, ${statusDb}, ${JSON.stringify(event)}::jsonb)
+      `)
+
+      // Reconcilia: prioriza gateway_payment_id, fallback external_ref.
+      let updated = 0
+      if (event.paymentId) {
+        const r = await db.execute(sql`
+          UPDATE pagamentos
+          SET status        = ${statusDb},
+              gateway_name  = COALESCE(gateway_name, ${gateway}),
+              pagu_em       = CASE WHEN ${statusDb} = 'pago' THEN now() ELSE pagu_em END,
+              atualizado_em = now()
+          WHERE gateway_name = ${gateway} AND gateway_payment_id = ${event.paymentId}
+        `)
+        updated = (r as any).rowCount ?? 0
+      }
+      if (updated === 0 && event.externalRef) {
+        const r2 = await db.execute(sql`
+          UPDATE pagamentos
+          SET status             = ${statusDb},
+              gateway_name       = COALESCE(gateway_name, ${gateway}),
+              gateway_payment_id = COALESCE(gateway_payment_id, ${event.paymentId ?? null}),
+              pagu_em            = CASE WHEN ${statusDb} = 'pago' THEN now() ELSE pagu_em END,
+              atualizado_em      = now()
+          WHERE external_ref = ${event.externalRef}
+        `)
+        updated = (r2 as any).rowCount ?? 0
+      }
+
+      await db.execute(sql`
+        UPDATE pagamento_webhook_eventos
+        SET processado_em = now()
+        WHERE id = (SELECT MAX(id) FROM pagamento_webhook_eventos
+                    WHERE gateway = ${gateway}
+                      AND COALESCE(gateway_payment_id,'') = COALESCE(${event.paymentId ?? null},'')
+                      AND COALESCE(external_ref,'')      = COALESCE(${event.externalRef ?? null},''))
+      `)
+
+      console.log('[webhook]', gateway, finalStatus, event.paymentId, event.externalRef, 'updated=', updated)
+
+      res.status(200).json({ received: true, event: finalStatus, status_db: statusDb, updated })
     } catch (err) {
       console.error('[webhook error]', gateway, err)
       // Retorna 500 para o gateway retentar

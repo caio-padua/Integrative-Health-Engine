@@ -17,6 +17,9 @@ const PUBLIC_EXACT = new Set<string>([
   "/portal/login",
   "/portal/slots-disponiveis",
   "/portal/reagendar",
+  // Wave 4 PACIENTE-TSUNAMI · OTP login (paciente nao tem JWT antes de logar)
+  "/portal/otp/solicitar",
+  "/portal/otp/validar",
 ]);
 
 const PUBLIC_PREFIXES = [
@@ -29,6 +32,9 @@ const PUBLIC_PREFIXES = [
   "/padcom-questionarios",
   "/padcom-bandas",
   "/questionario-paciente",
+  // Wave 4 PACIENTE-TSUNAMI · historico + drive sao acessiveis pelo paciente apos OTP
+  "/portal/historico/",
+  "/portal/drive-links/",
 ];
 
 function isPublic(path: string): boolean {

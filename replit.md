@@ -657,3 +657,296 @@ o tick AUTO 20s pós-restart processou as 11/11 com `tentativas=1`, todas com
 - notifAssinatura.ts (lib): https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/notifAssinatura.ts
 - notifAssinatura.ts (rota):https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/notifAssinatura.ts
 - index.ts (plug worker):   https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/index.ts
+
+## PARMASUPRA-FECHAMENTO · Onda 2 (22/abr/2026 noite)
+Plug das integrações reais Gmail + Twilio no worker WD14 da Onda 1, fechando
+de vez os erros estruturados `google_mail_pendente_credenciais_real` e
+`whatsapp_provedor_pendente`. Commit `96449e0` em `feat/dominio-pawards`.
+
+### Plug Gmail real
+- `notifAssinatura.ts` agora importa `getGmailClient()` de `lib/google-gmail.ts`,
+  que já usa a connection `google-mail` ativa via `REPLIT_CONNECTORS_HOSTNAME`
+  (token gerenciado pelo Replit, sem secret manual).
+- Helper `buildEmailRaw` com `sanitizeHeader` (anti-injection CRLF), assunto
+  base64-UTF8, corpo HTML base64. Detecta se `row.corpo` já é HTML; senão
+  envolve em `<pre>`.
+- Validação: destinatário precisa ter `@`, senão FALHA estruturada
+  `email_invalido:<dest>` (sem expor PII no log).
+- **Smoke ENVIADO real**: notificação id=1 → Gmail message
+  `19db6bbe87276de6` entregue para `clinica.padua.agenda@gmail.com`
+  (loopback FROM → não gera spam pra terceiros).
+
+### Plug WhatsApp real (Twilio)
+- `notifAssinatura.ts` agora importa `enviarWhatsapp()` de
+  `services/whatsappService.ts`, que já roteia TWILIO/GUPSHUP conforme o
+  provedor da row em `whatsapp_config` (config ativa global: TWILIO sandbox
+  `+14155238886`).
+- Validações: destinatário não-vazio, corpo não-vazio.
+- **Smoke ENVIADO real**: notificação id=2 → SID Twilio
+  `SMdb89418fc236f9d35a006155d1905678` (autenticação API confirmada,
+  entrega depende do número estar joined no sandbox).
+
+### DRIVE permanece pendente
+Caio não pediu nesta onda. `drive_upload_pendente` continua sendo a FALHA
+estruturada do canal DRIVE; Drive client em `lib/google-drive.ts` está
+pronto pra ser plugado na próxima onda quando solicitado.
+
+### Smoke E2E completo da Onda 2
+```
+Reset id=1 (EMAIL → loopback) e id=2 (WHATSAPP, mantém número fake):
+  1 EMAIL    clinica.padua.agenda@gmail.com  PENDENTE  tentativas=0
+  2 WHATSAPP (11) 99000-1005                 PENDENTE  tentativas=0
+
+POST /api/admin/notif-assinatura/tick →
+  {"ok":true,"processadas":2,"enviadas":2,"retry_agendado":0,"falha_permanente":0}
+
+Pós-tick:
+  1 EMAIL    ENVIADO  resposta_provedor={"id":"19db6bbe87276de6","provider":"google-mail",...}
+  2 WHATSAPP ENVIADO  resposta_provedor={"logId":40,"msgId":"SMdb89418fc...","provider":"whatsapp"}
+```
+
+## DRIVE-TSUNAMI · Wave 1 (22/abr/2026 noite)
+Encerra o último canal pendente do WD14: canal DRIVE plugado real,
+fechando de vez `drive_upload_pendente`. Commit `38c4806` em
+`feat/dominio-pawards` (mesmo SHA em `main` via push direto).
+
+Primeira wave do tsunami quádruplo (DRIVE → MENSAGERIA → FATURAMENTO →
+PACIENTE) autorizado pelo Caio.
+
+### Plug DRIVE real no WD14
+- `notifAssinatura.ts` agora importa `getOrCreateClientFolder`,
+  `uploadToClientSubfolder` e `formatFileName` de `lib/google-drive.ts`.
+- Parse `drive://paciente/<id>` (formato emitido por
+  `lib/assinatura/service.ts:313`).
+- Busca paciente; se sem `google_drive_folder_id`, auto-provision via
+  `getOrCreateClientFolder` (cria root `CLINICA PADUA - CLIENTES` +
+  pasta paciente `NOME - CPF XXX` + 21 subpastas) e persiste o
+  folder_id em `pacientes.google_drive_folder_id`.
+- Conteúdo do upload:
+  - Se `anexo_url` for `http(s)`: baixa o binário via fetch e usa o
+    `content-type` retornado.
+  - Senão: gera TXT do `corpo` (registro textual de evento, útil
+    enquanto gerador de PDF assinado real não foi plugado).
+- Upload na subpasta `ASSINATURAS` com filename padronizado
+  `formatFileName(hoje, "ASSINATURA", paciente_nome, momento)`.
+- Resposta retorna `fileId`, `fileUrl`, `subfolderId`, `folderId`,
+  `paciente_id` para rastreabilidade.
+
+### Smoke E2E completo · 9/9 ENVIADO real
+As 9 notificações em FALHA permanente da Onda 1 (que tinham marcado as
+falhas estruturadas `google_mail_pendente_credenciais_real`,
+`whatsapp_provedor_pendente`, `drive_upload_pendente`) foram resetadas
+para PENDENTE — com o destinatário EMAIL trocado para loopback
+`clinica.padua.agenda@gmail.com` (proteção anti-spam para terceiros);
+WHATSAPP e DRIVE mantidos. Tick processou 9/9 ENVIADO REAL:
+```
+POST /api/admin/notif-assinatura/tick →
+  {"ok":true,"processadas":9,"enviadas":9,"retry_agendado":0,"falha_permanente":0}
+
+Resultado por id:
+  3  EMAIL    ENVIADO  Gmail msg 19db6d0e9997392c
+  4  WHATSAPP ENVIADO  Twilio SID SMead0daa21a83a567f8da2900c5c62803
+  5  EMAIL    ENVIADO  Gmail msg 19db6d0ee3060fc7
+  6  WHATSAPP ENVIADO  Twilio SID SM0cabbb3846069dcc9560c5dcdbd891fa
+  7  WHATSAPP ENVIADO  Twilio SID SM2e8172fb1ee6d86b6a035b8d33bba4b3
+  8  EMAIL    ENVIADO  Gmail msg 19db6d0fb02d7412
+  9  DRIVE    ENVIADO  fileId 1JbwKDlAly1IM_Y_LFbK7jt5a0mc5DqXA (Google Drive real)
+  10 EMAIL    ENVIADO  Gmail msg 19db6d13d844997d
+  11 WHATSAPP ENVIADO  Twilio SID SM224cd872f63fd3d41fffddb9d2ace81a
+
+Auto-provision colateral:
+  Paciente 51 (Patricia Oliveira Rocha FICTICIA) ganhou
+  google_drive_folder_id = 1MMoTcDN3YwB8MiWIdtMLOK9bI23iCV6r
+  com 21 subpastas (CADASTRO, RECEITAS, ASSINATURAS, NOTAS FISCAIS, ...).
+```
+
+### Próximas Waves do tsunami quádruplo (Wave 2 ✅, Wave 4 ✅, Wave 3 pendente)
+- **Wave 3 · FATURAMENTO-TSUNAMI** (PENDENTE — único débito aberto):
+  Asaas adapter real (boleto/PIX/cartão) + webhook conciliação +
+  dashboard inadimplência + cobrança auto via WD14 (templates W2 +
+  boleto/recibo no Drive W1).
+
+## PACIENTE-TSUNAMI · Wave 4 (23/abr/2026, commit `41821ac`)
+**Status:** ✅ FECHADA — smoke E2E backend 6/6 verde, frontend HTTP 200,
+push duplo main+feat/dominio-pawards.
+
+Quarta wave: portal do paciente com login alternativo por OTP (código
+6 dígitos por email, válido 10min, anti-flood 60s, max 5 tentativas) +
+histórico unificado de assinaturas/solicitações/cobranças + links pra
+pasta do paciente no Drive (reusa Wave 1) + atalho WhatsApp pro Dr. Caio.
+Email branded com `wrapEmailMedcore` (reusa Wave 2). Zero dependência
+externa nova — só somou em cima das Waves 1 e 2.
+
+**Backend:**
+- `migrations/015_wave4_paciente_otp.sql` (CREATE TABLE IF NOT EXISTS
+  via psql aditivo — REGRA FERRO respeitada, sem `db:push`)
+- `lib/portalPaciente/otpService.ts`: solicitarOtp + validarOtp
+  (bcrypt hash, TTL 10min, 5 tentativas, anti-flood 60s)
+- `routes/portalCliente.ts` +4 rotas:
+  `POST /portal/otp/solicitar`, `POST /portal/otp/validar`,
+  `GET  /portal/historico/:pacienteId`,
+  `GET  /portal/drive-links/:pacienteId`
+- `middlewares/requireAuth.ts`: whitelist Wave 4 (4 rotas públicas)
+
+**Frontend (`pages/portal/index.tsx`):**
+- Novo step `otp_codigo` + handlers solicitar/validar
+- Botão "Receber código por email" na tela identificação
+- 2 sections novas: "Meu Histórico" + "Meus Documentos no Drive"
+- Botão "Falar com Dr. Caio (WhatsApp)" no menu (deep link `wa.me`)
+
+**Smoke E2E backend (paciente teste #51 Patricia FICTÍCIA):**
+- histórico → 200 (4 itens TCLE/Contrato), drive-links → 200 (folder real)
+- OTP errado → 401, correto → 200, reuso → 401, formato inválido → 400
+
+## MENSAGERIA-TSUNAMI · Wave 2 (22/abr/2026 noite, commit `43fba9b`)
+**Status:** ✅ FECHADA — smoke E2E 9/9 verde, push duplo main+feat.
+
+Segunda wave do tsunami: templates HTML branded MEDCORE pra emails WD14
++ quiet hours global + opt-out por paciente + dashboard admin completo.
+
+### Migration 014 (aditiva, via psql — REGRA FERRO obedecida)
+Arquivo: `artifacts/api-server/src/db/migrations/014_wave2_mensageria.sql`
+- `pacientes.notif_opt_out_email` BOOLEAN DEFAULT FALSE
+- `pacientes.notif_opt_out_whatsapp` BOOLEAN DEFAULT FALSE
+- `pacientes.opt_out_token` TEXT (placeholder pra link de unsubscribe)
+- Tabela `notif_config` (singleton id=1, quiet 22:00-07:00 SP, ON default)
+- Status novos: `PULADO_QUIET` (não-terminal, reagenda) e
+  `PULADO_OPTOUT` (terminal) no check de assinatura_notificacoes
+
+### Backend
+- **`lib/recorrencia/notifTemplate.ts`** (novo, 130 linhas):
+  `wrapEmailMedcore({ subject, bodyHtmlOrText, momento, pacienteNome,
+  unidadeNick, optOutUrl })` → HTML responsive 600px com header navy
+  (#020406) + divisor gold 3px (#C89B3C) + body card branco com sombra
+  + footer cream com aviso LGPD + opt-out + assinatura "Powered by
+  Pawards MedCore". Detecta HTML vs plain text e escapa.
+- **`lib/recorrencia/notifAssinatura.ts`** (modificado):
+  - Helpers: `getNotifConfig()` (cache 60s), `horaLocal(tz)` (Intl real
+    pra SP), `dentroDoQuiet()` (handles wrap 22→07), `calcProximoQuietFim()`,
+    `invalidarCacheNotifConfig()` (exportado pra rota PUT config).
+  - SELECT do tick agora faz LEFT JOIN com `assinatura_solicitacoes` →
+    `pacientes` → `unidades` pra trazer paciente_nome, opt-out flags e
+    nick da unidade.
+  - **Pre-check 1** (terminal): se paciente opted-out no canal, marca
+    PULADO_OPTOUT e segue (não conta tentativa).
+  - **Pre-check 2** (não-terminal): se está em quiet hours (EMAIL/WHATSAPP
+    apenas — DRIVE roda 24/7), marca PULADO_QUIET e agenda
+    proxima_tentativa_em pra próximo quiet_fim. Tick aceita
+    `status IN ('PENDENTE','PULADO_QUIET')` no SELECT.
+  - Canal EMAIL agora aplica `wrapEmailMedcore()` automaticamente
+    com optOutUrl construída como
+    `${PUBLIC_APP_URL}/opt-out?paciente=<id>&canal=email`.
+- **`routes/notifAssinatura.ts`** (modificado, +5 endpoints):
+  - `GET  /admin/notif-assinatura/list?status=&canal=&dia=&q=&page=&pageSize=`
+  - `POST /admin/notif-assinatura/:id/reenviar` (reset → PENDENTE)
+  - `GET  /admin/notif-config`
+  - `PUT  /admin/notif-config` (invalida cache)
+  - `GET  /admin/notif-assinatura/preview/:id` (renderiza HTML branded)
+
+### Frontend
+- **`pages/admin-notificacoes.tsx`** (novo, 350 linhas):
+  - 5 KPIs por status (PENDENTE/ENVIADO/FALHA/PULADO_QUIET/PULADO_OPTOUT)
+  - Card de quiet hours config (HH:MM inputs + tz + checkbox + Save)
+  - Filtros (status, canal, dia, busca por destinatário/assunto/paciente)
+  - Tabela paginada (50/page) com badges navy/gold consistentes
+  - Ação reenviar (POST) + preview branded (GET HTML em nova tab)
+  - Botão "Rodar Tick Agora" (POST, mostra resultado em alert)
+- **`App.tsx`**: rota `/admin/notificacoes` → AdminNotificacoes
+
+### Smoke E2E (`/tmp/preview-wave2.html` salvo pra inspeção visual)
+1. **FASE 1 quiet hours** (3/3 PULADO_QUIET, agendado pra 00:00 SP) ✅
+2. **FASE 2 opt-out** (3/3 PULADO_OPTOUT, terminal) ✅
+3. **FASE 3 template branded** — 9/9 markers presentes:
+   navy `#020406`, gold `#C89B3C`, "PAWARDS" header, paciente_nome,
+   unidade_nick, momento label, opt-out URL, "LGPD", "Pawards MedCore" ✅
+4. Estado restaurado pra prod default (config 22-07 ON, opt-out 51 OFF,
+   notifs teste deletadas, fila final = 11 ENVIADO).
+
+### Push duplo
+- `feat/dominio-pawards`: `801ab21..43fba9b` ✅
+- `main` (direto via `git push origin HEAD:main`): `801ab21..43fba9b` ✅
+
+---
+
+## FATURAMENTO-TSUNAMI · Wave 3 (23/abr/2026 noite) — FERTILIZAÇÃO
+
+### Filosofia
+"Não plantar mato em cima de jardim cultivado." Wave 3 descobriu que JÁ
+existia muita coisa: `asaas.adapter.ts` com 235 linhas reais (sem mock),
+`payment.service.ts`, webhook `/payments/webhooks/:gateway`, módulo
+`cobrancasAuto.ts` com T5+T6+T7, 11+ tabelas (`pagamentos`,
+`cobrancas_adicionais`, `provedores_pagamento`, `tratamentos`, etc).
+Logo, Wave 3 NÃO recriou — fertilizou os 3 gaps explícitos.
+
+### Migration 016 (psql aditiva, IF NOT EXISTS — REGRA FERRO)
+Arquivo: `artifacts/api-server/src/db/migrations/016_wave3_faturamento_fertilizacao.sql`
+- `cobrancas_adicionais`: + `enviado_em`, `erro_envio`, `tentativas_envio`, `paciente_id`
+- `pagamentos`: + `external_ref`, `gateway_name`, `gateway_payment_id`
+  (+ 2 índices: `ix_pagamentos_external_ref`, `ix_pagamentos_gateway_payment_id`)
+- `pagamento_webhook_eventos` (NOVA): auditoria idempotente de webhooks
+  (gateway, gateway_payment_id, external_ref, event_type, status_aplicado,
+   payload_json, recebido_em, processado_em, erro)
+
+### Frente A · `enviarEmailCobranca` fertilizada com Wave 2
+**Antes**: TODO retornando `"google_mail_pendente_de_credenciais_real"`.
+**Depois** (`lib/cobrancasAuto.ts`): envio Gmail real reusando
+- `getGmailClient()` (Wave 1 google-mail integration)
+- `wrapEmailMedcore()` (Wave 2 template branded navy/gold)
+- `_buildEmailRawCobranca()` (helper local pattern de notifAssinatura.ts)
+- HTML corpo: tabela com tipo/descrição/valor R$ formatado/status,
+  branded "PAWARDS MEDCORE - Faturamento" no From
+- UPDATE idempotente em `cobrancas_adicionais`: muda status pra
+  `cobrado` se `pendente`, registra `enviado_em`, `tentativas_envio++`,
+  limpa `erro_envio`. Falha registra `erro_envio` + tentativas e devolve
+  `google_mail_pendente_de_credenciais_real` ou `erro_interno`.
+
+### Frente B · Webhook reconciliação real
+**Antes** (`routes/payments.ts:178`): `// await db.payments.updateStatus(...)` puro TODO.
+**Depois**: bloco de 3 etapas:
+1. **Auditoria sempre primeiro** — INSERT em `pagamento_webhook_eventos`
+   (gateway, payment_id, external_ref, event_type, status_aplicado,
+   payload jsonb completo).
+2. **Reconciliação com fallback duplo** — UPDATE em `pagamentos`:
+   tenta primeiro por `(gateway_name, gateway_payment_id)`, se 0 rows
+   afetadas tenta `external_ref`. Mapa `paid→pago | failed→falhou |
+   cancelled/refunded/expired→cancelado | pending→pendente`. Se
+   `pago`, seta `pagu_em=now()`. Backfill defensivo de `gateway_name`
+   e `gateway_payment_id` se NULL.
+3. **Marca processado** — UPDATE `processado_em=now()` no evento mais
+   recente que casa gateway+payment_id+external_ref (idempotente).
+4. Resposta inclui `{event, status_db, updated}` pra debug.
+
+### Frente C · Dashboard inadimplência admin
+**Backend** (`routes/financeiro.ts`):
+- `GET /api/admin/inadimplencia?dias_min=N` — JOIN pagamentos +
+  pacientes + unidades + tratamentos onde `status='pendente'`,
+  ordenado por `dias_atraso DESC, valor DESC`, LIMIT 500.
+  Resposta: `{ total, total_devido_brl, buckets:{ate_7,de_8_30,de_31_60,acima_60}, linhas[] }`.
+- `POST /api/admin/inadimplencia/:cobrancaId/reenviar` — dispara
+  `enviarEmailCobranca` da frente A; ambas rotas sob `/api` requireAuth.
+
+**Frontend** (`pages/admin-inadimplencia.tsx`, 200L):
+- 5 cards: total devido (gold destaque) + 4 buckets de aging
+- Filtro `dias_min` + botão "Atualizar" (gold)
+- Tabela ordenada com badges de cor por aging (amber→orange→red→rose)
+- Botão "Reenviar" por linha (POST /reenviar) com feedback inline
+- Rota wouter `/admin/inadimplencia` em `App.tsx`
+
+### Smoke Wave 3 (6/6 verde)
+| # | Teste                                    | Resultado |
+|---|------------------------------------------|-----------|
+| 1 | API health                               | 200 ✅    |
+| 2 | GET /admin/inadimplencia (sem auth)      | 401 ✅    |
+| 3 | POST /admin/inadimplencia/:id/reenviar   | 401 ✅    |
+| 4 | POST /payments/webhooks/asaas (auth ok)  | 503 (gateway ñ configurado — esperado sem ASAAS_API_KEY) ✅ |
+| 5 | psql E2E: pagamento fake → webhook event → status='pago' aplicado | ✅ |
+| 6 | Frontend HTTP                            | 200 ✅    |
+
+### Pre-existing TS errors (NÃO Wave 3 — não tocar)
+- `financeiro.ts:157,158` — `codigoSemantico`/`revoPatologiaId` ausentes do schema (pre)
+- `payments.ts:107,126` — `string|string[]` em headers webhook (pre)
+
+### Próximo passo (Frente E opcional)
+Pedir ao Caio o secret `ASAAS_API_KEY` pra ativar smoke E2E real
+contra sandbox Asaas (criar cobrança real via `asaas.adapter.ts`,
+receber webhook real, ver linha em `pagamento_webhook_eventos`).
