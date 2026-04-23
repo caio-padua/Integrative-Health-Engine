@@ -8,6 +8,91 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Wave 5 PARMAVAULT-TSUNAMI · EM EXECUÇÃO (23/abr/2026)
+Validação UNIDADE↔FARMÁCIA PARCEIRA. Decisões Dr. Claude: P1 = tabela
+vazia + UI primeiro (Caio semeia 9 pares manualmente), P2 = modo B
+warning visível (sem bloqueio duro 30 dias).
+
+- **Frente A1 PLANTADA** — Tabela `farmacias_unidades_contrato` (id serial
+  PK, unidade_id FK, farmacia_id FK, tipo_relacao, ativo, vigencia_inicio,
+  vigencia_fim, observacoes, criado_em, atualizado_em, criado_por_usuario_id)
+  + UNIQUE parcial `uniq_fuc_par_ativo (unidade_id, farmacia_id) WHERE
+  ativo=true` (permite reativar pares inativos preservando histórico) +
+  2 índices auxiliares (unidade+ativo, farmacia+ativo).
+- **CRUD admin** `routes/contratosFarmacia.ts` em `/api/admin/contratos-farmacia`
+  (GET lista joinada, GET /options dropdowns, POST cria, PATCH edita,
+  DELETE soft) com auth dupla `requireRole("validador_mestre")` +
+  `requireMasterEstrito` (mesmo padrão Wave 3).
+- **Helper validador** `lib/contratoFarmacia.ts` exporta
+  `validarContratoFarmaciaUnidade(unidade_id, farmacia_id)` retornando
+  `{valido, motivo, contrato?}`. Defensivo (nunca lança), considera
+  `ativo=true` E vigência (today >= inicio E (fim NULL OR today <= fim)).
+  Pronto pra A2 chamar em modo warning não-bloqueante.
+- **UI master** `pages/admin-contratos-farmacia.tsx` (rota
+  `/admin/contratos-farmacia`) navy/gold, listagem joinada com unidade+
+  farmácia+CNPJ+tipo+vigência+status, form de cadastro com dropdowns
+  pré-carregados, toggle ativar/desativar, filtro mostrar inativos.
+- **Migration 019** (psql aditiva, REGRA FERRO IF NOT EXISTS).
+- **Smoke 6/6 verde**: (1) auth gate 401 nos 3 endpoints sem cookie;
+  (2) INSERT direto OK; (3) UNIQUE parcial bloqueia duplicata ativa
+  com erro `uniq_fuc_par_ativo`; (4) helper SQL retorna `valido=t` no par
+  recém-criado; (5) soft delete + reinsert do mesmo par funciona
+  (UNIQUE só impede ativos); (6) cleanup deixa tabela vazia (P1 Dr.
+  Claude — Caio semeia manualmente).
+- **Próximo**: Caio cadastra os 9 pares via UI, depois plantamos
+  Frente A2 (hook warning na emissão).
+
+### Wave 5 ondas 1-3 PLANTADAS (autonomia 3-4h, sem validação intermediária)
+- **Migration 020** (psql aditiva IF NOT EXISTS) — estende
+  `farmacias_parmavault` com 8 colunas de regras de roteamento
+  (`nivel_exclusividade` parceira/preferencial/exclusiva/piloto/backup,
+  `disponivel_manual`, `acionavel_por_criterio`, `cota_pct_max`,
+  `cota_receitas_max_mes`, `prioridade`, `aceita_blocos_tipos text[]`,
+  `observacoes_roteamento`) + CHECK constraints idempotentes + índice
+  composto. Cria `farmacias_emissao_metricas_mes` (id, farmacia_id FK,
+  ano_mes char(7), qtd_emissoes, valor_total) com UNIQUE
+  (farmacia_id, ano_mes). **+5 farmácias novas no pool**: Galena
+  Manipulação (preferencial, prio 50, formula_oral+topico),
+  Pharmacore Premium (parceira, prio 80), Lemos Manipulação (backup,
+  prio 200, cota 10%), Botica Magistral Premium (preferencial, prio 60,
+  injetavel+implante), Essentia Pharma (piloto, prio 90, cota 15%).
+  Pool total: **8 farmácias**.
+- **Helper roteador** `lib/roteamentoFarmacia.ts` exporta
+  `rotearFarmaciaParaReceita({unidade_id, tipo_bloco?, override_farmacia_id?})`
+  com cascata: (1) override manual válido vence; (2) sem contrato vigente
+  bloqueia; (3) exclusividade preemptiva; (4) filtra por
+  `aceita_blocos_tipos`; (5) cota_pct_max (vs métricas mês); (6)
+  cota_receitas_max_mes; (7) ordena por prioridade ASC + capacidade DESC.
+  Defensivo (nunca lança), retorna `{ok, regra_aplicada, farmacia_escolhida,
+  alternativas, rejeitadas, contexto}` com `motivo_eliminacao` em cada
+  rejeitada pra debug.
+- **3 endpoints novos** em `routes/contratosFarmacia.ts`:
+  `GET /api/admin/farmacias-roteamento` (lista farmácias + regras +
+  métricas mês), `PATCH /:id` (whitelist de campos editáveis),
+  `POST /preview` (simula roteamento sem persistir). Auth dupla
+  validador_mestre + master estrito.
+- **UI master** `pages/admin-farmacias-roteamento.tsx` (rota
+  `/admin/farmacias-roteamento`) navy/gold com **(a)** simulador
+  interativo (dropdown unidade + tipo_bloco + override → mostra farmácia
+  escolhida, regra aplicada, alternativas, rejeitadas com motivo);
+  **(b)** tabela editável de farmácias com inline edit em todos os
+  campos de regra (nível, prio, cotas, manual, critério, blocos
+  aceitos, ativo) + botão Salvar por linha.
+- **Smoke 7/7 verde**: (1) auth gate 401 nos 3 novos endpoints;
+  (2) pool=8 farmácias confirmado; (3) sem contrato → `sem_contrato_unidade`;
+  (4a) 3 contratos sem tipo → Galena prio 50 escolhida; (4b)
+  tipo=injetavel → Botica Premium (Galena rejeitada por
+  `nao_aceita_bloco_injetavel`); (4c) override=FAMA → regra
+  `manual_override`; (5) exclusiva preempta 2 outras; (6) Galena com
+  30 emissões em pool 40 (75%>25% cota) → rejeitada por
+  `cota_pct_estourada`; (7) cleanup zerado.
+- **Próximo (Onda 4)**: Caio cadastra contratos via
+  `/admin/contratos-farmacia` + ajusta regras em
+  `/admin/farmacias-roteamento` + simula cenários no preview. Depois
+  plantamos hook de warning na emissão real (chama
+  `rotearFarmaciaParaReceita` em `painelPawards.ts` → grava warning
+  + sugestão na resposta) + relatório de quotas + alertas.
+
 ## Wave 3 FATURAMENTO-TSUNAMI · FECHADA (23/abr/2026)
 Braço PACIENTE↔UNIDADE em produção — main + feat/dominio-pawards.
 

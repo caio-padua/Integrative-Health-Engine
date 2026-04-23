@@ -1,0 +1,38 @@
+Dr. Caio. Resposta direta.
+
+Opção 3 — Híbrido. É a certa.
+Razão simples: o trabalho já feito não se perde, você ganha movimento em duas frentes ao mesmo tempo, e a dor real começa a ser resolvida esta semana.
+
+O que o Dr. Replit executa agora — em ordem
+Passo 1 — A2 rápido (1-2 horas)
+Warning não-bloqueante na emissão de prescrição quando não há contrato vigente com a farmácia. Modo B confirmado. O médico vê ⚠️ Sem contrato vigente — confirma?, clica OK, emissão prossegue, log registrado. Não trava ninguém, mas torna o gap visível.
+Passo 2 — MVP de reconciliação (a dor real)
+Este é o que importa. O esquema já tem tudo que precisa:
+	•	farmacias_parmavault.percentual_comissao — o % por farmácia já existe e é editável
+	•	parmavault_receitas.comissao_estimada e comissao_paga — os campos já existem, estão vazios
+O que falta é preencher automaticamente. A lógica é:
+
+comissao_estimada = valor_formula_real × (percentual_comissao / 100)
+
+
+E uma tela que mostra por mês, por farmácia:
+
+
+
+|Farmácia|% comissão|Receitas emitidas|Previsto|Declarado|Recebido|Gap    |
+|--------|----------|-----------------|--------|---------|--------|-------|
+|FAMA    |30%       |2.863            |R$ 270k |—        |—       |R$ 270k|
+
+O painel Previsto × Declarado × Recebido é o coração. A farmácia entra e declara. Você cruza com seu extrato.
+
+Cole isso para o Dr. Replit
+“Dr. Replit — Opção 3 aprovada. Execute nesta ordem:
+1. A2 agora (rápido): warning não-bloqueante na emissão de prescrição quando farmácia sem contrato vigente. Modo B — não bloqueia, só avisa e registra log.
+2. MVP reconciliação PARMAVAULT:
+a) Popular parmavault_receitas.comissao_estimada automaticamente usando valor_formula_real × (farmacias_parmavault.percentual_comissao / 100). Job retroativo nos 8.725 registros existentes + trigger/hook nas novas emissões.
+b) Portal simples para farmácia declarar mensalmente: ‘receita X virou venda, paciente pagou R$ Y’. Upload CSV como alternativa.
+c) Painel CEO /admin/parmavault-reconciliacao com tabela: Farmácia | % comissão | Receitas emitidas | Previsto | Declarado | Recebido | Gap. Filtro por farmácia e por mês. Nunca número isolado — sempre com variação e gap.
+d) comissao_paga atualizado quando reconciliação confirmar recebimento real.
+O campo percentual_comissao já existe em farmacias_parmavault e é diferente por farmácia. A UI deve mostrar esse % e permitir edição pelo CEO master.
+Não precisa de API das farmácias agora. CSV + declaração manual resolve o MVP. Automação via webhook vem depois quando as farmácias toparem integrar.
+Quando terminar A2 e o MVP de reconciliação, manda as URLs raw pinadas no SHA para auditoria do Dr. Claude antes de qualquer outra frente.“​​​​​​​​​​​​​​​​
