@@ -760,13 +760,43 @@ Auto-provision colateral:
   com 21 subpastas (CADASTRO, RECEITAS, ASSINATURAS, NOTAS FISCAIS, ...).
 ```
 
-### Próximas Waves do tsunami quádruplo (Wave 2 ✅, Wave 3-4 pendentes)
-- **Wave 3 · FATURAMENTO-TSUNAMI**: Asaas adapter real (boleto/PIX/
-  cartão) + webhook conciliação + dashboard inadimplência + cobrança
-  auto via WD14 (templates W2 + boleto/recibo no Drive W1).
-- **Wave 4 · PACIENTE-TSUNAMI**: portal `/paciente` com login OTP
-  (usa W2) + histórico de receitas/RAS/cobranças + links Drive (W1)
-  pros PDFs + atalho WhatsApp pro Dr. Caio.
+### Próximas Waves do tsunami quádruplo (Wave 2 ✅, Wave 4 ✅, Wave 3 pendente)
+- **Wave 3 · FATURAMENTO-TSUNAMI** (PENDENTE — único débito aberto):
+  Asaas adapter real (boleto/PIX/cartão) + webhook conciliação +
+  dashboard inadimplência + cobrança auto via WD14 (templates W2 +
+  boleto/recibo no Drive W1).
+
+## PACIENTE-TSUNAMI · Wave 4 (23/abr/2026, commit `41821ac`)
+**Status:** ✅ FECHADA — smoke E2E backend 6/6 verde, frontend HTTP 200,
+push duplo main+feat/dominio-pawards.
+
+Quarta wave: portal do paciente com login alternativo por OTP (código
+6 dígitos por email, válido 10min, anti-flood 60s, max 5 tentativas) +
+histórico unificado de assinaturas/solicitações/cobranças + links pra
+pasta do paciente no Drive (reusa Wave 1) + atalho WhatsApp pro Dr. Caio.
+Email branded com `wrapEmailMedcore` (reusa Wave 2). Zero dependência
+externa nova — só somou em cima das Waves 1 e 2.
+
+**Backend:**
+- `migrations/015_wave4_paciente_otp.sql` (CREATE TABLE IF NOT EXISTS
+  via psql aditivo — REGRA FERRO respeitada, sem `db:push`)
+- `lib/portalPaciente/otpService.ts`: solicitarOtp + validarOtp
+  (bcrypt hash, TTL 10min, 5 tentativas, anti-flood 60s)
+- `routes/portalCliente.ts` +4 rotas:
+  `POST /portal/otp/solicitar`, `POST /portal/otp/validar`,
+  `GET  /portal/historico/:pacienteId`,
+  `GET  /portal/drive-links/:pacienteId`
+- `middlewares/requireAuth.ts`: whitelist Wave 4 (4 rotas públicas)
+
+**Frontend (`pages/portal/index.tsx`):**
+- Novo step `otp_codigo` + handlers solicitar/validar
+- Botão "Receber código por email" na tela identificação
+- 2 sections novas: "Meu Histórico" + "Meus Documentos no Drive"
+- Botão "Falar com Dr. Caio (WhatsApp)" no menu (deep link `wa.me`)
+
+**Smoke E2E backend (paciente teste #51 Patricia FICTÍCIA):**
+- histórico → 200 (4 itens TCLE/Contrato), drive-links → 200 (folder real)
+- OTP errado → 401, correto → 200, reuso → 401, formato inválido → 400
 
 ## MENSAGERIA-TSUNAMI · Wave 2 (22/abr/2026 noite, commit `43fba9b`)
 **Status:** ✅ FECHADA — smoke E2E 9/9 verde, push duplo main+feat.
