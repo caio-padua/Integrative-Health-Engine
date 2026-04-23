@@ -1338,3 +1338,24 @@ receber webhook real, ver linha em `pagamento_webhook_eventos`).
 - B5 (painel CEO) ✅ admin-parmavault-reconciliacao.tsx + GET /admin/parmavault/matriz
 - B6 (PDF+Excel) ✅ POST relatorios/gerar + GET /:id/pdf|/excel
 - B7 (wrap-up) — pendente confirmação de auditoria com Caio
+
+## 2026-04-23 · Migration 026 + EXAMES-2 Frontend (autonomia 4h Caio)
+
+### Backend
+- **Migration 026 aplicada**: 8 codes V4 novos (HDLX/LDLX/TRIG/HTCR/HEMO/URCA/POTA/IGF1) + 15 PRG mapeados → **67/67 PRG agora 100%**.
+- **5 colunas aditivas em `analitos_catalogo`**: nome_zona_excelente / aceitavel / ruim / alerta / atencao. Defaults editáveis.
+- **Endpoint estendido** `GET /api/pacientes/:id/exames/dashboard`: retorna `zona_idx` 0-4, `cor_final` (4 cores incl. ALERTA distinto), `nome_zona`, `posicao_pct`, `sparkline` 6m, `observacao_clinica`, `direcao_favoravel`. JOIN com `analitos_catalogo` via `codigo_semantico_v4`. Compat reversa mantida (`corFinal`).
+
+### Frontend (NOVO)
+- `/atendimento/exames/:pacienteId` — **Modo Médico**: KPIs topo, busca + filtros, grid de cards XL com velocímetro mini, régua 5 zonas com bolinha animada, sparkline 6m, modal foco com script clínico. Atalhos: V (vitrine) / / (busca) / R (refresh) / ESC.
+- `/atendimento/exames/:pacienteId/vitrine` — **Modo Vitrine Paciente**: fullscreen navy/gold, fonte XL, velocímetro semicírculo 280px, régua animada framer-motion, tradução humana sem jargão, autoplay 8s, navegação ←/→, pirulitos coloridos no rodapé. ESC sai.
+
+### Regra blindada (filosofia Caio abr/26)
+- ALERTA (zona 0, abaixo mínimo) e ATENÇÃO (zona 4, acima máximo) são **neutros** — chamam o médico interpretar, não rotulam o número.
+- EXCELENTE / ACEITÁVEL / RUIM são **inversíveis** conforme `terco_excelente` (SUPERIOR/INFERIOR/MEDIO).
+
+### Manifesto Dr. Replit
+- `MANIFESTO_DR_REPLIT.md` na raiz do projeto. Glossário oficial Caio (Bloco/Fórmula/Prescrição/Exame/Analito/PRG/V4/5 zonas/Comissão estimada vs paga/GAP). Protocolo Dr. Claude → Dr. Replit (ele PEDE o que existe antes de propor; eu RESPONDO com evidência psql/rg, não memória).
+
+### EM PAUSA (commit-and-park)
+- Wave 5 PARMAVAULT-TSUNAMI parcial — ver checklist B0–B7 acima. Caio pivotou pra terminar EXAMES-2 frontend; volta na próxima leva.
