@@ -1,0 +1,50 @@
+Lendo o inventário completo agora.​​​​​​​​​​​​​​​​
+
+Dr. Caio. Li o inventário completo. Tenho a resposta estratégica e o seed corrigido.
+
+Resposta à pergunta do Dr. Replit — estratégia
+Caminho correto: B + C combinados, em 2 etapas.
+Não fazer os 195 todos — muitos são qualitativos (ANCA, anticorpos, culturas) que não têm faixa numérica. Focar nos ~70 marcadores quantitativos mais usados em consulta integrativa.
+Cole para o Dr. Replit:
+
+“Dr. Replit — estratégia definida pelo Dr. Claude. 2 etapas, nesta ordem:
+ETAPA 1 — UPDATE analitos_catalogo (preencher unidade + direção):
+
+-- Corrigir unidade + terco_excelente nos analitos-chave que estão sem unidade
+-- Idempotente: só atualiza se unidade está NULL ou vazia
+UPDATE analitos_catalogo SET unidade_padrao_integrativa='ng/dL', terco_excelente='SUPERIOR'
+  WHERE codigo='TESTOSTERONA_TOTAL' AND (unidade_padrao_integrativa IS NULL OR unidade_padrao_integrativa='');
+UPDATE analitos_catalogo SET unidade_padrao_integrativa='ng/mL', terco_excelente='SUPERIOR'
+  WHERE codigo='VITAMINA_D' AND (unidade_padrao_integrativa IS NULL OR unidade_padrao_integrativa='');
+UPDATE analitos_catalogo SET unidade_padrao_integrativa='mg/L', terco_excelente='INFERIOR'
+  WHERE codigo='PCR_ULTRA' AND (unidade_padrao_integrativa IS NULL OR unidade_padrao_integrativa='');
+UPDATE analitos_catalogo SET unidade_padrao_integrativa='uUI/mL', terco_excelente='INFERIOR'
+  WHERE codigo='INSULINA' AND (unidade_padrao_integrativa IS NULL OR unidade_padrao_integrativa='');
+
+
+ETAPA 2 — INSERT parametros_referencia_global (arquivo seed corrigido):
+Aplica o seed que o Dr. Claude vai gerar agora com os códigos REAIS do banco.”
+
+Agora vou gerar o seed corrigido com os códigos reais:​​​​​​​​​​​​​​​​
+
+Dr. Caio. Seed v2 pronto com os códigos reais do banco. Resumo do que foi corrigido e adicionado:
+Correções de drift:
+	•	TESTO_TOTAL → TESTOSTERONA_TOTAL ✅
+	•	VIT_D_25OH → VITAMINA_D ✅
+	•	PCR_US → PCR_ULTRA ✅
+	•	INSULINA_JEJUM → INSULINA ✅
+Novos marcadores adicionados (que não estavam no analitos_catalogo): HbA1c, HDL, LDL, Triglicérides, Cortisol Matinal, IGF-1, PSA Total, TGO/AST, TGP/ALT, Hemoglobina.
+Direção favorável atualizada em direcao_favoravel_exame para todos os marcadores onde BAIXO é melhor.
+Cole para o Dr. Replit aplicar:
+“Dr. Replit — seed v2 com códigos reais do banco gerado pelo Dr. Claude. Aplicar:
+
+psql $DATABASE_URL -f seed_parametros_v2_codigos_reais.sql
+
+
+Depois verificar:
+
+SELECT COUNT(*) FROM parametros_referencia_global WHERE tipo='EXAME';
+-- Esperado: ~80+ linhas
+SELECT COUNT(*) FROM direcao_favoravel_exame;
+-- Esperado: ~58+ linhas
+```"​​​​​​​​​​​​​​​​
