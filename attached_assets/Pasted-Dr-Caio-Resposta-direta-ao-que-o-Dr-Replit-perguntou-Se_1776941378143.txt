@@ -1,0 +1,52 @@
+Dr. Caio. Resposta direta ao que o Dr. Replit perguntou.
+
+Sequência para o Dr. Replit agora
+Cole isto:
+
+“Dr. Replit — sequência aprovada pelo Dr. Claude para as próximas 4 horas:
+1. Mapear os 44 PRG EXAME restantes ao código V4.0 (30min)
+Já tens os 97 exames da planilha V4.0. Cruza os que estão sem codigo_v4 em parametros_referencia_global com a tabela codigos_semanticos e faz UPDATE em massa:
+
+-- Ver quais ainda estão sem mapeamento:
+SELECT codigo, label FROM parametros_referencia_global
+WHERE tipo = 'EXAME' AND codigo_v4 IS NULL
+ORDER BY codigo;
+
+
+Para cada um, UPDATE usando o código V4.0 da planilha Dr. Manus.
+2. EXAMES-2 — frontend dashboard da consulta (3-4h)
+Esta é a frente mais importante do sistema. Brief completo:
+Rota: /atendimento/exames/:pacienteId
+Endpoint já existe: GET /pacientes/:id/exames/dashboard
+Estrutura da tela — 3 zonas:
+Zona topo: Nome do paciente · Idade · Data da coleta · Lab
+Filtros por grupo: [Todos] [Hormonal] [Mineral] [Vitamina] [Cardiometabólico] [Glicêmico]
+Contadores: ● N Crítico ● N Atenção ● N Normal ● N Ótimo
+Zona central — cards por marcador (scroll vertical):
+Cada card tem:
+	1.	Header: nome do marcador + valor + unidade + badge colorido (Crítico/Inferior/Médio/Superior)
+	2.	Régua visual horizontal com 5 zonas:
+
+[vermelho][âmbar═══●═══][dourado][verde][vermelho]
+ abaixo    terço inf    terço med  sup   acima
+
+
+O ponto ● mostra onde o valor do paciente está.
+	3.	Script clínico automático (texto gerado a partir dos dados):
+"Seu [marcador] está no [terço] — [observacao_clinica do analitos_catalogo]. Conduta: [mapa_bloco_exame quando disponível]."
+	4.	Mini-sparkline de tendência (últimos 6 meses) — linha gold
+Cores por classificação:
+	•	abaixo_minimo → #dc2626 vermelho
+	•	terco_inferior → #d97706 âmbar
+	•	terco_medio → #C89B3C dourado
+	•	terco_superior → #16a34a verde
+	•	acima_maximo → #dc2626 vermelho
+Para marcadores onde BAIXO é melhor (TSH, PCR, insulina, LDL): inverter a interpretação das cores usando direcao_favoravel_exame.direcao_favoravel = 'INFERIOR'.
+Botão flutuante: 🖥️ Modo apresentação → fullscreen, sidebar some, fonte 1.5x, cards expandidos, fundo navy #020406.
+Abas no topo: [Exame atual] [Evolução 6 meses] [Comparar 2 exames]
+Quando terminar:
+Push duplo + URLs raw pinadas no SHA. Dr. Claude audita antes da próxima frente.”
+
+Estado atual do sistema em 5 linhas
+Prescrição com assinatura digital funcionando. PARMAVAULT com PDF para reunião de farmácias funcionando. Sistema de exames com motor de classificação por terço funcionando. Bridge V4.0 do Dr. Manus aplicada. Falta o frontend da consulta — a tela que você abre na frente do paciente.
+EXAMES-2 é o que falta para o sistema ficar único no Brasil.
