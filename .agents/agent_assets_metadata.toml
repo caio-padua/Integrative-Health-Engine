@@ -323,3 +323,9 @@ id = "snQvHkj5eI6Kq4-OAX1eK"
 uri = "file://exports/handoffs/handoff-tsunami-dr-claude-2026-04-22.md"
 type = "text"
 title = "Handoff Dr. Claude — Onda PARMASUPRA-TSUNAMI 22-abr-2026 (5 commits, smoke 10/10)"
+
+[[outputs]]
+id = "TBTa8XiPKDeaXv8fY2gih"
+uri = "file://attached_assets/wave7_smoke/wave7_pdf_reconciliacao_FAMA_smoke.pdf"
+type = "pdf"
+title = "Wave 7 · PDF Reconciliação LUXUOSO (smoke FAMA - 6 receitas ficcionais)"
