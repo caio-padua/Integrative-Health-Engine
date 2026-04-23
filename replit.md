@@ -8,6 +8,65 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Wave 7 PARMAVAULT-TSUNAMI · PDF LUXUOSO CLÁSSICO REFINADO (23/abr/2026)
+Caio aprovou refazer o PDF de reconciliação combinando o cabeçalho luxuoso
+estilo Dr. Cloud (modelo HTML+CSS anexado) com a organização de informações
+em densidade alta + gráficos modernos no terço médio com legenda+explicação
+abaixo. ZERO migration. ZERO db:push. Edita só `gerarPdfReconciliacao.ts`.
+
+- **`gerarPdfReconciliacao.ts`** rewrite completo (754 linhas, era 496):
+  - **Estética luxuosa sem TTF download:** Times-Bold builtin pdfkit
+    para títulos serifados (aproxima Playfair Display) + Helvetica corpo +
+    Courier mono para protocolo hash. Zero novas deps.
+  - **NÃO usou `chartjs-node-canvas`** — exige libcairo binária pesada que
+    quebra build. Gráfico nativo pdfkit refinado (grade pontilhada, eixo Y
+    arredondado, valores no topo das barras, sombra sutil).
+  - **PÁGINA 1 — CAPA INSTITUCIONAL:**
+    - Cabeçalho navy 160px + faixa gold 5px (modelo Dr. Cloud).
+    - Brand "PAWARDS MEDCORE" Times-Bold 30px gold characterSpacing 4.
+    - "CONFIDENCIAL" canto direito + protocolo Courier.
+    - Nome farmácia Times-Bold 32px + CNPJ.
+    - **Grid 2×2 de 4 boxes informativos** com left-accent colorido:
+      Período Auditado / % Comissão (snapshot imutável) / Previsto Total /
+      GAP Total (vermelho se > 0, verde se = 0).
+    - Box "FINALIDADE" fundo gold suave + texto institucional Times-Roman.
+    - Box protocolo navy/gold no rodapé da capa.
+  - **PÁGINA 2 — RESUMO EXECUTIVO (3 zonas):**
+    - **Zona 1 (terço superior):** 4 KPI cards horizontais com left-accent
+      colorido (PREVISTO=navy, DECLARADO=gold, RECEBIDO=verde, GAP=accent
+      vermelho/verde). Valor Times-Bold 17px. GAP tem badge % com bg
+      arredondado.
+    - **Zona 2 (terço médio):** Gráfico de barras agrupado refinado.
+      Grade horizontal pontilhada (5 níveis), eixo Y com valores
+      abreviados (k/M) arredondados pra cima inteligentemente, 4 séries
+      por mês (Previsto/Declarado/Recebido/GAP), sombra sutil sob barras,
+      valores no topo das barras altas (>18px), labels mes "Mai/25",
+      rótulo "VALOR (R$)" rotacionado no eixo Y.
+    - **Zona 3 (terço inferior):** Legenda colorida com badges arredondados
+      + texto explicativo Times-Roman justify + box impacto (RED_BG +
+      borda RED se gap > 0, GREEN_BG se reconciliação completa).
+  - **PÁGINA 3+ — TABELA DETALHADA:**
+    - Header navy + faixa gold + título uppercase characterSpacing.
+    - Colunas: # / DATA / PACIENTE (iniciais LGPD) / Nº RECEITA (Courier) /
+      VALOR FÓRM. / COMISSÃO / STATUS.
+    - Linhas zebradas (alterna fundo PANEL_BG).
+    - Status colorido: PAGO=verde, DECLARADO=âmbar, PENDENTE=vermelho.
+    - Page break automático com header continuação.
+    - Linha TOTAL ao final (navy/gold) somando valores e comissões.
+  - **RODAPÉ todas páginas:** barra navy 30px + accent gold left + texto
+    Courier cinza centro + número página gold mono direita.
+- **Smoke verde:**
+  - Build TS limpo 1.45s.
+  - PDF teste gerado com 6 receitas reais ficcionais FAMA: 9KB, zero
+    runtime error, 3 páginas + tabela + rodapé fixo.
+- **Decisões técnicas conscientes:**
+  - Times-Bold builtin > download Playfair TTF (zero deps + funciona em
+    qualquer ambiente PDFKit).
+  - Sombra com `doc.opacity()` 0.3 + `#cbd5e1` (suporte nativo pdfkit).
+  - `arredondarParaCima(maxV)` pra eixo Y limpo (1, 2, 2.5, 5, 10 × 10^n).
+  - Margem global 0 + margem por página M=40 (controle pixel-perfect).
+  - Mantida interface `DadosPdfReconciliacao` 100% compat com Wave 5.
+
 ## Wave 6 PARMAVAULT-TSUNAMI · STORAGE DRIVE + CSV ROBUSTO + HOOK EMISSÃO (23/abr/2026)
 Wave 5 APROVADA pelo Dr. Claude com 2 observações de baixo risco. Wave 6
 fecha as 2 + adiciona o B3 (hook operacional) deferido. 4h autonomia
