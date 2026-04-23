@@ -239,9 +239,6 @@ importers:
       twilio:
         specifier: ^5.13.1
         version: 5.13.1
-      xlsx:
-        specifier: ^0.18.5
-        version: 0.18.5
       zod:
         specifier: 'catalog:'
         version: 3.25.76
@@ -270,6 +267,9 @@ importers:
       thread-stream:
         specifier: 3.1.0
         version: 3.1.0
+      xlsx:
+        specifier: ^0.18.5
+        version: 0.18.5
 
   artifacts/clinica-motor:
     dependencies:

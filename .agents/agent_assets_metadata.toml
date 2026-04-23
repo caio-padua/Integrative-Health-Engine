@@ -341,3 +341,33 @@ id = "CQqs3rctbP9EQuXHtju_V"
 uri = "file://attached_assets/dossies/dossie_pawards_dr_claude_2026-04-23_08-40_SHA-90f73f5.md"
 type = "text"
 title = "Dossiê PAWARDS pro Dr. Claude (468KB · SHA 90f73f5 · tudo em 1 arquivo)"
+
+[[outputs]]
+id = "PU7hO65ZTVgKpHQD3guYo"
+uri = "file://attached_assets/PLANILHA_BLOCOS_SEMANTICOS_FINAL_2_RECUPERADA.xlsx"
+type = "table"
+title = "Planilha BLOCOS SEMANTICOS FINAL 2 (recuperada do git, 233 exames+blocos)"
+
+[[outputs]]
+id = "oR7oMfZHZwrmODYEULs0n"
+uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V15.2_(CONSOLIDADA_FORMULAS_E_INJET_1775526641616.xlsx"
+type = "table"
+title = "PADCOM V15.2 (mais recente, formulas injetaveis)"
+
+[[outputs]]
+id = "NCHlWa-4DfGwS5THF_vNx"
+uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V15_(CONSOLIDADA_UNIFICADA_ARQUITET_1775526641627.xlsx"
+type = "table"
+title = "PADCOM V15 (arquitetura unificada)"
+
+[[outputs]]
+id = "smd7lieeTSLNTMPRRFRHo"
+uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V14.3_(FISCAL_GATEWAYS_MAPA_NF_INCO_1775526641636.xlsx"
+type = "table"
+title = "PADCOM V14.3 (camada fiscal)"
+
+[[outputs]]
+id = "OYdx8N7qF75r8oRTHPRNH"
+uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V14.2_(APPEND_QUESTIONARIO_CONTRATO_1775526641638.xlsx"
+type = "table"
+title = "PADCOM V14.2 (append questionario)"
