@@ -198,4 +198,109 @@ router.delete("/admin/contratos-farmacia/:id", ...guardMaster, async (req, res) 
   }
 });
 
+// ════════════════════════════════════════════════════════════════════
+// Wave 5 · Onda 3 · Endpoints de regras de roteamento
+// /api/admin/farmacias-roteamento
+// ════════════════════════════════════════════════════════════════════
+import { rotearFarmaciaParaReceita } from "../lib/roteamentoFarmacia";
+
+// GET → lista farmácias com regras + métricas mês corrente
+router.get("/admin/farmacias-roteamento", ...guardMaster, async (_req, res) => {
+  try {
+    const ano_mes = (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    })();
+    const r = await db.execute(sql`
+      SELECT
+        fp.id, fp.nome_fantasia, fp.cnpj, fp.cidade, fp.estado, fp.ativo,
+        fp.nivel_exclusividade, fp.disponivel_manual, fp.acionavel_por_criterio,
+        fp.cota_pct_max, fp.cota_receitas_max_mes, fp.prioridade,
+        fp.aceita_blocos_tipos, fp.observacoes_roteamento,
+        COALESCE(femm.qtd_emissoes, 0) AS qtd_emissoes_mes,
+        COALESCE(femm.valor_total, 0)  AS valor_total_mes,
+        (SELECT COUNT(*)::int FROM farmacias_unidades_contrato
+          WHERE farmacia_id = fp.id AND ativo = TRUE) AS contratos_ativos
+      FROM farmacias_parmavault fp
+      LEFT JOIN farmacias_emissao_metricas_mes femm
+        ON femm.farmacia_id = fp.id AND femm.ano_mes = ${ano_mes}
+      ORDER BY fp.ativo DESC, fp.prioridade ASC, fp.nome_fantasia ASC
+    `);
+    const total = r.rows.reduce((s: number, x: any) => s + Number(x.qtd_emissoes_mes || 0), 0);
+    const farmacias = r.rows.map((x: any) => ({
+      ...x,
+      qtd_emissoes_mes: Number(x.qtd_emissoes_mes),
+      valor_total_mes: Number(x.valor_total_mes),
+      pct_atual_mes: total > 0 ? Number(((Number(x.qtd_emissoes_mes) / total) * 100).toFixed(2)) : 0,
+    }));
+    res.json({ ok: true, ano_mes, total_emissoes_pool: total, farmacias });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
+// PATCH → edita regras de roteamento (whitelist)
+router.patch("/admin/farmacias-roteamento/:id", ...guardMaster, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || id <= 0) return res.status(400).json({ ok: false, error: "id invalido" });
+    const {
+      nivel_exclusividade, disponivel_manual, acionavel_por_criterio,
+      cota_pct_max, cota_receitas_max_mes, prioridade,
+      aceita_blocos_tipos, observacoes_roteamento, ativo,
+    } = req.body || {};
+
+    if (nivel_exclusividade !== undefined &&
+        !["parceira","preferencial","exclusiva","piloto","backup"].includes(String(nivel_exclusividade))) {
+      return res.status(400).json({ ok: false, error: "nivel_exclusividade invalido" });
+    }
+    if (cota_pct_max !== undefined && cota_pct_max !== null) {
+      const n = Number(cota_pct_max);
+      if (Number.isNaN(n) || n < 0 || n > 100) {
+        return res.status(400).json({ ok: false, error: "cota_pct_max deve estar entre 0 e 100" });
+      }
+    }
+    const tipos = Array.isArray(aceita_blocos_tipos)
+      ? aceita_blocos_tipos.map((t: any) => String(t).trim()).filter(Boolean)
+      : null;
+
+    const r = await db.execute(sql`
+      UPDATE farmacias_parmavault
+      SET nivel_exclusividade    = COALESCE(${nivel_exclusividade !== undefined ? String(nivel_exclusividade) : null}, nivel_exclusividade),
+          disponivel_manual      = COALESCE(${disponivel_manual !== undefined ? Boolean(disponivel_manual) : null}, disponivel_manual),
+          acionavel_por_criterio = COALESCE(${acionavel_por_criterio !== undefined ? Boolean(acionavel_por_criterio) : null}, acionavel_por_criterio),
+          cota_pct_max           = ${cota_pct_max === null ? sql`NULL` : cota_pct_max !== undefined ? sql`${Number(cota_pct_max)}` : sql`cota_pct_max`},
+          cota_receitas_max_mes  = ${cota_receitas_max_mes === null ? sql`NULL` : cota_receitas_max_mes !== undefined ? sql`${Number(cota_receitas_max_mes)}` : sql`cota_receitas_max_mes`},
+          prioridade             = COALESCE(${prioridade !== undefined ? Number(prioridade) : null}, prioridade),
+          aceita_blocos_tipos    = COALESCE(${tipos !== null ? sql`${tipos}::text[]` : sql`NULL`}, aceita_blocos_tipos),
+          observacoes_roteamento = ${observacoes_roteamento === null ? sql`NULL` : observacoes_roteamento !== undefined ? sql`${String(observacoes_roteamento).slice(0,1000)}` : sql`observacoes_roteamento`},
+          ativo                  = COALESCE(${ativo !== undefined ? Boolean(ativo) : null}, ativo),
+          atualizado_em          = now()
+      WHERE id = ${id}
+      RETURNING id, nome_fantasia, nivel_exclusividade, disponivel_manual, acionavel_por_criterio,
+                cota_pct_max, cota_receitas_max_mes, prioridade, aceita_blocos_tipos,
+                observacoes_roteamento, ativo, atualizado_em
+    `);
+    if (r.rows.length === 0) return res.status(404).json({ ok: false, error: "nao encontrado" });
+    res.json({ ok: true, farmacia: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
+// POST preview → simula roteamento sem persistir (debug + UI)
+router.post("/admin/farmacias-roteamento/preview", ...guardMaster, async (req, res) => {
+  try {
+    const { unidade_id, tipo_bloco, override_farmacia_id } = req.body || {};
+    const r = await rotearFarmaciaParaReceita({
+      unidade_id: Number(unidade_id),
+      tipo_bloco: tipo_bloco || null,
+      override_farmacia_id: override_farmacia_id ? Number(override_farmacia_id) : null,
+    });
+    res.json({ ok: true, resultado: r });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
 export default router;

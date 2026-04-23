@@ -42,6 +42,57 @@ warning visível (sem bloqueio duro 30 dias).
 - **Próximo**: Caio cadastra os 9 pares via UI, depois plantamos
   Frente A2 (hook warning na emissão).
 
+### Wave 5 ondas 1-3 PLANTADAS (autonomia 3-4h, sem validação intermediária)
+- **Migration 020** (psql aditiva IF NOT EXISTS) — estende
+  `farmacias_parmavault` com 8 colunas de regras de roteamento
+  (`nivel_exclusividade` parceira/preferencial/exclusiva/piloto/backup,
+  `disponivel_manual`, `acionavel_por_criterio`, `cota_pct_max`,
+  `cota_receitas_max_mes`, `prioridade`, `aceita_blocos_tipos text[]`,
+  `observacoes_roteamento`) + CHECK constraints idempotentes + índice
+  composto. Cria `farmacias_emissao_metricas_mes` (id, farmacia_id FK,
+  ano_mes char(7), qtd_emissoes, valor_total) com UNIQUE
+  (farmacia_id, ano_mes). **+5 farmácias novas no pool**: Galena
+  Manipulação (preferencial, prio 50, formula_oral+topico),
+  Pharmacore Premium (parceira, prio 80), Lemos Manipulação (backup,
+  prio 200, cota 10%), Botica Magistral Premium (preferencial, prio 60,
+  injetavel+implante), Essentia Pharma (piloto, prio 90, cota 15%).
+  Pool total: **8 farmácias**.
+- **Helper roteador** `lib/roteamentoFarmacia.ts` exporta
+  `rotearFarmaciaParaReceita({unidade_id, tipo_bloco?, override_farmacia_id?})`
+  com cascata: (1) override manual válido vence; (2) sem contrato vigente
+  bloqueia; (3) exclusividade preemptiva; (4) filtra por
+  `aceita_blocos_tipos`; (5) cota_pct_max (vs métricas mês); (6)
+  cota_receitas_max_mes; (7) ordena por prioridade ASC + capacidade DESC.
+  Defensivo (nunca lança), retorna `{ok, regra_aplicada, farmacia_escolhida,
+  alternativas, rejeitadas, contexto}` com `motivo_eliminacao` em cada
+  rejeitada pra debug.
+- **3 endpoints novos** em `routes/contratosFarmacia.ts`:
+  `GET /api/admin/farmacias-roteamento` (lista farmácias + regras +
+  métricas mês), `PATCH /:id` (whitelist de campos editáveis),
+  `POST /preview` (simula roteamento sem persistir). Auth dupla
+  validador_mestre + master estrito.
+- **UI master** `pages/admin-farmacias-roteamento.tsx` (rota
+  `/admin/farmacias-roteamento`) navy/gold com **(a)** simulador
+  interativo (dropdown unidade + tipo_bloco + override → mostra farmácia
+  escolhida, regra aplicada, alternativas, rejeitadas com motivo);
+  **(b)** tabela editável de farmácias com inline edit em todos os
+  campos de regra (nível, prio, cotas, manual, critério, blocos
+  aceitos, ativo) + botão Salvar por linha.
+- **Smoke 7/7 verde**: (1) auth gate 401 nos 3 novos endpoints;
+  (2) pool=8 farmácias confirmado; (3) sem contrato → `sem_contrato_unidade`;
+  (4a) 3 contratos sem tipo → Galena prio 50 escolhida; (4b)
+  tipo=injetavel → Botica Premium (Galena rejeitada por
+  `nao_aceita_bloco_injetavel`); (4c) override=FAMA → regra
+  `manual_override`; (5) exclusiva preempta 2 outras; (6) Galena com
+  30 emissões em pool 40 (75%>25% cota) → rejeitada por
+  `cota_pct_estourada`; (7) cleanup zerado.
+- **Próximo (Onda 4)**: Caio cadastra contratos via
+  `/admin/contratos-farmacia` + ajusta regras em
+  `/admin/farmacias-roteamento` + simula cenários no preview. Depois
+  plantamos hook de warning na emissão real (chama
+  `rotearFarmaciaParaReceita` em `painelPawards.ts` → grava warning
+  + sugestão na resposta) + relatório de quotas + alertas.
+
 ## Wave 3 FATURAMENTO-TSUNAMI · FECHADA (23/abr/2026)
 Braço PACIENTE↔UNIDADE em produção — main + feat/dominio-pawards.
 

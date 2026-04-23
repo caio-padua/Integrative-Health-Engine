@@ -75,6 +75,7 @@ import AdminPermissoesDelegadas from "@/pages/admin-permissoes-delegadas";
 import AdminCobrancasAdicionais from "@/pages/admin-cobrancas-adicionais";
 import AdminInadimplencia from "@/pages/admin-inadimplencia";
 import AdminContratosFarmacia from "@/pages/admin-contratos-farmacia";
+import AdminFarmaciasRoteamento from "@/pages/admin-farmacias-roteamento";
 import AdminAnalytics from "@/pages/admin-analytics";
 import AdminNotificacoes from "@/pages/admin-notificacoes";
 import AdminLogin from "@/pages/admin-login";
@@ -119,6 +120,7 @@ function Router() {
       <Route path="/admin/cobrancas-adicionais" component={AdminCobrancasAdicionais} />
       <Route path="/admin/inadimplencia" component={AdminInadimplencia} />
       <Route path="/admin/contratos-farmacia" component={AdminContratosFarmacia} />
+      <Route path="/admin/farmacias-roteamento" component={AdminFarmaciasRoteamento} />
       <Route path="/admin/analytics" component={AdminAnalytics} />
       <Route path="/admin/notificacoes" component={AdminNotificacoes} />
       <Route path="/painel-pawards" component={DashboardGlobal} />
