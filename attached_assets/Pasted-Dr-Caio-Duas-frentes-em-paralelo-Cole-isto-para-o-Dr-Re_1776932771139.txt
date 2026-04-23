@@ -1,0 +1,142 @@
+Dr. Caio. Duas frentes em paralelo. Cole isto para o Dr. Replit — Wave 8 corrigida + arquitetura do sistema de exames.
+
+“Dr. Replit — Wave 8 corrigida com schema real + próxima grande frente mapeada. Autonomia de 3 horas.
+
+WAVE 8 — SCHEMA REAL (sem as premissas erradas do brief anterior)
+O que descobriste está correto. Caminho real:
+
+parmavault_receitas.blend_id → formula_blend.valor_max
+
+
+O bloco_template_id e bloco_template.valor_maximo não existem. Ignora o brief anterior nesses pontos.
+Bloco 1 — Job retroativo com formula_blend.valor_max (~30min)
+No endpoint POST /admin/parmavault/comissao/recalcular, trocar o COALESCE por:
+
+WITH calc AS (
+  SELECT pr.id,
+    COALESCE(
+      NULLIF(fb.valor_max, 0),            -- via blend quando disponível
+      NULLIF(pr.valor_formula_real, 0),   -- declarado pela farmácia
+      NULLIF(pr.valor_formula_estimado, 0)
+    ) AS base_calculo,
+    CASE
+      WHEN fb.valor_max > 0 THEN 'formula_blend_valor_max'
+      WHEN pr.valor_formula_real > 0 THEN 'valor_formula_real'
+      ELSE 'sem_valor_base'
+    END AS origem,
+    fp.percentual_comissao
+  FROM parmavault_receitas pr
+  JOIN farmacias_parmavault fp ON fp.id = pr.farmacia_id
+  LEFT JOIN formula_blend fb ON fb.id = pr.blend_id
+  WHERE pr.comissao_estimada IS NULL OR pr.comissao_estimada = 0
+)
+UPDATE parmavault_receitas pr SET
+  comissao_estimada = CASE
+    WHEN c.base_calculo > 0
+      THEN ROUND(c.base_calculo * (c.percentual_comissao / 100), 2)
+    ELSE NULL END,
+  comissao_estimada_origem = c.origem,
+  comissao_estimada_em = now()
+FROM calc c WHERE c.id = pr.id
+
+
+Receitas sem blend_id e sem valor_formula_real ficam com comissao_estimada = NULL e origem = 'sem_valor_base' — correto, não força zero.
+Bloco 2 — Hook de emissão com formula_blend (~20min)
+Em emitirPrescricaoService.ts, no hook PARMAVAULT após identificar farmaciaId, adicionar lookup do blend:
+
+// Tenta buscar blend_id da prescrição (via bloco que tem referência a blend)
+const blendQ = await pool.query(`
+  SELECT fb.valor_max, pb.blend_id
+  FROM prescricao_blocos pb
+  JOIN formula_blend fb ON fb.id = pb.blend_id
+  WHERE pb.prescricao_id = $1
+    AND pb.blend_id IS NOT NULL
+    AND fb.valor_max > 0
+  ORDER BY fb.valor_max DESC
+  LIMIT 1
+`, [input.prescricao_id]);
+
+const blendRow = blendQ.rows[0] as any;
+const valorBase = blendRow ? Number(blendRow.valor_max) : null;
+const comissaoEstimada = valorBase
+  ? Number((valorBase * (Number(farm.percentual_comissao) / 100)).toFixed(2))
+  : null;
+const origem = valorBase
+  ? `hook_blend_valor_max_${new Date().toISOString().slice(0, 10)}`
+  : `hook_sem_blend_${new Date().toISOString().slice(0, 10)}`;
+
+// No INSERT usar valorBase e comissaoEstimada
+
+
+Se a tabela prescricao_blocos não tiver blend_id, adaptar para o caminho que o schema real tem. Confirmar antes de plantar.
+Bloco 3 — Coluna “Declarado” na página 3 do PDF (~40min)
+Em gerarPdfReconciliacao.ts, adicionar campo valor_declarado_farmacia na interface e na tabela:
+
+// Interface receitas — adicionar:
+valor_declarado_farmacia: number | null;
+
+// Cor da célula Declarado:
+const AMBER = "#d97706";
+const corDeclarado = r.valor_declarado_farmacia
+  ? r.valor_declarado_farmacia >= (r.valor_formula ?? 0)
+    ? GREEN   // pagou o valor completo
+    : AMBER   // pagou menos que o esperado
+  : GRAY_LT;  // sem declaração
+
+// No SELECT das receitas (endpoint gerar relatório), adicionar:
+// (SELECT d.valor_pago_paciente
+//  FROM parmavault_declaracoes_farmacia d
+//  WHERE d.receita_id = pr.id AND d.ativo = TRUE
+//  ORDER BY d.declarado_em DESC LIMIT 1) AS valor_declarado_farmacia
+
+
+Exibir — quando null. A farmácia vê o que declarou vs o que era esperado — linha por linha.
+Bloco 4 — Migration 023 (prazo e parcelas) (~15min)
+
+-- 023_wave8_declaracao_prazo_parcelas.sql
+-- REGRA FERRO: psql IF NOT EXISTS, aditiva.
+ALTER TABLE parmavault_declaracoes_farmacia
+  ADD COLUMN IF NOT EXISTS prazo_recebimento_dias integer,
+  ADD COLUMN IF NOT EXISTS parcelas integer DEFAULT 1;
+
+
+Aceitar no endpoint POST /declaracoes e no CSV parser (6a e 7a coluna opcionais).
+Bloco 5 — Smoke + commit (~20min)
+4 cenários:
+	1.	Job retroativo: receita com blend_id → origem = 'formula_blend_valor_max'
+	2.	Receita sem blend_id → comissao_estimada = NULL, origem = 'sem_valor_base'
+	3.	PDF gerado → coluna Declarado aparece, linha sem declaração exibe —
+	4.	Declaração com prazo_recebimento_dias=30 → gravado no banco
+Push duplo + URLs raw pinadas no SHA para auditoria Dr. Claude.
+
+PRÓXIMA GRANDE FRENTE — SISTEMA DE EXAMES (não codificar agora, apenas ler e guardar)
+Esta é a dor mais importante do Dr. Caio para o atendimento clínico real. Arquitetura para você absorver:
+O que precisa existir:
+	1.	Paciente envia PDF de exames pelo portal (ou recepção faz upload)
+	2.	Sistema extrai os valores laboratoriais do PDF (OCR + parsing)
+	3.	Cada valor é normalizado para a unidade padrão do sistema
+	4.	Cada valor é classificado em terço: inferior / médio / superior — baseado em faixas de referência configuráveis por marcador
+	5.	Dashboard visual para uso durante a consulta — Dr. Caio abre a tela, explica para o paciente olhando juntos
+Tabelas que precisarão existir (Wave futura):
+
+-- marcadores_laboratoriais (referência)
+-- id, nome, unidade_padrao, faixa_inferior_max, faixa_media_max, observacoes
+
+-- exames_paciente
+-- id, paciente_id, arquivo_pdf_path, data_coleta, importado_em, fonte
+
+-- exame_valores
+-- id, exame_id, marcador_id, valor_bruto, unidade_bruta,
+--    valor_normalizado, terco (inferior/medio/superior),
+--    abaixo_minimo (boolean), acima_maximo (boolean)
+
+
+O que o Dr. Caio quer ver na consulta:
+	•	Cada marcador como bloco visual com cor: vermelho (abaixo mínimo), âmbar (terço inferior), dourado (terço médio), verde (terço superior)
+	•	Barra de posição dentro da faixa — onde está o valor do paciente visualmente
+	•	Texto clínico automático: ‘Seu cálcio está no terço inferior — representa risco de X — recomendamos Y’
+	•	Comparação entre exames no tempo (evolução)
+Isso é uma frente de 2-3 Waves. Não começar agora. Apenas guardar a arquitetura.
+Foco agora: Wave 8 nos 4 blocos acima. URLs ao terminar.”
+
+Dr. Caio, o sistema de exames que você descreveu — PDF do paciente → extração de valores → classificação em terços → dashboard visual na consulta — é a frente que vai diferenciar o PAWARDS de qualquer sistema médico comum. É complexa mas totalmente viável. Quando a Wave 8 fechar, montamos o brief detalhado dessa frente com o Dr. Replit.​​​​​​​​​​​​​​​​
