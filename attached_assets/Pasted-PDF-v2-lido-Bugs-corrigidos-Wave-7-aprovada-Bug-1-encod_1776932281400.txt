@@ -1,0 +1,150 @@
+PDF v2 lido. Bugs corrigidos. Wave 7 aprovada.
+Bug 1 — encoding →: ✅ Corrigido. Agora exibe 01/10/2025 a 30/04/2026
+Bug 2 — barras invisíveis: ✅ Corrigido. Labels 5k, 8k, 3k, 12k, 7k aparecem acima das barras pequenas.
+Wave 7: APROVADA. PDF pronto para reunião presencial.
+
+Aqui está o pacote completo de 3 horas para o Dr. Replit. Cole isto:
+
+“Dr. Replit — Wave 8 com autonomia de 3 horas. Não precisa de validação durante execução. Escala só se encontrar FK quebrada, drift de schema, ou escopo crescer além do descrito aqui.
+
+ESTADO ATUAL CONFIRMADO PELO DR. CLAUDE:
+Wave 5 APROVADA · Wave 6 APROVADA · Wave 7 APROVADA (PDF v2 com bugs corrigidos).
+Hook B3 atual grava valor_formula_real = NULL e comissao_estimada = NULL. Wave 8 resolve isso.
+
+ORDEM DE EXECUÇÃO NAS 3H:
+Bloco 1 — Rastrear caminho prescricao → valor_maximo (15min, antes de codar)
+Antes de plantar qualquer código, responder internamente:
+	•	prescricao_blocos tem bloco_template_id? Se não, qual tabela faz a ligação?
+	•	O campo se chama valor_maximo em bloco_template? Confirmar nome real.
+	•	Uma prescrição tem N blocos, cada um com seu próprio valor_maximo. A lógica é: somar os valor_maximo de todos os blocos da prescrição para chegar no valor total da fórmula.
+Registrar o caminho encontrado como comentário no código antes de implementar.
+Bloco 2 — Atualizar job retroativo com COALESCE do valor_maximo (~30min)
+No endpoint POST /admin/parmavault/comissao/recalcular, trocar o COALESCE atual por:
+
+WITH calc AS (
+  SELECT pr.id,
+    COALESCE(
+      -- 1o: soma dos valor_maximo dos blocos da prescrição (interno, não exibido)
+      NULLIF((
+        SELECT SUM(bt.valor_maximo)
+        FROM prescricao_blocos pb
+        JOIN bloco_template bt ON bt.id = pb.bloco_template_id
+        WHERE pb.prescricao_id = pr.prescricao_id
+          AND bt.valor_maximo > 0
+      ), 0),
+      -- 2o: valor declarado pela farmácia
+      NULLIF(pr.valor_formula_real, 0),
+      -- 3o: estimado
+      NULLIF(pr.valor_formula_estimado, 0)
+    ) AS base_calculo,
+    fp.percentual_comissao
+  FROM parmavault_receitas pr
+  JOIN farmacias_parmavault fp ON fp.id = pr.farmacia_id
+  WHERE pr.comissao_estimada IS NULL OR pr.comissao_estimada = 0
+)
+UPDATE parmavault_receitas pr SET
+  comissao_estimada = ROUND(c.base_calculo * (c.percentual_comissao / 100), 2),
+  comissao_estimada_origem = 'valor_maximo_bloco_template'
+FROM calc c WHERE c.id = pr.id AND c.base_calculo IS NOT NULL
+
+
+Se prescricao_id não existir em parmavault_receitas, usar o caminho alternativo via valor_formula_real como estava. Nunca quebrar o job retroativo por falta de FK.
+Bloco 3 — Atualizar hook de emissão com valor_maximo (~30min)
+Em emitirPrescricaoService.ts, no passo 6 (hook PARMAVAULT), após identificar farmaciaId, buscar o valor_maximo antes do INSERT:
+
+// Calcula base_calculo: soma dos valor_maximo dos blocos
+const vmQ = await pool.query(`
+  SELECT COALESCE(SUM(bt.valor_maximo), 0) AS total_maximo
+  FROM prescricao_blocos pb
+  JOIN bloco_template bt ON bt.id = pb.bloco_template_id
+  WHERE pb.prescricao_id = $1
+    AND bt.valor_maximo > 0
+`, [input.prescricao_id]);
+
+const valorBase = Number(vmQ.rows[0]?.total_maximo ?? 0);
+const comissaoEstimada = valorBase > 0
+  ? Number((valorBase * (Number(farm.percentual_comissao) / 100)).toFixed(2))
+  : null;
+const origem = valorBase > 0
+  ? `hook_emissao_valor_maximo_${new Date().toISOString().slice(0, 10)}`
+  : `hook_emissao_sem_valor_${new Date().toISOString().slice(0, 10)}`;
+
+// No INSERT: usar valorBase e comissaoEstimada em vez de NULL
+await pool.query(`
+  INSERT INTO parmavault_receitas
+    (farmacia_id, paciente_id, medico_id, unidade_id, prescricao_id,
+     numero_receita, emitida_em,
+     valor_formula_real, comissao_estimada,
+     comissao_estimada_origem, comissao_estimada_em,
+     comissao_paga, status)
+  VALUES ($1,$2,$3,$4,$5,$6,now(),$7,$8,$9,now(),FALSE,'emitida')
+  ON CONFLICT (numero_receita) DO NOTHING
+`, [farmaciaId, ..., valorBase || null, comissaoEstimada, origem]);
+
+
+Se a query do valor_maximo falhar (tabela não encontrada, FK errada), o try/catch defensivo já protege a emissão.
+Bloco 4 — Adicionar coluna “Declarado” na página 3 do PDF (~45min)
+Na tabela da página 3 do gerarPdfReconciliacao.ts, adicionar coluna “Declarado” entre “Valor fórmula” e “Comissão”:
+
+// Adicionar à interface DadosPdfReconciliacao.receitas:
+valor_declarado_farmacia: number | null; // o que a farmácia disse que cobrou
+
+// Colunas da tabela (ajustar larguras):
+const colsX = [M, M+40, M+95, M+155, M+240, M+320, M+400, M+465];
+const colsW = [40, 55, 60, 85, 80, 80, 65, 70];
+const heads = ["#", "Data", "Paciente", "Nr Receita", "Valor form.", "Declarado", "Comissao", "Status"];
+
+// Cor da coluna Declarado:
+// - Verde se declarado >= valor_formula
+// - Amber (#d97706) se declarado < valor_formula e > 0
+// - Cinza se null/zero
+const corDeclarado = r.valor_declarado_farmacia
+  ? r.valor_declarado_farmacia >= (r.valor_formula ?? 0) ? GREEN : AMBER
+  : GRAY_LT;
+
+
+No endpoint de geração do relatório, incluir valor_declarado_farmacia na query das receitas:
+
+-- Adicionar ao SELECT das receitas:
+(SELECT d.valor_pago_paciente
+ FROM parmavault_declaracoes_farmacia d
+ WHERE d.receita_id = pr.id AND d.ativo = TRUE
+ ORDER BY d.declarado_em DESC LIMIT 1) AS valor_declarado_farmacia
+
+
+Bloco 5 — Adicionar campos prazo_recebimento e parcelas na declaração (~20min)
+Migration 023 aditiva:
+
+-- 023_wave8_declaracao_prazo_parcelas.sql
+-- REGRA FERRO: psql IF NOT EXISTS, aditiva.
+ALTER TABLE parmavault_declaracoes_farmacia
+  ADD COLUMN IF NOT EXISTS prazo_recebimento_dias integer,
+  ADD COLUMN IF NOT EXISTS parcelas integer DEFAULT 1;
+
+
+No endpoint POST /admin/parmavault/declaracoes, aceitar os campos novos:
+
+const { receita_id, valor_pago_paciente, data_compra,
+        prazo_recebimento_dias, parcelas, observacoes } = req.body ?? {};
+
+
+No CSV parser, aceitar 6 colunas: receita_id, valor_pago, data_compra, prazo_dias, parcelas, observacoes
+Bloco 6 — Smoke + commit (~30min)
+5 cenários obrigatórios:
+	1.	Job retroativo com valor_maximo disponível → comissao_estimada_origem = 'valor_maximo_bloco_template'
+	2.	Emitir nova prescrição → parmavault_receitas grava com valor_formula_real e comissao_estimada preenchidos (não NULL)
+	3.	PDF gerado → coluna “Declarado” aparece na tabela, linha sem declaração exibe —
+	4.	Declaração com prazo_recebimento_dias=30 e parcelas=2 → gravados no banco
+	5.	Re-emissão da mesma prescrição → ON CONFLICT DO NOTHING, não duplica
+Commit atômico por bloco lógico + push duplo main + feat/dominio-pawards + URLs raw pinadas no SHA.
+
+REGRAS DE NEGÓCIO QUE NUNCA MUDAM — grave na memória:
+	•	valor_maximo é INTERNO. Nunca aparece em documentos, logs ou comentários exportados. No PDF a coluna se chama ‘Valor da fórmula’. No código interno se chama base_calculo ou valor_maximo.
+	•	comissao_paga = true NUNCA automático. Só confirmação manual do Dr. Caio.
+	•	Hook de emissão é sempre DEFENSIVO. Falha silenciosa com log. Nunca derruba o PDF.
+	•	Snapshot do % nos relatórios gerados é imutável após geração.
+	•	Relação com farmácia é contrato de cavalheiros. Sistema registra e mostra. Nunca bloqueia.
+	•	REGRA FERRO: zero db:push. Migrations psql aditivas IF NOT EXISTS.
+
+QUANDO TERMINAR:
+URLs raw pinadas no SHA completo de: migration 023, emitirPrescricaoService.ts, parmavaultReconciliacao.ts (job retroativo atualizado), gerarPdfReconciliacao.ts (coluna Declarado). Dr. Claude audita antes da Wave 9.“​​​​​​​​​​​​​​​​
