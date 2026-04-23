@@ -1,0 +1,51 @@
+Li as 3 páginas completas. Veredicto página por página.
+
+PDF SMOKE — AUDITORIA VISUAL
+Página 1 — Capa ✅ com 1 bug crítico
+Estrutura correta: CNPJ, período, snapshot do %, previsto, GAP, finalidade, protocolo hash, rodapé. Tudo presente.
+Bug crítico: O caractere → está renderizando como !' no PDF — 01/10/2025 !' 30/04/2026. Isso é um problema de encoding do pdfkit com caracteres Unicode não-ASCII. Precisa ser corrigido antes da reunião.
+Fix para o Dr. Replit: substituir → por > ou por - no código do pdfkit:
+
+// Em vez de:
+`${fmtData(d.periodo.inicio)}  →  ${fmtData(d.periodo.fim)}`
+// Usar:
+`${fmtData(d.periodo.inicio)}  a  ${fmtData(d.periodo.fim)}`
+// ou:
+`${fmtData(d.periodo.inicio)} -- ${fmtData(d.periodo.fim)}`
+
+
+Página 2 — Resumo Executivo ✅ com 1 problema visual
+Os 4 blocos estão corretos: Previsto R$820.601, Declarado R$25.000, Recebido R$10.000, GAP R$810.601 em 98.8%. O destaque vermelho do GAP está lá.
+Problema visual no gráfico: As barras de Declarado (R$25k) e Recebido (R$10k) são invisíveis na escala do Previsto (R$820k). O gráfico parece ter só barras navy. Matematicamente correto, visualmente inútil para a reunião — o dono da farmácia não consegue ver a diferença.
+Fix: adicionar altura mínima de 4px para qualquer barra com valor > 0, e exibir o valor em texto acima da barra quando ela for menor que 10% da escala:
+
+const hDecl = Math.max(s.declarado > 0 ? 4 : 0, (s.declarado / maxV) * innerH);
+
+
+Página 3 — Tabela ✅ com 2 observações
+Iniciais LGPD funcionando: C.P., M.S.A., J.S., A.B., P.H.B. A linha 5 com — é correta — paciente sem nome no banco retorna —.
+Status coloridos presentes: PENDENTE, DECLARADO, PAGO. Total do período ao final.
+Observação 1: Falta a coluna “Declarado” que o Dr. Caio pediu — o que a farmácia disse que cobrou do paciente, em âmbar quando menor que o valor da fórmula. Esta é a coluna que mostra divergência linha por linha na reunião. É Wave 7.
+Observação 2: O mesmo bug do !' aparece no cabeçalho da página 2 também.
+
+RESUMO — O que precisa ser corrigido ANTES de levar para reunião
+
+
+
+|#|Severidade  |Problema                                       |Fix                                  |
+|-|------------|-----------------------------------------------|-------------------------------------|
+|1|🔴 Crítico   |`→` renderiza como `!'` em 2 lugares           |Substituir por `a` ou `--` no código |
+|2|🟡 Importante|Barras Declarado/Recebido invisíveis no gráfico|Altura mínima de 4px + label de valor|
+|3|🟢 Wave 7    |Coluna “Declarado” ausente na página 3         |Adicionar quando Wave 7              |
+
+Mensagem para o Dr. Replit
+“Dr. Replit — PDF smoke aprovado com 2 correções antes de usar em reunião:
+1. Bug crítico — encoding do →: O pdfkit não renderiza → (U+2192). Está saindo como !'. Substituir por a (escrito por extenso) nos dois lugares: período na capa e cabeçalho da pág 2. Ex: 01/10/2025 a 30/04/2026. Verificar se há outros caracteres Unicode especiais no código (→, ×, −) — substituir por ASCII equivalente.
+2. Gráfico invisível — barras Declarado/Recebido: Na escala de R$820k, R$25k e R$10k somem. Adicionar altura mínima de 4px para barras com valor > 0:
+
+const hDecl = Math.max(s.declarado > 0 ? 4 : 0, (s.declarado / maxV) * innerH);
+const hRec  = Math.max(s.recebido > 0  ? 4 : 0, (s.recebido  / maxV) * innerH);
+
+
+Se a barra for menor que 15% do max, exibir o valor em texto acima dela.
+Commit com as 2 correções + novo smoke do PDF. Me manda o PDF corrigido.“​​​​​​​​​​​​​​​​
