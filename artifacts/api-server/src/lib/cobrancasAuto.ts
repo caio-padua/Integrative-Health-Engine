@@ -326,6 +326,22 @@ export async function enviarLembreteInadimplencia(
     const destino: string = c.paciente_email || "";
     if (!destino.includes("@")) return { enviado: false, motivo: "paciente_sem_email" };
 
+    // Wave 3 fix Dr. Claude (auditoria pre-Wave 5): idempotência semântica.
+    // Se já foi enviado lembrete pra este pagamento nos últimos 5 min,
+    // não duplica (cobre race de 2 cliques rápidos no botão Reenviar).
+    // Reenvio legítimo dias depois continua permitido.
+    const dup = await db.execute(sql`
+      SELECT 1 FROM cobrancas_adicionais
+      WHERE tipo            = 'lembrete_inadimplencia'
+        AND referencia_tipo = 'pagamento'
+        AND referencia_id   = ${pagamentoId}
+        AND criado_em       > now() - interval '5 minutes'
+      LIMIT 1
+    `);
+    if (dup.rows.length > 0) {
+      return { enviado: false, motivo: "lembrete_recente_ja_enviado" };
+    }
+
     const valorFmt = `R$ ${Number(c.valor).toFixed(2).replace(".", ",")}`;
     const parcelaFmt = c.parcela && c.total_parcelas ? ` (parcela ${c.parcela}/${c.total_parcelas})` : "";
     const assunto = `[PAWARDS MEDCORE] Lembrete de pagamento pendente · ${c.unidade_nome ?? ""}`;
@@ -367,7 +383,6 @@ export async function enviarLembreteInadimplencia(
          ${`Lembrete pagamento pendente #${pagamentoId}`},
          ${Number(c.valor)}, 'cobrado', 'pagamento', ${pagamentoId},
          ${c.paciente_id ?? null}, now(), 1, now())
-      ON CONFLICT DO NOTHING
     `);
 
     log("info", "lembrete_inadimplencia enviado", {
