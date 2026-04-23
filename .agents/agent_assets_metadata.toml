@@ -329,3 +329,9 @@ id = "TBTa8XiPKDeaXv8fY2gih"
 uri = "file://attached_assets/wave7_smoke/wave7_pdf_reconciliacao_FAMA_smoke.pdf"
 type = "pdf"
 title = "Wave 7 · PDF Reconciliação LUXUOSO (smoke FAMA - 6 receitas ficcionais)"
+
+[[outputs]]
+id = "0XmYZl1XhPVQlAMukHLTy"
+uri = "file://attached_assets/wave7_smoke/wave7_pdf_reconciliacao_FAMA_smoke_v2.pdf"
+type = "pdf"
+title = "Wave 7.1 · PDF Reconciliação FAMA smoke v2 (fixes Dr. Claude: encoding + barras mínimas)"
