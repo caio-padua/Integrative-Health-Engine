@@ -1,0 +1,189 @@
+Dr. Caio. Você está certo. A resposta anterior era curta demais. Aqui está o pacote completo para 4 horas de autonomia real.
+
+Cole isto para o Dr. Replit:
+
+“Dr. Replit — Wave 6 com autonomia de 4 horas. Não precisa de validação durante a execução. Escala só se encontrar FK quebrada, drift de schema, ou escopo crescer além do que está descrito aqui.
+
+CONTEXTO — O QUE VOCÊ JÁ SABE:
+Wave 5 APROVADA pelo Dr. Claude. As 2 observações pendentes eram de baixo risco para MVP. Wave 6 fecha essas 2 observações e adiciona o B3 (hook de emissão real). Esse é o pacote completo.
+
+ORDEM DE EXECUÇÃO NAS 4H:
+Bloco 1 — Storage persistente no Google Drive (~45min)
+O problema: PDFs e Excel ficam em tmp/parmavault_relatorios e somem no restart. A integração google-drive já está instalada no projeto.
+O que fazer:
+
+// Em parmavaultReconciliacao.ts, na rota POST /relatorios/gerar,
+// após gerar os buffers pdfBuf e excelBuf:
+
+import { uploadToClientSubfolder, getOrCreateClientFolder } from "../lib/google-drive";
+
+// Pasta fixa para relatórios PARMAVAULT
+const FOLDER_NAME = "PAWARDS_PARMAVAULT_RELATORIOS";
+
+const folder = await getOrCreateClientFolder(FOLDER_NAME, "parmavault");
+
+const pdfUpload = await uploadToClientSubfolder({
+  clientFolderId: folder.folderId,
+  subfolder: farm.nome_fantasia.replace(/[^a-zA-Z0-9]/g, "_"),
+  fileName: `reconciliacao_${protocolo}.pdf`,
+  mimeType: "application/pdf",
+  content: pdfBuf,
+});
+
+const excelUpload = await uploadToClientSubfolder({
+  clientFolderId: folder.folderId,
+  subfolder: farm.nome_fantasia.replace(/[^a-zA-Z0-9]/g, "_"),
+  fileName: `reconciliacao_${protocolo}.xlsx`,
+  mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  content: excelBuf,
+});
+
+// Gravar drive_file_id na tabela (coluna já existe na migration 021)
+await db.execute(sql`
+  UPDATE parmavault_relatorios_gerados
+  SET pdf_path     = ${pdfUpload.fileUrl},
+      excel_path   = ${excelUpload.fileUrl},
+      pdf_drive_id  = ${pdfUpload.fileId},
+      excel_drive_id = ${excelUpload.fileId}
+  WHERE id = ${relatorioId}
+`);
+
+
+Se as colunas pdf_drive_id e excel_drive_id não existirem na migration 021, adicionar via migration 022 aditiva IF NOT EXISTS.
+As rotas de download /relatorios/:id/pdf e /relatorios/:id/excel passam a redirecionar para a URL do Drive em vez de ler do disco. Se o arquivo estiver no Drive, retorna redirect 302. Se não, tenta o caminho em disco como fallback.
+Bloco 2 — CSV parser robusto (~30min)
+O problema: split(',') quebra quando o campo de observação tem vírgula.
+papaparse já está instalado no projeto (verificar). Se não estiver, usar biblioteca nativa:
+
+// Substituir o parser manual na rota POST /declaracoes/csv
+// por parsing linha a linha com suporte a aspas:
+
+function parseCsvLinha(linha: string): string[] {
+  const cols: string[] = [];
+  let atual = "";
+  let dentroAspas = false;
+  for (let i = 0; i < linha.length; i++) {
+    const c = linha[i];
+    if (c === '"') {
+      dentroAspas = !dentroAspas;
+    } else if (c === "," && !dentroAspas) {
+      cols.push(atual.trim());
+      atual = "";
+    } else {
+      atual += c;
+    }
+  }
+  cols.push(atual.trim());
+  return cols;
+}
+
+
+Formato CSV esperado (documentar no endpoint):
+
+receita_id,valor_pago,data_compra,observacoes
+1234,850.00,2026-04-01,"Pago via Pix, confirmado WhatsApp"
+1235,1200.00,2026-04-02,Pago em especie
+
+
+Bloco 3 — B3 Hook de emissão real (~2h)
+Este é o bloco mais crítico. Leia o brief completo antes de codar.
+O que é: quando emitirPrescricao gera um PDF e ele vai para uma farmácia PARMAVAULT, deve criar um registro em parmavault_receitas automaticamente. Hoje os 8.725 registros são seed histórico — não há gravação operacional.
+Regra de ouro: o hook é DEFENSIVO. Se falhar, não derruba a emissão. O PDF sai, o SNCR é decrementado, e o hook falha silenciosamente com log de erro. Nunca o contrário.
+Onde plantar: localize emitirPrescricao e identifique o ponto onde o PDF é gerado e destino_dispensacao é definido como FAMA (ou outro destino PARMAVAULT). Após a gravação bem-sucedida do PDF, adicionar:
+
+// Hook PARMAVAULT — defensivo, não derruba emissão
+if (["FAMA", "HORM", "FITO"].includes(destino_dispensacao)) {
+  try {
+    // Resolve farmacia_id pelo destino_dispensacao e unidade_id
+    const farmacia = await db.execute(sql`
+      SELECT fuc.farmacia_id, fp.percentual_comissao
+      FROM farmacias_unidades_contrato fuc
+      JOIN farmacias_parmavault fp ON fp.id = fuc.farmacia_id
+      WHERE fuc.unidade_id = ${unidadeId}
+        AND fuc.ativo = true
+        AND (fuc.vigencia_fim IS NULL OR fuc.vigencia_fim >= CURRENT_DATE)
+      ORDER BY fuc.prioridade ASC
+      LIMIT 1
+    `);
+
+    if (farmacia.rows.length > 0) {
+      const f = farmacia.rows[0] as any;
+      const valorFormula = blocoProcessado.valor_total ?? null;
+      const comissaoEstimada = valorFormula
+        ? Number((valorFormula * (Number(f.percentual_comissao) / 100)).toFixed(2))
+        : null;
+
+      await db.execute(sql`
+        INSERT INTO parmavault_receitas
+          (farmacia_id, paciente_id, medico_id, unidade_id,
+           numero_receita, emitida_em,
+           valor_formula_real, comissao_estimada,
+           comissao_estimada_origem, comissao_estimada_em,
+           comissao_paga, status)
+        VALUES
+          (${Number(f.farmacia_id)}, ${pacienteId}, ${medicoId}, ${unidadeId},
+           ${numeroReceita}, now(),
+           ${valorFormula}, ${comissaoEstimada},
+           ${'hook_emissao_' + new Date().toISOString().slice(0, 10)}, now(),
+           false, 'emitida')
+        ON CONFLICT (numero_receita) DO NOTHING
+      `);
+
+      log("info", "[parmavault_hook] receita registrada", {
+        numero_receita: numeroReceita,
+        farmacia_id: f.farmacia_id,
+        comissao_estimada: comissaoEstimada,
+      });
+    }
+  } catch (hookErr) {
+    // DEFENSIVO — nunca derruba a emissão
+    console.error("[parmavault_hook] falhou silenciosamente:", String(hookErr));
+  }
+}
+
+
+Atenção antes de plantar: verifique se parmavault_receitas tem constraint UNIQUE(numero_receita). Se não tiver, o ON CONFLICT DO NOTHING não vai funcionar — adicionar via migration 022 aditiva antes do hook.
+Bloco 4 — Migration 022 (consolidada, ~15min)
+Uma migration só com tudo que os blocos acima precisam:
+
+-- 022_wave6_parmavault_storage_e_hook.sql
+-- Aditiva, psql IF NOT EXISTS. REGRA FERRO.
+
+-- Drive storage para relatórios
+ALTER TABLE parmavault_relatorios_gerados
+  ADD COLUMN IF NOT EXISTS pdf_drive_id   text,
+  ADD COLUMN IF NOT EXISTS excel_drive_id text;
+
+-- Constraint idempotência do hook de emissão
+-- (só adiciona se não existir)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'parmavault_receitas_numero_receita_key'
+  ) THEN
+    ALTER TABLE parmavault_receitas
+      ADD CONSTRAINT parmavault_receitas_numero_receita_key
+      UNIQUE (numero_receita);
+  END IF;
+END$$;
+
+
+Bloco 5 — Smoke + commit (~30min)
+Smoke mínimo de 5 cenários antes de commitar:
+	1.	Gerar PDF e Excel → confirmar que ficam no Drive, não em tmp/
+	2.	CSV com vírgula em observação → confirmar que não quebra a linha
+	3.	Emitir prescrição com destino FAMA → confirmar que cria registro em parmavault_receitas
+	4.	Emitir com hook falhando (simular erro no db) → confirmar que o PDF sai mesmo assim
+	5.	Segunda emissão com mesmo numero_receita → confirmar ON CONFLICT DO NOTHING não duplica
+Commit atômico por frente lógica + push duplo main + feat/dominio-pawards + URLs raw pinadas no SHA para auditoria do Dr. Claude.
+
+REGRAS DE NEGÓCIO QUE NÃO MUDAM:
+	•	comissao_paga = true NUNCA automático. Só confirmação manual do Dr. Caio.
+	•	Hook de emissão é sempre DEFENSIVO — falha silenciosa com log, nunca derruba PDF.
+	•	Snapshot do % nos relatórios gerados é imutável depois de gravado.
+	•	Paciente em iniciais LGPD em todos os documentos.
+	•	O sistema registra e mostra. Nunca bloqueia por gap.
+
+QUANDO TERMINAR:
+URLs raw pinadas no SHA completo de todos os arquivos tocados. Dr. Claude audita antes da Wave 7.“​​​​​​​​​​​​​​​​

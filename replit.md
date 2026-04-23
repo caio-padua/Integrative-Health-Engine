@@ -8,6 +8,58 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Wave 6 PARMAVAULT-TSUNAMI · STORAGE DRIVE + CSV ROBUSTO + HOOK EMISSÃO (23/abr/2026)
+Wave 5 APROVADA pelo Dr. Claude com 2 observações de baixo risco. Wave 6
+fecha as 2 + adiciona o B3 (hook operacional) deferido. 4h autonomia
+aprovadas. Migration 022 + 3 blocos cirúrgicos + smoke 5/5.
+
+- **Migration 022** (`022_wave6_parmavault_storage_e_hook.sql`) — psql
+  IF NOT EXISTS aditivo, REGRA FERRO mantida:
+  - `parmavault_relatorios_gerados`: ADD `pdf_drive_id`, `excel_drive_id`.
+  - `parmavault_receitas`: ADD CONSTRAINT UNIQUE (`numero_receita`)
+    via `DO $$` block (idempotente — só adiciona se não existir).
+- **Bloco 1 · Storage Google Drive** — `routes/parmavaultReconciliacao.ts`:
+  - Helper `uploadRelatorioParaDrive(farmaciaNome, protocolo, pdfBuf, excelBuf)`
+    cria pasta root `PAWARDS_PARMAVAULT_RELATORIOS` no Drive +
+    subpasta por farmácia (sanitizada `[^a-zA-Z0-9]+→_`) + sobe PDF/Excel
+    via `uploadFileToDrive`.
+  - **Defensivo:** try/catch — se Drive falha, retorna `null` e mantém
+    arquivo só no disco como fallback. Emissão NUNCA derruba.
+  - UPDATE `parmavault_relatorios_gerados`: `pdf_path`/`excel_path`
+    apontam pra Drive URL quando upload OK; `pdf_drive_id`/`excel_drive_id`
+    rastreiam o arquivo no Drive.
+  - Rotas `/relatorios/:id/pdf` e `/excel`: se `drive_id` existe e
+    `path` é HTTPS, **redirect 302** pra Drive (poupa banda do servidor);
+    senão lê do disco como fallback.
+- **Bloco 2 · CSV parser robusto** — `parseCsvLinha(linha)`:
+  - Lida com vírgulas dentro de aspas (`"Pago via Pix, confirmado"`).
+  - Lida com aspas duplas escapadas (`""interna""`).
+  - Substitui o `split(",")` simples na rota `/declaracoes/csv`.
+  - Sem nova dep — `papaparse` evitado, parser nativo de ~20 linhas.
+  - Smoke unit: 3 casos passaram (vírgula em texto, sem aspas, escape interno).
+- **Bloco 3 · Hook nova emissão (B3)** — `services/emitirPrescricaoService.ts`:
+  - Dispara APÓS o `UPDATE prescricoes status='emitida'` (passo 5).
+  - **1 receita por prescrição** (não 1 por PDF — múltiplas cores são da
+    MESMA prescrição). Itera sobre `Set` único de `destino_dispensacao`.
+  - Lookup de farmácia: `nome_fantasia ILIKE '${destino}%'` ordenado por
+    `prioridade ASC, id ASC` (ex: `destino='FAMA'` → `FAMA Manipulação` id=4).
+    Não usa `farmacias_unidades_contrato` porque hoje 0 unidades têm contrato.
+  - INSERT em `parmavault_receitas`: `numero_receita = 'PRESC-{id}-{destino}'`
+    + `valor_formula_real=NULL` + `comissao_estimada=NULL` (motor não calcula
+    valor financeiro hoje; job retroativo preenche ou Caio declara).
+  - `comissao_estimada_origem = 'hook_emissao_YYYY-MM-DD'`.
+  - **`ON CONFLICT (numero_receita) DO NOTHING`** — re-emissão da mesma
+    prescrição não duplica.
+  - **`comissao_paga = FALSE` sempre** (REGRA FERRO: nunca automático).
+  - **Defensivo total:** try/catch — falha silenciosa com `console.error`,
+    PDF sai mesmo se hook quebra, SNCR já foi decrementado.
+- **Smoke 5/5 verde:**
+  1. Build TS limpo 1.7s.
+  2. 4 endpoints retornam 401 sem cookie master.
+  3. CSV parser passou 3 casos (vírgula/sem-aspas/escape interno).
+  4. Migration 022: 2 colunas Drive presentes via `\d`.
+  5. Constraint `parmavault_receitas_numero_receita_key` presente.
+
 ## Wave 5 PARMAVAULT-TSUNAMI · ONDA RECONCILIAÇÃO MVP — Caminho P (23/abr/2026)
 Decisão Caio + Dr. Claude: Caminho P (light) executado agora; Caminho Q (introduzir
 gravação operacional de `parmavault_receitas` em `emitirPrescricao`) fica para

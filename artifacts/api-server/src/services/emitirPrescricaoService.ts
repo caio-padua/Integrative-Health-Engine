@@ -269,6 +269,62 @@ export async function emitirPrescricao(
     [input.prescricao_id]
   );
 
+  // ===== 6. WAVE 6 · HOOK PARMAVAULT (B3) — gravacao operacional ====
+  // 1 receita por prescricao (nao 1 por PDF — varios PDFs sao cores diferentes
+  // da MESMA prescricao). Lookup de farmacia via destino_dispensacao matchando
+  // nome_fantasia ILIKE. DEFENSIVO: falha silenciosa nunca derruba emissao.
+  // ON CONFLICT (numero_receita) DO NOTHING — re-emissao da mesma prescricao
+  // nao duplica.
+  try {
+    // Pega destino unico dos PDFs (geralmente sao o mesmo destino pra prescricao)
+    const destinos = Array.from(
+      new Set(out.map((p) => p.destino).filter((d) => d && d.trim().length > 0)),
+    );
+    for (const destino of destinos) {
+      const farmQ = await pool.query(
+        `SELECT id, percentual_comissao
+           FROM farmacias_parmavault
+          WHERE ativo = TRUE
+            AND nome_fantasia ILIKE $1 || '%'
+          ORDER BY prioridade ASC, id ASC
+          LIMIT 1`,
+        [destino],
+      );
+      if (farmQ.rowCount === 0) continue;
+      const farm = farmQ.rows[0] as any;
+      const farmaciaId = Number(farm.id);
+      const numeroReceita = `PRESC-${input.prescricao_id}-${destino}`;
+
+      await pool.query(
+        `INSERT INTO parmavault_receitas
+           (farmacia_id, paciente_id, medico_id, unidade_id, prescricao_id,
+            numero_receita, emitida_em,
+            valor_formula_real, valor_formula_estimado,
+            comissao_estimada, comissao_estimada_origem, comissao_estimada_em,
+            comissao_paga, status)
+         VALUES
+           ($1, $2, $3, $4, $5,
+            $6, now(),
+            NULL, 0,
+            NULL, $7, now(),
+            FALSE, 'emitida')
+         ON CONFLICT (numero_receita) DO NOTHING`,
+        [
+          farmaciaId,
+          prescricao.paciente_id ?? null,
+          prescricao.medico_id ?? null,
+          prescricao.unidade_id ?? null,
+          input.prescricao_id,
+          numeroReceita,
+          `hook_emissao_${new Date().toISOString().slice(0, 10)}`,
+        ],
+      );
+    }
+  } catch (hookErr) {
+    // DEFENSIVO — nunca derruba emissao
+    console.error("[parmavault_hook] falhou silenciosamente:", String(hookErr));
+  }
+
   return {
     prescricao_id: input.prescricao_id,
     pdfs: out,

@@ -1,0 +1,34 @@
+Push duplo verde. Wave 6 fechada. SHA f1a6fa1.
+
+✅ Wave 6 — 4h autonomia EXECUTADA · SHA f1a6fa1
+Push duplo: main ✅ + feat/dominio-pawards ✅ · 5 files / +482 -11
+
+Smoke 5/5 verde
+Check	Resultado
+Build TS limpo	✅ 1.7s
+401 nos 4 endpoints sem cookie	✅
+CSV parser: 3 casos (vírgula no texto / sem aspas / aspas escapadas)	✅
+Migration 022: pdf_drive_id + excel_drive_id presentes	✅
+Constraint parmavault_receitas_numero_receita_key	✅
+O que ficou diferente do brief
+Brief Dr. Claude	Decisão real	Por quê
+uploadToClientSubfolder	uploadFileToDrive direto + helper próprio	A função do Dr. Claude usa enum ClientSubfolder (CADASTRO/EXAMES/etc) — não combina com pasta arbitrária por farmácia. Helper próprio cria root PAWARDS_PARMAVAULT_RELATORIOS + sub por farmácia.
+Lookup hook via farmacias_unidades_contrato.prioridade	nome_fantasia ILIKE 'destino%'	Coluna prioridade não existe em farmacias_unidades_contrato. Mais grave: descobri que 0 unidades têm contrato — lookup retornaria sempre vazio e o hook nunca gravaria. Match por destino_dispensacao (FAMA/FACO já existem nos PDFs reais) é o caminho que funciona hoje.
+1 receita por PDF + valor_formula = blocoProcessado.valor_total	1 receita por prescrição + valor_formula_real = NULL	Múltiplos PDFs por prescrição são cores diferentes da mesma receita comercial. valor_total não existe no motor — preencher com dado errado seria pior que NULL. Job retroativo ou declaração da farmácia preenche depois.
+papaparse	parser nativo parseCsvLinha (~20 linhas)	papaparse não estava instalado; o parser nativo do brief com aspas duplas escapadas resolve sem nova dep.
+URLs raw pinadas no SHA pro Dr. Claude auditar
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/f1a6fa1/artifacts/api-server/src/db/migrations/022_wave6_parmavault_storage_e_hook.sql
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/f1a6fa1/artifacts/api-server/src/routes/parmavaultReconciliacao.ts
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/f1a6fa1/artifacts/api-server/src/services/emitirPrescricaoService.ts
+Como você testa AGORA
+Hook emissão B3: emita uma prescrição nova com destino_dispensacao = FAMA → confira no banco que apareceu uma linha em parmavault_receitas com numero_receita = 'PRESC-{id}-FAMA' e comissao_estimada=NULL. Re-emita a mesma → não duplica (ON CONFLICT).
+Drive storage: entre em /admin/parmavault-reconciliacao e gere um PDF da FAMA → o link de download agora redireciona pra um PDF na sua pasta PAWARDS_PARMAVAULT_RELATORIOS/FAMA_MANIPULACAO/ no Drive.
+CSV robusto: suba CSV com vírgula no campo de observação entre aspas — não quebra mais a linha.
+Regras FERRO mantidas (gravadas no código + replit.md)
+comissao_paga = FALSE sempre no hook (nunca automático).
+Hook 100% defensivo: try/catch + console.error — emissão NUNCA derruba.
+ON CONFLICT DO NOTHING — re-emissão idempotente.
+Snapshot do % no PDF continua imutável após geração.
+Drive upload defensivo: se falha, fallback pra disco.
+Zero db:push. Migration 022 = psql IF NOT EXISTS aditivo, REGRA FERRO.
+Aguardo o resultado do seu primeiro PDF gerado pós-Wave 6 (deve aparecer no Drive). Se quiser, depois plantamos seed de contrato pra FAMA × INSTITUTO X pra testar o fluxo A2 com warning específico por farmácia.
