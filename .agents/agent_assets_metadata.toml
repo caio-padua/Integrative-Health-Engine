@@ -335,3 +335,9 @@ id = "0XmYZl1XhPVQlAMukHLTy"
 uri = "file://attached_assets/wave7_smoke/wave7_pdf_reconciliacao_FAMA_smoke_v2.pdf"
 type = "pdf"
 title = "Wave 7.1 · PDF Reconciliação FAMA smoke v2 (fixes Dr. Claude: encoding + barras mínimas)"
+
+[[outputs]]
+id = "CQqs3rctbP9EQuXHtju_V"
+uri = "file://attached_assets/dossies/dossie_pawards_dr_claude_2026-04-23_08-40_SHA-90f73f5.md"
+type = "text"
+title = "Dossiê PAWARDS pro Dr. Claude (468KB · SHA 90f73f5 · tudo em 1 arquivo)"
