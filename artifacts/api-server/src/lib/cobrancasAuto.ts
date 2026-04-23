@@ -24,6 +24,28 @@
 
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { getGmailClient } from "./google-gmail";
+import { wrapEmailMedcore } from "./recorrencia/notifTemplate";
+
+// FATURAMENTO-TSUNAMI Wave 3: helper local pra montar raw email Gmail API
+// (mesmo pattern de notifAssinatura.ts/buildEmailRaw).
+function _sanitizeHeader(s: string): string {
+  return String(s ?? "").replace(/[\r\n]/g, "").trim();
+}
+function _buildEmailRawCobranca(to: string, subject: string, htmlBody: string): string {
+  const fromAddr = "clinica.padua.agenda@gmail.com";
+  const parts = [
+    `From: PAWARDS MEDCORE - Faturamento <${fromAddr}>`,
+    `To: ${_sanitizeHeader(to)}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from(htmlBody).toString("base64"),
+  ];
+  return Buffer.from(parts.join("\r\n")).toString("base64url");
+}
 
 // ════════════════════════════════════════════════════════════════════
 // LOG defensivo (se logger global nao disponivel, cai no console)
@@ -193,6 +215,7 @@ export async function enviarEmailCobranca(cobrancaId: number): Promise<{ enviado
     const r = await db.execute(sql`
       SELECT
         ca.id, ca.tipo, ca.descricao, ca.valor_brl, ca.status, ca.criado_em,
+        ca.tentativas_envio,
         u.id AS unidade_id, u.nome AS unidade_nome,
         COALESCE(u.email_geral, u.email_agenda, u.email_supervisor01) AS email_destino
       FROM cobrancas_adicionais ca
@@ -202,25 +225,70 @@ export async function enviarEmailCobranca(cobrancaId: number): Promise<{ enviado
     `);
     if (r.rows.length === 0) return { enviado: false, motivo: "cobranca_nao_encontrada" };
     const c: any = r.rows[0];
-    const destino = c.email_destino || "ceo@pawards.com.br"; // fallback Dr. Caio
+    const destino: string = c.email_destino || "ceo@pawards.com.br"; // fallback Dr. Caio
+    if (!destino.includes("@")) {
+      return { enviado: false, motivo: "email_invalido" };
+    }
 
-    // Defensivo: integracao google-mail pode nao estar acessivel.
-    // Por enquanto, registramos no log estruturado pra auditoria
-    // (proxima onda: integrar via listConnections('google-mail') no
-    //  code-execution sandbox + axios pra Gmail API).
-    log("info", "T7 cobranca pronta pra envio", {
-      cobrancaId,
-      destino,
-      unidade: c.unidade_nome,
-      valor: c.valor_brl,
-      tipo: c.tipo,
-      assunto: `[PAWARDS MEDCORE] Nova cobrança: ${c.tipo} · ${c.unidade_nome}`,
+    const valorFmt = `R$ ${Number(c.valor_brl).toFixed(2).replace(".", ",")}`;
+    const assunto = `[PAWARDS MEDCORE] Nova cobrança: ${c.tipo} · ${c.unidade_nome}`;
+
+    const corpoHtml = `
+      <p>Foi gerada uma nova cobrança para a unidade <strong>${c.unidade_nome}</strong>.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px">
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#FAFAF7"><strong>Tipo</strong></td><td style="padding:8px;border:1px solid #ddd">${c.tipo}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#FAFAF7"><strong>Descrição</strong></td><td style="padding:8px;border:1px solid #ddd">${c.descricao}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#FAFAF7"><strong>Valor</strong></td><td style="padding:8px;border:1px solid #ddd;color:#020406;font-weight:bold;font-size:18px">${valorFmt}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#FAFAF7"><strong>Status</strong></td><td style="padding:8px;border:1px solid #ddd">${String(c.status).toUpperCase()}</td></tr>
+      </table>
+      <p style="font-size:13px;color:#6B6B6B">
+        Você pode visualizar o detalhamento e o histórico financeiro da unidade no
+        painel administrativo PAWARDS MEDCORE. Em caso de dúvidas, fale com o Dr. Caio
+        diretamente pelo WhatsApp do portal do paciente.
+      </p>
+    `;
+
+    const htmlBody = wrapEmailMedcore({
+      subject: assunto,
+      bodyHtmlOrText: corpoHtml,
+      pacienteNome: undefined,
+      unidadeNick: c.unidade_nome,
+      momento: undefined,
     });
 
-    return { enviado: false, motivo: "google_mail_pendente_de_credenciais_real" };
+    const gmail = await getGmailClient();
+    const raw = _buildEmailRawCobranca(destino, assunto, htmlBody);
+    const res = await gmail.users.messages.send({
+      userId: "me",
+      requestBody: { raw },
+    });
+
+    await db.execute(sql`
+      UPDATE cobrancas_adicionais
+      SET status           = CASE WHEN status = 'pendente' THEN 'cobrado' ELSE status END,
+          cobrado_em       = COALESCE(cobrado_em, now()),
+          enviado_em       = now(),
+          erro_envio       = NULL,
+          tentativas_envio = COALESCE(tentativas_envio, 0) + 1
+      WHERE id = ${cobrancaId}
+    `);
+
+    log("info", "T7 cobranca email enviado branded", {
+      cobrancaId, destino, unidade: c.unidade_nome, valor: c.valor_brl, gmailId: res.data?.id,
+    });
+    return { enviado: true, motivo: "ok" };
   } catch (err) {
-    log("error", "T7 falha enviar email", { cobrancaId, err: String(err) });
-    return { enviado: false, motivo: "erro_interno" };
+    const msg = String(err);
+    try {
+      await db.execute(sql`
+        UPDATE cobrancas_adicionais
+        SET erro_envio       = ${msg.slice(0, 500)},
+            tentativas_envio = COALESCE(tentativas_envio, 0) + 1
+        WHERE id = ${cobrancaId}
+      `);
+    } catch { /* defensivo */ }
+    log("error", "T7 falha enviar email", { cobrancaId, err: msg });
+    return { enviado: false, motivo: msg.includes("Gmail not connected") ? "google_mail_pendente_de_credenciais_real" : "erro_interno" };
   }
 }
 

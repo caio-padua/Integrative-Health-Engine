@@ -865,3 +865,88 @@ Arquivo: `artifacts/api-server/src/db/migrations/014_wave2_mensageria.sql`
 ### Push duplo
 - `feat/dominio-pawards`: `801ab21..43fba9b` ✅
 - `main` (direto via `git push origin HEAD:main`): `801ab21..43fba9b` ✅
+
+---
+
+## FATURAMENTO-TSUNAMI · Wave 3 (23/abr/2026 noite) — FERTILIZAÇÃO
+
+### Filosofia
+"Não plantar mato em cima de jardim cultivado." Wave 3 descobriu que JÁ
+existia muita coisa: `asaas.adapter.ts` com 235 linhas reais (sem mock),
+`payment.service.ts`, webhook `/payments/webhooks/:gateway`, módulo
+`cobrancasAuto.ts` com T5+T6+T7, 11+ tabelas (`pagamentos`,
+`cobrancas_adicionais`, `provedores_pagamento`, `tratamentos`, etc).
+Logo, Wave 3 NÃO recriou — fertilizou os 3 gaps explícitos.
+
+### Migration 016 (psql aditiva, IF NOT EXISTS — REGRA FERRO)
+Arquivo: `artifacts/api-server/src/db/migrations/016_wave3_faturamento_fertilizacao.sql`
+- `cobrancas_adicionais`: + `enviado_em`, `erro_envio`, `tentativas_envio`, `paciente_id`
+- `pagamentos`: + `external_ref`, `gateway_name`, `gateway_payment_id`
+  (+ 2 índices: `ix_pagamentos_external_ref`, `ix_pagamentos_gateway_payment_id`)
+- `pagamento_webhook_eventos` (NOVA): auditoria idempotente de webhooks
+  (gateway, gateway_payment_id, external_ref, event_type, status_aplicado,
+   payload_json, recebido_em, processado_em, erro)
+
+### Frente A · `enviarEmailCobranca` fertilizada com Wave 2
+**Antes**: TODO retornando `"google_mail_pendente_de_credenciais_real"`.
+**Depois** (`lib/cobrancasAuto.ts`): envio Gmail real reusando
+- `getGmailClient()` (Wave 1 google-mail integration)
+- `wrapEmailMedcore()` (Wave 2 template branded navy/gold)
+- `_buildEmailRawCobranca()` (helper local pattern de notifAssinatura.ts)
+- HTML corpo: tabela com tipo/descrição/valor R$ formatado/status,
+  branded "PAWARDS MEDCORE - Faturamento" no From
+- UPDATE idempotente em `cobrancas_adicionais`: muda status pra
+  `cobrado` se `pendente`, registra `enviado_em`, `tentativas_envio++`,
+  limpa `erro_envio`. Falha registra `erro_envio` + tentativas e devolve
+  `google_mail_pendente_de_credenciais_real` ou `erro_interno`.
+
+### Frente B · Webhook reconciliação real
+**Antes** (`routes/payments.ts:178`): `// await db.payments.updateStatus(...)` puro TODO.
+**Depois**: bloco de 3 etapas:
+1. **Auditoria sempre primeiro** — INSERT em `pagamento_webhook_eventos`
+   (gateway, payment_id, external_ref, event_type, status_aplicado,
+   payload jsonb completo).
+2. **Reconciliação com fallback duplo** — UPDATE em `pagamentos`:
+   tenta primeiro por `(gateway_name, gateway_payment_id)`, se 0 rows
+   afetadas tenta `external_ref`. Mapa `paid→pago | failed→falhou |
+   cancelled/refunded/expired→cancelado | pending→pendente`. Se
+   `pago`, seta `pagu_em=now()`. Backfill defensivo de `gateway_name`
+   e `gateway_payment_id` se NULL.
+3. **Marca processado** — UPDATE `processado_em=now()` no evento mais
+   recente que casa gateway+payment_id+external_ref (idempotente).
+4. Resposta inclui `{event, status_db, updated}` pra debug.
+
+### Frente C · Dashboard inadimplência admin
+**Backend** (`routes/financeiro.ts`):
+- `GET /api/admin/inadimplencia?dias_min=N` — JOIN pagamentos +
+  pacientes + unidades + tratamentos onde `status='pendente'`,
+  ordenado por `dias_atraso DESC, valor DESC`, LIMIT 500.
+  Resposta: `{ total, total_devido_brl, buckets:{ate_7,de_8_30,de_31_60,acima_60}, linhas[] }`.
+- `POST /api/admin/inadimplencia/:cobrancaId/reenviar` — dispara
+  `enviarEmailCobranca` da frente A; ambas rotas sob `/api` requireAuth.
+
+**Frontend** (`pages/admin-inadimplencia.tsx`, 200L):
+- 5 cards: total devido (gold destaque) + 4 buckets de aging
+- Filtro `dias_min` + botão "Atualizar" (gold)
+- Tabela ordenada com badges de cor por aging (amber→orange→red→rose)
+- Botão "Reenviar" por linha (POST /reenviar) com feedback inline
+- Rota wouter `/admin/inadimplencia` em `App.tsx`
+
+### Smoke Wave 3 (6/6 verde)
+| # | Teste                                    | Resultado |
+|---|------------------------------------------|-----------|
+| 1 | API health                               | 200 ✅    |
+| 2 | GET /admin/inadimplencia (sem auth)      | 401 ✅    |
+| 3 | POST /admin/inadimplencia/:id/reenviar   | 401 ✅    |
+| 4 | POST /payments/webhooks/asaas (auth ok)  | 503 (gateway ñ configurado — esperado sem ASAAS_API_KEY) ✅ |
+| 5 | psql E2E: pagamento fake → webhook event → status='pago' aplicado | ✅ |
+| 6 | Frontend HTTP                            | 200 ✅    |
+
+### Pre-existing TS errors (NÃO Wave 3 — não tocar)
+- `financeiro.ts:157,158` — `codigoSemantico`/`revoPatologiaId` ausentes do schema (pre)
+- `payments.ts:107,126` — `string|string[]` em headers webhook (pre)
+
+### Próximo passo (Frente E opcional)
+Pedir ao Caio o secret `ASAAS_API_KEY` pra ativar smoke E2E real
+contra sandbox Asaas (criar cobrança real via `asaas.adapter.ts`,
+receber webhook real, ver linha em `pagamento_webhook_eventos`).

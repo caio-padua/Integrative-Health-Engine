@@ -461,4 +461,92 @@ async function recalcularSaldoTratamento(tratamentoId: number) {
   }).where(eq(tratamentosTable.id, tratamentoId));
 }
 
+// ════════════════════════════════════════════════════════════════════
+// FATURAMENTO-TSUNAMI Wave 3 · Dashboard inadimplência (admin)
+// GET  /api/admin/inadimplencia               → lista detalhada
+// POST /api/admin/inadimplencia/:id/reenviar  → reenvia email cobrança
+// ════════════════════════════════════════════════════════════════════
+router.get("/admin/inadimplencia", async (req, res) => {
+  try {
+    const diasMin = Math.max(0, Number((req.query.dias_min as string) || "0"));
+    const r = await db.execute(sql`
+      SELECT
+        p.id                                AS pagamento_id,
+        p.paciente_id,
+        COALESCE(pa.nome, '—')              AS paciente_nome,
+        p.unidade_id,
+        COALESCE(u.nome, '—')               AS unidade_nome,
+        p.tratamento_id,
+        COALESCE(t.nome, p.descricao, '—')  AS tratamento_nome,
+        COALESCE(t.valor_final, p.valor, 0) AS total_tratamento,
+        p.valor                             AS valor_devido,
+        p.status,
+        p.parcela,
+        p.total_parcelas,
+        p.criado_em,
+        EXTRACT(day FROM (now() - p.criado_em))::int AS dias_atraso,
+        p.gateway_name,
+        p.gateway_payment_id,
+        (SELECT MAX(ca.enviado_em) FROM cobrancas_adicionais ca
+           WHERE ca.paciente_id = p.paciente_id) AS ultima_tentativa_em
+      FROM pagamentos p
+      LEFT JOIN pacientes   pa ON pa.id = p.paciente_id
+      LEFT JOIN unidades    u  ON u.id  = p.unidade_id
+      LEFT JOIN tratamentos t  ON t.id  = p.tratamento_id
+      WHERE p.status = 'pendente'
+        AND EXTRACT(day FROM (now() - p.criado_em)) >= ${diasMin}
+      ORDER BY dias_atraso DESC, p.valor DESC
+      LIMIT 500
+    `);
+
+    const linhas = r.rows.map((row: any) => ({
+      pagamento_id: row.pagamento_id,
+      paciente_id: row.paciente_id,
+      paciente_nome: row.paciente_nome,
+      unidade_id: row.unidade_id,
+      unidade_nome: row.unidade_nome,
+      tratamento_id: row.tratamento_id,
+      tratamento_nome: row.tratamento_nome,
+      total_tratamento: Number(row.total_tratamento),
+      valor_devido: Number(row.valor_devido),
+      status: row.status,
+      parcela: row.parcela,
+      total_parcelas: row.total_parcelas,
+      criado_em: row.criado_em,
+      dias_atraso: Number(row.dias_atraso),
+      ultima_tentativa_em: row.ultima_tentativa_em,
+      gateway_name: row.gateway_name,
+      gateway_payment_id: row.gateway_payment_id,
+    }));
+
+    const total_devido = linhas.reduce((s, l) => s + l.valor_devido, 0);
+    const buckets = {
+      ate_7:   linhas.filter(l => l.dias_atraso <= 7).length,
+      de_8_30: linhas.filter(l => l.dias_atraso > 7 && l.dias_atraso <= 30).length,
+      de_31_60:linhas.filter(l => l.dias_atraso > 30 && l.dias_atraso <= 60).length,
+      acima_60:linhas.filter(l => l.dias_atraso > 60).length,
+    };
+
+    res.json({ ok: true, total: linhas.length, total_devido_brl: Number(total_devido.toFixed(2)), buckets, linhas });
+  } catch (err) {
+    console.error("[/admin/inadimplencia]", err);
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
+router.post("/admin/inadimplencia/:cobrancaId/reenviar", async (req, res) => {
+  try {
+    const id = Number(req.params.cobrancaId);
+    if (!id || id <= 0) {
+      res.status(400).json({ ok: false, error: "id_invalido" });
+      return;
+    }
+    const { enviarEmailCobranca } = await import("../lib/cobrancasAuto");
+    const r = await enviarEmailCobranca(id);
+    res.json({ ok: r.enviado, ...r });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
 export default router;
