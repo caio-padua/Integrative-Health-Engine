@@ -8,6 +8,41 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## DOMÍNIO PENDENTE — PARMAVAULT / PARCLAIM (memória 23/abr/2026)
+**Tópico levantado pelo Caio em 23/abr/2026 — guardado pra discussão futura, NÃO codado ainda.**
+
+Contexto: a Wave 3 FATURAMENTO-TSUNAMI codou o braço PACIENTE↔UNIDADE
+(cobrança parcelada via Asaas, dashboard inadimplência, webhook real). Caio
+sinalizou que existe um **braço diferente** que precisa atenção própria:
+**UNIDADE↔FARMÁCIA PARCEIRA** — pipeline de prescrições que saem da unidade
+(Instituto Pádua, Instituto Lemos, etc.) e vão pra farmácias parceiras com
+CNPJ separado (relação parceria-confiança, não hierárquica).
+
+Domínio JÁ EXISTE no schema (não tocado pela Wave 3):
+- `farmacias_parceiras` (cnpj)
+- `farmacias_parmavault` (cnpj, parceira_desde) — **PARMAVAULT** = pipeline
+- `parmavault_receitas` (prescricao_id ↔ farmacia_id)
+- `prescricao_blocos.farmacia_indicada_id` — roteamento por bloco
+- `bloco_template_ativo.farmacia_padrao`, `substancias.farmacia_padrao`,
+  `prescricao_bloco_ativos.farmacia_padrao` — defaults de roteamento
+- `parclaim_metas_clinica.farmacia_id` — **PARCLAIM** = camada métricas
+
+Necessidades sinalizadas pelo Caio (não detalhadas, guardar e perguntar):
+1. Validação de CNPJ da unidade nas prescrições roteadas pra farmácia parceira.
+2. Roteamento intra-prescrição entre N farmácias parceiras (regra prévia,
+   intra-prescrição, ou por volume — "atingiu X vai pra Y").
+3. Reconciliação do que a unidade orçou/negociou vs o que a farmácia
+   parceira efetivamente recebeu — **com bom senso de parceria**: nada
+   que obrigue funcionário da farmácia a alimentar dashboard só pro Caio
+   ter visibilidade. Régua: usar só o que a infra captura passivamente,
+   oferecer ferramentas que sirvam aos DOIS lados, exigências contratuais
+   (não operacionais cotidianas).
+
+Quando voltar a este domínio: NÃO confundir com o braço PACIENTE↔UNIDADE.
+São módulos vizinhos no mesmo SaaS, mas separados.
+
+---
+
 ## Onda PARMASUPRA-TSUNAMI — Convergência Multiplanar (22/abr/2026)
 Tsunami única absorvendo feedback Dr. Claude + 2 PDFs aprovados + backlog. Filosofia
 Mike Tyson × Éder Jofre: variação manda, número absoluto isolado é proibido.

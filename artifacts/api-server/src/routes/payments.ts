@@ -183,14 +183,51 @@ router.post(
       const { db } = await import('@workspace/db')
       const { sql } = await import('drizzle-orm')
 
-      // Audita primeiro (sempre) — antes de qualquer falha de update.
-      await db.execute(sql`
+      // ── Auditoria idempotente (Wave 3 dedupe migration 017) ─────────
+      // Dois índices únicos parciais em pagamento_webhook_eventos:
+      //   uniq_pwe_gateway_pid_event   WHERE gateway_payment_id IS NOT NULL
+      //   uniq_pwe_gateway_extref_event WHERE gateway_payment_id IS NULL
+      // Reentrega do mesmo evento → atualiza payload+recebido_em da
+      // MESMA linha (não duplica) e devolve o id direto, eliminando o
+      // race condition do MAX(id) anterior.
+      const insertedRows = await db.execute(sql`
         INSERT INTO pagamento_webhook_eventos
           (gateway, gateway_payment_id, external_ref, event_type, status_aplicado, payload_json)
         VALUES
           (${gateway}, ${event.paymentId ?? null}, ${event.externalRef ?? null},
            ${finalStatus}, ${statusDb}, ${JSON.stringify(event)}::jsonb)
+        ON CONFLICT (gateway, gateway_payment_id, event_type)
+          WHERE gateway_payment_id IS NOT NULL
+          DO UPDATE SET
+            payload_json    = EXCLUDED.payload_json,
+            status_aplicado = EXCLUDED.status_aplicado,
+            recebido_em     = now(),
+            processado_em   = NULL,
+            erro            = NULL
+        RETURNING id
       `)
+      let eventoId = (insertedRows.rows[0] as any)?.id as number | undefined
+
+      // Se gateway_payment_id era NULL, o ON CONFLICT acima não dispara
+      // (índice é parcial). Tenta o índice de external_ref.
+      if (eventoId === undefined && !event.paymentId && event.externalRef) {
+        const r = await db.execute(sql`
+          INSERT INTO pagamento_webhook_eventos
+            (gateway, gateway_payment_id, external_ref, event_type, status_aplicado, payload_json)
+          VALUES
+            (${gateway}, NULL, ${event.externalRef}, ${finalStatus}, ${statusDb}, ${JSON.stringify(event)}::jsonb)
+          ON CONFLICT (gateway, external_ref, event_type)
+            WHERE gateway_payment_id IS NULL AND external_ref IS NOT NULL
+            DO UPDATE SET
+              payload_json    = EXCLUDED.payload_json,
+              status_aplicado = EXCLUDED.status_aplicado,
+              recebido_em     = now(),
+              processado_em   = NULL,
+              erro            = NULL
+          RETURNING id
+        `)
+        eventoId = (r.rows[0] as any)?.id as number | undefined
+      }
 
       // Reconcilia: prioriza gateway_payment_id, fallback external_ref.
       let updated = 0
@@ -218,14 +255,14 @@ router.post(
         updated = (r2 as any).rowCount ?? 0
       }
 
-      await db.execute(sql`
-        UPDATE pagamento_webhook_eventos
-        SET processado_em = now()
-        WHERE id = (SELECT MAX(id) FROM pagamento_webhook_eventos
-                    WHERE gateway = ${gateway}
-                      AND COALESCE(gateway_payment_id,'') = COALESCE(${event.paymentId ?? null},'')
-                      AND COALESCE(external_ref,'')      = COALESCE(${event.externalRef ?? null},''))
-      `)
+      // Marca processado pelo id retornado do UPSERT (sem MAX, sem race).
+      if (eventoId !== undefined) {
+        await db.execute(sql`
+          UPDATE pagamento_webhook_eventos
+          SET processado_em = now()
+          WHERE id = ${eventoId}
+        `)
+      }
 
       console.log('[webhook]', gateway, finalStatus, event.paymentId, event.externalRef, 'updated=', updated)
 
