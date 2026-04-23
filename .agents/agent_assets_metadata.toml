@@ -371,3 +371,9 @@ id = "OYdx8N7qF75r8oRTHPRNH"
 uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V14.2_(APPEND_QUESTIONARIO_CONTRATO_1775526641638.xlsx"
 type = "table"
 title = "PADCOM V14.2 (append questionario)"
+
+[[outputs]]
+id = "BhvzP6h21_tPYWwrokwi-"
+uri = "file://attached_assets/dossies/inventario_exames_dr_claude_2026-04-23.md"
+type = "text"
+title = "INVENTARIO COMPLETO DE EXAMES (209 analitos sangue + schemas + 71 faixas atuais) pro Dr. Claude"
