@@ -466,7 +466,15 @@ async function recalcularSaldoTratamento(tratamentoId: number) {
 // GET  /api/admin/inadimplencia               → lista detalhada
 // POST /api/admin/inadimplencia/:id/reenviar  → reenvia email cobrança
 // ════════════════════════════════════════════════════════════════════
-router.get("/admin/inadimplencia", async (req, res) => {
+// Auth admin: master estrito (Dr. Caio) — defesa em profundidade pra
+// rotas que vazam dados financeiros network-wide e disparam emails reais.
+import { requireRole as _requireRoleInadimpl } from "../middlewares/requireRole";
+import { requireMasterEstrito as _requireMasterEstritoInadimpl } from "../middlewares/requireMasterEstrito";
+
+router.get("/admin/inadimplencia",
+  _requireRoleInadimpl("validador_mestre"),
+  _requireMasterEstritoInadimpl,
+  async (req, res) => {
   try {
     const diasMin = Math.max(0, Number((req.query.dias_min as string) || "0"));
     const r = await db.execute(sql`
@@ -534,19 +542,25 @@ router.get("/admin/inadimplencia", async (req, res) => {
   }
 });
 
-router.post("/admin/inadimplencia/:cobrancaId/reenviar", async (req, res) => {
-  try {
-    const id = Number(req.params.cobrancaId);
-    if (!id || id <= 0) {
-      res.status(400).json({ ok: false, error: "id_invalido" });
-      return;
+router.post("/admin/inadimplencia/:pagamentoId/reenviar",
+  _requireRoleInadimpl("validador_mestre"),
+  _requireMasterEstritoInadimpl,
+  async (req, res) => {
+    try {
+      const id = Number(req.params.pagamentoId);
+      if (!id || id <= 0) {
+        res.status(400).json({ ok: false, error: "id_invalido" });
+        return;
+      }
+      // Frente C usa pagamento_id direto (vem do GET /admin/inadimplencia).
+      // enviarLembreteInadimplencia monta corpo a partir de pagamento+paciente
+      // e registra auditoria em cobrancas_adicionais (tipo='lembrete_inadimplencia').
+      const { enviarLembreteInadimplencia } = await import("../lib/cobrancasAuto");
+      const r = await enviarLembreteInadimplencia(id);
+      res.json({ ok: r.enviado, ...r });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: String(err) });
     }
-    const { enviarEmailCobranca } = await import("../lib/cobrancasAuto");
-    const r = await enviarEmailCobranca(id);
-    res.json({ ok: r.enviado, ...r });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: String(err) });
-  }
-});
+  });
 
 export default router;

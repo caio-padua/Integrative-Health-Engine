@@ -292,6 +292,96 @@ export async function enviarEmailCobranca(cobrancaId: number): Promise<{ enviado
   }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// FATURAMENTO-TSUNAMI Wave 3 · Lembrete de inadimplência ao paciente
+// Distinto de T7 (cobranca de unidade): atua sobre `pagamentos` direto,
+// envia ao próprio paciente. Usado pelo dashboard /admin/inadimplencia
+// (botão "Reenviar"). Não depende de cobrancas_adicionais.id.
+// ════════════════════════════════════════════════════════════════════
+export async function enviarLembreteInadimplencia(
+  pagamentoId: number,
+): Promise<{ enviado: boolean; motivo: string }> {
+  if (!pagamentoId || pagamentoId <= 0) return { enviado: false, motivo: "id_invalido" };
+
+  try {
+    const r = await db.execute(sql`
+      SELECT
+        p.id AS pagamento_id, p.valor, p.status, p.criado_em,
+        p.parcela, p.total_parcelas, p.descricao,
+        EXTRACT(day FROM (now() - p.criado_em))::int AS dias_atraso,
+        pa.id AS paciente_id, pa.nome AS paciente_nome, pa.email AS paciente_email,
+        u.id  AS unidade_id,  u.nome  AS unidade_nome,
+        t.nome AS tratamento_nome
+      FROM pagamentos p
+      LEFT JOIN pacientes   pa ON pa.id = p.paciente_id
+      LEFT JOIN unidades    u  ON u.id  = p.unidade_id
+      LEFT JOIN tratamentos t  ON t.id  = p.tratamento_id
+      WHERE p.id = ${pagamentoId}
+      LIMIT 1
+    `);
+    if (r.rows.length === 0) return { enviado: false, motivo: "pagamento_nao_encontrado" };
+    const c: any = r.rows[0];
+    if (c.status !== "pendente") return { enviado: false, motivo: `status_invalido:${c.status}` };
+
+    const destino: string = c.paciente_email || "";
+    if (!destino.includes("@")) return { enviado: false, motivo: "paciente_sem_email" };
+
+    const valorFmt = `R$ ${Number(c.valor).toFixed(2).replace(".", ",")}`;
+    const parcelaFmt = c.parcela && c.total_parcelas ? ` (parcela ${c.parcela}/${c.total_parcelas})` : "";
+    const assunto = `[PAWARDS MEDCORE] Lembrete de pagamento pendente · ${c.unidade_nome ?? ""}`;
+
+    const corpoHtml = `
+      <p>Olá <strong>${c.paciente_nome ?? "paciente"}</strong>,</p>
+      <p>Identificamos um pagamento pendente referente ao seu tratamento na unidade
+      <strong>${c.unidade_nome ?? "—"}</strong>${c.dias_atraso ? ` há <strong>${c.dias_atraso} dias</strong>` : ""}.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px">
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#FAFAF7"><strong>Tratamento</strong></td><td style="padding:8px;border:1px solid #ddd">${c.tratamento_nome ?? c.descricao ?? "—"}${parcelaFmt}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#FAFAF7"><strong>Valor</strong></td><td style="padding:8px;border:1px solid #ddd;color:#020406;font-weight:bold;font-size:18px">${valorFmt}</td></tr>
+      </table>
+      <p style="font-size:13px;color:#6B6B6B">
+        Para regularizar, entre em contato direto com a recepção da unidade ou
+        responda este e-mail. Se o pagamento já foi efetuado, por favor desconsidere
+        esta mensagem.
+      </p>`;
+
+    const htmlBody = wrapEmailMedcore({
+      subject: assunto,
+      bodyHtmlOrText: corpoHtml,
+      pacienteNome: c.paciente_nome ?? undefined,
+      unidadeNick: c.unidade_nome ?? undefined,
+    });
+
+    const gmail = await getGmailClient();
+    const raw = _buildEmailRawCobranca(destino, assunto, htmlBody);
+    const res = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+
+    // Registra tentativa em cobrancas_adicionais (cria 1 row de auditoria
+    // do tipo 'lembrete_inadimplencia' sem mexer no status do pagamento).
+    await db.execute(sql`
+      INSERT INTO cobrancas_adicionais
+        (unidade_id, tipo, descricao, valor_brl, status,
+         referencia_tipo, referencia_id, paciente_id,
+         enviado_em, tentativas_envio, criado_em)
+      VALUES
+        (${c.unidade_id ?? 0}, 'lembrete_inadimplencia',
+         ${`Lembrete pagamento pendente #${pagamentoId}`},
+         ${Number(c.valor)}, 'cobrado', 'pagamento', ${pagamentoId},
+         ${c.paciente_id ?? null}, now(), 1, now())
+      ON CONFLICT DO NOTHING
+    `);
+
+    log("info", "lembrete_inadimplencia enviado", {
+      pagamentoId, destino, paciente: c.paciente_nome, unidade: c.unidade_nome,
+      valor: c.valor, gmailId: res.data?.id,
+    });
+    return { enviado: true, motivo: "ok" };
+  } catch (err) {
+    const msg = String(err);
+    log("error", "lembrete_inadimplencia falhou", { pagamentoId, err: msg });
+    return { enviado: false, motivo: msg.includes("Gmail not connected") ? "google_mail_pendente_de_credenciais_real" : "erro_interno" };
+  }
+}
+
 // Bootstrap do worker NAO eh exposto aqui: a funcao
 // `registrarCobrancasMensaisRecorrentes` ja esta plugada dentro do tick
 // existente em `lib/recorrencia/cobrancaMensal.ts` (worker iniciado pelo
