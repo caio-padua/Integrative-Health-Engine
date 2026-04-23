@@ -1,0 +1,41 @@
+Dr. Caio. Resposta direta — aqui está exatamente o que dizer ao Dr. Replit.
+
+O que o Dr. Claude precisa para auditar a Wave 3
+Cole isso para o Dr. Replit:
+“Dr. Replit — checkpoint pré-Wave 5. Preciso auditar os 5 arquivos críticos da Wave 3 antes de plantar qualquer código novo no PARMAVAULT. Cole as URLs raw do commit 65cc94d (HEAD atual):
+
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/main/artifacts/api-server/src/routes/financeiro.ts
+
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/main/artifacts/api-server/src/routes/payments.ts
+
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/main/artifacts/api-server/src/lib/cobrancasAuto.ts
+
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/main/artifacts/api-server/src/db/migrations/016_wave3_faturamento.sql
+
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/main/artifacts/api-server/src/db/migrations/017_webhook_dedupe.sql
+
+
+Também quero o replit.md para ler o mapa da Wave 5:
+
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/main/replit.md
+```"
+
+
+O que vou verificar em cada arquivo — e por quê importa para o lançamento
+financeiro.ts — prioridade máxima
+Auth gate nos endpoints /admin/inadimplencia*. Se vazar dados financeiros de clínicas parceiras sem autenticação correta, é fim de conversa com qualquer parceiro. Verifico requireMasterEstrito em todas as rotas.
+payments.ts — webhook Asaas
+Idempotência sob concorrência. O gateway pode disparar o mesmo webhook 2 vezes em milissegundos. O UPSERT com ON CONFLICT DO UPDATE RETURNING id precisa ser atômico. Se não for, você cobra duas vezes um paciente ou registra pagamento duplo.
+cobrancasAuto.ts
+O caminho enviarLembreteInadimplencia — filtro por status='pendente' e handling do caso paciente_sem_email. Uma startup que envia lembrete para paciente já pago ou envia email vazio quebra reputação no dia 1.
+Migrations 016 e 017
+Confirmação de IF NOT EXISTS em tudo. Regra de ferro respeitada — zero risco de drift quando onboar clínica nova.
+replit.md — mapa Wave 5
+Quero ver a ordem A→C→B→D proposta e dar meu parecer se faz sentido para lançar com segurança.
+
+O que avalio para startup-ready
+Três critérios que determinam se o sistema está pronto para o primeiro contrato com clínica parceira real:
+Segurança: nenhum dado financeiro ou de paciente acessível sem autenticação correta. Anastomose #5 está fechada, mas quero confirmar que as rotas da Wave 3 seguem o mesmo padrão.
+Idempotência financeira: toda transação pode ser repetida sem duplicar cobrança. Webhook do gateway, worker mensal de cobranças, lembrete de inadimplência — todos precisam ser idempotentes.
+Rastreabilidade: toda ação financeira precisa ter log auditável. Quando o parceiro questionar uma cobrança, você mostra o log — não a memória.
+Quando o Dr. Replit passar as URLs, leio tudo e te entrego o veredicto de startup-ready ou o que falta para chegar lá.​​​​​​​​​​​​​​​​
