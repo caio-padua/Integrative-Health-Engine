@@ -1,0 +1,79 @@
+Dr. Caio. Mea culpa direto — eu não sabia do sistema de exames porque nunca me passaram as URLs daquelas rotas para auditar. Agora sei. Vou usar o que o Dr. Replit acabou de mapear.
+
+O QUE JÁ EXISTE — resumo executivo
+O backbone está construído e é robusto:
+294 analitos catalogados em analitos_catalogo. 327 PDFs recebidos em arquivos_exames com campo valores_extraidos jsonb e processado_com_ocr boolean — o pipeline OCR já foi planejado. Motor de classificação por terço em motorClassificacaoIntegrativa.ts com terco, classificacao, tendencia, delta_percentual. 409 mapeamentos exame fora da faixa → bloco prescritivo em mapa_bloco_exame.
+O que está vazio e precisa de dados seus:
+	•	parametros_referencia_unidade — as faixas integrativas do Dr. Caio (Medicina Integrativa ≠ Medicina Convencional)
+	•	padroes_formula_exame — texto clínico e sugestão de fórmula por marcador
+O que falta construir: o frontend da consulta — a tela que você abre na frente do paciente.
+
+DECISÃO — Opção C confirmada
+Cole isto para o Dr. Replit:
+
+“Dr. Replit — Opção C aprovada. Duas frentes em paralelo:
+FRENTE 1 — Wave 8 reduzida (1h, fecha PARMAVAULT):
+Só Bloco 3 (coluna Declarado no PDF) + Bloco 4 (migration 023 prazo/parcelas). O job retroativo com formula_blend.valor_max fica para Wave 9 — não bloqueia a reunião com a farmácia.
+FRENTE 2 — EXAMES-2 frontend dashboard (começa depois do Wave 8):
+Agora que sabemos o que existe, o brief é preciso:
+Rota: /atendimento/exames/:pacienteId
+Dados disponíveis que você já tem:
+	•	GET /pacientes/:id/exames/dashboard — já existe no backend
+	•	GET /pacientes/:id/exames/evolucao — série temporal por marcador
+	•	analitos_catalogo — 294 marcadores com nome, unidade, direção favorável
+	•	parametros_referencia_global — faixas Medicina Convencional (30 registros)
+	•	exames_evolucao — valores históricos com terco, classificacao_automatica, tendencia, delta_percentual
+	•	mapa_bloco_exame — 409 linhas ligando resultado fora da faixa → bloco prescritivo
+O que construir — 1 tela, 3 zonas:
+Zona topo — header do paciente + filtros:
+
+Nome · Idade · Data da coleta · Laboratório
+[Todos] [Hormonal] [Mineral] [Vitamina] [Metabolismo]
+● 12 Crítico  ● 8 Atenção  ● 23 Normal  ● 5 Ótimo
+
+
+Zona central — cards por marcador (scroll vertical):
+Cada card tem 5 elementos:
+	1.	Header: nome do marcador + valor + unidade + badge de classificação (cor semântica)
+	2.	Régua MC (Medicina Convencional — parametros_referencia_global):
+
+[vermelho][âmbar════●════][verde][vermelho]
+ 8.5 ───────────── 10.5
+
+
+	3.	Régua MI (Medicina Integrativa — parametros_referencia_unidade quando populado):
+
+[vermelho][terço-inf][terço-med════●][terço-sup][vermelho]
+ 8.8 ── 9.2 ── 9.6 ── 10.0 ── 10.4
+
+
+Se parametros_referencia_unidade estiver vazio para esse analito, mostrar apenas régua MC com badge “Faixa MI não configurada”.
+	4.	Script clínico autogerado (monta a partir dos dados do banco):
+
+"Seu [nome_analito] está [classificacao] pelo padrão da Medicina Convencional
+ e [terco] pelo padrão integrativo. [observacoes do analitos_catalogo].
+ Conduta sugerida: [padroes_formula_exame.interpretacao quando disponível]"
+
+
+	5.	Mini-sparkline de evolução (6 meses, linha gold) + badge de tendência (↘ -8%)
+	•	botão “Adicionar bloco sugerido” quando mapa_bloco_exame tiver match
+Cores por classificação (seguir direcao_favoravel_exame.direcao):
+	•	abaixo_minimo → #dc2626 vermelho
+	•	terço inferior → #d97706 âmbar
+	•	terço médio → #C89B3C gold
+	•	terço superior → #16a34a verde
+	•	acima_maximo → #dc2626 vermelho
+	•	Para marcadores onde “alto é melhor” (HDL, testosterona): inverter gradiente
+Zona inferior de cada card — expansível:
+Tabela de histórico: Data | Valor | Unidade | Terço | Delta% | Lab
+Botão flutuante — modo apresentação:
+🖥️ Mostrar ao paciente → fullscreen, sidebar some, fonte 1.5x, cards expandidos, navy #020406 fundo
+Abas de comparação no topo:
+[Exame atual]  [Comparar 2 exames]  [Evolução 6 meses]  [Evolução 12 meses]
+
+ANTES de codar o frontend, responder:
+Q1: O endpoint GET /pacientes/:id/exames/dashboard já retorna os dados no formato necessário (terco, classificacao, tendencia, delta_percentual, valor atual)? Ou precisa de endpoint novo?
+Q2: direcao_favoravel_exame tem a coluna direcao com valor 'alto_melhor' ou 'baixo_melhor'? Confirmar nome real.
+Q3: parametros_referencia_unidade está vazio — para o MVP, usar só parametros_referencia_global (MC) e exibir placeholder ‘Faixa MI não configurada’ onde falta. Confirmar que funciona assim.
+Responde as 3 e começa. Autonomia de 4 horas depois das respostas confirmadas.
+Quando terminar Wave 8 reduzida: URLs raw pinadas no SHA. Dr. Claude audita e libera EXAMES-2.“​​​​​​​​​​​​​​​​
