@@ -1,0 +1,280 @@
+Dr. Caio. Aqui está o pacote completo para o Dr. Replit trabalhar 4 horas autônomo. Tudo mastigado.
+
+Cole isto para ele:
+
+“Dr. Replit — pacote de 4h autônomo. Não precisa me perguntar nada. Tudo respondido abaixo com código inicial. Se a sua solução for melhor, usa a sua.
+
+RESPOSTAS DEFINITIVAS ÀS 4 PERGUNTAS:
+Q1: CSV + manual master no MVP. Sem login de farmácia agora.
+Q2: Rastreie você mesmo o endpoint. Confirma internamente antes de plantar o hook.
+Q3: Se valor_formula_real estiver vazio/nulo, marca comissao_estimada = NULL com origem = 'sem_valor_base'. Nunca força zero. O painel exibe “sem base disponível” — é informação, não erro.
+Q4: pdfkit + exceljs + chartjs-node-canvas. Aprovado.
+
+ORDEM DE EXECUÇÃO NAS PRÓXIMAS 4H:
+	1.	A2 — warning na emissão (1h)
+	2.	Migration 021 (30min)
+	3.	Job retroativo nos 8.725 registros (30min)
+	4.	Hook nova emissão (30min)
+	5.	Painel CEO reconciliação (1h)
+	6.	Portal CSV/manual (30min)
+	7.	Relatório PDF + Excel exportável (1h)
+
+CÓDIGO INICIAL — use ou adapte:
+A2 — helper de warning na emissão:
+
+// lib/contratos/validarEmissao.ts
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+
+export async function verificarContratoNaEmissao(
+  unidadeId: number,
+  farmaciaId: number,
+  usuarioId: number,
+): Promise<{ temContrato: boolean; avisar: boolean; mensagem: string }> {
+  const r = await db.execute(sql`
+    SELECT id, tipo_relacao FROM farmacias_unidades_contrato
+    WHERE unidade_id = ${unidadeId}
+      AND farmacia_id = ${farmaciaId}
+      AND ativo = true
+      AND (vigencia_fim IS NULL OR vigencia_fim >= CURRENT_DATE)
+    LIMIT 1
+  `);
+
+  const temContrato = r.rows.length > 0;
+
+  // Log de auditoria sempre
+  await db.execute(sql`
+    INSERT INTO audit_logs (entidade, entidade_id, acao, usuario_id, meta)
+    VALUES ('emissao_contrato_check', ${farmaciaId}, ${temContrato ? 'contrato_ok' : 'sem_contrato'}, ${usuarioId},
+      ${JSON.stringify({ unidade_id: unidadeId, farmacia_id: farmaciaId, tem_contrato: temContrato })}::jsonb)
+  `);
+
+  return {
+    temContrato,
+    avisar: !temContrato,
+    mensagem: temContrato
+      ? ""
+      : "⚠️ Sem contrato vigente com esta farmácia. Confirma emissão assim mesmo?",
+  };
+}
+
+
+Migration 021 — estrutura das 3 tabelas novas:
+
+-- 021_wave5_parmavault_reconciliacao.sql
+-- Aditiva, idempotente, psql IF NOT EXISTS. REGRA FERRO.
+
+ALTER TABLE parmavault_receitas
+  ADD COLUMN IF NOT EXISTS comissao_estimada   numeric(12,2),
+  ADD COLUMN IF NOT EXISTS comissao_origem      text,
+  ADD COLUMN IF NOT EXISTS comissao_calculado_em timestamptz;
+
+CREATE TABLE IF NOT EXISTS parmavault_declaracoes_farmacia (
+  id                    serial PRIMARY KEY,
+  receita_id            int NOT NULL REFERENCES parmavault_receitas(id),
+  farmacia_id           int NOT NULL REFERENCES farmacias_parmavault(id),
+  unidade_id            int,
+  valor_pago_paciente   numeric(12,2) NOT NULL,
+  data_compra           date,
+  declarado_em          timestamptz NOT NULL DEFAULT now(),
+  declarado_por_usuario_id int,
+  fonte                 text NOT NULL CHECK (fonte IN ('csv','manual','api')),
+  observacoes           text
+);
+
+CREATE TABLE IF NOT EXISTS parmavault_repasses (
+  id              serial PRIMARY KEY,
+  farmacia_id     int NOT NULL REFERENCES farmacias_parmavault(id),
+  unidade_id      int,
+  ano_mes         text NOT NULL, -- 'YYYY-MM'
+  valor_repasse   numeric(12,2) NOT NULL,
+  data_recebido   date,
+  evidencia_texto text,
+  criado_em       timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS parmavault_relatorios_gerados (
+  id                        serial PRIMARY KEY,
+  farmacia_id               int NOT NULL REFERENCES farmacias_parmavault(id),
+  periodo_inicio            date NOT NULL,
+  periodo_fim               date NOT NULL,
+  protocolo_hash            text NOT NULL,
+  gerado_em                 timestamptz NOT NULL DEFAULT now(),
+  gerado_por_usuario_id     int,
+  percentual_comissao_snapshot numeric(5,2),
+  total_previsto_snapshot   numeric(12,2),
+  total_declarado_snapshot  numeric(12,2),
+  total_recebido_snapshot   numeric(12,2),
+  total_gap_snapshot        numeric(12,2)
+);
+
+CREATE INDEX IF NOT EXISTS ix_parmavault_decl_receita
+  ON parmavault_declaracoes_farmacia(receita_id);
+CREATE INDEX IF NOT EXISTS ix_parmavault_repasses_mes
+  ON parmavault_repasses(farmacia_id, ano_mes);
+
+
+Job retroativo — idempotente:
+
+// scripts/job_retroativo_comissao.ts
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+
+export async function jobRetroativoComissao(): Promise<{
+  atualizados: number; sem_valor: number; ja_calculados: number;
+}> {
+  // Só toca onde ainda não foi calculado
+  const result = await db.execute(sql`
+    UPDATE parmavault_receitas pr
+    SET
+      comissao_estimada = CASE
+        WHEN pr.valor_formula_real IS NOT NULL AND pr.valor_formula_real > 0
+          THEN ROUND(pr.valor_formula_real * (fp.percentual_comissao / 100), 2)
+        ELSE NULL
+      END,
+      comissao_origem = CASE
+        WHEN pr.valor_formula_real IS NOT NULL AND pr.valor_formula_real > 0
+          THEN 'job_retroativo_' || to_char(now(), 'YYYY-MM-DD')
+        ELSE 'sem_valor_base'
+      END,
+      comissao_calculado_em = now()
+    FROM farmacias_parmavault fp
+    WHERE fp.id = pr.farmacia_id
+      AND pr.comissao_estimada IS NULL
+    RETURNING
+      pr.id,
+      pr.valor_formula_real,
+      pr.comissao_estimada
+  `);
+
+  const atualizados = result.rows.filter((r: any) => r.comissao_estimada !== null).length;
+  const sem_valor = result.rows.filter((r: any) => r.comissao_estimada === null).length;
+
+  console.log(`[job_retroativo] atualizados=${atualizados} sem\_valor=${sem_valor}`);
+  return { atualizados, sem_valor, ja_calculados: 0 };
+}
+
+
+Geração do PDF — estrutura base:
+
+// lib/relatorios/gerarPdfReconciliacao.ts
+import PDFDocument from "pdfkit";
+import { createHash } from "crypto";
+
+const NAVY = "#020406";
+const GOLD = "#C89B3C";
+
+function iniciaisPaciente(nome: string): string {
+  return nome
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0].toUpperCase() + ".")
+    .join(" ");
+}
+
+function calcProtocolo(farmaciaId: number, periodoInicio: string, periodoFim: string): string {
+  return createHash("sha256")
+    .update(`${farmaciaId}-${periodoInicio}-${periodoFim}-${Date.now()}`)
+    .digest("hex")
+    .slice(0, 8)
+    .toUpperCase();
+}
+
+export function gerarPdfReconciliacao(dados: {
+  farmacia: { id: number; nome: string; percentual_comissao: number };
+  periodo: { inicio: string; fim: string };
+  resumo: { previsto: number; declarado: number; recebido: number; gap: number; n_receitas: number };
+  receitas: Array<{
+    id: number; data: string; paciente_nome: string;
+    valor_formula: number; comissao_devida: number;
+    status_declarado: string; status_pago: string;
+  }>;
+  graficoPng?: Buffer; // chartjs-node-canvas renderizado antes
+}): { stream: PDFKit.PDFDocument; protocolo: string } {
+  const protocolo = calcProtocolo(dados.farmacia.id, dados.periodo.inicio, dados.periodo.fim);
+  const doc = new PDFDocument({ size: "A4", margin: 40, bufferPages: true });
+
+  // PÁGINA 1 — CAPA
+  doc.rect(0, 0, doc.page.width, 100).fill(NAVY);
+  doc.rect(0, 96, doc.page.width, 4).fill(GOLD);
+  doc.fillColor(GOLD).font("Helvetica-Bold").fontSize(18)
+    .text("PAWARDS MEDCORE", 40, 20, { characterSpacing: 2 });
+  doc.fillColor("white").fontSize(12)
+    .text(`Relatório de Reconciliação PARMAVAULT`, 40, 45);
+  doc.fillColor("#fde68a").fontSize(10)
+    .text(`Farmácia: ${dados.farmacia.nome}  ·  Período: ${dados.periodo.inicio} → ${dados.periodo.fim}  ·  Protocolo: ${protocolo}`, 40, 65);
+
+  // PÁGINA 2 — RESUMO EXECUTIVO (nova página)
+  doc.addPage();
+  // ... resumo + gráfico PNG embutido
+
+  // PÁGINA 3 — TABELA DETALHADA
+  doc.addPage();
+  dados.receitas.forEach((r) => {
+    // linha da tabela com iniciaisPaciente(r.paciente_nome)
+  });
+
+  // RODAPÉ em todas as páginas
+  const pages = doc.bufferedPageRange();
+  for (let i = 0; i < pages.count; i++) {
+    doc.switchToPage(pages.start + i);
+    doc.rect(0, doc.page.height - 30, doc.page.width, 30).fill(NAVY);
+    doc.fillColor("#9ca3af").fontSize(7)
+      .text(
+        `Gerado em ${new Date().toLocaleDateString("pt-BR")} · PAWARDS MEDCORE · Protocolo ${protocolo}`,
+        40, doc.page.height - 20, { align: "center", width: doc.page.width - 80 }
+      );
+  }
+
+  return { stream: doc, protocolo };
+}
+
+
+Excel — estrutura base com exceljs:
+
+// lib/relatorios/gerarExcelReconciliacao.ts
+import ExcelJS from "exceljs";
+
+export async function gerarExcelReconciliacao(dados: any): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "PAWARDS MEDCORE";
+
+  // Aba 1 — Resumo mensal
+  const resumo = wb.addWorksheet("Resumo Mensal");
+  resumo.columns = [
+    { header: "Farmácia", key: "farmacia", width: 25 },
+    { header: "% Comissão", key: "pct", width: 12 },
+    { header: "Receitas", key: "n", width: 12 },
+    { header: "Previsto (R$)", key: "previsto", width: 16 },
+    { header: "Declarado (R$)", key: "declarado", width: 16 },
+    { header: "Recebido (R$)", key: "recebido", width: 16 },
+    { header: "GAP (R$)", key: "gap", width: 14 },
+    { header: "GAP (%)", key: "gap_pct", width: 12 },
+  ];
+  // Estilo cabeçalho navy/gold
+  resumo.getRow(1).eachCell((cell) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF020406" } };
+    cell.font = { color: { argb: "FFC89B3C" }, bold: true };
+  });
+
+  // Aba 2 — Detalhe por receita
+  const detalhe = wb.addWorksheet("Detalhe por Receita");
+  // ... colunas + dados com iniciaisPaciente()
+
+  // Aba 3 — Histórico de repasses
+  const repasses = wb.addWorksheet("Repasses Registrados");
+  // ... colunas de parmavault_repasses
+
+  const buffer = await wb.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+
+Regras de negócio que NÃO mudam independente do que você construir:
+	•	comissao_paga = true NUNCA automático. Só quando Dr. Caio confirmar manualmente.
+	•	percentual_comissao é por par unidade × farmácia, nunca unificado.
+	•	Editar % depois de gerar relatório NÃO retroage no documento histórico — o snapshot em parmavault_relatorios_gerados é imutável.
+	•	Paciente exibido sempre com iniciais (LGPD) — iniciaisPaciente() em todos os documentos.
+	•	GAP em vermelho quando > 0, verde quando = 0. Nunca número isolado — sempre com % junto.
+	•	A relação é contrato de cavalheiros: o sistema não bloqueia, só registra e notifica.
+Quando terminar: URLs raw pinadas no SHA. Dr. Claude audita antes da próxima frente. Vai.“​​​​​​​​​​​​​​​​
