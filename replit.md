@@ -1314,3 +1314,27 @@ Arquivo: `artifacts/api-server/src/db/migrations/016_wave3_faturamento_fertiliza
 Pedir ao Caio o secret `ASAAS_API_KEY` pra ativar smoke E2E real
 contra sandbox Asaas (criar cobrança real via `asaas.adapter.ts`,
 receber webhook real, ver linha em `pagamento_webhook_eventos`).
+
+---
+
+## 2026-04-23 · Migration 025 — Bridge V4 (Dr. Claude aprovado)
+
+### Aplicado
+- `parametros_referencia_global.codigo_semantico_v4` (FK → codigos_semanticos.codigo)
+- `analitos_catalogo.codigo_semantico_v4` (FK → codigos_semanticos.codigo)
+- 2 indexes parciais WHERE codigo_semantico_v4 IS NOT NULL
+- 23 PRG mapeados aos códigos V4.0 (TSH, B12, Cortisol, DHEAS, Estradiol, Ferritina, Glicose, HBA1C, HDL, LDL, Vitamina D, Testosterona Total, Insulina, Anti-TPO, Ácido Úrico, Creatinina, etc)
+
+### Pendente (kaizen progressivo)
+- 44 PRG EXAME ainda sem mapeamento V4 (mapear sob demanda quando exames forem ativados)
+- 304 analitos_catalogo sem mapeamento V4 (mapear quando OCR começar a popular valores_extraidos)
+
+### Wave 5 PARMAVAULT-TSUNAMI — STATUS REAL (descoberto 2026-04-23)
+- B0 (4 tabelas) ✅ migrations 021+022 aplicadas
+- B1 (A2 warning emissão) ✅ emitirPrescricaoService.ts:130
+- B2 (job retroativo 8725) ✅ rodado, 8725/8725 com comissão calculada
+- B3 (hook nova emissão) ✅ ativo no fluxo de emissão
+- B4 (portal CSV+manual) ✅ POST/GET /admin/parmavault/declaracoes
+- B5 (painel CEO) ✅ admin-parmavault-reconciliacao.tsx + GET /admin/parmavault/matriz
+- B6 (PDF+Excel) ✅ POST relatorios/gerar + GET /:id/pdf|/excel
+- B7 (wrap-up) — pendente confirmação de auditoria com Caio
