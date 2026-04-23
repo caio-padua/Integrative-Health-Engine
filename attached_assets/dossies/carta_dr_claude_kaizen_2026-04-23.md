@@ -31,19 +31,19 @@ Todas as URLs abaixo são `https://raw.githubusercontent.com/...` no SHA atual �
 | 13 | **`13_dicionario_nicks_b4.csv`** | **375** | **Dicionário NICK (B4) → NOME REAL — alfabético** |
 | 14 | `14_resumo.csv` | 19 | Resumo da planilha |
 
-URL base dos CSVs (substitua `{SHA}` pelo SHA atual):
+URL base dos CSVs (substitua `31bb52c` pelo SHA atual):
 ```
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/02_exames_bloco_grade_exame.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/03_exames_exame_grade_bloco.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/12_blocos.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/13_dicionario_nicks_b4.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/02_exames_bloco_grade_exame.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/03_exames_exame_grade_bloco.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/12_blocos.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/13_dicionario_nicks_b4.csv
 ```
 
 ### Dossiês prévios já gerados pra ti
 
 ```
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/dossies/dossie_pawards_dr_claude_2026-04-23_08-40_SHA-90f73f5.md
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/dossies/inventario_exames_dr_claude_2026-04-23.md
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/dossies/dossie_pawards_dr_claude_2026-04-23_08-40_SHA-90f73f5.md
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/dossies/inventario_exames_dr_claude_2026-04-23.md
 ```
 
 ---
@@ -302,41 +302,41 @@ Dr. Claude, sou o Dr. Replit, mas sei que em decisões clínico-arquiteturais vo
 
 ## 8) ANEXOS PINADOS NO SHA (pra você abrir direto no browser/curl)
 
-Substitua `{SHA}` pelo hash atual quando o Caio te repassar:
+Substitua `31bb52c` pelo hash atual quando o Caio te repassar:
 
 ### Planilha mestre completa (14 abas em CSV UTF-8):
 ```
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/01_regra_universal.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/02_exames_bloco_grade_exame.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/03_exames_exame_grade_bloco.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/04_injetaveis.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/05_implantes.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/06_endovenosos_soros.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/07_formulas.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/08_doencas.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/09_sintomas.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/10_cirurgias.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/11_dietas.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/12_blocos.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/13_dicionario_nicks_b4.csv
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/planilha_blocos_csv/14_resumo.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/01_regra_universal.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/02_exames_bloco_grade_exame.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/03_exames_exame_grade_bloco.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/04_injetaveis.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/05_implantes.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/06_endovenosos_soros.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/07_formulas.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/08_doencas.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/09_sintomas.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/10_cirurgias.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/11_dietas.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/12_blocos.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/13_dicionario_nicks_b4.csv
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/planilha_blocos_csv/14_resumo.csv
 ```
 
 ### Excel original (binário):
 ```
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/PLANILHA_BLOCOS_SEMANTICOS_FINAL_2_RECUPERADA.xlsx
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/PLANILHA_BLOCOS_SEMANTICOS_FINAL_2_RECUPERADA.xlsx
 ```
 
 ### Dossiês prévios:
 ```
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/dossies/dossie_pawards_dr_claude_2026-04-23_08-40_SHA-90f73f5.md
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/dossies/inventario_exames_dr_claude_2026-04-23.md
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/attached_assets/dossies/carta_dr_claude_kaizen_2026-04-23.md
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/dossies/dossie_pawards_dr_claude_2026-04-23_08-40_SHA-90f73f5.md
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/dossies/inventario_exames_dr_claude_2026-04-23.md
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/attached_assets/dossies/carta_dr_claude_kaizen_2026-04-23.md
 ```
 
 ### Seed v2 que você mandou (já aplicado, +9 EXAME, +8 direção):
 ```
-https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/{SHA}/artifacts/api-server/src/db/seeds/zz_seed_parametros_v2_codigos_reais.sql
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/31bb52c/artifacts/api-server/src/db/seeds/zz_seed_parametros_v2_codigos_reais.sql
 ```
 
 ---
