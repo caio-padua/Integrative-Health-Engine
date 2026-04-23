@@ -37,11 +37,128 @@ import {
   gerarExcelReconciliacao,
   type DadosExcelReconciliacao,
 } from "../lib/relatorios/gerarExcelReconciliacao.js";
+import { uploadFileToDrive, getDriveClient } from "../lib/google-drive.js";
 
 const router = Router();
 const guardMaster = [_requireRole("validador_mestre"), _requireMaster];
 
 const RELATORIOS_DIR = path.join(process.cwd(), "tmp", "parmavault_relatorios");
+
+// ════════ Wave 6 helpers ════════
+
+/**
+ * Parser CSV robusto: lida com aspas e virgulas dentro de campos.
+ * Wave 6 substituiu o split(",") simples que quebrava em
+ * "observacao com, virgula".
+ */
+function parseCsvLinha(linha: string): string[] {
+  const cols: string[] = [];
+  let atual = "";
+  let dentroAspas = false;
+  for (let i = 0; i < linha.length; i++) {
+    const c = linha[i];
+    if (c === '"') {
+      // Aspas duplas escapadas: ""
+      if (dentroAspas && linha[i + 1] === '"') {
+        atual += '"';
+        i++;
+      } else {
+        dentroAspas = !dentroAspas;
+      }
+    } else if (c === "," && !dentroAspas) {
+      cols.push(atual.trim());
+      atual = "";
+    } else {
+      atual += c;
+    }
+  }
+  cols.push(atual.trim());
+  return cols;
+}
+
+const DRIVE_PARMAVAULT_ROOT = "PAWARDS_PARMAVAULT_RELATORIOS";
+
+/**
+ * Sobe PDF + Excel pro Google Drive em pasta dedicada por farmacia.
+ * DEFENSIVO: se Drive falhar, retorna null e segue caminho disco.
+ */
+async function uploadRelatorioParaDrive(
+  farmaciaNome: string,
+  protocolo: string,
+  pdfBuf: Buffer,
+  excelBuf: Buffer,
+): Promise<{
+  pdfDriveId: string;
+  pdfDriveUrl: string;
+  excelDriveId: string;
+  excelDriveUrl: string;
+} | null> {
+  try {
+    const drive = await getDriveClient();
+    const safeName = farmaciaNome.replace(/[^a-zA-Z0-9]+/g, "_").toUpperCase();
+
+    // Acha/cria pasta root
+    const rootQ = await drive.files.list({
+      q: `name='${DRIVE_PARMAVAULT_ROOT}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: "files(id, name)",
+    });
+    let rootId: string;
+    if (rootQ.data.files && rootQ.data.files.length > 0) {
+      rootId = rootQ.data.files[0]!.id!;
+    } else {
+      const created = await drive.files.create({
+        requestBody: {
+          name: DRIVE_PARMAVAULT_ROOT,
+          mimeType: "application/vnd.google-apps.folder",
+        },
+        fields: "id",
+      });
+      rootId = created.data.id!;
+    }
+
+    // Acha/cria subpasta farmacia
+    const subQ = await drive.files.list({
+      q: `name='${safeName}' and '${rootId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: "files(id, name)",
+    });
+    let subId: string;
+    if (subQ.data.files && subQ.data.files.length > 0) {
+      subId = subQ.data.files[0]!.id!;
+    } else {
+      const created = await drive.files.create({
+        requestBody: {
+          name: safeName,
+          mimeType: "application/vnd.google-apps.folder",
+          parents: [rootId],
+        },
+        fields: "id",
+      });
+      subId = created.data.id!;
+    }
+
+    const pdfUp = await uploadFileToDrive(
+      subId,
+      `reconciliacao_${protocolo}.pdf`,
+      "application/pdf",
+      pdfBuf,
+    );
+    const excelUp = await uploadFileToDrive(
+      subId,
+      `reconciliacao_${protocolo}.xlsx`,
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      excelBuf,
+    );
+    return {
+      pdfDriveId: pdfUp.fileId,
+      pdfDriveUrl: pdfUp.fileUrl,
+      excelDriveId: excelUp.fileId,
+      excelDriveUrl: excelUp.fileUrl,
+    };
+  } catch (err) {
+    console.error("[parmavault_drive] upload falhou (fallback disco):", String(err));
+    return null;
+  }
+}
 
 // ════════ B2 · JOB RETROATIVO ════════
 router.post(
@@ -138,7 +255,7 @@ router.post(
       let inseridos = 0;
       const erros: { linha: number; motivo: string }[] = [];
       for (let i = 0; i < linhas.length; i++) {
-        const cols = linhas[i]!.split(",").map((c) => c.trim());
+        const cols = parseCsvLinha(linhas[i]!);
         const receitaId = Number(cols[0]);
         const valor = Number(cols[1]);
         const data = cols[2] || null;
@@ -541,16 +658,27 @@ router.post("/admin/parmavault/relatorios/gerar", ...guardMaster, async (req, re
     };
     const excelBuf = gerarExcelReconciliacao(dadosExcel);
 
-    // Persiste em disco
+    // Persiste em disco (fallback)
     await fs.mkdir(RELATORIOS_DIR, { recursive: true });
     const pdfPath = path.join(RELATORIOS_DIR, `rel_${relatorioId}_${protocolo}.pdf`);
     const excelPath = path.join(RELATORIOS_DIR, `rel_${relatorioId}_${protocolo}.xlsx`);
     await fs.writeFile(pdfPath, pdfBuf);
     await fs.writeFile(excelPath, excelBuf);
 
+    // Wave 6 · sobe para Drive (defensivo — falhou? mantem so disco)
+    const driveResult = await uploadRelatorioParaDrive(
+      String(farm.nome_fantasia),
+      protocolo,
+      pdfBuf,
+      excelBuf,
+    );
+
     await db.execute(sql`
       UPDATE parmavault_relatorios_gerados
-      SET pdf_path = ${pdfPath}, excel_path = ${excelPath}
+      SET pdf_path = ${driveResult?.pdfDriveUrl ?? pdfPath},
+          excel_path = ${driveResult?.excelDriveUrl ?? excelPath},
+          pdf_drive_id = ${driveResult?.pdfDriveId ?? null},
+          excel_drive_id = ${driveResult?.excelDriveId ?? null}
       WHERE id = ${relatorioId}
     `);
 
@@ -601,17 +729,30 @@ router.get("/admin/parmavault/relatorios/:id/pdf", ...guardMaster, async (req, r
   try {
     const id = Number(req.params.id);
     const r = await db.execute(sql`
-      SELECT pdf_path, protocolo_hash FROM parmavault_relatorios_gerados WHERE id = ${id}
+      SELECT pdf_path, pdf_drive_id, protocolo_hash
+      FROM parmavault_relatorios_gerados WHERE id = ${id}
     `);
-    if (r.rows.length === 0 || !(r.rows[0] as any).pdf_path) {
+    if (r.rows.length === 0) {
       res.status(404).json({ error: "relatorio nao encontrado" });
       return;
     }
-    const buf = await fs.readFile((r.rows[0] as any).pdf_path);
+    const row = r.rows[0] as any;
+    const driveId = row.pdf_drive_id as string | null;
+    const pdfPath = row.pdf_path as string | null;
+    // Wave 6: se subiu pro Drive, redirect 302 (poupa banda do servidor)
+    if (driveId && pdfPath && /^https?:\/\//.test(pdfPath)) {
+      res.redirect(302, pdfPath);
+      return;
+    }
+    if (!pdfPath) {
+      res.status(404).json({ error: "arquivo nao disponivel" });
+      return;
+    }
+    const buf = await fs.readFile(pdfPath);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="reconciliacao_${(r.rows[0] as any).protocolo_hash}.pdf"`,
+      `inline; filename="reconciliacao_${row.protocolo_hash}.pdf"`,
     );
     res.send(buf);
   } catch (err: any) {
@@ -623,20 +764,32 @@ router.get("/admin/parmavault/relatorios/:id/excel", ...guardMaster, async (req,
   try {
     const id = Number(req.params.id);
     const r = await db.execute(sql`
-      SELECT excel_path, protocolo_hash FROM parmavault_relatorios_gerados WHERE id = ${id}
+      SELECT excel_path, excel_drive_id, protocolo_hash
+      FROM parmavault_relatorios_gerados WHERE id = ${id}
     `);
-    if (r.rows.length === 0 || !(r.rows[0] as any).excel_path) {
+    if (r.rows.length === 0) {
       res.status(404).json({ error: "relatorio nao encontrado" });
       return;
     }
-    const buf = await fs.readFile((r.rows[0] as any).excel_path);
+    const row = r.rows[0] as any;
+    const driveId = row.excel_drive_id as string | null;
+    const excelPath = row.excel_path as string | null;
+    if (driveId && excelPath && /^https?:\/\//.test(excelPath)) {
+      res.redirect(302, excelPath);
+      return;
+    }
+    if (!excelPath) {
+      res.status(404).json({ error: "arquivo nao disponivel" });
+      return;
+    }
+    const buf = await fs.readFile(excelPath);
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="reconciliacao_${(r.rows[0] as any).protocolo_hash}.xlsx"`,
+      `attachment; filename="reconciliacao_${row.protocolo_hash}.xlsx"`,
     );
     res.send(buf);
   } catch (err: any) {
