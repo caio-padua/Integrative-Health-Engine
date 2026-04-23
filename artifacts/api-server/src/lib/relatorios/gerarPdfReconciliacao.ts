@@ -272,7 +272,7 @@ function desenharCapa(
   }> = [
     {
       label: "PERÍODO AUDITADO",
-      valor: `${fmtData(d.periodo.inicio)} → ${fmtData(d.periodo.fim)}`,
+      valor: `${fmtData(d.periodo.inicio)}  a  ${fmtData(d.periodo.fim)}`,
       sub: `${d.resumo.qtd_receitas} receitas no período`,
       accent: NAVY,
     },
@@ -409,7 +409,7 @@ function desenharResumoExecutivo(
     .font(F_SERIF)
     .fontSize(11)
     .text(
-      `${d.farmacia.nome}  ·  ${fmtData(d.periodo.inicio)} → ${fmtData(d.periodo.fim)}`,
+      `${d.farmacia.nome}  ·  ${fmtData(d.periodo.inicio)}  a  ${fmtData(d.periodo.fim)}`,
       M,
       36,
     );
@@ -465,7 +465,7 @@ function desenharResumoExecutivo(
       valor: fmtBRLCompacto(d.resumo.gap),
       sub:
         d.resumo.gap > 0
-          ? "previsto − recebido"
+          ? "previsto - recebido"
           : "reconciliação completa",
       pct:
         d.resumo.previsto > 0
@@ -553,7 +553,7 @@ function desenharResumoExecutivo(
     { cor: NAVY, label: "Previsto (% × valor fórmulas)" },
     { cor: GOLD, label: "Declarado (pela farmácia)" },
     { cor: GREEN, label: "Recebido (confirmado)" },
-    { cor: RED, label: "GAP (previsto − recebido)" },
+    { cor: RED, label: "GAP (previsto - recebido)" },
   ]);
 
   // Texto explicativo logo abaixo da legenda
@@ -565,7 +565,7 @@ function desenharResumoExecutivo(
     .text(
       "Cada grupo de barras corresponde a um mês do período auditado. As três séries comparam o " +
         "valor de comissão previsto pelo sistema, o valor declarado pela farmácia parceira e o valor " +
-        "efetivamente recebido. A barra vermelha à direita indica o GAP — diferença entre previsto e recebido.",
+        "efetivamente recebido. A barra vermelha à direita indica o GAP - diferença entre previsto e recebido.",
       M,
       yExpl,
       { width: W - 2 * M, align: "justify", lineGap: 2 },
@@ -868,11 +868,15 @@ function desenharGraficoBarras(
   serie.forEach((s, idx) => {
     const xg = x + padL + idx * groupW + groupPad;
 
-    const hPrev = (s.previsto / escalaTopo) * innerH;
-    const hDecl = (s.declarado / escalaTopo) * innerH;
-    const hRec = (s.recebido / escalaTopo) * innerH;
+    // Altura mínima de 4px para qualquer barra com valor > 0 (Caio Wave 7.1):
+    // Em escala de R$820k, valores de R$10k/25k somem visualmente.
+    // Garante que o dono da farmácia veja que existe declaração/recebimento.
+    const hMin = 4;
+    const hPrev = s.previsto > 0 ? Math.max(hMin, (s.previsto / escalaTopo) * innerH) : 0;
+    const hDecl = s.declarado > 0 ? Math.max(hMin, (s.declarado / escalaTopo) * innerH) : 0;
+    const hRec = s.recebido > 0 ? Math.max(hMin, (s.recebido / escalaTopo) * innerH) : 0;
     const gapVal = Math.max(0, s.previsto - s.recebido);
-    const hGap = (gapVal / escalaTopo) * innerH;
+    const hGap = gapVal > 0 ? Math.max(hMin, (gapVal / escalaTopo) * innerH) : 0;
 
     // Sombra sutil sob cada barra (offset 1px)
     const drawBar = (bx: number, bh: number, cor: string) => {
@@ -893,6 +897,24 @@ function desenharGraficoBarras(
     drawBar(xg + barW + barGap, hDecl, GOLD);
     drawBar(xg + 2 * (barW + barGap), hRec, GREEN);
     drawBar(xg + 3 * (barW + barGap), hGap, RED);
+
+    // Label de valor acima da barra se for menor que 15% da escala
+    // (pra Declarado/Recebido pequenos terem leitura na reunião - Caio Wave 7.1)
+    const limiarLabel = innerH * 0.15;
+    const labelPequena = (bx: number, bh: number, val: number, cor: string) => {
+      if (val <= 0 || bh >= limiarLabel) return;
+      doc
+        .fillColor(cor)
+        .font(F_MONO_BOLD)
+        .fontSize(5.5)
+        .text(formatarValorAbreviado(val), bx - 6, baseY - bh - 7, {
+          width: barW + 12,
+          align: "center",
+          lineBreak: false,
+        });
+    };
+    labelPequena(xg + barW + barGap, hDecl, s.declarado, GOLD);
+    labelPequena(xg + 2 * (barW + barGap), hRec, s.recebido, GREEN);
 
     // Valor previsto no topo da maior barra (apenas se > 0)
     if (s.previsto > 0 && hPrev > 18) {
