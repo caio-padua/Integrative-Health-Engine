@@ -17,6 +17,10 @@ import {
   streamParaBuffer,
   type DadosPrescricaoPdf,
 } from "../pdf/prescricaoPdf";
+import {
+  verificarUnidadeTemContrato,
+  registrarWarningEmissao,
+} from "../lib/contratos/verificarUnidadeTemContrato";
 
 /** Pasta onde os PDFs são salvos */
 const PDF_DIR = path.join(process.cwd(), "tmp", "prescricoes");
@@ -122,6 +126,26 @@ export async function emitirPrescricao(
   // ===== 3. CONSUMO SNCR (decrementa cota, registra log) =====
   const cotaConsumida: { tipo: string; numero: string }[] = [];
   const alertas: string[] = [];
+
+  // ===== 2.5. WAVE 5 · A2 LIGHT — warning de unidade sem contrato =====
+  // Modo B: nunca bloqueia, apenas avisa via campo `alertas` + log em
+  // parmavault_emissao_warnings. Wave 6 vai trocar por warning POR FARMACIA
+  // quando emitirPrescricao passar a gravar parmavault_receitas com
+  // farmacia_parmavault_id atribuido pelo roteador.
+  try {
+    const checkContrato = await verificarUnidadeTemContrato(prescricao.unidade_id ?? null);
+    if (!checkContrato.temContrato) {
+      alertas.push(checkContrato.mensagem);
+      await registrarWarningEmissao({
+        prescricao_id: input.prescricao_id,
+        unidade_id: prescricao.unidade_id ?? null,
+        motivo: prescricao.unidade_id ? "sem_contrato_unidade" : "unidade_nao_vinculada",
+        observacoes: `Emissao prosseguiu mesmo sem contrato vigente (modo B). qtd_contratos=${checkContrato.qtd}`,
+      });
+    }
+  } catch {
+    // Defensivo: warning nunca quebra a emissao.
+  }
 
   const cotaCampo: Record<string, string> = {
     B1: "cota_sncr_b1",

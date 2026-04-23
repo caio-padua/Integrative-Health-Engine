@@ -8,6 +8,76 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Wave 5 PARMAVAULT-TSUNAMI · ONDA RECONCILIAÇÃO MVP — Caminho P (23/abr/2026)
+Decisão Caio + Dr. Claude: Caminho P (light) executado agora; Caminho Q (introduzir
+gravação operacional de `parmavault_receitas` em `emitirPrescricao`) fica para
+**Wave 6** com brief próprio. Razão: PDF/Excel pra reunião presencial com farmácia
+sai HOJE com os 8.725 históricos (2.735.336,10 em comissão estimada já calculada).
+
+- **Migration 021** (`021_wave5_reconciliacao_parmavault.sql`) — psql IF NOT
+  EXISTS aditivo, REGRA FERRO. 4 tabelas novas:
+  - `parmavault_emissao_warnings` — log de avisos da A2 light.
+  - `parmavault_declaracoes_farmacia` — declarações CSV/manual.
+  - `parmavault_repasses` — entradas de $$ confirmadas pelo CEO.
+  - `parmavault_relatorios_gerados` — snapshot imutável do PDF/Excel.
+  - `parmavault_receitas`: `comissao_estimada` agora aceita NULL +
+    colunas `comissao_estimada_origem` e `comissao_estimada_em` adicionadas.
+- **B1 · A2 LIGHT (warning por unidade)** — `lib/contratos/verificarUnidadeTemContrato.ts`
+  + hook em `services/emitirPrescricaoService.ts` (Modo B, não bloqueia):
+  quando a unidade do médico não tem **nenhum** contrato vigente,
+  adiciona "⚠️ Esta unidade não tem contrato vigente com nenhuma farmácia
+  parceira. Confirma emissão?" no campo `alertas` da resposta + grava em
+  `parmavault_emissao_warnings`. Defensivo: try/catch nunca quebra a emissão.
+- **B2 · Job retroativo idempotente** — POST `/api/admin/parmavault/comissao/recalcular`
+  (master-only). Fórmula: `COALESCE(NULLIF(valor_formula_real,0),
+  NULLIF(valor_formula_estimado,0)) * (percentual_comissao/100)`. Se base
+  vazia → grava `comissao_estimada=NULL` + `origem='sem_valor_base'` (não
+  força zero). Smoke confirmou idempotência: 0 tocados no segundo run,
+  porque o seed já preencheu todos os 8.725 com valores válidos.
+- **B3 · Hook nova emissão** — DEFERIDO para Wave 6. Descoberta: o código
+  atual de `emitirPrescricao` **não grava em `parmavault_receitas`** (todos
+  os 8.725 vêm do seed `006_sangue_real_seed.sql`). Wave 6 vai introduzir
+  a gravação operacional + roteador de farmácia + cálculo automático.
+- **B4 · Portal CSV/manual master** — `routes/parmavaultReconciliacao.ts`:
+  POST `/admin/parmavault/declaracoes` (manual), POST
+  `/admin/parmavault/declaracoes/csv` (formato `receita_id,valor,data,obs`),
+  GET lista. POST/GET `/admin/parmavault/repasses`. Sem login farmácia
+  (decisão MVP).
+- **B5 · Painel CEO** `/admin/parmavault-reconciliacao` — KPIs grandes
+  (Previsto/Declarado/Recebido/GAP com cores), matriz farmácia × período
+  (% comissão **editável inline** via PATCH `/admin/parmavault/farmacia/:id/percentual`),
+  janela ajustável 1-24 meses, botão Recalcular comissões, modais de
+  declaração manual + upload CSV + repasse, histórico de relatórios
+  com download direto.
+- **B6 · PDF + Excel** — POST `/admin/parmavault/relatorios/gerar` cria
+  snapshot imutável (% comissão congelado no momento da geração) +
+  retorna `pdf_url` e `excel_url`.
+  - **PDF (pdfkit)** 3 páginas: capa navy/gold com protocolo SHA10,
+    resumo executivo com grid 2×2 de KPIs + gráfico de barras agrupadas
+    desenhado nativamente (Previsto/Declarado/Recebido + barra GAP vermelha
+    por mês — sem `chartjs-node-canvas` pra evitar deps binárias),
+    tabela detalhada por receita com **iniciais LGPD** (`Caio Padua → C.P.`)
+    via `lib/relatorios/iniciaisLgpd.ts`. Rodapé fixo todas pgs com data +
+    protocolo + paginação.
+  - **Excel (xlsx)** 3 abas: Resumo Mensal (com TOTAL), Detalhe por Receita
+    (LGPD), Repasses Registrados.
+  - Endpoints `/admin/parmavault/relatorios/:id/pdf` (inline) e `/excel`
+    (attachment) para download.
+- **REGRAS FERRO de negócio gravadas no código:**
+  - `comissao_paga` NUNCA automático (apenas manual via Wave 6 endpoint).
+  - Snapshot de `percentual_comissao_snapshot` no PDF/Excel é IMUTÁVEL após
+    geração (gravado em `parmavault_relatorios_gerados`).
+  - Pacientes mostrados em iniciais nos PDFs/Excels (LGPD).
+  - GAP vermelho > 0, verde = 0, sempre R$ + % juntos.
+  - Sistema registra/mostra, NUNCA bloqueia (Modo B).
+- **Smoke 4/4 verde**: (1) build limpo (1.5s, sem erro TS); (2) 4 tabelas da
+  migration 021 todas presentes via `\dt`; (3) job retroativo idempotente
+  (0 tocados confirmando que seed cobriu tudo); (4) auth gate 401 nos 3
+  endpoints novos sem cookie master.
+- **Rota frontend** `/admin/parmavault-reconciliacao` registrada em `App.tsx`.
+- **Pendente Caio:** testar fluxo end-to-end logado como master e gerar
+  primeiro PDF de reunião.
+
 ## Wave 5 PARMAVAULT-TSUNAMI · EM EXECUÇÃO (23/abr/2026)
 Validação UNIDADE↔FARMÁCIA PARCEIRA. Decisões Dr. Claude: P1 = tabela
 vazia + UI primeiro (Caio semeia 9 pares manualmente), P2 = modo B
