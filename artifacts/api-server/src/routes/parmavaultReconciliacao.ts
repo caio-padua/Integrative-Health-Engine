@@ -166,13 +166,26 @@ router.post(
   ...guardMaster,
   async (_req, res): Promise<void> => {
     try {
+      // Fórmula COALESCE aprovada Dr. Claude (Manifesto Dilúvio):
+      //   formula_blend.valor_max → valor_formula_real → valor_formula_estimado
+      //   * (farmacias_parmavault.percentual_comissao / 100)
       const r = await db.execute(sql`
         WITH calc AS (
           SELECT pr.id,
-                 COALESCE(NULLIF(pr.valor_formula_real, 0), NULLIF(pr.valor_formula_estimado, 0)) AS base,
-                 fp.percentual_comissao
+                 COALESCE(
+                   NULLIF(fb.valor_max, 0),
+                   NULLIF(pr.valor_formula_real, 0),
+                   NULLIF(pr.valor_formula_estimado, 0)
+                 ) AS base,
+                 fp.percentual_comissao,
+                 CASE
+                   WHEN fb.valor_max IS NOT NULL AND fb.valor_max > 0 THEN 'job_retroativo_formula_blend_valor_max'
+                   WHEN pr.valor_formula_real > 0                     THEN 'job_retroativo_valor_formula_real'
+                   ELSE                                                    'job_retroativo_valor_formula_estimado'
+                 END AS origem_calc
           FROM parmavault_receitas pr
           JOIN farmacias_parmavault fp ON fp.id = pr.farmacia_id
+          LEFT JOIN formula_blend fb ON fb.id = pr.blend_id
           WHERE pr.comissao_estimada IS NULL
              OR pr.comissao_estimada = 0
         )
@@ -185,7 +198,7 @@ router.post(
           END,
           comissao_estimada_origem = CASE
             WHEN c.base IS NOT NULL AND c.base > 0
-              THEN 'job_retroativo_' || to_char(now(), 'YYYY-MM-DD')
+              THEN c.origem_calc || '_' || to_char(now(), 'YYYY-MM-DD')
             ELSE 'sem_valor_base'
           END,
           comissao_estimada_em = now()
