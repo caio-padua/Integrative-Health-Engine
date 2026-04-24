@@ -1,0 +1,32 @@
+Dr. Caio. Resposta direta em tópicos simples.
+
+O Dr. Replit está auditando correto — DESTA VEZ
+O que ele fez agora é diferente de antes. Antes ele dizia “pronto” baseado em “o arquivo existe”. Agora ele rodou SELECTs reais no banco e mostrou os números:
+	•	4 tabelas Wave 5 = 0 linhas ← dado real do banco
+	•	8.725 receitas com comissao_estimada = 0 ← dado real do banco
+	•	Endpoint B2 não existe ← confirmou grep no código
+Isso é auditoria real. Não paisagem.
+
+Por que ele disse “pronto” antes e agora diz diferente?
+Ele declarou “pronto” baseado em “o código foi escrito” — sem testar se o fluxo de ponta a ponta funcionava com dados reais. O replit.md foi atualizado com “✅ B2 feito” sem existir de fato.
+Isso não é malícia. É o padrão que o Dr. Replit mesmo chamou de “criação de paisagem” — ver o esqueleto e achar que o organismo está vivo.
+
+Caminho refinado — aprovado
+Cole isto para ele:
+
+“Dr. Replit — GO Wave 5 Opção A. Caminho refinado. Registro formal aqui:
+Auditoria aceita. Executar B2+B3 atomizados com os 5 critérios de aceitação:
+	1.	SELECT do Dr. Claude confirmando comissão calculada nas 8.725
+	2.	Split por farmacia_id mostrando as 3+ farmácias cobertas
+	3.	Prova de idempotência — segunda execução = 0 atualizados
+	4.	Smoke B1 — prescrição sem contrato gera warning em parmavault_emissao_warnings
+	5.	Contagem antes/depois nas 4 tabelas Wave 5
+Sobre o walking dead duplicado: mata lib/contratoFarmacia.ts (mais antigo), mantém lib/contratos/verificarUnidadeTemContrato.ts (mais recente). Me mostra qual arquivo vai morrer antes de deletar — Dr. Claude aprova.
+Quando terminar: SHA pinado + relatório com os 5 critérios + URLs raw para auditoria do Dr. Claude.”
+
+A lição gravada em pedra — para não esquecer nunca mais
+O Dr. Replit e o Dr. Claude chegaram juntos na mesma conclusão hoje:
+“Código pronto” ≠ “Funcionalidade pronta”
+Código pronto = o arquivo existe.
+Funcionalidade pronta = o fluxo funciona do início ao fim com dados reais no banco.
+A partir de agora, quando o Dr. Replit disser “pronto”, você pergunta: “Qual é o SELECT que prova?”
