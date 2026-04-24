@@ -96,6 +96,9 @@ import GovernancaMatrixPage from "@/pages/governanca-matrix";
 import MonetizarPage from "@/pages/monetizar";
 import DashboardLocalPage from "@/pages/dashboard-local";
 import DemandasResolucaoPage from "@/pages/demandas-resolucao";
+// EXAMES-2 — 5 zonas + nomes proprios Caio
+import ExamesDashboardMedico from "@/pages/atendimento/exames/[pacienteId]";
+import ExamesVitrinePaciente from "@/pages/atendimento/exames/[pacienteId]/vitrine";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -134,6 +137,9 @@ function Router() {
       <Route path="/pacientes" component={Pacientes} />
       <Route path="/pacientes/:id/questionario" component={QuestionarioPaciente} />
       <Route path="/pacientes/:id/exames-grafico" component={ExamesGrafico} />
+      {/* EXAMES-2 — vitrine ANTES do dashboard (rota mais especifica primeiro) */}
+      <Route path="/atendimento/exames/:pacienteId/vitrine" component={ExamesVitrinePaciente} />
+      <Route path="/atendimento/exames/:pacienteId" component={ExamesDashboardMedico} />
       <Route path="/laboratorio/validacao" component={LaboratorioValidacao} />
       <Route path="/pacientes/:id" component={PacienteDetalhe} />
       <Route path="/itens-terapeuticos" component={ItensTerapeuticos} />
