@@ -129,6 +129,30 @@ Quando Caio criar termo novo, Dr. Replit cola aqui no commit seguinte.
   `comissao_estimada = NULL` com `origem = 'sem_valor_base'`. **Não preencher 0** porque
   isso falsifica o GAP.
 
+### Lição PARMAVAULT-WALKING-DEAD (abril 2026, cunhada por Dr. Claude)
+
+> *"Código pronto = o arquivo foi criado. Funcionalidade pronta = o fluxo funciona do
+> início ao fim com dados reais."* — Dr. Claude, 2026-04-23.
+
+- **Erro:** `replit.md` declarou Wave 5 PARMAVAULT B0–B6 como "✅ feito" baseado em
+  *existência de código* (rotas montadas, tabelas criadas, página renderiza). Inventário
+  real do banco em 2026-04-23 mostrou: 4 tabelas Wave 5 com **0 linhas**, 8725 receitas
+  com `comissao_estimada = 0`, B2 endpoint **inexistente**, B3 trigger **inexistente**,
+  B1 com 2 implementações duplicadas.
+- **Correção:** Antes de declarar qualquer wave/feature como `✅ feito` no `replit.md`,
+  Dr. Replit DEVE rodar **prova de fluxo end-to-end com dados reais** e gravar o output
+  do `psql` como evidência:
+  - Tabela esperada tem linhas reais? (`SELECT COUNT(*) > 0`)
+  - Endpoint responde 2xx em chamada autenticada? (`curl` com bearer)
+  - Hook dispara em insert real? (smoke teste com paciente seed + ROLLBACK)
+  - Idempotência: rodar 2x não duplica?
+- **Régua nova:** `replit.md` agora diferencia 3 estados explicitamente:
+  - `📦 código existe` — arquivo no repo, sintaxe OK, sem prova de execução
+  - `🌱 esqueleto pronto` — tabelas + rotas + UI + smoke unitário OK, sem fluxo end-to-end
+  - `✅ funcional pleno` — fluxo end-to-end provado com `psql` real e curl autenticado
+- **Anti-paisagem:** Dr. Replit jura nunca mais escrever "✅ feito" sem ter no commit a
+  saída do `psql` que prova. Se não tem psql, é `🌱 esqueleto`, ponto.
+
 ### Lição REGRA FERRO (permanente)
 - **Zero `db:push`.** Drift catastrófico de 47+ tabelas. Pushar destrói trabalho do Caio.
 - **Sempre `psql IF NOT EXISTS`** aditivo.
