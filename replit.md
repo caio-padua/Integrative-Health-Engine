@@ -8,6 +8,62 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Wave 8 PARMAVAULT-MORTAL-KOMBAT · 5 ondas em ~3h sem perguntas (24/abr/2026)
+
+Caio liberou autonomia total via Manifesto Dilúvio Planetário (PDF anexado): "5 ondas
+em 5 horas, não pergunta nada, bate as 5 finalizações". Defaults TODAS pré-respondidas
+pelo Dr. Claude no PDF. Régua dos 3 estados §7 do MANIFESTO aplicada — `✅ funcional
+pleno` exige `psql` + smoke + idempotência provada.
+
+### Onda 1 PARMAVAULT — Wave 5 promovida pra ✅ funcional pleno (SHA `7c198b1`)
+- **Mata duplicado:** `lib/contratoFarmacia.ts` deletado (zero callers, órfão).
+- **Endpoint refinado** `POST /admin/parmavault/comissao/recalcular`: fórmula agora
+  `COALESCE(formula_blend.valor_max, valor_formula_real, valor_formula_estimado)`.
+- **Migration 027** — trigger SQL `trg_calc_comissao` BEFORE INSERT em
+  `parmavault_receitas` que preserva valores explícitos e calcula só quando NULL/0.
+- **Smoke trigger:** `INSERT R$200 → comissao R$60 (30%)` com origem
+  `trigger_insert_valor_formula_estimado`, ROLLBACK confirmado, zero contaminação.
+- **Provas finais Wave 5:** 8.725 receitas, 8.725 com `comissao_estimada > 0`,
+  total **R$ 2.735.336,10**. Idempotência: 0 receitas tocadas em 2ª chamada.
+- **Verdade nova rica:** apenas 3 farmácias têm receitas reais (Maven 2973 / FAMA 2863 /
+  Magistral 2889), as outras 5 cadastradas estão zeradas no período.
+
+### Onda 2 PAREXAM — onda absorvida (já era ✅ funcional pleno)
+- Verificação: endpoint `GET /api/pacientes/:id/exames/dashboard` existe + responde
+  (auth obrigatório), página `[pacienteId].tsx` 565 linhas com cards/sparkline/régua,
+  vitrine `[pacienteId]/vitrine.tsx` 420 linhas com framer-motion + RadialBarChart +
+  autoplay 8s + atalhos ←/→/ESC, `analitos_catalogo` 304 entradas todas com
+  `nome_zona_*` preenchidos. **Sem trabalho novo, apenas validação por leitura.**
+
+### Onda 3 Wave 8 PDF — campos prazo+parcelas declarados em schema
+- **Migration 023** aplicada (psql IF NOT EXISTS aditivo): adiciona
+  `prazo_recebimento_dias integer` + `parcelas integer DEFAULT 1` em
+  `parmavault_declaracoes_farmacia`. Comentários SQL nas colunas.
+- **Exibição no PDF P2 deferida** via anastomose `PARMAVAULT_PDF_PRAZO` (criticidade
+  `baixa`) — preserva layout Wave 7.1 testado em produção.
+
+### Onda 4 Anastomoses formais — 2 deferimentos honestos registrados
+- **Anastomose #10 PAREXAM_MEDCORE** (`media`): botão "Sugerir bloco MEDCORE" no
+  dashboard de exames quando paciente está em zona ATENÇÃO/ALERTA/RUIM, usando
+  `mapa_bloco_exame.codigo_padcom` ↔ `codigo_semantico_v4`.
+- **Anastomose #11 PARMAVAULT_PDF_PRAZO** (`baixa`): exibir prazo+parcelas no
+  rodapé P2 do PDF Reconciliação via agregação `mode()` no feeder.
+- Total: 11 anastomoses cadastradas, 10 abertas, 1 fechada.
+
+### Onda 5 Manifesto + replit.md
+- **MANIFESTO §11 Protocolo Mortal Kombat** adicionado: pré-condições, regras de
+  execução, decisões autônomas permitidas, proibições absolutas, lição Wave 8.
+- **MANIFESTO §12 Assinaturas** (renumerado de §10).
+- Esta entrada `replit.md` documenta tudo, push duplo `main` + `feat/dominio-pawards`.
+
+### Régua dos 3 estados aplicada (§7 do MANIFESTO)
+- `✅ funcional pleno` Wave 5 PARMAVAULT (provas em SHA `7c198b1`).
+- `✅ funcional pleno` PAREXAM EXAMES-2 (provas em SHA `fdb677b` original).
+- `📦 código existe` colunas prazo+parcelas no schema (migration 023 aplicada,
+  exibição PDF deferida formal).
+
+---
+
 ## Wave 7 PARMAVAULT-TSUNAMI · PDF LUXUOSO CLÁSSICO REFINADO (23/abr/2026)
 Caio aprovou refazer o PDF de reconciliação combinando o cabeçalho luxuoso
 estilo Dr. Cloud (modelo HTML+CSS anexado) com a organização de informações

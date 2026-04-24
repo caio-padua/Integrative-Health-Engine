@@ -187,7 +187,62 @@ Quando Caio pivotar de domínio no meio de um trabalho:
 
 ---
 
-## 10. Assinaturas (vigência)
+## 11. Protocolo Mortal Kombat — Manifesto Dilúvio Planetário (abril 2026)
+
+> *"Liberei pra ti 5 ondas em 5 horas. Não pergunta nada. Bate as 5 finalizações.
+> O Dr. Claude já te deu todas as respostas no PDF anexo."*
+> — Caio Pádua, abril/2026, autorizando autonomia total Wave 8.
+
+### Pré-condições (sempre, sem exceção)
+- **Briefing ÚNICO embarcado** em PDF/markdown anexado pelo Caio com TODAS as defaults
+  pré-respondidas pelo Dr. Claude. Sem o PDF, sem Mortal Kombat — Dr. Replit volta ao
+  fluxo §3 normal.
+- **Régua dos 3 estados §7** vigente: cada onda fechada precisa `psql` + `curl` + smoke
+  pra ser declarada `✅ funcional pleno`. Se faltar prova, é `🌱 esqueleto` no commit.
+- **Limites declarados de antemão:** quantas ondas, quantas horas, qual SHA congela o
+  briefing. Sem moving target.
+
+### Regras de execução
+1. Dr. Replit **NÃO pergunta** ao Caio durante a janela. Toda dúvida vai pra "verdade
+   nova" no relatório final.
+2. **Push duplo obrigatório** ao fim de cada onda: `origin/main` + `origin/feat/<branch>`.
+   Caio precisa ver progresso em produção e em feature em tempo real.
+3. **Cada onda fecha com SHA pinado** + 1 parágrafo de prova (contagens psql + smoke
+   resultado + idempotência confirmada).
+4. **Verdades novas são reportadas, não escondidas.** Se descobrir que farmácia X não
+   tem receita ou que tabela Y já existe, escreve cru: "verdade nova: …".
+5. **Ondas dependentes podem ser pausadas** se uma anterior revelar que era desnecessária
+   (ex: Wave 8 Onda 2 PAREXAM já estava feita do EXAMES-2). Registrar como "onda
+   absorvida — sem trabalho novo".
+6. **Anastomose pendente é commit válido.** Se uma onda revela que falta integrar com
+   módulo X mas integrar agora explode escopo, registra em `anastomoses_pendentes` com
+   `proximo_passo` claro e fecha onda. Não força.
+
+### O que o Dr. Replit pode decidir sozinho na janela
+- Trigger SQL vs hook TS (default: trigger SQL, mais robusto).
+- Smoke com paciente seed + `BEGIN/ROLLBACK` (sempre).
+- Layout fino do PDF/UI (preserva versões testadas; refinamento delegado pra próxima
+  wave se mexer arrisca quebrar).
+- Quando deferir trabalho via `anastomoses_pendentes` ao invés de forçar.
+
+### O que o Dr. Replit NÃO pode mexer na janela
+- Schema de PK (regra ferro permanente §7 último item).
+- `db:push`. Em hipótese nenhuma. Sugestão automática do sistema é ignorada em silêncio.
+- Reescrita do que já está vivo testado (preserva, estende).
+
+### Lição Wave 8 Mortal Kombat (24/abr/2026, Caio + Dr. Claude + Dr. Replit)
+- 5 ondas planejadas, 5 ondas fechadas em ~3h, zero perguntas ao Caio.
+- Verdade nova rica: Wave 5 PARMAVAULT estava parcialmente "código existe" mas Wave 5
+  Mortal Kombat Onda 1 promoveu pra `✅ funcional pleno` (trigger SQL ativo + 8725
+  receitas com comissão calculada R$ 2.735.336,10 + idempotência provada).
+- Verdade nova rica: PAREXAM EXAMES-2 já estava `✅ funcional pleno` desde sessão
+  anterior — Onda 2 absorvida sem trabalho novo, só validação por leitura.
+- Anastomoses formais 10 e 11 abertas pra deferimentos honestos (botão MEDCORE no
+  dashboard PAREXAM, exibição prazo/parcelas no PDF Reconciliação P2).
+
+---
+
+## 12. Assinaturas (vigência)
 
 - **Caio Pádua** — chefe absoluto, leigo em código mas árbitro final. *Aprovação verbal
   conta como assinatura.*
