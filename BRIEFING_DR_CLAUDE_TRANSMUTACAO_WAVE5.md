@@ -4,7 +4,7 @@
 **Para:** Dr. Claude (orquestrador externo, auditor de visão)
 **CC:** Dr. Caio Pádua (chefe absoluto)
 **Data:** 2026-04-23
-**SHA pinado:** `<SHA_CONGELADO>`
+**SHA pinado:** `6d18b9347b54b377b95a70497050169c1d73457c`
 **Branch:** `feat/dominio-pawards`
 **Repo:** `github.com/caio-padua/Integrative-Health-Engine`
 
@@ -28,9 +28,9 @@ Você cunhou a lição mais importante de hoje:
 
 | # | Documento | URL raw |
 |---|---|---|
-| 1 | **Inventário PAWARDS completo** (mapa real do sistema) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/INVENTARIO_PAWARDS.md` |
-| 2 | **Manifesto Dr. Replit** (regras do jogo + lição §7 que você cunhou) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/MANIFESTO_DR_REPLIT.md` |
-| 3 | **replit.md** (memória institucional) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/replit.md` |
+| 1 | **Inventário PAWARDS completo** (mapa real do sistema) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/INVENTARIO_PAWARDS.md` |
+| 2 | **Manifesto Dr. Replit** (regras do jogo + lição §7 que você cunhou) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/MANIFESTO_DR_REPLIT.md` |
+| 3 | **replit.md** (memória institucional) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/replit.md` |
 
 ---
 
@@ -186,7 +186,7 @@ Vou pinar SHA novo e te entregar, em 1 documento `RELATORIO_TRANSMUTACAO_WAVE5.m
    - `parmavault_declaracoes_farmacia`: 0 → ≥2 → 0 (cleanup smoke B4)
    - `parmavault_relatorios_gerados`: 0 → 1 (smoke B6 — fica registrado conforme Q5)
 
-5. **SHA pós-execução** + `git diff --stat <SHA_CONGELADO>..HEAD` resumindo arquivos
+5. **SHA pós-execução** + `git diff --stat 6d18b9347b54b377b95a70497050169c1d73457c..HEAD` resumindo arquivos
    tocados.
 
 6. **`replit.md` atualizado** com a régua nova de 3 estados (📦/🌱/✅) — sem mais
@@ -200,15 +200,15 @@ Pra você inspecionar arquivos específicos antes de responder:
 
 | Arquivo | URL raw |
 |---|---|
-| Migration 021 (B0 — 4 tabelas) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/api-server/src/db/migrations/021_wave5_reconciliacao_parmavault.sql` |
-| Migration 022 (Wave 6 storage e hook) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/api-server/src/db/migrations/022_wave6_parmavault_storage_e_hook.sql` |
-| Rota parmavault reconciliação | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/api-server/src/routes/parmavaultReconciliacao.ts` |
-| Rota relatórios PDF | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/api-server/src/routes/relatoriosPdf.ts` |
-| Rota contratos farmácia | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/api-server/src/routes/contratosFarmacia.ts` |
-| Service emissão (B1 hook caller) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/api-server/src/services/emitirPrescricaoService.ts` |
-| Página painel CEO | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/clinica-motor/src/pages/admin-parmavault-reconciliacao.tsx` |
-| `lib/contratoFarmacia.ts` (impl 1, candidata a matar) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/api-server/src/lib/contratoFarmacia.ts` |
-| `lib/contratos/verificarUnidadeTemContrato.ts` (impl 2, candidata a manter) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/<SHA_CONGELADO>/artifacts/api-server/src/lib/contratos/verificarUnidadeTemContrato.ts` |
+| Migration 021 (B0 — 4 tabelas) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/api-server/src/db/migrations/021_wave5_reconciliacao_parmavault.sql` |
+| Migration 022 (Wave 6 storage e hook) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/api-server/src/db/migrations/022_wave6_parmavault_storage_e_hook.sql` |
+| Rota parmavault reconciliação | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/api-server/src/routes/parmavaultReconciliacao.ts` |
+| Rota relatórios PDF | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/api-server/src/routes/relatoriosPdf.ts` |
+| Rota contratos farmácia | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/api-server/src/routes/contratosFarmacia.ts` |
+| Service emissão (B1 hook caller) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/api-server/src/services/emitirPrescricaoService.ts` |
+| Página painel CEO | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/clinica-motor/src/pages/admin-parmavault-reconciliacao.tsx` |
+| `lib/contratoFarmacia.ts` (impl 1, candidata a matar) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/api-server/src/lib/contratoFarmacia.ts` |
+| `lib/contratos/verificarUnidadeTemContrato.ts` (impl 2, candidata a manter) | `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/6d18b9347b54b377b95a70497050169c1d73457c/artifacts/api-server/src/lib/contratos/verificarUnidadeTemContrato.ts` |
 
 ---
 
