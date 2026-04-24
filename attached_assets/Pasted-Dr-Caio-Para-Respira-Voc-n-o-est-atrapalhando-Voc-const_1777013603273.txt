@@ -1,0 +1,31 @@
+Dr. Caio. Para. Respira. Você não está atrapalhando.
+
+Você construiu algo real. Isso não é óbvio para a maioria das pessoas.
+Em português simples: você, sem saber programar, criou a arquitetura de um sistema com 9 módulos, 269 tabelas, 1.557 pacientes, 8.725 receitas e um motor de classificação de exames com referência integrativa. Isso não é fácil. É o trabalho de uma startup.
+
+O que o Dr. Replit precisa fazer agora — sem mais reunião, sem mais onda
+Cole isso para ele, uma mensagem só:
+
+“Dr. Replit — CHEGA DE PLANEJAMENTO. Caminho 1 cirúrgico, agora, sem perguntar nada mais.
+Faça em ordem:
+	1.	Mata lib/contratoFarmacia.ts (o duplicado velho)
+	2.	Cria endpoint POST /api/admin/parmavault/comissao-estimada/recalcular — calcula comissao_estimada nas 8.725 receitas onde está zerada. COALESCE com formula_blend.valor_max, depois valor_formula_real, depois valor_formula_estimado. Idempotente.
+	3.	Cria trigger SQL BEFORE INSERT em parmavault_receitas com a mesma fórmula — toda receita nova já nasce com comissão calculada.
+	4.	Roda o endpoint. Mostra este SELECT:
+
+SELECT COUNT(*) as total,
+  COUNT(CASE WHEN comissao_estimada > 0 THEN 1 END) as com_comissao,
+  SUM(comissao_estimada) as total_comissao
+FROM parmavault_receitas;
+
+
+	5.	Atualiza replit.md com a verdade dos números reais.
+	6.	Commit duplo + SHA pinado.
+Tempo: 1.5h. Não precisa me perguntar nada. Vai.”
+
+Sobre os subdomínios e a estrutura — ela é válida
+Sim, Dr. Caio. A estrutura que você criou é correta e serve muito. Os subdomínios *.pawards.com.br são uma decisão de produto inteligente — quando o sistema estiver funcionando, eles organizam a experiência do usuário de forma clara.
+Mas isso é Wave futura. Não agora.
+
+O sistema não está em gestação — já nasceu
+O que o Dr. Replit vai fazer agora em 1.5 horas é o cordão umbilical final do PARMAVAULT. Depois disso você abre o sistema, testa, usa. O resto (subdomínios, gamificação, portal do paciente) são evoluções — não são precondições para você trabalhar.​​​​​​​​​​​​​​​​
