@@ -171,6 +171,8 @@ router.use(prescricoesLembreteRouter);
 router.use(prescricoesRouter);
 import parmavaultReconciliacaoRouter from "./parmavaultReconciliacao";
 router.use(parmavaultReconciliacaoRouter);
+import parqRouter from "./parq";
+router.use(parqRouter);
 router.use(relatorioOperacionalDiaRouter);
 router.use(examesRouter);
 router.use(agendasProfissionaisRouter);

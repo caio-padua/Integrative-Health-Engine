@@ -8,6 +8,113 @@ Pawards is a SaaS clinical engine platform designed for multi-unit integrative m
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
 
+## Wave 9 PARQ — Parceria de Qualidade · Migration 030 (25/abr/2026)
+
+Caio liberou Mortal Kombat round 2: **substituir o conceito jurídico de "comissão"
+de farmácia parceira por Acordo de Parceria de Qualidade (PARQ)** com auditoria
+Kaizen bimestral defensável. Base legal tripla: **CFM 2.386/2024** (vedação a
+qualquer pagamento por receituário), **CC arts. 593-609** (prestação de serviços
+técnicos lícitos), **STJ REsp 2.159.442/PR** (legitimidade de contraprestação por
+serviço técnico real e mensurável).
+
+**REGRA FERRO mantida:** zero `db:push`. Tudo via `psql IF NOT EXISTS` aditivo.
+Trigger 027 `trg_calc_comissao` permanece **INTOCADO e ativo** — a coluna
+`comissao_estimada` continua sendo a fonte canônica de cálculo; PARQ adiciona
+campo espelho `parq_estimado` sincronizado por trigger 030.
+
+### F1 · Migration 030 SQL (aplicada via psql aditivo, defaults Dr. Claude)
+- **5 ENUMs** novos: `parq_status_acordo` (vigente/denunciado/suspenso/expirado),
+  `parq_visita_status` (agendada/em_andamento/concluida/reprovada/remarcada),
+  `parq_plano_status` (aberto/em_andamento/concluido/expirado),
+  `parq_farmacia_status` (gold/silver/bronze/em_correcao/suspensa/denunciada),
+  `parq_assinatura_tipo` (icp_brasil/docusign_clicksign/otp_email/manuscrita_upload/aceite_ip_geo).
+- **8 tabelas novas** (`parq_*` prefix, todas com PK `BIGSERIAL` pra futuras
+  cargas pesadas; FKs cross-sistema usam `INTEGER` pra bater com
+  `parmavault_receitas.id`, `farmacias_parmavault.id`, `unidades.id` que são
+  `serial` INTEGER originais — preservação total): `parq_acordos`,
+  `parq_assinaturas_farmacia_log`, `parq_visitas_bimestrais`,
+  `parq_checklist_auditoria`, `parq_planos_acao_kaizen`, `parq_evidencias`,
+  `parq_status_farmacia`, `parq_historico_status`.
+- **2 views**: `v_parq_acordos_vigentes` (últimos termos válidos por farmácia),
+  `v_parq_validacao_simplificada_alert` (acordos elegíveis ao fast-track).
+- **Coluna espelho aditiva** em `parmavault_receitas`: `parq_estimado NUMERIC(12,2)`,
+  `parq_origem TEXT`, sincronizadas por trigger 030 `trg_sync_comissao_parq`
+  BEFORE INSERT OR UPDATE (após o trigger 027 calcular `comissao_estimada`).
+- **Backfill imediato 8.725 receitas**: `UPDATE … SET parq_estimado = comissao_estimada,
+  parq_origem = 'backfill_030'`. Soma confirmada batendo: **R$ 2.735.336,10** em
+  `comissao_estimada` ↔ **R$ 2.735.336,10** em `parq_estimado` (espelho perfeito).
+- **Trigger auxiliar** `trg_parq_plano_prazo_limite`: calcula `prazo_limite =
+  created_at + prazo_dias` automaticamente em `parq_planos_acao_kaizen`.
+
+### F2 · 14 endpoints TypeScript (`routes/parq.ts`, ~900L)
+- **Emissão & assinatura**: `POST /api/parq/emitir`, `POST /api/parq/:id/assinar/clinica`
+  (ICP-Brasil), `POST /api/parq/:id/assinar/farmacia` (5 modalidades — ICP, DocuSign,
+  OTP e-mail, manuscrita upload, aceite IP+geo), `GET /api/parq/:id/verificar/:hash`.
+- **Visitas Kaizen**: `POST /api/parq/:id/visita/iniciar`, `POST /api/parq/visita/:id/concluir`,
+  `POST /api/parq/visita/:id/reprovar`, `GET /api/parq/visita/:id/checklist`.
+- **Planos de ação**: `PATCH /api/parq/plano/:id`, `POST /api/parq/plano/:id/evidencia`.
+- **Status & histórico**: `GET /api/parq/status/farmacia/:id`, `GET /api/parq/historico/farmacia/:id`,
+  `GET /api/parq/listar/vigentes`, `GET /api/parq/:id/pdf`.
+- **Helper `registrarAssinatura`** compartilhado pra blindar gravação cumulativa
+  no JSONB `assinatura_digital_clinica`/`assinatura_digital_farmacia`.
+- Auth dupla: master (`SESSION_SECRET` HS256, `perfil=validador_mestre`) + user
+  comum com `unidade_id` no JWT pra multi-tenancy.
+- **Smoke 10/10 GREEN** em F2 (200 e 401 esperados).
+
+### F3 · PDF Termo PARQ (pdfkit + qrcode, ~600L)
+- **4 páginas A4** estilo Wave 7.1 (navy `#020406` + gold `#C89B3C`):
+  capa institucional, considerandos legais (CFM/CC/STJ citados textualmente),
+  10 cláusulas técnicas (PARQ + Kaizen + auditoria + LGPD + denúncia), assinaturas.
+- **QR code** no rodapé apontando pra `/api/parq/:id/verificar/:hash`.
+- **Marca visual condicional** "Validação Simplificada" em ouro quando o acordo
+  cair na view `v_parq_validacao_simplificada_alert`.
+- **Hash SHA-256** do JSON canônico no rodapé de cada página.
+- **Smoke real F3 GREEN**: HTTP 200, 20.761 bytes, 4 páginas, 5 imagens, 182 ms,
+  acordo de teste limpo após (count=0).
+
+### F4 · Frontend 4 telas + transparência paciente
+- `pages/admin-parq.tsx` — Status (cards Gold/Silver/Bronze/Em correção/Suspensa/
+  Denunciada com badges), Wizard Emissão (4 passos), Histórico (timeline).
+- `pages/admin-parq-checklist.tsx` — 5 categorias × 10 itens nota 1-5
+  (Estrutura/Manipulação/Qualidade/SAC/Documentação), upload de evidências.
+- `pages/sobre-parcerias-tecnicas.tsx` — página pública institucional explicando
+  ao paciente que **autonomia prescritiva é preservada** (CFM 2.386/2024).
+- **Banner "Autonomia preservada"** em `painel-comando.tsx` (toggle
+  `FEATURE_PARQ_BANNER_CEO` em `feature-flags.ts`).
+- **3 rotas** registradas em `App.tsx`: `/admin/parq`, `/admin/parq/visita/:id`,
+  `/sobre-parcerias-tecnicas`.
+
+### F5 · Worker daily + 9 templates de comunicação
+- `lib/recorrencia/parqStatusUpdate.ts` — worker tick 60min, executa lógica
+  pesada **apenas às 03:00 BRT** (idempotente via `ultimoRunISO`):
+  1. Detecta visitas atrasadas (último `data_realizada` > 75 dias) → marca
+     farmácia `em_correcao`.
+  2. Detecta planos Kaizen vencidos sem evidência → marca plano `expirado` +
+     suspende acordo + farmácia `suspensa`.
+  3. Recalcula tier (gold/silver/bronze) baseado na média das **últimas 3
+     visitas** (≥4.5/≥3.5/≥2.5).
+  4. Cada mudança gera linha em `parq_historico_status` com motivo + run_id.
+  5. **Não rebaixa** farmácia já `denunciada` ou `suspensa` automaticamente
+     (proteção contra worker pisar em status manual de compliance).
+- Plugado em `index.ts:37` ao lado dos outros 4 workers. Smoke boot:
+  **`[parqStatus] Worker daily iniciado (tick 60min, exec 3:00 BRT)`** ✅
+- `lib/parq/templates.ts` — 9 templates (e-mail + WhatsApp): convite emissão,
+  lembrete assinatura, confirmação assinatura, agendamento visita, conclusão
+  visita gold/silver/bronze, plano de ação aberto, denúncia. Inclui
+  `FRASE_RODAPE_RECEITA` obrigatória + `WHATSAPP_TEMPLATE_RECEITA` integrado.
+
+### Invariantes pós-Wave 9 (provadas via psql 25/abr/2026)
+- `parmavault_receitas` count = **8.725** (intocada, INTEGER serial PK preservada).
+- `comissao_estimada` SUM = **R$ 2.735.336,10** (Wave 5 intocada).
+- `parq_estimado` SUM = **R$ 2.735.336,10** (espelho 030 perfeito).
+- `trg_calc_comissao` (Wave 5/migration 027) `enabled=O` (Origin/ATIVO).
+- 8 tabelas + 2 views + 5 ENUMs PARQ criados.
+- 2 triggers PARQ (`trg_sync_comissao_parq` + `trg_parq_plano_prazo_limite`).
+- Zero acordos teste (cleanup F3 OK).
+- Migration files preservados (028 + 029 reservadas pra Pharmacy Rescue + Audit
+  Matrix futuras conforme mapa Dr. Claude).
+- Microscópio v2 entregue em `.local/PARMAVAULT_WAVE9_PARQ.md`.
+
 ## Wave 8 PARMAVAULT-MORTAL-KOMBAT · 5 ondas em ~3h sem perguntas (24/abr/2026)
 
 Caio liberou autonomia total via Manifesto Dilúvio Planetário (PDF anexado): "5 ondas
