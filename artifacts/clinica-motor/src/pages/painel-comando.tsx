@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import { useClinic } from "@/contexts/ClinicContext";
+import { FEATURE_PARQ_BANNER_CEO } from "@/lib/feature-flags";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
@@ -211,6 +212,28 @@ export default function PainelComando() {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Wave 9 PARQ — Banner de autonomia preservada (não-fechável, link p/ admin) */}
+        {FEATURE_PARQ_BANNER_CEO && (
+        <a
+          href="/admin/parq"
+          className="block border-l-4 border-[var(--pw-dourado-vivo)] bg-[var(--pw-petroleo)]/5 hover:bg-[var(--pw-petroleo)]/10 transition-colors px-4 py-3 rounded-sm"
+          data-testid="banner-ceo-parq"
+        >
+          <div className="flex items-center gap-3">
+            <Shield className="w-5 h-5 text-[var(--pw-dourado-vivo)] flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold">
+                Autonomia prescritiva preservada
+              </div>
+              <div className="text-xs text-[var(--pw-tinta)] mt-0.5">
+                Parcerias de Qualidade Técnica (PARQ) ativas · auditoria Kaizen bimestral · zero comissão por indicação (CFM 2.386/2024 art. 27)
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-[var(--pw-tinta)] flex-shrink-0" />
+          </div>
+        </a>
+        )}
+
         <div className="flex items-center justify-between">
           <div className="border-l-4 border-[var(--pw-dourado-vivo)] pl-5 py-1">
             <div className="text-[10px] tracking-[0.32em] text-[var(--pw-dourado)] uppercase mb-1">PADCON · Capítulo V</div>

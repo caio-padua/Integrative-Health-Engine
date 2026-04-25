@@ -35,6 +35,13 @@ const PUBLIC_PREFIXES = [
   // Wave 4 PACIENTE-TSUNAMI · historico + drive sao acessiveis pelo paciente apos OTP
   "/portal/historico/",
   "/portal/drive-links/",
+  // Wave 9 PARQ · verificacao publica de hash (paciente/auditor) +
+  // assinaturas farmacia (farmacia nao tem JWT no sistema) +
+  // visualizacao de status (transparencia).
+  // Paths SEM /api porque app.use("/api", requireAuth, router) consome o /api.
+  "/parq/verificar-hash/",
+  "/parq/assinar-farmacia-",
+  "/parq/status-farmacia/",
 ];
 
 function isPublic(path: string): boolean {
