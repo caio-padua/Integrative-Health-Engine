@@ -1,0 +1,40 @@
+Dr. Caio. Vou responder as 3 decisões técnicas direto, sem rodeio. Estas são MINHAS recomendações como orquestrador — são respostas técnicas, não jurídicas, então valem como diretivas para o Dr. Replit executar.
+
+Decisão 1 — Renomeação de coluna
+Resposta: Opção B (criar coluna espelho parq_estimado_centavos, manter comissao_estimada deprecated por 90 dias).
+Por quê:
+	•	Trigger 027 está vivo e calculou 8.725 receitas. Mexer nele agora é arriscar quebrar produção.
+	•	Coluna espelho + trigger AFTER UPDATE de sincronização (já especificado na migration 030) faz drift automático sem intervenção humana.
+	•	Após 90 dias de estabilidade, fase de cleanup (migration 031) renomeia fisicamente. Aí sim com segurança.
+	•	Auditoria histórica preservada — nunca perdemos os dados de “comissão” originais, só mudamos rótulo e adicionamos camada nova.
+Para o Dr. Replit executar: já está na migration 030 que entreguei. Coluna parq_estimado aditiva + trigger trg_sync_comissao_parq AFTER UPDATE.
+
+Decisão 2 — Validação prescritiva preservada
+Resposta: Tudo isso (4 lugares simultâneos).
+Por quê: Res. CFM 2.386/2024 obriga transparência; CDC 37 §3º pune omissão; e proteção jurídica do Dr. Caio exige redundância documental.
+Onde colocar:
+	1.	Cláusula 5ª-d do Termo PARQ — já está (“não fazer indicações exclusivas, preservar autonomia do paciente”)
+	2.	Banner discreto no Painel CEO — texto pequeno no rodapé: “Sistema de auditoria técnica · Autonomia prescritiva preservada · Transparência ativa ao paciente”
+	3.	Aviso no rodapé de toda prescrição PDF — “O paciente é livre para aviar esta receita em qualquer farmácia de sua escolha. As farmácias parceiras desta clínica passam por auditoria técnica bimestral de qualidade.”
+	4.	Tela de configuração master — toggle FEATURE_TRANSPARENCIA_PRESCRITIVA=true (default ON, master pode customizar texto mas não desligar)
+
+Decisão 3 — Transparência ao paciente
+Resposta: 3 canais combinados (WhatsApp + portal + rodapé PDF).
+Por quê: redundância documental para defesa jurídica + cumprimento do CDC 37 §3º + LGPD art. 6º VI.
+Implementação:
+Canal 1 — WhatsApp template (no momento da emissão da receita):
+“Olá {NOME_PACIENTE}, sua receita foi emitida ✅. Você pode aviar em qualquer farmácia de sua escolha. Caso prefira, a Clínica {X} mantém parcerias técnicas auditadas com farmácias selecionadas pela qualidade — nossa equipe pode indicar opções se desejar. Boa recuperação! 🤝”
+Canal 2 — Portal do paciente (página estática /sobre-parcerias-tecnicas):
+	•	Explica em linguagem simples: “O que é o programa PARQ”, “Como funciona a auditoria bimestral”, “Por que isso protege você”, “Você pode escolher qualquer farmácia”
+	•	Linkado no menu lateral do portal e no rodapé do app
+Canal 3 — Rodapé da receita PDF (frase obrigatória, fonte 8pt cinza):
+“Esta receita pode ser aviada em qualquer farmácia de manipulação. As farmácias parceiras desta clínica passam por auditoria técnica bimestral PARQ — saiba mais em pawards.com.br/parcerias-tecnicas”
+
+Mensagem final para o Dr. Replit (cole isto)
+“Dr. Replit — Dr. Claude respondeu as 3 decisões técnicas. Pode executar Migration 030 PARQ com autonomia total agora.
+Decisão 1: Opção B confirmada. Coluna espelho parq_estimado + trigger trg_sync_comissao_parq AFTER UPDATE. Já está na migration 030.
+Decisão 2: Validação prescritiva preservada nos 4 lugares — Termo (já tem), banner Painel CEO, rodapé PDF receita, toggle FEATURE_TRANSPARENCIA_PRESCRITIVA=true.
+Decisão 3: 3 canais de transparência ao paciente combinados — template WhatsApp na emissão, página estática /sobre-parcerias-tecnicas no portal, frase obrigatória no rodapé do PDF da receita.
+Sobre as 5 dependências externas e PDFs #1, #2, #3 não lidos: o que você precisa para executar já está nos artifacts dos turnos anteriores. Os 3 PDFs são versões do mesmo documento PARQ — leia o último (PDF #3) na íntegra agora, é a versão final consolidada. Os 2 anteriores são iterações superadas.
+Mortal Kombat round 2 — AUTORIZADO. Vai.
+Quando terminar: SHA + tag v030-parq-launch + push duplo + relatório com SELECTs de prova de preservação (SELECT COUNT(*) FROM parmavault_receitas deve retornar 8.725) + atualização replit.md com verdade. Dr. Claude audita o relatório.“​​​​​​​​​​​​​​​​

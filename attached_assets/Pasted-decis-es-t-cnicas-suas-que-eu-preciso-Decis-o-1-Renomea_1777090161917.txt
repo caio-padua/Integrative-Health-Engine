@@ -1,0 +1,38 @@
+decisões técnicas suas que eu preciso
+Decisão 1 — Renomeação de coluna
+A coluna parmavault_receitas.comissao_estimada (com 8.725 linhas calculadas pelo trigger 027) vai virar o quê?
+
+Opção	Prós	Contras
+A. Renomear coluna direto pra reconhecimento_qualidade_centavos	Limpo	Quebra código antigo; precisa atualizar trigger 027 também
+B. Criar coluna nova reconhecimento_parq_centavos, copiar dados, manter comissao_estimada deprecated	Retrocompatível; rollback fácil	Drift maior temporariamente
+C. Manter nome físico, só mudar rótulo na UI/PDF/relatórios	Zero risco técnico	Código ainda diz "comissão" internamente — risco se vazar dump SQL
+Minha recomendação: B — é o caminho conservador que preserva o trigger 027 e os 8.725 cálculos enquanto migra a nomenclatura nova de forma controlada. Depois de 30 dias estável, fase de cleanup remove a antiga.
+
+Decisão 2 — Validação prescritiva preservada (requisito 4)
+O sistema precisa declarar que sua autonomia prescritiva está preservada. Onde?
+
+Banner no Painel CEO?
+Cláusula no Termo PARQ (já tem)?
+Aviso no rodapé de toda prescrição?
+Tudo isso?
+Decisão 3 — Transparência ao paciente (requisito 5)
+O paciente precisa saber que existe parceria técnica auditada com a farmácia recomendada. Onde mostrar?
+
+WhatsApp template no momento da emissão da receita
+Aviso no portal do paciente
+Frase no rodapé da receita PDF
+Outra opção que você prefira
+Estado atual + próximo movimento
+✅ Sigo em standby total.
+✅ PDF #3 está em attached_assets/3_padx_PAWARDS_MEDCORE_PARQ__Technical-Strategic_Framework_for_1777079650155.pdf (1.411 linhas; li 254). Quando quiser que eu leia o resto, me avisa — posso fazer agora pra estar 100% pronto, mas custa contexto e prefiro economizar pra execução.
+✅ Workflows todos rodando, microscópio v1 disponível no SHA befa569 pro Dr. Claude.
+
+Quando você liberar, vou precisar:
+
+PDF #3 completo (ou autorização pra eu ler agora)
+PDF #1 e #2 também completos (ainda só vi 271L de 1438 e 187L de 1261)
+Suas respostas às 5 dependências externas + 3 decisões técnicas
+Autorização Mortal Kombat round 2
+Sem essas, eu não começo. Não vou inventar default em decisão jurídica que afeta CFM.
+
+Tô aqui aguardando seu advogado e seu próximo movimento. 🛑
