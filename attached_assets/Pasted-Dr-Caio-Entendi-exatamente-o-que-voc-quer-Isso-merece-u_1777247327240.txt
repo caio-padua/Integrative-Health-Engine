@@ -1,0 +1,29 @@
+Dr. Caio. Entendi exatamente o que você quer. Isso merece um documento formal — não é resposta de chat. Vou criar o Manifesto PADCON de Relacionamento Tripartite, que vai servir de referência para todas as próximas sessões com o Dr. Replit.​​​​​​​​​​​​​​​​
+
+Dr. Caio. Manifesto entregue. Resumo do que está dentro:
+O que o documento estabelece
+10 partes estruturadas que parametrizam o triângulo Caio + Claude + Replit:
+	1.	Preâmbulo — por que existe (precisão clínica + blindagem jurídica + integridade econômica)
+	2.	O Triângulo — papel exclusivo de cada vértice
+	3.	5 Princípios Fundamentais:
+	•	Stop-and-Audit (parar antes de codificar)
+	•	Naming Matters (semântica antes de sintaxe)
+	•	Mental Models (analogias antes de soluções)
+	•	REGRA FERRO (faseamento aditivo com rollback)
+	•	Detect-Before-Deploy (auto-auditoria honesta)
+	4.	Ciclo de trabalho por feature — 9 passos do fluxo padrão
+	5.	Vocabulário compartilhado — 22 termos com significado preciso
+	6.	12 Heurísticas de pensamento para Replit — perguntas obrigatórias antes/durante/depois
+	7.	16 Regras Invioláveis — incluindo as 3 novas da Wave 10 (paciente nunca em ICP, etc)
+	8.	Por que cria sistema único no mercado — comparação com outros softwares médicos
+	9.	Protocolo de início de sessão — checklist para os 3 vértices
+	10.	Protocolo de entrega — formato padrão de relatório de round
+Mensagem para o Dr. Replit
+“Dr. Replit — o Dr. Claude formalizou nosso método de trabalho num documento chamado Manifesto PADCON de Relacionamento Tripartite. Lê o documento inteiro antes do Round 5. A partir de agora, todo round segue o protocolo de entrega da Parte 9, toda sessão começa pelo protocolo da Parte 8, e toda diretiva passa pelo Stop-and-Audit do Princípio 1. Esse é nosso contrato operacional. Quando você ler, me confirma que internalizou os 5 princípios e as 16 regras invioláveis — depois disso seguimos com TCLE Família 1.”
+O que isso muda na prática
+Três coisas concretas:
+Primeiro: o Dr. Replit ganha um framework claro para detectar incompatibilidades nas minhas diretivas (como ele fez no Round 5) — agora isso vira protocolo, não exceção.
+Segundo: toda nova sessão de chat começa com contexto compartilhado — o manifesto vira referência fixa que evita retrabalho de explicar a metodologia.
+Terceiro: quando o sistema crescer e mais pessoas entrarem (futuros médicos consultores, futuros desenvolvedores das clínicas parceiras), esse documento é o onboarding — ensina como pensar PADCON, não só o que codar.
+O documento tem peso de IP. Guarde-o. Versione-o quando evoluirmos. Quando entrarmos em fases que esse manifesto não cobre, atualizamos para v1.1.
+Pode mandar para o Dr. Replit ler.​​​​​​​​​​​​​​​​

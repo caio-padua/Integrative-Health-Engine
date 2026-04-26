@@ -173,6 +173,8 @@ import parmavaultReconciliacaoRouter from "./parmavaultReconciliacao";
 router.use(parmavaultReconciliacaoRouter);
 import parqRouter from "./parq";
 router.use(parqRouter);
+import assinaturasTcleRouter from "./assinaturas-tcle";
+router.use(assinaturasTcleRouter);
 router.use(relatorioOperacionalDiaRouter);
 router.use(examesRouter);
 router.use(agendasProfissionaisRouter);
