@@ -1,0 +1,169 @@
+Agora sim! Li tudo. É um documento riquíssimo. Deixa eu organizar tudo em texto limpo e montar o passo a passo completo do projeto.
+
+PAWARDS — Radiografia completa do projeto
+O que é
+Um prontuário longitudinal integrativo vivo — não um software médico convencional. É um sistema que acompanha o paciente 24h/dia, coleta dados em 3 momentos diários, cruza exames com sintomas com prescrições com comportamento, e transforma a consulta numa apresentação de dados que encanta e gera resultado clínico real.
+
+Camada 1 — A planilha que já existe (31 abas em 5 blocos)
+Bloco 1 — Identidade do paciente
+	•	Cadastro (nome, CPF, celular, objetivo)
+	•	Metadados (ID único, versão, status)
+	•	Patologias por grupo (cardíaca, metabólica) com até 3 medicações cada
+	•	Cirurgias
+	•	Medicações atuais (panorama unificado)
+Bloco 2 — Exames (3 modos de visualização)
+	•	Exames Base: formato longo, 1 linha por resultado — fonte de verdade
+	•	Exames Evolução: última / penúltima / anterior com tendência e ideal integrativo
+	•	Exames Gráficos: data / valor / min / max / classificação
+	•	Parâmetros: tabela-chave das 5 zonas + cor + interpretação
+Bloco 3 — Prescrições
+	•	Fórmulas inclusão (20 esqueletos vazios)
+	•	Fórmulas input (código, função, blend, posologia, componentes)
+	•	Fórmulas prescritas (ativas no paciente)
+	•	Registro de substâncias (NAD+ EV, Vitamina C IV etc.)
+	•	Fórmulas acompanhamento (aderência, bem-estar, efeitos colaterais)
+Bloco 4 — Diário longitudinal
+	•	Sintomas Tracking: tabela WIDE — linhas = indicador (sono, energia, foco, libido), colunas = semanas, valores = nota 0 a 10
+	•	Pressão/Peso: 6 janelas por dia (PA, peso, cintura, glicemia capilar)
+	•	Eventos clínicos: intercorrências por data
+	•	Tasks clínicas: pendências (“repetir GGT”, “contatar paciente”)
+	•	Mapa Campos Form: equivalência pergunta → campo interno → aba destino (peça-mestra para automação)
+Bloco 5 — Inteligência (onde está o valor da consulta)
+	•	Alertas automáticos: “se GGT > máximo → dispara alerta hepático”
+	•	Timeline geral: tudo numa linha do tempo única
+	•	Metas clínicas: meta mínima vs ótima por indicador, status
+	•	Score clínico: nota por eixo (metabólico, cardiovascular etc.)
+	•	Matriz sessões: previstas × efetivas, % progresso
+	•	Matriz impacto: sistema ↔ exames ↔ sintomas ↔ fórmulas ↔ impacto
+	•	Matriz expectativas: substância ↔ tempo de efeito ↔ satisfação ↔ tolerabilidade
+	•	Dashboard: KPIs globais
+
+Camada 2 — A regra das 5 zonas (semântica clínica)
+Cada analito tem 5 zonas de classificação, com lógica que pode inverter dependendo do exame:
+
+
+
+|Zona       |Quando ocorre          |Cor             |Padrão (vitaminas/hormônios)|Invertido (SHBG, TSH, glicose, PCR)|
+|-----------|-----------------------|----------------|----------------------------|-----------------------------------|
+|ALERTA —   |Abaixo do mínimo       |Vermelho        |Deficiência grave           |Igual                              |
+|PREOCUPANTE|Terço inferior da faixa|Laranja         |Insuficiente                |Excelente                          |
+|REGULAR    |Terço médio da faixa   |Amarelo         |Regular                     |Regular                            |
+|ÓTIMO      |Terço superior da faixa|Verde           |Excelente                   |Insatisfatório                     |
+|ALERTA +   |Acima do máximo        |Laranja/Vermelho|Excesso                     |Igual                              |
+
+Dupla referência por analito — a peça mais importante:
+
+
+
+|Analito     |Convencional              |Integrativa           |
+|------------|--------------------------|----------------------|
+|Vitamina B12|200–700                   |1.500–2.000           |
+|Vitamina D  |20–50                     |70–100                |
+|SHBG        |10–100 (terço inf = ótimo)|igual lógica invertida|
+
+O gráfico mostra as duas faixas sobrepostas — cinza tracejada (convencional) e verde sólida (integrativa). O paciente enxerga: “no laboratório estou normal, mas na saúde plena ainda estou abaixo do ideal.” Essa visualização é a venda da consulta integrativa.
+
+Camada 3 — O dashboard interno do paciente (6 abas)
+Aba 1 — Resumo
+	•	Foto, nome, idade, objetivo
+	•	4 KPIs grandes: dias em tratamento / score geral / exames pendentes / próxima consulta
+	•	Alertas vivos (GGT acima do máximo, etc.)
+	•	Score por eixo em barras (metabólico, cardiovascular, sono, hormonal)
+Aba 2 — Exames
+	•	Lista lateral com todos os analitos
+	•	Gráfico central: barrinhas no tempo + 2 retângulos translúcidos sobrepostos (faixa convencional cinza + faixa integrativa verde)
+	•	Texto clínico embaixo: sua observação para aquele analito
+	•	Card lateral com sugestão de conduta
+Aba 3 — Prescrições
+	•	Lista de blends ativos com posologia, duração, dias decorridos e % de aderência
+	•	Botão “Gerar receita PDF”
+	•	Histórico de fórmulas anteriores
+Aba 4 — Diário
+	•	Calendário heatmap dos últimos 30 dias (verde = ótimo, amarelo = médio, vermelho = ruim)
+	•	Clicar num dia abre tudo que ele reportou: sono, energia, refeições, pressão
+	•	Streak: “21 dias respondendo seguidos”
+Aba 5 — Cruzamentos (o coração do sistema)
+6 tipos de cruzamento disponíveis:
+	1.	Sintoma × Medicação no tempo — “energia antes vs depois do blend FOCO”
+	2.	Exame × Sintoma — “quando GGT alterado, qual o cansaço médio nas 4 semanas anteriores”
+	3.	Comida × Glicemia × Sono — texto livre vira tags, cruza com glicemia do dia seguinte
+	4.	Aderência × Resultado — “aderência >80% no blend SONO = +2.1 pontos em sono em 30 dias”
+	5.	Filtro reverso — “mostre todos os dias com energia ≥ 7” → lista com o que ele comeu, dormiu, qual blend estava ativo
+	6.	Janela de consulta — botão “últimos 30 dias” abre tudo comprimido numa tela
+Aba 6 — Modo Consulta
+	•	Layout limpo, fonte grande, para projetar na TV ou segundo monitor
+	•	1 indicador grande no centro + 3 menores embaixo
+	•	Navegação por setas — sem menus, só conteúdo
+	•	O paciente vê junto com você
+
+Camada 4 — O questionário diário (como chega ao sistema)
+Arquitetura do fluxo:
+
+WhatsApp (Twilio / Z-API)
+         ↓
+Link único tokenizado por paciente e período
+         ↓
+Web responsivo — 3 perguntas, 30 segundos
+         ↓
+Salva → Sintomas Tracking
+         ↓
+Score do dia recalculado → Dashboard atualizado
+
+
+3 disparos por dia:
+
+
+
+|Horário  |Perguntas                                                                                        |Destino na planilha                                       |
+|---------|-------------------------------------------------------------------------------------------------|----------------------------------------------------------|
+|08h manhã|Como dormiu (0–10) / Pressão ao acordar / Como acordou (texto)                                   |Sintomas Tracking sono + Pressão Peso                     |
+|14h tarde|Energia agora (0–10) / Foco (0–10) / O que comeu (texto curto)                                   |Sintomas Tracking energia + foco + Alimentação Diária     |
+|21h noite|Cansaço (0–10) / Libido (0–10) / Tomou blends? (sim/não/parcial) / Glicemia capilar / Peso do dia|Sintomas Tracking + Fórmulas Acompanhamento + Pressão Peso|
+
+Regras de UX:
+	•	Se não responder em 2h → 1 único lembrete (nunca dois)
+	•	Se passou do horário → não cobra mais
+	•	Smart skip: se clicar “tudo ok hoje”, sliders vêm pré-preenchidos com média da semana — ajusta só o que mudou
+	•	Tempo real de preenchimento: 12 a 30 segundos
+Operação inicial: Lana dispara manualmente os links via WhatsApp Business. Evolui para automático com Twilio quando quiser.
+
+Camada 5 — Gamificação (saúde como jogo)
+Sistema de metas e premiação:
+	•	Atingiu meta da consulta → desconto percentual na próxima
+	•	Perdeu 10%, 15% ou 20% do peso → entra em lista de concorrentes a prêmio
+	•	Ranking por categoria: maior perda de peso / melhor performance / mais aderência / melhor resultado de exames
+	•	Prêmios por colocação: 1º ao 5º lugar recebem souvenirs da clínica (porta-comprimidos, acessórios de saúde)
+	•	Últimos 5 em algum critério também recebem atenção especial (protocolo de resgate)
+Sorteio com base na Loteria Federal:
+	•	Quanto maior a aderência ao questionário diário → mais números na loteria
+	•	Aderência máxima = número premiado
+	•	Parceiro jurídico valida o regulamento do sorteio (você mencionou que tem alguém para isso)
+	•	Sorteio realizado junto ao resultado da Loteria Federal (legalidade garantida)
+Indicação:
+	•	No questionário diário: campo “Conhece alguém que se beneficiaria?” com nome + telefone ou e-mail
+	•	Paciente que indica e o indicado contrata = benefício para ambos
+Grupo de pacientes:
+	•	WhatsApp exclusivo dos pacientes em tratamento
+	•	Palestras mensais presenciais em parque com atividade física
+	•	Presença na palestra = número de sorteio adicional
+	•	Ranking interno entre pacientes (quem participou mais das palestras em 60 dias)
+
+Passo a passo de implementação (sequência recomendada)
+Onda A — Semântica clínica (base de tudo)
+Refinar a tela de validação para 5 zonas + dupla referência convencional/integrativa. Preencher os analitos com valores pré-populados baseados no seu conhecimento clínico.
+Onda B — Gráfico de exames com dupla faixa
+Atualizar o gráfico para desenhar as 2 faixas sobrepostas + 5 cores de zona. Depende da Onda A.
+Onda D — Questionário diário web (paralelo)
+Criar as 3 telas (manhã/tarde/noite) com link tokenizado por paciente. Pode rodar em paralelo com A e B.
+Onda C — Painel do paciente com 6 abas
+Estrutura completa do dashboard interno. Depende de B e D já rodando para ter dados reais.
+Onda G — Modo Consulta (apresentação fullscreen)
+Tela de apresentação para você abrir na frente do paciente. Depende de C.
+Onda F — Motor de cruzamentos
+Os 6 tipos de cruzamento + filtro reverso “energia ≥ 7”. Precisa de pelo menos 30 dias de dados reais do questionário.
+Onda E — Disparo manual de WhatsApp pela Lana
+Template de mensagem + botão “enviar agora” no painel da secretária.
+Onda H — Disparo automático via API
+3 horários automáticos por dia via Twilio. Última onda — depende de E e da contratação da API.
+
+O projeto está completamente mapeado. Qual onda quer atacar primeiro?​​​​​​​​​​​​​​​​
