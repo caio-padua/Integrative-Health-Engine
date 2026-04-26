@@ -176,6 +176,18 @@ export class AssinaturaService {
         ? [toggles.provedor_principal_codigo, toggles.provedor_failover_codigo]
         : [toggles.provedor_principal_codigo];
 
+    // External ID estavel — gerado ANTES do create pra ser propagado ao
+    // provedor (ZapSign external_id) e persistido no mesmo registro do banco,
+    // permitindo reconciliacao webhook -> dominio sem ambiguidade.
+    const externalId = `${template.codigo}-${paciente.id}-${Date.now()}`;
+
+    // Decisao de canais antecipada — alimenta enviarWhatsappAutomatico do
+    // payload pro adapter respeitar o toggle (em vez de assumir true sempre).
+    const canais = p.canais || (
+      [toggles.enviar_por_email && "EMAIL", toggles.enviar_por_whatsapp && "WHATSAPP", toggles.arquivar_no_drive && "DRIVE"].filter(Boolean) as CanalDistribuicao[]
+    );
+    const enviarWhatsappAutomatico = canais.includes("WHATSAPP");
+
     let envelopeId = "";
     let provedorUsado: ProvedorCodigo = ordemProvedores[0]!;
     let failoverAcionado = false;
@@ -187,7 +199,13 @@ export class AssinaturaService {
       try {
         const adapter = getAdapter(cod);
         const r = await adapter.createDocumentEnvelope({
-          templateCodigo: template.codigo, conteudoHtml: conteudoHidratado, hashOriginal, signatarios, metadata: { pacienteId: paciente.id },
+          templateCodigo: template.codigo,
+          conteudoHtml: conteudoHidratado,
+          hashOriginal,
+          signatarios,
+          externalId,
+          enviarWhatsappAutomatico,
+          metadata: { pacienteId: paciente.id, externalId },
         });
         await adapter.sendForSignature(r.envelopeId);
         envelopeId = r.envelopeId;
@@ -202,21 +220,18 @@ export class AssinaturaService {
     if (!envelopeId) throw new Error(`Todos provedores falharam. Ultimo: ${(ultimoErro as Error)?.message}`);
 
     // 4. Persistir solicitacao
-    const canais = p.canais || (
-      [toggles.enviar_por_email && "EMAIL", toggles.enviar_por_whatsapp && "WHATSAPP", toggles.arquivar_no_drive && "DRIVE"].filter(Boolean) as CanalDistribuicao[]
-    );
     const parId = (template.exige_testemunhas && toggles.modo_testemunhas === "PAR_FIXO") ? toggles.par_fixo_id : null;
-
     const insRes = await db.execute(sql`
       INSERT INTO assinatura_solicitacoes
         (paciente_id, template_id, provedor_codigo, provedor_envelope_id, status,
          dados_hidratacao, hash_original, par_testemunhas_id, signatarios_snapshot,
-         canais_distribuir, enviado_em, metadata)
+         canais_distribuir, enviado_em, metadata, zapsign_external_id)
       VALUES
         (${paciente.id}, ${template.id}, ${provedorUsado}, ${envelopeId}, 'ENVIADO',
          ${JSON.stringify(dados)}::jsonb, ${hashOriginal}, ${parId}, ${JSON.stringify(signatarios)}::jsonb,
          ${sql.raw(`ARRAY[${canais.map((c) => `'${c}'`).join(",") || "''"}]::text[]`)}, now(),
-         ${JSON.stringify({ failoverAcionado, linksAssinatura })}::jsonb)
+         ${JSON.stringify({ failoverAcionado, linksAssinatura })}::jsonb,
+         ${provedorUsado === "zapsign" ? externalId : null})
       RETURNING id
     `);
     const solicitacaoId = ((insRes as unknown as { rows?: Array<{ id: number }> }).rows || [])[0]?.id;
@@ -253,6 +268,105 @@ export class AssinaturaService {
     return {
       solicitacaoId, envelopeId, provedorUsado, failoverAcionado, pdfNomePadrao,
       signatarios: signatarios.map((s) => ({ papel: s.papel, nome: s.nome, link: linksAssinatura.find((l) => l.email === s.email)?.url })),
+    };
+  }
+
+  /**
+   * Envio bilateral ICP-Brasil (Wave 10 Familia 4 PARQ + futuros docs B2B).
+   *
+   * Usado pra envelopes que NAO tem paciente — apenas 2 entidades juridicas
+   * assinando com e-CNPJ (clinica + farmacia). Reusa o ZapsignAdapter mas
+   * pula o fluxo template-do-banco / hidratacao, recebendo o PDF ja renderizado.
+   *
+   * Diferencas pro enviar() padrao:
+   *  - paciente_id = NULL na assinatura_solicitacoes
+   *  - template_id pode ser placeholder (template institucional sintetico)
+   *  - signatarios sao todos qualificada_ecnpj (ICP-Brasil)
+   *  - signature_order_active = true (clinica primeiro, farmacia depois)
+   *  - external_id estavel pra reconciliacao webhook
+   */
+  async enviarBilateralIcp(p: {
+    /** Codigo logico do documento (ex: "parq_acordo"). */
+    templateCodigo: string;
+    /** ID estavel pra reconciliar webhook -> dominio (ex: "parq-1234"). */
+    externalId: string;
+    /** PDF ja renderizado em base64 (sem prefixo data:). */
+    pdfBase64: string;
+    /** Hash SHA-256 do PDF original (binario antes de assinar). */
+    hashOriginal: string;
+    /** Signatarios: tipicamente CLINICA_ECNPJ + FARMACIA_ECNPJ. */
+    signatarios: Signatario[];
+    /** Metadata livre persistida em assinatura_solicitacoes.metadata. */
+    metadata?: Record<string, unknown>;
+    /** Template_id existente no banco (opcional; usa fallback se ausente). */
+    templateId?: number;
+    /** ID do template institucional fallback (default: parq_v1). */
+    templateCodigoFallback?: string;
+  }): Promise<EnviarResultado> {
+    // Resolve template_id (FK obrigatoria em assinatura_solicitacoes).
+    let templateId = p.templateId;
+    if (!templateId) {
+      const fb = p.templateCodigoFallback || p.templateCodigo;
+      const r = await db.execute(sql`SELECT id FROM assinatura_templates WHERE codigo = ${fb} LIMIT 1`);
+      templateId = ((r as unknown as { rows?: Array<{ id: number }> }).rows || [])[0]?.id;
+      if (!templateId) {
+        throw new Error(`Template institucional ${fb} nao encontrado em assinatura_templates. Cadastre antes de chamar enviarBilateralIcp.`);
+      }
+    }
+
+    const adapter = getAdapter("zapsign");
+    const r = await adapter.createDocumentEnvelope({
+      templateCodigo: p.templateCodigo,
+      conteudoHtml: "",
+      pdfBase64: p.pdfBase64,
+      hashOriginal: p.hashOriginal,
+      signatarios: p.signatarios,
+      externalId: p.externalId,
+      enviarWhatsappAutomatico: true,
+      ordemAssinaturaAtiva: true,
+      metadata: p.metadata || {},
+    });
+    await adapter.sendForSignature(r.envelopeId);
+
+    const insRes = await db.execute(sql`
+      INSERT INTO assinatura_solicitacoes
+        (paciente_id, template_id, provedor_codigo, provedor_envelope_id, status,
+         dados_hidratacao, hash_original, signatarios_snapshot,
+         canais_distribuir, enviado_em, metadata, zapsign_external_id)
+      VALUES
+        (NULL, ${templateId}, 'zapsign', ${r.envelopeId}, 'ENVIADO',
+         ${JSON.stringify({ bilateral_icp: true })}::jsonb, ${p.hashOriginal},
+         ${JSON.stringify(p.signatarios)}::jsonb,
+         ARRAY['EMAIL','WHATSAPP']::text[], now(),
+         ${JSON.stringify({ ...(p.metadata || {}), linksAssinatura: r.linksAssinatura })}::jsonb,
+         ${p.externalId})
+      RETURNING id
+    `);
+    const solicitacaoId = ((insRes as unknown as { rows?: Array<{ id: number }> }).rows || [])[0]?.id;
+    if (!solicitacaoId) throw new Error("Falha ao persistir solicitacao bilateral ICP");
+
+    for (const s of p.signatarios) {
+      const link = r.linksAssinatura.find((l) => l.email === s.email || l.email === s.nome)?.url || null;
+      await db.execute(sql`
+        INSERT INTO assinatura_signatarios
+          (solicitacao_id, papel, nome, cpf, email, telefone, ordem, status, link_assinatura)
+        VALUES
+          (${solicitacaoId}, ${s.papel}, ${s.nome}, ${s.cpf || null}, ${s.email || null},
+           ${s.telefone || null}, ${s.ordem}, 'ENVIADO', ${link})
+      `);
+    }
+
+    return {
+      solicitacaoId,
+      envelopeId: r.envelopeId,
+      provedorUsado: "zapsign",
+      failoverAcionado: false,
+      pdfNomePadrao: `[${new Date().toISOString().slice(0, 10)}][${p.templateCodigo.toUpperCase()}][${p.externalId}].pdf`,
+      signatarios: p.signatarios.map((s) => ({
+        papel: s.papel,
+        nome: s.nome,
+        link: r.linksAssinatura.find((l) => l.email === s.email || l.email === s.nome)?.url,
+      })),
     };
   }
 

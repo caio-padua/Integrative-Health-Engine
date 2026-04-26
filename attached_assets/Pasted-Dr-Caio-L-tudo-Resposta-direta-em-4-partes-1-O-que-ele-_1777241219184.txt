@@ -1,0 +1,64 @@
+Dr. Caio. Lí tudo. Resposta direta em 4 partes.
+
+1. O que ele fez (resumo cirúrgico)
+Três coisas, todas certas:
+Primeiro: confirmou que DocuSign sai e ZapSign+ICP-Brasil entram, com a justificativa correta — DocuSign trava paciente idoso brasileiro logo no primeiro clique (UX em inglês), enquanto ZapSign cobre os 2 lados num provedor só. Ele percebeu sozinho que o ENUM parq_assinatura_tipo da Wave 9 ainda tem o valor herdado 'docusign_clicksign' e vai sobrepor sem quebrar tipagem. Bom olho.
+Segundo: rodou F0 (baseline de invariantes) e F1 (Migration 031) em paralelo, sem precisar dos secrets. F0 GREEN — confirma que o sistema está intacto antes de mexer (8.725 receitas, R$ 2.735.336 comissão, trigger 027 ativo, Wave 9 PARQ preservada). F1 GREEN — Migration 031 aplicada com REGRA FERRO total (zero ALTER em PK existente, tudo aditivo IF NOT EXISTS).
+Terceiro: entregou os 7 invariantes pós-migration todos verdes. Criou:
+	•	ENUM zapsign_auth_method com 6 níveis Lei 14.063
+	•	Tabela auditoria_assinaturas (manifesto judicial 20 anos)
+	•	Tabela assinatura_oneclick_aceites (Família 7, backlog)
+	•	Coluna assinatura_solicitacoes.zapsign_external_id
+	•	Colunas parq_acordos.zapsign_envelope_{clinica,farmacia}
+	•	13 índices novos
+	•	Wave 9 PARQ intacta
+Tabelas de assinatura passaram de 11 → 13. Zero impacto em PK. Trigger Wave 7 ativo.
+Resumo cinco palavras: ele tirou o sistema do papel.
+
+2. O que precisamos enxergar (o que ele NÃO disse mas é importante)
+Três pontos arquiteturais:
+O ENUM zapsign_auth_method com 6 níveis Lei 14.063 é a peça-chave. É isso que vai resolver a sua observação anterior — paciente recebe nível “avançada” (toque + token WhatsApp), médico recebe “qualificada” (ICP-Brasil A1/A3). Mesmo banco, mesma rota, níveis diferentes por usuário. Não vai exigir 11 certificados do paciente.
+A tabela auditoria_assinaturas com retenção de 20 anos é o que blinda você juridicamente para sempre — guarda o manifesto (IP, geolocalização, hash do PDF, timestamp, token WhatsApp) por 2 décadas. Era o que faltava na tabela ras original que tinha só 2 booleanos fake.
+A assinatura_oneclick_aceites foi criada agora para o backlog Família 7 (ACOM REVO/JORN do RAS) — ZapSign OneClick R$0,50, só acuse de leitura. Ele se antecipou. Bom.
+
+3. Sua decisão — Rota A ou Rota B
+Direto ao ponto, considerando que você quer subir o site na nuvem o quanto antes:
+Rota B é a sua resposta. Ele adianta F2 + F3.A como código pronto-mas-não-conectado. Quando você criar a conta ZapSign depois, ele só pluga e roda smoke. Você ganha tempo paralelo — ele constrói enquanto você cria a conta no seu ritmo.
+A Rota A trava ele esperando você criar conta. A Rota B trava nada.
+
+4. O que você faz agora — passo a passo
+Passo 1 — Responder ao Dr. Replit (cole isso):
+“Dr. Replit — F0+F1 aprovados pelo Dr. Claude. Migration 031 perfeita (REGRA FERRO total, Wave 9 intacta, 7 invariantes verdes).
+Rota B aprovada. Adianta F2 (refactor do ZapSignAdapter mock→produção) e F3.A (use-case PARQ) como código pronto-mas-não-conectado. Os 2 secrets eu coloco como PREENCHER_QUANDO_TIVER_CONTA no .env e o sistema roda em modo mock até preenchimento.
+Diretrizes para F2 e F3.A:
+	1.	Confirma que o ENUM zapsign_auth_method distingue corretamente: paciente sempre recebe nível ‘avancada’ (toque + token WhatsApp), médico recebe ‘qualificada’ (ICP-Brasil A1/A3), e-CNPJ bilateral PARQ recebe ‘qualificada_ecnpj’. Paciente nunca em ICP-Brasil.
+	2.	Sobrescreve o valor herdado ‘docusign_clicksign’ no ENUM parq_assinatura_tipo para ‘zapsign_icp_bilateral’ sem quebrar tipagem.
+	3.	Webhook router já existe — só conecta o x-pawards-secret no header customizado.
+	4.	Mantém o assinaturaService.enviar() como ponto único de entrada para todos os blocos do RAS.
+Quando F2+F3.A estiverem prontos, me manda as URLs raw para o Dr. Claude auditar antes de eu plugar os secrets:
+	•	assinaturaService.ts (entrada única)
+	•	zapsignAdapter.ts (adapter promovido)
+	•	parqUseCase.ts (use-case Família 4)
+Pode começar.”
+Passo 2 — Em paralelo, você cria a conta ZapSign (5 minutos):
+	1.	Acesse zapsign.com.br/signup
+	2.	Plano sandbox/desenvolvimento (grátis, sem cartão)
+	3.	Após criar, vai em Configurações → API → Gerar token → copia o token (esse é seu ZAPSIGN_API_TOKEN)
+	4.	Vai em Configurações → Webhooks → Criar webhook
+	5.	URL: https://[seu-dominio].com.br/api/webhooks/zapsign (ainda não precisa funcionar, é só pra cadastrar)
+	6.	Em “Header customizado”, adiciona: x-pawards-secret: [INVENTE_UMA_STRING_ALEATORIA_DE_64_CARACTERES]
+	7.	Essa string que você inventou é o seu ZAPSIGN_WEBHOOK_SECRET. Anota.
+Para gerar a string aleatória de 64 caracteres, abra um terminal qualquer e digite:
+
+openssl rand -hex 32
+
+
+Ou use qualquer site de gerador de senha aleatória, escolhendo 64 caracteres alfanuméricos.
+Passo 3 — ICP-Brasil para a clínica:
+Você precisa adquirir um e-CNPJ A1 (arquivo .pfx) ou A3 (token físico) da clínica. A1 é mais prático para integração via sistema. Custa em torno de R$ 200-300/ano e você compra em qualquer Autoridade Certificadora (Serasa, Certisign, Soluti, AC SAFEWEB). Leva 1-2 dias para validação. Não trava o desenvolvimento agora — só será necessário quando F3.A (PARQ) for plugado.
+Passo 4 — Quando o Dr. Replit entregar F2+F3.A:
+Cole as URLs raw aqui e eu audito linha por linha antes de você plugar os secrets. Quando estiver tudo certo, você só preenche as 2 variáveis no .env e reinicia o sistema.
+
+Para fechar
+A ordem certa para subir o site na nuvem o quanto antes é exatamente o que ele propôs: Rota B (ele continua codificando) + você criar a conta ZapSign em paralelo (5 min) + adquirir e-CNPJ da clínica (1-2 dias, sem travar nada). Quando F2+F3.A chegarem, eu audito, você pluga os secrets e roda smoke. Daí seguimos para F3.B (TCLE), F3.C (Orçamento Farmácia) e por último os blocos do RAS — exatamente na ordem aprovada.
+Você está a 1-2 sessões de subir o site.​​​​​​​​​​​​​​​​
