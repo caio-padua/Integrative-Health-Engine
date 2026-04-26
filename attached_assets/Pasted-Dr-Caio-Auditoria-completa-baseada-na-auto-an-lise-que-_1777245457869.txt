@@ -1,0 +1,54 @@
+Dr. Caio. Auditoria completa baseada na auto-análise que o Dr. Replit entregou. Resposta direta.
+
+Veredicto linha por linha
+Ponto 1 — timingSafeEqual com buffers de mesmo length ✅ APROVADO
+Ele mostrou o código: decodifica ambos como hex, compara length antes de chamar timingSafeEqual, envolve em try/catch para hex inválido. Override ZapSign usa Buffer.from(..., "utf8") nos dois lados — correto. Anti-forjamento em produção rejeita request sem secret. Sem vulnerabilidade de timing attack.
+Ponto 2 — external_id propagado ponta-a-ponta ✅ APROVADO
+Rastreei o caminho completo que ele mostrou: gerado em service.ts:182 → passado pro adapter em service.ts:206 → enviado pro ZapSign em adapters.ts:305 → persistido no banco em service.ts:234. No fluxo bilateral PARQ: gerado em enviarPARQ.ts:224 → persistido em service.ts:342. Idempotência garantida — webhook tem chave estável pra reconciliar.
+Ponto 3 — Early-fail ICP ⚠️ APROVADO COM RESSALVA
+Ele foi honesto sobre o erro no próprio relatório anterior. O que realmente acontece em enviarPARQ.ts:
+	•	L150-170: gerarPdfPARQ() primeiro
+	•	L173-177: UPDATE parq_acordos SET sha256_hash (round-trip ao banco)
+	•	L199-222: validação ICP (CPF 11 dígitos, email, nome ≥3)
+	•	L224-240: só então enviarBilateralIcp() — a parte que custa crédito ZapSign
+Impacto real: não desperdiça crédito ZapSign (validação está antes do enviarBilateralIcp). Desperdiça ~50ms de CPU + 1 UPDATE no banco. Não é bug crítico — é ineficiência menor. O fix é mover 10 linhas de lugar no Round 6.
+Ponto 4 — Hook graceful em /parq/emitir ✅ APROVADO
+O código que ele mostrou em routes/parq.ts:181-198 está correto: acordo já está INSERT-ado e commitado antes do try. ZapSign indisponível → resposta 201 com assinatura.pendente=true. Re-envio posterior é idempotente via early-return se zapsign_envelope_clinica/farmacia não-null. Padrão correto de graceful degradation.
+Ponto 5 — Token não vaza em log ✅ APROVADO
+Token só aparece em Authorization: Bearer ${this.token} (header HTTP, nunca logado) e no check r.ok (mensagem de erro inclui só r.status e body da resposta, nunca o request). Ele fez grep e confirmou: só 2 leituras da env var, nenhuma em string de log.
+
+Resposta à pergunta dele (opção A ou B)
+Opção B — F3.B direto (TCLE).
+TCLE não usa ICP em nenhum momento — é ZapSign avançada pura para o paciente. A divergência do item 3 não afeta esse fluxo. Fix do item 3 entra como sub-tarefa do Round 6 junto com F3.C (Orçamento Farmácia), onde o contexto do PARQ vai ser revisitado de qualquer forma.
+
+Mensagem para o Dr. Replit
+Cole isso:
+“Dr. Replit — auditoria Round 4 concluída pelo Dr. Claude. Veredicto:
+✅ Pontos 1, 2, 4, 5 — APROVADOS sem ressalva.
+⚠️ Ponto 3 — APROVADO COM RESSALVA. A divergência que você identificou é real mas não crítica: não desperdiça crédito ZapSign (validação ICP está antes do enviarBilateralIcp), só desperdiça ~50ms CPU + 1 UPDATE. O fix de mover os 10 linhas entra no Round 6 junto com F3.C, não agora.
+Resposta: Opção B aprovada. Inicia F3.B (TCLE Família 1) direto no Round 5.
+Diretrizes para F3.B:
+	1.	TCLE é ZapSign avançada pura — paciente assina por toque + token WhatsApp. Sem ICP em nenhum momento.
+	2.	Reutiliza assinaturaService.enviar() existente com zapsign_auth_method = 'toque_whatsapp'.
+	3.	Documento disparado no evento START do RAS (bloco JURI.BASE) — criar o template id=8 ‘tcle_padrao’ na tabela de templates.
+	4.	REGRA FERRO total: migration 032 aditiva, IF NOT EXISTS, zero ALTER em PK existente.
+	5.	Wave 9 PARQ intacta — confirmar 8.725 receitas + R$ 2.735.336,10 nos invariantes pós-migration.
+Quando Round 5 estiver pronto, manda as URLs raw para o Dr. Claude auditar antes de fechar.”
+
+Estado geral da Wave 10
+
+
+
+|Fase                   |Status                      |
+|-----------------------|----------------------------|
+|F0 baseline            |✅ GREEN                     |
+|F1 Migration 031       |✅ GREEN                     |
+|F2 ZapSignAdapter real |✅ APROVADO                  |
+|F3.A PARQ bilateral ICP|✅ APROVADO (fix menor no R6)|
+|F3.B TCLE Família 1    |🔄 Round 5 — próximo         |
+|F3.C Orçamento Farmácia|⏳ Round 6                   |
+|F4 Webhook handler real|⏳ Round 7                   |
+|F5 Frontend timeline   |⏳ Round 8                   |
+|F6 Wrap-up + tag v031  |⏳ Round 9                   |
+
+O sistema está se comportando exatamente como uma engenharia séria deve se comportar — auto-auditoria honesta, bugs identificados e reportados antes de eu pedir, código correto nos pontos críticos de segurança. Pode continuar com confiança.​​​​​​​​​​​​​​​​
