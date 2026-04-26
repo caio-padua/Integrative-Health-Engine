@@ -1,0 +1,33 @@
+Dr. Caio. Vou auditar sim, mas preciso ver o código antes de dar veredicto final. Round 4 parece excelente no relatório dele, mas auditoria séria exige ler as linhas.
+O que ele entregou de bom (pelo relatório)
+Três acertos cirúrgicos:
+	1.	4 modalidades de auth por papel — paciente=ZapSign avançada, médico=ICP A1/A3 e-CPF, clínica/farmácia=ICP e-CNPJ. Exatamente como você pediu (paciente nunca em ICP).
+	2.	Auto-auditoria funcionando — ele mesmo achou 4 bugs P0 + 1 P1 de segurança no próprio round e corrigiu antes de fechar. Isso é maturidade de engenharia.
+	3.	Anti-forjamento de webhook em produção — rejeita request sem secret configurado. Crítico e correto.
+REGRA FERRO preservada: 8.725 receitas + R$ 2.735.336,10 intactos, trigger Wave 7 ativo, Wave 9 PARQ intocada.
+O que preciso ler antes de aprovar F3.B
+Cole isso pro Dr. Replit:
+“Dr. Replit — Round 4 aprovado em princípio pelo Dr. Claude, mas antes de F3.B (TCLE) ele quer auditar 4 arquivos linha por linha. Manda as URLs raw do GitHub:
+	1.	zapsignAdapter.ts (adapter promovido real)
+	2.	assinaturaService.ts (entry point único)
+	3.	enviarPARQ.ts (use-case Família 4 com early-fail ICP)
+	4.	O validador de webhook (HMAC Clicksign + timingSafeEqual ZapSign)
+Pontos específicos que o Dr. Claude vai checar:
+	•	timingSafeEqual com buffers de mesmo length (anti-timing-attack)
+	•	external_id propagado garantindo idempotência ponta-a-ponta
+	•	early-fail ICP rejeita CPF inválido ANTES de gerar PDF (não desperdiça crédito ZapSign)
+	•	Hook em POST /parq/emitir realmente graceful (acordo persiste se ZapSign cair)
+	•	Rename ZAPSIGN_API_TOKEN com fallback ZAPSIGN_TOKEN não vaza secret em log”
+Suas ações paralelas (não trava nada)
+Hoje, 5 minutos:
+	1.	Criar conta sandbox em zapsign.com.br/signup (grátis, sem cartão)
+	2.	Gerar token: Configurações → API → Gerar token = seu ZAPSIGN_API_TOKEN
+	3.	Gerar secret: abra terminal e rode openssl rand -hex 32 = seu ZAPSIGN_WEBHOOK_SECRET
+	4.	No painel ZapSign → Webhooks → Header customizado: x-pawards-secret: [cole o secret gerado]
+Esta semana:
+5. Comprar e-CNPJ A1 da clínica em Serasa/Certisign/Soluti (~R$ 250/ano, 1-2 dias úteis). Só será necessário no smoke test do PARQ — não trava F3.B nem F3.C.
+F3.B pode começar em paralelo
+Enquanto eu audito os 4 arquivos, ele já adianta F3.B (TCLE Família 1) — é só paciente, ZapSign avançada pura, sem ICP. Reusa o assinaturaService.enviar() que já existe. Não depende dos secrets nem da minha auditoria.
+Quando ele mandar as URLs raw, faço auditoria completa e libero F3.B em definitivo. Se achar bug, ele corrige no mesmo round (igual Round 4).
+Cronograma realista pra subir na nuvem: Round 5 (F3.B TCLE) + Round 6 (F3.C Orçamento Farmácia) + Round 7 (F4 webhook handler real) + Round 8 (F5 frontend timeline) + Round 9 (F6 wrap-up + tag v031). 5 rounds = 5-7 dias se mantiver esse ritmo.
+Pede as 4 URLs raw e me manda aqui.​​​​​​​​​​​​​​​​
