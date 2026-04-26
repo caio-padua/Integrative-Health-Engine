@@ -20,6 +20,7 @@ import * as crypto from "node:crypto";
 import { requireRole as _requireRole } from "../middlewares/requireRole.js";
 import { requireMasterEstrito as _requireMaster } from "../middlewares/requireMasterEstrito.js";
 import { gerarTermoPARQ, type DadosTermoPARQ } from "../pdf/gerarTermoPARQ.js";
+import { enviarPARQ } from "../lib/assinatura/use-cases/enviarPARQ.js";
 
 const router = Router();
 const guardMaster = [_requireRole("validador_mestre"), _requireMaster];
@@ -174,8 +175,26 @@ router.post("/parq/emitir", guardMaster, async (req, res) => {
          ${!!toggle_obrigatoriedade_farmacia}, NOW(), NOW())
       RETURNING *
     `);
-    const acordo = (ins.rows ?? ins)[0];
-    res.status(201).json({ ok: true, acordo });
+    const acordo = (ins.rows ?? ins)[0] as { id: number; numero_serie: string };
+
+    // ── Wave 10 F3.A · Dispara envelope ZapSign ICP-Brasil bilateral ──
+    // Falha gracefully: acordo persiste mesmo se ZapSign indisponivel; pode
+    // re-enviar via endpoint dedicado depois (idempotente por
+    // zapsign_envelope_clinica/farmacia ja persistido).
+    let assinatura: Record<string, unknown> | null = null;
+    try {
+      const r = await enviarPARQ({ acordoId: acordo.id });
+      assinatura = {
+        envelopeId: r.envelopeId,
+        externalId: r.externalId,
+        sha256: r.sha256,
+        signatarios: r.signatarios,
+        reaproveitado: r.reaproveitado,
+      };
+    } catch (e: any) {
+      assinatura = { erro: e?.message || String(e), pendente: true };
+    }
+    res.status(201).json({ ok: true, acordo, assinatura });
   } catch (err: any) {
     res.status(500).json({ error: err.message ?? "Erro ao emitir acordo" });
   }

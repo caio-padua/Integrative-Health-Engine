@@ -7,10 +7,13 @@
 
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type {
+  AuthMode,
   EventoWebhook,
+  PapelSignatario,
   PayloadEnvelope,
   ProvedorCodigo,
   ResultadoEnvio,
+  Signatario,
   SignatureProviderAdapter,
   StatusDocumento,
 } from "./types";
@@ -61,16 +64,11 @@ abstract class BaseMockableAdapter implements SignatureProviderAdapter {
     let signatureValid = false;
 
     if (this.webhookSecret && sigStr) {
-      const expected = createHmac("sha256", this.webhookSecret).update(rawBody).digest("hex");
-      try {
-        const a = Buffer.from(expected, "hex");
-        const b = Buffer.from(sigStr.replace(/^sha256=/, ""), "hex");
-        signatureValid = a.length === b.length && timingSafeEqual(a, b);
-      } catch {
-        signatureValid = false;
-      }
+      signatureValid = this.validateWebhookSignature(rawBody, sigStr, this.webhookSecret);
     } else if (!this.webhookSecret) {
-      signatureValid = true; // Modo dev/mock: sem secret, aceita
+      // PRODUCAO: rejeita webhook sem secret configurado (anti-forjamento).
+      // DEV/MOCK: aceita pra fluxo de teste sem provedor real.
+      signatureValid = process.env["NODE_ENV"] !== "production";
     }
 
     let parsed: Record<string, unknown> = {};
@@ -87,6 +85,22 @@ abstract class BaseMockableAdapter implements SignatureProviderAdapter {
       signatureValid,
       payload: parsed,
     };
+  }
+
+  /**
+   * Validacao default = HMAC-SHA256 (Clicksign, padrao da industria).
+   * Override em ZapsignAdapter pra timingSafeEqual literal (header customizado
+   * x-pawards-secret, ja que ZapSign nao tem HMAC nativo no webhook).
+   */
+  protected validateWebhookSignature(rawBody: Buffer, sigStr: string, secret: string): boolean {
+    const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+    try {
+      const a = Buffer.from(expected, "hex");
+      const b = Buffer.from(sigStr.replace(/^sha256=/, ""), "hex");
+      return a.length === b.length && timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
   }
 
   async downloadSignedArtifact(envelopeId: string): Promise<Buffer> {
@@ -169,52 +183,219 @@ export class ClicksignAdapter extends BaseMockableAdapter {
   }
 }
 
+/**
+ * Mapeamento padrao papel -> auth_mode ZapSign (Lei 14.063/2020).
+ * Override per-signatario possivel via Signatario.authMode.
+ *
+ * REGRA FERRO: paciente NUNCA recebe ICP-Brasil (UX trava idoso brasileiro).
+ */
+function mapPapelToAuthMode(papel: PapelSignatario, override?: AuthMode): AuthMode {
+  if (override) return override;
+  switch (papel) {
+    case "MEDICO":           return "qualificada";        // ICP-Brasil A1/A3 e-CPF
+    case "CLINICA_ECNPJ":    return "qualificada_ecnpj";  // ICP-Brasil e-CNPJ
+    case "FARMACIA_ECNPJ":   return "qualificada_ecnpj";  // ICP-Brasil e-CNPJ
+    case "PACIENTE":         return "avancada";           // toque + token WhatsApp
+    case "RESPONSAVEL_LEGAL":return "avancada";
+    case "CLINICA":
+    case "TESTEMUNHA":
+    default:                 return "simples";
+  }
+}
+
+/** Mapeia AuthMode -> string aceita pelo campo `auth_mode` da API ZapSign. */
+function authModeToZapsign(mode: AuthMode): string {
+  switch (mode) {
+    case "qualificada":
+    case "qualificada_ecnpj":
+      return "certificadoDigital";
+    case "avancada":
+      return "assinaturaTela-tokenWhatsApp";
+    case "simples":
+    default:
+      return "assinaturaTela";
+  }
+}
+
 export class ZapsignAdapter extends BaseMockableAdapter {
   readonly codigo: ProvedorCodigo = "zapsign";
-  protected get token() { return process.env["ZAPSIGN_TOKEN"]; }
+
+  /**
+   * Token de API ZapSign. Aceita ZAPSIGN_API_TOKEN (novo, oficial Wave 10)
+   * ou ZAPSIGN_TOKEN (legado, mantido por compat enquanto secret nao migra).
+   */
+  protected get token() {
+    return process.env["ZAPSIGN_API_TOKEN"] || process.env["ZAPSIGN_TOKEN"];
+  }
   protected get webhookSecret() { return process.env["ZAPSIGN_WEBHOOK_SECRET"]; }
-  private get baseUrl() { return process.env["ZAPSIGN_BASE_URL"] || "https://api.zapsign.com.br"; }
+
+  /**
+   * Sandbox ZapSign automatico em ambientes nao-producao (sandbox.api.zapsign.com.br).
+   * Em producao, usa api.zapsign.com.br. Override possivel via ZAPSIGN_BASE_URL.
+   */
+  private get baseUrl() {
+    if (process.env["ZAPSIGN_BASE_URL"]) return process.env["ZAPSIGN_BASE_URL"];
+    return process.env["NODE_ENV"] === "production"
+      ? "https://api.zapsign.com.br"
+      : "https://sandbox.api.zapsign.com.br";
+  }
+
+  /** Nome corporativo apresentado no envelope ZapSign. */
+  private get brandName() {
+    return process.env["ZAPSIGN_BRAND_NAME"] || "PAWARDS MEDCORE";
+  }
+
+  /**
+   * Monta payload da signers[] da API ZapSign a partir dos signatarios PAWARDS.
+   * Aplica auth_mode por papel + telefone E.164 BR + nome obrigatorio.
+   *
+   * O flag global `enviarWhatsappAutomatico` (toggle do dominio) tem
+   * precedencia sobre a heuristica per-signer: quando explicitamente false,
+   * NUNCA dispara WhatsApp (respeita custo R$ 0,50/disparo + canais togglados).
+   */
+  private montarSigners(
+    signatarios: Signatario[],
+    enviarWhatsappAutomatico?: boolean,
+  ): Array<Record<string, unknown>> {
+    return signatarios.map((s) => {
+      const mode = mapPapelToAuthMode(s.papel, s.authMode);
+      const auth_mode = authModeToZapsign(mode);
+      const phoneRaw = s.telefone?.replace(/\D/g, "") || "";
+      const phone_country = phoneRaw.length >= 12 ? phoneRaw.slice(0, 2) : "55";
+      const phone_number = phoneRaw.length >= 12 ? phoneRaw.slice(2) : phoneRaw;
+      const whatsappElegivel = !!phone_number
+        && mode !== "qualificada"
+        && mode !== "qualificada_ecnpj";
+      const send_automatic_whatsapp =
+        enviarWhatsappAutomatico === false ? false : whatsappElegivel;
+      const signer: Record<string, unknown> = {
+        name: s.nome,
+        auth_mode,
+        send_automatic_email: !!s.email,
+        send_automatic_whatsapp,
+        require_document_photo: false,
+        require_selfie_photo: false,
+      };
+      if (s.email)        signer["email"] = s.email;
+      if (phone_number)   { signer["phone_country"] = phone_country; signer["phone_number"] = phone_number; }
+      if (s.cpf)          signer["cpf"] = s.cpf.replace(/\D/g, "");
+      // ICP-Brasil: ZapSign exige cpf preenchido pra validar certificado
+      if (mode === "qualificada" || mode === "qualificada_ecnpj") {
+        signer["require_cpf"] = true;
+      }
+      return signer;
+    });
+  }
 
   protected async createReal(payload: PayloadEnvelope): Promise<ResultadoEnvio> {
+    // PDF base64: prioridade pra payload.pdfBase64 (PDF cru); fallback gera
+    // PDF minimo a partir do conteudoHtml (ZapSign nao aceita HTML direto).
+    const base64_pdf = payload.pdfBase64 || Buffer.from(payload.conteudoHtml).toString("base64");
+
+    const body: Record<string, unknown> = {
+      name: payload.templateCodigo,
+      base64_pdf,
+      brand_name: this.brandName,
+      lang: "pt-br",
+      disable_signer_emails: false,
+      signed_file_only_finished: true,
+      signature_order_active: !!payload.ordemAssinaturaAtiva,
+      signers: this.montarSigners(payload.signatarios),
+    };
+    if (payload.externalId)  body["external_id"] = payload.externalId;
+
     const r = await fetch(`${this.baseUrl}/api/v1/docs/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.token}` },
-      body: JSON.stringify({
-        name: payload.templateCodigo,
-        base64_pdf: Buffer.from(payload.conteudoHtml).toString("base64"),
-        signers: payload.signatarios.map((s) => ({ name: s.nome, email: s.email, phone_country: "55", phone_number: s.telefone?.replace(/\D/g, "") })),
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.token}`,
+      },
+      body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error(`ZapSign create failed ${r.status}: ${await r.text()}`);
-    const data = (await r.json()) as { token?: string; signers?: Array<{ email: string; sign_url: string }> };
+    const data = (await r.json()) as {
+      token?: string;
+      signers?: Array<{ email?: string; sign_url?: string; token?: string; name?: string }>;
+    };
     if (!data.token) throw new Error("ZapSign nao retornou token");
+
+    const linksAssinatura = (data.signers || [])
+      .filter((s) => s.sign_url)
+      .map((s) => ({ email: s.email || s.name || s.token || "", url: s.sign_url! }));
+
     return {
       envelopeId: data.token,
-      linksAssinatura: (data.signers || []).map((s) => ({ email: s.email, url: s.sign_url })),
+      linksAssinatura,
       rawProvider: data,
     };
   }
-  protected async sendReal(_envelopeId: string): Promise<void> { /* ZapSign envia automatico no create */ }
-  protected async statusReal(envelopeId: string): Promise<StatusDocumento> {
-    const r = await fetch(`${this.baseUrl}/api/v1/docs/${envelopeId}/`, { headers: { Authorization: `Bearer ${this.token}` } });
-    const data = (await r.json()) as { status?: string; signed_file?: string };
-    const status = data.status === "signed" ? "CONCLUIDO" : data.status === "refused" ? "REJEITADO" : "ENVIADO";
-    return { status, signatariosStatus: [], pdfAssinadoUrl: data.signed_file };
+
+  protected async sendReal(_envelopeId: string): Promise<void> {
+    /* ZapSign dispara WhatsApp/email automaticamente no create quando
+     * send_automatic_whatsapp/email = true por signatario. No-op aqui. */
   }
+
+  protected async statusReal(envelopeId: string): Promise<StatusDocumento> {
+    const r = await fetch(`${this.baseUrl}/api/v1/docs/${envelopeId}/`, {
+      headers: { Authorization: `Bearer ${this.token}` },
+    });
+    const data = (await r.json()) as {
+      status?: string;
+      signed_file?: string;
+      signers?: Array<{ email?: string; status?: string; times_viewed?: number; last_view_at?: string; signed_at?: string }>;
+    };
+    const status =
+      data.status === "signed"   ? "CONCLUIDO" :
+      data.status === "refused"  ? "REJEITADO" :
+      data.status === "expired"  ? "EXPIRADO"  : "ENVIADO";
+    const signatariosStatus = (data.signers || []).map((s) => ({
+      email: s.email || "",
+      assinado: s.status === "signed",
+      assinadoEm: s.signed_at,
+    }));
+    return { status, signatariosStatus, pdfAssinadoUrl: data.signed_file };
+  }
+
   protected async downloadReal(envelopeId: string): Promise<Buffer> {
-    const r = await fetch(`${this.baseUrl}/api/v1/docs/${envelopeId}/`, { headers: { Authorization: `Bearer ${this.token}` } });
+    const r = await fetch(`${this.baseUrl}/api/v1/docs/${envelopeId}/`, {
+      headers: { Authorization: `Bearer ${this.token}` },
+    });
     const data = (await r.json()) as { signed_file?: string };
     if (!data.signed_file) throw new Error("ZapSign: PDF assinado indisponivel");
     const r2 = await fetch(data.signed_file);
     return Buffer.from(await r2.arrayBuffer());
   }
-  protected signatureHeaderName(): string { return "x-hub-signature-256"; }
-  protected extractEventId(p: Record<string, unknown>): string | undefined {
-    return (p["event_id"] as string) || (p["webhook_id"] as string);
+
+  /**
+   * ZapSign nao tem HMAC nativo no webhook — autenticacao via header customizado
+   * configurado no painel ZapSign: "x-pawards-secret: <ZAPSIGN_WEBHOOK_SECRET>".
+   * Comparacao timingSafeEqual literal (sem hash do body).
+   */
+  protected signatureHeaderName(): string { return "x-pawards-secret"; }
+
+  protected validateWebhookSignature(_rawBody: Buffer, sigStr: string, secret: string): boolean {
+    try {
+      const a = Buffer.from(sigStr, "utf8");
+      const b = Buffer.from(secret, "utf8");
+      return a.length === b.length && timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
   }
-  protected extractEventType(p: Record<string, unknown>): string { return (p["event_type"] as string) || "unknown"; }
+
+  protected extractEventId(p: Record<string, unknown>): string | undefined {
+    // ZapSign nao emite event_id estavel — derivamos de doc_token+event_type+ts
+    const evType = (p["event_type"] as string) || "unknown";
+    const docToken = (p["token"] as string) || (p["doc_token"] as string) || "";
+    const ts = (p["last_update_at"] as string) || new Date().toISOString();
+    if (!docToken) return undefined;
+    return createHash("sha256").update(`${docToken}|${evType}|${ts}`).digest("hex").slice(0, 32);
+  }
+  protected extractEventType(p: Record<string, unknown>): string {
+    return (p["event_type"] as string) || "unknown";
+  }
   protected extractEnvelopeId(p: Record<string, unknown>): string | undefined {
-    return (p["doc_token"] as string) || (p["token"] as string);
+    return (p["token"] as string) || (p["doc_token"] as string);
   }
 }
 
