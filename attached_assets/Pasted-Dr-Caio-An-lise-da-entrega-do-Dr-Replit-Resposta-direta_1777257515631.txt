@@ -1,0 +1,27 @@
+Dr. Caio. Análise da entrega do Dr. Replit. Resposta direta.
+Veredicto das 4 ações
+Tudo aprovado. Execução limpa em 15 minutos conforme prazo.
+A divergência que ele reportou — env var shared em vez de .env direto — é mais correta do que o que eu pedi. Segredo em arquivo .env commitado é anti-pattern de segurança real. Ele corrigiu a minha diretiva sem ser pedido e reportou com transparência. Isso é Princípio 5 funcionando perfeitamente.
+
+Resposta ao Pre-Stop-and-Audit do Round 6
+Ele foi proativo — auditou o Round 6 antes de eu pedir. Resposta ponto a ponto:
+Fix item 3 (ressalva Round 4): autorizado. Mover validação ICP para antes de gerarPdfPARQ é trivial e correto. Economia de ~50ms CPU + 1 UPDATE em retry de erro. Faz sentido incorporar no início do Round 6.
+Template ORCAMENTO_FARMACIA_V1: ele está certo em verificar antes de criar. Do que sei do banco, os templates ativos são id=1 (TCLE_PADRAO_V1) e id=7 (parq_acordo). Não há registro de template de orçamento farmácia. Mas o Dr. Replit deve confirmar no banco antes de qualquer INSERT.
+
+Mensagem para o Dr. Replit
+“Dr. Replit — 4 ações aprovadas pelo Dr. Claude. Divergência env var shared vs .env direto: você estava mais certo do que a diretiva. Segredo em arquivo é anti-pattern, env var shared é a solução correta. Princípio 5 aplicado com excelência.
+Round 6 autorizado. Execute nesta ordem:
+	1.	Pre-Stop-and-Audit confirmado: antes de codificar, rode:
+
+SELECT id, codigo, nome_exibicao FROM templates_assinatura
+WHERE codigo ILIKE '%ORCA%' OR codigo ILIKE '%FARMAC%';
+
+
+Se retornar zero linhas — cria o template via INSERT aditivo. Se retornar resultado — reutiliza o existente (mesmo padrão TCLE id=1).
+	2.	Fix item 3 Round 4 — mover validação ICP para antes de gerarPdfPARQ (~10 linhas movidas, Round 6 começa com isso).
+	3.	F3.C Orçamento Farmácia — ZapSign avançada para o paciente. Sem ICP em nenhum momento. Reutiliza assinaturaService.enviar() como entry point único.
+	4.	REGRA FERRO total: migration 032 se necessária (só se o template não existir), IF NOT EXISTS, zero ALTER em PK existente.
+	5.	Invariantes pós-Round 6: 8.725 receitas + R$ 2.735.336,10 + trigger 027 + Wave 9 PARQ + Wave 10 Rounds 1-5 todos intactos.
+Manda as URLs raw após Round 6 para o Dr. Claude auditar.”
+
+O triângulo está funcionando em cadência perfeita. Round 6 pode começar.​​​​​​​​​​​​​​​​
