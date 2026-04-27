@@ -1,0 +1,62 @@
+Dr. Caio, que inventário impecável do Dr. Replit. Agora tenho o raio-X completo. Veja minha análise Kaizen:
+
+🔬 Análise Kaizen — Dr. Claude responde ao Dr. Replit
+Diagnóstico Central
+O sistema não tem problema de arquitetura. Tem problema de adoção e últimas milhas. A fundação é Lamborghini — mas o paciente ainda não consegue entrar no carro.
+Prova disso: 1.557 pacientes. 0 com senha no portal. 30 com upload. 45 mensagens WhatsApp em 30 dias.
+
+🎯 5 Kaizens Prioritários — ordem de impacto
+
+KAIZEN 1 — Inbound WhatsApp (maior impacto imediato)
+O que existe: Comunicação unidirecional. Clínica fala. Paciente não pode responder de volta ao sistema.
+O gap: Não existe POST /webhooks/whatsapp/inbound
+O que fazer: Adicionar rota de recebimento de mensagem entrante no Twilio. Quando paciente responder “2” para uma queixa — o sistema registra no RAS. Quando mandar foto — vai direto para a pasta Drive do paciente (já existe uploadToClientSubfolder()).
+Esforço: Baixo. Infraestrutura Twilio já está paga e configurada.
+
+KAIZEN 2 — PWA Real (resolve o problema do idoso sem App Store)
+O que existe: Site responsivo com useIsMobile(). Parece app, não é app.
+O gap: Sem manifest.json, sem service worker, sem ícones.
+O que fazer: Adicionar vite-plugin-pwa ao clinica-motor. Paciente recebe link via WhatsApp → abre no celular → banner aparece “Adicionar à tela inicial” → vira ícone igual app. Recepcionista aponta câmera para QR Code na recepção.
+Esforço: Muito baixo. 1 plugin + manifest + ícones. Sem App Store, sem aprovação, sem $99/ano Apple.
+
+KAIZEN 3 — Causa raiz da adoção zero
+O que existe: Portal com 12 endpoints, login dual (senha + OTP), funcionalidades completas.
+O gap: 0/1.557 pacientes com senha. Ninguém está chegando até o portal.
+Hipótese: O OTP chega por e-mail — mas clinic_email_identity tem 0 clínicas provisionadas. O paciente nunca recebe o código. O portal está tecnicamente pronto mas operacionalmente morto.
+O que fazer: Redirecionar OTP para WhatsApp (já funciona, 45 mensagens enviadas). Usar templateCodigoValidacao já existente. Paciente recebe código no WhatsApp → entra no portal → resolve o problema do idoso sem e-mail.
+Esforço: Baixíssimo. Template já existe. Worker já existe. É uma linha de configuração.
+
+KAIZEN 4 — OCR Real (327 arquivos esperando)
+O que existe: Coluna processado_com_ocr boolean com 327 registros marcados true — mas nenhum OCR aconteceu de fato.
+O gap: Flag mentirosa. Google Vision não integrado apesar de já usarem Google ecosystem (Drive + Gmail).
+O que fazer: Google Vision API — natural pois já são Google. Quando arquivo chega em arquivos_exames, worker processa, extrai valores, popula valores_extraidos (jsonb). Médico já vê os valores antes da consulta no RAS.
+Esforço: Médio. Mas ROI altíssimo — transforma upload passivo em dado clínico ativo.
+
+KAIZEN 5 — Templates faltantes (3 gaps cirúrgicos)
+O que existe: 8 templates WhatsApp. Cobrem bem o fluxo atual.
+O que falta:
+	•	Template TCLE assinado → “Seu documento está pronto. Acesse: [link Drive]”
+	•	Template conclusão de assinatura → notifica paciente que assinou
+	•	Template orçamento farmácia → quando PARQ for aprovado
+Esforço: Muito baixo. Padrão já estabelecido em whatsappTemplates.ts.
+
+📊 Mapa de Prioridade
+
+
+
+|Kaizen                          |Impacto  |Esforço|Round  |
+|--------------------------------|---------|-------|-------|
+|OTP via WhatsApp (adoção portal)|🔴 Crítico|⚡ Baixo|Round 1|
+|PWA Real                        |🔴 Crítico|⚡ Baixo|Round 1|
+|Inbound WhatsApp                |🟠 Alto   |⚡ Baixo|Round 2|
+|Templates faltantes             |🟠 Alto   |⚡ Baixo|Round 2|
+|OCR Google Vision               |🟡 Médio  |🔧 Médio|Round 3|
+
+Mensagem direta ao Dr. Replit
+Dr. Replit, minha análise aponta que a prioridade zero não é construir nada novo — é destrancar o que já foi construído.
+O portal está pronto mas o OTP não chega porque e-mail não está provisionado. Redirecionar OTP para WhatsApp (template já existe) pode tirar o portal de 0% de adoção para uso real em 1 Round.
+A segunda prioridade é PWA: vite-plugin-pwa + manifest. Isso transforma o site responsivo em “app instalável” sem passar pela App Store — resolve o idoso sem precisar de React Native.
+Terceira é inbound WhatsApp: adicionar POST /webhooks/whatsapp/inbound para que as respostas dos pacientes alimentem o RAS automaticamente.
+Você concorda com essa ordem? Existe algum impedimento técnico que eu não esteja vendo no código que mude essa priorização?
+
+Dr. Caio — Cole isso para o Dr. Replit e peça que ele confirme ou reordene. Com a resposta dele, montamos a Wave 11 real sem desperdiçar nenhuma linha de código já escrita. 🏎️​​​​​​​​​​​​​​​​
