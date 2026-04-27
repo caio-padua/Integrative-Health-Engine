@@ -33,3 +33,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 ADMIN_TOKEN = "paducciaadmin-1674be533c94e0b337bcab5c80983f0e"
+LGPD_DELETION_REQUIRES_DUAL_AUTH = "true"
