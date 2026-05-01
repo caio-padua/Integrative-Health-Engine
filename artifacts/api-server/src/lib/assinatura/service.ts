@@ -116,6 +116,20 @@ export interface EnviarParams {
   signatariosExtras?: Signatario[];
   forcarProvedor?: ProvedorCodigo;
   canais?: CanalDistribuicao[];
+  /**
+   * External ID estavel pra reconciliacao webhook -> dominio. Se ausente,
+   * gerado como `${templateCodigo}-${pacienteId}-${Date.now()}`.
+   * Use-cases que precisam de chave deterministica (ex: F3.C orcamento por
+   * receita) devem passar algo como `orc-${receitaId}-${ts}`.
+   */
+  externalId?: string;
+  /**
+   * Metadata extra mergeada no INSERT inicial da assinatura_solicitacoes.
+   * Garante atomicidade pra dedupe/reconciliacao por chaves de dominio
+   * (ex: { receitaId: 8725, familia: 3, wave: 10 }) — evita UPDATE separado
+   * que cria janela de race entre INSERT e enriquecimento da metadata.
+   */
+  metadataExtra?: Record<string, unknown>;
 }
 
 export interface EnviarResultado {
@@ -179,7 +193,9 @@ export class AssinaturaService {
     // External ID estavel — gerado ANTES do create pra ser propagado ao
     // provedor (ZapSign external_id) e persistido no mesmo registro do banco,
     // permitindo reconciliacao webhook -> dominio sem ambiguidade.
-    const externalId = `${template.codigo}-${paciente.id}-${Date.now()}`;
+    // Use-cases podem passar externalId deterministico (ex: F3.C orcamento
+    // usa `orc-${receitaId}-${ts}`) pra reconciliacao 1:1 com entidade dominio.
+    const externalId = p.externalId || `${template.codigo}-${paciente.id}-${Date.now()}`;
 
     // Decisao de canais antecipada — alimenta enviarWhatsappAutomatico do
     // payload pro adapter respeitar o toggle (em vez de assumir true sempre).
@@ -230,7 +246,7 @@ export class AssinaturaService {
         (${paciente.id}, ${template.id}, ${provedorUsado}, ${envelopeId}, 'ENVIADO',
          ${JSON.stringify(dados)}::jsonb, ${hashOriginal}, ${parId}, ${JSON.stringify(signatarios)}::jsonb,
          ${sql.raw(`ARRAY[${canais.map((c) => `'${c}'`).join(",") || "''"}]::text[]`)}, now(),
-         ${JSON.stringify({ failoverAcionado, linksAssinatura })}::jsonb,
+         ${JSON.stringify({ failoverAcionado, linksAssinatura, ...(p.metadataExtra || {}) })}::jsonb,
          ${provedorUsado === "zapsign" ? externalId : null})
       RETURNING id
     `);
