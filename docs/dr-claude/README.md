@@ -22,7 +22,8 @@ Leia nessa ordem se for a primeira vez nesta pasta hoje:
 | 1 | [`00_BRIEFING_PAINEL_CEO_PARA_DR_CLAUDE.md`](./00_BRIEFING_PAINEL_CEO_PARA_DR_CLAUDE.md) | Painel CEO 1-página: onde estamos, números chave, semáforo | **SEMPRE primeiro** |
 | 2 | [`01_DECISOES_TOMADAS_WAVE10_F3C.md`](./01_DECISOES_TOMADAS_WAVE10_F3C.md) | Histórico decisões Caio + code-review architect FAIL→PASS | Pra entender por que estamos aqui |
 | 3 | [`02_DECISOES_PENDENTES_PARA_DR_CLAUDE.md`](./02_DECISOES_PENDENTES_PARA_DR_CLAUDE.md) | Perguntas abertas que precisam input do Dr. Claude **antes** de seguir | Antes de orquestrar próximo passo |
-| 4 | [`raws/`](./raws/) | Espelhos exatos dos 4 docs fonte-de-verdade `.local/*` (microscópio Wave 10, mapa neuronal v1.1, arquitetura bounded contexts, session plan atual) | Pra deep-dive técnico |
+| 4 | [`03_ARQUITETURA_GERAL_DO_CODIGO.md`](./03_ARQUITETURA_GERAL_DO_CODIGO.md) | **Mapa macro→micro do código real** com raw URLs por domínio (clínico / farmácia / jurídico / financeiro / painéis / integrações) + Wave 10 detalhada | Quando precisar mergulhar em código específico ou entender arquitetura |
+| 5 | [`raws/`](./raws/) | Espelhos exatos dos 4 docs fonte-de-verdade `.local/*` (microscópio Wave 10, mapa neuronal v1.1, arquitetura bounded contexts, session plan atual) | Pra deep-dive técnico de Wave atual |
 
 ---
 

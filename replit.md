@@ -23,6 +23,9 @@ A ponte oficial pro Dr. Claude ler tudo via raw GitHub é a pasta
   ISO e lente de persona (🩺 médico / 💰 CEO / 📈 empresário / 🛡️ investidor)
 - `02_DECISOES_PENDENTES_PARA_DR_CLAUDE.md` — perguntas abertas que
   precisam input do Dr. Claude antes do Dr. Replit seguir
+- `03_ARQUITETURA_GERAL_DO_CODIGO.md` — **mapa macro→micro do código
+  real** com raw URLs por domínio (clínico / farmácia / jurídico /
+  financeiro / painéis / integrações) + Wave 10 detalhada fase a fase
 - `raws/` — espelhos exatos dos 4 docs `.local/*` (atualizados via `cp`
   no commit que fecha cada fase)
 
