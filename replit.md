@@ -4,6 +4,33 @@
 
 Pawards is a SaaS clinical engine platform designed for multi-unit integrative medical clinics. It aims to streamline operations, enhance patient care through data-driven suggestions, and improve administrative efficiency. The platform's core functionality includes patient anamnesis, which triggers a clinical engine to generate suggestions for exams, formulas, injectables, implants, and treatment protocols. Key capabilities include TDAH-friendly dashboards with operational queues, medical validation workflows, and dedicated modules for follow-up and financial management. The business vision is to provide an invisible operational consultancy service through a highly efficient and scalable platform, with a comprehensive monetization system for modules and services, targeting multi-unit clinics and consultancy companies.
 
+## 🧭 Briefing & Raws para Dr. Claude (orquestração)
+
+> **Atualizado em 2026-05-01 (Wave 10 F3.C fechado)**
+
+Os arquivos de fonte-de-verdade local em `.local/*` (microscópio Wave 10,
+mapa neuronal v1.1, arquitetura bounded contexts, session plans) **NÃO
+vão pro GitHub** porque `.local/` está no `.gitignore`.
+
+A ponte oficial pro Dr. Claude ler tudo via raw GitHub é a pasta
+[`docs/dr-claude/`](./docs/dr-claude/), que contém:
+
+- `README.md` — índice + política de atualização + URLs raw por branch
+- `00_BRIEFING_PAINEL_CEO_PARA_DR_CLAUDE.md` — semáforo Wave 10, números
+  chave (8.725 receitas, R$ 2.735.336,10 potencial, R$ 0 pago), 4 personas
+  do Caio, regra ferro
+- `01_DECISOES_TOMADAS_WAVE10_F3C.md` — append-only, decisões com data
+  ISO e lente de persona (🩺 médico / 💰 CEO / 📈 empresário / 🛡️ investidor)
+- `02_DECISOES_PENDENTES_PARA_DR_CLAUDE.md` — perguntas abertas que
+  precisam input do Dr. Claude antes do Dr. Replit seguir
+- `raws/` — espelhos exatos dos 4 docs `.local/*` (atualizados via `cp`
+  no commit que fecha cada fase)
+
+**Política**: sempre que Dr. Replit terminar uma fase F (F3.C, F4, F5…),
+ele atualiza `.local/session_plan.md` primeiro e em seguida espelha pra
+`docs/dr-claude/raws/04_session_plan_wave10_atual.md` no mesmo commit,
+pra Dr. Claude não orquestrar de cabeça vazia.
+
 ## User Preferences
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
