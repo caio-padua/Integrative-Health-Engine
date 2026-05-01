@@ -147,3 +147,101 @@ forcarProvedor "zapsign" ──► sempre semântica ICP correta  ► defensibil
 Sujeira Wave 5 fallback ──► risco operacional baixo ──────► Wave 10.5
                             (1 farmácia ativa hoje)         resolve
 ```
+
+---
+
+## 🧠 Decisões Orquestração Dr. Claude — pós-pausa Caminho C — 2026-05-01
+
+**Contexto**: Caio escolheu opção C (pausar+revisar) na rodada anterior.
+Dr. Claude leu 4 dos 5 docs (`README`, `00_BRIEFING`, `01_DECISOES_TOMADAS`,
+`02_DECISOES_PENDENTES`) — o `03_ARQUITETURA_GERAL_DO_CODIGO` ainda
+retornava 404 no momento da consulta (precisa de mais 1 Sync do Caio).
+Material foi suficiente pra responder as 4 pendências.
+
+### ✅ Decisão D1 (MASTER) — Ordem próximos passos: **B → C → A** (endossado)
+- 🩺 **Médico**: B primeiro garante que ZapSign chega no WhatsApp
+  ANTES de construir mais em cima → reduz risco clínico de bug oculto
+- 💰 **CEO**: 30min de "delay" é nada vs risco de F4 sobre F3.C com bug
+- 📈 **Empresário**: C alinha os 3 use-cases pro mesmo padrão `externalId`
+  → F4 webhook fica **3× mais simples** (1 regex genérica)
+- 🛡️ **Investidor**: testar sandbox real antes de produção é o que
+  qualquer due diligence exigiria
+
+**Sequência aprovada**:
+1. **B** (~30min) — disparar 1 orçamento sandbox real pro WhatsApp do Caio
+2. **C** (~1h) — refatorar F3.A/F3.B pra usar mesmo padrão determinístico
+3. **A** (~2-3h) — F4 webhook completo + manifesto auditoria
+
+**Total pra fechar Wave 10**: ~4h até tag `v031-zapsign-launch`.
+
+### ✅ Decisão D2 — Wave 11 prazo limite: **α (90 dias absolutos)**
+- 🛡️ **Investidor**: simplicidade auditável vence inteligência difícil
+  de defender em tribunal (CFM e juiz não querem fórmulas dinâmicas)
+- 💰 **CEO**: 90d é tempo suficiente pra qualquer farmácia finalizar
+- 🩺 **Médico**: master (Caio) pode estender manualmente caso a caso
+- 📈 **Empresário**: γ (dinâmico) pode ser implementado em Wave futura
+  quando houver dados reais de conversão pra calibrar a faixa
+
+**Status**: α adotado. β e γ descartados nesta Wave.
+
+### ✅ Decisão D3 — Wave 11 status farmácia: **enum SEM BLACKLIST**
+- Status aprovado: `'ATIVA' | 'SUSPENSA_TEMP' | 'INATIVA'`
+- 🛡️ **Investidor**: BLACKLIST exige processo legal documentado
+  (CDC + LGPD) — cria mais risco jurídico do que resolve agora
+- 🩺 **Médico**: 3 estados cobrem 100% dos cenários clínicos hoje
+- 💰 **CEO**: migration aditiva simples, sem risco
+- 📈 **Empresário**: se precisar BLACKLIST no futuro, **+1 valor no
+  enum é aditivo** — REGRA FERRO preservada
+
+**Status**: enum 3-valor adotado pra Wave 11. BLACKLIST diferida.
+
+### ✅ Decisão D4 — Wave 11 PARQ LABOR: **manter Wave 12** (não antecipar)
+- 🩺 **Médico**: contratação PJ junho/2026 cobre com **contrato ZapSign
+  avulso** sem precisar do módulo PARQ LABOR completo
+- 💰 **CEO**: antecipar PARQ LABOR atrasa finalização Wave 10 que é o
+  que destrava os R$ 2.735.336,10
+- 🛡️ **Investidor**: PARQ LABOR tem regulação ANVISA diferente
+  (RDC 204/2017 pra injetáveis) — precisa análise jurídica dedicada
+- 📈 **Empresário**: sequência **Wave 10 → 11 (comunicação) → 11.5
+  (segurança IDOR) → 12 (PARQ LABOR)** maximiza valor por semana
+
+**Status**: PARQ LABOR fica Wave 12. Junho usa contrato ZapSign avulso.
+
+### ✅ Validação Mapa Neuronal v1.1 — 7 sujeiras aceitas
+
+Dr. Claude validou todas as 7 correções aditivas do Dr. Replit:
+
+| # | Sujeira | Aceite Dr. Claude |
+|---|---------|-------------------|
+| 1 | Faltou `'denunciada'` no enum status auditoria | ✅ Adicionar |
+| 2 | Wave 9 subestimada no mapa | ✅ Reescrever com entregas reais |
+| 3 | Wave 11 conflito roadmap | ✅ Wave 11 = Comunicação, Wave 11.5 = Segurança IDOR |
+| 4 | PARQ LABOR = Wave 12 | ✅ Atualizar conforme Caio |
+| 5 | `parmavaultEngine` não existe no código | ✅ Esclarecer como abstração conceitual |
+| 6 | Nomes módulos (PARASCLIN, PAWTRACK) são branding | ✅ Adicionar nota apêndice |
+| 7 | Worker questionário é Wave 14 futura | ✅ Marcar como futuro |
+
+**Status**: Mapa Neuronal v1.1 oficial. Pode ser gravado.
+
+### 🔭 Revelações que Dr. Claude trouxe da leitura do código
+
+1. **R$ 2.735.336,10 é potencial teórico — R$ 0 pago até hoje, zero
+   farmácias assinaram PARQ ainda.** Wave 10 inteira existe pra destravar.
+2. **Nomes de módulos (PARASCLIN, PAWTRACK, etc.) são branding
+   conceitual** — não existem como namespaces no código. Tabelas reais
+   usam nomes diretos (`pacientes`, `consultas`, `arquivos_exames`).
+3. **F3.C foi auto-auditado** pelo Dr. Replit antes da revisão — 3 bugs
+   críticos detectados e resolvidos sozinho. `externalId` determinístico
+   e `forcarProvedor: "zapsign"` foram reconhecidos como decisões
+   arquiteturais corretas.
+
+### 🚦 Próximo passo destravado
+
+Dr. Replit autorizado a iniciar **Fase B (sandbox real ZapSign 30min)**
+assim que Caio:
+1. Sincronizar GitHub novamente (pra `03_ARQUITETURA_GERAL_DO_CODIGO`
+   ficar acessível ao Dr. Claude pra validar)
+2. Confirmar **WhatsApp + CPF de teste** pra disparo sandbox
+3. Disparar OK do PADCON Princípio 9 (validação Caio explícita)
+
+Quando B verde → C → A → tag `v031-zapsign-launch` → Wave 10 fechada.
