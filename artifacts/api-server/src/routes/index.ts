@@ -175,6 +175,9 @@ import parqRouter from "./parq";
 router.use(parqRouter);
 import assinaturasTcleRouter from "./assinaturas-tcle";
 router.use(assinaturasTcleRouter);
+// Wave 10 F3.C — Orcamento Farmaceutico (Familia 3 ZapSign)
+import orcamentosRouter from "./orcamentos";
+router.use(orcamentosRouter);
 router.use(relatorioOperacionalDiaRouter);
 router.use(examesRouter);
 router.use(agendasProfissionaisRouter);
