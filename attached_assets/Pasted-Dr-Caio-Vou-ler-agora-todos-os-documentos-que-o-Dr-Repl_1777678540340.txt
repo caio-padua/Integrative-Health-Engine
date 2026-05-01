@@ -1,0 +1,95 @@
+Dr. Caio. Vou ler agora todos os documentos que o Dr. Replit preparou. Deixa eu buscar um por um.Dr. Caio. Lí 4 documentos do GitHub (Briefing CEO, Decisões Tomadas, Decisões Pendentes, Mapa Neuronal v1.1). O doc `03_ARQUITETURA_GERAL_DO_CODIGO.md` ainda não foi sincronizado (404) — provavelmente precisa de mais um Sync. Mas tenho material suficiente para responder as 4 decisões pendentes e validar o panorama.
+
+---
+
+## Panorama real — o que o código me disse que eu não sabia
+
+Três revelações importantes:
+
+**Primeira:** R$ 2.735.336,10 é potencial teórico. **R$ 0 foi pago até hoje.** Zero farmácias assinaram PARQ ainda. A Wave 10 inteira existe para destravar esse número — sem assinatura digital com defensibilidade jurídica, o valor é fumaça.
+
+**Segunda:** O Dr. Replit fez auto-auditoria do Mapa Neuronal que eu criei e encontrou 7 sujeiras reais. Todas corretas. Os nomes dos módulos (PARASCLIN, PAWTRACK etc) são branding conceitual — não existem como namespaces no código. As tabelas reais usam nomes como `pacientes`, `consultas`, `arquivos_exames`. Aceito a correção e confirmo a v1.1.
+
+**Terceira:** F3.C (Orçamento Farmacêutico) está feito e corrigido — 3 bugs críticos detectados e resolvidos pelo próprio Dr. Replit antes de eu pedir. O `externalId` determinístico e o `forcarProvedor: "zapsign"` são decisões arquiteturais corretas.
+
+---
+
+## As 4 decisões respondidas nas 4 lentes
+
+### Decisão 1 — Ordem B → C → A vs outra
+
+**Meu veredicto: B → C → A está correto. Endosso a recomendação do Dr. Replit.**
+
+- 🩺 B primeiro garante que o ZapSign realmente chega no WhatsApp antes de construir mais em cima
+- 💰 30 minutos de "delay" é nada comparado ao risco de construir F4 sobre F3.C com bug oculto
+- 📈 C alinha os 3 use-cases para o mesmo padrão de `externalId` — o F4 webhook fica 3x mais simples
+- 🛡️ Testar sandbox real antes de produção é o que qualquer investidor exigiria
+
+### Decisão 2 — Wave 11 Decisão E (prazo limite): α, β ou γ
+
+**Meu veredicto: α (prazo absoluto de 90 dias).**
+
+- 🛡️ Simplicidade auditável para investidor e para o CFM. Prazo dinâmico é inteligente mas difícil de explicar num tribunal
+- 💰 90 dias é tempo suficiente para qualquer farmácia finalizar o processo
+- 🩺 Se precisar de exceção, o master (Dr. Caio) pode estender manualmente caso a caso
+- 📈 γ (dinâmico) pode ser implementado em Wave futura quando houver dados reais de conversão para calibrar a faixa
+
+### Decisão 3 — Wave 11 Decisão A (status farmácia enum)
+
+**Meu veredicto: implementar agora o enum, mas sem BLACKLIST.**
+
+Status aprovado: `'ATIVA' | 'SUSPENSA_TEMP' | 'INATIVA'`
+
+- 🛡️ BLACKLIST exige processo legal documentado (CDC + LGPD) — cria mais risco jurídico do que resolve agora
+- 🩺 3 estados cobrem 100% dos cenários clínicos reais hoje
+- 💰 Migration aditiva simples, sem risco
+- 📈 Se precisar de BLACKLIST no futuro, é 1 valor a mais no enum — aditivo, REGRA FERRO
+
+### Decisão 4 — Wave 11 Decisão C (PARQ LABOR): antecipar ou manter Wave 12
+
+**Meu veredicto: manter Wave 12. Não antecipar.**
+
+- 🩺 A contratação PJ de junho/2026 pode ser coberta com um contrato ZapSign avulso sem módulo PARQ LABOR completo
+- 💰 Antecipar PARQ LABOR para Wave 11 atrasa a finalização da Wave 10 que é o que destrava os R$ 2,73M
+- 🛡️ PARQ LABOR tem regulação ANVISA diferente (RDC 204/2017 para injetáveis) — precisa de análise jurídica dedicada
+- 📈 Wave 10 → Wave 11 (comunicação + segurança) → Wave 12 (PARQ LABOR) é a sequência que maximiza valor por semana
+
+---
+
+## Validação do Mapa Neuronal v1.1
+
+As 7 sujeiras do Dr. Replit estão todas corretas. Aceito as correções aditivas:
+
+| Sujeira | Meu aceite |
+|---|---|
+| #1 Faltou 'denunciada' no enum | ✅ Adicionar |
+| #2 Wave 9 subestimada | ✅ Reescrever com entregas reais |
+| #3 Wave 11 conflito roadmap | ✅ Wave 11 = Comunicação, Wave 11.5 = Segurança IDOR |
+| #4 PARQ LABOR = Wave 12 | ✅ Atualizar conforme Caio definiu |
+| #5 parmavaultEngine não existe no código | ✅ Esclarecer como abstração conceitual |
+| #6 Nomes dos módulos são branding | ✅ Adicionar nota no apêndice |
+| #7 Worker questionário é Wave 14 futura | ✅ Marcar como futuro |
+
+---
+
+## Mensagem para o Dr. Replit
+
+> "Dr. Replit — auditoria completa do Dr. Claude sobre os docs `00_`, `01_`, `02_` e `raws/02_`:
+>
+> **Decisão 1:** B → C → A **endossado**. Segue nessa ordem.
+>
+> **Decisão 2 (prazo):** α (90 dias absolutos). Simplicidade auditável vence inteligência difícil de defender em tribunal.
+>
+> **Decisão 3 (enum farmácia):** `'ATIVA' | 'SUSPENSA_TEMP' | 'INATIVA'` — sem BLACKLIST por enquanto.
+>
+> **Decisão 4 (PARQ LABOR):** mantém Wave 12. Contratação PJ de junho resolve com contrato ZapSign avulso.
+>
+> **Mapa Neuronal v1.1:** 7 sujeiras aceitas, todas aditivas. Pode gravar como v1.1 oficial.
+>
+> **Doc `03_ARQUITETURA_GERAL_DO_CODIGO.md`:** retornou 404 — precisa de outro Sync do Caio. Quando estiver no GitHub, leio e valido.
+>
+> Migra as 4 decisões para `01_DECISOES_TOMADAS` (append-only) e começa B (sandbox real ZapSign). Quando B estiver verde, segue C e depois A. Estimativa total: ~4h para fechar Wave 10 inteira com tag v031."
+
+---
+
+Dr. Caio, o triângulo está alinhado. As 4 decisões estão tomadas. O Dr. Replit pode seguir com B → C → A. Quando ele terminar B (o ZapSign chegou no seu WhatsApp?), me avisa e validamos antes de C.
