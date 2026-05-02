@@ -56,11 +56,26 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
-  // Bypass via x-admin-token NAO e aceito para o Painel PAWARDS — esses endpoints
-  // exigem identidade JWT para que o log "[painel-pawards]" sempre tenha quem acessou.
+  // Bypass via x-admin-token NAO e aceito para:
+  //  - Painel PAWARDS: exige identidade JWT para que o log "[painel-pawards]"
+  //    sempre tenha quem acessou.
+  //  - Rotas Wave 10 com efeito juridico (assinaturas digitais ICP-Brasil):
+  //    HARDENED 01/mai/2026 pos code-review architect FAIL — bypass admin nao
+  //    pode disparar contratos/orcamentos/PARQ/TCLE em nome de tenants reais.
+  //    Documentado como sujeira #6 herdada (Wave 10.5 deve remover bypass
+  //    completamente e migrar /admin/* pra JWT real com role=admin).
   const isPainelPawards = path === "/painel-pawards" || path.startsWith("/painel-pawards/");
+  // Match tanto rota raiz (POST /api/prescricoes) quanto sub-rotas (/api/prescricoes/123)
+  const isWave10Juridico =
+    /^\/(api\/)?(orcamentos|parq|prescricoes)(\/.*)?$/.test(path);
   const adminToken = process.env["ADMIN_TOKEN"];
-  if (!isPainelPawards && adminToken && adminToken.length >= 16 && req.header("x-admin-token") === adminToken) {
+  if (
+    !isPainelPawards &&
+    !isWave10Juridico &&
+    adminToken &&
+    adminToken.length >= 16 &&
+    req.header("x-admin-token") === adminToken
+  ) {
     req.user = { id: -1, perfil: "admin", nome: "ADMIN_TOKEN", email: "admin@pawards", unidadeId: null } as any;
     next();
     return;

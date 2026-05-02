@@ -34,6 +34,70 @@ ele atualiza `.local/session_plan.md` primeiro e em seguida espelha pra
 `docs/dr-claude/raws/04_session_plan_wave10_atual.md` no mesmo commit,
 pra Dr. Claude não orquestrar de cabeça vazia.
 
+## Wave 10 ZapSign + ICP-Brasil — Migration 031 (Fase B Dia 1 · 01/mai/2026)
+
+Wave 10 destrava conversão de R$ 2.735.336,10 (comissão potencial Wave 9 PARQ)
+em caixa real via assinatura digital com defensibilidade jurídica tripla
+(CFM 2.386/2024 + CC 593-609 + LGPD art. 11 §4º + STJ REsp 2.159.442/PR).
+
+### Status fases (01/mai/2026 22:48)
+- ✅ **F0** Invariantes baseline + bucket `assinaturas-pawards`
+- ✅ **F1** Migration 031 (`assinatura_solicitacoes` + `auditoria_assinaturas`)
+- ✅ **F2** ZapsignAdapter promovido com HMAC custom header (`x-pawards-secret` timing-safe)
+- ✅ **F3.A** `enviarPARQ.ts` (Família 4 — clínica e-CNPJ + farmácia e-CNPJ)
+- ✅ **F3.B** `enviarTCLE.ts` (Família 1 — paciente avançada + médico e-CPF)
+- ✅ **F3.C** `enviarOrcamentoFarmaceutico.ts` (Família 3 — paciente avançada + farmácia e-CNPJ ICP-Brasil), com 4 correções pós code-review (externalId determinístico, metadataExtra atômico, forcarProvedor zapsign, retro-compat)
+- 🟢 **Fase B Dia 1** preparação completa hoje (sem token ZapSign)
+- 🟡 **Fase B Dia 2** disparo real amanhã (depende cadastro ZapSign Caio)
+- 🟡 **F4** Webhook handler completo + manifesto SHA-256
+- 🟡 **F5** Frontend timeline + detalhe (2 telas)
+- 🟡 **F6** Wrap-up + tag `v031-zapsign-launch`
+
+### Identidade ZapSign decidida (D5/D6/D8)
+- **Email proprietário conta ZapSign**: `ceo@pawards.com.br`
+- **Email aliases organizacionais** (todos caem na mesma inbox via filtros):
+  - `contratos@pawards.com.br` — recebe `doc_signed`
+  - `billing@pawards.com.br` — faturas ZapSign
+  - `admin@pawards.com.br` — DPO LGPD + auditoria
+- **Webhook nome**: `hook-padua-4000`
+- **Webhook URL definitiva**: `https://webhooks.pawards.com.br/api/webhooks/assinatura/zapsign` (CNAME apontando pro Replit deploy)
+- **Webhook eventos**: `doc_signed`, `doc_refused`, `doc_removed`
+
+### Env vars Wave 10
+- `ZAPSIGN_API_TOKEN` (secret) — pendente, Caio cola amanhã via `requestEnvVar`
+- `ZAPSIGN_WEBHOOK_SECRET` (secret, NÃO mais shared) — ⚠️ regenerar amanhã (achado crítico code-review: o valor gerado hoje em `shared` foi DELETADO porque secret visível = vetor de forja de webhook com impacto jurídico). Amanhã: `openssl rand -hex 32` → mostrar 1 vez no chat pra Caio guardar no 1Password → `requestEnvVar(secret)` → Caio cola o mesmo valor no campo "Secret" do painel ZapSign.
+- `ZAPSIGN_BASE_URL` (opcional) — default `https://sandbox.api.zapsign.com.br/api/v1`
+- `ZAPSIGN_BRAND_NAME` (opcional) — default `PAWARDS MEDCORE`
+- `FARMACIA_REPRESENTANTE_*_FALLBACK` — pendente Wave 10.5 (sujeira #4 Wave 5)
+
+### Endpoints relevantes
+- `POST /api/orcamentos/:receitaId/disparar` — dispara use-case F3.C (auth requireRole)
+- `GET /api/orcamentos/:receitaId/status` — consulta status assinatura
+- `POST /api/webhooks/assinatura/zapsign` — recebe eventos ZapSign (HMAC validado)
+- `POST /api/parq/emitir` — F3.A integrado
+- `POST /api/prescricoes` — F3.B integrado (1ª receita do paciente dispara TCLE)
+
+### Invariantes Wave 9 PRESERVADAS hoje
+- 8.725 receitas em `parmavault_receitas`
+- R$ 2.735.336,10 em comissão potencial (`SUM(comissao_estimada)`)
+- 5 triggers Wave 9 ativos: `trg_calc_comissao`, `trg_assin_templates_validar`, `trg_nfe_validar`, `trg_parq_plano_prazo_limite`, `trg_sync_comissao_parq`
+
+### Wave 10 baseline (pré-disparo real)
+- `assinatura_solicitacoes`: 4 linhas
+- `auditoria_assinaturas`: 0 linhas
+- Paciente teste Caio Pádua (id=3104) inserido idempotente
+- Coluna nova `pacientes.is_teste boolean NOT NULL DEFAULT false` (psql aditivo, achado 3 code-review) — Caio marcado `true`. Relatórios futuros DEVEM filtrar `WHERE p.is_teste = false` pra excluir contas de teste de dashboards de produção.
+
+### Plano amanhã CORRIGIDO (achado 2 code-review)
+Cancelado o plano original de UPDATE transitório no telefone do paciente Carlos (id=1703) — worker `notifAssinatura.ts` lê dados atuais do paciente em runtime e poderia redirecionar notificações de OUTROS fluxos pro Caio durante a janela = vazamento PII. Substituído por: criar receita teste vinculada ao próprio Caio (id=3104, paciente teste), filtrável via `is_teste`. Detalhes em `02_DECISOES_PENDENTES_PARA_DR_CLAUDE.md` passo 6.
+
+### Wave 13 RBAC + Kill-Switch + 2FA TOTP (pendência arquitetural)
+Detalhada em `docs/dr-claude/02_DECISOES_PENDENTES_PARA_DR_CLAUDE.md` com mini-RFC técnico (schema SQL aditivo + matriz endpoint×perfil + middleware exemplo + 8 critérios de aceite).
+Modelo: PLATFORM_OWNER (Caio, 2FA TOTP obrigatório) > TENANT_ADMIN (donos clínica) > TENANT_USER (médicos/secretárias). Kill-switch 4 ações (suspender, reassumir, exportar LGPD art. 18, excluir após carência 30d). Recomendação: implementar imediatamente após Wave 10 (antes de Wave 11/12) porque assinaturas reais sem RBAC robusto criam risco jurídico.
+
+### Hotfix de segurança Wave 10 Fase B Dia 1 (sujeira #6)
+Code-review architect detectou que `.replit` versionado expõe `ADMIN_TOKEN` em texto claro + `requireAuth.ts` aceita bypass via header `x-admin-token` em qualquer rota não-painel. Pra fluxo Wave 10 com efeito jurídico (assinaturas ICP-Brasil), bypass admin disparando contratos em nome de tenants reais é catastrófico. **Hotfix HOJE**: editado `requireAuth.ts` linhas 70-89 pra bloquear bypass nas rotas Wave 10 (`/orcamentos/*`, `/parq/*`, `/prescricoes/*` com ou sem prefixo `/api/`) via regex `/^\/(api\/)?(orcamentos|parq|prescricoes)(\/.*)?$/`. Smoke confirmou bloqueio: 5/5 rotas reais Wave 10 retornam 401 mesmo com `x-admin-token` válido. Cleanup completo (rotação token + remoção do `.replit` versionado) agendado pra Wave 10.5 (Caio rotaciona via `requestEnvVar(secret)` amanhã junto com cadastro ZapSign).
+
 ## User Preferences
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
