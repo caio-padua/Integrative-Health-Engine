@@ -59,8 +59,34 @@ PRINCÍPIO 9 PADCON: validação Caio explícita antes de qualquer mudança visu
   - ④ F3.C passa `forcarProvedor: "zapsign"` — elimina risco funcional-jurídico de fallback Clicksign sem capability ICP qualificada FARMACIA_ECNPJ
   - Smoke pós-fix verde: 401/200/8725/2.735.336,10/3 triggers/2 tabelas Wave 10/template id=4
 
-### F4: Webhook handler completo + manifesto auditoria
+### Fase B (smoke real ZapSign sandbox 30min) — DIA 1 (HOJE 2026-05-01) ✅ PARCIAL VERDE
 - **Blocked By**: [F3.C]
+- ✅ FEITO HOJE (preparação SEM token ZapSign):
+  - `ZAPSIGN_WEBHOOK_SECRET` gerado aleatório forte hoje (32 bytes hex, 256 bits) E **DELETADO** após code-review architect FAIL apontar que secret visível em `shared` = vetor de forja de webhook com impacto jurídico. Amanhã re-gerar como SECRET (oculto) via `requestEnvVar` e revelar 1 vez no chat pra Caio guardar no 1Password.
+  - Coluna `pacientes.is_teste boolean NOT NULL DEFAULT false` adicionada (psql aditivo, achado 3 code-review). Caio (id=3104) marcado `is_teste=true`. Estabelece flag estrutural pra filtrar contas teste em relatórios futuros.
+  - Paciente Caio (id=3104) inserido idempotente: CPF 29327494806, tel 5511946554000, email ceo@pawards.com.br, unidade_id=1
+  - Smoke 6/6 verde: API healthz 200 · POST/GET orçamentos 401 · webhook ZapSign ping 200 · receita 8725 com todos campos · Caio+FAMA+template prontos · invariantes Wave 9 PRESERVADOS (8.725 receitas + R$ 2.735.336,10) · Wave 10 baseline capturado (4 solicitações, 0 auditoria)
+  - Wave 13 RBAC + Kill-Switch + 2FA TOTP **mini-RFC técnico completo** em `02_DECISOES_PENDENTES` (schema SQL aditivo + matriz endpoint×perfil + middleware exemplo + 8 critérios de aceite)
+  - **Hotfix segurança crítico (sujeira #6 nova)**: bypass `x-admin-token` em rotas Wave 10 BLOQUEADO em `requireAuth.ts` via regex `/^\/(api\/)?(orcamentos|parq|prescricoes)(\/.*)?$/`. Smoke confirmou 5/5 rotas Wave 10 reais retornam 401 mesmo com token admin válido. Rotação completa do `ADMIN_TOKEN` (e remoção do `.replit` versionado) agendada pra Wave 10.5 — Caio rotaciona via `requestEnvVar(secret)` amanhã junto com cadastro ZapSign.
+  - Migration versionada `032_pacientes_is_teste.sql` criada (rastreabilidade da coluna `is_teste`)
+  - Decisões Caio aprovadas: D5 ceo@pawards.com.br + 3 aliases · D6 WEBHOOK_SECRET aleatório gravado · D7 Wave 13 documentado · D8 webhooks.pawards.com.br (CNAME amanhã) · C1 smoke mockado hoje
+- 🟡 PENDENTE DIA 2 (amanhã 2026-05-02 manhã, depende de Caio):
+  - Caio cadastra conta SANDBOX ZapSign com ceo@pawards.com.br
+  - Caio cola `ZAPSIGN_API_TOKEN` via requestEnvVar
+  - Dr. Replit roda `suggest_deploy` → ganha URL Replit estável
+  - Caio cria CNAME `webhooks.pawards.com.br` → URL deploy
+  - Dr. Replit roda `openssl rand -hex 32` → revela 1 vez no chat pra Caio guardar no 1Password → `requestEnvVar(ZAPSIGN_WEBHOOK_SECRET)` como SECRET oculto
+  - Caio cadastra webhook ZapSign: nome `hook-padua-4000` + URL `https://webhooks.pawards.com.br/api/webhooks/assinatura/zapsign` + secret (cola o mesmo valor revelado)
+  - Dr. Replit cria receita teste vinculada ao Caio (id=3104, `is_teste=true`):
+    `INSERT INTO parmavault_receitas (paciente_id, farmacia_id, unidade_id, numero_receita, valor_formula_estimado, status, criado_em, emitida_em) VALUES (3104, 4, 1, 'TESTE-WAVE10-FASE-B-001', 1000.00, 'EMITIDA', now(), now()) RETURNING id`
+    — `trg_calc_comissao` calcula comissao_estimada=160.00 automático.
+    — **NÃO mais UPDATE transitório no Carlos** (cancelado por achado 2 code-review: vazamento PII via worker notifAssinatura.ts).
+  - Dr. Replit dispara `enviarOrcamentoFarmaceutico({receitaId: <novo_id>, farmaciaRepresentante: {nome, cpf:29327494806, tel:5511946554000, email:ceo@pawards.com.br}})`
+  - Caio assina ambos links no celular → webhook → auditoria gravada
+  - Validação: receitas PRODUÇÃO (`WHERE p.is_teste=false`) 8.725 mantidas + R$ 2.735.336,10 mantida + assinatura_solicitacoes 4→5 + auditoria_assinaturas 0→1 + receitas TESTE 0→1 + comissão TESTE 0→R$ 160
+
+### F4: Webhook handler completo + manifesto auditoria
+- **Blocked By**: [Fase B Dia 2]
 - 🟡 PENDENTE
 - `assinaturasWebhook.ts`: promove handler ZapSign para full
 - `service.ts` ganha `processarEventoZapSign(evento)`:
