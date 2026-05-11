@@ -427,16 +427,49 @@ export class AssinaturaService {
       return { ok: false, eventoId, duplicado: false };
     }
 
-    // Eventos de conclusao: ZapSign envia "signed"; Clicksign envia "auto_close" / "sign" / "finish".
-    if (evento.envelopeId && /sign|close|finish|complet/i.test(evento.eventType)) {
-      const sol = await db.execute(sql`SELECT id, paciente_id FROM assinatura_solicitacoes WHERE provedor_envelope_id = ${evento.envelopeId} AND provedor_codigo = ${provedor} LIMIT 1`);
-      const solRow = ((sol as unknown as { rows?: Array<{ id: number; paciente_id: number }> }).rows || [])[0];
+    // Caminho A F4 (Dr. Claude 11/mai/2026): roteamento por tipo de evento.
+    // ZapSign: doc_signed / doc_refused / doc_removed
+    // Clicksign: auto_close / sign / finish
+    const t = evento.eventType.toLowerCase();
+    const isRecusado = /refus|reject|denied/.test(t);
+    const isRemovido = /remov|delet|cancel|expir/.test(t);
+    const isSucesso  = !isRecusado && !isRemovido && /sign|close|finish|complet/.test(t);
+
+    if (evento.envelopeId && isRecusado) {
+      const sol0 = await db.execute(sql`SELECT id FROM assinatura_solicitacoes WHERE provedor_envelope_id = ${evento.envelopeId} AND provedor_codigo = ${provedor} LIMIT 1`);
+      const sr0 = ((sol0 as unknown as { rows?: Array<{ id: number }> }).rows || [])[0];
+      if (sr0) {
+        await db.execute(sql`UPDATE assinatura_solicitacoes SET status = 'REJEITADO', atualizado_em = now() WHERE id = ${sr0.id}`);
+        await db.execute(sql`UPDATE assinatura_webhook_eventos SET solicitacao_id = ${sr0.id} WHERE id = ${eventoId}`);
+      }
+    } else if (evento.envelopeId && isRemovido) {
+      const sol0 = await db.execute(sql`SELECT id FROM assinatura_solicitacoes WHERE provedor_envelope_id = ${evento.envelopeId} AND provedor_codigo = ${provedor} LIMIT 1`);
+      const sr0 = ((sol0 as unknown as { rows?: Array<{ id: number }> }).rows || [])[0];
+      if (sr0) {
+        await db.execute(sql`UPDATE assinatura_solicitacoes SET status = 'EXPIRADO', atualizado_em = now() WHERE id = ${sr0.id}`);
+        await db.execute(sql`UPDATE assinatura_webhook_eventos SET solicitacao_id = ${sr0.id} WHERE id = ${eventoId}`);
+      }
+    } else if (evento.envelopeId && isSucesso) {
+      const sol = await db.execute(sql`SELECT id, paciente_id, zapsign_external_id FROM assinatura_solicitacoes WHERE provedor_envelope_id = ${evento.envelopeId} AND provedor_codigo = ${provedor} LIMIT 1`);
+      const solRow = ((sol as unknown as { rows?: Array<{ id: number; paciente_id: number; zapsign_external_id: string | null }> }).rows || [])[0];
       if (solRow) {
         try {
           const pdf = await adapter.downloadSignedArtifact(evento.envelopeId);
           const hashAssinado = createHash("sha256").update(pdf).digest("hex");
           await db.execute(sql`UPDATE assinatura_solicitacoes SET status = 'CONCLUIDO', concluido_em = now(), hash_assinado = ${hashAssinado}, atualizado_em = now() WHERE id = ${solRow.id}`);
           await db.execute(sql`UPDATE assinatura_webhook_eventos SET solicitacao_id = ${solRow.id} WHERE id = ${eventoId}`);
+
+          // Manifesto SHA-256 -> auditoria_assinaturas (LGPD art. 11 §4o, retencao 20 anos default).
+          // Idempotente via NOT EXISTS por (envelope_id, signature_id). Object Storage real
+          // (uploadFileToBucket assinaturas-pawards) deferido pra Wave 10.5; pdf_storage_key
+          // grava chave logica `assinaturas/${external_id}.pdf` como ponteiro.
+          await this.registrarManifestoAuditoria({
+            solicitacaoId: solRow.id,
+            envelopeId: evento.envelopeId,
+            externalId: solRow.zapsign_external_id,
+            hashAssinado,
+            payload: evento.payload,
+          });
 
           const tx = await db.execute(sql`SELECT corpo FROM assinatura_textos_institucionais WHERE codigo = 'WHATSAPP_POS_ASSINATURA'`);
           const txt = ((tx as unknown as { rows?: Array<{ corpo: string }> }).rows || [])[0];
@@ -455,6 +488,88 @@ export class AssinaturaService {
     }
     await db.execute(sql`UPDATE assinatura_webhook_eventos SET processado = true, processado_em = now() WHERE id = ${eventoId}`);
     return { ok: true, eventoId, duplicado: false };
+  }
+
+  /**
+   * Wave 10 F4 — Manifesto SHA-256 da assinatura (auditoria_assinaturas).
+   * Defensibilidade juridica tripla: CFM 2.386/2024 + CC 593-609 + LGPD art. 11 §4o
+   * + STJ REsp 2.159.442/PR. Retencao default 20 anos (default da coluna).
+   * Idempotente via ON CONFLICT (signature_id) DO NOTHING.
+   * Object Storage real (uploadFileToBucket assinaturas-pawards) deferido pra
+   * Wave 10.5 — pdf_storage_key grava chave logica assinaturas/<external_id>.pdf.
+   */
+  private async registrarManifestoAuditoria(p: {
+    solicitacaoId: number;
+    envelopeId: string;
+    externalId: string | null;
+    hashAssinado: string;
+    payload: Record<string, unknown>;
+  }): Promise<void> {
+    interface SignerLike {
+      token?: string; cpf?: string; name?: string; email?: string;
+      ip?: string; signed_at?: string; auth_mode?: string;
+      geo_latitude?: number | string | null; geo_longitude?: number | string | null;
+      icp_brasil?: { serial?: string; ac?: string } | null;
+    }
+    const ply = p.payload as { signer?: SignerLike; signers?: SignerLike[]; user_agent?: string };
+    const signerEvento: SignerLike = ply.signer
+      || (Array.isArray(ply.signers) ? (ply.signers.filter((s) => s.signed_at).slice(-1)[0] || ply.signers[0]) : undefined)
+      || {};
+
+    const signatureId = signerEvento.token || `${p.envelopeId}-${Date.now()}`;
+    const signerCpf = (signerEvento.cpf || "").replace(/\D/g, "") || "00000000000";
+    const signerName = signerEvento.name || "unknown";
+    const signerEmail = (signerEvento.email || "").toLowerCase();
+
+    // Architect HIGH fix (Wave 10 F4): nao hardcoda PACIENTE — para fluxos B2B
+    // (PARQ clinica+farmacia, TCLE paciente+medico) o papel correto vem do
+    // cadastro original em assinatura_signatarios. Match por CPF (preciso) ou
+    // email (fallback). Default PACIENTE so como ultima trava (audit nunca
+    // viola NOT NULL).
+    let signerPapel = "PACIENTE";
+    try {
+      const sg = await db.execute(sql`SELECT papel FROM assinatura_signatarios WHERE solicitacao_id = ${p.solicitacaoId} AND (
+        (cpf IS NOT NULL AND ${signerCpf} <> '00000000000' AND regexp_replace(cpf, '\\D', '', 'g') = ${signerCpf})
+        OR (email IS NOT NULL AND ${signerEmail} <> '' AND lower(email) = ${signerEmail})
+      ) LIMIT 1`);
+      const sgRow = ((sg as unknown as { rows?: Array<{ papel: string }> }).rows || [])[0];
+      if (sgRow?.papel) signerPapel = sgRow.papel;
+    } catch { /* defensivo: mantem default PACIENTE se lookup falhar */ }
+
+    const signerIp = signerEvento.ip || "0.0.0.0";
+    const userAgent = ply.user_agent || "unknown";
+    const authMode = (signerEvento.auth_mode || "assinaturaTela") as string;
+    const geoLat = signerEvento.geo_latitude;
+    const geoLng = signerEvento.geo_longitude;
+    const geoJson = (geoLat != null && geoLng != null) ? JSON.stringify({ lat: geoLat, lng: geoLng }) : null;
+    const validationUrl = signerEvento.token
+      ? `https://app.zapsign.com.br/verificar/${signerEvento.token}`
+      : `https://app.zapsign.com.br/verificar/${p.envelopeId}`;
+    const pdfStorageKey = `assinaturas/${p.externalId || p.envelopeId}.pdf`;
+    const icpSerial = signerEvento.icp_brasil?.serial || null;
+    const icpAc = signerEvento.icp_brasil?.ac || null;
+    const evidenceJson = JSON.stringify(signerEvento);
+    const tsUtc = signerEvento.signed_at || new Date().toISOString();
+
+    await db.execute(sql`
+      INSERT INTO auditoria_assinaturas (
+        signature_id, solicitacao_id, envelope_id, external_id,
+        document_hash_sha256, document_hash_assinado,
+        signer_cpf, signer_name, signer_papel, signer_ip,
+        signer_geo, user_agent, auth_method, auth_evidence_json,
+        timestamp_utc, icp_brasil_serial, icp_brasil_ac,
+        validation_url, pdf_storage_key
+      ) VALUES (
+        ${signatureId}, ${p.solicitacaoId}, ${p.envelopeId}, ${p.externalId},
+        ${p.hashAssinado}, ${p.hashAssinado},
+        ${signerCpf}, ${signerName}, ${signerPapel}, ${signerIp}::inet,
+        ${geoJson}::jsonb, ${userAgent}, ${authMode}::zapsign_auth_method,
+        ${evidenceJson}::jsonb,
+        ${tsUtc}::timestamptz, ${icpSerial}, ${icpAc},
+        ${validationUrl}, ${pdfStorageKey}
+      )
+      ON CONFLICT (signature_id) DO NOTHING
+    `);
   }
 }
 
