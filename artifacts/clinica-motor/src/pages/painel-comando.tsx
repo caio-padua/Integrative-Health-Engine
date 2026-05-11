@@ -233,6 +233,9 @@ export default function PainelComando() {
     }[];
   } | null>(null);
   const assinaturasRef = useRef<{ assinadas: number; rejeitadas: number } | null>(null);
+  // Task #52 — contagem de alertas CEO nao-visualizados (Wave 10.6).
+  // Exibido como badge dentro do banner de assinaturas + link pra fila dedicada.
+  const [alertasCeoNaoVistos, setAlertasCeoNaoVistos] = useState<number>(0);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -326,6 +329,26 @@ export default function PainelComando() {
     return () => { alive = false; clearInterval(id); };
   }, []);
 
+  // Task #52 — polling leve da fila de alertas CEO (mesmo guard do banner).
+  // Conta apenas os nao-visualizados pra mostrar o badge no painel.
+  useEffect(() => {
+    if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/assinaturas/alertas-ceo?limit=200`, { credentials: "include" });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (!alive) return;
+        const nVistos = (d.alertas || []).filter((a: { visualizado_em: string | null }) => !a.visualizado_em).length;
+        setAlertasCeoNaoVistos(nVistos);
+      } catch { /* silencioso */ }
+    };
+    carregar();
+    const id = setInterval(carregar, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
   if (loading) {
     return (
       <Layout>
@@ -385,6 +408,31 @@ export default function PainelComando() {
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold flex items-center gap-2 flex-wrap">
                   <span>Assinaturas · ultimas 24h · tendencia 7d</span>
+                  {/* Task #52 — badge contagem alertas CEO nao-visualizados */}
+                  {alertasCeoNaoVistos > 0 && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.href = "/assinaturas/alertas-ceo";
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.location.href = "/assinaturas/alertas-ceo";
+                        }
+                      }}
+                      className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold cursor-pointer hover:opacity-90"
+                      style={{ backgroundColor: COR_SEMANTICA_HEX.atencao, color: "white" }}
+                      title="Abrir fila de alertas do CEO"
+                      data-testid="badge-alertas-ceo-nao-vistos"
+                    >
+                      {alertasCeoNaoVistos} alerta{alertasCeoNaoVistos > 1 ? "s" : ""} CEO sem ver
+                    </span>
+                  )}
                   {assinaturasResumo.taxa_conversao_pct !== null && assinaturasResumo.taxa_conversao_pct !== undefined && (
                     <span
                       className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold"

@@ -1,0 +1,369 @@
+// PAWARDS MEDCORE · Task #52 · /assinaturas/alertas-ceo
+// Fila historica dos alertas proativos disparados pelo worker
+// `alertaAssinaturasCEO` (Wave 10.6). Master-only no backend (guardMaster).
+//
+// Mesma estetica navy/gold das telas Wave 10 F5 (timeline + detalhe).
+import { useEffect, useState, useCallback } from "react";
+import { Layout } from "@/components/Layout";
+import {
+  Bell,
+  CheckCircle2,
+  AlertTriangle,
+  Flame,
+  RefreshCw,
+  Mail,
+  MessageSquare,
+  ShieldCheck,
+} from "lucide-react";
+
+const NAVY = "#020406";
+const GOLD = "#C89B3C";
+const RED = "#dc2626";
+const AMBER = "#d97706";
+const GREEN = "#16a34a";
+const BLUE = "#2563eb";
+const ZINC = "#71717a";
+
+type Cor = "excelente" | "bom" | "atencao" | "critico" | null;
+
+type Alerta = {
+  id: number;
+  dia_brt: string;
+  metrica: string;
+  cor_anterior: Cor;
+  cor_atual: Cor;
+  variacao_pct: number | null;
+  conversao_pp: number | null;
+  totais_atual: Record<string, unknown> | null;
+  totais_prev: Record<string, unknown> | null;
+  notif_email_id: number | null;
+  notif_wpp_id: number | null;
+  visualizado_em: string | null;
+  criado_em: string;
+};
+
+const COR_HEX: Record<NonNullable<Cor>, string> = {
+  excelente: "#16a34a",
+  bom: "#2563eb",
+  atencao: "#d97706",
+  critico: "#dc2626",
+};
+
+const METRICA_LABEL: Record<string, string> = {
+  rejeitadas_24h: "Rejeições em 24h",
+  conversao_7d: "Conversão 7 dias",
+};
+
+function formatarData(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatarDia(iso: string): string {
+  // dia_brt vem como "YYYY-MM-DD"
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${y?.slice(2)}`;
+}
+
+function CorBadge({ cor, label }: { cor: Cor; label: string }) {
+  const hex = cor ? COR_HEX[cor] : ZINC;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+      style={{ background: `${hex}1A`, color: hex }}
+    >
+      {label}: {cor ?? "—"}
+    </span>
+  );
+}
+
+function IconeMetrica({ metrica }: { metrica: string }) {
+  if (metrica === "rejeitadas_24h") return <Flame size={16} style={{ color: RED }} />;
+  if (metrica === "conversao_7d") return <AlertTriangle size={16} style={{ color: AMBER }} />;
+  return <Bell size={16} style={{ color: ZINC }} />;
+}
+
+export default function AssinaturasAlertasCEO() {
+  const [rows, setRows] = useState<Alerta[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  const [marcando, setMarcando] = useState<number | null>(null);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
+
+  const carregar = useCallback(async () => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const r = await fetch("/api/assinaturas/alertas-ceo?limit=200", {
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      setRows(data.alertas || []);
+      setUltimaAtualizacao(new Date());
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  const marcarVisto = async (id: number) => {
+    setMarcando(id);
+    try {
+      const r = await fetch(`/api/assinaturas/alertas-ceo/${id}/visualizar`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const agora = new Date().toISOString();
+      setRows((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, visualizado_em: a.visualizado_em ?? agora } : a)),
+      );
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setMarcando(null);
+    }
+  };
+
+  const totalNaoVistos = rows.filter((a) => !a.visualizado_em).length;
+  const totalCriticos = rows.filter((a) => a.cor_atual === "critico").length;
+  const totalAtencao = rows.filter((a) => a.cor_atual === "atencao").length;
+
+  return (
+    <Layout>
+      <div data-pdf-titulo="Fila de Alertas do CEO" className="p-6 space-y-6">
+        {/* Header */}
+        <div
+          className="rounded-lg p-5 flex items-start justify-between"
+          style={{ background: NAVY, color: "#F9FAFB" }}
+        >
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Bell size={20} style={{ color: GOLD }} />
+              <h1 className="text-xl font-bold tracking-tight">
+                Alertas do CEO — Assinaturas
+              </h1>
+            </div>
+            <p className="text-sm opacity-80">
+              Wave 10.6 · histórico dos alertas proativos disparados por e-mail
+              e WhatsApp quando rejeições ou conversão de assinaturas mudam de
+              patamar.
+            </p>
+          </div>
+          <button
+            onClick={carregar}
+            className="nao-imprimir flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition"
+            style={{ background: GOLD, color: NAVY }}
+            disabled={loading}
+            data-testid="botao-atualizar-alertas"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Atualizar
+          </button>
+        </div>
+
+        {/* Resumo */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="bg-white border rounded p-4">
+            <div className="text-xs uppercase tracking-wide" style={{ color: ZINC }}>
+              Total registrado
+            </div>
+            <div className="text-2xl font-bold mt-1" style={{ color: NAVY }}>
+              {rows.length}
+            </div>
+          </div>
+          <div className="bg-white border rounded p-4">
+            <div className="text-xs uppercase tracking-wide" style={{ color: ZINC }}>
+              Não visualizados
+            </div>
+            <div
+              className="text-2xl font-bold mt-1"
+              style={{ color: totalNaoVistos > 0 ? AMBER : ZINC }}
+              data-testid="resumo-nao-visualizados"
+            >
+              {totalNaoVistos}
+            </div>
+          </div>
+          <div className="bg-white border rounded p-4">
+            <div className="text-xs uppercase tracking-wide" style={{ color: ZINC }}>
+              Cor atual: crítico
+            </div>
+            <div className="text-2xl font-bold mt-1" style={{ color: RED }}>
+              {totalCriticos}
+            </div>
+          </div>
+          <div className="bg-white border rounded p-4">
+            <div className="text-xs uppercase tracking-wide" style={{ color: ZINC }}>
+              Cor atual: atenção
+            </div>
+            <div className="text-2xl font-bold mt-1" style={{ color: AMBER }}>
+              {totalAtencao}
+            </div>
+          </div>
+        </div>
+
+        {/* Erros / vazio */}
+        {erro && (
+          <div
+            className="rounded p-3 text-sm"
+            style={{ background: "#FEE2E2", color: RED }}
+          >
+            <strong>Erro:</strong> {erro}. Verifique se sua sessão é{" "}
+            <code>validador_mestre</code> ou admin.
+          </div>
+        )}
+
+        {!erro && !loading && rows.length === 0 && (
+          <div
+            className="rounded p-6 text-center text-sm"
+            style={{ background: "#F4F4F5", color: ZINC }}
+            data-testid="vazio-alertas"
+          >
+            Nenhum alerta disparado ainda. Tudo dentro do esperado.
+          </div>
+        )}
+
+        {/* Lista cronológica */}
+        {rows.length > 0 && (
+          <div className="space-y-2" data-testid="lista-alertas">
+            {rows.map((a) => {
+              const naoVisto = !a.visualizado_em;
+              const corAtualHex = a.cor_atual ? COR_HEX[a.cor_atual] : ZINC;
+              return (
+                <div
+                  key={a.id}
+                  className="bg-white border rounded p-4 flex items-start gap-4"
+                  style={{
+                    borderLeft: `4px solid ${corAtualHex}`,
+                    background: naoVisto ? "#FFFBEB" : "white",
+                  }}
+                  data-testid={`alerta-${a.id}`}
+                >
+                  <div className="flex-shrink-0 mt-0.5">
+                    <IconeMetrica metrica={a.metrica} />
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm" style={{ color: NAVY }}>
+                        {METRICA_LABEL[a.metrica] ?? a.metrica}
+                      </span>
+                      <span className="text-xs font-mono" style={{ color: ZINC }}>
+                        #{a.id}
+                      </span>
+                      {naoVisto && (
+                        <span
+                          className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded"
+                          style={{ background: AMBER, color: "white" }}
+                        >
+                          NOVO
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      <CorBadge cor={a.cor_anterior} label="antes" />
+                      <span style={{ color: ZINC }}>→</span>
+                      <CorBadge cor={a.cor_atual} label="agora" />
+                      {a.variacao_pct !== null && (
+                        <span
+                          className="px-2 py-0.5 rounded-full font-mono font-semibold"
+                          style={{
+                            background: "#F4F4F5",
+                            color: a.variacao_pct > 0 ? RED : GREEN,
+                          }}
+                        >
+                          {a.variacao_pct > 0 ? "+" : ""}
+                          {a.variacao_pct.toFixed(1)}%
+                        </span>
+                      )}
+                      {a.conversao_pp !== null && (
+                        <span
+                          className="px-2 py-0.5 rounded-full font-mono font-semibold"
+                          style={{
+                            background: "#F4F4F5",
+                            color: a.conversao_pp < 0 ? RED : GREEN,
+                          }}
+                        >
+                          {a.conversao_pp > 0 ? "+" : ""}
+                          {a.conversao_pp.toFixed(1)}pp
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-wrap text-[11px]" style={{ color: ZINC }}>
+                      <span>
+                        Dia: <strong>{formatarDia(a.dia_brt)}</strong>
+                      </span>
+                      <span>Disparado em: {formatarData(a.criado_em)}</span>
+                      {a.notif_email_id ? (
+                        <span className="inline-flex items-center gap-1" style={{ color: BLUE }}>
+                          <Mail size={11} /> e-mail enviado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1" style={{ color: ZINC }}>
+                          <Mail size={11} /> e-mail não enviado
+                        </span>
+                      )}
+                      {a.notif_wpp_id ? (
+                        <span className="inline-flex items-center gap-1" style={{ color: GREEN }}>
+                          <MessageSquare size={11} /> WhatsApp enviado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1" style={{ color: ZINC }}>
+                          <MessageSquare size={11} /> WhatsApp não enviado
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex-shrink-0 flex flex-col items-end gap-2 nao-imprimir">
+                    {naoVisto ? (
+                      <button
+                        onClick={() => marcarVisto(a.id)}
+                        disabled={marcando === a.id}
+                        className="text-xs font-semibold px-3 py-1.5 rounded border transition disabled:opacity-60"
+                        style={{ borderColor: GOLD, color: NAVY, background: "white" }}
+                        data-testid={`marcar-visto-${a.id}`}
+                      >
+                        {marcando === a.id ? "Marcando..." : "Marcar como visto"}
+                      </button>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded"
+                        style={{ background: "#DCFCE7", color: GREEN }}
+                        title={`Visto em ${formatarData(a.visualizado_em)}`}
+                      >
+                        <CheckCircle2 size={12} /> visto
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {ultimaAtualizacao && (
+          <div className="text-xs text-right flex items-center justify-end gap-1" style={{ color: ZINC }}>
+            <ShieldCheck size={11} />
+            Atualizado em {ultimaAtualizacao.toLocaleTimeString("pt-BR")}
+          </div>
+        )}
+      </div>
+    </Layout>
+  );
+}
