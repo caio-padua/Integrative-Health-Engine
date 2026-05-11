@@ -786,6 +786,12 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     const filtroStatusWhere = filtrosWhereCsv.length > 0
       ? sql`WHERE ${sql.join(filtrosWhereCsv, sql` AND `)}`
       : sql``;
+    // Task #76 — quando ha filtro de datas (desde ou ate), libera o cap de 50
+    // pra permitir extrato mensal/trimestral pedido por contador/advogado.
+    // Sem filtro de datas, mantem 50 (mesmo cap da tela). Cap defensivo de
+    // 5000 em qualquer caso pra nao explodir memoria/timeout do Express.
+    const temFiltroData = desdeFiltroCsv !== null || ateFiltroCsv !== null;
+    const limiteCsv = temFiltroData ? 5000 : 50;
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -805,7 +811,7 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
       ORDER BY s.id DESC
-      LIMIT 50
+      LIMIT ${limiteCsv}
     `);
     const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
 
@@ -908,9 +914,44 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     const statusFiltro: string[] = typeof statusRaw === "string" && statusRaw.length > 0
       ? statusRaw.split(",").map(s => s.trim().toUpperCase()).filter(s => STATUS_VALIDOS.has(s))
       : [];
-    const filtroStatusWhere = statusFiltro.length > 0
-      ? sql`WHERE s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`
+    // Task #76 — XLSX agora tambem aceita filtro de datas (mesmo formato e
+    // semantica half-open do CSV/JSON: ate inclusivo via ate+1day).
+    const DATA_REGEX_XLSX = /^(\d{4})-(\d{2})-(\d{2})$/;
+    function parseDataOuNullXlsx(raw: unknown): string | null {
+      if (typeof raw !== "string") return null;
+      const m = DATA_REGEX_XLSX.exec(raw);
+      if (!m) return null;
+      const ano = Number(m[1]);
+      const mes = Number(m[2]);
+      const dia = Number(m[3]);
+      if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+      const d = new Date(Date.UTC(ano, mes - 1, dia));
+      if (
+        d.getUTCFullYear() !== ano ||
+        d.getUTCMonth() !== mes - 1 ||
+        d.getUTCDate() !== dia
+      ) return null;
+      return raw;
+    }
+    const desdeFiltroXlsx = parseDataOuNullXlsx(req.query["desde"]);
+    const ateFiltroXlsx = parseDataOuNullXlsx(req.query["ate"]);
+    const filtrosWhereXlsx: ReturnType<typeof sql>[] = [];
+    if (statusFiltro.length > 0) {
+      filtrosWhereXlsx.push(sql`s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`);
+    }
+    if (desdeFiltroXlsx !== null) {
+      filtrosWhereXlsx.push(sql`s.criado_em >= ${desdeFiltroXlsx}::date`);
+    }
+    if (ateFiltroXlsx !== null) {
+      filtrosWhereXlsx.push(sql`s.criado_em < (${ateFiltroXlsx}::date + INTERVAL '1 day')`);
+    }
+    const filtroStatusWhere = filtrosWhereXlsx.length > 0
+      ? sql`WHERE ${sql.join(filtrosWhereXlsx, sql` AND `)}`
       : sql``;
+    // Task #76 — mesma logica do CSV: com filtro de data libera ate 5000,
+    // sem filtro mantem 50 (mesmo cap da tela).
+    const temFiltroDataXlsx = desdeFiltroXlsx !== null || ateFiltroXlsx !== null;
+    const limiteXlsx = temFiltroDataXlsx ? 5000 : 50;
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -930,7 +971,7 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
       ORDER BY s.id DESC
-      LIMIT 50
+      LIMIT ${limiteXlsx}
     `);
     const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
 
