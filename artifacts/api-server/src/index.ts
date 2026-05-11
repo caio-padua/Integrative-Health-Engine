@@ -5,6 +5,7 @@ import { iniciarWorkerLembretesPrescricao } from "./services/prescricaoLembreteS
 import { iniciarWorkerCobrancaMensal } from "./lib/recorrencia/cobrancaMensal";
 import { iniciarWorkerNotifAssinatura } from "./lib/recorrencia/notifAssinatura";
 import { iniciarWorkerParqStatusUpdate } from "./lib/recorrencia/parqStatusUpdate";
+import { iniciarWorkerPdfRetryUpload } from "./lib/recorrencia/pdfRetryUpload";
 
 const rawPort = process.env["PORT"];
 
@@ -32,4 +33,5 @@ app.listen(port, (err) => {
   iniciarWorkerCobrancaMensal();
   iniciarWorkerNotifAssinatura();
   iniciarWorkerParqStatusUpdate();
+  iniciarWorkerPdfRetryUpload();
 });
