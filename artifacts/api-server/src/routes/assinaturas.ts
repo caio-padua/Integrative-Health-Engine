@@ -139,6 +139,8 @@ router.post("/assinaturas/enviar", async (req: Request, res: Response) => {
  */
 router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: Response) => {
   try {
+    // Resumo das ultimas 24h (compat retro Task #35) — mantido pra nao quebrar
+    // contrato anterior do banner CEO.
     const r = await db.execute(sql`
       WITH janela AS (
         SELECT * FROM assinatura_solicitacoes
@@ -155,6 +157,99 @@ router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: R
     const row = ((r as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {
       enviadas: 0, assinadas: 0, rejeitadas: 0, pendentes: 0,
     };
+
+    // Task #37 — serie dos ultimos 7 dias (D-6 ate hoje) por dia, p/ sparkline
+    // + variacao vs media movel 7d anteriores (D-13 ate D-7). Usa generate_series
+    // pra garantir buckets vazios (zeros) nos dias sem evento.
+    const serieR = await db.execute(sql`
+      WITH dias AS (
+        SELECT generate_series(
+          date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo') - interval '6 days',
+          date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo'),
+          interval '1 day'
+        )::date AS dia
+      )
+      SELECT
+        to_char(d.dia, 'YYYY-MM-DD') AS dia,
+        COUNT(s.*) FILTER (WHERE (s.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS enviadas,
+        COUNT(s.*) FILTER (WHERE s.status = 'CONCLUIDO' AND (s.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS assinadas,
+        COUNT(s.*) FILTER (WHERE s.status = 'REJEITADO' AND (s.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS rejeitadas
+      FROM dias d
+      LEFT JOIN assinatura_solicitacoes s
+        ON (s.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia
+        OR (s.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia
+      GROUP BY d.dia
+      ORDER BY d.dia
+    `);
+    const serieRows = (serieR as unknown as { rows?: Record<string, unknown>[] }).rows || [];
+    const serie7d = serieRows.map(r => ({
+      dia: String(r["dia"]),
+      enviadas: Number(r["enviadas"] || 0),
+      assinadas: Number(r["assinadas"] || 0),
+      rejeitadas: Number(r["rejeitadas"] || 0),
+    }));
+
+    // Janela 7d anterior (D-13 ate D-7 inclusive, calendario America/Sao_Paulo)
+    // pra comparativo. Importante: mesma logica de day-bucket TZ-aware da
+    // serie_7d pra evitar skew em horarios de borda (ex.: requisicao 23h59
+    // BRT pegando interval rolling diferente do bucket de calendario). Ambas
+    // janelas tem 7 dias de calendario exatos -> a divisao atual_7d/prev_7d
+    // equivale a comparar medias diarias (somas de 7 dividem por mesma base).
+    const prevR = await db.execute(sql`
+      WITH ref AS (
+        SELECT date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE (criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS enviadas_prev,
+        COUNT(*) FILTER (WHERE status = 'CONCLUIDO' AND (concluido_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS assinadas_prev,
+        COUNT(*) FILTER (WHERE status = 'REJEITADO' AND (criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS rejeitadas_prev
+      FROM assinatura_solicitacoes
+    `);
+    const prev = ((prevR as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {};
+    const enviadasPrev = Number(prev["enviadas_prev"] || 0);
+    const assinadasPrev = Number(prev["assinadas_prev"] || 0);
+    const rejeitadasPrev = Number(prev["rejeitadas_prev"] || 0);
+
+    const enviadas7d = serie7d.reduce((a, d) => a + d.enviadas, 0);
+    const assinadas7d = serie7d.reduce((a, d) => a + d.assinadas, 0);
+    const rejeitadas7d = serie7d.reduce((a, d) => a + d.rejeitadas, 0);
+
+    // variacao % com tratamento p/ divisor zero: se prev=0 e atual>0 retorna
+    // null (UI mostra "—" ou "novo"); se ambos zero retorna 0.
+    function variacaoPct(atual: number, prev: number): number | null {
+      if (prev === 0) return atual === 0 ? 0 : null;
+      return Math.round(((atual - prev) / prev) * 1000) / 10;
+    }
+    // cor semantica unificada com /admin/analytics: ≥+10 excelente, 0~10 bom,
+    // -10~0 atencao, <-10 critico, null neutro.
+    function semanticoCor(pct: number | null): "excelente" | "bom" | "atencao" | "critico" | "neutro" {
+      if (pct === null) return "neutro";
+      if (pct >= 10) return "excelente";
+      if (pct >= 0) return "bom";
+      if (pct >= -10) return "atencao";
+      return "critico";
+    }
+
+    const variacaoEnviadasPct = variacaoPct(enviadas7d, enviadasPrev);
+    const variacaoAssinadasPct = variacaoPct(assinadas7d, assinadasPrev);
+    const variacaoRejeitadasPct = variacaoPct(rejeitadas7d, rejeitadasPrev);
+
+    // Para rejeitadas a polaridade da cor inverte: subir rejeicoes = ruim.
+    function corRejeicao(pct: number | null): "excelente" | "bom" | "atencao" | "critico" | "neutro" {
+      if (pct === null) return "neutro";
+      if (pct <= -10) return "excelente";
+      if (pct <= 0) return "bom";
+      if (pct <= 10) return "atencao";
+      return "critico";
+    }
+
+    const taxaConversao = enviadas7d > 0 ? Math.round((assinadas7d / enviadas7d) * 1000) / 10 : null;
+    const taxaConversaoPrev = enviadasPrev > 0 ? Math.round((assinadasPrev / enviadasPrev) * 1000) / 10 : null;
+    const variacaoConversaoAbs =
+      taxaConversao !== null && taxaConversaoPrev !== null
+        ? Math.round((taxaConversao - taxaConversaoPrev) * 10) / 10
+        : null;
+
     res.json({
       janela_horas: 24,
       gerado_em: new Date().toISOString(),
@@ -162,6 +257,24 @@ router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: R
       assinadas: Number(row["assinadas"] || 0),
       rejeitadas: Number(row["rejeitadas"] || 0),
       pendentes: Number(row["pendentes"] || 0),
+      // Task #37 — tendencia 7d
+      serie_7d: serie7d,
+      totais_7d: { enviadas: enviadas7d, assinadas: assinadas7d, rejeitadas: rejeitadas7d },
+      totais_prev_7d: { enviadas: enviadasPrev, assinadas: assinadasPrev, rejeitadas: rejeitadasPrev },
+      variacao_pct: {
+        enviadas: variacaoEnviadasPct,
+        assinadas: variacaoAssinadasPct,
+        rejeitadas: variacaoRejeitadasPct,
+      },
+      cor: {
+        enviadas: semanticoCor(variacaoEnviadasPct),
+        assinadas: semanticoCor(variacaoAssinadasPct),
+        rejeitadas: corRejeicao(variacaoRejeitadasPct),
+      },
+      taxa_conversao_pct: taxaConversao,
+      taxa_conversao_prev_pct: taxaConversaoPrev,
+      variacao_conversao_pp: variacaoConversaoAbs,
+      cor_conversao: semanticoCor(variacaoConversaoAbs),
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

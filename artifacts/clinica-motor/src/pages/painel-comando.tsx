@@ -11,7 +11,7 @@ import {
   FileSignature
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line } from "recharts";
 import { useClinic } from "@/contexts/ClinicContext";
 import { FEATURE_PARQ_BANNER_CEO, FEATURE_ASSINATURAS_RESUMO_CEO } from "@/lib/feature-flags";
 
@@ -73,6 +73,41 @@ interface DashboardComando {
   alertasDetalhes: AlertaDetalhe[];
   faltasDetalhes: FaltaDetalhe[];
   sessoesUltimaSemana: SessaoSemana[];
+}
+
+// Task #37 — paleta semantica unificada com /admin/analytics (regra-ouro
+// Mike Tyson × Eder Jofre: numero absoluto isolado proibido, sempre vem com
+// variacao + cor).
+type CorSemantica = "excelente" | "bom" | "atencao" | "critico" | "neutro";
+const COR_SEMANTICA_HEX: Record<CorSemantica, string> = {
+  excelente: "#2f8f4a",
+  bom:       "#3b82f6",
+  atencao:   "#d97706",
+  critico:   "#b53030",
+  neutro:    "#71717a",
+};
+
+function fmtVarPct(pct: number | null | undefined): string {
+  if (pct === null || pct === undefined) return "—";
+  const sinal = pct > 0 ? "+" : "";
+  return `${sinal}${pct.toFixed(1)}%`;
+}
+
+function MiniSparkline({ pontos, dataKey, cor }: {
+  pontos: { dia: string; enviadas: number; assinadas: number; rejeitadas: number }[];
+  dataKey: "enviadas" | "assinadas" | "rejeitadas";
+  cor: CorSemantica;
+}) {
+  if (!pontos || pontos.length === 0) return null;
+  return (
+    <div style={{ width: 60, height: 18 }} aria-hidden="true">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={pontos}>
+          <Line type="monotone" dataKey={dataKey} stroke={COR_SEMANTICA_HEX[cor]} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
 }
 
 const GRAVIDADE_COLORS: Record<string, string> = {
@@ -159,6 +194,15 @@ export default function PainelComando() {
   const [activeTab, setActiveTab] = useState("visao-geral");
   const [assinaturasResumo, setAssinaturasResumo] = useState<{
     enviadas: number; assinadas: number; rejeitadas: number; pendentes: number;
+    serie_7d?: { dia: string; enviadas: number; assinadas: number; rejeitadas: number }[];
+    totais_7d?: { enviadas: number; assinadas: number; rejeitadas: number };
+    totais_prev_7d?: { enviadas: number; assinadas: number; rejeitadas: number };
+    variacao_pct?: { enviadas: number | null; assinadas: number | null; rejeitadas: number | null };
+    cor?: { enviadas: CorSemantica; assinadas: CorSemantica; rejeitadas: CorSemantica };
+    taxa_conversao_pct?: number | null;
+    taxa_conversao_prev_pct?: number | null;
+    variacao_conversao_pp?: number | null;
+    cor_conversao?: CorSemantica;
   } | null>(null);
 
   useEffect(() => {
@@ -234,20 +278,75 @@ export default function PainelComando() {
             className="block border-l-4 border-[var(--pw-dourado-vivo)] bg-[var(--pw-petroleo)]/5 hover:bg-[var(--pw-petroleo)]/10 transition-colors px-4 py-3 rounded-sm"
             data-testid="banner-ceo-assinaturas-resumo"
           >
-            <div className="flex items-center gap-3">
-              <FileSignature className="w-5 h-5 text-[var(--pw-dourado-vivo)] flex-shrink-0" />
+            <div className="flex items-start gap-3">
+              <FileSignature className="w-5 h-5 text-[var(--pw-dourado-vivo)] flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold">
-                  Assinaturas hoje · ultimas 24h
+                <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold flex items-center gap-2 flex-wrap">
+                  <span>Assinaturas · ultimas 24h · tendencia 7d</span>
+                  {assinaturasResumo.taxa_conversao_pct !== null && assinaturasResumo.taxa_conversao_pct !== undefined && (
+                    <span
+                      className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold"
+                      style={{
+                        backgroundColor: `${COR_SEMANTICA_HEX[assinaturasResumo.cor_conversao || "neutro"]}22`,
+                        color: COR_SEMANTICA_HEX[assinaturasResumo.cor_conversao || "neutro"],
+                      }}
+                      data-testid="banner-ceo-assinaturas-conversao"
+                    >
+                      conversao 7d: {assinaturasResumo.taxa_conversao_pct.toFixed(1)}%
+                      {assinaturasResumo.variacao_conversao_pp !== null && assinaturasResumo.variacao_conversao_pp !== undefined && (
+                        <span className="ml-1 opacity-80">
+                          ({assinaturasResumo.variacao_conversao_pp > 0 ? "+" : ""}{assinaturasResumo.variacao_conversao_pp.toFixed(1)}pp)
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs text-[var(--pw-tinta)] mt-0.5 flex items-center gap-4 flex-wrap">
-                  <span><strong className="text-[var(--pw-petroleo)]">{assinaturasResumo.enviadas}</strong> enviadas</span>
-                  <span className="text-emerald-600"><strong>{assinaturasResumo.assinadas}</strong> assinadas</span>
-                  <span className="text-red-600"><strong>{assinaturasResumo.rejeitadas}</strong> rejeitadas</span>
-                  <span className="text-amber-600"><strong>{assinaturasResumo.pendentes}</strong> pendentes</span>
+                <div className="text-xs text-[var(--pw-tinta)] mt-1.5 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
+                  <div className="flex items-center gap-2" data-testid="banner-ceo-assinaturas-enviadas">
+                    {assinaturasResumo.serie_7d && (
+                      <MiniSparkline pontos={assinaturasResumo.serie_7d} dataKey="enviadas" cor={assinaturasResumo.cor?.enviadas || "neutro"} />
+                    )}
+                    <div className="leading-tight">
+                      <div><strong className="text-[var(--pw-petroleo)]">{assinaturasResumo.enviadas}</strong> enviadas <span className="text-[10px] text-zinc-500">24h</span></div>
+                      <div className="text-[10px] text-zinc-500">
+                        7d: {assinaturasResumo.totais_7d?.enviadas ?? 0} ·
+                        <span style={{ color: COR_SEMANTICA_HEX[assinaturasResumo.cor?.enviadas || "neutro"] }}> {fmtVarPct(assinaturasResumo.variacao_pct?.enviadas)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2" data-testid="banner-ceo-assinaturas-assinadas">
+                    {assinaturasResumo.serie_7d && (
+                      <MiniSparkline pontos={assinaturasResumo.serie_7d} dataKey="assinadas" cor={assinaturasResumo.cor?.assinadas || "neutro"} />
+                    )}
+                    <div className="leading-tight">
+                      <div className="text-emerald-600"><strong>{assinaturasResumo.assinadas}</strong> assinadas <span className="text-[10px] text-zinc-500">24h</span></div>
+                      <div className="text-[10px] text-zinc-500">
+                        7d: {assinaturasResumo.totais_7d?.assinadas ?? 0} ·
+                        <span style={{ color: COR_SEMANTICA_HEX[assinaturasResumo.cor?.assinadas || "neutro"] }}> {fmtVarPct(assinaturasResumo.variacao_pct?.assinadas)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2" data-testid="banner-ceo-assinaturas-rejeitadas">
+                    {assinaturasResumo.serie_7d && (
+                      <MiniSparkline pontos={assinaturasResumo.serie_7d} dataKey="rejeitadas" cor={assinaturasResumo.cor?.rejeitadas || "neutro"} />
+                    )}
+                    <div className="leading-tight">
+                      <div className="text-red-600"><strong>{assinaturasResumo.rejeitadas}</strong> rejeitadas <span className="text-[10px] text-zinc-500">24h</span></div>
+                      <div className="text-[10px] text-zinc-500">
+                        7d: {assinaturasResumo.totais_7d?.rejeitadas ?? 0} ·
+                        <span style={{ color: COR_SEMANTICA_HEX[assinaturasResumo.cor?.rejeitadas || "neutro"] }}> {fmtVarPct(assinaturasResumo.variacao_pct?.rejeitadas)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2" data-testid="banner-ceo-assinaturas-pendentes">
+                    <div className="leading-tight">
+                      <div className="text-amber-600"><strong>{assinaturasResumo.pendentes}</strong> pendentes <span className="text-[10px] text-zinc-500">24h</span></div>
+                      <div className="text-[10px] text-zinc-500">aguardando assinatura</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[var(--pw-tinta)] flex-shrink-0" />
+              <ChevronRight className="w-4 h-4 text-[var(--pw-tinta)] flex-shrink-0 mt-1" />
             </div>
           </a>
         )}
