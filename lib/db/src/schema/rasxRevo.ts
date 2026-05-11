@@ -120,6 +120,9 @@ export const revoMedicamentosTable = pgTable("revo_medicamentos", {
   dose: text("dose"),
   medicamentoDoseInline: text("medicamento_dose_inline"),
   posologia: text("posologia"),
+  // Estrutura normalizada produzida por @workspace/posologia parsePosologia().
+  // Aditiva (migration 034). Sempre devolve raw + interpretado=false como fallback.
+  posologiaEstruturada: jsonb("posologia_estruturada"),
   componentesFormula: jsonb("componentes_formula").$type<Array<{ substancia: string; dosagem: string }>>(),
   motivoUso: text("motivo_uso"),
   tempoUso: text("tempo_uso"),

@@ -144,10 +144,24 @@ router.post("/motor-clinico/sync-catalogo", async (_req, res): Promise<void> => 
       nome: string; descricao: string | null; categoria: "injetavel_im" | "injetavel_ev" | "implante" | "formula" | "protocolo" | "exame";
       subCategoria: string | null; codigoPadcom: string | null; blocoId: string | null;
       grau: string | null; viaUso: string | null; frequenciaBase: string | null;
-      composicao: string | null; posologia: string | null; areaSemantica: string | null;
+      composicao: string | null; posologia: string | null;
+      posologiaEstruturada: import("@workspace/posologia").PosologiaEstruturada | null;
+      areaSemantica: string | null;
       disponivel: boolean; exigeValidacaoHumana: boolean; preco: number | null;
       tags: string[] | null;
     }> = [];
+
+    // Parser puro de posologia: produz estrutura JSONB normalizada para
+    // PDFs (gerarReceitaPdf / rasxMotorPdf) e preview RevoPanel. Sempre devolve
+    // raw + interpretado=false como fallback quando o texto não casa nenhuma regra.
+    const { parsePosologia } = await import("@workspace/posologia");
+    function estruturar(
+      texto: string | null,
+      categoria: "injetavel_im" | "injetavel_ev" | "implante" | "formula" | "protocolo" | "exame",
+    ) {
+      if (!texto) return null;
+      return parsePosologia(texto, { categoria });
+    }
 
     const injAmpolas = new Map<string, { ampola: typeof inj[0]; componentes: typeof inj }>();
     inj.forEach(i => {
@@ -171,6 +185,7 @@ router.post("/motor-clinico/sync-catalogo", async (_req, res): Promise<void> => 
         frequenciaBase: null,
         composicao: comps.length > 0 ? comps.join(", ") : null,
         posologia: a.dosagem ? `${a.dosagem}${a.volume ? ` / ${a.volume}` : ""}` : null,
+        posologiaEstruturada: estruturar(a.dosagem ? `${a.dosagem}${a.volume ? ` / ${a.volume}` : ""}` : null, "injetavel_im"),
         areaSemantica: a.eixoIntegrativo,
         disponivel: a.ativo !== false,
         exigeValidacaoHumana: false,
@@ -202,6 +217,7 @@ router.post("/motor-clinico/sync-catalogo", async (_req, res): Promise<void> => 
         frequenciaBase: s.frequenciaPadrao,
         composicao: comps.length > 0 ? comps.join(", ") : null,
         posologia: s.dosagem ? `${s.dosagem}${s.volume ? ` / ${s.volume}` : ""}` : null,
+        posologiaEstruturada: estruturar(s.dosagem ? `${s.dosagem}${s.volume ? ` / ${s.volume}` : ""}` : null, "injetavel_ev"),
         areaSemantica: s.eixoIntegrativo,
         disponivel: s.ativo !== false,
         exigeValidacaoHumana: false,
@@ -223,6 +239,7 @@ router.post("/motor-clinico/sync-catalogo", async (_req, res): Promise<void> => 
         frequenciaBase: i.tempoAcao,
         composicao: i.substanciaAtiva,
         posologia: i.dosagem ? `${i.dosagem} ${i.unidade || ""} — ${i.doseRecomendada || ""} pellets`.trim() : null,
+        posologiaEstruturada: estruturar(i.dosagem ? `${i.dosagem} ${i.unidade || ""} — ${i.doseRecomendada || ""} pellets`.trim() : null, "implante"),
         areaSemantica: null,
         disponivel: i.ativo !== false,
         exigeValidacaoHumana: false,
@@ -256,6 +273,7 @@ router.post("/motor-clinico/sync-catalogo", async (_req, res): Promise<void> => 
         frequenciaBase: null,
         composicao: subs.length > 0 ? subs.join(", ") : null,
         posologia: poso.length > 0 ? poso.join("; ") : null,
+        posologiaEstruturada: estruturar(poso.length > 0 ? poso.join("; ") : null, "formula"),
         areaSemantica: t?.area || null,
         disponivel: true,
         exigeValidacaoHumana: false,
@@ -277,6 +295,7 @@ router.post("/motor-clinico/sync-catalogo", async (_req, res): Promise<void> => 
         frequenciaBase: null,
         composicao: null,
         posologia: null,
+        posologiaEstruturada: null,
         areaSemantica: p.area,
         disponivel: p.status === "ATIVO",
         exigeValidacaoHumana: false,
@@ -298,6 +317,7 @@ router.post("/motor-clinico/sync-catalogo", async (_req, res): Promise<void> => 
         frequenciaBase: e.frequenciaProtocoloPadua || null,
         composicao: null,
         posologia: null,
+        posologiaEstruturada: null,
         areaSemantica: e.grupoPrincipal || null,
         disponivel: e.ativo !== false,
         exigeValidacaoHumana: e.exigeValidacaoHumana === "SIM",

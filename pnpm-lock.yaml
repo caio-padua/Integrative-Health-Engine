@@ -206,6 +206,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/posologia':
+        specifier: workspace:*
+        version: link:../../lib/posologia
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -704,6 +707,15 @@ importers:
       drizzle-kit:
         specifier: ^0.31.9
         version: 0.31.9
+
+  lib/posologia:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
 
   scripts:
     dependencies:

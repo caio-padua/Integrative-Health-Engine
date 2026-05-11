@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, real, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, real, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -15,6 +15,9 @@ export const itensTerapeuticosTable = pgTable("itens_terapeuticos", {
   frequenciaBase: text("frequencia_base"),
   composicao: text("composicao"),
   posologia: text("posologia"),
+  // Estrutura normalizada produzida por @workspace/posologia parsePosologia().
+  // Aditiva (migration 034). Sempre devolve raw + interpretado=false como fallback.
+  posologiaEstruturada: jsonb("posologia_estruturada"),
   areaSemantica: text("area_semantica"),
   disponivel: boolean("disponivel").notNull().default(true),
   exigeValidacaoHumana: boolean("exige_validacao_humana").notNull().default(false),

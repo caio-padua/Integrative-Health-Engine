@@ -15,6 +15,42 @@ import {
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 const apiBase = `${window.location.origin}/api`.replace(/\/+/g, "/").replace(":/", "://");
 
+/**
+ * Preview live da posologia interpretada pelo backend (/api/posologia/parse).
+ * Função pura no servidor — apenas mostra a frase canônica + bandeira interpretado/bruto.
+ * Debounce 350 ms pra não floodar o endpoint enquanto o médico digita.
+ */
+function PosologiaPreview({ texto, contexto }: { texto: string; contexto?: { categoria?: string } }) {
+  const [estado, setEstado] = useState<{ frase: string; interpretado: boolean } | null>(null);
+  useEffect(() => {
+    const t = (texto || "").trim();
+    if (!t) { setEstado(null); return; }
+    const handle = setTimeout(async () => {
+      try {
+        const r = await fetch(`${apiBase}/posologia/parse`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ texto: t, contexto }),
+        });
+        if (!r.ok) { setEstado(null); return; }
+        const j = await r.json();
+        setEstado({ frase: j.fraseCanonica, interpretado: !!j.estrutura?.interpretado });
+      } catch { setEstado(null); }
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [texto, contexto?.categoria]);
+  if (!estado) return null;
+  return (
+    <div className={`text-[10px] px-2 py-1 mt-1 border ${estado.interpretado ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300" : "border-amber-500/30 bg-amber-500/5 text-amber-300"}`}>
+      <span className="font-semibold uppercase tracking-wider mr-2">
+        {estado.interpretado ? "Interpretado" : "Texto cru"}
+      </span>
+      {estado.frase}
+    </div>
+  );
+}
+
 const INTENSIDADE_COLORS: Record<string, string> = {
   leve: "bg-green-500/20 text-green-400",
   moderada: "bg-yellow-500/20 text-yellow-400",
@@ -723,7 +759,10 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <Input placeholder="Medicamento + dose (ex: Captopril 25mg)" value={newMed.nome} onChange={e => setNewMed(m => ({ ...m, nome: e.target.value }))} />
-                      <Input placeholder="Posologia (ex: 1 comp 2x/dia)" value={newMed.posologia} onChange={e => setNewMed(m => ({ ...m, posologia: e.target.value }))} />
+                      <div>
+                        <Input placeholder="Posologia (ex: 1 comp 2x/dia)" value={newMed.posologia} onChange={e => setNewMed(m => ({ ...m, posologia: e.target.value }))} />
+                        <PosologiaPreview texto={newMed.posologia} contexto={{ categoria: "revo_medicamento" }} />
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <Input placeholder="Motivo de uso" value={newMed.motivoUso} onChange={e => setNewMed(m => ({ ...m, motivoUso: e.target.value }))} />
@@ -735,6 +774,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                   <div className="space-y-2">
                     <Input placeholder="Nome da formula (ex: Formula Neuroprotetora)" value={newMed.nome} onChange={e => setNewMed(m => ({ ...m, nome: e.target.value }))} />
                     <Input placeholder="Posologia (ex: 2 caps 2x/dia)" value={newMed.posologia} onChange={e => setNewMed(m => ({ ...m, posologia: e.target.value }))} />
+                    <PosologiaPreview texto={newMed.posologia} contexto={{ categoria: "revo_formula" }} />
                     <div className="border border-purple-500/20 bg-purple-500/5 p-2 space-y-2">
                       <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Substancias da Formula</p>
                       {newMed.componentesFormula.length > 0 && (

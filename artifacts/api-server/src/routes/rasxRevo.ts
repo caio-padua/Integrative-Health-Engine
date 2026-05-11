@@ -7,6 +7,7 @@ import {
   pacientesTable, tratamentosTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
+import { parsePosologia } from "@workspace/posologia";
 
 const router = Router();
 
@@ -83,6 +84,8 @@ router.post("/rasx/:pacienteId/revo/start", async (req, res): Promise<void> => {
       pacienteId,
       nome: m.nome,
       dose: m.dose || null,
+      posologia: m.posologia || null,
+      posologiaEstruturada: m.posologia ? parsePosologia(m.posologia) : null,
       motivoUso: m.motivoUso || null,
       tempoUso: m.tempoUso || null,
       statusAtual: "em_uso" as const,
@@ -271,6 +274,10 @@ router.post("/rasx/:pacienteId/revo/medicamento", async (req, res): Promise<void
   const clean: any = {};
   for (const k of allowed) { if (req.body[k] !== undefined) clean[k] = req.body[k]; }
 
+  if (typeof clean.posologia === "string" && clean.posologia.trim()) {
+    clean.posologiaEstruturada = parsePosologia(clean.posologia);
+  }
+
   const [med] = await db.insert(revoMedicamentosTable).values({
     pacienteId,
     ...clean,
@@ -283,8 +290,13 @@ router.put("/rasx/revo/medicamento/:id", async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalido" }); return; }
 
+  const patch: any = { ...req.body };
+  if (typeof patch.posologia === "string" && patch.posologia.trim()) {
+    patch.posologiaEstruturada = parsePosologia(patch.posologia);
+  }
+
   const [updated] = await db.update(revoMedicamentosTable)
-    .set(req.body)
+    .set(patch)
     .where(eq(revoMedicamentosTable.id, id))
     .returning();
 
