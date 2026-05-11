@@ -108,16 +108,42 @@ export default function AssinaturasTimeline() {
   // Task #55 — chips de filtro por status no topo da tabela. Cada chip mapeia
   // pra 1+ status crus (ex.: "Em andamento" agrupa ENVIADO+PARCIAL, "Rejeitada"
   // agrupa REJEITADO+EXPIRADO) — bate com a leitura humana dos cards de resumo.
-  // Estado local (nao na URL) pra nao poluir links compartilhados; o filtro de
-  // unidade ja vem na URL via banner CEO.
+  // Task #59 — persistir o chip ativo na URL via `?status=` (em_andamento|
+  // concluido|rejeitado) pra deixar o link compartilhavel ja filtrado. "Todos"
+  // remove o param. Co-existe com `?unidade_id=` (Task #51).
   type FiltroStatus = "TODOS" | "EM_ANDAMENTO" | "CONCLUIDO" | "REJEITADO";
-  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("TODOS");
   const STATUS_QUERY: Record<FiltroStatus, string[]> = {
     TODOS: [],
     EM_ANDAMENTO: ["ENVIADO", "PARCIAL"],
     CONCLUIDO: ["CONCLUIDO"],
     REJEITADO: ["REJEITADO", "EXPIRADO"],
   };
+  const STATUS_URL: Record<FiltroStatus, string> = {
+    TODOS: "",
+    EM_ANDAMENTO: "em_andamento",
+    CONCLUIDO: "concluido",
+    REJEITADO: "rejeitado",
+  };
+  function parseStatusFromUrl(): FiltroStatus {
+    if (typeof window === "undefined") return "TODOS";
+    const v = (new URLSearchParams(window.location.search).get("status") || "")
+      .toLowerCase();
+    if (v === "em_andamento") return "EM_ANDAMENTO";
+    if (v === "concluido") return "CONCLUIDO";
+    if (v === "rejeitado") return "REJEITADO";
+    return "TODOS";
+  }
+  const [filtroStatus, setFiltroStatusState] = useState<FiltroStatus>(parseStatusFromUrl);
+  const setFiltroStatus = useCallback((novo: FiltroStatus) => {
+    setFiltroStatusState(novo);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const valor = STATUS_URL[novo];
+    if (valor) url.searchParams.set("status", valor);
+    else url.searchParams.delete("status");
+    window.history.replaceState({}, "", url.toString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const carregar = useCallback(async () => {
     setLoading(true);
