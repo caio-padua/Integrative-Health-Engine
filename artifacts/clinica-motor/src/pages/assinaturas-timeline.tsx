@@ -44,7 +44,23 @@ type Solicitacao = {
   signatarios_total: number;
   signatarios_assinados: number;
   auditoria_eventos: number;
+  // Task #79 — campos novos vindos do JOIN (mesmas regras do export Task #77).
+  // null quando o template nao tem essa dimensao (ex: TCLE = sem farmacia).
+  valor_brl: number | null;
+  farmacia: string | null;
+  medico: string | null;
 };
+
+// Task #79 — formata BRL pra celula de tabela e linha de soma do rodape.
+// Usa Intl pra moeda nativa pt-BR (R$ 1.234,56), sem dependencia extra.
+function formatarBRL(v: number): string {
+  return v.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 const STATUS_BADGES: Record<
   string,
@@ -548,6 +564,9 @@ export default function AssinaturasTimeline() {
                     <th className="text-left px-3 py-2 font-semibold">Clínica</th>
                   )}
                   <th className="text-center px-3 py-2 font-semibold">Status</th>
+                  <th className="text-right px-3 py-2 font-semibold">Valor</th>
+                  <th className="text-left px-3 py-2 font-semibold">Farmácia</th>
+                  <th className="text-left px-3 py-2 font-semibold">Médico</th>
                   <th className="text-center px-3 py-2 font-semibold">Signatários</th>
                   <th className="text-center px-3 py-2 font-semibold">Auditoria</th>
                   <th className="text-left px-3 py-2 font-semibold">Criado</th>
@@ -588,6 +607,27 @@ export default function AssinaturasTimeline() {
                     <td className="px-3 py-2 text-center">
                       <StatusBadge status={r.status} />
                     </td>
+                    <td className="px-3 py-2 text-right font-mono text-xs" style={{ color: NAVY }}>
+                      {r.valor_brl !== null ? (
+                        <span>{formatarBRL(r.valor_brl)}</span>
+                      ) : (
+                        <span className="italic text-zinc-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs" style={{ color: NAVY }}>
+                      {r.farmacia ? (
+                        <span>{r.farmacia}</span>
+                      ) : (
+                        <span className="italic text-zinc-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs" style={{ color: NAVY }}>
+                      {r.medico ? (
+                        <span>{r.medico}</span>
+                      ) : (
+                        <span className="italic text-zinc-400">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-center font-mono text-xs">
                       <span style={{ color: GREEN, fontWeight: 700 }}>
                         {r.signatarios_assinados}
@@ -626,6 +666,42 @@ export default function AssinaturasTimeline() {
                   </tr>
                 ))}
               </tbody>
+              {/* Task #79 — soma de "Valor" das linhas atualmente visiveis
+                  (apos filtros + paginacao). Usa `colSpan` pra alinhar a celula
+                  numerica embaixo da coluna Valor, deixando as outras vazias.
+                  Mostra contagem de quantas linhas entraram na soma vs total
+                  visivel pra o contador conferir (TCLE nao tem valor, fica de
+                  fora). */}
+              {(() => {
+                const linhasComValor = rows.filter((r) => r.valor_brl !== null);
+                const somaValor = linhasComValor.reduce(
+                  (acc, r) => acc + (r.valor_brl || 0),
+                  0,
+                );
+                const colsAntesValor = filtroUnidadeId === null ? 5 : 4;
+                const colsDepoisValor = 7;
+                return (
+                  <tfoot style={{ background: "#F9FAFB", color: NAVY }}>
+                    <tr className="border-t-2" style={{ borderColor: GOLD }}>
+                      <td
+                        colSpan={colsAntesValor}
+                        className="px-3 py-2 text-right text-xs font-semibold"
+                      >
+                        Soma do valor visível ({linhasComValor.length} de{" "}
+                        {rows.length} linhas):
+                      </td>
+                      <td
+                        className="px-3 py-2 text-right font-mono text-sm font-bold"
+                        style={{ color: GOLD }}
+                        data-testid="soma-valor-visivel"
+                      >
+                        {formatarBRL(somaValor)}
+                      </td>
+                      <td colSpan={colsDepoisValor} />
+                    </tr>
+                  </tfoot>
+                );
+              })()}
             </table>
           </div>
         )}

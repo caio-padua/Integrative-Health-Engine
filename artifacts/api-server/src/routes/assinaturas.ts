@@ -684,18 +684,49 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
         (
           SELECT COUNT(*)::int FROM auditoria_assinaturas a
           WHERE a.solicitacao_id = s.id
-        ) AS auditoria_eventos
+        ) AS auditoria_eventos,
+        rec.valor_formula_estimado   AS receita_valor,
+        f.razao_social               AS farmacia_razao_social,
+        f.nome_fantasia              AS farmacia_nome_fantasia,
+        med.nome                     AS medico_nome
       FROM assinatura_solicitacoes s
       JOIN assinatura_templates t   ON t.id = s.template_id
       LEFT JOIN pacientes p         ON p.id = s.paciente_id
       LEFT JOIN unidades u          ON u.id = p.unidade_id
+      LEFT JOIN parmavault_receitas rec
+        ON (s.metadata->>'receitaId') ~ '^[0-9]+$'
+       AND rec.id = (s.metadata->>'receitaId')::bigint
+      LEFT JOIN farmacias_parmavault f
+        ON f.id = COALESCE(
+             rec.farmacia_id,
+             CASE WHEN (s.metadata->>'farmaciaId') ~ '^[0-9]+$'
+                  THEN (s.metadata->>'farmaciaId')::bigint END
+           )
+      LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
       ORDER BY s.id DESC
       LIMIT ${limit}
       OFFSET ${offset}
     `);
-    const rows = (r as unknown as { rows?: unknown[] }).rows || [];
+    // Task #79 — normaliza valor/farmacia/medico no payload pro frontend nao
+    // precisar fazer COALESCE de razao_social/nome_fantasia. Mesmas regras dos
+    // exports CSV/XLSX (Task #77): vazio quando o template nao tem essa
+    // dimensao (ex: TCLE = sem farmacia, sem valor).
+    const rowsRaw = (((r as unknown as { rows?: Record<string, unknown>[] }).rows) || []);
+    const rowsEnriquecidas = rowsRaw.map((row) => {
+      const valorNum = row["receita_valor"] !== null && row["receita_valor"] !== undefined
+        ? Number(row["receita_valor"])
+        : null;
+      const farmaciaNome = row["farmacia_razao_social"] || row["farmacia_nome_fantasia"] || null;
+      return {
+        ...row,
+        valor_brl: valorNum !== null && Number.isFinite(valorNum) ? valorNum : null,
+        farmacia: farmaciaNome ? String(farmaciaNome) : null,
+        medico: row["medico_nome"] ? String(row["medico_nome"]) : null,
+      };
+    });
+    const rows = rowsEnriquecidas;
     const hasMore = offset + rows.length < total;
     res.json({
       solicitacoes: rows,
