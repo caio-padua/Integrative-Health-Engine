@@ -499,8 +499,19 @@ router.post("/assinaturas/:id/signatario/:signatarioId/reenviar", guardMaster, a
  * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por causa do match em ordem
  * do express — senao /timeline cairia no handler dinamico.
  */
-router.get("/assinaturas/timeline", guardMaster, async (_req: Request, res: Response) => {
+router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Response) => {
   try {
+    // Task #51 — filtro opcional por unidade clinica. assinatura_solicitacoes
+    // nao tem unidade_id direta; derivamos via JOIN pacientes.unidade_id
+    // (mesmo padrao usado em /assinaturas/resumo-hoje). Quando ausente,
+    // mantem comportamento original: ultimas 50 da rede toda.
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
+      ? Number(unidadeIdRaw)
+      : null;
+    const filtroUnidadeJoin = unidadeIdFiltro !== null
+      ? sql`JOIN pacientes p_filt ON p_filt.id = s.paciente_id AND p_filt.unidade_id = ${unidadeIdFiltro}`
+      : sql``;
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -517,6 +528,7 @@ router.get("/assinaturas/timeline", guardMaster, async (_req: Request, res: Resp
         t.tipo_documento             AS template_tipo,
         s.paciente_id,
         p.nome                       AS paciente_nome,
+        p.unidade_id                 AS paciente_unidade_id,
         (
           SELECT COUNT(*)::int FROM assinatura_signatarios sg
           WHERE sg.solicitacao_id = s.id
@@ -532,11 +544,12 @@ router.get("/assinaturas/timeline", guardMaster, async (_req: Request, res: Resp
       FROM assinatura_solicitacoes s
       JOIN assinatura_templates t   ON t.id = s.template_id
       LEFT JOIN pacientes p         ON p.id = s.paciente_id
+      ${filtroUnidadeJoin}
       ORDER BY s.id DESC
       LIMIT 50
     `);
     const rows = (r as unknown as { rows?: unknown[] }).rows || [];
-    res.json({ solicitacoes: rows, total: rows.length });
+    res.json({ solicitacoes: rows, total: rows.length, filtro_unidade_id: unidadeIdFiltro });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

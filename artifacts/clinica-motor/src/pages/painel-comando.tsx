@@ -439,8 +439,16 @@ export default function PainelComando() {
                           {assinaturasResumo.por_unidade.map((u) => (
                             <tr
                               key={u.unidade_id}
-                              className="border-b border-zinc-100/60 last:border-0 hover:bg-[var(--pw-petroleo)]/5"
+                              onClick={(e) => {
+                                // Task #51 — clique na linha abre timeline filtrada por essa clinica.
+                                // stopPropagation pra nao disparar o navigate do <a> wrapper externo.
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.location.href = `/assinaturas/timeline?unidade_id=${u.unidade_id}`;
+                              }}
+                              className="border-b border-zinc-100/60 last:border-0 hover:bg-[var(--pw-petroleo)]/10 cursor-pointer transition-colors"
                               data-testid={`linha-unidade-${u.unidade_id}`}
+                              title={`Abrir timeline filtrada por ${u.unidade_nome}`}
                             >
                               <td className="py-1.5 pr-2 text-[var(--pw-petroleo)] font-medium truncate max-w-[180px]" title={u.unidade_nome}>
                                 {u.unidade_nome.replace(/^INSTITUTO\s+/i, "")}
