@@ -516,7 +516,14 @@ export class AssinaturaService {
       || (Array.isArray(ply.signers) ? (ply.signers.filter((s) => s.signed_at).slice(-1)[0] || ply.signers[0]) : undefined)
       || {};
 
-    const signatureId = signerEvento.token || `${p.envelopeId}-${Date.now()}`;
+    // Idempotencia (architect fix Wave 10 F4): signature_id determínistico.
+    // Date.now() era um anti-padrão — cada retry de webhook geraria signature_id
+    // diferente, bypassando ON CONFLICT (signature_id) e duplicando audit.
+    // Fallback agora: token ZapSign > envelopeId+cpf > envelopeId+email > envelopeId+nosig.
+    const signatureId = signerEvento.token
+      || (signerEvento.cpf ? `${p.envelopeId}-${(signerEvento.cpf||"").replace(/\D/g,"")}` : null)
+      || (signerEvento.email ? `${p.envelopeId}-${signerEvento.email.toLowerCase()}` : null)
+      || `${p.envelopeId}-nosig`;
     const signerCpf = (signerEvento.cpf || "").replace(/\D/g, "") || "00000000000";
     const signerName = signerEvento.name || "unknown";
     const signerEmail = (signerEvento.email || "").toLowerCase();
