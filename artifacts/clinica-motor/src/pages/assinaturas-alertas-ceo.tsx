@@ -112,14 +112,20 @@ export default function AssinaturasAlertasCEO() {
   const [filtro, setFiltro] = useState<Filtro>(lerFiltroDaURL);
   const [undoToast, setUndoToast] = useState<{ ids: number[]; expiraEm: number } | null>(null);
   const [desfazendo, setDesfazendo] = useState(false);
+  const [undoRestanteMs, setUndoRestanteMs] = useState(0);
 
-  // Auto-fechar o toast de undo quando a janela expira (8s).
+  // Auto-fechar o toast de undo quando a janela expira (8s) + tickar contagem
+  // regressiva (Task #74) a cada 100ms pra animar barra/contador suavemente.
   useEffect(() => {
-    if (!undoToast) return;
-    const restante = undoToast.expiraEm - Date.now();
-    if (restante <= 0) { setUndoToast(null); return; }
-    const t = setTimeout(() => setUndoToast(null), restante);
-    return () => clearTimeout(t);
+    if (!undoToast) { setUndoRestanteMs(0); return; }
+    const atualizar = () => {
+      const restante = Math.max(0, undoToast.expiraEm - Date.now());
+      setUndoRestanteMs(restante);
+      if (restante <= 0) setUndoToast(null);
+    };
+    atualizar();
+    const i = setInterval(atualizar, 100);
+    return () => clearInterval(i);
   }, [undoToast]);
 
   useEffect(() => {
@@ -263,27 +269,51 @@ export default function AssinaturasAlertasCEO() {
       {/* Task #69: toast de undo (8s) apos marcar todos como vistos */}
       {undoToast && (
         <div
-          className="nao-imprimir fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg"
-          style={{ background: NAVY, color: "#F9FAFB", border: `1px solid ${GOLD}` }}
+          className="nao-imprimir fixed bottom-6 right-6 z-50 rounded-lg shadow-lg overflow-hidden"
+          style={{ background: NAVY, color: "#F9FAFB", border: `1px solid ${GOLD}`, minWidth: 320 }}
           data-testid="toast-undo-marcar-todos"
           role="status"
           aria-live="polite"
         >
-          <CheckCircle2 size={16} style={{ color: GOLD }} />
-          <span className="text-sm">
-            {undoToast.ids.length} alerta{undoToast.ids.length === 1 ? "" : "s"} marcado{undoToast.ids.length === 1 ? "" : "s"} como visto{undoToast.ids.length === 1 ? "" : "s"}
-          </span>
-          <button
-            onClick={desfazerMarcarTodos}
-            disabled={desfazendo}
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition disabled:opacity-60"
-            style={{ background: GOLD, color: NAVY }}
-            data-testid="botao-desfazer-marcar-todos"
-            title="Reverter: alertas voltam a ficar pendentes"
+          <div className="flex items-center gap-3 px-4 py-3">
+            <CheckCircle2 size={16} style={{ color: GOLD }} />
+            <span className="text-sm">
+              {undoToast.ids.length} alerta{undoToast.ids.length === 1 ? "" : "s"} marcado{undoToast.ids.length === 1 ? "" : "s"} como visto{undoToast.ids.length === 1 ? "" : "s"}
+            </span>
+            <span
+              className="text-xs tabular-nums opacity-80"
+              data-testid="undo-contador-segundos"
+              aria-hidden="true"
+            >
+              {Math.ceil(undoRestanteMs / 1000)}s
+            </span>
+            <button
+              onClick={desfazerMarcarTodos}
+              disabled={desfazendo}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition disabled:opacity-60"
+              style={{ background: GOLD, color: NAVY }}
+              data-testid="botao-desfazer-marcar-todos"
+              title="Reverter: alertas voltam a ficar pendentes"
+            >
+              <Undo2 size={12} />
+              {desfazendo ? "Desfazendo..." : "Desfazer"}
+            </button>
+          </div>
+          <div
+            className="h-1 w-full"
+            style={{ background: "rgba(255,255,255,0.12)" }}
+            aria-hidden="true"
           >
-            <Undo2 size={12} />
-            {desfazendo ? "Desfazendo..." : "Desfazer"}
-          </button>
+            <div
+              data-testid="undo-barra-progresso"
+              style={{
+                height: "100%",
+                width: `${Math.max(0, Math.min(100, (undoRestanteMs / UNDO_JANELA_MS) * 100))}%`,
+                background: GOLD,
+                transition: "width 100ms linear",
+              }}
+            />
+          </div>
         </div>
       )}
       <div data-pdf-titulo="Fila de Alertas do CEO" className="p-6 space-y-6">
