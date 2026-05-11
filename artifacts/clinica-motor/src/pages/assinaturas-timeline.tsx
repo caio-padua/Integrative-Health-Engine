@@ -338,25 +338,39 @@ export default function AssinaturasTimeline() {
           <div className="nao-imprimir flex items-center gap-2">
             {/* Task #60 — baixar CSV respeitando os mesmos filtros (unidade + status).
                 Task #66 — inclui tambem desde/ate pra exportar exatamente o recorte da tela.
+                Task #65 — botao paralelo XLSX (Excel) com datas tipadas + header em negrito.
                 Task #73 — Atualizar agora recarrega a 1a pagina (append:false). */}
-            <a
-              href={(() => {
-                const params = new URLSearchParams();
-                if (filtroUnidadeId !== null) params.set("unidade_id", String(filtroUnidadeId));
-                const statusList = STATUS_QUERY[filtroStatus];
-                if (statusList.length > 0) params.set("status", statusList.join(","));
-                if (desdeInput) params.set("desde", desdeInput);
-                if (ateInput) params.set("ate", ateInput);
-                const qs = params.toString() ? `?${params.toString()}` : "";
-                return `/api/assinaturas/timeline.csv${qs}`;
-              })()}
-              data-testid="botao-baixar-csv"
-              className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition border"
-              style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
-            >
-              <Download size={14} />
-              Baixar CSV
-            </a>
+            {(() => {
+              const params = new URLSearchParams();
+              if (filtroUnidadeId !== null) params.set("unidade_id", String(filtroUnidadeId));
+              const statusList = STATUS_QUERY[filtroStatus];
+              if (statusList.length > 0) params.set("status", statusList.join(","));
+              if (desdeInput) params.set("desde", desdeInput);
+              if (ateInput) params.set("ate", ateInput);
+              const qs = params.toString() ? `?${params.toString()}` : "";
+              return (
+                <>
+                  <a
+                    href={`/api/assinaturas/timeline.csv${qs}`}
+                    data-testid="botao-baixar-csv"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition border"
+                    style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
+                  >
+                    <Download size={14} />
+                    Baixar CSV
+                  </a>
+                  <a
+                    href={`/api/assinaturas/timeline.xlsx${qs}`}
+                    data-testid="botao-baixar-xlsx"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition border"
+                    style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
+                  >
+                    <Download size={14} />
+                    Baixar XLSX
+                  </a>
+                </>
+              );
+            })()}
             <button
               onClick={() => carregar({ append: false })}
               className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition"

@@ -4,6 +4,7 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
+import ExcelJS from "exceljs";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { assinaturaService } from "../lib/assinatura/service";
@@ -869,6 +870,141 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Cache-Control", "no-store");
     res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * GET /api/assinaturas/timeline.xlsx — Task #65 · export XLSX da timeline filtrada
+ *
+ * Mesmo gate (guardMaster) e mesmos filtros (`unidade_id`, `status`) do CSV.
+ * Diferenca: planilha .xlsx com (i) datas como tipo `date` nativo do Excel
+ * (formato dd/mm/yyyy hh:mm), (ii) header em negrito + fundo navy/gold
+ * institucional, (iii) larguras minimas por coluna (sem precisar do usuario
+ * arrastar pra ler), (iv) painel congelado na primeira linha pra rolar
+ * mantendo o header visivel — pedido de escritorios contabeis/juridicos.
+ *
+ * Mesmo mascaramento de paciente (primeiro nome + iniciais) — anexo de
+ * e-mail vaza facil. Mesma protecao contra formula injection (prefixa aspa
+ * simples se celula de texto comeca com =/+/-/@).
+ *
+ * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por causa do match em
+ * ordem do express (mesma razao de /timeline e /timeline.csv).
+ */
+router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
+      ? Number(unidadeIdRaw)
+      : null;
+    const filtroUnidadeJoin = unidadeIdFiltro !== null
+      ? sql`JOIN pacientes p_filt ON p_filt.id = s.paciente_id AND p_filt.unidade_id = ${unidadeIdFiltro}`
+      : sql``;
+    const STATUS_VALIDOS = new Set([
+      "RASCUNHO", "ENVIADO", "PARCIAL", "CONCLUIDO", "REJEITADO", "EXPIRADO",
+    ]);
+    const statusRaw = req.query["status"];
+    const statusFiltro: string[] = typeof statusRaw === "string" && statusRaw.length > 0
+      ? statusRaw.split(",").map(s => s.trim().toUpperCase()).filter(s => STATUS_VALIDOS.has(s))
+      : [];
+    const filtroStatusWhere = statusFiltro.length > 0
+      ? sql`WHERE s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`
+      : sql``;
+    const r = await db.execute(sql`
+      SELECT
+        s.id,
+        s.status,
+        s.criado_em,
+        s.concluido_em,
+        t.codigo                     AS template_codigo,
+        t.nome_exibicao              AS template_nome,
+        p.nome                       AS paciente_nome,
+        u.nome                       AS paciente_unidade_nome,
+        (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id) AS signatarios_total,
+        (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id AND sg.status = 'ASSINADO') AS signatarios_assinados
+      FROM assinatura_solicitacoes s
+      JOIN assinatura_templates t   ON t.id = s.template_id
+      LEFT JOIN pacientes p         ON p.id = s.paciente_id
+      LEFT JOIN unidades u          ON u.id = p.unidade_id
+      ${filtroUnidadeJoin}
+      ${filtroStatusWhere}
+      ORDER BY s.id DESC
+      LIMIT 50
+    `);
+    const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+
+    // Mesmas defesas do CSV: mascarar nome de paciente (anexo de e-mail
+    // vaza facil) e neutralizar formula injection em celulas de texto.
+    const mascararNome = (n: unknown): string => {
+      if (!n) return "— sem vínculo —";
+      const partes = String(n).trim().split(/\s+/).filter((p) => /^\p{L}/u.test(p));
+      if (partes.length === 0) return "— sem vínculo —";
+      if (partes.length === 1) return partes[0]!;
+      const primeiro = partes[0]!;
+      const iniciais = partes.slice(1).map((p) => `${p.charAt(0).toUpperCase()}.`).join(" ");
+      return `${primeiro} ${iniciais}`;
+    };
+    const sanitizarTexto = (v: unknown): string => {
+      if (v === null || v === undefined) return "";
+      const s = String(v);
+      if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) return `'${s}`;
+      return s;
+    };
+    const dataOuNull = (v: unknown): Date | null => {
+      if (!v) return null;
+      const d = new Date(String(v));
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "PAWARDS MEDCORE";
+    wb.created = new Date();
+    const ws = wb.addWorksheet("Timeline", {
+      views: [{ state: "frozen", ySplit: 1 }],
+    });
+    ws.columns = [
+      { header: "ID",                key: "id",            width: 8 },
+      { header: "Template",          key: "template",      width: 20 },
+      { header: "Paciente",          key: "paciente",      width: 32 },
+      { header: "Status",            key: "status",        width: 14 },
+      { header: "Signatários",       key: "signatarios",   width: 14 },
+      { header: "Criado em",         key: "criado_em",     width: 18, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+      { header: "Concluído em",      key: "concluido_em",  width: 18, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+    ];
+    // Header em negrito + fundo navy/gold institucional + congelado.
+    const headerRow = ws.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFC89B3C" } };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF020406" },
+    };
+    headerRow.alignment = { vertical: "middle", horizontal: "left" };
+    headerRow.height = 22;
+
+    for (const row of rows) {
+      ws.addRow({
+        id: Number(row["id"]),
+        template: sanitizarTexto(row["template_codigo"]),
+        paciente: mascararNome(row["paciente_nome"]),
+        status: sanitizarTexto(row["status"]),
+        signatarios: `${row["signatarios_assinados"] ?? 0}/${row["signatarios_total"] ?? 0}`,
+        criado_em: dataOuNull(row["criado_em"]),
+        concluido_em: dataOuNull(row["concluido_em"]),
+      });
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const filename = `assinaturas-timeline-${stamp}.xlsx`;
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(Buffer.from(buf));
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
