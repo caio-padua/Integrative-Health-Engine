@@ -145,6 +145,84 @@ export default function AssinaturasTimeline() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Task #64 — filtro por intervalo de datas (criado_em). Persistido na URL
+  // via `?desde=YYYY-MM-DD&ate=YYYY-MM-DD` pra link compartilhavel. Chips
+  // rapidos: Hoje, 7 dias, 30 dias. "Personalizado" libera os 2 inputs de
+  // data; "Tudo" limpa o recorte. O calculo de janela e feito no fuso local
+  // do navegador (Caio opera em Sao Paulo) — backend trata como `::date`.
+  type FiltroData = "TUDO" | "HOJE" | "7D" | "30D" | "PERSONALIZADO";
+  function isoLocal(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+  }
+  function parseDatasFromUrl(): { desde: string; ate: string } {
+    if (typeof window === "undefined") return { desde: "", ate: "" };
+    const sp = new URLSearchParams(window.location.search);
+    const re = /^\d{4}-\d{2}-\d{2}$/;
+    const desde = sp.get("desde") || "";
+    const ate = sp.get("ate") || "";
+    return {
+      desde: re.test(desde) ? desde : "",
+      ate: re.test(ate) ? ate : "",
+    };
+  }
+  function detectarPresetInicial(desde: string, ate: string): FiltroData {
+    if (!desde && !ate) return "TUDO";
+    const hoje = isoLocal(new Date());
+    if (desde === hoje && ate === hoje) return "HOJE";
+    const d7 = new Date(); d7.setDate(d7.getDate() - 6);
+    if (desde === isoLocal(d7) && ate === hoje) return "7D";
+    const d30 = new Date(); d30.setDate(d30.getDate() - 29);
+    if (desde === isoLocal(d30) && ate === hoje) return "30D";
+    return "PERSONALIZADO";
+  }
+  const datasUrlInicial = parseDatasFromUrl();
+  const [filtroData, setFiltroDataState] = useState<FiltroData>(
+    detectarPresetInicial(datasUrlInicial.desde, datasUrlInicial.ate),
+  );
+  const [desdeInput, setDesdeInput] = useState<string>(datasUrlInicial.desde);
+  const [ateInput, setAteInput] = useState<string>(datasUrlInicial.ate);
+
+  const sincronizarDatasUrl = useCallback((desde: string, ate: string) => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (desde) url.searchParams.set("desde", desde);
+    else url.searchParams.delete("desde");
+    if (ate) url.searchParams.set("ate", ate);
+    else url.searchParams.delete("ate");
+    window.history.replaceState({}, "", url.toString());
+  }, []);
+
+  const aplicarPresetData = useCallback((preset: FiltroData) => {
+    setFiltroDataState(preset);
+    const hoje = isoLocal(new Date());
+    let desde = "", ate = "";
+    if (preset === "HOJE") { desde = hoje; ate = hoje; }
+    else if (preset === "7D") {
+      const d = new Date(); d.setDate(d.getDate() - 6);
+      desde = isoLocal(d); ate = hoje;
+    } else if (preset === "30D") {
+      const d = new Date(); d.setDate(d.getDate() - 29);
+      desde = isoLocal(d); ate = hoje;
+    } else if (preset === "PERSONALIZADO") {
+      // mantem o que estiver nos inputs (pode ser vazio — usuario preenche)
+      desde = desdeInput;
+      ate = ateInput;
+    }
+    setDesdeInput(desde);
+    setAteInput(ate);
+    sincronizarDatasUrl(desde, ate);
+  }, [desdeInput, ateInput, sincronizarDatasUrl]);
+
+  const aplicarPersonalizado = useCallback((novoDesde: string, novoAte: string) => {
+    setFiltroDataState("PERSONALIZADO");
+    setDesdeInput(novoDesde);
+    setAteInput(novoAte);
+    sincronizarDatasUrl(novoDesde, novoAte);
+  }, [sincronizarDatasUrl]);
+
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
@@ -153,6 +231,8 @@ export default function AssinaturasTimeline() {
       if (filtroUnidadeId !== null) params.set("unidade_id", String(filtroUnidadeId));
       const statusList = STATUS_QUERY[filtroStatus];
       if (statusList.length > 0) params.set("status", statusList.join(","));
+      if (desdeInput) params.set("desde", desdeInput);
+      if (ateInput) params.set("ate", ateInput);
       const qs = params.toString() ? `?${params.toString()}` : "";
       const r = await fetch(`/api/assinaturas/timeline${qs}`, {
         credentials: "include",
@@ -169,7 +249,7 @@ export default function AssinaturasTimeline() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroUnidadeId, filtroStatus]);
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput]);
 
   useEffect(() => {
     carregar();
@@ -265,6 +345,65 @@ export default function AssinaturasTimeline() {
               {totais.rejeitado}
             </div>
           </div>
+        </div>
+
+        {/* Task #64 — chips de filtro por intervalo de datas (criado_em) */}
+        <div className="nao-imprimir flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-wide" style={{ color: ZINC }}>
+            Filtrar por período:
+          </span>
+          {([
+            { key: "TUDO", label: "Tudo" },
+            { key: "HOJE", label: "Hoje" },
+            { key: "7D", label: "7 dias" },
+            { key: "30D", label: "30 dias" },
+            { key: "PERSONALIZADO", label: "Personalizado" },
+          ] as { key: FiltroData; label: string }[]).map((opt) => {
+            const ativo = filtroData === opt.key;
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => aplicarPresetData(opt.key)}
+                data-testid={`filtro-data-${opt.key.toLowerCase()}`}
+                className="px-3 py-1 rounded-full text-xs font-semibold border transition"
+                style={{
+                  background: ativo ? NAVY : "#FFFFFF",
+                  color: ativo ? "#FFFFFF" : NAVY,
+                  borderColor: NAVY,
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+          {filtroData === "PERSONALIZADO" && (
+            <span className="inline-flex items-center gap-2 ml-2">
+              <label className="text-xs" style={{ color: ZINC }}>De</label>
+              <input
+                type="date"
+                value={desdeInput}
+                onChange={(e) => aplicarPersonalizado(e.target.value, ateInput)}
+                data-testid="filtro-data-desde"
+                className="border rounded px-2 py-1 text-xs"
+                style={{ borderColor: NAVY, color: NAVY }}
+              />
+              <label className="text-xs" style={{ color: ZINC }}>até</label>
+              <input
+                type="date"
+                value={ateInput}
+                onChange={(e) => aplicarPersonalizado(desdeInput, e.target.value)}
+                data-testid="filtro-data-ate"
+                className="border rounded px-2 py-1 text-xs"
+                style={{ borderColor: NAVY, color: NAVY }}
+              />
+            </span>
+          )}
+          {(desdeInput || ateInput) && filtroData !== "PERSONALIZADO" && (
+            <span className="text-xs" style={{ color: ZINC }}>
+              {desdeInput || "—"} → {ateInput || "—"}
+            </span>
+          )}
         </div>
 
         {/* Task #55 — chips de filtro por status */}
