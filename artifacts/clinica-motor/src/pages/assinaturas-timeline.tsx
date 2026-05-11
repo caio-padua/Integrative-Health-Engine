@@ -38,6 +38,8 @@ type Solicitacao = {
   template_tipo: string;
   paciente_id: number | null;
   paciente_nome: string | null;
+  paciente_unidade_id: number | null;
+  paciente_unidade_nome: string | null;
   signatarios_total: number;
   signatarios_assinados: number;
   auditoria_eventos: number;
@@ -250,6 +252,9 @@ export default function AssinaturasTimeline() {
                   <th className="text-left px-3 py-2 font-semibold">#</th>
                   <th className="text-left px-3 py-2 font-semibold">Template</th>
                   <th className="text-left px-3 py-2 font-semibold">Paciente</th>
+                  {filtroUnidadeId === null && (
+                    <th className="text-left px-3 py-2 font-semibold">Clínica</th>
+                  )}
                   <th className="text-center px-3 py-2 font-semibold">Status</th>
                   <th className="text-center px-3 py-2 font-semibold">Signatários</th>
                   <th className="text-center px-3 py-2 font-semibold">Auditoria</th>
@@ -279,6 +284,15 @@ export default function AssinaturasTimeline() {
                         <span className="italic text-zinc-400">— sem vínculo —</span>
                       )}
                     </td>
+                    {filtroUnidadeId === null && (
+                      <td className="px-3 py-2 text-xs" style={{ color: NAVY }}>
+                        {r.paciente_unidade_nome ? (
+                          <span>{r.paciente_unidade_nome}</span>
+                        ) : (
+                          <span className="italic text-zinc-400">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-3 py-2 text-center">
                       <StatusBadge status={r.status} />
                     </td>
