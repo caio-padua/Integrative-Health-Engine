@@ -14,7 +14,10 @@ import {
   Mail,
   MessageSquare,
   ShieldCheck,
+  Undo2,
 } from "lucide-react";
+
+const UNDO_JANELA_MS = 8000;
 
 const NAVY = "#020406";
 const GOLD = "#C89B3C";
@@ -107,6 +110,17 @@ export default function AssinaturasAlertasCEO() {
   const [marcandoTodos, setMarcandoTodos] = useState(false);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [filtro, setFiltro] = useState<Filtro>(lerFiltroDaURL);
+  const [undoToast, setUndoToast] = useState<{ ids: number[]; expiraEm: number } | null>(null);
+  const [desfazendo, setDesfazendo] = useState(false);
+
+  // Auto-fechar o toast de undo quando a janela expira (8s).
+  useEffect(() => {
+    if (!undoToast) return;
+    const restante = undoToast.expiraEm - Date.now();
+    if (restante <= 0) { setUndoToast(null); return; }
+    const t = setTimeout(() => setUndoToast(null), restante);
+    return () => clearTimeout(t);
+  }, [undoToast]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -169,6 +183,10 @@ export default function AssinaturasAlertasCEO() {
         credentials: "include",
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json().catch(() => ({} as { ids?: number[] }));
+      const ids: number[] = Array.isArray(data?.ids)
+        ? data.ids.map((v: unknown) => Number(v)).filter((n: number) => Number.isInteger(n) && n > 0)
+        : [];
       const agora = new Date().toISOString();
       // Atualizacao otimista: marca tudo que estava pendente como visto agora.
       setRows((prev) =>
@@ -181,10 +199,45 @@ export default function AssinaturasAlertasCEO() {
         localStorage.setItem("alertas_ceo_marcados_em", agora);
         window.dispatchEvent(new CustomEvent("alertas_ceo_marcados", { detail: { quando: agora } }));
       } catch { /* silencioso */ }
+      // Task #69: oferece undo durante 8s.
+      if (ids.length > 0) {
+        setUndoToast({ ids, expiraEm: Date.now() + UNDO_JANELA_MS });
+      }
     } catch (e) {
       setErro((e as Error).message);
     } finally {
       setMarcandoTodos(false);
+    }
+  };
+
+  const desfazerMarcarTodos = async () => {
+    if (!undoToast || desfazendo) return;
+    const ids = undoToast.ids;
+    setDesfazendo(true);
+    try {
+      const r = await fetch("/api/assinaturas/alertas-ceo/desfazer-vistos", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      // Reverte estado local: zera visualizado_em dos ids revertidos.
+      const setIds = new Set(ids);
+      setRows((prev) =>
+        prev.map((a) => (setIds.has(a.id) ? { ...a, visualizado_em: null } : a)),
+      );
+      // Notifica painel CEO/badge pra recontar.
+      try {
+        const agora = new Date().toISOString();
+        localStorage.setItem("alertas_ceo_marcados_em", agora);
+        window.dispatchEvent(new CustomEvent("alertas_ceo_marcados", { detail: { quando: agora } }));
+      } catch { /* silencioso */ }
+      setUndoToast(null);
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setDesfazendo(false);
     }
   };
 
@@ -207,6 +260,32 @@ export default function AssinaturasAlertasCEO() {
 
   return (
     <Layout>
+      {/* Task #69: toast de undo (8s) apos marcar todos como vistos */}
+      {undoToast && (
+        <div
+          className="nao-imprimir fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg"
+          style={{ background: NAVY, color: "#F9FAFB", border: `1px solid ${GOLD}` }}
+          data-testid="toast-undo-marcar-todos"
+          role="status"
+          aria-live="polite"
+        >
+          <CheckCircle2 size={16} style={{ color: GOLD }} />
+          <span className="text-sm">
+            {undoToast.ids.length} alerta{undoToast.ids.length === 1 ? "" : "s"} marcado{undoToast.ids.length === 1 ? "" : "s"} como visto{undoToast.ids.length === 1 ? "" : "s"}
+          </span>
+          <button
+            onClick={desfazerMarcarTodos}
+            disabled={desfazendo}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition disabled:opacity-60"
+            style={{ background: GOLD, color: NAVY }}
+            data-testid="botao-desfazer-marcar-todos"
+            title="Reverter: alertas voltam a ficar pendentes"
+          >
+            <Undo2 size={12} />
+            {desfazendo ? "Desfazendo..." : "Desfazer"}
+          </button>
+        </div>
+      )}
       <div data-pdf-titulo="Fila de Alertas do CEO" className="p-6 space-y-6">
         {/* Header */}
         <div

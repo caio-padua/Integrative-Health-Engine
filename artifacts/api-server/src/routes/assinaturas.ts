@@ -410,8 +410,9 @@ router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Re
  * vistos agora. Idempotente: rodar 2x nao reabre nada. Mesmo guardMaster
  * dos demais endpoints da fila.
  *
- * Resposta: { ok: true, marcados: N } onde N = quantidade efetivamente
- * atualizada nesta chamada (RETURNING id).
+ * Resposta: { ok: true, marcados: N, ids: number[] } onde N = quantidade
+ * efetivamente atualizada nesta chamada (RETURNING id). `ids` permite que o
+ * frontend ofereca undo (Task #69) chamando /desfazer-vistos com a lista exata.
  */
 router.post("/assinaturas/alertas-ceo/marcar-todos-vistos", guardMaster, async (_req: Request, res: Response) => {
   try {
@@ -421,8 +422,45 @@ router.post("/assinaturas/alertas-ceo/marcar-todos-vistos", guardMaster, async (
       WHERE visualizado_em IS NULL
       RETURNING id
     `);
-    const rows = (r as unknown as { rows?: unknown[] }).rows || [];
-    res.json({ ok: true, marcados: rows.length });
+    const rows = ((r as unknown as { rows?: { id: number }[] }).rows) || [];
+    const ids = rows.map((row) => Number(row.id));
+    res.json({ ok: true, marcados: ids.length, ids });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * POST /api/assinaturas/alertas-ceo/desfazer-vistos — Task #69
+ *
+ * Recebe { ids: number[] } e reverte visualizado_em para NULL nesses alertas.
+ * Pensado pra ser chamado dentro da janela de undo (8s) logo apos
+ * marcar-todos-vistos. Idempotente: rodar 2x nao quebra nada.
+ *
+ * Mesmo guardMaster — quem pode marcar pode desfazer.
+ *
+ * Resposta: { ok: true, desfeitos: N } onde N = quantidade efetivamente
+ * revertida (RETURNING id).
+ */
+router.post("/assinaturas/alertas-ceo/desfazer-vistos", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const body = (req.body ?? {}) as { ids?: unknown };
+    const idsRaw = Array.isArray(body.ids) ? body.ids : [];
+    const ids = idsRaw
+      .map((v) => Number(v))
+      .filter((n) => Number.isInteger(n) && n > 0);
+    if (ids.length === 0) {
+      res.json({ ok: true, desfeitos: 0 });
+      return;
+    }
+    const r = await db.execute(sql`
+      UPDATE alertas_ceo_assinaturas
+      SET visualizado_em = NULL
+      WHERE id = ANY(${ids}::bigint[])
+      RETURNING id
+    `);
+    const rows = ((r as unknown as { rows?: unknown[] }).rows) || [];
+    res.json({ ok: true, desfeitos: rows.length });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -645,6 +683,131 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
 });
 
 /**
+ * GET /api/assinaturas/timeline.csv — Task #60 · export CSV da timeline filtrada
+ *
+ * Mesmo gate (guardMaster) e mesmos filtros (`unidade_id`, `status`) do endpoint
+ * /assinaturas/timeline. Retorna CSV (UTF-8 com BOM pra Excel renderizar acentos)
+ * com colunas: id, template_codigo, template_nome, paciente, status,
+ * signatarios_assinados, signatarios_total, criado_em, concluido_em.
+ *
+ * Mascaramento PII server-side: o nome do paciente sai mascarado no CSV
+ * (primeiro nome + iniciais dos sobrenomes) porque CSVs viram anexo de
+ * e-mail e podem vazar pra terceiros (contador, advogado externo). Em tela,
+ * o mestre continua vendo o nome completo. Mesma filosofia de defesa em
+ * profundidade do helper `mascararCpfServer` acima.
+ *
+ * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por causa do match em
+ * ordem do express (mesma razao de /timeline).
+ */
+router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
+      ? Number(unidadeIdRaw)
+      : null;
+    const filtroUnidadeJoin = unidadeIdFiltro !== null
+      ? sql`JOIN pacientes p_filt ON p_filt.id = s.paciente_id AND p_filt.unidade_id = ${unidadeIdFiltro}`
+      : sql``;
+    const STATUS_VALIDOS = new Set([
+      "RASCUNHO", "ENVIADO", "PARCIAL", "CONCLUIDO", "REJEITADO", "EXPIRADO",
+    ]);
+    const statusRaw = req.query["status"];
+    const statusFiltro: string[] = typeof statusRaw === "string" && statusRaw.length > 0
+      ? statusRaw.split(",").map(s => s.trim().toUpperCase()).filter(s => STATUS_VALIDOS.has(s))
+      : [];
+    const filtroStatusWhere = statusFiltro.length > 0
+      ? sql`WHERE s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`
+      : sql``;
+    const r = await db.execute(sql`
+      SELECT
+        s.id,
+        s.status,
+        s.criado_em,
+        s.concluido_em,
+        t.codigo                     AS template_codigo,
+        t.nome_exibicao              AS template_nome,
+        p.nome                       AS paciente_nome,
+        u.nome                       AS paciente_unidade_nome,
+        (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id) AS signatarios_total,
+        (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id AND sg.status = 'ASSINADO') AS signatarios_assinados
+      FROM assinatura_solicitacoes s
+      JOIN assinatura_templates t   ON t.id = s.template_id
+      LEFT JOIN pacientes p         ON p.id = s.paciente_id
+      LEFT JOIN unidades u          ON u.id = p.unidade_id
+      ${filtroUnidadeJoin}
+      ${filtroStatusWhere}
+      ORDER BY s.id DESC
+      LIMIT 50
+    `);
+    const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+
+    // CSV escape: envolve em aspas duplas e duplica aspas internas.
+    // Aceita null/undefined virando string vazia. Nunca interpola CRLF/aspas
+    // crus no payload — Excel/LibreOffice quebram com isso.
+    // Neutraliza CSV/Excel formula injection: celulas que comecam com
+    // =, +, -, @, TAB ou CR podem ser interpretadas como formula pelo Excel/
+    // LibreOffice/Google Sheets. Como o CSV vai virar anexo de e-mail,
+    // prefixa com aspa simples (padrao OWASP) pra forcar leitura como texto.
+    const esc = (v: unknown): string => {
+      if (v === null || v === undefined) return "";
+      let s = String(v);
+      if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const isoOuVazio = (v: unknown): string => {
+      if (!v) return "";
+      const d = new Date(String(v));
+      return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+    };
+    // Mascaramento de nome de paciente pra CSV (anexo de e-mail vaza facil).
+    // Regra: mantem primeiro nome + inicial maiuscula de cada sobrenome
+    // ("Patricia Oliveira Rocha" -> "Patricia O. R."). Nome unico fica intacto.
+    // Vazio/nulo vira marcador "— sem vinculo —" pra nao confundir com erro.
+    const mascararNome = (n: unknown): string => {
+      if (!n) return "— sem vínculo —";
+      // Considera apenas tokens que comecam com letra (descarta sufixos
+      // tipo "(FICTÍCIA)", "[teste]" — vira ruido em "(. [."). Usa unicode
+      // \p{L} pra aceitar acentos (Á, É, ã, ç).
+      const partes = String(n).trim().split(/\s+/).filter((p) => /^\p{L}/u.test(p));
+      if (partes.length === 0) return "— sem vínculo —";
+      if (partes.length === 1) return partes[0]!;
+      const primeiro = partes[0]!;
+      const iniciais = partes.slice(1).map((p) => `${p.charAt(0).toUpperCase()}.`).join(" ");
+      return `${primeiro} ${iniciais}`;
+    };
+
+    // Schema alinhado ao contrato da Task #60:
+    // id | template | paciente (mascarado) | status | signatarios X/Y |
+    // criado em | concluido em
+    const header = [
+      "id", "template", "paciente", "status",
+      "signatarios", "criado_em", "concluido_em",
+    ].map(esc).join(",");
+    const linhas = rows.map((row) => [
+      row["id"],
+      row["template_codigo"],
+      mascararNome(row["paciente_nome"]),
+      row["status"],
+      `${row["signatarios_assinados"] ?? 0}/${row["signatarios_total"] ?? 0}`,
+      isoOuVazio(row["criado_em"]),
+      isoOuVazio(row["concluido_em"]),
+    ].map(esc).join(","));
+
+    // BOM UTF-8 (\uFEFF) faz o Excel reconhecer encoding e renderizar acentos.
+    const csv = "\uFEFF" + [header, ...linhas].join("\r\n") + "\r\n";
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const filename = `assinaturas-timeline-${stamp}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /api/assinaturas/uploads-falhos — Wave 10.5 task #49
  *
  * Lista eventos de webhook em que o upload do PDF assinado pro bucket falhou.
@@ -725,6 +888,125 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (_req: Request, res
 });
 
 /**
+ * POST /api/assinaturas/uploads-falhos/:eventoId/resetar — Wave 10.5 task #57
+ *
+ * Reseta manualmente o retry de upload de PDF assinado depois que o operador
+ * (validador_mestre) corrigiu a causa raiz (bucket cheio, credencial revogada,
+ * rede). Hoje, quando `tentativas_retry` chega a 5, o evento fica preso pra
+ * sempre — sem este reset o PDF nunca sobe ao bucket e o risco juridico
+ * (LGPD/CFM 20 anos) continua aberto.
+ *
+ * Operacao atomica:
+ *   1. Valida que o evento esta com erro `pdf_upload_falhou*` (so esses sao
+ *      reseta veis — qualquer outro tipo de erro indica fluxo diferente).
+ *   2. Zera `tentativas_retry`, limpa `ultima_tentativa_em` e re-marca o
+ *      `erro_processamento` com o prefixo retriable (`pdf_upload_falhou: reset
+ *      manual ...`) pra worker re-elegelo no proximo tick.
+ *   3. Incrementa contador de auditoria (`resets_manuais_count`) + grava
+ *      operador (`ultimo_reset_por`) + motivo opcional (`ultimo_reset_motivo`).
+ *   4. Dispara um ciclo imediato do worker pra economizar a espera de 5min.
+ *
+ * Body: { motivo?: string } — texto livre (max 500 chars) pra rastreabilidade.
+ *
+ * Idempotente: chamadas repetidas sempre re-zeram, sempre re-disparam.
+ * Mesmo gate master das outras rotas Wave 10.
+ */
+router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const eventoId = Number(req.params["eventoId"]);
+    if (!Number.isFinite(eventoId)) {
+      res.status(400).json({ error: "eventoId invalido" });
+      return;
+    }
+    const motivoRaw = typeof req.body?.motivo === "string" ? req.body.motivo.trim() : "";
+    const motivo = motivoRaw.slice(0, 500) || null;
+    const operador = ((req.user as any)?.email as string | undefined)
+      || ((req.user as any)?.nome as string | undefined)
+      || "(desconhecido)";
+
+    // 1. Valida elegibilidade — so reseta evento com erro de upload
+    const ev: any = await db.execute(sql`
+      SELECT id, erro_processamento, tentativas_retry, solicitacao_id, envelope_id
+      FROM assinatura_webhook_eventos
+      WHERE id = ${eventoId}
+      LIMIT 1
+    `);
+    const evRow = ((ev.rows ?? ev) as Array<{ id: number; erro_processamento: string | null; tentativas_retry: number; solicitacao_id: number | null; envelope_id: string | null }>)[0];
+    if (!evRow) {
+      res.status(404).json({ error: "Evento nao encontrado" });
+      return;
+    }
+    if (!evRow.erro_processamento || !/^pdf_upload_falhou/.test(evRow.erro_processamento)) {
+      res.status(409).json({
+        error: "Evento nao esta em estado de falha de upload de PDF",
+        erro_atual: evRow.erro_processamento,
+      });
+      return;
+    }
+
+    // 2. Reset atomico + 3. audit trail
+    //
+    // NOTA DE DESIGN (code-review task #57): nao limpamos `erro_processamento`
+    // pra NULL como sugeria a leitura literal do "Done looks like" — a
+    // elegibilidade do worker `pdfRetryUpload` filtra por
+    // `LIKE 'pdf_upload_falhou:%'`, entao zerar pra NULL retiraria o evento
+    // da fila. Em vez disso, regravamos com prefixo retriable + carimbo
+    // operacional (operador + ts) pra preservar contexto e ainda assim ser
+    // re-elegivel no proximo tick. Mudancas futuras no criterio de
+    // elegibilidade do worker DEVEM revisitar este marcador.
+    //
+    // O WHERE revalida o prefixo dentro do UPDATE (nao so no SELECT acima)
+    // pra fechar a janela de corrida em que dois operadores apertam
+    // "Tentar enviar de novo" simultaneamente — o segundo recebe rowCount=0
+    // e respondemos 409 sem incrementar contador duplicado.
+    const novoMarcador = `pdf_upload_falhou: reset manual em ${new Date().toISOString()} por ${operador}`;
+    const updRes: any = await db.execute(sql`
+      UPDATE assinatura_webhook_eventos
+      SET tentativas_retry = 0,
+          ultima_tentativa_em = NULL,
+          erro_processamento = ${novoMarcador},
+          processado = false,
+          processado_em = NULL,
+          resets_manuais_count = resets_manuais_count + 1,
+          ultimo_reset_em = NOW(),
+          ultimo_reset_por = ${operador},
+          ultimo_reset_motivo = ${motivo}
+      WHERE id = ${eventoId}
+        AND erro_processamento LIKE 'pdf_upload_falhou%'
+      RETURNING id
+    `);
+    const linhasAtualizadas = ((updRes.rows ?? updRes) as Array<unknown>).length;
+    if (linhasAtualizadas === 0) {
+      res.status(409).json({
+        error: "Evento mudou de estado entre a verificacao e o reset (corrida com outro operador ou worker). Recarregue e tente novamente.",
+      });
+      return;
+    }
+
+    // 4. Dispara worker imediatamente — sem esperar 5min
+    let stats: { tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number } | null = null;
+    try {
+      const { rodarPdfRetryUploadAgora } = await import("../lib/recorrencia/pdfRetryUpload.js");
+      stats = await rodarPdfRetryUploadAgora();
+    } catch (workerErr) {
+      // Reset ja foi gravado — worker no proximo tick pega de qualquer jeito.
+      console.warn(`[assinaturas/resetar] reset OK mas worker imediato falhou: ${(workerErr as Error).message}`);
+    }
+
+    res.json({
+      ok: true,
+      evento_id: eventoId,
+      operador,
+      motivo,
+      worker_executado: stats !== null,
+      stats,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * POST /api/assinaturas/uploads-falhos/retentar — Wave 10.5 task #49
  *
  * Dispara um ciclo manual do worker `pdfRetryUpload`. Retorna stats agregadas.
@@ -770,12 +1052,34 @@ router.get("/assinaturas/:id", guardMaster, async (req: Request, res: Response) 
       signer_ip: mascararIpServer(row["signer_ip"] as string | null),
       signer_geo: reduzirGeoServer(row["signer_geo"]),
     }));
+    // Wave 10.5 task #57: expoe eventos de webhook com falha de upload de PDF
+    // pra o frontend mostrar o botao "Tentar enviar de novo". Liga via
+    // solicitacao_id direto OU por envelope_id+provedor (alguns eventos antigos
+    // ficaram com solicitacao_id NULL quando o upload falhou antes do binding).
+    const solRow0 = ((detalhes as unknown as { rows?: Array<{ provedor_envelope_id?: string | null; provedor_codigo?: string | null }> }).rows || [])[0];
+    const envelopeId = solRow0?.provedor_envelope_id ?? null;
+    const provedorCod = solRow0?.provedor_codigo ?? null;
+    const uploadsFalhos = await db.execute(sql`
+      SELECT id, provedor_codigo, envelope_id, event_type, recebido_em,
+             tentativas_retry, ultima_tentativa_em, erro_processamento,
+             resets_manuais_count, ultimo_reset_em, ultimo_reset_por,
+             ultimo_reset_motivo, processado
+      FROM assinatura_webhook_eventos
+      WHERE erro_processamento LIKE 'pdf_upload_falhou%'
+        AND (
+          solicitacao_id = ${id}
+          OR (envelope_id IS NOT NULL AND envelope_id = ${envelopeId} AND provedor_codigo = ${provedorCod})
+        )
+      ORDER BY recebido_em DESC
+      LIMIT 20
+    `);
     res.json({
       live: status,
       solicitacao: ((detalhes as unknown as { rows?: unknown[] }).rows || [])[0],
       signatarios: (sigs as unknown as { rows?: unknown[] }).rows || [],
       notificacoes: (notifs as unknown as { rows?: unknown[] }).rows || [],
       auditoria,
+      uploads_falhos: (uploadsFalhos as unknown as { rows?: unknown[] }).rows || [],
     });
   } catch (err) {
     res.status(404).json({ error: (err as Error).message });

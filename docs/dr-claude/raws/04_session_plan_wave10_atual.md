@@ -119,3 +119,114 @@ PRINCÍPIO 9 PADCON: validação Caio explícita antes de qualquer mudança visu
 - ⚠️ #1: Esperado 4 views, real 2 (`v_parq_acordos_vigentes`, `v_parq_validacao_simplificada_alert`). Resolver na limpeza v1.1.
 - ⚠️ #2: F4 frontend tem 3 telas (esperado 4 — falta `wizard-emissao` e `historico-timeline`). Resolver na limpeza v1.1.
 - ⚠️ #3: Tag `v030-parq-launch` não encontrada local — verificar remote ou criar.
+
+---
+
+## 📦 SNAPSHOT WAVE 10 PÓS-F5 + WAVE 10.5 + TSUNAMI DE FOLLOW-UPS (11/mai/2026 madrugada)
+
+### O que estava pendente quando este plano foi escrito vs hoje
+
+| Fase | Status anterior | Status agora |
+|------|-----------------|--------------|
+| F4 webhook + manifesto SHA-256 | 🟡 PENDENTE | ✅ MERGED (com fixes architect: signer_papel via lookup, signatureId determinístico, ON CONFLICT signature_id) |
+| F5 frontend timeline + detalhe | 🟡 PENDENTE | ✅ MERGED (hardenizado FAIL→PASS: guardMaster + mascaramento PII server-side em CPF/IP/geo) |
+| Wave 10.5 ADMIN_TOKEN rotacionado | (não existia no plano) | ✅ MERGED (256-bit, requestEnvVar, .replit limpo, regex bypass intacta) |
+| Fase B Dia 2 disparo real ZapSign | 🟡 PENDENTE | 🟡 PENDENTE (Caio cadastra conta ZapSign + CNAME `webhooks.pawards.com.br`) |
+| F6 wrap-up + tag `v031-zapsign-launch` | 🟡 PENDENTE | 🟡 PENDENTE (depende Fase B Dia 2) |
+
+### Tsunami de follow-ups MERGED entre F5 e hoje (~25 tasks)
+
+Agrupados por intenção. Todos via task agent isolado, todos com architect
+review FAIL→PASS quando necessário, todos REGRA FERRO (psql aditivo).
+
+**1. Defesa em profundidade do cofre PDF (Wave 10.5 housekeeping):**
+- #34 Upload real do PDF assinado pro bucket `assinaturas-pawards` no
+  webhook `doc_signed` (signed URL GCS V4 via sidecar Replit, redirect 302)
+- #38 Worker daily `verificarPdfsCofre` (tick 5min, exec 03:30 BRT) +
+  Migration 035 (`pdf_verificado_em/ok/erro` em `auditoria_assinaturas`)
+- #39 Worker `pdfRetryUpload` 5 tentativas exponenciais (1m/5m/15m/1h/6h)
+- #48 Auto-cura: quando #38 detecta PDF ausente, baixa de novo do ZapSign
+  e re-faz upload antes de escalar e-mail (Migration 037)
+- #47 Card CEO "PDFs assinados ausentes do cofre" (verde 0 / âmbar 1-2 /
+  vermelho 3+) com top 5 linhas clicáveis
+- #49 Tela admin `/assinaturas/uploads-falhos` (4 status: em_retry/
+  esgotado/fora_janela/aguardando_webhook)
+- #50 Alerta CEO quando upload esgota retries (Migration 038, UNIQUE parcial
+  evento+canal+destinatário, is_sistema_ceo bypass quiet-hours)
+- #57 Reset manual retry (após Caio resolver problema do bucket)
+- #58 Resumo diário consolidado quando ≥3 uploads travam no mesmo dia
+  (Migration 039, anti alerta-tsunami)
+
+**2. Observabilidade CEO em tempo real (extensão F5):**
+- #35 Banner Painel CEO "Resumo 24h: enviadas / assinadas / rejeitadas /
+  pendentes" (polling 60s, gate FEATURE_ASSINATURAS_RESUMO_CEO)
+- #36 Notificação tempo real ASSINADO/REJEITADO (Migration 034
+  `is_sistema_ceo`, fila `assinatura_notificacoes` com tickNotifAssinatura,
+  toast no Painel via delta detection)
+- #37 Tendência semanal 7d com sparkline + variação % colorida
+- #43 Quebra por unidade clínica (mini-tabela + sparkline por linha)
+- #44 Alerta proativo crítico (rejeições >+10% ou conversão <-10pp),
+  dispatch direto Gmail+WhatsApp, idempotente UNIQUE (dia, métrica,
+  tipo_transição) (Migrations 035/036/037/038)
+- #53 Alerta de recuperação crítico→bom/excelente (tom de alívio,
+  mesmo padrão idempotente)
+- #52 Tela dedicada `/assinaturas/alertas-ceo` (header + 4 cards resumo
+  + lista cronológica com cor semântica + badge "NOVO")
+- #61 Botão "marcar todos como vistos"
+- #62 Abas Todos / Pendentes / Vistos (URL persistida `?filtro=`)
+- #69 Toast "Desfazer" 8s após marcar-todos-vistos
+
+**3. UX timeline (extensão F5):**
+- #51 Click numa clínica do banner CEO abre timeline filtrada
+  (`?unidade_id=`)
+- #55 Filtro por status (chips Todos / Em andamento / Concluídas /
+  Rejeitadas-Expiradas, whitelist server-side)
+- #56 Coluna "Clínica" na timeline (LEFT JOIN unidades)
+- #59 URL persistida `?status=em_andamento|concluido|rejeitado` (deep-link)
+- #60 Export CSV `?format=csv` (UTF-8 BOM, mascaramento PII paciente
+  defensivo, mesmo guardMaster)
+- #64 Filtro por intervalo de datas (chips Tudo/Hoje/7d/30d/Personalizado,
+  validação regex server-side)
+
+### Migrations aditivas Wave 10.5 → tudo psql IF NOT EXISTS, ZERO db:push
+
+| # | Aplicada em | Conteúdo |
+|---|-------------|----------|
+| 032 | 01/mai | `pacientes.is_teste boolean DEFAULT false` (filtragem contas teste) |
+| 034 | 11/mai | `assinatura_notificacoes.is_sistema_ceo` + index parcial (CEO bypass quiet-hours) |
+| 035 | 11/mai | `auditoria_assinaturas.pdf_verificado_em/ok/erro` (worker #38) + ENUM `assinatura_solicitacoes.status` aceita `'PROCESSANDO'` (claim atômico) + tabela `alertas_ceo_assinaturas` (#44) |
+| 036 | 11/mai | `assinaturas_cor_diaria` (snapshot diário pra detectar transição real) |
+| 037 | 11/mai | colunas retry em `assinatura_webhook_eventos` (`tentativas_retry`, `ultima_tentativa_em`, `processando_em`) |
+| 038 | 11/mai | CHECK `assinatura_notificacoes.momento` aceita `'UPLOAD_PDF_ESGOTADO'` + `webhook_evento_id FK` + UNIQUE parcial idempotência + DROP NOT NULL `solicitacao_id` (alertas operacionais sem envelope) + `alertas_ceo_assinaturas.tipo_transicao` (piora/melhora) |
+| 039 | 11/mai | CHECK aceita `'UPLOAD_PDF_RESUMO_DIARIO'` + tabela `pdf_upload_resumo_diario` (idempotência 1 linha/dia) |
+
+### Invariantes Wave 9 PRESERVADAS (verificação atual)
+
+- `parmavault_receitas` count = 8.726 (delta +1 vs baseline 8.725 = receita
+  real entrando fora da sessão, trigger 027 funcionou — não é regressão)
+- `comissao_estimada` SUM ≈ R$ 2.735.636,10 (espelho `parq_estimado` igual)
+- 5 triggers Wave 9 + 2 PARQ ATIVOS (`pg_trigger.tgenabled='O'`)
+- `assinatura_solicitacoes` 7 linhas, `auditoria_assinaturas` 0 linhas
+  (ainda sem disparo real — Fase B Dia 2)
+
+### Próximo passo IMEDIATO destravado
+
+Quando Caio liberar:
+1. Cadastro conta ZapSign sandbox + token via `requestEnvVar`
+2. CNAME `webhooks.pawards.com.br` apontando pro deploy Replit
+3. `ZAPSIGN_WEBHOOK_SECRET` regerado como secret oculto (revelado 1× pra
+   1Password, colado no painel ZapSign hook `hook-padua-4000`)
+4. Disparo de `enviarOrcamentoFarmaceutico` em receita teste vinculada
+   ao próprio Caio (id=3104, `is_teste=true`)
+5. Validação fim-a-fim: webhook 200 + 1 linha em `auditoria_assinaturas`
+   com hash + IP + geo + auth_method + PDF persistido no bucket
+6. Tag `v031-zapsign-launch` (F6 wrap-up)
+
+### Observação pro Dr. Claude
+
+A defesa em profundidade do cofre (#34/#38/#39/#47/#48/#49/#50/#57/#58) e
+a observabilidade CEO (#35/#36/#37/#43/#44/#52/#53/#61/#62/#69) **antecipam
+muito do que seria Wave 11 (Comunicação) e Wave 11.5 (Segurança IDOR)**.
+Vale revisar se faz sentido renumerar / consolidar essas duas waves agora
+que metade já existe em produção, ou se elas viram apenas "fechamento de
+lacunas" no roadmap.
