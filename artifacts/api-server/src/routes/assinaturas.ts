@@ -410,8 +410,9 @@ router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Re
  * vistos agora. Idempotente: rodar 2x nao reabre nada. Mesmo guardMaster
  * dos demais endpoints da fila.
  *
- * Resposta: { ok: true, marcados: N } onde N = quantidade efetivamente
- * atualizada nesta chamada (RETURNING id).
+ * Resposta: { ok: true, marcados: N, ids: number[] } onde N = quantidade
+ * efetivamente atualizada nesta chamada (RETURNING id). `ids` permite que o
+ * frontend ofereca undo (Task #69) chamando /desfazer-vistos com a lista exata.
  */
 router.post("/assinaturas/alertas-ceo/marcar-todos-vistos", guardMaster, async (_req: Request, res: Response) => {
   try {
@@ -421,8 +422,45 @@ router.post("/assinaturas/alertas-ceo/marcar-todos-vistos", guardMaster, async (
       WHERE visualizado_em IS NULL
       RETURNING id
     `);
-    const rows = (r as unknown as { rows?: unknown[] }).rows || [];
-    res.json({ ok: true, marcados: rows.length });
+    const rows = ((r as unknown as { rows?: { id: number }[] }).rows) || [];
+    const ids = rows.map((row) => Number(row.id));
+    res.json({ ok: true, marcados: ids.length, ids });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * POST /api/assinaturas/alertas-ceo/desfazer-vistos — Task #69
+ *
+ * Recebe { ids: number[] } e reverte visualizado_em para NULL nesses alertas.
+ * Pensado pra ser chamado dentro da janela de undo (8s) logo apos
+ * marcar-todos-vistos. Idempotente: rodar 2x nao quebra nada.
+ *
+ * Mesmo guardMaster — quem pode marcar pode desfazer.
+ *
+ * Resposta: { ok: true, desfeitos: N } onde N = quantidade efetivamente
+ * revertida (RETURNING id).
+ */
+router.post("/assinaturas/alertas-ceo/desfazer-vistos", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const body = (req.body ?? {}) as { ids?: unknown };
+    const idsRaw = Array.isArray(body.ids) ? body.ids : [];
+    const ids = idsRaw
+      .map((v) => Number(v))
+      .filter((n) => Number.isInteger(n) && n > 0);
+    if (ids.length === 0) {
+      res.json({ ok: true, desfeitos: 0 });
+      return;
+    }
+    const r = await db.execute(sql`
+      UPDATE alertas_ceo_assinaturas
+      SET visualizado_em = NULL
+      WHERE id = ANY(${ids}::bigint[])
+      RETURNING id
+    `);
+    const rows = ((r as unknown as { rows?: unknown[] }).rows) || [];
+    res.json({ ok: true, desfeitos: rows.length });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
