@@ -137,15 +137,29 @@ router.post("/assinaturas/enviar", async (req: Request, res: Response) => {
  * Mesmo guardMaster da timeline (validador_mestre + master estrito) — banner
  * so aparece pro CEO autenticado, nao vaza contagem pra outros perfis.
  */
-router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: Response) => {
+router.get("/assinaturas/resumo-hoje", guardMaster, async (req: Request, res: Response) => {
   try {
+    // Task #43 — filtro opcional por unidade clinica. assinatura_solicitacoes
+    // nao tem unidade_id direta; derivamos via JOIN pacientes.unidade_id.
+    // Quando ausente: mantem agregado da rede inteira (compat retro Task #35/#37).
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
+      ? Number(unidadeIdRaw)
+      : null;
+    // Filtro SQL parcial reutilizado nas 3 queries da janela 24h/7d/prev_7d.
+    // Drizzle sql template segura interpolacao numerica via ${}.
+    const filtroUnidadeJoin = unidadeIdFiltro !== null
+      ? sql`JOIN pacientes p_filt ON p_filt.id = s.paciente_id AND p_filt.unidade_id = ${unidadeIdFiltro}`
+      : sql``;
+
     // Resumo das ultimas 24h (compat retro Task #35) — mantido pra nao quebrar
     // contrato anterior do banner CEO.
     const r = await db.execute(sql`
       WITH janela AS (
-        SELECT * FROM assinatura_solicitacoes
-        WHERE criado_em >= now() - interval '24 hours'
-           OR concluido_em >= now() - interval '24 hours'
+        SELECT s.* FROM assinatura_solicitacoes s
+        ${filtroUnidadeJoin}
+        WHERE s.criado_em >= now() - interval '24 hours'
+           OR s.concluido_em >= now() - interval '24 hours'
       )
       SELECT
         COUNT(*) FILTER (WHERE criado_em >= now() - interval '24 hours')::int            AS enviadas,
@@ -168,6 +182,9 @@ router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: R
           date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo'),
           interval '1 day'
         )::date AS dia
+      ), solic AS (
+        SELECT s.* FROM assinatura_solicitacoes s
+        ${filtroUnidadeJoin}
       )
       SELECT
         to_char(d.dia, 'YYYY-MM-DD') AS dia,
@@ -175,7 +192,7 @@ router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: R
         COUNT(s.*) FILTER (WHERE s.status = 'CONCLUIDO' AND (s.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS assinadas,
         COUNT(s.*) FILTER (WHERE s.status = 'REJEITADO' AND (s.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS rejeitadas
       FROM dias d
-      LEFT JOIN assinatura_solicitacoes s
+      LEFT JOIN solic s
         ON (s.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia
         OR (s.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia
       GROUP BY d.dia
@@ -198,12 +215,15 @@ router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: R
     const prevR = await db.execute(sql`
       WITH ref AS (
         SELECT date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje
+      ), solic AS (
+        SELECT s.* FROM assinatura_solicitacoes s
+        ${filtroUnidadeJoin}
       )
       SELECT
         COUNT(*) FILTER (WHERE (criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS enviadas_prev,
         COUNT(*) FILTER (WHERE status = 'CONCLUIDO' AND (concluido_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS assinadas_prev,
         COUNT(*) FILTER (WHERE status = 'REJEITADO' AND (criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS rejeitadas_prev
-      FROM assinatura_solicitacoes
+      FROM solic
     `);
     const prev = ((prevR as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {};
     const enviadasPrev = Number(prev["enviadas_prev"] || 0);
@@ -243,6 +263,94 @@ router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: R
       return "critico";
     }
 
+    // Task #43 — quebra por unidade clinica (7d atual + prev_7d + serie diaria).
+    // INTENCIONALMENTE rede-wide SEMPRE (ignora filtroUnidadeJoin) — serve de
+    // mini-tabela diagnostica comparativa: "rejeicoes subiram +30%? em qual
+    // clinica?". Mesmo quando o usuario filtrou por uma unidade especifica
+    // nos cards 24h, manter a tabela `por_unidade` rede-wide permite comparar
+    // a unidade selecionada contra as outras ("estou pior que a media?").
+    // Ordenada por enviadas_7d desc, sem cap real (LIMIT 50 = todas as
+    // clinicas ativas — rede atual tem 10, espaco de sobra ate Wave 14).
+    const porUnidadeR = await db.execute(sql`
+      WITH ref AS (
+        SELECT date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje
+      ), dias AS (
+        SELECT generate_series((SELECT hoje FROM ref) - 6, (SELECT hoje FROM ref), interval '1 day')::date AS dia
+      ), base AS (
+        SELECT s.id, s.status, s.criado_em, s.concluido_em, p.unidade_id, u.nome AS unidade_nome
+        FROM assinatura_solicitacoes s
+        JOIN pacientes p ON p.id = s.paciente_id
+        JOIN unidades u  ON u.id = p.unidade_id
+        WHERE s.criado_em    >= now() - interval '14 days'
+           OR s.concluido_em >= now() - interval '14 days'
+      ), serie_unid AS (
+        SELECT
+          b.unidade_id,
+          to_char(d.dia, 'YYYY-MM-DD') AS dia,
+          COUNT(b.id) FILTER (WHERE (b.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS enviadas,
+          COUNT(b.id) FILTER (WHERE b.status = 'CONCLUIDO' AND (b.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS assinadas,
+          COUNT(b.id) FILTER (WHERE b.status = 'REJEITADO' AND (b.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS rejeitadas
+        FROM base b
+        CROSS JOIN dias d
+        GROUP BY b.unidade_id, d.dia
+      ), agg AS (
+        SELECT
+          b.unidade_id,
+          MAX(b.unidade_nome) AS unidade_nome,
+          COUNT(*) FILTER (WHERE (b.criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 6  AND (SELECT hoje FROM ref))::int AS enviadas_7d,
+          COUNT(*) FILTER (WHERE b.status = 'CONCLUIDO' AND (b.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 6  AND (SELECT hoje FROM ref))::int AS assinadas_7d,
+          COUNT(*) FILTER (WHERE b.status = 'REJEITADO' AND (b.criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 6  AND (SELECT hoje FROM ref))::int AS rejeitadas_7d,
+          COUNT(*) FILTER (WHERE (b.criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS enviadas_prev,
+          COUNT(*) FILTER (WHERE b.status = 'CONCLUIDO' AND (b.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS assinadas_prev,
+          COUNT(*) FILTER (WHERE b.status = 'REJEITADO' AND (b.criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS rejeitadas_prev
+        FROM base b
+        GROUP BY b.unidade_id
+      )
+      SELECT
+        a.unidade_id, a.unidade_nome,
+        a.enviadas_7d, a.assinadas_7d, a.rejeitadas_7d,
+        a.enviadas_prev, a.assinadas_prev, a.rejeitadas_prev,
+        COALESCE(json_agg(json_build_object(
+          'dia', s.dia, 'enviadas', s.enviadas, 'assinadas', s.assinadas, 'rejeitadas', s.rejeitadas
+        ) ORDER BY s.dia) FILTER (WHERE s.dia IS NOT NULL), '[]'::json) AS serie_7d
+      FROM agg a
+      LEFT JOIN serie_unid s ON s.unidade_id = a.unidade_id
+      WHERE (a.enviadas_7d + a.assinadas_7d + a.rejeitadas_7d + a.enviadas_prev + a.assinadas_prev + a.rejeitadas_prev) > 0
+      GROUP BY a.unidade_id, a.unidade_nome, a.enviadas_7d, a.assinadas_7d, a.rejeitadas_7d, a.enviadas_prev, a.assinadas_prev, a.rejeitadas_prev
+      ORDER BY a.enviadas_7d DESC, a.assinadas_7d DESC
+      LIMIT 50
+    `);
+    const porUnidadeRows = (porUnidadeR as unknown as { rows?: Record<string, unknown>[] }).rows || [];
+    const porUnidade = porUnidadeRows.map((u) => {
+      const enviadas7dU   = Number(u["enviadas_7d"]   || 0);
+      const assinadas7dU  = Number(u["assinadas_7d"]  || 0);
+      const rejeitadas7dU = Number(u["rejeitadas_7d"] || 0);
+      const enviadasPrevU   = Number(u["enviadas_prev"]   || 0);
+      const assinadasPrevU  = Number(u["assinadas_prev"]  || 0);
+      const rejeitadasPrevU = Number(u["rejeitadas_prev"] || 0);
+      const varEnv = variacaoPct(enviadas7dU,   enviadasPrevU);
+      const varAss = variacaoPct(assinadas7dU,  assinadasPrevU);
+      const varRej = variacaoPct(rejeitadas7dU, rejeitadasPrevU);
+      return {
+        unidade_id: Number(u["unidade_id"]),
+        unidade_nome: String(u["unidade_nome"] || ""),
+        totais_7d:      { enviadas: enviadas7dU,   assinadas: assinadas7dU,  rejeitadas: rejeitadas7dU },
+        totais_prev_7d: { enviadas: enviadasPrevU, assinadas: assinadasPrevU, rejeitadas: rejeitadasPrevU },
+        variacao_pct:   { enviadas: varEnv,        assinadas: varAss,         rejeitadas: varRej },
+        cor: {
+          enviadas:   semanticoCor(varEnv),
+          assinadas:  semanticoCor(varAss),
+          rejeitadas: corRejeicao(varRej),
+        },
+        serie_7d: (u["serie_7d"] as Array<Record<string, unknown>> | null || []).map((p) => ({
+          dia: String(p["dia"]),
+          enviadas: Number(p["enviadas"] || 0),
+          assinadas: Number(p["assinadas"] || 0),
+          rejeitadas: Number(p["rejeitadas"] || 0),
+        })),
+      };
+    });
+
     const taxaConversao = enviadas7d > 0 ? Math.round((assinadas7d / enviadas7d) * 1000) / 10 : null;
     const taxaConversaoPrev = enviadasPrev > 0 ? Math.round((assinadasPrev / enviadasPrev) * 1000) / 10 : null;
     const variacaoConversaoAbs =
@@ -275,6 +383,9 @@ router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: R
       taxa_conversao_prev_pct: taxaConversaoPrev,
       variacao_conversao_pp: variacaoConversaoAbs,
       cor_conversao: semanticoCor(variacaoConversaoAbs),
+      // Task #43 — eco do filtro aplicado + quebra por unidade clinica
+      filtro_unidade_id: unidadeIdFiltro,
+      por_unidade: porUnidade,
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
