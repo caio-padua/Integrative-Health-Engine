@@ -205,6 +205,17 @@ export default function PainelComando() {
     taxa_conversao_prev_pct?: number | null;
     variacao_conversao_pp?: number | null;
     cor_conversao?: CorSemantica;
+    // Task #43 — quebra por unidade clinica (top 10 por enviadas_7d desc)
+    filtro_unidade_id?: number | null;
+    por_unidade?: {
+      unidade_id: number;
+      unidade_nome: string;
+      totais_7d: { enviadas: number; assinadas: number; rejeitadas: number };
+      totais_prev_7d: { enviadas: number; assinadas: number; rejeitadas: number };
+      variacao_pct: { enviadas: number | null; assinadas: number | null; rejeitadas: number | null };
+      cor: { enviadas: CorSemantica; assinadas: CorSemantica; rejeitadas: CorSemantica };
+      serie_7d: { dia: string; enviadas: number; assinadas: number; rejeitadas: number }[];
+    }[];
   } | null>(null);
   const assinaturasRef = useRef<{ assinadas: number; rejeitadas: number } | null>(null);
   const { toast } = useToast();
@@ -218,17 +229,24 @@ export default function PainelComando() {
       .catch(() => setLoading(false));
   }, [unidadeSelecionada]);
 
-  // Task #35 + Task #36 — resumo diario assinaturas pro Painel CEO.
+  // Task #35 + Task #36 + Task #43 — resumo diario assinaturas pro Painel CEO.
   // Endpoint protegido por guardMaster: 401/403 sao silenciosos (banner so
   // aparece pra master). Polling 60s + delta vs ultimo snapshot dispara toast
   // quando uma assinatura nova for concluida ou recusada (Task #36).
+  // Task #43 — propaga unidade selecionada como filtro; quando "todas as
+  // clinicas", omite o param e o backend devolve agregado da rede.
   useEffect(() => {
     if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
 
     let alive = true;
+    const qs = unidadeSelecionada && !isTodasClinicas ? `?unidade_id=${unidadeSelecionada}` : "";
+    // Reset snapshot ao trocar filtro pra evitar disparo espurio de toast
+    // por causa de baseline diferente entre rede vs unidade.
+    assinaturasRef.current = null;
+
     const carregar = async () => {
       try {
-        const r = await fetch(`${API_BASE}/assinaturas/resumo-hoje`, { credentials: "include" });
+        const r = await fetch(`${API_BASE}/assinaturas/resumo-hoje${qs}`, { credentials: "include" });
         if (!r.ok || !alive) return;
         const d = await r.json();
         if (!alive || !d) return;
@@ -271,7 +289,7 @@ export default function PainelComando() {
     carregar();
     const id = setInterval(carregar, 60_000);
     return () => { alive = false; clearInterval(id); };
-  }, [toast]);
+  }, [toast, unidadeSelecionada, isTodasClinicas]);
 
   if (loading) {
     return (
@@ -394,6 +412,67 @@ export default function PainelComando() {
                     </div>
                   </div>
                 </div>
+
+                {/* Task #43 — quebra por unidade clinica (top 10 por enviadas_7d) */}
+                {assinaturasResumo.por_unidade && assinaturasResumo.por_unidade.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-[var(--pw-petroleo)]/15" data-testid="banner-ceo-assinaturas-por-unidade">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--pw-dourado)] font-semibold mb-1.5">
+                      Tendencia 7d por clinica · rede toda
+                      {assinaturasResumo.filtro_unidade_id && (
+                        <span className="ml-2 normal-case tracking-normal text-[9px] text-zinc-500">
+                          (cards 24h acima estao filtrados; tabela mantem a rede pra comparacao)
+                        </span>
+                      )}
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[11px]" data-testid="tabela-assinaturas-por-unidade">
+                        <thead>
+                          <tr className="text-left text-[10px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200/50">
+                            <th className="py-1 pr-2 font-medium">Clinica</th>
+                            <th className="py-1 pr-2 font-medium text-right">Enviadas 7d</th>
+                            <th className="py-1 pr-2 font-medium">Tendencia</th>
+                            <th className="py-1 pr-2 font-medium text-right">Assinadas 7d</th>
+                            <th className="py-1 pr-2 font-medium text-right">Rejeitadas 7d</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {assinaturasResumo.por_unidade.map((u) => (
+                            <tr
+                              key={u.unidade_id}
+                              className="border-b border-zinc-100/60 last:border-0 hover:bg-[var(--pw-petroleo)]/5"
+                              data-testid={`linha-unidade-${u.unidade_id}`}
+                            >
+                              <td className="py-1.5 pr-2 text-[var(--pw-petroleo)] font-medium truncate max-w-[180px]" title={u.unidade_nome}>
+                                {u.unidade_nome.replace(/^INSTITUTO\s+/i, "")}
+                              </td>
+                              <td className="py-1.5 pr-2 text-right">
+                                <strong>{u.totais_7d.enviadas}</strong>
+                                <span className="ml-1 text-[10px]" style={{ color: COR_SEMANTICA_HEX[u.cor.enviadas] }}>
+                                  {fmtVarPct(u.variacao_pct.enviadas)}
+                                </span>
+                              </td>
+                              <td className="py-1.5 pr-2">
+                                <MiniSparkline pontos={u.serie_7d} dataKey="enviadas" cor={u.cor.enviadas} />
+                              </td>
+                              <td className="py-1.5 pr-2 text-right text-emerald-700">
+                                <strong>{u.totais_7d.assinadas}</strong>
+                                <span className="ml-1 text-[10px]" style={{ color: COR_SEMANTICA_HEX[u.cor.assinadas] }}>
+                                  {fmtVarPct(u.variacao_pct.assinadas)}
+                                </span>
+                              </td>
+                              <td className="py-1.5 pr-2 text-right text-red-700">
+                                <strong>{u.totais_7d.rejeitadas}</strong>
+                                <span className="ml-1 text-[10px]" style={{ color: COR_SEMANTICA_HEX[u.cor.rejeitadas] }}>
+                                  {fmtVarPct(u.variacao_pct.rejeitadas)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
               <ChevronRight className="w-4 h-4 text-[var(--pw-tinta)] flex-shrink-0 mt-1" />
             </div>
