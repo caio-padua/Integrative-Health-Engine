@@ -81,6 +81,7 @@ import AdminParqChecklist from "@/pages/admin-parq-checklist";
 // Wave 10 F5 — ZapSign + ICP-Brasil
 import AssinaturasTimeline from "@/pages/assinaturas-timeline";
 import AssinaturasDetalhe from "@/pages/assinaturas-detalhe";
+import AssinaturasUploadsFalhos from "@/pages/assinaturas-uploads-falhos";
 import SobreParceriasTecnicas from "@/pages/sobre-parcerias-tecnicas";
 import AdminFarmaciasRoteamento from "@/pages/admin-farmacias-roteamento";
 import AdminAnalytics from "@/pages/admin-analytics";
@@ -136,6 +137,7 @@ function Router() {
       <Route path="/admin/parq" component={AdminParq} />
       {/* Wave 10 F5 — Assinaturas ZapSign (timeline + detalhe) */}
       <Route path="/assinaturas/timeline" component={AssinaturasTimeline} />
+      <Route path="/assinaturas/uploads-falhos" component={AssinaturasUploadsFalhos} />
       <Route path="/assinaturas/:id" component={AssinaturasDetalhe} />
       <Route path="/sobre-parcerias-tecnicas" component={SobreParceriasTecnicas} />
       <Route path="/admin/farmacias-roteamento" component={AdminFarmaciasRoteamento} />

@@ -542,6 +542,103 @@ router.get("/assinaturas/timeline", guardMaster, async (_req: Request, res: Resp
   }
 });
 
+/**
+ * GET /api/assinaturas/uploads-falhos — Wave 10.5 task #49
+ *
+ * Lista eventos de webhook em que o upload do PDF assinado pro bucket falhou.
+ * Agrupa por status pra Caio (master-only) ver o que ainda esta em retry, o
+ * que ja esgotou tentativas e o que caiu fora da janela de varredura do
+ * worker (`pdfRetryUpload.ts` — janela 7d, max 5 tentativas).
+ *
+ * Status:
+ *   - em_retry           : prefixo `pdf_upload_falhou:` + tentativas < 5 + recebido nos ultimos 7d
+ *   - esgotado           : prefixo `pdf_upload_falhou:` + tentativas >= 5 (precisa Caio na unha)
+ *   - fora_janela        : prefixo `pdf_upload_falhou:` + recebido_em <= 7d atras (worker nao varre mais)
+ *   - aguardando_webhook : prefixo `pdf_upload_falhou_sem_manifesto:` (esperando ZapSign reentregar)
+ *
+ * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por ordem de matching.
+ */
+router.get("/assinaturas/uploads-falhos", guardMaster, async (_req: Request, res: Response) => {
+  try {
+    const r = await db.execute(sql`
+      SELECT
+        e.id,
+        e.provedor_codigo,
+        e.envelope_id,
+        e.event_type,
+        e.solicitacao_id,
+        e.tentativas_retry,
+        e.ultima_tentativa_em,
+        e.recebido_em,
+        e.erro_processamento,
+        sol.id            AS sol_id,
+        sol.status        AS sol_status,
+        sol.paciente_id,
+        p.nome            AS paciente_nome,
+        t.codigo          AS template_codigo,
+        t.nome_exibicao   AS template_nome,
+        CASE
+          WHEN e.erro_processamento LIKE 'pdf_upload_falhou_sem_manifesto:%' THEN 'aguardando_webhook'
+          WHEN e.recebido_em <= NOW() - INTERVAL '7 days' THEN 'fora_janela'
+          WHEN e.tentativas_retry >= 5 THEN 'esgotado'
+          ELSE 'em_retry'
+        END AS status_retry
+      FROM assinatura_webhook_eventos e
+      LEFT JOIN assinatura_solicitacoes sol
+        ON sol.provedor_envelope_id = e.envelope_id
+       AND sol.provedor_codigo = e.provedor_codigo
+      LEFT JOIN assinatura_templates t ON t.id = sol.template_id
+      LEFT JOIN pacientes p            ON p.id = sol.paciente_id
+      WHERE e.erro_processamento LIKE 'pdf_upload_falhou%'
+      ORDER BY e.recebido_em DESC
+      LIMIT 200
+    `);
+    const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+
+    const grupos = {
+      em_retry: [] as Record<string, unknown>[],
+      esgotado: [] as Record<string, unknown>[],
+      fora_janela: [] as Record<string, unknown>[],
+      aguardando_webhook: [] as Record<string, unknown>[],
+    };
+    for (const row of rows) {
+      const status = String(row["status_retry"] || "em_retry") as keyof typeof grupos;
+      (grupos[status] || grupos.em_retry).push(row);
+    }
+
+    res.json({
+      gerado_em: new Date().toISOString(),
+      total: rows.length,
+      contagem: {
+        em_retry: grupos.em_retry.length,
+        esgotado: grupos.esgotado.length,
+        fora_janela: grupos.fora_janela.length,
+        aguardando_webhook: grupos.aguardando_webhook.length,
+      },
+      grupos,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * POST /api/assinaturas/uploads-falhos/retentar — Wave 10.5 task #49
+ *
+ * Dispara um ciclo manual do worker `pdfRetryUpload`. Retorna stats agregadas.
+ * Util pra Caio nao precisar esperar os 5min do tick depois de mexer em
+ * algo (rede, bucket, sidecar). Mesmo gate master.
+ */
+router.post("/assinaturas/uploads-falhos/retentar", guardMaster, async (_req: Request, res: Response) => {
+  try {
+    const { rodarPdfRetryUploadAgora } = await import("../lib/recorrencia/pdfRetryUpload.js");
+    const stats = await rodarPdfRetryUploadAgora();
+    res.json({ ok: true, stats });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 /** GET /api/assinaturas/:id — status atual (pull live no provedor se ainda nao concluido)
  *  Wave 10 F5: gate master + mascaramento PII server-side (CPF, IP, geo). */
 router.get("/assinaturas/:id", guardMaster, async (req: Request, res: Response) => {
