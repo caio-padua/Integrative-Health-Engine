@@ -389,7 +389,7 @@ router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Re
   try {
     const limit = Math.min(Math.max(Number(req.query["limit"] ?? 50), 1), 200);
     const r = await db.execute(sql`
-      SELECT id, dia_brt, metrica, cor_anterior, cor_atual,
+      SELECT id, dia_brt, metrica, tipo_transicao, cor_anterior, cor_atual,
              variacao_pct, conversao_pp, totais_atual, totais_prev,
              notif_email_id, notif_wpp_id, visualizado_em, criado_em
       FROM alertas_ceo_assinaturas
@@ -398,6 +398,31 @@ router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Re
     `);
     const rows = (r as unknown as { rows?: unknown[] }).rows || [];
     res.json({ alertas: rows, total: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * POST /api/assinaturas/alertas-ceo/marcar-todos-vistos — Task #61
+ *
+ * Marca em lote TODOS os alertas pendentes (visualizado_em IS NULL) como
+ * vistos agora. Idempotente: rodar 2x nao reabre nada. Mesmo guardMaster
+ * dos demais endpoints da fila.
+ *
+ * Resposta: { ok: true, marcados: N } onde N = quantidade efetivamente
+ * atualizada nesta chamada (RETURNING id).
+ */
+router.post("/assinaturas/alertas-ceo/marcar-todos-vistos", guardMaster, async (_req: Request, res: Response) => {
+  try {
+    const r = await db.execute(sql`
+      UPDATE alertas_ceo_assinaturas
+      SET visualizado_em = NOW()
+      WHERE visualizado_em IS NULL
+      RETURNING id
+    `);
+    const rows = (r as unknown as { rows?: unknown[] }).rows || [];
+    res.json({ ok: true, marcados: rows.length });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

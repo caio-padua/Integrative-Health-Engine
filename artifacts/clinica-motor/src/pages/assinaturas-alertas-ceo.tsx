@@ -104,6 +104,7 @@ export default function AssinaturasAlertasCEO() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [marcando, setMarcando] = useState<number | null>(null);
+  const [marcandoTodos, setMarcandoTodos] = useState(false);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [filtro, setFiltro] = useState<Filtro>(lerFiltroDaURL);
 
@@ -159,6 +160,34 @@ export default function AssinaturasAlertasCEO() {
     }
   };
 
+  const marcarTodosVistos = async () => {
+    setMarcandoTodos(true);
+    setErro(null);
+    try {
+      const r = await fetch("/api/assinaturas/alertas-ceo/marcar-todos-vistos", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const agora = new Date().toISOString();
+      // Atualizacao otimista: marca tudo que estava pendente como visto agora.
+      setRows((prev) =>
+        prev.map((a) => (a.visualizado_em ? a : { ...a, visualizado_em: agora })),
+      );
+      // Sinaliza pra outras telas (painel CEO) atualizarem o badge na hora,
+      // sem esperar o tick de polling de 60s. localStorage event dispara em
+      // outras abas; CustomEvent cobre a mesma aba.
+      try {
+        localStorage.setItem("alertas_ceo_marcados_em", agora);
+        window.dispatchEvent(new CustomEvent("alertas_ceo_marcados", { detail: { quando: agora } }));
+      } catch { /* silencioso */ }
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setMarcandoTodos(false);
+    }
+  };
+
   const totalNaoVistos = rows.filter((a) => !a.visualizado_em).length;
   const totalVistos = rows.length - totalNaoVistos;
   const totalCriticos = rows.filter((a) => a.cor_atual === "critico").length;
@@ -197,16 +226,33 @@ export default function AssinaturasAlertasCEO() {
               patamar.
             </p>
           </div>
-          <button
-            onClick={carregar}
-            className="nao-imprimir flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition"
-            style={{ background: GOLD, color: NAVY }}
-            disabled={loading}
-            data-testid="botao-atualizar-alertas"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Atualizar
-          </button>
+          <div className="nao-imprimir flex items-center gap-2">
+            {totalNaoVistos >= 2 && (
+              <button
+                onClick={marcarTodosVistos}
+                disabled={marcandoTodos || loading}
+                className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition disabled:opacity-60"
+                style={{ background: "white", color: NAVY, border: `1px solid ${GOLD}` }}
+                data-testid="botao-marcar-todos-vistos"
+                title="Marca como visualizados todos os alertas pendentes"
+              >
+                <CheckCircle2 size={14} />
+                {marcandoTodos
+                  ? "Marcando..."
+                  : `Marcar todos como vistos (${totalNaoVistos})`}
+              </button>
+            )}
+            <button
+              onClick={carregar}
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition"
+              style={{ background: GOLD, color: NAVY }}
+              disabled={loading}
+              data-testid="botao-atualizar-alertas"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              Atualizar
+            </button>
+          </div>
         </div>
 
         {/* Resumo */}

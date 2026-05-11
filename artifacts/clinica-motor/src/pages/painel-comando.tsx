@@ -346,7 +346,20 @@ export default function PainelComando() {
     };
     carregar();
     const id = setInterval(carregar, 60_000);
-    return () => { alive = false; clearInterval(id); };
+    // Task #61 — refresh imediato do badge quando a tela de fila marca
+    // todos como vistos (mesma aba via CustomEvent + outras abas via storage).
+    const onMarcados = () => { carregar(); };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "alertas_ceo_marcados_em") carregar();
+    };
+    window.addEventListener("alertas_ceo_marcados", onMarcados);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("alertas_ceo_marcados", onMarcados);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   if (loading) {
