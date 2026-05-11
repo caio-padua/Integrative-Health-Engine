@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   RefreshCw,
   ExternalLink,
+  Download,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -300,15 +301,34 @@ export default function AssinaturasTimeline() {
               </div>
             )}
           </div>
-          <button
-            onClick={carregar}
-            className="nao-imprimir flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition"
-            style={{ background: GOLD, color: NAVY }}
-            disabled={loading}
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Atualizar
-          </button>
+          <div className="nao-imprimir flex items-center gap-2">
+            {/* Task #60 — baixar CSV respeitando os mesmos filtros (unidade + status) */}
+            <a
+              href={(() => {
+                const params = new URLSearchParams();
+                if (filtroUnidadeId !== null) params.set("unidade_id", String(filtroUnidadeId));
+                const statusList = STATUS_QUERY[filtroStatus];
+                if (statusList.length > 0) params.set("status", statusList.join(","));
+                const qs = params.toString() ? `?${params.toString()}` : "";
+                return `/api/assinaturas/timeline.csv${qs}`;
+              })()}
+              data-testid="botao-baixar-csv"
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition border"
+              style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
+            >
+              <Download size={14} />
+              Baixar CSV
+            </a>
+            <button
+              onClick={carregar}
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition"
+              style={{ background: GOLD, color: NAVY }}
+              disabled={loading}
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              Atualizar
+            </button>
+          </div>
         </div>
 
         {/* Resumo */}

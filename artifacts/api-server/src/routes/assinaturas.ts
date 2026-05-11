@@ -645,6 +645,131 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
 });
 
 /**
+ * GET /api/assinaturas/timeline.csv — Task #60 · export CSV da timeline filtrada
+ *
+ * Mesmo gate (guardMaster) e mesmos filtros (`unidade_id`, `status`) do endpoint
+ * /assinaturas/timeline. Retorna CSV (UTF-8 com BOM pra Excel renderizar acentos)
+ * com colunas: id, template_codigo, template_nome, paciente, status,
+ * signatarios_assinados, signatarios_total, criado_em, concluido_em.
+ *
+ * Mascaramento PII server-side: o nome do paciente sai mascarado no CSV
+ * (primeiro nome + iniciais dos sobrenomes) porque CSVs viram anexo de
+ * e-mail e podem vazar pra terceiros (contador, advogado externo). Em tela,
+ * o mestre continua vendo o nome completo. Mesma filosofia de defesa em
+ * profundidade do helper `mascararCpfServer` acima.
+ *
+ * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por causa do match em
+ * ordem do express (mesma razao de /timeline).
+ */
+router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
+      ? Number(unidadeIdRaw)
+      : null;
+    const filtroUnidadeJoin = unidadeIdFiltro !== null
+      ? sql`JOIN pacientes p_filt ON p_filt.id = s.paciente_id AND p_filt.unidade_id = ${unidadeIdFiltro}`
+      : sql``;
+    const STATUS_VALIDOS = new Set([
+      "RASCUNHO", "ENVIADO", "PARCIAL", "CONCLUIDO", "REJEITADO", "EXPIRADO",
+    ]);
+    const statusRaw = req.query["status"];
+    const statusFiltro: string[] = typeof statusRaw === "string" && statusRaw.length > 0
+      ? statusRaw.split(",").map(s => s.trim().toUpperCase()).filter(s => STATUS_VALIDOS.has(s))
+      : [];
+    const filtroStatusWhere = statusFiltro.length > 0
+      ? sql`WHERE s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`
+      : sql``;
+    const r = await db.execute(sql`
+      SELECT
+        s.id,
+        s.status,
+        s.criado_em,
+        s.concluido_em,
+        t.codigo                     AS template_codigo,
+        t.nome_exibicao              AS template_nome,
+        p.nome                       AS paciente_nome,
+        u.nome                       AS paciente_unidade_nome,
+        (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id) AS signatarios_total,
+        (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id AND sg.status = 'ASSINADO') AS signatarios_assinados
+      FROM assinatura_solicitacoes s
+      JOIN assinatura_templates t   ON t.id = s.template_id
+      LEFT JOIN pacientes p         ON p.id = s.paciente_id
+      LEFT JOIN unidades u          ON u.id = p.unidade_id
+      ${filtroUnidadeJoin}
+      ${filtroStatusWhere}
+      ORDER BY s.id DESC
+      LIMIT 50
+    `);
+    const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+
+    // CSV escape: envolve em aspas duplas e duplica aspas internas.
+    // Aceita null/undefined virando string vazia. Nunca interpola CRLF/aspas
+    // crus no payload — Excel/LibreOffice quebram com isso.
+    // Neutraliza CSV/Excel formula injection: celulas que comecam com
+    // =, +, -, @, TAB ou CR podem ser interpretadas como formula pelo Excel/
+    // LibreOffice/Google Sheets. Como o CSV vai virar anexo de e-mail,
+    // prefixa com aspa simples (padrao OWASP) pra forcar leitura como texto.
+    const esc = (v: unknown): string => {
+      if (v === null || v === undefined) return "";
+      let s = String(v);
+      if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const isoOuVazio = (v: unknown): string => {
+      if (!v) return "";
+      const d = new Date(String(v));
+      return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+    };
+    // Mascaramento de nome de paciente pra CSV (anexo de e-mail vaza facil).
+    // Regra: mantem primeiro nome + inicial maiuscula de cada sobrenome
+    // ("Patricia Oliveira Rocha" -> "Patricia O. R."). Nome unico fica intacto.
+    // Vazio/nulo vira marcador "— sem vinculo —" pra nao confundir com erro.
+    const mascararNome = (n: unknown): string => {
+      if (!n) return "— sem vínculo —";
+      // Considera apenas tokens que comecam com letra (descarta sufixos
+      // tipo "(FICTÍCIA)", "[teste]" — vira ruido em "(. [."). Usa unicode
+      // \p{L} pra aceitar acentos (Á, É, ã, ç).
+      const partes = String(n).trim().split(/\s+/).filter((p) => /^\p{L}/u.test(p));
+      if (partes.length === 0) return "— sem vínculo —";
+      if (partes.length === 1) return partes[0]!;
+      const primeiro = partes[0]!;
+      const iniciais = partes.slice(1).map((p) => `${p.charAt(0).toUpperCase()}.`).join(" ");
+      return `${primeiro} ${iniciais}`;
+    };
+
+    // Schema alinhado ao contrato da Task #60:
+    // id | template | paciente (mascarado) | status | signatarios X/Y |
+    // criado em | concluido em
+    const header = [
+      "id", "template", "paciente", "status",
+      "signatarios", "criado_em", "concluido_em",
+    ].map(esc).join(",");
+    const linhas = rows.map((row) => [
+      row["id"],
+      row["template_codigo"],
+      mascararNome(row["paciente_nome"]),
+      row["status"],
+      `${row["signatarios_assinados"] ?? 0}/${row["signatarios_total"] ?? 0}`,
+      isoOuVazio(row["criado_em"]),
+      isoOuVazio(row["concluido_em"]),
+    ].map(esc).join(","));
+
+    // BOM UTF-8 (\uFEFF) faz o Excel reconhecer encoding e renderizar acentos.
+    const csv = "\uFEFF" + [header, ...linhas].join("\r\n") + "\r\n";
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const filename = `assinaturas-timeline-${stamp}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /api/assinaturas/uploads-falhos — Wave 10.5 task #49
  *
  * Lista eventos de webhook em que o upload do PDF assinado pro bucket falhou.
