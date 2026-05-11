@@ -45,8 +45,11 @@ function hojeBrtISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
+type TipoTransicao = "piora" | "melhora";
+
 interface AlertaPayload {
   metrica: "rejeitadas_7d" | "conversao_7d";
+  tipoTransicao: TipoTransicao;
   corAtual: Cor;
   variacaoPct: number | null;
   conversaoPp: number | null;
@@ -76,12 +79,53 @@ function montarAlertaRejeitadas(r: ResumoAssinaturas): AlertaPayload {
   ].join("\n");
   return {
     metrica: "rejeitadas_7d",
+    tipoTransicao: "piora",
     corAtual: "critico",
     variacaoPct: pct,
     conversaoPp: null,
     totaisAtual: { enviadas: r.enviadas7d, assinadas: r.assinadas7d, rejeitadas: r.rejeitadas7d },
     totaisPrev:  { enviadas: r.enviadasPrev, assinadas: r.assinadasPrev, rejeitadas: r.rejeitadasPrev },
     assunto: `🛑 Rejeições de assinatura em alta · ${r.rejeitadas7d} nos últimos 7d`,
+    corpo,
+  };
+}
+
+/**
+ * Task #53 · Alerta de RECUPERACAO (critico->bom/excelente) em rejeitadas.
+ * Mesma estrutura do alerta de piora, mas com tom "respira aliviado". Disparado
+ * pelo worker quando a cor anterior salva no snapshot diario era 'critico'
+ * e a cor atual passou pra 'bom' ou 'excelente'. Fecha o ciclo emocional do
+ * alerta — sem isso o Caio ficava achando que ainda estava em crise.
+ */
+function montarRecuperacaoRejeitadas(r: ResumoAssinaturas, corAnterior: Cor | null): AlertaPayload {
+  const pct = r.variacaoRejeitadasPct;
+  const corpo = [
+    `Olá Caio,`,
+    ``,
+    `Boa notícia: as REJEIÇÕES de assinatura voltaram pra faixa SAUDÁVEL.`,
+    `Pode respirar — o quadro normalizou nos últimos 7 dias.`,
+    ``,
+    `• Rejeitadas (7d):       ${r.rejeitadas7d} (vs ${r.rejeitadasPrev} no período anterior)`,
+    `• Variação:              ${pct === null ? "—" : `${pct > 0 ? "+" : ""}${pct}%`}`,
+    `• Enviadas no período:   ${r.enviadas7d}`,
+    `• Assinadas no período:  ${r.assinadas7d}`,
+    `• Conversão atual:       ${r.taxaConversao === null ? "—" : `${r.taxaConversao}%`}`,
+    `• Cor anterior:          ${corAnterior ?? "—"} → Cor atual: ${r.corRejeitadas}`,
+    ``,
+    `Nenhuma ação imediata necessária. Para acompanhar a timeline:`,
+    `${process.env["PUBLIC_APP_URL"] || ""}/assinaturas/timeline`,
+    ``,
+    `— PAWARDS MEDCORE · alerta automatico Wave 10.7`,
+  ].join("\n");
+  return {
+    metrica: "rejeitadas_7d",
+    tipoTransicao: "melhora",
+    corAtual: r.corRejeitadas,
+    variacaoPct: pct,
+    conversaoPp: null,
+    totaisAtual: { enviadas: r.enviadas7d, assinadas: r.assinadas7d, rejeitadas: r.rejeitadas7d },
+    totaisPrev:  { enviadas: r.enviadasPrev, assinadas: r.assinadasPrev, rejeitadas: r.rejeitadasPrev },
+    assunto: `✅ Rejeições normalizaram · ${r.rejeitadas7d} nos últimos 7d`,
     corpo,
   };
 }
@@ -107,6 +151,7 @@ function montarAlertaConversao(r: ResumoAssinaturas): AlertaPayload {
   ].join("\n");
   return {
     metrica: "conversao_7d",
+    tipoTransicao: "piora",
     corAtual: "critico",
     variacaoPct: null,
     conversaoPp: pp,
@@ -118,10 +163,52 @@ function montarAlertaConversao(r: ResumoAssinaturas): AlertaPayload {
 }
 
 /**
+ * Task #53 · Alerta de RECUPERACAO em conversao (critico->bom/excelente).
+ */
+function montarRecuperacaoConversao(r: ResumoAssinaturas, corAnterior: Cor | null): AlertaPayload {
+  const pp = r.variacaoConversaoPp;
+  const corpo = [
+    `Olá Caio,`,
+    ``,
+    `Boa notícia: a CONVERSÃO de assinaturas voltou pra faixa SAUDÁVEL.`,
+    `Pode respirar — o quadro normalizou nos últimos 7 dias.`,
+    ``,
+    `• Conversão atual (7d):  ${r.taxaConversao === null ? "—" : `${r.taxaConversao}%`}`,
+    `• Conversão anterior:    ${r.taxaConversaoPrev === null ? "—" : `${r.taxaConversaoPrev}%`}`,
+    `• Variação:              ${pp === null ? "—" : `${pp > 0 ? "+" : ""}${pp} pp`}`,
+    `• Enviadas no período:   ${r.enviadas7d}`,
+    `• Assinadas no período:  ${r.assinadas7d}`,
+    `• Rejeitadas no período: ${r.rejeitadas7d}`,
+    `• Cor anterior:          ${corAnterior ?? "—"} → Cor atual: ${r.corConversao}`,
+    ``,
+    `Nenhuma ação imediata necessária. Para acompanhar a timeline:`,
+    `${process.env["PUBLIC_APP_URL"] || ""}/assinaturas/timeline`,
+    ``,
+    `— PAWARDS MEDCORE · alerta automatico Wave 10.7`,
+  ].join("\n");
+  return {
+    metrica: "conversao_7d",
+    tipoTransicao: "melhora",
+    corAtual: r.corConversao,
+    variacaoPct: null,
+    conversaoPp: pp,
+    totaisAtual: { conversao: r.taxaConversao, enviadas: r.enviadas7d, assinadas: r.assinadas7d },
+    totaisPrev:  { conversao: r.taxaConversaoPrev, enviadas: r.enviadasPrev, assinadas: r.assinadasPrev },
+    assunto: `✅ Conversão normalizou · ${r.taxaConversao ?? "—"}% (${pp === null ? "—" : `${pp > 0 ? "+" : ""}${pp} pp`})`,
+    corpo,
+  };
+}
+
+/**
  * Tenta inserir o alerta. Retorna a linha criada (com id) ou null se ja
- * existe pra (dia, metrica) — caso em que NAO re-disparamos notificacao.
+ * existe pra (dia, metrica, tipo_transicao) — caso em que NAO re-disparamos
+ * notificacao.
  *
- * UNIQUE(dia_brt, metrica) garante idempotencia mesmo em corrida entre pods.
+ * UNIQUE(dia_brt, metrica, tipo_transicao) garante idempotencia mesmo em
+ * corrida entre pods. A inclusao de tipo_transicao no UNIQUE (Wave 10.7,
+ * migration 038, Task #53) permite que no mesmo dia caibam ate 2 linhas por
+ * metrica: 1 piora e 1 melhora — caso raro mas legitimo se a janela movel
+ * cruzar limiar duas vezes em dias com baixa volumetria.
  */
 async function inserirAlertaIdempotente(
   diaIso: string,
@@ -130,13 +217,14 @@ async function inserirAlertaIdempotente(
 ): Promise<{ id: number } | null> {
   const r: any = await db.execute(sql`
     INSERT INTO alertas_ceo_assinaturas
-      (dia_brt, metrica, cor_anterior, cor_atual, variacao_pct, conversao_pp, totais_atual, totais_prev)
+      (dia_brt, metrica, tipo_transicao, cor_anterior, cor_atual, variacao_pct, conversao_pp, totais_atual, totais_prev)
     VALUES
-      (${diaIso}::date, ${payload.metrica}, ${corAnterior}, ${payload.corAtual},
+      (${diaIso}::date, ${payload.metrica}, ${payload.tipoTransicao},
+       ${corAnterior}, ${payload.corAtual},
        ${payload.variacaoPct}, ${payload.conversaoPp},
        ${JSON.stringify(payload.totaisAtual)}::jsonb,
        ${JSON.stringify(payload.totaisPrev)}::jsonb)
-    ON CONFLICT (dia_brt, metrica) DO NOTHING
+    ON CONFLICT (dia_brt, metrica, tipo_transicao) DO NOTHING
     RETURNING id
   `);
   const linha = (r.rows ?? r)[0];
@@ -234,19 +322,29 @@ async function dispararNotificacoes(
 }
 
 /**
- * Busca cor mais recente registrada PRA esta metrica em dia ANTERIOR ao
- * informado. Le do snapshot diario `assinaturas_cor_diaria` (preenchido todo
- * tick), NAO de `alertas_ceo_assinaturas` — a tabela de alertas so tem dias
- * critico, entao se usassemos ela a cor "anterior" ficaria perpetuamente
- * "critico" e nunca dispararia outro alerta apos uma recuperacao.
+ * Busca a cor mais recente registrada PRA esta metrica considerando todo o
+ * historico ate hoje (inclusive o tick anterior do MESMO dia). Le do snapshot
+ * `assinaturas_cor_diaria` (upsertado todo tick), NAO de
+ * `alertas_ceo_assinaturas` — a tabela de alertas so tem dias critico, entao
+ * se usassemos ela a cor "anterior" ficaria perpetuamente "critico" e nunca
+ * dispararia outro alerta apos uma recuperacao.
  *
- * Se nao houver snapshot anterior, retorna null (primeira vez ou worker
- * nunca rodou ainda — caso em que tratamos como transicao valida).
+ * IMPORTANTE (Task #53 fix code-review): usa `<=` (nao `<`) pra incluir o
+ * snapshot do dia atual. Cenario que so funciona com `<=`: as 09:00 o quadro
+ * vira critico (worker upserta cor='critico' no dia de hoje), as 15:00 o
+ * quadro normaliza pra 'bom' — o tick das 15:00 precisa ler o 'critico' do
+ * proprio dia pra detectar a recuperacao intra-dia. Antes usava `<`, lia a
+ * cor de ONTEM ('bom'), nao detectava transicao critico->bom e a notificacao
+ * de alivio nao saia. UNIQUE(dia,metrica,tipo) ainda garante que so 1 alerta
+ * de cada tipo sai por dia.
+ *
+ * Se nao houver nenhum snapshot, retorna null (primeira vez ou worker nunca
+ * rodou ainda — caso em que tratamos como transicao valida).
  */
 async function buscarCorAnterior(metrica: string, diaIso: string): Promise<Cor | null> {
   const r: any = await db.execute(sql`
     SELECT cor FROM assinaturas_cor_diaria
-    WHERE metrica = ${metrica} AND dia_brt < ${diaIso}::date
+    WHERE metrica = ${metrica} AND dia_brt <= ${diaIso}::date
     ORDER BY dia_brt DESC LIMIT 1
   `);
   const linha = (r.rows ?? r)[0];
@@ -255,8 +353,9 @@ async function buscarCorAnterior(metrica: string, diaIso: string): Promise<Cor |
 
 /**
  * Upsert do snapshot de cor do dia. Roda sempre, independente da cor (inclusive
- * quando nao ha alerta) — eh isso que permite detectar transicao real
- * dia-a-dia entre "bom" e "critico" no proximo run.
+ * quando nao ha alerta) — eh isso que permite detectar transicao real entre
+ * "bom" e "critico" tanto dia-a-dia quanto intra-dia (entre ticks do mesmo
+ * dia, ja que `buscarCorAnterior` agora usa `<=`).
  */
 async function upsertSnapshotCor(diaIso: string, metrica: string, cor: Cor): Promise<void> {
   await db.execute(sql`
@@ -273,6 +372,18 @@ export interface AlertaCEORunResult {
   conversao_alerta_disparado: boolean;
   rejeitadas_alerta_id: number | null;
   conversao_alerta_id: number | null;
+  // Task #53 · alertas de RECUPERACAO (critico->bom/excelente).
+  rejeitadas_recuperacao_disparado: boolean;
+  conversao_recuperacao_disparado: boolean;
+  rejeitadas_recuperacao_id: number | null;
+  conversao_recuperacao_id: number | null;
+}
+
+// Cores consideradas "saudaveis" pra fim de transicao critico->melhora.
+// "atencao" NAO conta como recuperacao porque ainda esta perto do limiar e
+// re-disparar email a cada oscilacao gera fadiga de alerta.
+function ehCorSaudavel(c: Cor): boolean {
+  return c === "bom" || c === "excelente";
 }
 
 async function rodarLogica(): Promise<AlertaCEORunResult> {
@@ -284,6 +395,10 @@ async function rodarLogica(): Promise<AlertaCEORunResult> {
     conversao_alerta_disparado: false,
     rejeitadas_alerta_id: null,
     conversao_alerta_id: null,
+    rejeitadas_recuperacao_disparado: false,
+    conversao_recuperacao_disparado: false,
+    rejeitadas_recuperacao_id: null,
+    conversao_recuperacao_id: null,
   };
 
   // --- Metrica 1: Rejeitadas (cor "critico" = >+10% vs janela anterior) ---
@@ -298,6 +413,15 @@ async function rodarLogica(): Promise<AlertaCEORunResult> {
       out.rejeitadas_alerta_id = inserted.id;
       await dispararNotificacoes(inserted.id, payload);
     }
+  } else if (anteriorRejeitadas === "critico" && ehCorSaudavel(resumo.corRejeitadas)) {
+    // Task #53 · transicao de saida: o quadro normalizou.
+    const payload = montarRecuperacaoRejeitadas(resumo, anteriorRejeitadas);
+    const inserted = await inserirAlertaIdempotente(dia, anteriorRejeitadas, payload);
+    if (inserted) {
+      out.rejeitadas_recuperacao_disparado = true;
+      out.rejeitadas_recuperacao_id = inserted.id;
+      await dispararNotificacoes(inserted.id, payload);
+    }
   }
   // Snapshot de hoje sempre upsertado, mesmo que nao tenha disparado alerta.
   await upsertSnapshotCor(dia, "rejeitadas_7d", resumo.corRejeitadas);
@@ -310,6 +434,15 @@ async function rodarLogica(): Promise<AlertaCEORunResult> {
     if (inserted) {
       out.conversao_alerta_disparado = true;
       out.conversao_alerta_id = inserted.id;
+      await dispararNotificacoes(inserted.id, payload);
+    }
+  } else if (anteriorConversao === "critico" && ehCorSaudavel(resumo.corConversao)) {
+    // Task #53 · transicao de saida: a conversao normalizou.
+    const payload = montarRecuperacaoConversao(resumo, anteriorConversao);
+    const inserted = await inserirAlertaIdempotente(dia, anteriorConversao, payload);
+    if (inserted) {
+      out.conversao_recuperacao_disparado = true;
+      out.conversao_recuperacao_id = inserted.id;
       await dispararNotificacoes(inserted.id, payload);
     }
   }
@@ -332,10 +465,17 @@ async function tickComLock(): Promise<void> {
       return;
     }
     const out = await rodarLogica();
-    if (out.rejeitadas_alerta_disparado || out.conversao_alerta_disparado) {
+    if (
+      out.rejeitadas_alerta_disparado ||
+      out.conversao_alerta_disparado ||
+      out.rejeitadas_recuperacao_disparado ||
+      out.conversao_recuperacao_disparado
+    ) {
       console.log(
-        `[alertaCEO] tick: rejeitadas_disparado=${out.rejeitadas_alerta_disparado} ` +
-        `conversao_disparado=${out.conversao_alerta_disparado} ` +
+        `[alertaCEO] tick: rejeitadas_piora=${out.rejeitadas_alerta_disparado} ` +
+        `conversao_piora=${out.conversao_alerta_disparado} ` +
+        `rejeitadas_melhora=${out.rejeitadas_recuperacao_disparado} ` +
+        `conversao_melhora=${out.conversao_recuperacao_disparado} ` +
         `rejeitadas7d=${out.resumo.rejeitadas7d} conversao=${out.resumo.taxaConversao}`,
       );
     }
@@ -359,7 +499,7 @@ export function iniciarWorkerAlertaAssinaturasCEO(): void {
   if (workerStarted) return;
   workerStarted = true;
   console.log(
-    `[alertaCEO] Worker iniciado (tick ${TICK_MS / 3600000}h, idempotente por (dia_brt,metrica))`,
+    `[alertaCEO] Worker iniciado (tick ${TICK_MS / 3600000}h, idempotente por (dia_brt,metrica,tipo_transicao))`,
   );
   // Primeiro tick com folga pra app subir + outras conexoes pegarem fila.
   setTimeout(() => { void tickComLock(); }, 60 * 1000);

@@ -389,7 +389,7 @@ router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Re
   try {
     const limit = Math.min(Math.max(Number(req.query["limit"] ?? 50), 1), 200);
     const r = await db.execute(sql`
-      SELECT id, dia_brt, metrica, cor_anterior, cor_atual,
+      SELECT id, dia_brt, metrica, tipo_transicao, cor_anterior, cor_atual,
              variacao_pct, conversao_pp, totais_atual, totais_prev,
              notif_email_id, notif_wpp_id, visualizado_em, criado_em
       FROM alertas_ceo_assinaturas
