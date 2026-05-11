@@ -40,18 +40,23 @@ Wave 10 destrava conversão de R$ 2.735.336,10 (comissão potencial Wave 9 PARQ)
 em caixa real via assinatura digital com defensibilidade jurídica tripla
 (CFM 2.386/2024 + CC 593-609 + LGPD art. 11 §4º + STJ REsp 2.159.442/PR).
 
-### Status fases (01/mai/2026 22:48)
+### Status fases (11/mai/2026 — Wave 10 F5 fechado)
 - ✅ **F0** Invariantes baseline + bucket `assinaturas-pawards`
 - ✅ **F1** Migration 031 (`assinatura_solicitacoes` + `auditoria_assinaturas`)
 - ✅ **F2** ZapsignAdapter promovido com HMAC custom header (`x-pawards-secret` timing-safe)
 - ✅ **F3.A** `enviarPARQ.ts` (Família 4 — clínica e-CNPJ + farmácia e-CNPJ)
 - ✅ **F3.B** `enviarTCLE.ts` (Família 1 — paciente avançada + médico e-CPF)
 - ✅ **F3.C** `enviarOrcamentoFarmaceutico.ts` (Família 3 — paciente avançada + farmácia e-CNPJ ICP-Brasil), com 4 correções pós code-review (externalId determinístico, metadataExtra atômico, forcarProvedor zapsign, retro-compat)
-- 🟢 **Fase B Dia 1** preparação completa hoje (sem token ZapSign)
-- 🟡 **Fase B Dia 2** disparo real amanhã (depende cadastro ZapSign Caio)
-- 🟡 **F4** Webhook handler completo + manifesto SHA-256
-- 🟡 **F5** Frontend timeline + detalhe (2 telas)
-- 🟡 **F6** Wrap-up + tag `v031-zapsign-launch`
+- 🟢 **Fase B Dia 1** preparação completa (sem token ZapSign)
+- 🟡 **Fase B Dia 2** disparo real (depende cadastro ZapSign Caio + CNAME `webhooks.pawards.com.br`)
+- ✅ **F4** Webhook handler completo + manifesto SHA-256 (doc_signed/refused/removed, helper `registrarManifestoAuditoria` ON CONFLICT signature_id, fixes architect: signer_papel via lookup em `assinatura_signatarios` + signatureId determinístico)
+- ✅ **F5** Frontend timeline + detalhe (2 telas mínimas, Wave 10 F5 — 11/mai/2026):
+  - `/assinaturas/timeline` — tabela últimas 50 (template, paciente, status, X/Y signatários, marcador auditoria, link detalhe)
+  - `/assinaturas/:id` — detalhe (header navy/gold + signatários + manifesto SHA-256 + IP + auth_method + ICP-Brasil + validation_url ZapSign + notificações)
+  - **Endpoints novos hardenizados pós code-review FAIL→PASS**: `GET /api/assinaturas/timeline` e `GET /api/assinaturas/:id` agora protegidos por `guardMaster = [requireRole("validador_mestre"), requireMasterEstrito]` (mesmo padrão de `parq.ts`). Bypass via `x-admin-token` BLOQUEADO (403). Mascaramento PII server-side em CPF (`123.***.***-45`), IP (2 primeiros octetos) e geo (só city/region/country, sem lat/lng raw) — defesa em profundidade mesmo com gate master.
+  - Smoke: timeline_no_auth=401 · detail_no_auth=401 · admin_bypass=403 (rejeitado por requireMasterEstrito) · healthz=200 · 0 erros TS novos (só pré-existentes seed/prescricaoLembrete/whatsapp/pacientes)
+- ✅ **Wave 10.5 ADMIN_TOKEN rotacionado** (11/mai/2026): novo valor 256-bit gerado, mostrado 1 vez no chat pra Caio guardar no 1Password, plugado via `requestEnvVar(secret)`. `.replit` já estava limpo (sem ADMIN_TOKEN versionado). Bypass nas rotas Wave 10 continua bloqueado (regex requireAuth.ts intacta).
+- 🟡 **F6** Wrap-up + tag `v031-zapsign-launch` (depende Fase B Dia 2)
 
 ### Identidade ZapSign decidida (D5/D6/D8)
 - **Email proprietário conta ZapSign**: `ceo@pawards.com.br`

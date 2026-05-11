@@ -8,8 +8,51 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { assinaturaService } from "../lib/assinatura/service";
 import type { ProvedorCodigo } from "../lib/assinatura/types";
+import { requireRole as _requireRole } from "../middlewares/requireRole.js";
+import { requireMasterEstrito as _requireMaster } from "../middlewares/requireMasterEstrito.js";
 
 const router: IRouter = Router();
+
+// Wave 10 F5 · gate alinhado ao padrao parq.ts (validador_mestre + master estrito).
+// Endpoints que retornam manifesto SHA-256, IP, geo e CPF integral DEVEM
+// passar por aqui — caso contrario abrem IDOR cross-tenant + vazamento PII.
+const guardMaster = [_requireRole("validador_mestre"), _requireMaster];
+
+// Mascaramento server-side defensivo (mesmo com guardMaster acima, principio
+// de menor exposicao: CPF e IP completos viram log de auditoria, nao payload
+// rotineiro de tela). Se um dia precisar de versao "raw" para forensics,
+// criar endpoint dedicado /assinaturas/:id/forense com auditoria propria.
+function mascararCpfServer(cpf: string | null | undefined): string {
+  if (!cpf) return "";
+  const limpo = cpf.replace(/\D/g, "");
+  if (limpo.length < 11) return "***";
+  return `${limpo.slice(0, 3)}.***.***-${limpo.slice(-2)}`;
+}
+
+function mascararIpServer(ip: string | null | undefined): string {
+  if (!ip) return "";
+  // IPv4: mantem 2 primeiros octetos; IPv6: mantem prefixo /32
+  if (ip.includes(".")) {
+    const partes = ip.split(".");
+    if (partes.length === 4) return `${partes[0]}.${partes[1]}.***.***`;
+  }
+  if (ip.includes(":")) {
+    const partes = ip.split(":");
+    return partes.slice(0, 2).join(":") + ":****::***";
+  }
+  return "***";
+}
+
+function reduzirGeoServer(geo: unknown): Record<string, unknown> | null {
+  if (!geo || typeof geo !== "object") return null;
+  const g = geo as Record<string, unknown>;
+  return {
+    city: g["city"] ?? null,
+    region: g["region"] ?? g["state"] ?? null,
+    country: g["country"] ?? null,
+    // lat/lng raw NAO expostos — somente cidade/estado/pais.
+  };
+}
 
 /** GET /api/assinaturas/config — toggles + provedores + textos */
 router.get("/assinaturas/config", async (_req: Request, res: Response) => {
@@ -81,24 +124,94 @@ router.post("/assinaturas/enviar", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /api/assinaturas/:id — status atual (pull live no provedor se ainda nao concluido) */
-router.get("/assinaturas/:id", async (req: Request, res: Response) => {
+/**
+ * GET /api/assinaturas/timeline — Wave 10 F5 · ultimas 50 solicitacoes enriquecidas
+ *
+ * Endpoint dedicado ao frontend `/assinaturas/timeline` (validador_mestre + admin).
+ * Retorna agregado pronto pra tabela: template, paciente, status, contagem de
+ * signatarios, data envio/conclusao, envelope ZapSign, marcador de auditoria.
+ *
+ * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por causa do match em ordem
+ * do express — senao /timeline cairia no handler dinamico.
+ */
+router.get("/assinaturas/timeline", guardMaster, async (_req: Request, res: Response) => {
   try {
-    const status = await assinaturaService.consultarStatus(Number(req.params["id"]));
+    const r = await db.execute(sql`
+      SELECT
+        s.id,
+        s.status,
+        s.provedor_codigo,
+        s.provedor_envelope_id,
+        s.criado_em,
+        s.enviado_em,
+        s.concluido_em,
+        s.expira_em,
+        s.zapsign_external_id,
+        t.codigo                     AS template_codigo,
+        t.nome_exibicao              AS template_nome,
+        t.tipo_documento             AS template_tipo,
+        s.paciente_id,
+        p.nome                       AS paciente_nome,
+        (
+          SELECT COUNT(*)::int FROM assinatura_signatarios sg
+          WHERE sg.solicitacao_id = s.id
+        ) AS signatarios_total,
+        (
+          SELECT COUNT(*)::int FROM assinatura_signatarios sg
+          WHERE sg.solicitacao_id = s.id AND sg.status = 'ASSINADO'
+        ) AS signatarios_assinados,
+        (
+          SELECT COUNT(*)::int FROM auditoria_assinaturas a
+          WHERE a.solicitacao_id = s.id
+        ) AS auditoria_eventos
+      FROM assinatura_solicitacoes s
+      JOIN assinatura_templates t   ON t.id = s.template_id
+      LEFT JOIN pacientes p         ON p.id = s.paciente_id
+      ORDER BY s.id DESC
+      LIMIT 50
+    `);
+    const rows = (r as unknown as { rows?: unknown[] }).rows || [];
+    res.json({ solicitacoes: rows, total: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/** GET /api/assinaturas/:id — status atual (pull live no provedor se ainda nao concluido)
+ *  Wave 10 F5: gate master + mascaramento PII server-side (CPF, IP, geo). */
+router.get("/assinaturas/:id", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params["id"]);
+    const status = await assinaturaService.consultarStatus(id);
     const detalhes = await db.execute(sql`
-      SELECT s.id, s.paciente_id, p.nome as paciente_nome, t.codigo as template, s.provedor_codigo, s.status, s.criado_em, s.concluido_em, s.pdf_assinado_url, s.canais_distribuir, s.metadata
+      SELECT s.id, s.paciente_id, p.nome as paciente_nome, t.codigo as template, t.nome_exibicao as template_nome, s.provedor_codigo, s.provedor_envelope_id, s.zapsign_external_id, s.status, s.criado_em, s.enviado_em, s.concluido_em, s.expira_em, s.pdf_assinado_url, s.canais_distribuir, s.metadata
       FROM assinatura_solicitacoes s
       JOIN assinatura_templates t ON t.id = s.template_id
       LEFT JOIN pacientes p ON p.id = s.paciente_id
-      WHERE s.id = ${Number(req.params["id"])}
+      WHERE s.id = ${id}
     `);
-    const sigs = await db.execute(sql`SELECT papel, nome, email, ordem, status, link_assinatura, assinado_em FROM assinatura_signatarios WHERE solicitacao_id = ${Number(req.params["id"])} ORDER BY ordem`);
-    const notifs = await db.execute(sql`SELECT canal, momento, destinatario, status, tentativas, enviado_em FROM assinatura_notificacoes WHERE solicitacao_id = ${Number(req.params["id"])} ORDER BY id`);
+    const sigs = await db.execute(sql`SELECT papel, nome, email, ordem, status, link_assinatura, assinado_em FROM assinatura_signatarios WHERE solicitacao_id = ${id} ORDER BY ordem`);
+    const notifs = await db.execute(sql`SELECT canal, momento, destinatario, status, tentativas, enviado_em FROM assinatura_notificacoes WHERE solicitacao_id = ${id} ORDER BY id`);
+    // Wave 10 F5: junta auditoria (manifesto SHA-256 + IP + geo + auth_method) por signatario
+    const audit = await db.execute(sql`
+      SELECT signature_id, signer_papel, signer_name, signer_cpf, signer_ip::text AS signer_ip, signer_geo, auth_method, document_hash_sha256, document_hash_assinado, icp_brasil_serial, icp_brasil_ac, validation_url, pdf_storage_key, timestamp_utc, criado_em
+      FROM auditoria_assinaturas
+      WHERE solicitacao_id = ${id}
+      ORDER BY timestamp_utc
+    `);
+    const auditoriaRaw = (audit as unknown as { rows?: Record<string, unknown>[] }).rows || [];
+    const auditoria = auditoriaRaw.map((row) => ({
+      ...row,
+      signer_cpf: mascararCpfServer(row["signer_cpf"] as string | null),
+      signer_ip: mascararIpServer(row["signer_ip"] as string | null),
+      signer_geo: reduzirGeoServer(row["signer_geo"]),
+    }));
     res.json({
       live: status,
       solicitacao: ((detalhes as unknown as { rows?: unknown[] }).rows || [])[0],
       signatarios: (sigs as unknown as { rows?: unknown[] }).rows || [],
       notificacoes: (notifs as unknown as { rows?: unknown[] }).rows || [],
+      auditoria,
     });
   } catch (err) {
     res.status(404).json({ error: (err as Error).message });
