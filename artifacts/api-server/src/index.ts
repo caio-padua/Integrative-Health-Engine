@@ -6,6 +6,7 @@ import { iniciarWorkerCobrancaMensal } from "./lib/recorrencia/cobrancaMensal";
 import { iniciarWorkerNotifAssinatura } from "./lib/recorrencia/notifAssinatura";
 import { iniciarWorkerParqStatusUpdate } from "./lib/recorrencia/parqStatusUpdate";
 import { iniciarWorkerPdfRetryUpload } from "./lib/recorrencia/pdfRetryUpload";
+import { iniciarWorkerVerificarPdfsCofre } from "./lib/recorrencia/verificarPdfsCofre";
 
 const rawPort = process.env["PORT"];
 
@@ -34,4 +35,5 @@ app.listen(port, (err) => {
   iniciarWorkerNotifAssinatura();
   iniciarWorkerParqStatusUpdate();
   iniciarWorkerPdfRetryUpload();
+  iniciarWorkerVerificarPdfsCofre();
 });
