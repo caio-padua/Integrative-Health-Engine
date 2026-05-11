@@ -90,12 +90,33 @@ function IconeMetrica({ metrica }: { metrica: string }) {
   return <Bell size={16} style={{ color: ZINC }} />;
 }
 
+type Filtro = "todos" | "pendentes" | "vistos";
+
+function lerFiltroDaURL(): Filtro {
+  if (typeof window === "undefined") return "todos";
+  const v = new URLSearchParams(window.location.search).get("filtro");
+  if (v === "pendentes" || v === "vistos") return v;
+  return "todos";
+}
+
 export default function AssinaturasAlertasCEO() {
   const [rows, setRows] = useState<Alerta[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [marcando, setMarcando] = useState<number | null>(null);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
+  const [filtro, setFiltro] = useState<Filtro>(lerFiltroDaURL);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (filtro === "todos") {
+      url.searchParams.delete("filtro");
+    } else {
+      url.searchParams.set("filtro", filtro);
+    }
+    window.history.replaceState({}, "", url.toString());
+  }, [filtro]);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -139,8 +160,21 @@ export default function AssinaturasAlertasCEO() {
   };
 
   const totalNaoVistos = rows.filter((a) => !a.visualizado_em).length;
+  const totalVistos = rows.length - totalNaoVistos;
   const totalCriticos = rows.filter((a) => a.cor_atual === "critico").length;
   const totalAtencao = rows.filter((a) => a.cor_atual === "atencao").length;
+
+  const rowsFiltradas = rows.filter((a) => {
+    if (filtro === "pendentes") return !a.visualizado_em;
+    if (filtro === "vistos") return !!a.visualizado_em;
+    return true;
+  });
+
+  const ABAS: { id: Filtro; label: string; count: number }[] = [
+    { id: "todos", label: "Todos", count: rows.length },
+    { id: "pendentes", label: "Pendentes", count: totalNaoVistos },
+    { id: "vistos", label: "Vistos", count: totalVistos },
+  ];
 
   return (
     <Layout>
@@ -226,6 +260,44 @@ export default function AssinaturasAlertasCEO() {
           </div>
         )}
 
+        {/* Abas de filtro por status */}
+        {rows.length > 0 && (
+          <div
+            className="nao-imprimir flex items-center gap-1 border-b"
+            data-testid="abas-filtro-status"
+            role="tablist"
+          >
+            {ABAS.map((aba) => {
+              const ativa = filtro === aba.id;
+              return (
+                <button
+                  key={aba.id}
+                  role="tab"
+                  aria-selected={ativa}
+                  onClick={() => setFiltro(aba.id)}
+                  data-testid={`aba-filtro-${aba.id}`}
+                  className="px-4 py-2 text-sm font-semibold transition border-b-2 -mb-px"
+                  style={{
+                    color: ativa ? NAVY : ZINC,
+                    borderColor: ativa ? GOLD : "transparent",
+                  }}
+                >
+                  {aba.label}
+                  <span
+                    className="ml-2 text-[11px] font-bold px-1.5 py-0.5 rounded"
+                    style={{
+                      background: ativa ? GOLD : "#F4F4F5",
+                      color: ativa ? NAVY : ZINC,
+                    }}
+                  >
+                    {aba.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {!erro && !loading && rows.length === 0 && (
           <div
             className="rounded p-6 text-center text-sm"
@@ -236,10 +308,22 @@ export default function AssinaturasAlertasCEO() {
           </div>
         )}
 
+        {!erro && !loading && rows.length > 0 && rowsFiltradas.length === 0 && (
+          <div
+            className="rounded p-6 text-center text-sm"
+            style={{ background: "#F4F4F5", color: ZINC }}
+            data-testid="vazio-filtro"
+          >
+            {filtro === "pendentes"
+              ? "Nenhum alerta pendente. Tudo já foi revisado."
+              : "Nenhum alerta visualizado ainda nessa janela."}
+          </div>
+        )}
+
         {/* Lista cronológica */}
-        {rows.length > 0 && (
+        {rowsFiltradas.length > 0 && (
           <div className="space-y-2" data-testid="lista-alertas">
-            {rows.map((a) => {
+            {rowsFiltradas.map((a) => {
               const naoVisto = !a.visualizado_em;
               const corAtualHex = a.cor_atual ? COR_HEX[a.cor_atual] : ZINC;
               return (
