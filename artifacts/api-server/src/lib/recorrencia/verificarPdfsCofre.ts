@@ -32,6 +32,9 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { Storage, type Bucket } from "@google-cloud/storage";
 import { getGmailClient } from "../google-gmail";
+import { getAdapter } from "../assinatura/adapters";
+import { uploadPdfAssinado } from "../assinatura/objectStorage";
+import type { ProvedorCodigo } from "../assinatura/types";
 
 // Tick curto (5min) pra eliminar a corrida do tick de 60min: se o processo
 // bootasse às 03:10 BRT, o proximo tick caia em 04:10 e o worker pulava o dia
@@ -129,6 +132,7 @@ type LinhaAuditoria = {
   signer_papel: string;
   pdf_storage_key: string;
   criado_em: string;
+  provedor_codigo: ProvedorCodigo;
 };
 
 type LinhaAusente = LinhaAuditoria & { motivo: string };
@@ -138,9 +142,135 @@ export type VerificacaoPdfsResult = {
   ok: number;
   ausentes: number;
   erros: number;
+  recuperados: number;
   alertou_email: boolean;
   ausentes_detalhe: Array<{ signature_id: string; storage_key: string; motivo: string }>;
 };
+
+/**
+ * Task #48 — Auto-cura: quando o PDF some do bucket, baixamos de novo
+ * via adapter (ZapSign mantem `signed_file_url` por meses) e re-fazemos
+ * upload. Plano A salva o ciclo silenciosamente; e-mail vira plano B.
+ *
+ * Retorna:
+ *  - recuperado=true  : PDF baixou+subiu OK, novaStorageKey populada,
+ *                       evento sintetico gravado em assinatura_webhook_eventos
+ *                       com event_type='auto_recovery'.
+ *  - recuperado=false : motivo descreve por que falhou (ex.: "sem_solicitacao",
+ *                       "download_vazio", "zapsign 404"). Worker mantem o
+ *                       fluxo antigo (alerta por e-mail).
+ */
+async function tentarAutoRecovery(
+  linha: LinhaAuditoria,
+  runId: string,
+): Promise<{ recuperado: boolean; motivo: string | null; novaStorageKey: string | null }> {
+  try {
+    type SolRow = {
+      id: number;
+      provedor_codigo: ProvedorCodigo;
+      provedor_envelope_id: string;
+      zapsign_external_id: string | null;
+    };
+    // Filtra tambem por provedor_codigo (lookup vem da auditoria) pra
+    // eliminar o risco de colisao de envelope_id entre provedores
+    // diferentes — sem isso, dois envelopes homonimos poderiam fazer o
+    // worker chamar o adapter errado.
+    const solExec = (await db.execute(sql`
+      SELECT id, provedor_codigo, provedor_envelope_id, zapsign_external_id
+      FROM assinatura_solicitacoes
+      WHERE provedor_envelope_id = ${linha.envelope_id}
+        AND provedor_codigo = ${linha.provedor_codigo}
+      LIMIT 1
+    `)) as unknown as { rows?: SolRow[] } | SolRow[];
+    const solRows: SolRow[] = Array.isArray(solExec)
+      ? solExec
+      : solExec.rows ?? [];
+    const solRow = solRows[0];
+    if (!solRow) return { recuperado: false, motivo: "sem_solicitacao", novaStorageKey: null };
+
+    const adapter = getAdapter(solRow.provedor_codigo);
+    let pdf: Buffer;
+    try {
+      pdf = await adapter.downloadSignedArtifact(solRow.provedor_envelope_id);
+    } catch (e) {
+      return { recuperado: false, motivo: `download_falhou: ${(e as Error).message.slice(0, 200)}`, novaStorageKey: null };
+    }
+    if (!pdf || pdf.length === 0) {
+      return { recuperado: false, motivo: "download_vazio", novaStorageKey: null };
+    }
+
+    let up;
+    try {
+      up = await uploadPdfAssinado(solRow.zapsign_external_id || solRow.provedor_envelope_id, pdf);
+    } catch (e) {
+      return { recuperado: false, motivo: `upload_falhou: ${(e as Error).message.slice(0, 200)}`, novaStorageKey: null };
+    }
+
+    // Promove a chave logica antiga (ex. `assinaturas/<external>.pdf`) pro
+    // formato novo `<bucket>/<path>` que o re-upload acabou de gerar — assim
+    // a proxima execucao do worker bate exists()=true direto, sem passar pelo
+    // fallback. Aplicamos so se a chave do banco ja nao for fisica.
+    if (!linha.pdf_storage_key.startsWith(`${up.bucket}/`)) {
+      try {
+        await db.execute(sql`
+          UPDATE auditoria_assinaturas
+          SET pdf_storage_key = ${up.storageKey}
+          WHERE id = ${linha.id}
+        `);
+      } catch (e) {
+        // Defensivo: re-upload OK mesmo que o ponteiro nao migre — proximo
+        // tick continua resolvendo via fallback.
+        console.warn(
+          `[verificarPdfsCofre ${runId}] auto_recovery upload OK mas falhou promover storage_key id=${linha.id}:`,
+          (e as Error).message,
+        );
+      }
+    }
+
+    // Registra evento sintetico no auditavel — fonte unica de verdade pra
+    // depois conseguirmos contar quantos PDFs foram auto-curados num periodo.
+    // event_id determinístico evita duplicacao se o worker rodar 2x no mesmo
+    // dia pra mesma signature antes do exists() voltar a true.
+    const hojeISO = new Date().toISOString().slice(0, 10);
+    const eventId = `auto_recovery_${linha.signature_id}_${hojeISO}`;
+    const payloadJson = JSON.stringify({
+      origem: "verificarPdfsCofre",
+      run_id: runId,
+      signature_id: linha.signature_id,
+      storage_key_antiga: linha.pdf_storage_key,
+      storage_key_nova: up.storageKey,
+      bytes: up.bytes,
+    });
+    try {
+      await db.execute(sql`
+        INSERT INTO assinatura_webhook_eventos (
+          provedor_codigo, event_id, event_type, envelope_id,
+          solicitacao_id, payload_bruto, processado, processado_em
+        ) VALUES (
+          ${solRow.provedor_codigo},
+          ${eventId},
+          'auto_recovery',
+          ${linha.envelope_id},
+          ${solRow.id},
+          ${payloadJson}::jsonb,
+          true,
+          NOW()
+        )
+        ON CONFLICT (provedor_codigo, event_id) DO NOTHING
+      `);
+    } catch (e) {
+      // Nao reverte a recuperacao; o PDF jah esta no bucket de novo.
+      console.warn(
+        `[verificarPdfsCofre ${runId}] auto_recovery OK mas falhou gravar evento sig=${linha.signature_id}:`,
+        (e as Error).message,
+      );
+    }
+
+    return { recuperado: true, motivo: null, novaStorageKey: up.storageKey };
+  } catch (e) {
+    return { recuperado: false, motivo: `auto_recovery_erro: ${(e as Error).message.slice(0, 200)}`, novaStorageKey: null };
+  }
+}
 
 async function verificarUma(
   bucket: Bucket,
@@ -269,6 +399,7 @@ async function rodarVerificacao(runId: string): Promise<VerificacaoPdfsResult> {
     ok: 0,
     ausentes: 0,
     erros: 0,
+    recuperados: 0,
     alertou_email: false,
     ausentes_detalhe: [],
   };
@@ -284,13 +415,20 @@ async function rodarVerificacao(runId: string): Promise<VerificacaoPdfsResult> {
     return stats;
   }
 
+  // JOIN com assinatura_solicitacoes pra trazer provedor_codigo da auditoria
+  // (a tabela auditoria_assinaturas nao guarda provedor — eh derivado pela
+  // FK solicitacao_id). LEFT JOIN + COALESCE com 'zapsign' garante
+  // compatibilidade com linhas historicas onde solicitacao_id eventualmente
+  // ficou NULL (Wave 10 inicio do ciclo, antes do FK virar obrigatorio).
   const r: any = await db.execute(sql`
-    SELECT id, signature_id, envelope_id, external_id, signer_name, signer_papel,
-           pdf_storage_key, criado_em::text AS criado_em
-    FROM auditoria_assinaturas
-    WHERE pdf_storage_key IS NOT NULL
-      AND criado_em >= NOW() - INTERVAL '${sql.raw(String(JANELA_DIAS))} days'
-    ORDER BY criado_em DESC
+    SELECT a.id, a.signature_id, a.envelope_id, a.external_id, a.signer_name,
+           a.signer_papel, a.pdf_storage_key, a.criado_em::text AS criado_em,
+           COALESCE(s.provedor_codigo, 'zapsign') AS provedor_codigo
+    FROM auditoria_assinaturas a
+    LEFT JOIN assinatura_solicitacoes s ON s.id = a.solicitacao_id
+    WHERE a.pdf_storage_key IS NOT NULL
+      AND a.criado_em >= NOW() - INTERVAL '${sql.raw(String(JANELA_DIAS))} days'
+    ORDER BY a.criado_em DESC
   `);
   const linhas: LinhaAuditoria[] = (r.rows ?? r) as LinhaAuditoria[];
   stats.total_verificadas = linhas.length;
@@ -298,18 +436,48 @@ async function rodarVerificacao(runId: string): Promise<VerificacaoPdfsResult> {
   const ausentes: LinhaAusente[] = [];
   for (const linha of linhas) {
     const { ok, erro } = await verificarUma(bucket, linha);
+
+    // Task #48 — Auto-cura antes de declarar ausente: se exists()=false,
+    // tentamos baixar de novo do provedor e reenviar pro bucket. So escala
+    // pra alerta por e-mail (plano B) se o provedor tambem nao tiver mais
+    // o arquivo.
+    let okFinal = ok;
+    let erroFinal: string | null = erro;
+    let motivoSuffix = "";
+    // Auto-recovery roda APENAS no caminho "objeto sumiu do bucket"
+    // (exists()=false, sem erro de leitura). Erros de IO/permissao/sidecar
+    // sao mantidos visiveis no banco e no e-mail pra nao mascararmos infra.
+    if (!ok && erro === null) {
+      const recovery = await tentarAutoRecovery(linha, runId);
+      if (recovery.recuperado) {
+        okFinal = true;
+        erroFinal = null;
+        stats.recuperados += 1;
+        console.log(
+          `[verificarPdfsCofre ${runId}] auto_recovery OK sig=${linha.signature_id} novaKey=${recovery.novaStorageKey}`,
+        );
+      } else if (recovery.motivo) {
+        motivoSuffix = ` (auto_recovery falhou: ${recovery.motivo})`;
+        // Persiste o motivo da falha tambem em pdf_verificado_erro pra
+        // observabilidade no banco (sem isso, o motivo so vivia no e-mail
+        // de alerta e ficava perdido apos cada execucao).
+        erroFinal = `auto_recovery_falhou: ${recovery.motivo}`.slice(0, 500);
+      }
+    }
+
     try {
-      await persistirResultado(linha.id, ok, erro);
+      await persistirResultado(linha.id, okFinal, erroFinal);
     } catch (e) {
       console.error(
         `[verificarPdfsCofre ${runId}] erro persistir id=${linha.id}:`,
         (e as Error).message,
       );
     }
-    if (ok) {
+    if (okFinal) {
       stats.ok += 1;
     } else {
-      const motivo = erro ? `erro: ${erro}` : "ausente no bucket";
+      const motivoBase = erro ? `erro: ${erro}` : "ausente no bucket";
+      const motivo = motivoBase + motivoSuffix;
       if (erro) stats.erros += 1;
       stats.ausentes += 1;
       ausentes.push({ ...linha, motivo });
@@ -326,7 +494,7 @@ async function rodarVerificacao(runId: string): Promise<VerificacaoPdfsResult> {
   }
 
   console.log(
-    `[verificarPdfsCofre ${runId}] OK | total=${stats.total_verificadas} ok=${stats.ok} ausentes=${stats.ausentes} erros=${stats.erros} email=${stats.alertou_email}`,
+    `[verificarPdfsCofre ${runId}] OK | total=${stats.total_verificadas} ok=${stats.ok} recuperados=${stats.recuperados} ausentes=${stats.ausentes} erros=${stats.erros} email=${stats.alertou_email}`,
   );
   return stats;
 }
