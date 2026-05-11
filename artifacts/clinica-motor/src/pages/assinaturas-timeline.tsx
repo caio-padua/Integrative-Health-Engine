@@ -89,11 +89,19 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// Task #73 — paginacao explicita. Pagina de 50 mantem o comportamento original
+// e bate com o LIMIT default do backend; "Carregar mais" appendiza paginas
+// adicionais sem perder filtros (paciente nao perde scroll).
+const LIMITE_PAGINA = 50;
+
 export default function AssinaturasTimeline() {
   const [rows, setRows] = useState<Solicitacao[]>([]);
   const [loading, setLoading] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
+  const [totalReal, setTotalReal] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(false);
 
   // Task #51 — leitura do filtro `?unidade_id=` na URL pra abrir a timeline
   // ja escopada numa clinica especifica (clique vindo do banner CEO).
@@ -224,8 +232,14 @@ export default function AssinaturasTimeline() {
     sincronizarDatasUrl(novoDesde, novoAte);
   }, [sincronizarDatasUrl]);
 
-  const carregar = useCallback(async () => {
-    setLoading(true);
+  // Task #73 — `carregar({ append })`: append=false reseta a tabela (1a pagina);
+  // append=true appendiza usando offset = rows.length pra paginar sem perder
+  // os registros ja exibidos. Filtros entram nos 2 modos pra a contagem
+  // server-side (`total`) bater com a query da UI.
+  const carregar = useCallback(async (opts?: { append?: boolean }) => {
+    const append = opts?.append === true;
+    if (append) setCarregandoMais(true);
+    else setLoading(true);
     setErro(null);
     try {
       const params = new URLSearchParams();
@@ -234,7 +248,10 @@ export default function AssinaturasTimeline() {
       if (statusList.length > 0) params.set("status", statusList.join(","));
       if (desdeInput) params.set("desde", desdeInput);
       if (ateInput) params.set("ate", ateInput);
-      const qs = params.toString() ? `?${params.toString()}` : "";
+      params.set("limit", String(LIMITE_PAGINA));
+      const offset = append ? rows.length : 0;
+      params.set("offset", String(offset));
+      const qs = `?${params.toString()}`;
       const r = await fetch(`/api/assinaturas/timeline${qs}`, {
         credentials: "include",
       });
@@ -242,19 +259,36 @@ export default function AssinaturasTimeline() {
         throw new Error(`HTTP ${r.status}`);
       }
       const data = await r.json();
-      setRows(data.solicitacoes || []);
+      const novos: Solicitacao[] = data.solicitacoes || [];
+      if (append) {
+        // De-dup defensivo por id pra cobrir caso de novas linhas inseridas
+        // entre a pagina 1 e a pagina 2 (deslocariam o offset e duplicariam
+        // a borda). Mantem ordem do servidor (ORDER BY id DESC).
+        setRows((prev) => {
+          const ids = new Set(prev.map((p) => p.id));
+          return [...prev, ...novos.filter((n) => !ids.has(n.id))];
+        });
+      } else {
+        setRows(novos);
+      }
+      setTotalReal(Number(data.total ?? novos.length));
+      setHasMore(Boolean(data.has_more));
       setUltimaAtualizacao(new Date());
     } catch (e) {
       setErro((e as Error).message);
     } finally {
       setLoading(false);
+      setCarregandoMais(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput]);
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, rows.length]);
 
+  // Recarrega 1a pagina sempre que qualquer filtro muda. Nao depende de
+  // `carregar` direto pra evitar loop com `rows.length` na dep list.
   useEffect(() => {
-    carregar();
-  }, [carregar]);
+    void carregar({ append: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput]);
 
   const totais = {
     enviado: rows.filter((r) => r.status === "ENVIADO" || r.status === "PARCIAL").length,
@@ -302,13 +336,16 @@ export default function AssinaturasTimeline() {
             )}
           </div>
           <div className="nao-imprimir flex items-center gap-2">
-            {/* Task #60 — baixar CSV respeitando os mesmos filtros (unidade + status) */}
+            {/* Task #60 — baixar CSV respeitando os mesmos filtros (unidade + status).
+                Task #73 — Atualizar agora recarrega a 1a pagina (append:false). */}
             <a
               href={(() => {
                 const params = new URLSearchParams();
                 if (filtroUnidadeId !== null) params.set("unidade_id", String(filtroUnidadeId));
                 const statusList = STATUS_QUERY[filtroStatus];
                 if (statusList.length > 0) params.set("status", statusList.join(","));
+                if (desdeInput) params.set("desde", desdeInput);
+                if (ateInput) params.set("ate", ateInput);
                 const qs = params.toString() ? `?${params.toString()}` : "";
                 return `/api/assinaturas/timeline.csv${qs}`;
               })()}
@@ -320,7 +357,7 @@ export default function AssinaturasTimeline() {
               Baixar CSV
             </a>
             <button
-              onClick={carregar}
+              onClick={() => carregar({ append: false })}
               className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition"
               style={{ background: GOLD, color: NAVY }}
               disabled={loading}
@@ -338,8 +375,13 @@ export default function AssinaturasTimeline() {
               Total em janela
             </div>
             <div className="text-2xl font-bold mt-1" style={{ color: NAVY }}>
-              {rows.length}
+              {totalReal}
             </div>
+            {totalReal > rows.length && (
+              <div className="text-[11px] mt-1" style={{ color: ZINC }}>
+                exibindo {rows.length}
+              </div>
+            )}
           </div>
           <div className="bg-white border rounded p-4">
             <div className="text-xs uppercase tracking-wide" style={{ color: ZINC }}>
@@ -570,6 +612,48 @@ export default function AssinaturasTimeline() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Task #73 — banner de paginacao + botao "Carregar mais".
+            Aparece quando o backend sinaliza has_more=true (geralmente filtros
+            largos como "30 dias" em fase movimentada). Sem isso, o LIMIT
+            silencioso esconde resultados e o Caio nao percebe. */}
+        {rows.length > 0 && hasMore && (
+          <div
+            className="nao-imprimir flex items-center justify-between gap-3 rounded p-3 text-sm border"
+            style={{ background: "#FEF9E7", borderColor: GOLD, color: NAVY }}
+            data-testid="banner-paginacao"
+          >
+            <div>
+              Mostrando <strong>{rows.length}</strong> de{" "}
+              <strong>{totalReal}</strong> assinaturas. Refine os filtros (data,
+              status ou unidade) ou carregue a próxima página.
+            </div>
+            <button
+              type="button"
+              onClick={() => carregar({ append: true })}
+              disabled={carregandoMais}
+              data-testid="btn-carregar-mais"
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold transition disabled:opacity-60"
+              style={{ background: NAVY, color: "#FFFFFF" }}
+            >
+              <RefreshCw
+                size={12}
+                className={carregandoMais ? "animate-spin" : ""}
+              />
+              {carregandoMais ? "Carregando..." : "Carregar mais 50"}
+            </button>
+          </div>
+        )}
+
+        {rows.length > 0 && !hasMore && totalReal > LIMITE_PAGINA && (
+          <div
+            className="nao-imprimir text-xs text-center"
+            style={{ color: ZINC }}
+            data-testid="banner-fim-lista"
+          >
+            Fim da lista — {totalReal} assinaturas exibidas.
           </div>
         )}
 
