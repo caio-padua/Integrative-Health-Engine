@@ -7,6 +7,7 @@ import {
   pacientesTable, tratamentosTable, termosJuridicosTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
+import { parsePosologia } from "@workspace/posologia";
 import { gerarRasxPdf, gerarRacjPdf, gerarRacjPdfFromBanco, RAS_CATEGORIAS, type RasCategoria, type TermoJuridicoDb } from "../pdf/rasxPdf";
 import {
   gerarFichaCadastroPdf, gerarReceitaPdf, gerarAtestadoPdf, gerarContratoPdf,
@@ -414,6 +415,7 @@ router.post("/rasx/:pacienteId/auto-populate", async (req, res): Promise<void> =
         pacienteId, nome: m.nome, dose: m.dose || null,
         medicamentoDoseInline: inline,
         posologia: m.posologia || null,
+        posologiaEstruturada: m.posologia ? parsePosologia(m.posologia) : null,
         motivoUso: m.motivoUso || null,
         tempoUso: m.tempoUso || null,
         statusAtual: "em_uso",

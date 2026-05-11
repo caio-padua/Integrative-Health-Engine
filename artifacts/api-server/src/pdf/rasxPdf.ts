@@ -1,5 +1,17 @@
 import PDFDocument from "pdfkit";
 import { PassThrough } from "stream";
+import { parsePosologia, formatarPosologiaEstruturada } from "@workspace/posologia";
+
+/**
+ * Devolve a frase canônica produzida por parsePosologia + formatarPosologiaEstruturada
+ * quando a string casa alguma regra; caso contrário devolve o texto cru.
+ * Pure-function chamada no momento do render — espelha o helper de rasxMotorPdf.ts.
+ */
+function posologiaCanonica(texto: string | null | undefined): string {
+  if (!texto) return "—";
+  const estrutura = parsePosologia(texto);
+  return estrutura.interpretado ? formatarPosologiaEstruturada(estrutura) : texto;
+}
 
 const CORES = {
   azulPetroleo: "#1B4F6C",
@@ -223,7 +235,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
     y = drawTableHeader(doc, medCols, y);
     data.medicamentos.forEach((m: any, i: number) => {
       const inline = m.medicamentoDoseInline || `${m.nome}${m.dose ? " " + m.dose : ""}`;
-      y = drawTableRow(doc, medCols, [inline, m.posologia || "—", m.motivoUso || "—", m.statusAtual || "em_uso", m.tempoUso || "—"], y, i % 2 === 0);
+      y = drawTableRow(doc, medCols, [inline, posologiaCanonica(m.posologia), m.motivoUso || "—", m.statusAtual || "em_uso", m.tempoUso || "—"], y, i % 2 === 0);
     });
   }
   drawFooter(doc, false);
@@ -299,7 +311,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
       y = drawTableHeader(doc, hmedCols, y);
     }
     const inline = m.medicamentoDoseInline || `${m.nome}${m.dose ? " " + m.dose : ""}`;
-    y = drawTableRow(doc, hmedCols, [inline, m.posologia || "—", m.indicacaoClinica || m.motivoUso || "—", m.statusAtual, m.substituicaoNatural || "—", m.evidenciaMelhora || "—"], y, i % 2 === 0);
+    y = drawTableRow(doc, hmedCols, [inline, posologiaCanonica(m.posologia), m.indicacaoClinica || m.motivoUso || "—", m.statusAtual, m.substituicaoNatural || "—", m.evidenciaMelhora || "—"], y, i % 2 === 0);
   });
   drawFooter(doc, true);
   }
@@ -317,7 +329,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
       y = drawSectionTitle(doc, f.nome || `Formula ${fIdx + 1}`, y);
       if (f.posologia) {
         doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text("Posologia: ", 50, y, { continued: true });
-        doc.font("Helvetica").fillColor(CORES.cinzaTexto).text(f.posologia);
+        doc.font("Helvetica").fillColor(CORES.cinzaTexto).text(posologiaCanonica(f.posologia));
         y += 16;
       }
       if (f.motivoUso) {
@@ -380,7 +392,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
     y = drawTableHeader(doc, hlinCols, y);
     data.eventosMedicacao.forEach((e: any, i: number) => {
       const dt = e.data ? new Date(e.data).toLocaleDateString("pt-BR") : "—";
-      y = drawTableRow(doc, hlinCols, [dt, e.apresentacao, e.posologia || "—", e.status, e.substituicaoNatural || "—", e.leituraClinica || "—"], y, i % 2 === 0);
+      y = drawTableRow(doc, hlinCols, [dt, e.apresentacao, posologiaCanonica(e.posologia), e.status, e.substituicaoNatural || "—", e.leituraClinica || "—"], y, i % 2 === 0);
       if (y > 530) {
         drawFooter(doc, true);
         addPagePaisagem(doc);

@@ -5,6 +5,18 @@ import {
   CLASSE_LABELS, type ClasseProcedimento, type ConsentimentoEspecifico,
   SubgrupoCLIN, SubgrupoJURI, SubgrupoFINA, SubgrupoACOM, Subgrupo4100,
 } from "../lib/rasxEngine";
+import { parsePosologia, formatarPosologiaEstruturada } from "@workspace/posologia";
+
+/**
+ * Devolve a frase canônica produzida por parsePosologia + formatarPosologiaEstruturada
+ * quando a string casa alguma regra; caso contrário devolve o texto cru.
+ * Pure-function chamada no momento do render — barata e idempotente.
+ */
+function posologiaCanonica(texto: string | null | undefined): string {
+  if (!texto) return "—";
+  const estrutura = parsePosologia(texto);
+  return estrutura.interpretado ? formatarPosologiaEstruturada(estrutura) : texto;
+}
 
 const CORES = {
   azulPetroleo: "#1B4F6C",
@@ -160,7 +172,7 @@ function renderCLIN(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
         { label: "EVENTO", x: 340, w: 80 }, { label: "SUBSTITUICAO", x: 420, w: 135 },
       ];
       y = drawTH(doc, cols, y);
-      p.medicamentos.forEach((m, i) => { y = drawTR(doc, cols, [m.nome, m.posologia || "—", m.evento || "em uso", m.substituicao || "—"], y, i % 2 === 0); });
+      p.medicamentos.forEach((m, i) => { y = drawTR(doc, cols, [m.nome, posologiaCanonica(m.posologia), m.evento || "em uso", m.substituicao || "—"], y, i % 2 === 0); });
     }
     drawFooterMotor(doc, false, p);
   }
@@ -178,7 +190,7 @@ function renderCLIN(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     y = drawTH(doc, cols, y);
     p.medicamentos.forEach((m, i) => {
       if (y > 500) { drawFooterMotor(doc, true, p); addPage(doc, true); drawHeader(doc, "Sessao (cont.)", SubgrupoCLIN.SESS, true); y = 80; y = drawTH(doc, cols, y); }
-      y = drawTR(doc, cols, [m.nome, m.posologia || "—", m.dataInicio || "—", m.evento || "em uso", m.substituicao || "—", "—"], y, i % 2 === 0);
+      y = drawTR(doc, cols, [m.nome, posologiaCanonica(m.posologia), m.dataInicio || "—", m.evento || "em uso", m.substituicao || "—", "—"], y, i % 2 === 0);
     });
     drawFooterMotor(doc, true, p);
   }
@@ -339,7 +351,7 @@ function renderJURI(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
       y += 4;
       y = drawSection(doc, "Medicamentos / Formulas Prescritos", y);
       p.medicamentos.forEach(m => {
-        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + m.posologia : ""}`, 60, y, { width: 480 });
+        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + posologiaCanonica(m.posologia) : ""}`, 60, y, { width: 480 });
         y += 14;
       });
     }
@@ -460,7 +472,7 @@ function renderFINA(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     y = drawParagraph(doc, `Declaramos que o(a) paciente ${p.nomePaciente} realizou os seguintes procedimentos/tratamentos em nossa unidade:`, y);
     if (p.medicamentos.length > 0) {
       p.medicamentos.forEach(m => {
-        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + m.posologia : ""}`, 60, y, { width: 480 });
+        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + posologiaCanonica(m.posologia) : ""}`, 60, y, { width: 480 });
         y += 14;
       });
     }
@@ -515,7 +527,7 @@ function renderACOM(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     y += 12;
     y = drawSection(doc, "Medicamentos Atuais", y);
     p.medicamentos.forEach(m => {
-      doc.fontSize(7).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + m.posologia : ""}`, 50, y, { width: 750 });
+      doc.fontSize(7).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + posologiaCanonica(m.posologia) : ""}`, 50, y, { width: 750 });
       y += 12;
     });
     drawFooterMotor(doc, true, p);
@@ -533,7 +545,7 @@ function renderACOM(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     ];
     y = drawTH(doc, cols, y);
     p.medicamentos.forEach((m, i) => {
-      y = drawTR(doc, cols, [m.dataInicio || "—", m.nome, m.posologia || "—", m.evento || "em uso", m.substituicao || "—"], y, i % 2 === 0);
+      y = drawTR(doc, cols, [m.dataInicio || "—", m.nome, posologiaCanonica(m.posologia), m.evento || "em uso", m.substituicao || "—"], y, i % 2 === 0);
       if (y > 500) { drawFooterMotor(doc, true, p); addPage(doc, true); drawHeader(doc, "Jornada (cont.)", SubgrupoACOM.JORN, true); y = 80; y = drawTH(doc, cols, y); }
     });
     drawFooterMotor(doc, true, p);
@@ -637,7 +649,7 @@ function render4100(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
       y = drawTH(doc, cols, y);
       p.medicamentos.forEach((m, i) => {
         if (y > 500) { drawFooterMotor(doc, true, p); addPage(doc, true); drawHeader(doc, "Medicacoes (cont.)", Subgrupo4100.S4103, true); y = 80; y = drawTH(doc, cols, y); }
-        y = drawTR(doc, cols, [m.nome, m.posologia || "—", m.dataInicio || "—", m.evento || "em uso", m.substituicao || "—"], y, i % 2 === 0);
+        y = drawTR(doc, cols, [m.nome, posologiaCanonica(m.posologia), m.dataInicio || "—", m.evento || "em uso", m.substituicao || "—"], y, i % 2 === 0);
       });
     } else {
       y = drawParagraph(doc, "Nenhuma medicacao registrada.", y);
@@ -657,7 +669,7 @@ function render4100(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
         { label: "SUBSTITUICAO", x: 340, w: 250 }, { label: "POSOLOGIA", x: 590, w: 212 },
       ];
       y = drawTH(doc, cols, y);
-      comSub.forEach((m, i) => { y = drawTR(doc, cols, [m.nome, m.evento || "—", m.substituicao || "—", m.posologia || "—"], y, i % 2 === 0); });
+      comSub.forEach((m, i) => { y = drawTR(doc, cols, [m.nome, m.evento || "—", m.substituicao || "—", posologiaCanonica(m.posologia)], y, i % 2 === 0); });
     } else {
       y = drawParagraph(doc, "Nenhuma substituicao registrada ate o momento. Transicao terapeutica em avaliacao.", y);
     }
