@@ -125,9 +125,25 @@ export async function enviarTCLE(input: EnviarTCLEInput): Promise<EnviarTCLEResu
   //   - hidratacao TCLE_PADRAO_V1 com NOME_PACIENTE / CPF_PACIENTE / etc
   //   - persistencia em assinatura_solicitacoes + signatarios + notificacoes
   //   - failover automatico (ZapSign principal + Clicksign reserva, se toggle ON)
+  // Caminho C (Dr. Claude 11/mai/2026): externalId deterministico
+  // `tcle-${pacienteId}-${ts}` permite F4 webhook reconciliar 1:1 via regex
+  // `/^tcle-(\d+)-\d+$/`. metadataExtra mergeada NO INSERT inicial (atomico),
+  // elimina janela de race entre INSERT e enriquecimento posterior.
+  // forcarProvedor "zapsign" — TCLE usa modalidade avancada (assinaturaTela
+  // -tokenWhatsApp) que so tem capability ZapSign hoje; Clicksign nao implementa
+  // equivalente direto, fallback nao-deterministico criaria ambiguidade juridica.
+  const externalIdDeterministico = `tcle-${paciente.id}-${Date.now()}`;
   const r = await assinaturaService.enviar({
     pacienteId: paciente.id,
     templateCodigo: TCLE_TEMPLATE_CODIGO,
+    forcarProvedor: "zapsign",
+    externalId: externalIdDeterministico,
+    metadataExtra: {
+      pacienteId: paciente.id,
+      familia: 1,
+      wave: 10,
+      caminho: "C",
+    },
   });
 
   const link = r.signatarios.find((s) => s.papel === "PACIENTE")?.link ?? null;
