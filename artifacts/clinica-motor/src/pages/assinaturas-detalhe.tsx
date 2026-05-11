@@ -199,15 +199,30 @@ export default function AssinaturasDetalhe() {
             <ArrowLeft size={14} />
             Voltar à timeline
           </Link>
-          <button
-            onClick={carregar}
-            disabled={loading}
-            className="nao-imprimir flex items-center gap-2 px-3 py-1.5 rounded text-sm"
-            style={{ background: GOLD, color: NAVY }}
-          >
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-            Atualizar
-          </button>
+          <div className="nao-imprimir flex items-center gap-2">
+            {sol?.status === "CONCLUIDO" && (
+              <a
+                href={`/api/assinaturas/${id}/pdf-assinado`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold border"
+                style={{ borderColor: GOLD, color: NAVY, background: "#FFF" }}
+                title="Baixa o PDF assinado direto do bucket assinaturas-pawards (defesa em profundidade · retencao 20 anos)"
+              >
+                <Download size={12} />
+                Baixar PDF assinado
+              </a>
+            )}
+            <button
+              onClick={carregar}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-sm"
+              style={{ background: GOLD, color: NAVY }}
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+              Atualizar
+            </button>
+          </div>
         </div>
 
         {/* Header solicitação */}

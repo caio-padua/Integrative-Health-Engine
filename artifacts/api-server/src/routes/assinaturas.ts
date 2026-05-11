@@ -359,6 +359,70 @@ router.get("/assinaturas/:id", guardMaster, async (req: Request, res: Response) 
   }
 });
 
+/**
+ * GET /api/assinaturas/:id/pdf-assinado — Wave 10.5 task #34
+ *
+ * Devolve **redirect 302** pra uma URL assinada GCS de TTL curto (5min, default)
+ * apontando pro PDF assinado no bucket "assinaturas-pawards" (App Storage).
+ * Defesa em profundidade: nao depende mais do ZapSign manter o arquivo
+ * disponivel — temos copia local pra retencao 20 anos (CFM/LGPD).
+ *
+ * Por que 302 + signed URL em vez de stream pelo backend?
+ *  - Escala: nao segura conexao HTTP do API server por minutos pra PDFs grandes.
+ *  - Defesa: o bucket NAO eh publico, a unica forma de acessar sem credencial
+ *    GCS eh atraves desta URL assinada de TTL curto, gerada **apos** o
+ *    guardMaster autorizar o validador master. Quem nao passou no gate
+ *    nunca recebe a URL.
+ *  - Cliente baixa direto do GCS (latencia minima).
+ *
+ * Resolucao da chave: prefere o ultimo manifesto da auditoria (mais recente
+ * timestamp_utc) com pdf_storage_key nao-nulo. Cai pro `external_id` como
+ * ultimo recurso (fluxos historicos sem manifesto registrado).
+ *
+ * `?json=1` retorna `{ url, expiresAt }` em vez de redirect — util pra o
+ * frontend renderizar contagem regressiva ou abrir em nova aba via JS.
+ */
+router.get("/assinaturas/:id/pdf-assinado", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params["id"]);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "id invalido" }); return; }
+    const r = await db.execute(sql`
+      SELECT a.pdf_storage_key, s.zapsign_external_id, s.provedor_envelope_id
+      FROM assinatura_solicitacoes s
+      LEFT JOIN auditoria_assinaturas a
+        ON a.solicitacao_id = s.id AND a.pdf_storage_key IS NOT NULL
+      WHERE s.id = ${id}
+      ORDER BY a.timestamp_utc DESC NULLS LAST
+      LIMIT 1
+    `);
+    const row = ((r as unknown as { rows?: Array<{ pdf_storage_key: string | null; zapsign_external_id: string | null; provedor_envelope_id: string | null }> }).rows || [])[0];
+    if (!row) { res.status(404).json({ error: "Solicitacao nao encontrada" }); return; }
+    const chave = row.pdf_storage_key
+      || (row.zapsign_external_id ? `assinaturas/${row.zapsign_external_id}.pdf` : null)
+      || (row.provedor_envelope_id ? `assinaturas/${row.provedor_envelope_id}.pdf` : null);
+    if (!chave) { res.status(404).json({ error: "PDF assinado ainda nao disponivel" }); return; }
+
+    const { gerarUrlAssinadaPdf, PdfAssinadoNaoEncontradoError } = await import("../lib/assinatura/objectStorage.js");
+    try {
+      const signed = await gerarUrlAssinadaPdf(chave, 300);
+      res.setHeader("Cache-Control", "private, no-store");
+      if (req.query["json"] === "1") {
+        res.json({ url: signed.url, expiresAt: signed.expiresAt, ttlSec: 300 });
+        return;
+      }
+      res.redirect(302, signed.url);
+    } catch (err) {
+      if (err instanceof PdfAssinadoNaoEncontradoError) {
+        res.status(404).json({ error: "PDF assinado nao encontrado no bucket", chave });
+        return;
+      }
+      throw err;
+    }
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 /** GET /api/assinaturas — lista (filtros opcionais paciente_id, status) */
 router.get("/assinaturas", async (req: Request, res: Response) => {
   const filtros: string[] = ["1=1"];

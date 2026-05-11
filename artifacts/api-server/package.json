@@ -11,6 +11,7 @@
     "test": "tsx --test src/services/whatsappTemplates.test.ts src/services/prescricaoLembreteService.test.ts"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.19.0",
     "@swc/helpers": "^0.5.21",
     "@types/bcryptjs": "^3.0.0",
     "@types/pdfkit": "^0.17.5",
