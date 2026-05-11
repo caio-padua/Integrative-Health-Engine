@@ -194,6 +194,21 @@ export default function PainelComando() {
   const [loading, setLoading] = useState(true);
   const [selectedSubstancia, setSelectedSubstancia] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("visao-geral");
+  const [cofreAusentes, setCofreAusentes] = useState<{
+    total: number;
+    has_more?: boolean;
+    ausentes: {
+      id: number;
+      signature_id: string;
+      solicitacao_id: number;
+      signer_name: string;
+      signer_papel: string;
+      storage_key: string;
+      criado_em: string;
+      pdf_verificado_em: string | null;
+      pdf_verificado_erro: string | null;
+    }[];
+  } | null>(null);
   const [assinaturasResumo, setAssinaturasResumo] = useState<{
     enviadas: number; assinadas: number; rejeitadas: number; pendentes: number;
     serie_7d?: { dia: string; enviadas: number; assinadas: number; rejeitadas: number }[];
@@ -218,6 +233,9 @@ export default function PainelComando() {
     }[];
   } | null>(null);
   const assinaturasRef = useRef<{ assinadas: number; rejeitadas: number } | null>(null);
+  // Task #52 — contagem de alertas CEO nao-visualizados (Wave 10.6).
+  // Exibido como badge dentro do banner de assinaturas + link pra fila dedicada.
+  const [alertasCeoNaoVistos, setAlertasCeoNaoVistos] = useState<number>(0);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -291,6 +309,46 @@ export default function PainelComando() {
     return () => { alive = false; clearInterval(id); };
   }, [toast, unidadeSelecionada, isTodasClinicas]);
 
+  // Task #47 — PDFs assinados ausentes do cofre (30d). Mesmo gate guardMaster:
+  // 401/403 silenciosos, card so renderiza pra master autenticado. Polling 5min
+  // (worker roda 1x/dia, nao precisa pressao no banco).
+  useEffect(() => {
+    if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/assinaturas/cofre/ausentes`, { credentials: "include" });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (!alive || !d) return;
+        setCofreAusentes({ total: d.total ?? 0, has_more: d.has_more ?? false, ausentes: d.ausentes ?? [] });
+      } catch { /* silencioso */ }
+    };
+    carregar();
+    const id = setInterval(carregar, 5 * 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  // Task #52 — polling leve da fila de alertas CEO (mesmo guard do banner).
+  // Conta apenas os nao-visualizados pra mostrar o badge no painel.
+  useEffect(() => {
+    if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/assinaturas/alertas-ceo?limit=200`, { credentials: "include" });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (!alive) return;
+        const nVistos = (d.alertas || []).filter((a: { visualizado_em: string | null }) => !a.visualizado_em).length;
+        setAlertasCeoNaoVistos(nVistos);
+      } catch { /* silencioso */ }
+    };
+    carregar();
+    const id = setInterval(carregar, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
   if (loading) {
     return (
       <Layout>
@@ -350,6 +408,31 @@ export default function PainelComando() {
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold flex items-center gap-2 flex-wrap">
                   <span>Assinaturas · ultimas 24h · tendencia 7d</span>
+                  {/* Task #52 — badge contagem alertas CEO nao-visualizados */}
+                  {alertasCeoNaoVistos > 0 && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.href = "/assinaturas/alertas-ceo";
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.location.href = "/assinaturas/alertas-ceo";
+                        }
+                      }}
+                      className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold cursor-pointer hover:opacity-90"
+                      style={{ backgroundColor: COR_SEMANTICA_HEX.atencao, color: "white" }}
+                      title="Abrir fila de alertas do CEO"
+                      data-testid="badge-alertas-ceo-nao-vistos"
+                    >
+                      {alertasCeoNaoVistos} alerta{alertasCeoNaoVistos > 1 ? "s" : ""} CEO sem ver
+                    </span>
+                  )}
                   {assinaturasResumo.taxa_conversao_pct !== null && assinaturasResumo.taxa_conversao_pct !== undefined && (
                     <span
                       className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold"
@@ -486,6 +569,75 @@ export default function PainelComando() {
             </div>
           </a>
         )}
+
+        {/* Task #47 — PDFs assinados ausentes do cofre (30d). Verde 0, ambar 1-2,
+            vermelho 3+. Cada linha clica e abre /assinaturas/:id (Wave 10 F5). */}
+        {FEATURE_ASSINATURAS_RESUMO_CEO && cofreAusentes && (() => {
+          const total = cofreAusentes.total;
+          const cor: CorSemantica = total === 0 ? "excelente" : total <= 2 ? "atencao" : "critico";
+          const corHex = COR_SEMANTICA_HEX[cor];
+          return (
+            <div
+              className="border-l-4 px-4 py-3 rounded-sm bg-[var(--pw-petroleo)]/5"
+              style={{ borderLeftColor: corHex }}
+              data-testid="card-ceo-cofre-ausentes"
+            >
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: corHex }} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold flex items-center gap-2 flex-wrap">
+                    <span>PDFs assinados ausentes do cofre · 30d</span>
+                    <span
+                      className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold"
+                      style={{ backgroundColor: `${corHex}22`, color: corHex }}
+                      data-testid="card-ceo-cofre-ausentes-total"
+                    >
+                      {total === 0 ? "0 · cofre integro" : `${total} ausente${total > 1 ? "s" : ""}`}
+                    </span>
+                  </div>
+                  {total === 0 ? (
+                    <div className="text-xs text-[var(--pw-tinta)] mt-1.5">
+                      Worker diario verificou todos os PDFs assinados dos ultimos 30 dias e estao no bucket. Defesa LGPD/CFM ok.
+                    </div>
+                  ) : (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-[11px] text-[var(--pw-tinta)] mb-1">
+                        Click pra abrir o detalhe da assinatura:
+                      </div>
+                      {cofreAusentes.ausentes.slice(0, 5).map((a) => (
+                        <a
+                          key={a.id}
+                          href={`/assinaturas/${a.solicitacao_id}`}
+                          className="block text-xs px-2 py-1.5 rounded-sm bg-white/40 hover:bg-white/70 border border-zinc-200/60 transition-colors"
+                          data-testid={`card-ceo-cofre-ausente-${a.id}`}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-[10px] text-zinc-500">{a.signature_id.slice(0, 12)}…</span>
+                            <span className="font-semibold text-[var(--pw-petroleo)]">{a.signer_name}</span>
+                            <span className="text-[10px] text-zinc-500 uppercase tracking-wider">{a.signer_papel}</span>
+                            <span className="ml-auto text-[10px] text-zinc-500">
+                              criado {new Date(a.criado_em).toLocaleDateString("pt-BR")}
+                            </span>
+                          </div>
+                          {a.pdf_verificado_erro && (
+                            <div className="text-[10px] text-red-700 mt-0.5 truncate">erro: {a.pdf_verificado_erro}</div>
+                          )}
+                        </a>
+                      ))}
+                      {(cofreAusentes.ausentes.length > 5 || cofreAusentes.has_more) && (
+                        <div className="text-[10px] text-zinc-500 italic">
+                          exibindo {Math.min(5, cofreAusentes.ausentes.length)} de {cofreAusentes.total} ausente{cofreAusentes.total > 1 ? "s" : ""}
+                          {cofreAusentes.has_more && " · lista truncada em 200, abrir timeline pra ver todas"}
+                          {" · worker reverifica 1x/dia 03:30 BRT"}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {FEATURE_PARQ_BANNER_CEO && (
         <a

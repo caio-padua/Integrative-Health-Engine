@@ -105,11 +105,55 @@ export default function AssinaturasTimeline() {
     return Number.isFinite(n) ? n : null;
   })();
 
+  // Task #55 — chips de filtro por status no topo da tabela. Cada chip mapeia
+  // pra 1+ status crus (ex.: "Em andamento" agrupa ENVIADO+PARCIAL, "Rejeitada"
+  // agrupa REJEITADO+EXPIRADO) — bate com a leitura humana dos cards de resumo.
+  // Task #59 — persistir o chip ativo na URL via `?status=` (em_andamento|
+  // concluido|rejeitado) pra deixar o link compartilhavel ja filtrado. "Todos"
+  // remove o param. Co-existe com `?unidade_id=` (Task #51).
+  type FiltroStatus = "TODOS" | "EM_ANDAMENTO" | "CONCLUIDO" | "REJEITADO";
+  const STATUS_QUERY: Record<FiltroStatus, string[]> = {
+    TODOS: [],
+    EM_ANDAMENTO: ["ENVIADO", "PARCIAL"],
+    CONCLUIDO: ["CONCLUIDO"],
+    REJEITADO: ["REJEITADO", "EXPIRADO"],
+  };
+  const STATUS_URL: Record<FiltroStatus, string> = {
+    TODOS: "",
+    EM_ANDAMENTO: "em_andamento",
+    CONCLUIDO: "concluido",
+    REJEITADO: "rejeitado",
+  };
+  function parseStatusFromUrl(): FiltroStatus {
+    if (typeof window === "undefined") return "TODOS";
+    const v = (new URLSearchParams(window.location.search).get("status") || "")
+      .toLowerCase();
+    if (v === "em_andamento") return "EM_ANDAMENTO";
+    if (v === "concluido") return "CONCLUIDO";
+    if (v === "rejeitado") return "REJEITADO";
+    return "TODOS";
+  }
+  const [filtroStatus, setFiltroStatusState] = useState<FiltroStatus>(parseStatusFromUrl);
+  const setFiltroStatus = useCallback((novo: FiltroStatus) => {
+    setFiltroStatusState(novo);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const valor = STATUS_URL[novo];
+    if (valor) url.searchParams.set("status", valor);
+    else url.searchParams.delete("status");
+    window.history.replaceState({}, "", url.toString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
     try {
-      const qs = filtroUnidadeId !== null ? `?unidade_id=${filtroUnidadeId}` : "";
+      const params = new URLSearchParams();
+      if (filtroUnidadeId !== null) params.set("unidade_id", String(filtroUnidadeId));
+      const statusList = STATUS_QUERY[filtroStatus];
+      if (statusList.length > 0) params.set("status", statusList.join(","));
+      const qs = params.toString() ? `?${params.toString()}` : "";
       const r = await fetch(`/api/assinaturas/timeline${qs}`, {
         credentials: "include",
       });
@@ -124,7 +168,8 @@ export default function AssinaturasTimeline() {
     } finally {
       setLoading(false);
     }
-  }, [filtroUnidadeId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroUnidadeId, filtroStatus]);
 
   useEffect(() => {
     carregar();
@@ -220,6 +265,37 @@ export default function AssinaturasTimeline() {
               {totais.rejeitado}
             </div>
           </div>
+        </div>
+
+        {/* Task #55 — chips de filtro por status */}
+        <div className="nao-imprimir flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-wide" style={{ color: ZINC }}>
+            Filtrar por status:
+          </span>
+          {([
+            { key: "TODOS", label: "Todos", cor: NAVY },
+            { key: "EM_ANDAMENTO", label: "Em andamento", cor: BLUE },
+            { key: "CONCLUIDO", label: "Concluídas", cor: GREEN },
+            { key: "REJEITADO", label: "Rejeitadas/Expiradas", cor: RED },
+          ] as { key: FiltroStatus; label: string; cor: string }[]).map((opt) => {
+            const ativo = filtroStatus === opt.key;
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setFiltroStatus(opt.key)}
+                data-testid={`filtro-status-${opt.key.toLowerCase()}`}
+                className="px-3 py-1 rounded-full text-xs font-semibold border transition"
+                style={{
+                  background: ativo ? opt.cor : "#FFFFFF",
+                  color: ativo ? "#FFFFFF" : opt.cor,
+                  borderColor: opt.cor,
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Erros / vazio */}

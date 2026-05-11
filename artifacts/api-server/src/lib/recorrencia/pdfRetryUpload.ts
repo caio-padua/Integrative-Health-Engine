@@ -182,8 +182,133 @@ function extrairEnvelopeIdDoPayload(payload: Record<string, unknown>): string | 
   return p.token || p.external_id || p.document?.key || null;
 }
 
-async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number }> {
-  const stats = { tentados: 0, sucesso: 0, falhou: 0, bloqueados: 0 };
+// Task #50 — Avisa o CEO (validador_mestre) quando o retry esgotou as 5
+// tentativas e o PDF assinado nao subiu ao bucket. Reusa a fila
+// `assinatura_notificacoes` (worker `notifAssinatura.ts` ja consome) com
+// o flag `is_sistema_ceo=true` (bypassa opt-out e quiet hours, mesma
+// politica da task #36) e idempotencia atomica via UNIQUE parcial em
+// (webhook_evento_id, canal, destinatario) WHERE momento='UPLOAD_PDF_ESGOTADO'.
+//
+// Defensivo: nunca lanca; falha em silencio com log. O alerta eh
+// secundario — o objetivo principal do worker (gravar PDF no bucket) ja
+// esgotou nesse ponto, e nao queremos derrubar o tick por falha em
+// enfileirar e-mail.
+async function dispararAlertaCeoUploadEsgotado(
+  eventoId: number,
+  envelopeId: string | null,
+  solicitacaoId: number | null,
+  motivoUltimaTentativa: string,
+): Promise<void> {
+  try {
+    // 1. Texto institucional cadastrado pela migration 038.
+    const tx: any = await db.execute(sql`
+      SELECT assunto, corpo
+      FROM assinatura_textos_institucionais
+      WHERE codigo = 'UPLOAD_PDF_ESGOTADO' AND ativo = true
+      LIMIT 1
+    `);
+    const txRow = ((tx.rows ?? tx) as Array<{ assunto: string | null; corpo: string }>)[0];
+    if (!txRow) {
+      console.warn(`[pdfRetryUpload] alerta CEO sem texto institucional cadastrado (codigo=UPLOAD_PDF_ESGOTADO)`);
+      return;
+    }
+
+    // 2. Resolve metadados do contrato pra enriquecer a mensagem.
+    let templateNome = "(template desconhecido)";
+    let pacienteNome = "(sem paciente)";
+    if (solicitacaoId) {
+      const meta: any = await db.execute(sql`
+        SELECT t.nome_exibicao AS template_nome,
+               p.nome AS paciente_nome
+        FROM assinatura_solicitacoes s
+        LEFT JOIN assinatura_templates t ON t.id = s.template_id
+        LEFT JOIN pacientes p ON p.id = s.paciente_id
+        WHERE s.id = ${solicitacaoId}
+        LIMIT 1
+      `);
+      const mrow = ((meta.rows ?? meta) as Array<{ template_nome: string | null; paciente_nome: string | null }>)[0];
+      if (mrow) {
+        templateNome = mrow.template_nome || templateNome;
+        pacienteNome = mrow.paciente_nome || pacienteNome;
+      }
+    }
+
+    // 3. Resolve destinatarios CEO (validador_mestre ativos).
+    const ceos: any = await db.execute(sql`
+      SELECT email, telefone FROM usuarios
+      WHERE perfil = 'validador_mestre' AND ativo = true
+    `);
+    const ceoRows = ((ceos.rows ?? ceos) as Array<{ email: string | null; telefone: string | null }>);
+    if (ceoRows.length === 0) {
+      console.warn(`[pdfRetryUpload] alerta CEO sem destinatarios (nenhum validador_mestre ativo)`);
+      return;
+    }
+
+    // 4. Monta corpo final concatenando contexto operacional ao texto institucional.
+    const baseUrl = (
+      process.env.PUBLIC_APP_URL ||
+      (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0].trim()}` : "") ||
+      "http://localhost:80"
+    ).replace(/\/+$/, "");
+    const linkSolicitacao = solicitacaoId ? `${baseUrl}/assinaturas/${solicitacaoId}` : "(sem solicitacao vinculada)";
+    const corpo =
+      `${txRow.corpo}\n\n` +
+      `--- detalhes ---\n` +
+      `Template: ${templateNome}\n` +
+      `Paciente: ${pacienteNome}\n` +
+      `Solicitacao: ${solicitacaoId ? `#${solicitacaoId}` : "(nao vinculada)"}\n` +
+      `Envelope: ${envelopeId ?? "(ausente)"}\n` +
+      `Evento webhook: #${eventoId}\n` +
+      `Tentativas: ${MAX_TENTATIVAS}/${MAX_TENTATIVAS}\n` +
+      `Ultima falha: ${motivoUltimaTentativa}\n\n` +
+      `Abrir detalhe: ${linkSolicitacao}`;
+    const assunto = txRow.assunto || "[CEO] PAWARDS · PDF assinado nao subiu ao cofre";
+
+    // 5. Insere notificacoes (EMAIL + WHATSAPP). Idempotencia garantida pelo
+    //    UNIQUE parcial (webhook_evento_id, canal, destinatario) WHERE
+    //    momento='UPLOAD_PDF_ESGOTADO' — o ON CONFLICT DO NOTHING evita
+    //    spam mesmo que o worker rode varias vezes apos esgotar.
+    //    `solicitacao_id` eh nullable (migration 038 afrouxa NOT NULL) — o
+    //    alerta DEVE chegar ate quando o vinculo nao foi resolvido (ex.:
+    //    envelope_id ausente no payload), por isso nao bailamos out aqui.
+    for (const ceo of ceoRows) {
+      const emailDest = (ceo.email || "").trim();
+      if (emailDest && emailDest.includes("@")) {
+        await db.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, assunto, corpo,
+             status, is_sistema_ceo, webhook_evento_id)
+          VALUES
+            (${solicitacaoId}, 'EMAIL', 'UPLOAD_PDF_ESGOTADO', ${emailDest},
+             ${assunto}, ${corpo}, 'PENDENTE', true, ${eventoId})
+          ON CONFLICT (webhook_evento_id, canal, destinatario)
+            WHERE momento = 'UPLOAD_PDF_ESGOTADO' AND webhook_evento_id IS NOT NULL
+            DO NOTHING
+        `);
+      }
+      const telDest = (ceo.telefone || "").trim();
+      if (telDest) {
+        await db.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, corpo,
+             status, is_sistema_ceo, webhook_evento_id)
+          VALUES
+            (${solicitacaoId}, 'WHATSAPP', 'UPLOAD_PDF_ESGOTADO', ${telDest},
+             ${corpo}, 'PENDENTE', true, ${eventoId})
+          ON CONFLICT (webhook_evento_id, canal, destinatario)
+            WHERE momento = 'UPLOAD_PDF_ESGOTADO' AND webhook_evento_id IS NOT NULL
+            DO NOTHING
+        `);
+      }
+    }
+    console.log(`[pdfRetryUpload] alerta CEO enfileirado evento=${eventoId} solicitacao=${solicitacaoId} destinatarios=${ceoRows.length}`);
+  } catch (e) {
+    console.error(`[pdfRetryUpload] falha ao enfileirar alerta CEO evento=${eventoId}:`, (e as Error).message);
+  }
+}
+
+async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number }> {
+  const stats = { tentados: 0, sucesso: 0, falhou: 0, bloqueados: 0, alertaCeo: 0 };
   const eventos = await buscarEventosElegiveis();
   for (const ev of eventos) {
     const reservou = await reservarTentativa(ev.id, ev.tentativas_retry);
@@ -192,11 +317,13 @@ async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: n
       continue;
     }
     stats.tentados += 1;
+    const novasTentativas = ev.tentativas_retry + 1;
+    let motivoFalha: string | null = null;
     try {
       const r = await processarEvento(ev);
       if (r.ok) {
         stats.sucesso += 1;
-        console.log(`[pdfRetryUpload ${runId}] OK evento=${ev.id} envelope=${ev.envelope_id} tentativa=${ev.tentativas_retry + 1}`);
+        console.log(`[pdfRetryUpload ${runId}] OK evento=${ev.id} envelope=${ev.envelope_id} tentativa=${novasTentativas}`);
       } else {
         stats.falhou += 1;
         // Code-review fix Wave 10.5 task #39: motivo `auditoria_inexistente_*`
@@ -204,29 +331,56 @@ async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: n
         // `pdf_upload_falhou_sem_manifesto:` (que NAO matcha o filtro de
         // elegibilidade). Sobrescrever aqui com o prefixo retriable colocaria
         // o evento de volta na fila — exatamente o oposto da intencao. Apenas
-        // logamos.
+        // logamos. Tambem nao conta como esgotamento real pra disparar alerta
+        // CEO (estamos esperando o webhook ZapSign reentregar).
         if (r.motivo && r.motivo.startsWith("auditoria_inexistente")) {
           console.warn(`[pdfRetryUpload ${runId}] aguardando webhook reentregar evento=${ev.id} motivo=${r.motivo}`);
         } else {
+          motivoFalha = r.motivo ?? 'desconhecido';
           // Re-grava motivo claro pra inspecao manual; mantem prefixo pra
           // proximo ciclo continuar varrendo (ate atingir MAX_TENTATIVAS).
           await db.execute(sql`
             UPDATE assinatura_webhook_eventos
-            SET erro_processamento = ${'pdf_upload_falhou: retry ' + (ev.tentativas_retry + 1) + ' ' + (r.motivo ?? 'desconhecido')}
+            SET erro_processamento = ${'pdf_upload_falhou: retry ' + novasTentativas + ' ' + motivoFalha}
             WHERE id = ${ev.id}
           `);
-          console.warn(`[pdfRetryUpload ${runId}] FALHOU evento=${ev.id} motivo=${r.motivo}`);
+          console.warn(`[pdfRetryUpload ${runId}] FALHOU evento=${ev.id} motivo=${motivoFalha}`);
         }
       }
     } catch (e) {
       stats.falhou += 1;
-      const msg = (e as Error).message || "erro_desconhecido";
+      motivoFalha = (e as Error).message || "erro_desconhecido";
       await db.execute(sql`
         UPDATE assinatura_webhook_eventos
-        SET erro_processamento = ${'pdf_upload_falhou: retry ' + (ev.tentativas_retry + 1) + ' ' + msg}
+        SET erro_processamento = ${'pdf_upload_falhou: retry ' + novasTentativas + ' ' + motivoFalha}
         WHERE id = ${ev.id}
       `);
-      console.error(`[pdfRetryUpload ${runId}] erro evento=${ev.id}:`, msg);
+      console.error(`[pdfRetryUpload ${runId}] erro evento=${ev.id}:`, motivoFalha);
+    }
+
+    // Task #50 — Esgotou as 5 tentativas com falha real (nao aguardando
+    // webhook reentregar)? Dispara alerta operacional pro CEO. Idempotencia
+    // garantida pelo UNIQUE parcial em assinatura_notificacoes — chamadas
+    // repetidas em ciclos subsequentes nao vao spammar (mesmo que o filtro
+    // de elegibilidade nao re-selecione o evento, defesa em profundidade).
+    if (motivoFalha !== null && novasTentativas >= MAX_TENTATIVAS) {
+      // Resolve solicitacao_id pra vincular a notificacao. Pode estar
+      // vazio no evento se o upload falhou antes da gravacao do manifesto;
+      // nesse caso re-resolve via envelope_id + provedor.
+      const envelopeId = ev.envelope_id || extrairEnvelopeIdDoPayload(ev.payload_bruto);
+      let solicitacaoId: number | null = null;
+      if (envelopeId) {
+        const sol: any = await db.execute(sql`
+          SELECT id FROM assinatura_solicitacoes
+          WHERE provedor_envelope_id = ${envelopeId}
+            AND provedor_codigo = ${ev.provedor_codigo}
+          LIMIT 1
+        `);
+        const srow = ((sol.rows ?? sol) as Array<{ id: number }>)[0];
+        if (srow) solicitacaoId = srow.id;
+      }
+      await dispararAlertaCeoUploadEsgotado(ev.id, envelopeId, solicitacaoId, motivoFalha);
+      stats.alertaCeo += 1;
     }
   }
   return stats;
@@ -246,7 +400,7 @@ export function iniciarWorkerPdfRetryUpload(): void {
         if (!lockAdquirido) return;
         const stats = await rodarCiclo(runId);
         if (stats.tentados > 0 || stats.bloqueados > 0) {
-          console.log(`[pdfRetryUpload ${runId}] tentados=${stats.tentados} sucesso=${stats.sucesso} falhou=${stats.falhou} bloqueados=${stats.bloqueados}`);
+          console.log(`[pdfRetryUpload ${runId}] tentados=${stats.tentados} sucesso=${stats.sucesso} falhou=${stats.falhou} bloqueados=${stats.bloqueados} alertaCeo=${stats.alertaCeo}`);
         }
       } catch (e) {
         console.error(`[pdfRetryUpload ${runId}] erro fatal:`, (e as Error).message);
@@ -261,6 +415,6 @@ export function iniciarWorkerPdfRetryUpload(): void {
 }
 
 // Exposto pra teste manual / endpoint admin
-export async function rodarPdfRetryUploadAgora(): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number }> {
+export async function rodarPdfRetryUploadAgora(): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number }> {
   return rodarCiclo(`manual_${Date.now()}`);
 }
