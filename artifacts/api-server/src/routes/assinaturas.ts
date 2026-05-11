@@ -725,6 +725,125 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (_req: Request, res
 });
 
 /**
+ * POST /api/assinaturas/uploads-falhos/:eventoId/resetar — Wave 10.5 task #57
+ *
+ * Reseta manualmente o retry de upload de PDF assinado depois que o operador
+ * (validador_mestre) corrigiu a causa raiz (bucket cheio, credencial revogada,
+ * rede). Hoje, quando `tentativas_retry` chega a 5, o evento fica preso pra
+ * sempre — sem este reset o PDF nunca sobe ao bucket e o risco juridico
+ * (LGPD/CFM 20 anos) continua aberto.
+ *
+ * Operacao atomica:
+ *   1. Valida que o evento esta com erro `pdf_upload_falhou*` (so esses sao
+ *      reseta veis — qualquer outro tipo de erro indica fluxo diferente).
+ *   2. Zera `tentativas_retry`, limpa `ultima_tentativa_em` e re-marca o
+ *      `erro_processamento` com o prefixo retriable (`pdf_upload_falhou: reset
+ *      manual ...`) pra worker re-elegelo no proximo tick.
+ *   3. Incrementa contador de auditoria (`resets_manuais_count`) + grava
+ *      operador (`ultimo_reset_por`) + motivo opcional (`ultimo_reset_motivo`).
+ *   4. Dispara um ciclo imediato do worker pra economizar a espera de 5min.
+ *
+ * Body: { motivo?: string } — texto livre (max 500 chars) pra rastreabilidade.
+ *
+ * Idempotente: chamadas repetidas sempre re-zeram, sempre re-disparam.
+ * Mesmo gate master das outras rotas Wave 10.
+ */
+router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const eventoId = Number(req.params["eventoId"]);
+    if (!Number.isFinite(eventoId)) {
+      res.status(400).json({ error: "eventoId invalido" });
+      return;
+    }
+    const motivoRaw = typeof req.body?.motivo === "string" ? req.body.motivo.trim() : "";
+    const motivo = motivoRaw.slice(0, 500) || null;
+    const operador = ((req.user as any)?.email as string | undefined)
+      || ((req.user as any)?.nome as string | undefined)
+      || "(desconhecido)";
+
+    // 1. Valida elegibilidade — so reseta evento com erro de upload
+    const ev: any = await db.execute(sql`
+      SELECT id, erro_processamento, tentativas_retry, solicitacao_id, envelope_id
+      FROM assinatura_webhook_eventos
+      WHERE id = ${eventoId}
+      LIMIT 1
+    `);
+    const evRow = ((ev.rows ?? ev) as Array<{ id: number; erro_processamento: string | null; tentativas_retry: number; solicitacao_id: number | null; envelope_id: string | null }>)[0];
+    if (!evRow) {
+      res.status(404).json({ error: "Evento nao encontrado" });
+      return;
+    }
+    if (!evRow.erro_processamento || !/^pdf_upload_falhou/.test(evRow.erro_processamento)) {
+      res.status(409).json({
+        error: "Evento nao esta em estado de falha de upload de PDF",
+        erro_atual: evRow.erro_processamento,
+      });
+      return;
+    }
+
+    // 2. Reset atomico + 3. audit trail
+    //
+    // NOTA DE DESIGN (code-review task #57): nao limpamos `erro_processamento`
+    // pra NULL como sugeria a leitura literal do "Done looks like" — a
+    // elegibilidade do worker `pdfRetryUpload` filtra por
+    // `LIKE 'pdf_upload_falhou:%'`, entao zerar pra NULL retiraria o evento
+    // da fila. Em vez disso, regravamos com prefixo retriable + carimbo
+    // operacional (operador + ts) pra preservar contexto e ainda assim ser
+    // re-elegivel no proximo tick. Mudancas futuras no criterio de
+    // elegibilidade do worker DEVEM revisitar este marcador.
+    //
+    // O WHERE revalida o prefixo dentro do UPDATE (nao so no SELECT acima)
+    // pra fechar a janela de corrida em que dois operadores apertam
+    // "Tentar enviar de novo" simultaneamente — o segundo recebe rowCount=0
+    // e respondemos 409 sem incrementar contador duplicado.
+    const novoMarcador = `pdf_upload_falhou: reset manual em ${new Date().toISOString()} por ${operador}`;
+    const updRes: any = await db.execute(sql`
+      UPDATE assinatura_webhook_eventos
+      SET tentativas_retry = 0,
+          ultima_tentativa_em = NULL,
+          erro_processamento = ${novoMarcador},
+          processado = false,
+          processado_em = NULL,
+          resets_manuais_count = resets_manuais_count + 1,
+          ultimo_reset_em = NOW(),
+          ultimo_reset_por = ${operador},
+          ultimo_reset_motivo = ${motivo}
+      WHERE id = ${eventoId}
+        AND erro_processamento LIKE 'pdf_upload_falhou%'
+      RETURNING id
+    `);
+    const linhasAtualizadas = ((updRes.rows ?? updRes) as Array<unknown>).length;
+    if (linhasAtualizadas === 0) {
+      res.status(409).json({
+        error: "Evento mudou de estado entre a verificacao e o reset (corrida com outro operador ou worker). Recarregue e tente novamente.",
+      });
+      return;
+    }
+
+    // 4. Dispara worker imediatamente — sem esperar 5min
+    let stats: { tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number } | null = null;
+    try {
+      const { rodarPdfRetryUploadAgora } = await import("../lib/recorrencia/pdfRetryUpload.js");
+      stats = await rodarPdfRetryUploadAgora();
+    } catch (workerErr) {
+      // Reset ja foi gravado — worker no proximo tick pega de qualquer jeito.
+      console.warn(`[assinaturas/resetar] reset OK mas worker imediato falhou: ${(workerErr as Error).message}`);
+    }
+
+    res.json({
+      ok: true,
+      evento_id: eventoId,
+      operador,
+      motivo,
+      worker_executado: stats !== null,
+      stats,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * POST /api/assinaturas/uploads-falhos/retentar — Wave 10.5 task #49
  *
  * Dispara um ciclo manual do worker `pdfRetryUpload`. Retorna stats agregadas.
@@ -770,12 +889,34 @@ router.get("/assinaturas/:id", guardMaster, async (req: Request, res: Response) 
       signer_ip: mascararIpServer(row["signer_ip"] as string | null),
       signer_geo: reduzirGeoServer(row["signer_geo"]),
     }));
+    // Wave 10.5 task #57: expoe eventos de webhook com falha de upload de PDF
+    // pra o frontend mostrar o botao "Tentar enviar de novo". Liga via
+    // solicitacao_id direto OU por envelope_id+provedor (alguns eventos antigos
+    // ficaram com solicitacao_id NULL quando o upload falhou antes do binding).
+    const solRow0 = ((detalhes as unknown as { rows?: Array<{ provedor_envelope_id?: string | null; provedor_codigo?: string | null }> }).rows || [])[0];
+    const envelopeId = solRow0?.provedor_envelope_id ?? null;
+    const provedorCod = solRow0?.provedor_codigo ?? null;
+    const uploadsFalhos = await db.execute(sql`
+      SELECT id, provedor_codigo, envelope_id, event_type, recebido_em,
+             tentativas_retry, ultima_tentativa_em, erro_processamento,
+             resets_manuais_count, ultimo_reset_em, ultimo_reset_por,
+             ultimo_reset_motivo, processado
+      FROM assinatura_webhook_eventos
+      WHERE erro_processamento LIKE 'pdf_upload_falhou%'
+        AND (
+          solicitacao_id = ${id}
+          OR (envelope_id IS NOT NULL AND envelope_id = ${envelopeId} AND provedor_codigo = ${provedorCod})
+        )
+      ORDER BY recebido_em DESC
+      LIMIT 20
+    `);
     res.json({
       live: status,
       solicitacao: ((detalhes as unknown as { rows?: unknown[] }).rows || [])[0],
       signatarios: (sigs as unknown as { rows?: unknown[] }).rows || [],
       notificacoes: (notifs as unknown as { rows?: unknown[] }).rows || [],
       auditoria,
+      uploads_falhos: (uploadsFalhos as unknown as { rows?: unknown[] }).rows || [],
     });
   } catch (err) {
     res.status(404).json({ error: (err as Error).message });

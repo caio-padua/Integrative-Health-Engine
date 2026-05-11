@@ -117,12 +117,15 @@ export default function AssinaturasDetalhe() {
     signatarios: Signatario[];
     auditoria: Auditoria[];
     notificacoes: any[];
+    uploads_falhos: any[];
     live: any;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [reenviandoId, setReenviandoId] = useState<number | null>(null);
   const [reenvioMsg, setReenvioMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [resetandoId, setResetandoId] = useState<number | null>(null);
+  const [resetMsg, setResetMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   const reenviarLembrete = useCallback(async (signatarioId: number) => {
     setReenviandoId(signatarioId);
@@ -149,6 +152,41 @@ export default function AssinaturasDetalhe() {
     } finally {
       setReenviandoId(null);
     }
+  }, [id]);
+
+  const resetarRetryUpload = useCallback(async (eventoId: number) => {
+    const motivo = window.prompt(
+      "Motivo do reset (opcional, max 500 chars). Ex.: bucket liberado, credencial reativada.",
+      "",
+    );
+    if (motivo === null) return; // cancelou
+    setResetandoId(eventoId);
+    setResetMsg(null);
+    try {
+      const r = await fetch(`/api/assinaturas/uploads-falhos/${eventoId}/resetar`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setResetMsg({ ok: false, texto: body.error || `HTTP ${r.status}` });
+      } else {
+        const stats = body.stats;
+        const detalhe = stats
+          ? ` · worker rodou: tentados=${stats.tentados} sucesso=${stats.sucesso} falhou=${stats.falhou}`
+          : "";
+        setResetMsg({ ok: true, texto: `Retry resetado e worker disparado${detalhe}` });
+        // recarrega pra refletir novo estado
+        setTimeout(() => carregar(), 600);
+      }
+    } catch (e) {
+      setResetMsg({ ok: false, texto: (e as Error).message });
+    } finally {
+      setResetandoId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const carregar = useCallback(async () => {
@@ -508,6 +546,127 @@ export default function AssinaturasDetalhe() {
             ))}
           </div>
         </section>
+
+        {/* Uploads de PDF que falharam — Wave 10.5 task #57 */}
+        {data && data.uploads_falhos && data.uploads_falhos.length > 0 && (
+          <section
+            className="bg-white border rounded p-4"
+            style={{ borderLeft: `3px solid ${AMBER}` }}
+          >
+            <h2
+              className="text-base font-bold mb-3 flex items-center gap-2"
+              style={{ color: NAVY }}
+            >
+              <AlertTriangle size={16} style={{ color: AMBER }} />
+              Falhas de upload do PDF assinado ({data.uploads_falhos.length})
+            </h2>
+            <div className="text-xs mb-3" style={{ color: ZINC }}>
+              O worker tenta automaticamente reenviar o PDF assinado pro cofre
+              (LGPD/CFM 20 anos) com backoff de até 5 tentativas. Se esgotou,
+              corrija a causa raiz (espaço no bucket, credencial) e clique
+              em <strong>Tentar enviar de novo</strong> pra reiniciar o ciclo.
+            </div>
+            {resetMsg && (
+              <div
+                className="rounded p-2 text-xs mb-3 nao-imprimir"
+                style={{
+                  background: resetMsg.ok ? "#DCFCE7" : "#FEE2E2",
+                  color: resetMsg.ok ? GREEN : RED,
+                }}
+                data-testid="reset-feedback"
+              >
+                <strong>{resetMsg.ok ? "OK:" : "Erro:"}</strong> {resetMsg.texto}
+              </div>
+            )}
+            <div className="space-y-2">
+              {data.uploads_falhos.map((ev: any) => {
+                const esgotado = (ev.tentativas_retry ?? 0) >= 5;
+                const aguardandoWebhook = String(ev.erro_processamento || "").startsWith(
+                  "pdf_upload_falhou_sem_manifesto",
+                );
+                return (
+                  <div
+                    key={ev.id}
+                    className="border rounded p-3 text-xs space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span
+                          className="font-semibold"
+                          style={{ color: NAVY }}
+                        >
+                          Evento #{ev.id}
+                        </span>{" "}
+                        <span style={{ color: ZINC }}>
+                          · {ev.event_type} · recebido em{" "}
+                          {formatarData(ev.recebido_em)}
+                        </span>
+                      </div>
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold"
+                        style={{
+                          background: esgotado ? "#FEE2E2" : "#FEF9E7",
+                          color: esgotado ? RED : AMBER,
+                        }}
+                      >
+                        {esgotado
+                          ? "ESGOTADO (5/5)"
+                          : `TENTATIVA ${ev.tentativas_retry ?? 0}/5`}
+                      </span>
+                    </div>
+                    <div style={{ color: ZINC }}>
+                      <strong style={{ color: NAVY }}>Erro:</strong>{" "}
+                      <span className="font-mono break-all">
+                        {ev.erro_processamento}
+                      </span>
+                    </div>
+                    {(ev.resets_manuais_count ?? 0) > 0 && (
+                      <div style={{ color: ZINC }}>
+                        <strong style={{ color: NAVY }}>
+                          Resets manuais:
+                        </strong>{" "}
+                        {ev.resets_manuais_count}x · último em{" "}
+                        {formatarData(ev.ultimo_reset_em)} por{" "}
+                        <span className="font-mono">
+                          {ev.ultimo_reset_por || "—"}
+                        </span>
+                        {ev.ultimo_reset_motivo
+                          ? ` · "${ev.ultimo_reset_motivo}"`
+                          : ""}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-end pt-1">
+                      <button
+                        onClick={() => resetarRetryUpload(ev.id)}
+                        disabled={resetandoId === ev.id || aguardandoWebhook}
+                        title={
+                          aguardandoWebhook
+                            ? "Esperando o ZapSign reentregar o webhook — não é possível resetar manualmente."
+                            : "Zera tentativas, limpa erro e dispara o worker imediatamente"
+                        }
+                        className="nao-imprimir inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-semibold border disabled:opacity-50"
+                        style={{
+                          borderColor: GOLD,
+                          color: NAVY,
+                          background: "#FFFBEB",
+                        }}
+                        data-testid={`btn-resetar-upload-${ev.id}`}
+                      >
+                        <RefreshCw
+                          size={11}
+                          className={resetandoId === ev.id ? "animate-spin" : ""}
+                        />
+                        {resetandoId === ev.id
+                          ? "Resetando…"
+                          : "Tentar enviar de novo"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Notificações */}
         {data && data.notificacoes.length > 0 && (
