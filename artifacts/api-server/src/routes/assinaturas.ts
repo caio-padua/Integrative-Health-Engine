@@ -629,6 +629,31 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
     const filtroStatusWhere = filtrosWhere.length > 0
       ? sql`WHERE ${sql.join(filtrosWhere, sql` AND `)}`
       : sql``;
+    // Task #73 — paginacao explicita. `limit` default 50 (compat retro com a
+    // primeira versao Wave 10 F5), max 200 pra evitar payload gigante. `offset`
+    // habilita "Carregar mais" no frontend sem perder filtros. `total` vem de
+    // um COUNT(*) separado pra UI poder mostrar "mostrando X de N" e decidir
+    // se exibe o botao de paginacao.
+    const limitRaw = Number(req.query["limit"] ?? 50);
+    const limit = Number.isFinite(limitRaw)
+      ? Math.min(Math.max(Math.trunc(limitRaw), 1), 200)
+      : 50;
+    const offsetRaw = Number(req.query["offset"] ?? 0);
+    const offset = Number.isFinite(offsetRaw)
+      ? Math.max(Math.trunc(offsetRaw), 0)
+      : 0;
+    const countR = await db.execute(sql`
+      SELECT COUNT(*)::int AS total
+      FROM assinatura_solicitacoes s
+      JOIN assinatura_templates t   ON t.id = s.template_id
+      LEFT JOIN pacientes p         ON p.id = s.paciente_id
+      LEFT JOIN unidades u          ON u.id = p.unidade_id
+      ${filtroUnidadeJoin}
+      ${filtroStatusWhere}
+    `);
+    const total = Number(
+      (((countR as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {})["total"] || 0,
+    );
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -666,12 +691,21 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
       ORDER BY s.id DESC
-      LIMIT 50
+      LIMIT ${limit}
+      OFFSET ${offset}
     `);
     const rows = (r as unknown as { rows?: unknown[] }).rows || [];
+    const hasMore = offset + rows.length < total;
     res.json({
       solicitacoes: rows,
-      total: rows.length,
+      // `total` agora reflete o COUNT(*) real (pode ser > rows.length quando
+      // truncado pelo LIMIT). `retornados` traz o tamanho da pagina atual pra
+      // UI nao precisar inferir do array.
+      total,
+      retornados: rows.length,
+      limit,
+      offset,
+      has_more: hasMore,
       filtro_unidade_id: unidadeIdFiltro,
       filtro_status: statusFiltro,
       filtro_desde: desdeFiltro,
