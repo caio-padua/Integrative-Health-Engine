@@ -10,6 +10,7 @@ import { assinaturaService } from "../lib/assinatura/service";
 import type { ProvedorCodigo } from "../lib/assinatura/types";
 import { requireRole as _requireRole } from "../middlewares/requireRole.js";
 import { requireMasterEstrito as _requireMaster } from "../middlewares/requireMasterEstrito.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -125,6 +126,146 @@ router.post("/assinaturas/enviar", async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/assinaturas/resumo-hoje — Task #35 · resumo diario pra Painel CEO
+ *
+ * Agrega contagem de solicitacoes na janela ultimas 24h por status:
+ *   - enviadas: criadas nas ultimas 24h (qualquer status)
+ *   - assinadas: concluidas (CONCLUIDO) nas ultimas 24h
+ *   - rejeitadas: REJEITADO nas ultimas 24h
+ *   - pendentes: ENVIADO/CRIADO ainda em aberto nas ultimas 24h
+ *
+ * Mesmo guardMaster da timeline (validador_mestre + master estrito) — banner
+ * so aparece pro CEO autenticado, nao vaza contagem pra outros perfis.
+ */
+router.get("/assinaturas/resumo-hoje", guardMaster, async (_req: Request, res: Response) => {
+  try {
+    const r = await db.execute(sql`
+      WITH janela AS (
+        SELECT * FROM assinatura_solicitacoes
+        WHERE criado_em >= now() - interval '24 hours'
+           OR concluido_em >= now() - interval '24 hours'
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE criado_em >= now() - interval '24 hours')::int            AS enviadas,
+        COUNT(*) FILTER (WHERE status = 'CONCLUIDO' AND concluido_em >= now() - interval '24 hours')::int AS assinadas,
+        COUNT(*) FILTER (WHERE status = 'REJEITADO' AND criado_em >= now() - interval '24 hours')::int    AS rejeitadas,
+        COUNT(*) FILTER (WHERE status IN ('ENVIADO','CRIADO') AND criado_em >= now() - interval '24 hours')::int AS pendentes
+      FROM janela
+    `);
+    const row = ((r as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {
+      enviadas: 0, assinadas: 0, rejeitadas: 0, pendentes: 0,
+    };
+    res.json({
+      janela_horas: 24,
+      gerado_em: new Date().toISOString(),
+      enviadas: Number(row["enviadas"] || 0),
+      assinadas: Number(row["assinadas"] || 0),
+      rejeitadas: Number(row["rejeitadas"] || 0),
+      pendentes: Number(row["pendentes"] || 0),
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * POST /api/assinaturas/:id/signatario/:signatarioId/reenviar — Task #35
+ *
+ * Reenvia lembrete WhatsApp/email pro signatario via ZapSign
+ * (POST /api/v1/docs/{token}/resend/). So funciona se o signatario estiver
+ * PENDENTE/ENVIADO ha mais de 24h. Mesmo guardMaster da timeline/detalhe.
+ *
+ * Em ambiente sem ZAPSIGN_API_TOKEN (mock), apenas registra a tentativa em
+ * `assinatura_notificacoes` e retorna `{ ok: true, mock: true }`.
+ */
+router.post("/assinaturas/:id/signatario/:signatarioId/reenviar", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params["id"]);
+    const signatarioId = Number(req.params["signatarioId"]);
+    if (!id || !signatarioId) { res.status(400).json({ error: "id e signatarioId obrigatorios" }); return; }
+
+    const sigRow = await db.execute(sql`
+      SELECT s.id, s.solicitacao_id, s.status, s.email, s.telefone, s.link_assinatura, s.papel,
+             sol.provedor_codigo, sol.provedor_envelope_id, sol.criado_em
+      FROM assinatura_signatarios s
+      JOIN assinatura_solicitacoes sol ON sol.id = s.solicitacao_id
+      WHERE s.id = ${signatarioId} AND s.solicitacao_id = ${id}
+    `);
+    const sig = ((sigRow as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0];
+    if (!sig) { res.status(404).json({ error: "Signatario nao encontrado" }); return; }
+    // Enforce explicito server-side: somente PENDENTE ou ENVIADO podem ser
+    // reenviados. ASSINADO/REJEITADO/EXPIRADO/qualquer outro = 409 (UI ja
+    // esconde o botao, mas backend nao confia em UI).
+    if (sig["status"] !== "PENDENTE" && sig["status"] !== "ENVIADO") {
+      res.status(409).json({ error: `Signatario com status ${sig["status"]}, reenvio aplicavel apenas a PENDENTE/ENVIADO` });
+      return;
+    }
+    const criadoEm = new Date(String(sig["criado_em"]));
+    const horasDesde = (Date.now() - criadoEm.getTime()) / (1000 * 60 * 60);
+    if (horasDesde < 24) {
+      res.status(409).json({ error: "Signatario tem menos de 24h, aguarde antes de reenviar", horas_desde: Math.round(horasDesde * 10) / 10 });
+      return;
+    }
+
+    const provedor = String(sig["provedor_codigo"] || "");
+    const docToken = String(sig["provedor_envelope_id"] || "");
+    const apiToken = process.env["ZAPSIGN_API_TOKEN"] || process.env["ZAPSIGN_TOKEN"];
+    const baseUrl = process.env["ZAPSIGN_BASE_URL"] ||
+      (process.env["NODE_ENV"] === "production" ? "https://api.zapsign.com.br" : "https://sandbox.api.zapsign.com.br");
+
+    let providerStatus = 0;
+    let providerBody: unknown = null;
+    let mock = false;
+    const isMockEnvelope = docToken.startsWith("MOCK-");
+
+    if (provedor === "zapsign" && apiToken && !isMockEnvelope) {
+      // ZapSign resend usa o doc token canonico (provedor_envelope_id), nao
+      // parse de URL de signer. Falhar alto se nao houver doc token.
+      if (!docToken) {
+        res.status(409).json({ error: "Solicitacao sem provedor_envelope_id; resend ZapSign indisponivel" });
+        return;
+      }
+      const r = await fetch(`${baseUrl}/api/v1/docs/${docToken}/resend/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiToken}` },
+        body: JSON.stringify({ resend_type: "whatsapp" }),
+      });
+      providerStatus = r.status;
+      providerBody = await r.text().catch(() => null);
+      if (!r.ok) {
+        res.status(502).json({ error: `ZapSign resend falhou ${providerStatus}`, body: providerBody });
+        return;
+      }
+    } else if (!apiToken || isMockEnvelope) {
+      // Mock so quando ambiente nao tem credencial real OU envelope foi criado
+      // em modo MOCK (BaseMockableAdapter). Demais casos = erro explicito.
+      mock = true;
+    } else {
+      res.status(409).json({ error: `Reenvio nao suportado para provedor ${provedor || "(nenhum)"}` });
+      return;
+    }
+
+    let notificacaoPersistida = true;
+    try {
+      await db.execute(sql`
+        INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, status, tentativas, enviado_em)
+        VALUES (${id}, 'WHATSAPP', 'REENVIO_LEMBRETE_24H', ${String(sig["telefone"] || sig["email"] || "")}, ${mock ? "MOCK" : "ENVIADO"}, 1, now())
+      `);
+    } catch (err) {
+      notificacaoPersistida = false;
+      logger.warn(
+        { err, solicitacao_id: id, signatario_id: signatarioId, mock },
+        "[assinaturas/reenviar] Falha ao persistir notificacao em assinatura_notificacoes (reenvio ZapSign ja foi disparado, registro manual necessario)",
+      );
+    }
+
+    res.json({ ok: true, mock, provedor, provider_status: providerStatus, notificacao_persistida: notificacaoPersistida });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /api/assinaturas/timeline — Wave 10 F5 · ultimas 50 solicitacoes enriquecidas
  *
  * Endpoint dedicado ao frontend `/assinaturas/timeline` (validador_mestre + admin).
@@ -190,7 +331,7 @@ router.get("/assinaturas/:id", guardMaster, async (req: Request, res: Response) 
       LEFT JOIN pacientes p ON p.id = s.paciente_id
       WHERE s.id = ${id}
     `);
-    const sigs = await db.execute(sql`SELECT papel, nome, email, ordem, status, link_assinatura, assinado_em FROM assinatura_signatarios WHERE solicitacao_id = ${id} ORDER BY ordem`);
+    const sigs = await db.execute(sql`SELECT id, papel, nome, email, ordem, status, link_assinatura, assinado_em FROM assinatura_signatarios WHERE solicitacao_id = ${id} ORDER BY ordem`);
     const notifs = await db.execute(sql`SELECT canal, momento, destinatario, status, tentativas, enviado_em FROM assinatura_notificacoes WHERE solicitacao_id = ${id} ORDER BY id`);
     // Wave 10 F5: junta auditoria (manifesto SHA-256 + IP + geo + auth_method) por signatario
     const audit = await db.execute(sql`
@@ -215,6 +356,70 @@ router.get("/assinaturas/:id", guardMaster, async (req: Request, res: Response) 
     });
   } catch (err) {
     res.status(404).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * GET /api/assinaturas/:id/pdf-assinado — Wave 10.5 task #34
+ *
+ * Devolve **redirect 302** pra uma URL assinada GCS de TTL curto (5min, default)
+ * apontando pro PDF assinado no bucket "assinaturas-pawards" (App Storage).
+ * Defesa em profundidade: nao depende mais do ZapSign manter o arquivo
+ * disponivel — temos copia local pra retencao 20 anos (CFM/LGPD).
+ *
+ * Por que 302 + signed URL em vez de stream pelo backend?
+ *  - Escala: nao segura conexao HTTP do API server por minutos pra PDFs grandes.
+ *  - Defesa: o bucket NAO eh publico, a unica forma de acessar sem credencial
+ *    GCS eh atraves desta URL assinada de TTL curto, gerada **apos** o
+ *    guardMaster autorizar o validador master. Quem nao passou no gate
+ *    nunca recebe a URL.
+ *  - Cliente baixa direto do GCS (latencia minima).
+ *
+ * Resolucao da chave: prefere o ultimo manifesto da auditoria (mais recente
+ * timestamp_utc) com pdf_storage_key nao-nulo. Cai pro `external_id` como
+ * ultimo recurso (fluxos historicos sem manifesto registrado).
+ *
+ * `?json=1` retorna `{ url, expiresAt }` em vez de redirect — util pra o
+ * frontend renderizar contagem regressiva ou abrir em nova aba via JS.
+ */
+router.get("/assinaturas/:id/pdf-assinado", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params["id"]);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "id invalido" }); return; }
+    const r = await db.execute(sql`
+      SELECT a.pdf_storage_key, s.zapsign_external_id, s.provedor_envelope_id
+      FROM assinatura_solicitacoes s
+      LEFT JOIN auditoria_assinaturas a
+        ON a.solicitacao_id = s.id AND a.pdf_storage_key IS NOT NULL
+      WHERE s.id = ${id}
+      ORDER BY a.timestamp_utc DESC NULLS LAST
+      LIMIT 1
+    `);
+    const row = ((r as unknown as { rows?: Array<{ pdf_storage_key: string | null; zapsign_external_id: string | null; provedor_envelope_id: string | null }> }).rows || [])[0];
+    if (!row) { res.status(404).json({ error: "Solicitacao nao encontrada" }); return; }
+    const chave = row.pdf_storage_key
+      || (row.zapsign_external_id ? `assinaturas/${row.zapsign_external_id}.pdf` : null)
+      || (row.provedor_envelope_id ? `assinaturas/${row.provedor_envelope_id}.pdf` : null);
+    if (!chave) { res.status(404).json({ error: "PDF assinado ainda nao disponivel" }); return; }
+
+    const { gerarUrlAssinadaPdf, PdfAssinadoNaoEncontradoError } = await import("../lib/assinatura/objectStorage.js");
+    try {
+      const signed = await gerarUrlAssinadaPdf(chave, 300);
+      res.setHeader("Cache-Control", "private, no-store");
+      if (req.query["json"] === "1") {
+        res.json({ url: signed.url, expiresAt: signed.expiresAt, ttlSec: 300 });
+        return;
+      }
+      res.redirect(302, signed.url);
+    } catch (err) {
+      if (err instanceof PdfAssinadoNaoEncontradoError) {
+        res.status(404).json({ error: "PDF assinado nao encontrado no bucket", chave });
+        return;
+      }
+      throw err;
+    }
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
   }
 });
 

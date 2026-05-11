@@ -407,7 +407,7 @@ export class AssinaturaService {
     return { status: live.status, provedor: row.provedor_codigo, envelopeId: row.provedor_envelope_id, pdfAssinadoUrl: live.pdfAssinadoUrl };
   }
 
-  async receberWebhook(provedor: ProvedorCodigo, rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<{ ok: boolean; eventoId: number; duplicado: boolean }> {
+  async receberWebhook(provedor: ProvedorCodigo, rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<{ ok: boolean; eventoId: number; duplicado: boolean; transient?: boolean }> {
     const adapter = getAdapter(provedor);
     const evento: EventoWebhook = await adapter.handleWebhook(rawBody, headers);
 
@@ -419,8 +419,24 @@ export class AssinaturaService {
       RETURNING id
     `);
     const rows = (ins as unknown as { rows?: Array<{ id: number }> }).rows || [];
-    if (rows.length === 0) return { ok: true, eventoId: 0, duplicado: true };
-    const eventoId = rows[0]!.id;
+    let eventoId: number;
+    if (rows.length === 0) {
+      // Wave 10.5 task #34 — Reentrega ZapSign de evento ja conhecido.
+      // Se a 1a tentativa marcou processado=true, eh duplicado real → ack 200.
+      // Se ainda esta pendente (ex: upload pro bucket falhou na 1a vez), NAO eh
+      // duplicado: continuamos o fluxo abaixo pra reprocessar com o mesmo eventoId.
+      // Garante que upload + manifesto sao pre-condicao DURAVEL pra ack final
+      // (CFM/LGPD retencao 20 anos), nao so na primeira chegada do evento.
+      const exist = await db.execute(sql`SELECT id, processado FROM assinatura_webhook_eventos WHERE provedor_codigo = ${provedor} AND event_id = ${evento.eventId} LIMIT 1`);
+      const exRow = ((exist as unknown as { rows?: Array<{ id: number; processado: boolean }> }).rows || [])[0];
+      if (!exRow) return { ok: true, eventoId: 0, duplicado: true };
+      if (exRow.processado) return { ok: true, eventoId: exRow.id, duplicado: true };
+      eventoId = exRow.id;
+      // Limpa o erro anterior antes de retentar — se falhar de novo, sera regravado.
+      await db.execute(sql`UPDATE assinatura_webhook_eventos SET erro_processamento = NULL WHERE id = ${eventoId}`);
+    } else {
+      eventoId = rows[0]!.id;
+    }
 
     if (!evento.signatureValid) {
       await db.execute(sql`UPDATE assinatura_webhook_eventos SET processado = true, processado_em = now(), erro_processamento = 'signature_invalid' WHERE id = ${eventoId}`);
@@ -456,19 +472,37 @@ export class AssinaturaService {
         try {
           const pdf = await adapter.downloadSignedArtifact(evento.envelopeId);
           const hashAssinado = createHash("sha256").update(pdf).digest("hex");
+
+          // Wave 10.5 task #34 — Armazenamento permanente do PDF assinado.
+          // Upload eh OBRIGATORIO pra finalizacao do evento (defesa em profundidade
+          // CFM/LGPD retencao 20 anos). Se falhar:
+          //   - NAO marca CONCLUIDO (status fica como estava — sera re-tentado
+          //     no proximo doc_signed, que ZapSign reentrega ate ack 200);
+          //   - NAO grava manifesto na auditoria (impede pdf_storage_key fantasma);
+          //   - NAO marca o evento como processado (worker externo / retry ZapSign
+          //     reprocessa quando o storage voltar);
+          //   - Lanca pra fora do try interno -> cai no catch que ja registra
+          //     erro_processamento sem dar processado=true, devolvendo 200 false.
+          const { uploadPdfAssinado } = await import("./objectStorage");
+          const up = await uploadPdfAssinado(
+            solRow.zapsign_external_id || evento.envelopeId,
+            pdf,
+          );
+          const pdfStorageKey = up.storageKey;
+
           await db.execute(sql`UPDATE assinatura_solicitacoes SET status = 'CONCLUIDO', concluido_em = now(), hash_assinado = ${hashAssinado}, atualizado_em = now() WHERE id = ${solRow.id}`);
           await db.execute(sql`UPDATE assinatura_webhook_eventos SET solicitacao_id = ${solRow.id} WHERE id = ${eventoId}`);
 
           // Manifesto SHA-256 -> auditoria_assinaturas (LGPD art. 11 §4o, retencao 20 anos default).
-          // Idempotente via NOT EXISTS por (envelope_id, signature_id). Object Storage real
-          // (uploadFileToBucket assinaturas-pawards) deferido pra Wave 10.5; pdf_storage_key
-          // grava chave logica `assinaturas/${external_id}.pdf` como ponteiro.
+          // Idempotente via ON CONFLICT (signature_id). pdf_storage_key SEMPRE aponta
+          // pro objeto real no bucket — upload bem-sucedido eh pre-condicao deste passo.
           await this.registrarManifestoAuditoria({
             solicitacaoId: solRow.id,
             envelopeId: evento.envelopeId,
             externalId: solRow.zapsign_external_id,
             hashAssinado,
             payload: evento.payload,
+            pdfStorageKey,
           });
 
           const tx = await db.execute(sql`SELECT corpo FROM assinatura_textos_institucionais WHERE codigo = 'WHATSAPP_POS_ASSINATURA'`);
@@ -476,13 +510,27 @@ export class AssinaturaService {
           const pac = await db.execute(sql`SELECT nome, telefone, email FROM pacientes WHERE id = ${solRow.paciente_id}`);
           const pacRow = ((pac as unknown as { rows?: Array<{ nome: string; telefone: string; email: string | null }> }).rows || [])[0];
           if (txt && pacRow) {
-            const corpo = txt.corpo.replaceAll("{{NOME}}", pacRow.nome.split(" ")[0] || pacRow.nome);
-            await db.execute(sql`INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, corpo, status) VALUES (${solRow.id}, 'WHATSAPP', 'POS_ASSINATURA', ${pacRow.telefone}, ${corpo}, 'PENDENTE')`);
-            if (pacRow.email) await db.execute(sql`INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, assunto, corpo, status) VALUES (${solRow.id}, 'EMAIL', 'POS_ASSINATURA', ${pacRow.email}, 'INSTITUTO PADUA | DOCUMENTO ASSINADO', ${corpo}, 'PENDENTE')`);
-            await db.execute(sql`INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, corpo, status) VALUES (${solRow.id}, 'DRIVE', 'POS_ASSINATURA', 'drive://paciente/' || ${solRow.paciente_id}, 'PDF assinado pronto para arquivamento', 'PENDENTE')`);
+            // Wave 10.5 task #34 — Idempotencia de notificacoes em reentrega.
+            // Como o webhook agora pode reprocessar (event redelivery sem
+            // processado=true), checamos se ja existem notificacoes POS_ASSINATURA
+            // pra esta solicitacao antes de inserir. Senao paciente recebe duplicado.
+            const exNotif = await db.execute(sql`SELECT 1 FROM assinatura_notificacoes WHERE solicitacao_id = ${solRow.id} AND momento = 'POS_ASSINATURA' LIMIT 1`);
+            if (((exNotif as unknown as { rows?: unknown[] }).rows || []).length === 0) {
+              const corpo = txt.corpo.replaceAll("{{NOME}}", pacRow.nome.split(" ")[0] || pacRow.nome);
+              await db.execute(sql`INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, corpo, status) VALUES (${solRow.id}, 'WHATSAPP', 'POS_ASSINATURA', ${pacRow.telefone}, ${corpo}, 'PENDENTE')`);
+              if (pacRow.email) await db.execute(sql`INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, assunto, corpo, status) VALUES (${solRow.id}, 'EMAIL', 'POS_ASSINATURA', ${pacRow.email}, 'INSTITUTO PADUA | DOCUMENTO ASSINADO', ${corpo}, 'PENDENTE')`);
+              await db.execute(sql`INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, corpo, status) VALUES (${solRow.id}, 'DRIVE', 'POS_ASSINATURA', 'drive://paciente/' || ${solRow.paciente_id}, 'PDF assinado pronto para arquivamento', 'PENDENTE')`);
+            }
           }
         } catch (err) {
+          // Wave 10.5 task #34 — falha (download/upload/db) NAO marca processado.
+          // Mantemos o evento PENDENTE pra reentrega ZapSign + worker de retry
+          // varrer `erro_processamento`. Devolvemos 500 pro provedor pra forcar
+          // reentrega automatica (ZapSign reentrega ate ack 200).
           await db.execute(sql`UPDATE assinatura_webhook_eventos SET erro_processamento = ${(err as Error).message} WHERE id = ${eventoId}`);
+          // transient=true sinaliza ao route handler pra responder 5xx (e nao 4xx)
+          // — ZapSign trata 5xx como retriable e reentrega; 4xx como permanente.
+          return { ok: false, eventoId, duplicado: false, transient: true };
         }
       }
     }
@@ -504,6 +552,8 @@ export class AssinaturaService {
     externalId: string | null;
     hashAssinado: string;
     payload: Record<string, unknown>;
+    /** Wave 10.5 task #34 — chave fisica no bucket; null se upload falhou (cai no logico). */
+    pdfStorageKey?: string | null;
   }): Promise<void> {
     interface SignerLike {
       token?: string; cpf?: string; name?: string; email?: string;
@@ -552,7 +602,10 @@ export class AssinaturaService {
     const validationUrl = signerEvento.token
       ? `https://app.zapsign.com.br/verificar/${signerEvento.token}`
       : `https://app.zapsign.com.br/verificar/${p.envelopeId}`;
-    const pdfStorageKey = `assinaturas/${p.externalId || p.envelopeId}.pdf`;
+    // Wave 10.5 task #34 — prefere chave fisica do bucket quando upload OK.
+    // Fallback logico `assinaturas/<id>.pdf` mantido pra retro-compat (rotas
+    // legadas e manifestos historicos pre-Wave 10.5 ainda referenciam).
+    const pdfStorageKey = p.pdfStorageKey || `assinaturas/${p.externalId || p.envelopeId}.pdf`;
     const icpSerial = signerEvento.icp_brasil?.serial || null;
     const icpAc = signerEvento.icp_brasil?.ac || null;
     const evidenceJson = JSON.stringify(signerEvento);

@@ -27,6 +27,7 @@ const BLUE = "#2563eb";
 const ZINC = "#71717a";
 
 type Signatario = {
+  id: number;
   papel: string;
   nome: string;
   email: string | null;
@@ -120,6 +121,35 @@ export default function AssinaturasDetalhe() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [reenviandoId, setReenviandoId] = useState<number | null>(null);
+  const [reenvioMsg, setReenvioMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const reenviarLembrete = useCallback(async (signatarioId: number) => {
+    setReenviandoId(signatarioId);
+    setReenvioMsg(null);
+    try {
+      const r = await fetch(`/api/assinaturas/${id}/signatario/${signatarioId}/reenviar`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setReenvioMsg({ ok: false, texto: body.error || `HTTP ${r.status}` });
+      } else {
+        setReenvioMsg({
+          ok: true,
+          texto: body.mock
+            ? "Reenvio registrado (mock — sem ZAPSIGN_API_TOKEN configurado)"
+            : "Lembrete WhatsApp reenviado via ZapSign",
+        });
+      }
+    } catch (e) {
+      setReenvioMsg({ ok: false, texto: (e as Error).message });
+    } finally {
+      setReenviandoId(null);
+    }
+  }, [id]);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -169,15 +199,30 @@ export default function AssinaturasDetalhe() {
             <ArrowLeft size={14} />
             Voltar à timeline
           </Link>
-          <button
-            onClick={carregar}
-            disabled={loading}
-            className="nao-imprimir flex items-center gap-2 px-3 py-1.5 rounded text-sm"
-            style={{ background: GOLD, color: NAVY }}
-          >
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-            Atualizar
-          </button>
+          <div className="nao-imprimir flex items-center gap-2">
+            {sol?.status === "CONCLUIDO" && (
+              <a
+                href={`/api/assinaturas/${id}/pdf-assinado`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold border"
+                style={{ borderColor: GOLD, color: NAVY, background: "#FFF" }}
+                title="Baixa o PDF assinado direto do bucket assinaturas-pawards (defesa em profundidade · retencao 20 anos)"
+              >
+                <Download size={12} />
+                Baixar PDF assinado
+              </a>
+            )}
+            <button
+              onClick={carregar}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-sm"
+              style={{ background: GOLD, color: NAVY }}
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+              Atualizar
+            </button>
+          </div>
         </div>
 
         {/* Header solicitação */}
@@ -239,6 +284,19 @@ export default function AssinaturasDetalhe() {
           </div>
         )}
 
+        {reenvioMsg && (
+          <div
+            className="rounded p-3 text-sm nao-imprimir"
+            style={{
+              background: reenvioMsg.ok ? "#DCFCE7" : "#FEE2E2",
+              color: reenvioMsg.ok ? GREEN : RED,
+            }}
+            data-testid="reenvio-feedback"
+          >
+            <strong>{reenvioMsg.ok ? "OK:" : "Erro:"}</strong> {reenvioMsg.texto}
+          </div>
+        )}
+
         {/* Signatários */}
         <section className="bg-white border rounded p-4">
           <h2
@@ -257,6 +315,15 @@ export default function AssinaturasDetalhe() {
             {data?.signatarios.map((s, i) => {
               const cfg = SIG_STATUS[s.status] || SIG_STATUS["PENDENTE"]!;
               const Icon = cfg.icon;
+              // Task #35 — botao de reenvio so aparece pra PENDENTE/ENVIADO ha mais de 24h
+              const criadoEmSol = data?.solicitacao?.criado_em
+                ? new Date(data.solicitacao.criado_em).getTime()
+                : null;
+              const horasDesde = criadoEmSol
+                ? (Date.now() - criadoEmSol) / (1000 * 60 * 60)
+                : 0;
+              const podeReenviar =
+                (s.status === "PENDENTE" || s.status === "ENVIADO") && horasDesde >= 24;
               return (
                 <div
                   key={i}
@@ -276,6 +343,21 @@ export default function AssinaturasDetalhe() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
+                    {podeReenviar && (
+                      <button
+                        onClick={() => reenviarLembrete(s.id)}
+                        disabled={reenviandoId === s.id}
+                        className="nao-imprimir inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold border"
+                        style={{ borderColor: GOLD, color: NAVY, background: "#FFFBEB" }}
+                        data-testid={`btn-reenviar-${s.id}`}
+                      >
+                        <RefreshCw
+                          size={11}
+                          className={reenviandoId === s.id ? "animate-spin" : ""}
+                        />
+                        {reenviandoId === s.id ? "Reenviando…" : "Reenviar lembrete WhatsApp"}
+                      </button>
+                    )}
                     {s.link_assinatura && s.status !== "ASSINADO" && (
                       <a
                         href={s.link_assinatura}
