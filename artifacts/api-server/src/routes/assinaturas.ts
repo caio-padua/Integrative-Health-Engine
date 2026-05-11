@@ -802,12 +802,26 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
         t.nome_exibicao              AS template_nome,
         p.nome                       AS paciente_nome,
         u.nome                       AS paciente_unidade_nome,
+        rec.valor_formula_estimado   AS receita_valor,
+        f.razao_social               AS farmacia_razao_social,
+        f.nome_fantasia              AS farmacia_nome_fantasia,
+        med.nome                     AS medico_nome,
         (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id) AS signatarios_total,
         (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id AND sg.status = 'ASSINADO') AS signatarios_assinados
       FROM assinatura_solicitacoes s
       JOIN assinatura_templates t   ON t.id = s.template_id
       LEFT JOIN pacientes p         ON p.id = s.paciente_id
       LEFT JOIN unidades u          ON u.id = p.unidade_id
+      LEFT JOIN parmavault_receitas rec
+        ON (s.metadata->>'receitaId') ~ '^[0-9]+$'
+       AND rec.id = (s.metadata->>'receitaId')::bigint
+      LEFT JOIN farmacias_parmavault f
+        ON f.id = COALESCE(
+             rec.farmacia_id,
+             CASE WHEN (s.metadata->>'farmaciaId') ~ '^[0-9]+$'
+                  THEN (s.metadata->>'farmaciaId')::bigint END
+           )
+      LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
       ORDER BY s.id DESC
@@ -850,12 +864,27 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       return `${primeiro} ${iniciais}`;
     };
 
-    // Schema alinhado ao contrato da Task #60:
+    // Schema alinhado ao contrato da Task #60 + Task #77:
     // id | template | paciente (mascarado) | status | signatarios X/Y |
-    // criado em | concluido em
+    // criado em | concluido em | valor_brl | farmacia | medico
+    // Task #77: valor/farmacia/medico vem do JOIN com parmavault_receitas
+    // (pra orcamento) e farmacias_parmavault (PARQ via metadata->>'farmaciaId').
+    // Vazio quando o template nao tem essa dimensao (ex: TCLE = sem farmacia).
+    // valor_brl no CSV vai como numero cru (sem R$/separador) pra contador
+    // somar facil; o XLSX abaixo formata como moeda BRL nativo do Excel.
+    const valorCsv = (v: unknown): string => {
+      if (v === null || v === undefined) return "";
+      const n = Number(v);
+      if (!Number.isFinite(n)) return "";
+      return n.toFixed(2);
+    };
+    const farmaciaNome = (row: Record<string, unknown>): string => {
+      return String(row["farmacia_razao_social"] || row["farmacia_nome_fantasia"] || "");
+    };
     const header = [
       "id", "template", "paciente", "status",
       "signatarios", "criado_em", "concluido_em",
+      "valor_brl", "farmacia", "medico",
     ].map(esc).join(",");
     const linhas = rows.map((row) => [
       row["id"],
@@ -865,6 +894,9 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       `${row["signatarios_assinados"] ?? 0}/${row["signatarios_total"] ?? 0}`,
       isoOuVazio(row["criado_em"]),
       isoOuVazio(row["concluido_em"]),
+      valorCsv(row["receita_valor"]),
+      farmaciaNome(row),
+      row["medico_nome"] ?? "",
     ].map(esc).join(","));
 
     // BOM UTF-8 (\uFEFF) faz o Excel reconhecer encoding e renderizar acentos.
@@ -962,12 +994,26 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
         t.nome_exibicao              AS template_nome,
         p.nome                       AS paciente_nome,
         u.nome                       AS paciente_unidade_nome,
+        rec.valor_formula_estimado   AS receita_valor,
+        f.razao_social               AS farmacia_razao_social,
+        f.nome_fantasia              AS farmacia_nome_fantasia,
+        med.nome                     AS medico_nome,
         (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id) AS signatarios_total,
         (SELECT COUNT(*)::int FROM assinatura_signatarios sg WHERE sg.solicitacao_id = s.id AND sg.status = 'ASSINADO') AS signatarios_assinados
       FROM assinatura_solicitacoes s
       JOIN assinatura_templates t   ON t.id = s.template_id
       LEFT JOIN pacientes p         ON p.id = s.paciente_id
       LEFT JOIN unidades u          ON u.id = p.unidade_id
+      LEFT JOIN parmavault_receitas rec
+        ON (s.metadata->>'receitaId') ~ '^[0-9]+$'
+       AND rec.id = (s.metadata->>'receitaId')::bigint
+      LEFT JOIN farmacias_parmavault f
+        ON f.id = COALESCE(
+             rec.farmacia_id,
+             CASE WHEN (s.metadata->>'farmaciaId') ~ '^[0-9]+$'
+                  THEN (s.metadata->>'farmaciaId')::bigint END
+           )
+      LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
       ORDER BY s.id DESC
@@ -1004,6 +1050,9 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     const ws = wb.addWorksheet("Timeline", {
       views: [{ state: "frozen", ySplit: 1 }],
     });
+    // Task #77: 3 colunas novas — valor da receita (orcamento), farmacia
+    // parceira (orcamento/PARQ), medico responsavel (orcamento). numFmt
+    // `R$ #,##0.00` faz o Excel ja somar como moeda BRL no SUM/SUBTOTAL.
     ws.columns = [
       { header: "ID",                key: "id",            width: 8 },
       { header: "Template",          key: "template",      width: 20 },
@@ -1012,6 +1061,9 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       { header: "Signatários",       key: "signatarios",   width: 14 },
       { header: "Criado em",         key: "criado_em",     width: 18, style: { numFmt: "dd/mm/yyyy hh:mm" } },
       { header: "Concluído em",      key: "concluido_em",  width: 18, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+      { header: "Valor (R$)",        key: "valor_brl",     width: 14, style: { numFmt: "[$R$ ]#,##0.00;[Red]-[$R$ ]#,##0.00" } },
+      { header: "Farmácia",          key: "farmacia",      width: 32 },
+      { header: "Médico",            key: "medico",        width: 28 },
     ];
     // Header em negrito + fundo navy/gold institucional + congelado.
     const headerRow = ws.getRow(1);
@@ -1024,6 +1076,17 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     headerRow.alignment = { vertical: "middle", horizontal: "left" };
     headerRow.height = 22;
 
+    // Task #77: valor como NUMBER nativo (nao string) pra Excel ja somar
+    // com SUM(). Vazio = null = celula em branco (nao zero, pra contador
+    // ver claramente quando o template nao tem valor — ex: TCLE).
+    const valorNumOuNull = (v: unknown): number | null => {
+      if (v === null || v === undefined) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const farmaciaNomeXlsx = (row: Record<string, unknown>): string => {
+      return sanitizarTexto(row["farmacia_razao_social"] || row["farmacia_nome_fantasia"] || "");
+    };
     for (const row of rows) {
       ws.addRow({
         id: Number(row["id"]),
@@ -1033,6 +1096,9 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
         signatarios: `${row["signatarios_assinados"] ?? 0}/${row["signatarios_total"] ?? 0}`,
         criado_em: dataOuNull(row["criado_em"]),
         concluido_em: dataOuNull(row["concluido_em"]),
+        valor_brl: valorNumOuNull(row["receita_valor"]),
+        farmacia: farmaciaNomeXlsx(row),
+        medico: sanitizarTexto(row["medico_nome"]),
       });
     }
 
