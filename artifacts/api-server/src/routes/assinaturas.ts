@@ -423,6 +423,73 @@ router.post("/assinaturas/alertas-ceo/:id/visualizar", guardMaster, async (req: 
 });
 
 /**
+ * GET /api/assinaturas/cofre/ausentes — Task #47 · cofre LGPD/CFM
+ *
+ * Lista as auditoria_assinaturas dos ultimos 30 dias com `pdf_verificado_ok = false`
+ * (PDF some do bucket `assinaturas-pawards`). Worker `verificarPdfsCofre` (task #38)
+ * popula essas colunas 1x/dia e dispara e-mail; este endpoint serve o card visivel
+ * no painel CEO como segunda camada de defesa (e-mail pode cair em filtro).
+ *
+ * Gate guardMaster = mesma protecao da timeline/detalhe (validador_mestre + master).
+ *
+ * Resposta:
+ *   total: COUNT(*) real (independente do LIMIT da lista)
+ *   ausentes: lista [{ id, signature_id, solicitacao_id, signer_name, signer_papel,
+ *                      storage_key, criado_em, pdf_verificado_em, pdf_verificado_erro }]
+ *   limit / has_more: paginacao explicita
+ *
+ * `solicitacao_id` permite o frontend linkar pra `/assinaturas/:id` (Wave 10 F5).
+ */
+router.get("/assinaturas/cofre/ausentes", guardMaster, async (_req: Request, res: Response) => {
+  try {
+    const LIMITE = 200;
+    // Count separado pra que o `total` reflita a contagem REAL na janela 30d
+    // (independente do LIMIT da lista), atendendo a regra "card mostra
+    // quantas auditorias estao ausentes".
+    const countR = await db.execute(sql`
+      SELECT COUNT(*)::int AS total
+      FROM auditoria_assinaturas a
+      WHERE a.pdf_storage_key IS NOT NULL
+        AND a.pdf_verificado_ok = false
+        AND a.criado_em >= NOW() - INTERVAL '30 days'
+    `);
+    const total = Number(
+      (((countR as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {})["total"] || 0,
+    );
+
+    const r = await db.execute(sql`
+      SELECT
+        a.id,
+        a.signature_id,
+        a.solicitacao_id,
+        a.signer_name,
+        a.signer_papel,
+        a.pdf_storage_key                        AS storage_key,
+        a.criado_em,
+        a.pdf_verificado_em,
+        a.pdf_verificado_erro
+      FROM auditoria_assinaturas a
+      WHERE a.pdf_storage_key IS NOT NULL
+        AND a.pdf_verificado_ok = false
+        AND a.criado_em >= NOW() - INTERVAL '30 days'
+      ORDER BY a.criado_em DESC
+      LIMIT ${LIMITE}
+    `);
+    const ausentes = (r as unknown as { rows?: unknown[] }).rows || [];
+    res.json({
+      janela_dias: 30,
+      total,
+      limit: LIMITE,
+      has_more: total > ausentes.length,
+      gerado_em: new Date().toISOString(),
+      ausentes,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /api/assinaturas/timeline — Wave 10 F5 · ultimas 50 solicitacoes enriquecidas
  *
  * Endpoint dedicado ao frontend `/assinaturas/timeline` (validador_mestre + admin).
