@@ -43,6 +43,8 @@ type NotifRow = {
   corpo: string | null;
   anexo_url: string | null;
   tentativas: number;
+  // Task #36: alerta operacional pro CEO bypassa opt-out e quiet hours.
+  is_sistema_ceo: boolean | null;
   // joined from assinatura_solicitacoes + pacientes
   paciente_id: number | null;
   paciente_nome: string | null;
@@ -313,6 +315,20 @@ export async function processarNotificacao(row: NotifRow): Promise<ProcResult> {
  *    - Pre-check por canal: opt-out do paciente → marca PULADO_OPTOUT (terminal).
  *    - Canal EMAIL agora aplica template branded MEDCORE (navy+gold).
  */
+// Mutex em memoria: previne re-entrancia quando o webhook ZapSign chama
+// tickNotifAssinatura() em fire-and-forget enquanto o setInterval normal
+// ja esta executando o tick anterior. Combinado com claim atomico via
+// UPDATE ... RETURNING (status='PROCESSANDO'), garante zero duplicacao
+// mesmo em multi-instancia (FOR UPDATE SKIP LOCKED no SELECT interno).
+//
+// `_rerunPendente` garante "tempo real" mesmo quando o webhook chega no
+// meio de um tick: ao inves de descartar a chamada concorrente, marca
+// flag e o tick em execucao re-roda no finally ate drenar tudo. Sem
+// isso, alertas CEO enfileirados durante a janela do tick atual
+// esperariam o proximo intervalo de 5min.
+let _tickEmAndamento = false;
+let _rerunPendente = false;
+
 export async function tickNotifAssinatura(): Promise<{
   processadas: number;
   enviadas: number;
@@ -321,28 +337,66 @@ export async function tickNotifAssinatura(): Promise<{
   pulado_quiet: number;
   pulado_optout: number;
 }> {
+  if (_tickEmAndamento) {
+    _rerunPendente = true;
+    return { processadas: 0, enviadas: 0, retry_agendado: 0, falha_permanente: 0, pulado_quiet: 0, pulado_optout: 0 };
+  }
+  _tickEmAndamento = true;
+  try {
   const cfg = await getNotifConfig();
   const agora = new Date();
   const inQuiet =
     cfg.habilitar_quiet_hours &&
     dentroDoQuiet(horaLocal(cfg.tz, agora), parseHHMMSS(cfg.quiet_inicio), parseHHMMSS(cfg.quiet_fim));
 
+  // Recovery: linhas PROCESSANDO com `processando_em` ha mais de 10 min sao
+  // consideradas orfas (crash de processo entre claim e UPDATE final). Volta
+  // pra PENDENTE pra serem reprocessadas no proximo tick. Usa `processando_em`
+  // (NAO `criado_em`) pra nao ressetar retries legitimos de linhas antigas.
+  await db.execute(sql`
+    UPDATE assinatura_notificacoes
+    SET status = 'PENDENTE',
+        processando_em = NULL
+    WHERE status = 'PROCESSANDO'
+      AND processando_em IS NOT NULL
+      AND processando_em < now() - interval '10 minutes'
+  `);
+
+  // Claim atomico: UPDATE ... RETURNING marca as linhas como PROCESSANDO
+  // dentro de uma unica transacao implicita. SKIP LOCKED no CTE interno
+  // garante que dois ticks concorrentes (multi-process) nao reivindiquem
+  // a mesma linha. Inclui PULADO_QUIET pra reprocessar quando a janela
+  // libera.
   const r: any = await db.execute(sql`
-    SELECT n.id, n.canal, n.momento, n.destinatario, n.assunto, n.corpo,
-           n.anexo_url, n.tentativas,
+    WITH alvos AS (
+      SELECT id FROM assinatura_notificacoes
+      WHERE status IN ('PENDENTE', 'PULADO_QUIET')
+        AND (proxima_tentativa_em IS NULL OR proxima_tentativa_em <= now())
+      ORDER BY is_sistema_ceo DESC, id ASC
+      LIMIT ${BATCH_LIMIT}
+      FOR UPDATE SKIP LOCKED
+    ),
+    claimed AS (
+      UPDATE assinatura_notificacoes n
+      SET status = 'PROCESSANDO',
+          processando_em = now()
+      FROM alvos
+      WHERE n.id = alvos.id
+      RETURNING n.id, n.canal, n.momento, n.destinatario, n.assunto, n.corpo,
+                n.anexo_url, n.tentativas, n.is_sistema_ceo, n.solicitacao_id
+    )
+    SELECT c.id, c.canal, c.momento, c.destinatario, c.assunto, c.corpo,
+           c.anexo_url, c.tentativas, c.is_sistema_ceo,
            s.paciente_id,
            p.nome AS paciente_nome,
            p.notif_opt_out_email AS paciente_opt_out_email,
            p.notif_opt_out_whatsapp AS paciente_opt_out_whatsapp,
            u.nick AS unidade_nick
-    FROM assinatura_notificacoes n
-    LEFT JOIN assinatura_solicitacoes s ON s.id = n.solicitacao_id
+    FROM claimed c
+    LEFT JOIN assinatura_solicitacoes s ON s.id = c.solicitacao_id
     LEFT JOIN pacientes p ON p.id = s.paciente_id
     LEFT JOIN unidades u ON u.id = p.unidade_id
-    WHERE n.status IN ('PENDENTE', 'PULADO_QUIET')
-      AND (n.proxima_tentativa_em IS NULL OR n.proxima_tentativa_em <= now())
-    ORDER BY n.id ASC
-    LIMIT ${BATCH_LIMIT}
+    ORDER BY c.is_sistema_ceo DESC, c.id ASC
   `);
   const rows: NotifRow[] = (r.rows ?? r) as NotifRow[];
 
@@ -356,11 +410,16 @@ export async function tickNotifAssinatura(): Promise<{
   for (const row of rows) {
     processadas++;
     const canal = String(row.canal).toUpperCase();
+    const isSistemaCEO = row.is_sistema_ceo === true;
 
     // --- Pre-check 1: opt-out por paciente (terminal, não conta tentativa) ---
+    // Task #36: alerta operacional pro CEO bypassa opt-out — destinatario nao
+    // eh paciente, e o flag opt-out herdado da JOIN nao se aplica.
     const optedOut =
-      (canal === "EMAIL" && row.paciente_opt_out_email === true) ||
-      (canal === "WHATSAPP" && row.paciente_opt_out_whatsapp === true);
+      !isSistemaCEO && (
+        (canal === "EMAIL" && row.paciente_opt_out_email === true) ||
+        (canal === "WHATSAPP" && row.paciente_opt_out_whatsapp === true)
+      );
     if (optedOut) {
       await db.execute(sql`
         UPDATE assinatura_notificacoes
@@ -375,7 +434,9 @@ export async function tickNotifAssinatura(): Promise<{
 
     // --- Pre-check 2: quiet hours global (não-terminal, reagenda) ---
     // Aplica só pra canais que tocam o paciente (EMAIL/WHATSAPP); DRIVE roda 24/7.
-    if (inQuiet && (canal === "EMAIL" || canal === "WHATSAPP")) {
+    // Task #36: alerta sistema pro CEO ignora quiet hours (eh tempo real,
+    // qualquer assinatura/recusa precisa chegar imediatamente).
+    if (!isSistemaCEO && inQuiet && (canal === "EMAIL" || canal === "WHATSAPP")) {
       const reagendar = calcProximoQuietFim(cfg, agora);
       // Status PULADO_QUIET é não-terminal: o tick aceita PULADO_QUIET no SELECT,
       // então quando proxima_tentativa_em chegar, será reprocessado.
@@ -423,9 +484,12 @@ export async function tickNotifAssinatura(): Promise<{
       const backoffMin =
         RETRY_BACKOFF_MIN[novasTentativas - 1] ??
         RETRY_BACKOFF_MIN[RETRY_BACKOFF_MIN.length - 1] ?? 60;
+      // Volta status pra PENDENTE pra o claim do proximo tick reivindicar
+      // novamente quando proxima_tentativa_em chegar.
       await db.execute(sql`
         UPDATE assinatura_notificacoes
-        SET tentativas = ${novasTentativas},
+        SET status = 'PENDENTE',
+            tentativas = ${novasTentativas},
             erro = ${erroMsg},
             proxima_tentativa_em = now() + (${backoffMin} || ' minutes')::interval
         WHERE id = ${row.id}
@@ -435,6 +499,15 @@ export async function tickNotifAssinatura(): Promise<{
   }
 
   return { processadas, enviadas, retry_agendado, falha_permanente, pulado_quiet, pulado_optout };
+  } finally {
+    _tickEmAndamento = false;
+    if (_rerunPendente) {
+      _rerunPendente = false;
+      // Re-roda em background pra drenar enfileirados que chegaram durante
+      // a janela do tick atual (ex: webhook CEO disparado mid-tick).
+      void tickNotifAssinatura();
+    }
+  }
 }
 
 let workerStarted = false;

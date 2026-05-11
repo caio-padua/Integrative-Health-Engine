@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -204,6 +206,8 @@ export default function PainelComando() {
     variacao_conversao_pp?: number | null;
     cor_conversao?: CorSemantica;
   } | null>(null);
+  const assinaturasRef = useRef<{ assinadas: number; rejeitadas: number } | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     setLoading(true);
@@ -214,15 +218,60 @@ export default function PainelComando() {
       .catch(() => setLoading(false));
   }, [unidadeSelecionada]);
 
-  // Task #35 — resumo diario assinaturas pro Painel CEO. Endpoint protegido
-  // por guardMaster: 401/403 sao silenciosos (banner so aparece pra master).
+  // Task #35 + Task #36 — resumo diario assinaturas pro Painel CEO.
+  // Endpoint protegido por guardMaster: 401/403 sao silenciosos (banner so
+  // aparece pra master). Polling 60s + delta vs ultimo snapshot dispara toast
+  // quando uma assinatura nova for concluida ou recusada (Task #36).
   useEffect(() => {
     if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
-    fetch(`${API_BASE}/assinaturas/resumo-hoje`, { credentials: "include" })
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (d) setAssinaturasResumo(d); })
-      .catch(() => { /* silencioso, banner some */ });
-  }, []);
+
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/assinaturas/resumo-hoje`, { credentials: "include" });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (!alive || !d) return;
+
+        const prev = assinaturasRef.current;
+        if (prev) {
+          const novasAssinadas = (d.assinadas ?? 0) - prev.assinadas;
+          const novasRejeitadas = (d.rejeitadas ?? 0) - prev.rejeitadas;
+          if (novasAssinadas > 0) {
+            toast({
+              title: `✅ ${novasAssinadas} contrato${novasAssinadas > 1 ? "s" : ""} assinado${novasAssinadas > 1 ? "s" : ""}`,
+              description: "Webhook ZapSign confirmou conclusão agora.",
+              duration: 10000,
+              action: (
+                <ToastAction altText="Abrir timeline" onClick={() => { window.location.href = "/assinaturas/timeline"; }}>
+                  Abrir timeline
+                </ToastAction>
+              ),
+            });
+          }
+          if (novasRejeitadas > 0) {
+            toast({
+              title: `⛔ ${novasRejeitadas} contrato${novasRejeitadas > 1 ? "s" : ""} recusado${novasRejeitadas > 1 ? "s" : ""}`,
+              description: "Webhook ZapSign sinalizou recusa do signatário.",
+              variant: "destructive",
+              duration: 15000,
+              action: (
+                <ToastAction altText="Abrir timeline" onClick={() => { window.location.href = "/assinaturas/timeline"; }}>
+                  Abrir timeline
+                </ToastAction>
+              ),
+            });
+          }
+        }
+        assinaturasRef.current = { assinadas: d.assinadas ?? 0, rejeitadas: d.rejeitadas ?? 0 };
+        setAssinaturasResumo(d);
+      } catch { /* silencioso */ }
+    };
+
+    carregar();
+    const id = setInterval(carregar, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, [toast]);
 
   if (loading) {
     return (

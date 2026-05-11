@@ -457,6 +457,10 @@ export class AssinaturaService {
       if (sr0) {
         await db.execute(sql`UPDATE assinatura_solicitacoes SET status = 'REJEITADO', atualizado_em = now() WHERE id = ${sr0.id}`);
         await db.execute(sql`UPDATE assinatura_webhook_eventos SET solicitacao_id = ${sr0.id} WHERE id = ${eventoId}`);
+        // Task #36 — avisar CEO em tempo real (e-mail/WhatsApp via worker existente)
+        try { await this.notificarCEOEvento(sr0.id, "REJEITADO"); } catch (e) {
+          console.error(`[assinatura.notificarCEOEvento] FALHA solicitacao=${sr0.id} tipo=REJEITADO`, e);
+        }
       }
     } else if (evento.envelopeId && isRemovido) {
       const sol0 = await db.execute(sql`SELECT id FROM assinatura_solicitacoes WHERE provedor_envelope_id = ${evento.envelopeId} AND provedor_codigo = ${provedor} LIMIT 1`);
@@ -521,6 +525,10 @@ export class AssinaturaService {
               if (pacRow.email) await db.execute(sql`INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, assunto, corpo, status) VALUES (${solRow.id}, 'EMAIL', 'POS_ASSINATURA', ${pacRow.email}, 'INSTITUTO PADUA | DOCUMENTO ASSINADO', ${corpo}, 'PENDENTE')`);
               await db.execute(sql`INSERT INTO assinatura_notificacoes (solicitacao_id, canal, momento, destinatario, corpo, status) VALUES (${solRow.id}, 'DRIVE', 'POS_ASSINATURA', 'drive://paciente/' || ${solRow.paciente_id}, 'PDF assinado pronto para arquivamento', 'PENDENTE')`);
             }
+          }
+          // Task #36 — avisar CEO em tempo real quando contrato é assinado
+          try { await this.notificarCEOEvento(solRow.id, "ASSINADO"); } catch (e) {
+            console.error(`[assinatura.notificarCEOEvento] FALHA solicitacao=${solRow.id} tipo=ASSINADO`, e);
           }
         } catch (err) {
           // Wave 10.5 task #34 — falha (download/upload/db) NAO marca processado.
@@ -630,6 +638,122 @@ export class AssinaturaService {
       )
       ON CONFLICT (signature_id) DO NOTHING
     `);
+  }
+
+  /**
+   * Task #36 — Avisar CEO em tempo real quando contrato é assinado ou recusado.
+   *
+   * Reusa a fila `assinatura_notificacoes` (worker `notifAssinatura.ts`) pra
+   * disparar e-mail/WhatsApp pro perfil `validador_mestre`. Resolve destinatários
+   * dinamicamente a partir da tabela `usuarios` (sem hardcode) — se o CEO
+   * cadastrar telefone depois, WhatsApp passa a sair automaticamente.
+   *
+   * Defensivo: se nada está cadastrado (sem e-mail nem telefone), apenas loga
+   * e não enfileira. Idempotência fraca por (solicitacao_id, canal, momento,
+   * destinatario, "[CEO]") via NOT EXISTS pra não duplicar em retry de webhook.
+   */
+  private async notificarCEOEvento(
+    solicitacaoId: number,
+    tipo: "ASSINADO" | "REJEITADO",
+  ): Promise<void> {
+    // 1. Resolve metadados do contrato (template + paciente) pra mensagem.
+    const meta = await db.execute(sql`
+      SELECT s.id, t.nome_exibicao AS template_nome, t.codigo AS template_codigo,
+             p.nome AS paciente_nome
+      FROM assinatura_solicitacoes s
+      JOIN assinatura_templates t ON t.id = s.template_id
+      LEFT JOIN pacientes p ON p.id = s.paciente_id
+      WHERE s.id = ${solicitacaoId}
+      LIMIT 1
+    `);
+    const metaRow = ((meta as unknown as {
+      rows?: Array<{ template_nome: string; template_codigo: string; paciente_nome: string | null }>;
+    }).rows || [])[0];
+    if (!metaRow) return;
+
+    // 2. Resolve destinatários CEO (validador_mestre).
+    const ceos = await db.execute(sql`
+      SELECT email, telefone FROM usuarios
+      WHERE perfil = 'validador_mestre' AND ativo = true
+    `);
+    const ceoRows = (ceos as unknown as { rows?: Array<{ email: string | null; telefone: string | null }> }).rows || [];
+    if (ceoRows.length === 0) return;
+
+    const verbo = tipo === "ASSINADO" ? "assinado" : "RECUSADO";
+    const emoji = tipo === "ASSINADO" ? "✅" : "⛔";
+    // URL absoluta pra canais externos (e-mail/WhatsApp): o link relativo
+    // nao abre fora do contexto do app web. Resolve por env var, com
+    // fallback pro primeiro REPLIT_DOMAINS (deploy Replit) ou localhost.
+    const baseUrl = (
+      process.env.PUBLIC_APP_URL ||
+      (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0].trim()}` : "") ||
+      "http://localhost:80"
+    ).replace(/\/+$/, "");
+    const link = `${baseUrl}/assinaturas/${solicitacaoId}`;
+    const paciente = metaRow.paciente_nome || "(sem paciente)";
+    const template = metaRow.template_nome || metaRow.template_codigo;
+
+    const assunto = `[CEO] PAWARDS · Contrato ${verbo} · ${template}`;
+    const corpoBase =
+      `${emoji} Contrato ${verbo} agora.\n\n` +
+      `Template: ${template}\n` +
+      `Paciente: ${paciente}\n` +
+      `Solicitação: #${solicitacaoId}\n\n` +
+      `Abrir detalhe: ${link}`;
+
+    for (const ceo of ceoRows) {
+      // E-mail. is_sistema_ceo=true sinaliza ao worker pra bypassar opt-out
+      // (CEO nao eh paciente) e quiet hours (alerta operacional tempo real).
+      const emailDest = (ceo.email || "").trim();
+      if (emailDest && emailDest.includes("@")) {
+        await db.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, assunto, corpo, status, is_sistema_ceo)
+          SELECT ${solicitacaoId}, 'EMAIL', 'POS_ASSINATURA', ${emailDest},
+                 ${assunto}, ${corpoBase}, 'PENDENTE', true
+          WHERE NOT EXISTS (
+            SELECT 1 FROM assinatura_notificacoes
+            WHERE solicitacao_id = ${solicitacaoId}
+              AND canal = 'EMAIL'
+              AND destinatario = ${emailDest}
+              AND assunto = ${assunto}
+              AND is_sistema_ceo = true
+          )
+        `);
+      }
+      // WhatsApp
+      const telDest = (ceo.telefone || "").trim();
+      if (telDest) {
+        await db.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, corpo, status, is_sistema_ceo)
+          SELECT ${solicitacaoId}, 'WHATSAPP', 'POS_ASSINATURA', ${telDest},
+                 ${corpoBase}, 'PENDENTE', true
+          WHERE NOT EXISTS (
+            SELECT 1 FROM assinatura_notificacoes
+            WHERE solicitacao_id = ${solicitacaoId}
+              AND canal = 'WHATSAPP'
+              AND destinatario = ${telDest}
+              AND corpo = ${corpoBase}
+              AND is_sistema_ceo = true
+          )
+        `);
+      }
+    }
+
+    // Tempo real: dispara o tick do worker imediatamente em background
+    // (fire-and-forget). Sem await — o webhook ZapSign devolve 200 logo.
+    // Race-safe: o worker tem mutex de re-entrancia em memoria + claim
+    // atomico via UPDATE ... RETURNING (status='PROCESSANDO') com FOR
+    // UPDATE SKIP LOCKED no SELECT interno, entao chamadas concorrentes
+    // (timer + fire-and-forget) jamais reivindicam a mesma linha.
+    // Importacao tardia pra quebrar ciclo service<->worker.
+    void (async () => {
+      try {
+        const { tickNotifAssinatura } = await import("../recorrencia/notifAssinatura");
+        await tickNotifAssinatura();
+      } catch { /* defensivo: tick proximo pega se falhar */ }
+    })();
   }
 }
 
