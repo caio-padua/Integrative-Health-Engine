@@ -167,6 +167,11 @@ export class AssinaturaService {
     };
     const conteudoHidratado = hidratarTemplate(template, dados);
     const hashOriginal = createHash("sha256").update(conteudoHidratado).digest("hex");
+    // Wave 10 Sujeira C fix (Caminho 1 Dr. Claude 11/mai/2026): gera PDF real
+    // via pdfkit a partir do HTML hidratado. Adapters NAO devem mais receber
+    // HTML cru — ZapSign trava o leitor de PDF tentando parsear <h1>...</h1>.
+    const { htmlParaPdfBase64 } = await import("./htmlParaPdf");
+    const pdfBase64Render = await htmlParaPdfBase64(conteudoHidratado);
 
     // 2. Montar signatarios
     const signatarios: Signatario[] = [];
@@ -217,6 +222,7 @@ export class AssinaturaService {
         const r = await adapter.createDocumentEnvelope({
           templateCodigo: template.codigo,
           conteudoHtml: conteudoHidratado,
+          pdfBase64: pdfBase64Render,
           hashOriginal,
           signatarios,
           externalId,
