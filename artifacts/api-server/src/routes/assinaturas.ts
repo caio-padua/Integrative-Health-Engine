@@ -549,8 +549,47 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
     const statusFiltro: string[] = typeof statusRaw === "string" && statusRaw.length > 0
       ? statusRaw.split(",").map(s => s.trim().toUpperCase()).filter(s => STATUS_VALIDOS.has(s))
       : [];
-    const filtroStatusWhere = statusFiltro.length > 0
-      ? sql`WHERE s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`
+    // Task #64 — filtro opcional por intervalo de datas (criado_em).
+    // Aceita `?desde=YYYY-MM-DD&ate=YYYY-MM-DD`. Validacao defensiva: regex
+    // estrita pra evitar SQL injection via interpolacao + descarta valores
+    // mal-formados silenciosamente (mesmo padrao da whitelist de status).
+    // `desde` inclui o dia inteiro (>= 00:00). `ate` inclui o dia inteiro
+    // (< dia+1 — comparacao half-open pra cobrir registros com timestamp
+    // ate 23:59:59.999 sem precisar somar horas no SQL).
+    // Validacao em 2 etapas: regex de forma + checagem de data real (ano,
+    // mes 1-12, dia bate com calendario). Sem isso, "2026-99-99" passaria
+    // a regex e estouraria 500 no `::date`.
+    const DATA_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
+    function parseDataOuNull(raw: unknown): string | null {
+      if (typeof raw !== "string") return null;
+      const m = DATA_REGEX.exec(raw);
+      if (!m) return null;
+      const ano = Number(m[1]);
+      const mes = Number(m[2]);
+      const dia = Number(m[3]);
+      if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+      const d = new Date(Date.UTC(ano, mes - 1, dia));
+      if (
+        d.getUTCFullYear() !== ano ||
+        d.getUTCMonth() !== mes - 1 ||
+        d.getUTCDate() !== dia
+      ) return null;
+      return raw;
+    }
+    const desdeFiltro = parseDataOuNull(req.query["desde"]);
+    const ateFiltro = parseDataOuNull(req.query["ate"]);
+    const filtrosWhere: ReturnType<typeof sql>[] = [];
+    if (statusFiltro.length > 0) {
+      filtrosWhere.push(sql`s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`);
+    }
+    if (desdeFiltro !== null) {
+      filtrosWhere.push(sql`s.criado_em >= ${desdeFiltro}::date`);
+    }
+    if (ateFiltro !== null) {
+      filtrosWhere.push(sql`s.criado_em < (${ateFiltro}::date + INTERVAL '1 day')`);
+    }
+    const filtroStatusWhere = filtrosWhere.length > 0
+      ? sql`WHERE ${sql.join(filtrosWhere, sql` AND `)}`
       : sql``;
     const r = await db.execute(sql`
       SELECT
@@ -597,6 +636,8 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       total: rows.length,
       filtro_unidade_id: unidadeIdFiltro,
       filtro_status: statusFiltro,
+      filtro_desde: desdeFiltro,
+      filtro_ate: ateFiltro,
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

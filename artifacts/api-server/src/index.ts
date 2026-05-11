@@ -6,6 +6,7 @@ import { iniciarWorkerCobrancaMensal } from "./lib/recorrencia/cobrancaMensal";
 import { iniciarWorkerNotifAssinatura } from "./lib/recorrencia/notifAssinatura";
 import { iniciarWorkerParqStatusUpdate } from "./lib/recorrencia/parqStatusUpdate";
 import { iniciarWorkerPdfRetryUpload } from "./lib/recorrencia/pdfRetryUpload";
+import { iniciarWorkerPdfRetryUploadResumoDiario } from "./lib/recorrencia/pdfRetryUploadResumoDiario";
 import { iniciarWorkerVerificarPdfsCofre } from "./lib/recorrencia/verificarPdfsCofre";
 import { iniciarWorkerAlertaAssinaturasCEO } from "./lib/recorrencia/alertaAssinaturasCEO";
 
@@ -36,6 +37,7 @@ app.listen(port, (err) => {
   iniciarWorkerNotifAssinatura();
   iniciarWorkerParqStatusUpdate();
   iniciarWorkerPdfRetryUpload();
+  iniciarWorkerPdfRetryUploadResumoDiario();
   iniciarWorkerVerificarPdfsCofre();
   iniciarWorkerAlertaAssinaturasCEO();
 });
