@@ -7,12 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, Calendar, AlertTriangle, Pill, Activity,
   TrendingUp, Heart, Clock, XCircle, CheckCircle2,
-  Flame, Eye, ChevronRight, Shield, FileDown
+  Flame, Eye, ChevronRight, Shield, FileDown,
+  FileSignature
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import { useClinic } from "@/contexts/ClinicContext";
-import { FEATURE_PARQ_BANNER_CEO } from "@/lib/feature-flags";
+import { FEATURE_PARQ_BANNER_CEO, FEATURE_ASSINATURAS_RESUMO_CEO } from "@/lib/feature-flags";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
@@ -156,6 +157,9 @@ export default function PainelComando() {
   const [loading, setLoading] = useState(true);
   const [selectedSubstancia, setSelectedSubstancia] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("visao-geral");
+  const [assinaturasResumo, setAssinaturasResumo] = useState<{
+    enviadas: number; assinadas: number; rejeitadas: number; pendentes: number;
+  } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -165,6 +169,16 @@ export default function PainelComando() {
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [unidadeSelecionada]);
+
+  // Task #35 — resumo diario assinaturas pro Painel CEO. Endpoint protegido
+  // por guardMaster: 401/403 sao silenciosos (banner so aparece pra master).
+  useEffect(() => {
+    if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
+    fetch(`${API_BASE}/assinaturas/resumo-hoje`, { credentials: "include" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setAssinaturasResumo(d); })
+      .catch(() => { /* silencioso, banner some */ });
+  }, []);
 
   if (loading) {
     return (
@@ -213,6 +227,31 @@ export default function PainelComando() {
     <Layout>
       <div className="space-y-6">
         {/* Wave 9 PARQ — Banner de autonomia preservada (não-fechável, link p/ admin) */}
+        {/* Task #35 — resumo diario de assinaturas (24h), so renderiza com dados */}
+        {FEATURE_ASSINATURAS_RESUMO_CEO && assinaturasResumo && (
+          <a
+            href="/assinaturas/timeline"
+            className="block border-l-4 border-[var(--pw-dourado-vivo)] bg-[var(--pw-petroleo)]/5 hover:bg-[var(--pw-petroleo)]/10 transition-colors px-4 py-3 rounded-sm"
+            data-testid="banner-ceo-assinaturas-resumo"
+          >
+            <div className="flex items-center gap-3">
+              <FileSignature className="w-5 h-5 text-[var(--pw-dourado-vivo)] flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold">
+                  Assinaturas hoje · ultimas 24h
+                </div>
+                <div className="text-xs text-[var(--pw-tinta)] mt-0.5 flex items-center gap-4 flex-wrap">
+                  <span><strong className="text-[var(--pw-petroleo)]">{assinaturasResumo.enviadas}</strong> enviadas</span>
+                  <span className="text-emerald-600"><strong>{assinaturasResumo.assinadas}</strong> assinadas</span>
+                  <span className="text-red-600"><strong>{assinaturasResumo.rejeitadas}</strong> rejeitadas</span>
+                  <span className="text-amber-600"><strong>{assinaturasResumo.pendentes}</strong> pendentes</span>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[var(--pw-tinta)] flex-shrink-0" />
+            </div>
+          </a>
+        )}
+
         {FEATURE_PARQ_BANNER_CEO && (
         <a
           href="/admin/parq"

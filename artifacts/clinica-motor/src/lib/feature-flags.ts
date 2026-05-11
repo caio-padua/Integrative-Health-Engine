@@ -12,3 +12,7 @@ export const FEATURE_TRANSPARENCIA_PRESCRITIVA = read(
   true,
 );
 export const FEATURE_PARQ_BANNER_CEO = read("PARQ_BANNER_CEO", true);
+export const FEATURE_ASSINATURAS_RESUMO_CEO = read(
+  "ASSINATURAS_RESUMO_CEO",
+  true,
+);
