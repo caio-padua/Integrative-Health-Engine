@@ -95,10 +95,24 @@ function IconeMetrica({ metrica }: { metrica: string }) {
 
 type Filtro = "todos" | "pendentes" | "vistos";
 
-function lerFiltroDaURL(): Filtro {
+const FILTRO_STORAGE_KEY = "pawards.alertas-ceo.filtro";
+
+function ehFiltroValido(v: unknown): v is Filtro {
+  return v === "todos" || v === "pendentes" || v === "vistos";
+}
+
+function lerFiltroInicial(): Filtro {
   if (typeof window === "undefined") return "todos";
-  const v = new URLSearchParams(window.location.search).get("filtro");
-  if (v === "pendentes" || v === "vistos") return v;
+  // Querystring tem prioridade (deep-link sempre vence)
+  const qs = new URLSearchParams(window.location.search).get("filtro");
+  if (ehFiltroValido(qs)) return qs;
+  // Sem querystring: tenta restaurar do localStorage
+  try {
+    const salvo = window.localStorage.getItem(FILTRO_STORAGE_KEY);
+    if (ehFiltroValido(salvo)) return salvo;
+  } catch {
+    // localStorage indisponível (modo privado, etc) — ignora silenciosamente
+  }
   return "todos";
 }
 
@@ -109,7 +123,7 @@ export default function AssinaturasAlertasCEO() {
   const [marcando, setMarcando] = useState<number | null>(null);
   const [marcandoTodos, setMarcandoTodos] = useState(false);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
-  const [filtro, setFiltro] = useState<Filtro>(lerFiltroDaURL);
+  const [filtro, setFiltro] = useState<Filtro>(lerFiltroInicial);
   const [undoToast, setUndoToast] = useState<{ ids: number[]; expiraEm: number } | null>(null);
   const [desfazendo, setDesfazendo] = useState(false);
   const [undoRestanteMs, setUndoRestanteMs] = useState(0);
@@ -137,6 +151,13 @@ export default function AssinaturasAlertasCEO() {
       url.searchParams.set("filtro", filtro);
     }
     window.history.replaceState({}, "", url.toString());
+    // Persiste a última aba escolhida pra restaurar quando o Caio
+    // abrir a tela sem querystring (ex: clicando direto no menu).
+    try {
+      window.localStorage.setItem(FILTRO_STORAGE_KEY, filtro);
+    } catch {
+      // localStorage indisponível — ignora silenciosamente
+    }
   }, [filtro]);
 
   const carregar = useCallback(async () => {
