@@ -9,9 +9,14 @@
 > domínio específico, pule pra seção 4. Se quiser entender só o que mudou
 > nos últimos passos (Wave 10), vá direto pra seção 5.
 >
-> **Atualizado em**: 2026-05-01 (após fechamento Wave 10 F3.C)
+> **Atualizado em**: 2026-05-11 (após fechamento Wave 10 F4 + F5 + Wave 10.5 + tsunami ~25 follow-ups)
 > **Branch ativa**: `feat/dominio-pawards`
 > **URL raw base**: `https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/`
+>
+> ⚠️ **Aviso de sincronização**: a branch local pode estar à frente da raw
+> do GitHub se o Caio ainda não apertou Sync no Replit. Se um link raw
+> retornar 404 ou versão antiga, é sinal de que falta `git push`. Quando
+> em dúvida, confirme com o Caio que ele sincronizou.
 
 ---
 
@@ -224,9 +229,9 @@ artifacts/api-server/src/lib/assinatura/
 | `lib/assinatura/use-cases/enviarPARQ.ts` | F3.A | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/assinatura/use-cases/enviarPARQ.ts) |
 | `lib/assinatura/use-cases/enviarTCLE.ts` | F3.B | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/assinatura/use-cases/enviarTCLE.ts) |
 | `lib/assinatura/use-cases/enviarOrcamentoFarmaceutico.ts` | F3.C (último fechado) | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/assinatura/use-cases/enviarOrcamentoFarmaceutico.ts) |
-| `routes/assinaturas.ts` | API CRUD genérica | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturas.ts) |
+| `routes/assinaturas.ts` | API CRUD + timeline (F5) + detail (F5) + CSV/XLSX export (#60/#65/#76/#77) + alertas-ceo + uploads-falhos + cofre-ausentes — **arquivo central pós-Wave 10.5** | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturas.ts) |
 | `routes/assinaturas-tcle.ts` | API TCLE específica | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturas-tcle.ts) |
-| `routes/assinaturasWebhook.ts` | **F4 PENDENTE**: webhook ZapSign | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturasWebhook.ts) |
+| `routes/assinaturasWebhook.ts` | **F4 ✅ MERGED**: webhook ZapSign HMAC + manifesto SHA-256 + auto-cura cofre | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturasWebhook.ts) |
 | `routes/parq.ts` | API PARQ (Wave 9) | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/parq.ts) |
 | `routes/auditoriaCascata.ts` | Auditoria multi-camada | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/auditoriaCascata.ts) |
 | `lib/auditoria/` | Helpers manifesto SHA-256 | [pasta](https://github.com/caio-padua/Integrative-Health-Engine/tree/feat/dominio-pawards/artifacts/api-server/src/lib/auditoria) |
@@ -236,6 +241,37 @@ artifacts/api-server/src/lib/assinatura/
 - `db/migrations/031_wave10_zapsign_auditoria.sql` — [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/db/migrations/031_wave10_zapsign_auditoria.sql)
   - Cria `assinatura_solicitacoes` (estado da solicitação)
   - Cria `auditoria_assinaturas` (manifesto SHA-256 + IP + geo + auth_method)
+
+**Frontend Wave 10 (4 telas pós-F5 + Wave 10.5)**:
+
+| Tela | Função | Raw |
+|------|--------|-----|
+| `/assinaturas/timeline` | Lista últimas N (default 50, até 5000 com filtro de datas) — filtros unidade/status/datas/URL persistida + export CSV/XLSX + paginação | [`assinaturas-timeline.tsx`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-timeline.tsx) |
+| `/assinaturas/:id` | Detalhe (signatários × auth_method × IP × geo + manifesto SHA-256 + ICP-Brasil + validation_url ZapSign + notificações) | [`assinaturas-detalhe.tsx`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-detalhe.tsx) |
+| `/assinaturas/alertas-ceo` | Fila CEO com 4 cards resumo + abas Todos/Pendentes/Vistos (URL+localStorage) + marcar-todos-vistos + toast Desfazer 8s | [`assinaturas-alertas-ceo.tsx`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-alertas-ceo.tsx) |
+| `/assinaturas/uploads-falhos` | Admin: 4 status (em_retry/esgotado/fora_janela/aguardando_webhook) + reset manual | [`assinaturas-uploads-falhos.tsx`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-uploads-falhos.tsx) |
+
+**Workers daily Wave 10.5 (`lib/recorrencia/`)**:
+
+| Worker | Função | Raw |
+|--------|--------|-----|
+| `verificarPdfsCofre.ts` | Tick 5min, exec 03:30 BRT — varre `auditoria_assinaturas` e marca `pdf_verificado_em/ok/erro` | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/verificarPdfsCofre.ts) |
+| `pdfRetryUpload.ts` | 5 tentativas exponenciais (1m/5m/15m/1h/6h) com auto-cura (baixa de novo do ZapSign antes de escalar) | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/pdfRetryUpload.ts) |
+| `pdfRetryUploadResumoDiario.ts` | Anti alerta-tsunami: ≥3 uploads travam → 1 e-mail consolidado/dia (idempotência via tabela `pdf_upload_resumo_diario`) | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/pdfRetryUploadResumoDiario.ts) |
+| `notifAssinatura.ts` | Fila notificações tempo real ASSINADO/REJEITADO + bypass `is_sistema_ceo` | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/notifAssinatura.ts) |
+| `alertaAssinaturasCEO.ts` | Alerta proativo crítico (rejeições >+10% ou conversão <-10pp) + recuperação crítico→bom (Migrations 035/036/038) | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/alertaAssinaturasCEO.ts) |
+
+**Migrations Wave 10.5 (todas psql IF NOT EXISTS aditivo, REGRA FERRO)**:
+
+| # | Conteúdo | Raw |
+|---|----------|-----|
+| 032 | `pacientes.is_teste` (filtro contas teste) | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/db/migrations/032_pacientes_is_teste.sql) |
+| 033 | `assinatura_signatarios` papéis Wave 10 (lookup signer_papel) | [raw](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/db/migrations/033_assinatura_signatarios_papeis_wave10.sql) |
+| 035 | `auditoria_assinaturas.pdf_verificado_em/ok/erro` + ENUM `assinatura_solicitacoes.status` aceita `'PROCESSANDO'` + tabela `alertas_ceo_assinaturas` | [pasta](https://github.com/caio-padua/Integrative-Health-Engine/tree/feat/dominio-pawards/artifacts/api-server/src/db/migrations) |
+| 036 | `assinatura_notificacoes.is_sistema_ceo` (bypass quiet-hours CEO) + `assinaturas_cor_diaria` (snapshot transição real) | [pasta](https://github.com/caio-padua/Integrative-Health-Engine/tree/feat/dominio-pawards/artifacts/api-server/src/db/migrations) |
+| 037 | Colunas retry em `assinatura_webhook_eventos` + ENUM `'PROCESSANDO'` | [pasta](https://github.com/caio-padua/Integrative-Health-Engine/tree/feat/dominio-pawards/artifacts/api-server/src/db/migrations) |
+| 038 | CHECK aceita `'UPLOAD_PDF_ESGOTADO'` + UNIQUE parcial idempotência + `alertas_ceo_assinaturas.tipo_transicao` (piora/melhora) | [pasta](https://github.com/caio-padua/Integrative-Health-Engine/tree/feat/dominio-pawards/artifacts/api-server/src/db/migrations) |
+| 039 | CHECK `'UPLOAD_PDF_RESUMO_DIARIO'` + `pdf_upload_resumo_diario` (1 linha/dia) + `assinatura_webhook_reset_manual` | [pasta](https://github.com/caio-padua/Integrative-Health-Engine/tree/feat/dominio-pawards/artifacts/api-server/src/db/migrations) |
   - Adiciona colunas espelho em `assinatura_textos_institucionais`
 
 ---
@@ -335,9 +371,10 @@ PARQ (CFM 2.386 + CC 593-609 + STJ REsp 2.159.442).
 | F3.A | `enviarPARQ.ts` — Família 4 (clínica e-CNPJ + farmácia e-CNPJ, signature_order_active) | ✅ | [`enviarPARQ.ts`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/assinatura/use-cases/enviarPARQ.ts) |
 | F3.B | `enviarTCLE.ts` — Família 1 (paciente assinaturaTela-tokenWhatsApp + médico certificadoDigital, paralelo) | ✅ | [`enviarTCLE.ts`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/assinatura/use-cases/enviarTCLE.ts) |
 | F3.C | `enviarOrcamentoFarmaceutico.ts` — Família 3 (Caminho 1 MVP, reusa template id=4 + signatariosExtras) | ✅ | [`enviarOrcamentoFarmaceutico.ts`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/assinatura/use-cases/enviarOrcamentoFarmaceutico.ts) + [`routes/orcamentos.ts`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/orcamentos.ts) |
-| F4 | Webhook handler completo + manifesto auditoria | 🟡 PENDENTE | (vai mexer em [`assinaturasWebhook.ts`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturasWebhook.ts) + [`service.ts`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/assinatura/service.ts)) |
-| F5 | Frontend timeline + detalhe (2 telas) | 🟡 PENDENTE | (novas em `clinica-motor/src/pages/`) |
-| F6 | Wrap-up: replit.md + tag `v031-zapsign-launch` | 🟡 PENDENTE | — |
+| F4 | Webhook handler completo + manifesto SHA-256 (doc_signed/refused/removed, helper `registrarManifestoAuditoria` ON CONFLICT signature_id, signer_papel via lookup `assinatura_signatarios`) | ✅ MERGED | [`assinaturasWebhook.ts`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturasWebhook.ts) + [`service.ts`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/assinatura/service.ts) |
+| F5 | Frontend timeline + detalhe (2 telas, hardenizado FAIL→PASS pós code-review: `guardMaster` + mascaramento PII server-side em CPF/IP/geo) | ✅ MERGED | [`assinaturas-timeline.tsx`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-timeline.tsx) + [`assinaturas-detalhe.tsx`](https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-detalhe.tsx) |
+| Fase B Dia 2 | Disparo real ZapSign sandbox 30min (depende cadastro Caio + CNAME) | 🟡 PENDENTE | — |
+| F6 | Wrap-up: replit.md + tag `v031-zapsign-launch` | 🟡 PENDENTE (depende Fase B Dia 2) | — |
 
 ### Correções pós code-review architect (F3.C FAIL → PASS)
 
@@ -358,6 +395,40 @@ Todos retro-compatíveis: F3.A e F3.B intactos.
 - `GET /api/v1/healthz` → 200 ✅
 - 8.725 receitas + R$ 2.735.336,10 + 3 triggers Wave 9 + 2 tabelas Wave 10 + template id=4 → preservados ✅
 
+### 5.1 Wave 10.5 — Tsunami pós-F5 (~25 follow-ups MERGED 11/mai/2026)
+
+Após F5 fechar, foi disparada uma onda de defesa em profundidade do
+cofre PDF + observabilidade CEO em tempo real + UX timeline. **Todas
+via task agent isolado, todas com architect review FAIL→PASS quando
+necessário, todas REGRA FERRO (psql aditivo).**
+
+**Por que importa pro Dr. Claude:** essa onda **antecipou conteúdo
+planejado pra Wave 11 (Comunicação) e Wave 11.5 (Segurança IDOR)**.
+Vale renumerar / consolidar essas waves no mapa neuronal v1.2.
+
+**Grupo 1 — Defesa em profundidade do cofre PDF** (#34/#38/#39/#47/#48/#49/#50/#57/#58):
+- Upload real bucket `assinaturas-pawards` no `doc_signed` + signed URL GCS V4 redirect 302
+- Worker `verificarPdfsCofre` (#38) + auto-cura (#48) + retry exponencial (#39)
+- Card CEO "PDFs ausentes" + tela admin `/uploads-falhos` (4 status)
+- Alerta CEO esgotado retries + reset manual + resumo diário consolidado
+
+**Grupo 2 — Observabilidade CEO em tempo real** (#35/#36/#37/#43/#44/#52/#53/#61/#62/#69/#74):
+- Banner Painel CEO "Resumo 24h" + tendência semanal 7d com sparkline
+- Notificação tempo real ASSINADO/REJEITADO via fila + bypass quiet-hours
+- Quebra por unidade clínica + alerta proativo crítico (>+10% rejeição)
+- Tela `/alertas-ceo` com abas Todos/Pendentes/Vistos + marcar-todos-vistos + Desfazer 8s com contagem regressiva
+
+**Grupo 3 — UX timeline + export contador/advogado** (#51/#55/#56/#59/#60/#64/#65/#66/#73/#76/#77):
+- Filtros: clínica/status/intervalo de datas, persistidos em URL (deep-link)
+- Coluna clínica + paginação 50→5000 quando filtro de datas ativo
+- Export CSV (`?format=csv`) + XLSX (com Excel-format navy/gold + frozen pane)
+- 3 colunas extras (`valor_brl` numérico somável + `farmacia` + `medico`)
+
+**Wave 10.5 housekeeping** (✅ MERGED Wave 10.5):
+- `ADMIN_TOKEN` rotacionado 256-bit via `requestEnvVar` + `.replit` limpo
+- Bypass `x-admin-token` BLOQUEADO nas rotas Wave 10 via regex
+  `/^\/(api\/)?(orcamentos|parq|prescricoes)(\/.*)?$/` em `requireAuth.ts`
+
 ---
 
 ## 6. Tabela de Raws Diretos
@@ -377,6 +448,22 @@ https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/domi
 https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturasWebhook.ts
 https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/parq.ts
 https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/prescricoes.ts
+```
+
+### Wave 10.5 + Tsunami pós-F5 (cofre + alertas CEO + timeline UX)
+```
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/routes/assinaturas.ts
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/verificarPdfsCofre.ts
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/pdfRetryUpload.ts
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/pdfRetryUploadResumoDiario.ts
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/notifAssinatura.ts
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/lib/recorrencia/alertaAssinaturasCEO.ts
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/api-server/src/middlewares/requireAuth.ts
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-timeline.tsx
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-detalhe.tsx
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-alertas-ceo.tsx
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/assinaturas-uploads-falhos.tsx
+https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/dominio-pawards/artifacts/clinica-motor/src/pages/painel-comando.tsx
 ```
 
 ### Docs orquestração (esta pasta)
@@ -446,5 +533,5 @@ https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/feat/domi
 
 ---
 
-**Última atualização**: 2026-05-01 — Wave 10 F3.C fechado, F4 PENDENTE
-**Próxima atualização prevista**: ao fechar Wave 10 F4 (webhook completo)
+**Última atualização**: 2026-05-11 — Wave 10 F4 + F5 + Wave 10.5 fechados, Fase B Dia 2 PENDENTE (depende cadastro Caio + CNAME)
+**Próxima atualização prevista**: ao fechar Fase B Dia 2 (disparo real ZapSign sandbox) e F6 (tag `v031-zapsign-launch`)

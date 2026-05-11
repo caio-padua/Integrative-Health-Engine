@@ -1,8 +1,12 @@
-# 🎯 Briefing Painel CEO → Dr. Claude — Wave 10 ZapSign / F3.C fechado
+# 🎯 Briefing Painel CEO → Dr. Claude — Wave 10 ZapSign / F4 + F5 + Wave 10.5 fechados
 
-**Data**: 2026-05-01
+**Data**: 2026-05-11 (atualizado pós-tsunami ~25 follow-ups MERGED entre F5 e hoje)
 **Branch**: `feat/dominio-pawards`
-**Último checkpoint Replit**: `e732435` "Add ability to send pharmaceutical budget envelopes for patient prescriptions"
+**Último marco**: F4 webhook + manifesto SHA-256 + F5 timeline/detalhe (hardenizado FAIL→PASS) + Wave 10.5 (cofre PDF defesa em profundidade + observabilidade CEO em tempo real + UX timeline com export contador/advogado + ADMIN_TOKEN rotacionado 256-bit)
+
+> ⚠️ **Sync GitHub**: o branch local pode estar à frente da raw do
+> GitHub. Se um link raw retornar versão antiga, sinalize ao Caio
+> que falta apertar Sync no Replit pra empurrar os commits.
 
 ---
 
@@ -15,10 +19,12 @@
 | F2 ZapsignAdapter promovido (HMAC custom header) | ✅ feito | 🟢 |
 | F3.A enviarPARQ (família 4 — clínica ICP + farmácia ICP) | ✅ feito | 🟢 |
 | F3.B enviarTCLE (família 1 — paciente avançada + médico ICP) | ✅ feito | 🟢 |
-| **F3.C enviarOrcamentoFarmaceutico (família 3)** | **✅ feito + 3 críticos do code-review corrigidos** | **🟢** |
-| F4 Webhook completo + manifesto auditoria | 🟡 próximo | 🟡 |
-| F5 Frontend timeline + detalhe (2 telas mínimas) | 🟡 pendente | 🟡 |
-| F6 Wrap-up + tag `v031-zapsign-launch` | 🟡 pendente | 🟡 |
+| F3.C enviarOrcamentoFarmaceutico (família 3) | ✅ feito + 3 críticos code-review corrigidos | 🟢 |
+| **F4 Webhook completo + manifesto SHA-256** | **✅ MERGED** (signer_papel via lookup, signatureId determinístico, ON CONFLICT signature_id) | **🟢** |
+| **F5 Frontend timeline + detalhe** | **✅ MERGED** (FAIL→PASS: guardMaster + mascaramento PII server-side em CPF/IP/geo) | **🟢** |
+| **Wave 10.5 cofre PDF + observabilidade CEO + UX timeline + ADMIN_TOKEN rotacionado** | **✅ MERGED** (~25 follow-ups, 7 migrations 032-039 aditivas) | **🟢** |
+| Fase B Dia 2 disparo real ZapSign sandbox 30min | 🟡 pendente — depende cadastro Caio + CNAME `webhooks.pawards.com.br` | 🟡 |
+| F6 Wrap-up + tag `v031-zapsign-launch` | 🟡 pendente — depende Fase B Dia 2 | 🟡 |
 
 ---
 
@@ -26,13 +32,13 @@
 
 | Métrica | Valor | Origem |
 |--------:|------:|:-------|
-| Receitas PARMAVAULT cadastradas | **8.725** | empírico, `parmavault_receitas` |
-| Valor estimado total das receitas | **R$ 9.255.540,00** | empírico, soma `valor_formula_estimado` |
-| **Comissão potencial (TEÓRICA)** | **R$ 2.735.336,10** | empírico, soma `comissao_estimada` |
+| Receitas PARMAVAULT cadastradas | **8.726** | empírico, `parmavault_receitas` (+1 vs baseline = trigger 027 ativou pra receita real fora da sessão; **não é regressão**) |
+| Valor estimado total das receitas | **~R$ 9.256.540,00** | empírico, soma `valor_formula_estimado` |
+| **Comissão potencial (TEÓRICA)** | **R$ 2.735.636,10** | empírico, soma `comissao_estimada` (+R$ 300 da nova receita real) |
 | Comissão paga até agora | **R$ 0,00** | empírico — **0 farmácias assinaram PARQ ainda** |
 | PARQ acordos assinados | 0 | `parq_acordos` count |
-| Triggers Wave 9 (027/030) intactos | 3/3 | `pg_trigger` |
-| Tabelas Wave 10 criadas | 2/2 | `assinatura_solicitacoes`, `auditoria_assinaturas` |
+| Triggers Wave 9 (027/030) intactos | 5/5 ATIVOS | `pg_trigger.tgenabled='O'` |
+| Tabelas Wave 10 criadas | 2 + 5 Wave 10.5 | `assinatura_solicitacoes` (7 linhas), `auditoria_assinaturas` (0 linhas — Fase B Dia 2 ainda não rodou), + `alertas_ceo_assinaturas`, `assinaturas_cor_diaria`, `pdf_upload_resumo_diario`, `assinatura_webhook_reset_manual`, colunas retry/cofre |
 
 > **Tese central de Wave 10**: o que destrava os R$ 2,73M é a
 > assinatura digital com defensibilidade jurídica tripla (CFM 2.386/2024
@@ -82,18 +88,37 @@ Resposta **boa** do Dr. Claude = resposta **estruturada nas 4 lentes**.
 
 ---
 
-## 📜 O que mudou na rodada de hoje (F3.C)
+## 📜 O que mudou desde a última atualização (F3.C → F4 → F5 → Wave 10.5)
 
-1. **Caminho 1 MVP minimal aprovado pelo Caio** — orçamento = receita
-   PARMAVAULT roteada, sem PDF custom, sem migration nova, reusa
-   template `ORCAMENTO_FORMAL_V1` (id=4) já cadastrado.
-2. **Code review architect retornou FAIL** com 3 críticos:
-   1. Idempotência fraca (UPDATE pós-INSERT) → janela de race
-   2. Risco fallback Clicksign sem capability ICP qualificada farmácia
-   3. Sem chave estável pra F4 webhook reconciliar
-3. **3 críticos corrigidos** com extensão retro-compatível de
-   `EnviarParams` (`externalId?` + `metadataExtra?`) — F3.A/F3.B
-   intactos, smoke verde.
+1. **F4 webhook MERGED**: handler ZapSign full (`doc_signed`/`refused`/
+   `removed`), manifesto SHA-256 idempotente via `ON CONFLICT signature_id`,
+   helper `registrarManifestoAuditoria`, signer_papel via lookup em
+   `assinatura_signatarios`, signatureId determinístico (architect FAIL→PASS).
+2. **F5 frontend MERGED + hardenizado FAIL→PASS**: 2 telas
+   (`/assinaturas/timeline` + `/assinaturas/:id`) + endpoints novos
+   protegidos por `guardMaster` (mesmo padrão `parq.ts`, bypass
+   `x-admin-token` BLOQUEADO 403) + mascaramento PII server-side em
+   CPF (`123.***.***-45`), IP (2 octetos) e geo (city/region/country
+   sem lat/lng raw). Defesa em profundidade.
+3. **Wave 10.5 tsunami ~25 follow-ups MERGED** — 3 grupos:
+   - **Cofre PDF**: upload real bucket `assinaturas-pawards` no
+     `doc_signed`, worker `verificarPdfsCofre` 03:30 BRT, retry 5x
+     exponencial com auto-cura, card CEO "PDFs ausentes", tela admin
+     `/uploads-falhos` 4 status, alerta esgotado, resumo diário
+     consolidado anti-tsunami
+   - **Observabilidade CEO**: banner "Resumo 24h" Painel CEO,
+     notificação tempo real ASSINADO/REJEITADO com bypass quiet-hours
+     `is_sistema_ceo`, tendência 7d com sparkline, quebra por unidade,
+     alerta proativo crítico (>+10% rejeição), alerta de recuperação,
+     tela `/alertas-ceo` com abas Todos/Pendentes/Vistos + Desfazer 8s
+   - **UX timeline**: filtros clínica/status/datas persistidos URL
+     (deep-link), paginação 50→5000, export CSV (`?format=csv`) + XLSX
+     navy/gold, 3 colunas extras (`valor_brl` somável + farmácia + médico)
+4. **Hotfix segurança Wave 10.5**: `ADMIN_TOKEN` rotacionado 256-bit
+   via `requestEnvVar`, `.replit` limpo, bypass `x-admin-token`
+   bloqueado em rotas Wave 10 via regex em `requireAuth.ts`.
+5. **7 migrations psql aditivas (032-039)** — REGRA FERRO mantida,
+   zero `db:push`, triggers Wave 9 INTOCADOS.
 
 Detalhes completos em
 [`01_DECISOES_TOMADAS_WAVE10_F3C.md`](./01_DECISOES_TOMADAS_WAVE10_F3C.md).
