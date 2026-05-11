@@ -404,6 +404,31 @@ router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Re
 });
 
 /**
+ * POST /api/assinaturas/alertas-ceo/marcar-todos-vistos — Task #61
+ *
+ * Marca em lote TODOS os alertas pendentes (visualizado_em IS NULL) como
+ * vistos agora. Idempotente: rodar 2x nao reabre nada. Mesmo guardMaster
+ * dos demais endpoints da fila.
+ *
+ * Resposta: { ok: true, marcados: N } onde N = quantidade efetivamente
+ * atualizada nesta chamada (RETURNING id).
+ */
+router.post("/assinaturas/alertas-ceo/marcar-todos-vistos", guardMaster, async (_req: Request, res: Response) => {
+  try {
+    const r = await db.execute(sql`
+      UPDATE alertas_ceo_assinaturas
+      SET visualizado_em = NOW()
+      WHERE visualizado_em IS NULL
+      RETURNING id
+    `);
+    const rows = (r as unknown as { rows?: unknown[] }).rows || [];
+    res.json({ ok: true, marcados: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * POST /api/assinaturas/alertas-ceo/:id/visualizar — marca alerta como lido
  * (timestamp visualizado_em). Idempotente: nao atualiza se ja visualizado.
  */
