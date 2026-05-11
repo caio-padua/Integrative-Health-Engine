@@ -462,6 +462,7 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
         s.paciente_id,
         p.nome                       AS paciente_nome,
         p.unidade_id                 AS paciente_unidade_id,
+        u.nome                       AS paciente_unidade_nome,
         (
           SELECT COUNT(*)::int FROM assinatura_signatarios sg
           WHERE sg.solicitacao_id = s.id
@@ -477,6 +478,7 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       FROM assinatura_solicitacoes s
       JOIN assinatura_templates t   ON t.id = s.template_id
       LEFT JOIN pacientes p         ON p.id = s.paciente_id
+      LEFT JOIN unidades u          ON u.id = p.unidade_id
       ${filtroUnidadeJoin}
       ORDER BY s.id DESC
       LIMIT 50
