@@ -337,6 +337,7 @@ export default function AssinaturasTimeline() {
           </div>
           <div className="nao-imprimir flex items-center gap-2">
             {/* Task #60 — baixar CSV respeitando os mesmos filtros (unidade + status).
+                Task #66 — inclui tambem desde/ate pra exportar exatamente o recorte da tela.
                 Task #73 — Atualizar agora recarrega a 1a pagina (append:false). */}
             <a
               href={(() => {

@@ -749,8 +749,41 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     const statusFiltro: string[] = typeof statusRaw === "string" && statusRaw.length > 0
       ? statusRaw.split(",").map(s => s.trim().toUpperCase()).filter(s => STATUS_VALIDOS.has(s))
       : [];
-    const filtroStatusWhere = statusFiltro.length > 0
-      ? sql`WHERE s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`
+    // Task #66 — filtro opcional por intervalo de datas (criado_em). Mesma
+    // validacao defensiva (regex + checagem calendario) e mesma semantica
+    // half-open do endpoint JSON /assinaturas/timeline pra que o CSV exportado
+    // bata exatamente com a tabela renderizada na tela.
+    const DATA_REGEX_CSV = /^(\d{4})-(\d{2})-(\d{2})$/;
+    function parseDataOuNullCsv(raw: unknown): string | null {
+      if (typeof raw !== "string") return null;
+      const m = DATA_REGEX_CSV.exec(raw);
+      if (!m) return null;
+      const ano = Number(m[1]);
+      const mes = Number(m[2]);
+      const dia = Number(m[3]);
+      if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+      const d = new Date(Date.UTC(ano, mes - 1, dia));
+      if (
+        d.getUTCFullYear() !== ano ||
+        d.getUTCMonth() !== mes - 1 ||
+        d.getUTCDate() !== dia
+      ) return null;
+      return raw;
+    }
+    const desdeFiltroCsv = parseDataOuNullCsv(req.query["desde"]);
+    const ateFiltroCsv = parseDataOuNullCsv(req.query["ate"]);
+    const filtrosWhereCsv: ReturnType<typeof sql>[] = [];
+    if (statusFiltro.length > 0) {
+      filtrosWhereCsv.push(sql`s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`);
+    }
+    if (desdeFiltroCsv !== null) {
+      filtrosWhereCsv.push(sql`s.criado_em >= ${desdeFiltroCsv}::date`);
+    }
+    if (ateFiltroCsv !== null) {
+      filtrosWhereCsv.push(sql`s.criado_em < (${ateFiltroCsv}::date + INTERVAL '1 day')`);
+    }
+    const filtroStatusWhere = filtrosWhereCsv.length > 0
+      ? sql`WHERE ${sql.join(filtrosWhereCsv, sql` AND `)}`
       : sql``;
     const r = await db.execute(sql`
       SELECT
