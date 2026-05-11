@@ -11,6 +11,12 @@ import type { ProvedorCodigo } from "../lib/assinatura/types";
 import { requireRole as _requireRole } from "../middlewares/requireRole.js";
 import { requireMasterEstrito as _requireMaster } from "../middlewares/requireMasterEstrito.js";
 import { logger } from "../lib/logger.js";
+import {
+  calcularResumoAssinaturas,
+  variacaoPct,
+  semanticoCor,
+  corRejeicao,
+} from "../lib/assinaturas/calcularResumo.js";
 
 const router: IRouter = Router();
 
@@ -140,128 +146,19 @@ router.post("/assinaturas/enviar", async (req: Request, res: Response) => {
 router.get("/assinaturas/resumo-hoje", guardMaster, async (req: Request, res: Response) => {
   try {
     // Task #43 — filtro opcional por unidade clinica. assinatura_solicitacoes
-    // nao tem unidade_id direta; derivamos via JOIN pacientes.unidade_id.
+    // nao tem unidade_id direta; helper deriva via JOIN pacientes.unidade_id.
     // Quando ausente: mantem agregado da rede inteira (compat retro Task #35/#37).
     const unidadeIdRaw = req.query["unidade_id"];
     const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
       ? Number(unidadeIdRaw)
       : null;
-    // Filtro SQL parcial reutilizado nas 3 queries da janela 24h/7d/prev_7d.
-    // Drizzle sql template segura interpolacao numerica via ${}.
-    const filtroUnidadeJoin = unidadeIdFiltro !== null
-      ? sql`JOIN pacientes p_filt ON p_filt.id = s.paciente_id AND p_filt.unidade_id = ${unidadeIdFiltro}`
-      : sql``;
 
-    // Resumo das ultimas 24h (compat retro Task #35) — mantido pra nao quebrar
-    // contrato anterior do banner CEO.
-    const r = await db.execute(sql`
-      WITH janela AS (
-        SELECT s.* FROM assinatura_solicitacoes s
-        ${filtroUnidadeJoin}
-        WHERE s.criado_em >= now() - interval '24 hours'
-           OR s.concluido_em >= now() - interval '24 hours'
-      )
-      SELECT
-        COUNT(*) FILTER (WHERE criado_em >= now() - interval '24 hours')::int            AS enviadas,
-        COUNT(*) FILTER (WHERE status = 'CONCLUIDO' AND concluido_em >= now() - interval '24 hours')::int AS assinadas,
-        COUNT(*) FILTER (WHERE status = 'REJEITADO' AND criado_em >= now() - interval '24 hours')::int    AS rejeitadas,
-        COUNT(*) FILTER (WHERE status IN ('ENVIADO','CRIADO') AND criado_em >= now() - interval '24 hours')::int AS pendentes
-      FROM janela
-    `);
-    const row = ((r as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {
-      enviadas: 0, assinadas: 0, rejeitadas: 0, pendentes: 0,
-    };
-
-    // Task #37 — serie dos ultimos 7 dias (D-6 ate hoje) por dia, p/ sparkline
-    // + variacao vs media movel 7d anteriores (D-13 ate D-7). Usa generate_series
-    // pra garantir buckets vazios (zeros) nos dias sem evento.
-    const serieR = await db.execute(sql`
-      WITH dias AS (
-        SELECT generate_series(
-          date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo') - interval '6 days',
-          date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo'),
-          interval '1 day'
-        )::date AS dia
-      ), solic AS (
-        SELECT s.* FROM assinatura_solicitacoes s
-        ${filtroUnidadeJoin}
-      )
-      SELECT
-        to_char(d.dia, 'YYYY-MM-DD') AS dia,
-        COUNT(s.*) FILTER (WHERE (s.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS enviadas,
-        COUNT(s.*) FILTER (WHERE s.status = 'CONCLUIDO' AND (s.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS assinadas,
-        COUNT(s.*) FILTER (WHERE s.status = 'REJEITADO' AND (s.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia)::int AS rejeitadas
-      FROM dias d
-      LEFT JOIN solic s
-        ON (s.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia
-        OR (s.concluido_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia
-      GROUP BY d.dia
-      ORDER BY d.dia
-    `);
-    const serieRows = (serieR as unknown as { rows?: Record<string, unknown>[] }).rows || [];
-    const serie7d = serieRows.map(r => ({
-      dia: String(r["dia"]),
-      enviadas: Number(r["enviadas"] || 0),
-      assinadas: Number(r["assinadas"] || 0),
-      rejeitadas: Number(r["rejeitadas"] || 0),
-    }));
-
-    // Janela 7d anterior (D-13 ate D-7 inclusive, calendario America/Sao_Paulo)
-    // pra comparativo. Importante: mesma logica de day-bucket TZ-aware da
-    // serie_7d pra evitar skew em horarios de borda (ex.: requisicao 23h59
-    // BRT pegando interval rolling diferente do bucket de calendario). Ambas
-    // janelas tem 7 dias de calendario exatos -> a divisao atual_7d/prev_7d
-    // equivale a comparar medias diarias (somas de 7 dividem por mesma base).
-    const prevR = await db.execute(sql`
-      WITH ref AS (
-        SELECT date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje
-      ), solic AS (
-        SELECT s.* FROM assinatura_solicitacoes s
-        ${filtroUnidadeJoin}
-      )
-      SELECT
-        COUNT(*) FILTER (WHERE (criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS enviadas_prev,
-        COUNT(*) FILTER (WHERE status = 'CONCLUIDO' AND (concluido_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS assinadas_prev,
-        COUNT(*) FILTER (WHERE status = 'REJEITADO' AND (criado_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN (SELECT hoje FROM ref) - 13 AND (SELECT hoje FROM ref) - 7)::int AS rejeitadas_prev
-      FROM solic
-    `);
-    const prev = ((prevR as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {};
-    const enviadasPrev = Number(prev["enviadas_prev"] || 0);
-    const assinadasPrev = Number(prev["assinadas_prev"] || 0);
-    const rejeitadasPrev = Number(prev["rejeitadas_prev"] || 0);
-
-    const enviadas7d = serie7d.reduce((a, d) => a + d.enviadas, 0);
-    const assinadas7d = serie7d.reduce((a, d) => a + d.assinadas, 0);
-    const rejeitadas7d = serie7d.reduce((a, d) => a + d.rejeitadas, 0);
-
-    // variacao % com tratamento p/ divisor zero: se prev=0 e atual>0 retorna
-    // null (UI mostra "—" ou "novo"); se ambos zero retorna 0.
-    function variacaoPct(atual: number, prev: number): number | null {
-      if (prev === 0) return atual === 0 ? 0 : null;
-      return Math.round(((atual - prev) / prev) * 1000) / 10;
-    }
-    // cor semantica unificada com /admin/analytics: ≥+10 excelente, 0~10 bom,
-    // -10~0 atencao, <-10 critico, null neutro.
-    function semanticoCor(pct: number | null): "excelente" | "bom" | "atencao" | "critico" | "neutro" {
-      if (pct === null) return "neutro";
-      if (pct >= 10) return "excelente";
-      if (pct >= 0) return "bom";
-      if (pct >= -10) return "atencao";
-      return "critico";
-    }
-
-    const variacaoEnviadasPct = variacaoPct(enviadas7d, enviadasPrev);
-    const variacaoAssinadasPct = variacaoPct(assinadas7d, assinadasPrev);
-    const variacaoRejeitadasPct = variacaoPct(rejeitadas7d, rejeitadasPrev);
-
-    // Para rejeitadas a polaridade da cor inverte: subir rejeicoes = ruim.
-    function corRejeicao(pct: number | null): "excelente" | "bom" | "atencao" | "critico" | "neutro" {
-      if (pct === null) return "neutro";
-      if (pct <= -10) return "excelente";
-      if (pct <= 0) return "bom";
-      if (pct <= 10) return "atencao";
-      return "critico";
-    }
+    // Wave 10.6 (Task #44) + Task #43: rota agora consome o helper compartilhado
+    // `calcularResumoAssinaturas()` (com filtro opcional por unidade) pra
+    // garantir que worker `alertaCEO` e banner CEO usem EXATAMENTE o mesmo
+    // calculo (anti-drift). Worker chama sem `unidadeId` (rede-wide); rota
+    // repassa o filtro do query string quando presente.
+    const r = await calcularResumoAssinaturas({ unidadeId: unidadeIdFiltro });
 
     // Task #43 — quebra por unidade clinica (7d atual + prev_7d + serie diaria).
     // INTENCIONALMENTE rede-wide SEMPRE (ignora filtroUnidadeJoin) — serve de
@@ -351,38 +248,30 @@ router.get("/assinaturas/resumo-hoje", guardMaster, async (req: Request, res: Re
       };
     });
 
-    const taxaConversao = enviadas7d > 0 ? Math.round((assinadas7d / enviadas7d) * 1000) / 10 : null;
-    const taxaConversaoPrev = enviadasPrev > 0 ? Math.round((assinadasPrev / enviadasPrev) * 1000) / 10 : null;
-    const variacaoConversaoAbs =
-      taxaConversao !== null && taxaConversaoPrev !== null
-        ? Math.round((taxaConversao - taxaConversaoPrev) * 10) / 10
-        : null;
-
     res.json({
       janela_horas: 24,
       gerado_em: new Date().toISOString(),
-      enviadas: Number(row["enviadas"] || 0),
-      assinadas: Number(row["assinadas"] || 0),
-      rejeitadas: Number(row["rejeitadas"] || 0),
-      pendentes: Number(row["pendentes"] || 0),
-      // Task #37 — tendencia 7d
-      serie_7d: serie7d,
-      totais_7d: { enviadas: enviadas7d, assinadas: assinadas7d, rejeitadas: rejeitadas7d },
-      totais_prev_7d: { enviadas: enviadasPrev, assinadas: assinadasPrev, rejeitadas: rejeitadasPrev },
+      enviadas: r.janela24h.enviadas,
+      assinadas: r.janela24h.assinadas,
+      rejeitadas: r.janela24h.rejeitadas,
+      pendentes: r.janela24h.pendentes,
+      serie_7d: r.serie7d,
+      totais_7d: { enviadas: r.enviadas7d, assinadas: r.assinadas7d, rejeitadas: r.rejeitadas7d },
+      totais_prev_7d: { enviadas: r.enviadasPrev, assinadas: r.assinadasPrev, rejeitadas: r.rejeitadasPrev },
       variacao_pct: {
-        enviadas: variacaoEnviadasPct,
-        assinadas: variacaoAssinadasPct,
-        rejeitadas: variacaoRejeitadasPct,
+        enviadas: r.variacaoEnviadasPct,
+        assinadas: r.variacaoAssinadasPct,
+        rejeitadas: r.variacaoRejeitadasPct,
       },
       cor: {
-        enviadas: semanticoCor(variacaoEnviadasPct),
-        assinadas: semanticoCor(variacaoAssinadasPct),
-        rejeitadas: corRejeicao(variacaoRejeitadasPct),
+        enviadas: r.corEnviadas,
+        assinadas: r.corAssinadas,
+        rejeitadas: r.corRejeitadas,
       },
-      taxa_conversao_pct: taxaConversao,
-      taxa_conversao_prev_pct: taxaConversaoPrev,
-      variacao_conversao_pp: variacaoConversaoAbs,
-      cor_conversao: semanticoCor(variacaoConversaoAbs),
+      taxa_conversao_pct: r.taxaConversao,
+      taxa_conversao_prev_pct: r.taxaConversaoPrev,
+      variacao_conversao_pp: r.variacaoConversaoPp,
+      cor_conversao: r.corConversao,
       // Task #43 — eco do filtro aplicado + quebra por unidade clinica
       filtro_unidade_id: unidadeIdFiltro,
       por_unidade: porUnidade,
@@ -490,6 +379,50 @@ router.post("/assinaturas/:id/signatario/:signatarioId/reenviar", guardMaster, a
 });
 
 /**
+ * GET /api/assinaturas/alertas-ceo — Wave 10.6 · fila de alertas proativos
+ *
+ * Lista os ultimos N alertas disparados pelo worker `alertaAssinaturasCEO`.
+ * Mesmo guardMaster da timeline (validador_mestre + master estrito) — quem
+ * pode ver o banner pode ver a fila historica de alertas.
+ */
+router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query["limit"] ?? 50), 1), 200);
+    const r = await db.execute(sql`
+      SELECT id, dia_brt, metrica, cor_anterior, cor_atual,
+             variacao_pct, conversao_pp, totais_atual, totais_prev,
+             notif_email_id, notif_wpp_id, visualizado_em, criado_em
+      FROM alertas_ceo_assinaturas
+      ORDER BY criado_em DESC
+      LIMIT ${limit}
+    `);
+    const rows = (r as unknown as { rows?: unknown[] }).rows || [];
+    res.json({ alertas: rows, total: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * POST /api/assinaturas/alertas-ceo/:id/visualizar — marca alerta como lido
+ * (timestamp visualizado_em). Idempotente: nao atualiza se ja visualizado.
+ */
+router.post("/assinaturas/alertas-ceo/:id/visualizar", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params["id"]);
+    if (!id) { res.status(400).json({ error: "id obrigatorio" }); return; }
+    await db.execute(sql`
+      UPDATE alertas_ceo_assinaturas
+      SET visualizado_em = COALESCE(visualizado_em, NOW())
+      WHERE id = ${id}
+    `);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /api/assinaturas/timeline — Wave 10 F5 · ultimas 50 solicitacoes enriquecidas
  *
  * Endpoint dedicado ao frontend `/assinaturas/timeline` (validador_mestre + admin).
@@ -499,8 +432,19 @@ router.post("/assinaturas/:id/signatario/:signatarioId/reenviar", guardMaster, a
  * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por causa do match em ordem
  * do express — senao /timeline cairia no handler dinamico.
  */
-router.get("/assinaturas/timeline", guardMaster, async (_req: Request, res: Response) => {
+router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Response) => {
   try {
+    // Task #51 — filtro opcional por unidade clinica. assinatura_solicitacoes
+    // nao tem unidade_id direta; derivamos via JOIN pacientes.unidade_id
+    // (mesmo padrao usado em /assinaturas/resumo-hoje). Quando ausente,
+    // mantem comportamento original: ultimas 50 da rede toda.
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
+      ? Number(unidadeIdRaw)
+      : null;
+    const filtroUnidadeJoin = unidadeIdFiltro !== null
+      ? sql`JOIN pacientes p_filt ON p_filt.id = s.paciente_id AND p_filt.unidade_id = ${unidadeIdFiltro}`
+      : sql``;
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -517,6 +461,7 @@ router.get("/assinaturas/timeline", guardMaster, async (_req: Request, res: Resp
         t.tipo_documento             AS template_tipo,
         s.paciente_id,
         p.nome                       AS paciente_nome,
+        p.unidade_id                 AS paciente_unidade_id,
         (
           SELECT COUNT(*)::int FROM assinatura_signatarios sg
           WHERE sg.solicitacao_id = s.id
@@ -532,11 +477,12 @@ router.get("/assinaturas/timeline", guardMaster, async (_req: Request, res: Resp
       FROM assinatura_solicitacoes s
       JOIN assinatura_templates t   ON t.id = s.template_id
       LEFT JOIN pacientes p         ON p.id = s.paciente_id
+      ${filtroUnidadeJoin}
       ORDER BY s.id DESC
       LIMIT 50
     `);
     const rows = (r as unknown as { rows?: unknown[] }).rows || [];
-    res.json({ solicitacoes: rows, total: rows.length });
+    res.json({ solicitacoes: rows, total: rows.length, filtro_unidade_id: unidadeIdFiltro });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

@@ -92,11 +92,23 @@ export default function AssinaturasTimeline() {
   const [erro, setErro] = useState<string | null>(null);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
 
+  // Task #51 — leitura do filtro `?unidade_id=` na URL pra abrir a timeline
+  // ja escopada numa clinica especifica (clique vindo do banner CEO).
+  // Usamos window.location direto pra nao depender de hook de router.
+  const filtroUnidadeId = (() => {
+    if (typeof window === "undefined") return null;
+    const v = new URLSearchParams(window.location.search).get("unidade_id");
+    if (!v) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  })();
+
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
     try {
-      const r = await fetch("/api/assinaturas/timeline", {
+      const qs = filtroUnidadeId !== null ? `?unidade_id=${filtroUnidadeId}` : "";
+      const r = await fetch(`/api/assinaturas/timeline${qs}`, {
         credentials: "include",
       });
       if (!r.ok) {
@@ -110,7 +122,7 @@ export default function AssinaturasTimeline() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filtroUnidadeId]);
 
   useEffect(() => {
     carregar();
@@ -144,6 +156,22 @@ export default function AssinaturasTimeline() {
               Wave 10 ZapSign + ICP-Brasil · últimas 50 solicitações ·
               defensibilidade jurídica CFM 2.386/2024 + CC 593-609 + LGPD art. 11 §4º
             </p>
+            {filtroUnidadeId !== null && (
+              <div
+                className="mt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-semibold"
+                style={{ background: GOLD, color: NAVY }}
+                data-testid="filtro-unidade-ativo"
+              >
+                Filtrado por unidade #{filtroUnidadeId}
+                <a
+                  href="/assinaturas/timeline"
+                  className="underline opacity-80 hover:opacity-100"
+                  style={{ color: NAVY }}
+                >
+                  limpar
+                </a>
+              </div>
+            )}
           </div>
           <button
             onClick={carregar}
