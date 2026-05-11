@@ -245,3 +245,56 @@ assim que Caio:
 3. Disparar OK do PADCON Princípio 9 (validação Caio explícita)
 
 Quando B verde → C → A → tag `v031-zapsign-launch` → Wave 10 fechada.
+
+---
+
+## 🌊 Wave 10 F4 + F5 + Wave 10.5 — DECISÕES PÓS-FASE B DIA 1 (11/mai/2026)
+
+### ✅ F4 webhook handler completo + manifesto SHA-256
+
+- Helper `registrarManifestoAuditoria` ON CONFLICT signature_id
+  (idempotência contra reentrega ZapSign)
+- Fixes architect: `signer_papel` via lookup em `assinatura_signatarios`
+  (não mais hardcoded), `signatureId` determinístico
+- Lente: 🛡️ investidor (defensibilidade jurídica + retenção 20a)
+
+### ✅ F5 frontend timeline + detalhe (2 telas mínimas)
+
+- Endpoints `GET /api/assinaturas/timeline` + `GET /api/assinaturas/:id`
+  protegidos por `guardMaster = [requireRole("validador_mestre"),
+  requireMasterEstrito]` (mesmo padrão de `parq.ts`)
+- Bypass `x-admin-token` BLOQUEADO (403)
+- Mascaramento PII server-side: CPF (`123.***.***-45`), IP (2 octetos),
+  geo (city/region/country, sem lat/lng raw)
+- Lente: 🩺 médico + 🛡️ investidor (defesa em profundidade mesmo com
+  gate master — anti-vazamento em screenshot/log)
+
+### ✅ Wave 10.5 ADMIN_TOKEN rotacionado
+
+- Novo valor 256-bit (`openssl rand -hex 32`) revelado 1× pro Caio
+  guardar no 1Password, plugado via `requestEnvVar(secret)`
+- `.replit` versionado já estava limpo (sem token em texto claro)
+- Regex em `requireAuth.ts` bloqueando bypass nas rotas Wave 10
+  (`/orcamentos/*`, `/parq/*`, `/prescricoes/*`) preservada
+- Lente: 💰 CEO + 🛡️ investidor (sem secret leaking, sem bypass que
+  dispare contrato em nome de tenant real)
+
+### ✅ Tsunami de ~25 follow-ups MERGED (mais detalhe em `04_session_plan…md`)
+
+- Defesa em profundidade do cofre PDF: #34/#38/#39/#47/#48/#49/#50/#57/#58
+- Observabilidade CEO em tempo real: #35/#36/#37/#43/#44/#52/#53/#61/#62/#69
+- UX timeline: #51/#55/#56/#59/#60/#64
+- 6 migrations aditivas (034/035/036/037/038/039), REGRA FERRO mantida
+  (zero `db:push`)
+
+### 🔭 Observação arquitetural pro Dr. Claude avaliar
+
+A entrega em massa pós-F5 antecipou conteúdo planejado pra Wave 11
+(Comunicação) e Wave 11.5 (Segurança IDOR). Vale renumerar / consolidar
+essas waves no mapa neuronal v1.2.
+
+### 🚦 Próximo destravamento
+
+- Fase B Dia 2 (sandbox real ZapSign 30min) DEPENDE de Caio cadastrar
+  conta ZapSign sandbox + CNAME `webhooks.pawards.com.br`
+- F6 wrap-up + tag `v031-zapsign-launch` DEPENDE de Fase B Dia 2 verde
