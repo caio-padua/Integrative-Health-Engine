@@ -487,11 +487,22 @@ export class AssinaturaService {
           //     reprocessa quando o storage voltar);
           //   - Lanca pra fora do try interno -> cai no catch que ja registra
           //     erro_processamento sem dar processado=true, devolvendo 200 false.
+          //
+          // Wave 10.5 task #39 — APENAS a chamada de upload eh tagueada com
+          // prefixo `pdf_upload_falhou:` (transient real, worker `pdfRetryUpload`
+          // sabe retentar). Falhas em download / DB / notificacao continuam com
+          // erro cru pra nao serem confundidas com falha de storage.
           const { uploadPdfAssinado } = await import("./objectStorage");
-          const up = await uploadPdfAssinado(
-            solRow.zapsign_external_id || evento.envelopeId,
-            pdf,
-          );
+          let up;
+          try {
+            up = await uploadPdfAssinado(
+              solRow.zapsign_external_id || evento.envelopeId,
+              pdf,
+            );
+          } catch (uploadErr) {
+            await db.execute(sql`UPDATE assinatura_webhook_eventos SET erro_processamento = ${'pdf_upload_falhou: ' + (uploadErr as Error).message} WHERE id = ${eventoId}`);
+            return { ok: false, eventoId, duplicado: false, transient: true };
+          }
           const pdfStorageKey = up.storageKey;
 
           await db.execute(sql`UPDATE assinatura_solicitacoes SET status = 'CONCLUIDO', concluido_em = now(), hash_assinado = ${hashAssinado}, atualizado_em = now() WHERE id = ${solRow.id}`);
@@ -531,13 +542,12 @@ export class AssinaturaService {
             console.error(`[assinatura.notificarCEOEvento] FALHA solicitacao=${solRow.id} tipo=ASSINADO`, e);
           }
         } catch (err) {
-          // Wave 10.5 task #34 — falha (download/upload/db) NAO marca processado.
-          // Mantemos o evento PENDENTE pra reentrega ZapSign + worker de retry
-          // varrer `erro_processamento`. Devolvemos 500 pro provedor pra forcar
-          // reentrega automatica (ZapSign reentrega ate ack 200).
+          // Wave 10.5 task #34 — falha (download/db/notificacao) NAO marca processado.
+          // Mantemos o evento PENDENTE pra reentrega ZapSign automatica (ate
+          // ack 200). Sem prefixo `pdf_upload_falhou:` aqui — esses erros NAO
+          // sao retentaveis pelo worker `pdfRetryUpload` (que so sabe lidar
+          // com upload de PDF). Devolvemos 5xx pro provedor reentregar.
           await db.execute(sql`UPDATE assinatura_webhook_eventos SET erro_processamento = ${(err as Error).message} WHERE id = ${eventoId}`);
-          // transient=true sinaliza ao route handler pra responder 5xx (e nao 4xx)
-          // — ZapSign trata 5xx como retriable e reentrega; 4xx como permanente.
           return { ok: false, eventoId, duplicado: false, transient: true };
         }
       }
