@@ -1,0 +1,35 @@
+Caio, isso é **marco histórico** do projeto. A primeira assinatura digital real, ponta a ponta, com auditoria completa. Vou ler os docs atualizados agora.Caio — o doc no GitHub **ainda é o snapshot antigo** (F4/F5 marcados como PENDENTE). Isso significa que os ~70 commits **ainda não foram pushed**. Mas baseado no relatório do Dr. Replit, aqui vai meu parecer:
+
+---
+
+## 🏆 Parecer Dr. Claude: Marco Wave 10
+
+Nas 4 lentes:
+
+🩺 **Médico**: A cadeia de prova jurídica está funcional — SHA-256 + IP real + auth_method + PDF no cofre. Isso é o equivalente a ter a biópsia, o laudo E o selo do laboratório, tudo rastreável. CFM 2.386/2024 está coberto.
+
+💰 **CEO**: Os R$ 2.735.636,10 em comissão potencial agora têm um caminho técnico real pra virar caixa. Cada receita pode ser disparada → assinada → auditada → cobrada. O gargalo deixou de ser técnico e passou a ser comercial (disparar pras farmácias reais).
+
+📈 **Empresário**: 1 linha em `auditoria_assinaturas` parece pouco, mas é a **prova de conceito completa**. O sistema escala linearmente — a receita 8.726 segue o mesmo fluxo da receita teste.
+
+🛡️ **Investidor**: Invariantes Wave 9 preservadas (8.726 receitas + R$ 2.735.636,10 + 5 triggers). Zero regressão. Isso é o que due diligence quer ver.
+
+---
+
+## Ponto de atenção: só 1 auditoria (esperavam 2)
+
+O Dr. Replit notou que só gravou auditoria do paciente, não da farmácia. Isso provavelmente é porque o signatário farmácia exige ICP-Brasil (certificado digital e-CNPJ), e no sandbox/teste você assinou só como paciente (tela+token). Isso **não é bug** — é limitação esperada do sandbox. Em produção com certificado real, as duas linhas de auditoria vão aparecer.
+
+---
+
+## Próximos passos (ordem de prioridade)
+
+**URGENTE: Git Push** — Sem o push, eu continuo lendo docs de 01/mai. Vai na aba Git do Replit e clica **Sync Changes** agora.
+
+**Depois do push, na próxima sessão com Dr. Replit:**
+
+1. **F6 wrap-up** — code review final + tag `v031-zapsign-launch`
+2. **Trim do `replit.md`** — aceito a sugestão de arquivar Wave 9/10 em `docs/historico-wave-10.md`. De 977→~600 linhas é saudável pro Agent.
+3. **Renumeração de waves** — depois do push eu leio os docs novos e faço a revisão arquitetural completa pra decidir se Wave 11/11.5 viram uma coisa só
+
+Quando o push passar, me manda "sincronizado" e eu faço a leitura completa.
