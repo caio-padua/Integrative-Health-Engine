@@ -7,10 +7,64 @@ import {
   estoqueItensTable, insertEstoqueItemSchema,
   tratamentosTable, tratamentoItensTable,
 } from "@workspace/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql, type SQL } from "drizzle-orm";
 import { gerarPdfRAS } from "../pdf/gerarRAS";
 
 const router = Router();
+
+// Task #100 — whitelist + fragmentos `ORDER BY` por coluna pra ordenacao
+// multi-coluna server-side da tabela de RAS. Mesmo padrao da timeline de
+// assinaturas (routes/assinaturas.ts ORDENACOES_TIMELINE_FRAGMENT) e da
+// listagem de pacientes (routes/pacientes.ts ORDENACOES_PACIENTES_FRAGMENT).
+// Cada fragmento referencia a coluna tipada do schema Drizzle pra zero
+// acoplamento com nomes crus de banco — typecheck quebra antes do deploy
+// se o schema mover/renomear uma coluna.
+//
+// `id DESC` final NUNCA vem deste mapa — e sempre adicionado por
+// `montarOrderByRas()` como tiebreaker estavel pra paginacao manter ordem
+// mesmo quando 2 linhas empatam em todos os criterios solicitados.
+const ORDENACOES_RAS_FRAGMENT: Record<string, SQL> = {
+  id_desc:           sql`${rasTable.id} DESC`,
+  id_asc:            sql`${rasTable.id} ASC`,
+  paciente_desc:     sql`${rasTable.nomePaciente} DESC NULLS LAST`,
+  paciente_asc:      sql`${rasTable.nomePaciente} ASC NULLS LAST`,
+  profissional_desc: sql`${rasTable.nomeProfissional} DESC NULLS LAST`,
+  profissional_asc:  sql`${rasTable.nomeProfissional} ASC NULLS LAST`,
+  unidade_desc:      sql`${rasTable.unidade} DESC NULLS LAST`,
+  unidade_asc:       sql`${rasTable.unidade} ASC NULLS LAST`,
+  data_desc:         sql`${rasTable.dataServico} DESC NULLS LAST`,
+  data_asc:          sql`${rasTable.dataServico} ASC NULLS LAST`,
+  tipo_desc:         sql`${rasTable.tipoServico} DESC NULLS LAST`,
+  tipo_asc:          sql`${rasTable.tipoServico} ASC NULLS LAST`,
+  criado_desc:       sql`${rasTable.criadoEm} DESC NULLS LAST`,
+  criado_asc:        sql`${rasTable.criadoEm} ASC NULLS LAST`,
+};
+const MAX_ORDENACOES_RAS = 4;
+function parseTokensOrdenacaoRas(raw: string): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const bruto of raw.split(",")) {
+    const t = bruto.trim();
+    if (!ORDENACOES_RAS_FRAGMENT[t]) continue;
+    // Dedupe por coluna (paciente_asc e paciente_desc nao podem coexistir).
+    const colKey = t.replace(/_(desc|asc)$/, "");
+    if (seen.has(colKey)) continue;
+    seen.add(colKey);
+    out.push(t);
+    if (out.length >= MAX_ORDENACOES_RAS) break;
+  }
+  return out;
+}
+function montarOrderByRas(tokens: string[]): SQL[] {
+  const fragments = tokens.map((t) => ORDENACOES_RAS_FRAGMENT[t]!);
+  // Default: criado_em DESC (preserva comportamento anterior quando
+  // o cliente nao manda nenhum criterio de ordenacao).
+  if (fragments.length === 0) fragments.push(sql`${rasTable.criadoEm} DESC NULLS LAST`);
+  // Tiebreaker estavel sempre por ultimo (mesmo padrao das demais tabelas).
+  fragments.push(sql`${rasTable.id} DESC`);
+  return fragments;
+}
 
 router.get("/ras", async (req, res) => {
   const { pacienteId, protocoloId } = req.query;
@@ -18,11 +72,17 @@ router.get("/ras", async (req, res) => {
   if (pacienteId) conditions.push(eq(rasTable.pacienteId, Number(pacienteId)));
   if (protocoloId) conditions.push(eq(rasTable.protocoloId, Number(protocoloId)));
 
+  const ordenarPorRaw = typeof req.query["ordenarPor"] === "string"
+    ? (req.query["ordenarPor"] as string).toLowerCase()
+    : "";
+  const tokens = parseTokensOrdenacaoRas(ordenarPorRaw);
+  const orderByFragments = montarOrderByRas(tokens);
+
   const result = await db
     .select()
     .from(rasTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(rasTable.criadoEm));
+    .orderBy(...orderByFragments);
 
   res.json(result);
 });
