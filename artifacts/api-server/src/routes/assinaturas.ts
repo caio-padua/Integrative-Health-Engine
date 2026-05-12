@@ -650,11 +650,16 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
     // concluidas) ficam no fim. Fallback `s.id DESC` como segundo criterio mantem
     // ordem estavel quando ha empate (varios orcamentos do mesmo valor/dia/status).
     // Task #84 expandiu o whitelist com criado/concluido/status (asc/desc cada).
+    // Task #89 expandiu com paciente/medico/farmacia (asc/desc) — reaproveita
+    // os JOINs ja existentes (pacientes p, usuarios med, farmacias_parmavault f).
     const ORDENACOES_VALIDAS = new Set([
       "valor_desc", "valor_asc",
       "criado_desc", "criado_asc",
       "concluido_desc", "concluido_asc",
       "status_desc", "status_asc",
+      "paciente_desc", "paciente_asc",
+      "medico_desc", "medico_asc",
+      "farmacia_desc", "farmacia_asc",
     ]);
     const ordenarPorRaw = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
@@ -678,6 +683,18 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       ? sql`ORDER BY s.status DESC, s.id DESC`
       : ordenarPor === "status_asc"
       ? sql`ORDER BY s.status ASC, s.id DESC`
+      : ordenarPor === "paciente_desc"
+      ? sql`ORDER BY p.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "paciente_asc"
+      ? sql`ORDER BY p.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "medico_desc"
+      ? sql`ORDER BY med.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "medico_asc"
+      ? sql`ORDER BY med.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "farmacia_desc"
+      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "farmacia_asc"
+      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const countR = await db.execute(sql`
       SELECT COUNT(*)::int AS total
