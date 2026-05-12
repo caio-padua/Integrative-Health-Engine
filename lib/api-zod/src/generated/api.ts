@@ -23,6 +23,12 @@ export const ListarPacientesQueryParams = zod.object({
   unidadeId: zod.coerce.number().optional(),
   busca: zod.coerce.string().optional(),
   pagina: zod.coerce.number().default(listarPacientesQueryPaginaDefault),
+  ordenarPor: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Ordenação multi-coluna (Task #98). Lista CSV de tokens\n`<coluna>_<asc|desc>` separados por vírgula. Whitelist:\nnome, cpf, telefone, status, criado. Cap 4 colunas;\nservidor faz dedupe + adiciona `id DESC` como tiebreaker.\nEx: `nome_asc,criado_desc`.\n",
+    ),
 });
 
 export const ListarPacientesResponseItem = zod.object({
