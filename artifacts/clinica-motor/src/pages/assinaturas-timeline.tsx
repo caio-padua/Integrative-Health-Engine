@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/Layout";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   FileSignature,
   CheckCircle2,
@@ -163,6 +164,7 @@ function ColunaOrdenavel({
 }
 
 export default function AssinaturasTimeline() {
+  const { user } = useAuth();
   const [rows, setRows] = useState<Solicitacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
@@ -289,6 +291,22 @@ export default function AssinaturasTimeline() {
       .toLowerCase();
     return URL_TO_ORDENACAO[v] || "ID_DESC";
   }
+  // Task #88 — chave por-usuario pra "lembrar" a ultima ordenacao escolhida
+  // entre navegacoes. Se a URL tem `?ordenar_por=`, ele tem prioridade (link
+  // compartilhavel continua mandando); caso contrario aplicamos a salva.
+  function chaveStorageOrdenacao(uid: number | string | undefined): string | null {
+    if (uid === undefined || uid === null) return null;
+    return `pawards.timeline.ordenar_por.${uid}`;
+  }
+  function lerOrdenacaoSalva(uid: number | string | undefined): Ordenacao | null {
+    if (typeof window === "undefined") return null;
+    const k = chaveStorageOrdenacao(uid);
+    if (!k) return null;
+    try {
+      const v = (window.localStorage.getItem(k) || "").toLowerCase();
+      return URL_TO_ORDENACAO[v] || null;
+    } catch { return null; }
+  }
   const [ordenacao, setOrdenacaoState] = useState<Ordenacao>(parseOrdenacaoFromUrl);
   const setOrdenacao = useCallback((nova: Ordenacao) => {
     setOrdenacaoState(nova);
@@ -298,8 +316,30 @@ export default function AssinaturasTimeline() {
     if (valor) url.searchParams.set("ordenar_por", valor);
     else url.searchParams.delete("ordenar_por");
     window.history.replaceState({}, "", url.toString());
+    // Persiste a escolha por-usuario pra reabrir a timeline lembrando a
+    // ultima ordenacao (Task #88). Salvamos string vazia pra ID_DESC default
+    // tambem, pra "lembrar" explicitamente que o usuario voltou pro padrao.
+    const k = chaveStorageOrdenacao(user?.id);
+    if (k) {
+      try { window.localStorage.setItem(k, valor); } catch { /* ignore */ }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id]);
+
+  // Task #88 — hidrata a ordenacao salva quando o usuario fica disponivel,
+  // SOMENTE se a URL atual nao traz `?ordenar_por=` (link compartilhavel
+  // continua tendo prioridade absoluta).
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+    const urlTem = new URLSearchParams(window.location.search).get("ordenar_por");
+    if (urlTem) return;
+    const salva = lerOrdenacaoSalva(user.id);
+    if (salva && salva !== ordenacao) {
+      setOrdenacao(salva);
+    }
+    // Roda so quando o user.id muda (login/troca de conta).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
   // Ciclo do clique em qualquer cabecalho: se a coluna ja esta DESC ativa,
   // vira ASC; se ASC, volta pro padrao (ID_DESC); se inativa, abre em DESC
   // (criterio "maior/mais recente primeiro" e o intuitivo). Trocar de coluna
