@@ -14,6 +14,9 @@ import {
   RefreshCw,
   ExternalLink,
   Download,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -44,7 +47,23 @@ type Solicitacao = {
   signatarios_total: number;
   signatarios_assinados: number;
   auditoria_eventos: number;
+  // Task #79 — campos novos vindos do JOIN (mesmas regras do export Task #77).
+  // null quando o template nao tem essa dimensao (ex: TCLE = sem farmacia).
+  valor_brl: number | null;
+  farmacia: string | null;
+  medico: string | null;
 };
+
+// Task #79 — formata BRL pra celula de tabela e linha de soma do rodape.
+// Usa Intl pra moeda nativa pt-BR (R$ 1.234,56), sem dependencia extra.
+function formatarBRL(v: number): string {
+  return v.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 const STATUS_BADGES: Record<
   string,
@@ -93,6 +112,55 @@ function StatusBadge({ status }: { status: string }) {
 // e bate com o LIMIT default do backend; "Carregar mais" appendiza paginas
 // adicionais sem perder filtros (paciente nao perde scroll).
 const LIMITE_PAGINA = 50;
+
+// Task #84 — cabecalho de coluna clicavel reutilizavel. Generaliza o padrao
+// criado na Task #80 (so a coluna Valor era ordenavel) pra qualquer coluna.
+// `ativaDesc`/`ativaAsc` indicam o estado atual; o componente decide qual
+// seta exibir e qual texto de tooltip mostrar. `align` controla justify
+// do botao dentro da celula (right pra numeros, left/center pra texto/badge).
+function ColunaOrdenavel({
+  label,
+  ativaDesc,
+  ativaAsc,
+  onClick,
+  testId,
+  align = "left",
+}: {
+  label: string;
+  ativaDesc: boolean;
+  ativaAsc: boolean;
+  onClick: () => void;
+  testId?: string;
+  align?: "left" | "right" | "center";
+}) {
+  const ativa = ativaDesc || ativaAsc;
+  const justify =
+    align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start";
+  const title = ativaDesc
+    ? `${label}: maior/mais recente primeiro · clique p/ inverter`
+    : ativaAsc
+    ? `${label}: menor/mais antigo primeiro · clique p/ voltar ao padrão`
+    : `Clique p/ ordenar por ${label}`;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      title={title}
+      className={`inline-flex items-center gap-1 font-semibold cursor-pointer hover:opacity-70 w-full ${justify}`}
+      style={{ color: ativa ? GOLD : NAVY }}
+    >
+      {label}
+      {ativaDesc ? (
+        <ArrowDown size={12} />
+      ) : ativaAsc ? (
+        <ArrowUp size={12} />
+      ) : (
+        <ArrowUpDown size={12} style={{ opacity: 0.4 }} />
+      )}
+    </button>
+  );
+}
 
 export default function AssinaturasTimeline() {
   const [rows, setRows] = useState<Solicitacao[]>([]);
@@ -187,6 +255,63 @@ export default function AssinaturasTimeline() {
     if (desde === isoLocal(d30) && ate === hoje) return "30D";
     return "PERSONALIZADO";
   }
+  // Task #80 + Task #84 — ordenacao da tabela. Estado persistido na URL via
+  // `?ordenar_por=` (whitelist: valor_desc | valor_asc | criado_desc | criado_asc
+  // | concluido_desc | concluido_asc | status_desc | status_asc; default = id desc
+  // sem param). Backend revalida o whitelist server-side, frontend so usa pra UX.
+  // Apenas UMA coluna fica ativa por vez: clicar em outra reseta a anterior
+  // (alternarOrdenacao decide com base na chave atual).
+  type Ordenacao =
+    | "ID_DESC"
+    | "VALOR_DESC" | "VALOR_ASC"
+    | "CRIADO_DESC" | "CRIADO_ASC"
+    | "CONCLUIDO_DESC" | "CONCLUIDO_ASC"
+    | "STATUS_DESC" | "STATUS_ASC";
+  type ChaveOrdenacao = "VALOR" | "CRIADO" | "CONCLUIDO" | "STATUS";
+  const ORDENACAO_URL: Record<Ordenacao, string> = {
+    ID_DESC: "",
+    VALOR_DESC: "valor_desc",     VALOR_ASC: "valor_asc",
+    CRIADO_DESC: "criado_desc",   CRIADO_ASC: "criado_asc",
+    CONCLUIDO_DESC: "concluido_desc", CONCLUIDO_ASC: "concluido_asc",
+    STATUS_DESC: "status_desc",   STATUS_ASC: "status_asc",
+  };
+  const URL_TO_ORDENACAO: Record<string, Ordenacao> = (() => {
+    const m: Record<string, Ordenacao> = {};
+    (Object.keys(ORDENACAO_URL) as Ordenacao[]).forEach((k) => {
+      const v = ORDENACAO_URL[k];
+      if (v) m[v] = k;
+    });
+    return m;
+  })();
+  function parseOrdenacaoFromUrl(): Ordenacao {
+    if (typeof window === "undefined") return "ID_DESC";
+    const v = (new URLSearchParams(window.location.search).get("ordenar_por") || "")
+      .toLowerCase();
+    return URL_TO_ORDENACAO[v] || "ID_DESC";
+  }
+  const [ordenacao, setOrdenacaoState] = useState<Ordenacao>(parseOrdenacaoFromUrl);
+  const setOrdenacao = useCallback((nova: Ordenacao) => {
+    setOrdenacaoState(nova);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const valor = ORDENACAO_URL[nova];
+    if (valor) url.searchParams.set("ordenar_por", valor);
+    else url.searchParams.delete("ordenar_por");
+    window.history.replaceState({}, "", url.toString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Ciclo do clique em qualquer cabecalho: se a coluna ja esta DESC ativa,
+  // vira ASC; se ASC, volta pro padrao (ID_DESC); se inativa, abre em DESC
+  // (criterio "maior/mais recente primeiro" e o intuitivo). Trocar de coluna
+  // reseta automaticamente a anterior porque o estado guarda apenas UMA chave.
+  const alternarOrdenacao = useCallback((chave: ChaveOrdenacao) => {
+    const desc = `${chave}_DESC` as Ordenacao;
+    const asc = `${chave}_ASC` as Ordenacao;
+    setOrdenacao(
+      ordenacao === desc ? asc : ordenacao === asc ? "ID_DESC" : desc,
+    );
+  }, [ordenacao, setOrdenacao]);
+
   const datasUrlInicial = parseDatasFromUrl();
   const [filtroData, setFiltroDataState] = useState<FiltroData>(
     detectarPresetInicial(datasUrlInicial.desde, datasUrlInicial.ate),
@@ -248,6 +373,8 @@ export default function AssinaturasTimeline() {
       if (statusList.length > 0) params.set("status", statusList.join(","));
       if (desdeInput) params.set("desde", desdeInput);
       if (ateInput) params.set("ate", ateInput);
+      const valorOrdenacao = ORDENACAO_URL[ordenacao];
+      if (valorOrdenacao) params.set("ordenar_por", valorOrdenacao);
       params.set("limit", String(LIMITE_PAGINA));
       const offset = append ? rows.length : 0;
       params.set("offset", String(offset));
@@ -281,14 +408,14 @@ export default function AssinaturasTimeline() {
       setCarregandoMais(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, rows.length]);
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacao, rows.length]);
 
   // Recarrega 1a pagina sempre que qualquer filtro muda. Nao depende de
   // `carregar` direto pra evitar loop com `rows.length` na dep list.
   useEffect(() => {
     void carregar({ append: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput]);
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacao]);
 
   const totais = {
     enviado: rows.filter((r) => r.status === "ENVIADO" || r.status === "PARCIAL").length,
@@ -347,6 +474,12 @@ export default function AssinaturasTimeline() {
               if (statusList.length > 0) params.set("status", statusList.join(","));
               if (desdeInput) params.set("desde", desdeInput);
               if (ateInput) params.set("ate", ateInput);
+              // Task #83 — repassa a ordenacao atual da tabela pros endpoints
+              // de export, pra que CSV/XLSX baixem na MESMA ordem visivel na
+              // tela (id_desc default; valor_desc / valor_asc quando o usuario
+              // ordenou pelo cabecalho Valor).
+              if (ordenacao === "VALOR_DESC") params.set("ordenar_por", "valor_desc");
+              else if (ordenacao === "VALOR_ASC") params.set("ordenar_por", "valor_asc");
               const qs = params.toString() ? `?${params.toString()}` : "";
               return (
                 <>
@@ -547,11 +680,48 @@ export default function AssinaturasTimeline() {
                   {filtroUnidadeId === null && (
                     <th className="text-left px-3 py-2 font-semibold">Clínica</th>
                   )}
-                  <th className="text-center px-3 py-2 font-semibold">Status</th>
+                  <th className="text-center px-3 py-2 font-semibold">
+                    <ColunaOrdenavel
+                      label="Status"
+                      align="center"
+                      ativaDesc={ordenacao === "STATUS_DESC"}
+                      ativaAsc={ordenacao === "STATUS_ASC"}
+                      onClick={() => alternarOrdenacao("STATUS")}
+                      testId="ordenar-por-status"
+                    />
+                  </th>
+                  <th className="text-right px-3 py-2 font-semibold">
+                    <ColunaOrdenavel
+                      label="Valor"
+                      align="right"
+                      ativaDesc={ordenacao === "VALOR_DESC"}
+                      ativaAsc={ordenacao === "VALOR_ASC"}
+                      onClick={() => alternarOrdenacao("VALOR")}
+                      testId="ordenar-por-valor"
+                    />
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold">Farmácia</th>
+                  <th className="text-left px-3 py-2 font-semibold">Médico</th>
                   <th className="text-center px-3 py-2 font-semibold">Signatários</th>
                   <th className="text-center px-3 py-2 font-semibold">Auditoria</th>
-                  <th className="text-left px-3 py-2 font-semibold">Criado</th>
-                  <th className="text-left px-3 py-2 font-semibold">Concluído</th>
+                  <th className="text-left px-3 py-2 font-semibold">
+                    <ColunaOrdenavel
+                      label="Criado"
+                      ativaDesc={ordenacao === "CRIADO_DESC"}
+                      ativaAsc={ordenacao === "CRIADO_ASC"}
+                      onClick={() => alternarOrdenacao("CRIADO")}
+                      testId="ordenar-por-criado"
+                    />
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold">
+                    <ColunaOrdenavel
+                      label="Concluído"
+                      ativaDesc={ordenacao === "CONCLUIDO_DESC"}
+                      ativaAsc={ordenacao === "CONCLUIDO_ASC"}
+                      onClick={() => alternarOrdenacao("CONCLUIDO")}
+                      testId="ordenar-por-concluido"
+                    />
+                  </th>
                   <th className="text-center px-3 py-2 font-semibold nao-imprimir">
                     Detalhe
                   </th>
@@ -587,6 +757,27 @@ export default function AssinaturasTimeline() {
                     )}
                     <td className="px-3 py-2 text-center">
                       <StatusBadge status={r.status} />
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-xs" style={{ color: NAVY }}>
+                      {r.valor_brl !== null ? (
+                        <span>{formatarBRL(r.valor_brl)}</span>
+                      ) : (
+                        <span className="italic text-zinc-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs" style={{ color: NAVY }}>
+                      {r.farmacia ? (
+                        <span>{r.farmacia}</span>
+                      ) : (
+                        <span className="italic text-zinc-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs" style={{ color: NAVY }}>
+                      {r.medico ? (
+                        <span>{r.medico}</span>
+                      ) : (
+                        <span className="italic text-zinc-400">—</span>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-center font-mono text-xs">
                       <span style={{ color: GREEN, fontWeight: 700 }}>
@@ -626,7 +817,200 @@ export default function AssinaturasTimeline() {
                   </tr>
                 ))}
               </tbody>
+              {/* Task #79 — soma de "Valor" das linhas atualmente visiveis
+                  (apos filtros + paginacao). Usa `colSpan` pra alinhar a celula
+                  numerica embaixo da coluna Valor, deixando as outras vazias.
+                  Mostra contagem de quantas linhas entraram na soma vs total
+                  visivel pra o contador conferir (TCLE nao tem valor, fica de
+                  fora). */}
+              {(() => {
+                const linhasComValor = rows.filter((r) => r.valor_brl !== null);
+                const somaValor = linhasComValor.reduce(
+                  (acc, r) => acc + (r.valor_brl || 0),
+                  0,
+                );
+                const colsAntesValor = filtroUnidadeId === null ? 5 : 4;
+                const colsDepoisValor = 7;
+                return (
+                  <tfoot style={{ background: "#F9FAFB", color: NAVY }}>
+                    <tr className="border-t-2" style={{ borderColor: GOLD }}>
+                      <td
+                        colSpan={colsAntesValor}
+                        className="px-3 py-2 text-right text-xs font-semibold"
+                      >
+                        Soma do valor visível ({linhasComValor.length} de{" "}
+                        {rows.length} linhas):
+                      </td>
+                      <td
+                        className="px-3 py-2 text-right font-mono text-sm font-bold"
+                        style={{ color: GOLD }}
+                        data-testid="soma-valor-visivel"
+                      >
+                        {formatarBRL(somaValor)}
+                      </td>
+                      <td colSpan={colsDepoisValor} />
+                    </tr>
+                  </tfoot>
+                );
+              })()}
             </table>
+            {/* Task #81 — quebra do valor visivel por farmacia parceira.
+                Caio usa em reuniao com FAMA/AMERIPHARMA pra justificar
+                comissao PARQ sem precisar abrir o CSV no Excel. Calculo
+                100% client-side a partir do payload ja carregado (sem
+                novo endpoint). Linhas sem farmacia (ex: TCLE) entram em
+                "— sem farmacia —" so pra fechar a conta — assim a soma
+                bate com o tfoot acima. Ordenado por soma desc. */}
+            {(() => {
+              const SEM_FARMACIA = "— sem farmácia —";
+              const linhasComValor = rows.filter((r) => r.valor_brl !== null);
+              if (linhasComValor.length === 0) return null;
+              const agrupado = new Map<string, { n: number; soma: number }>();
+              for (const r of linhasComValor) {
+                // Normaliza com trim pra "FAMA" e "FAMA " caírem na mesma chave
+                // (evita duplicar parceira se vier whitespace lateral do payload).
+                const nome = r.farmacia?.trim() || "";
+                const chave = nome !== "" ? nome : SEM_FARMACIA;
+                const atual = agrupado.get(chave) || { n: 0, soma: 0 };
+                atual.n += 1;
+                atual.soma += r.valor_brl || 0;
+                agrupado.set(chave, atual);
+              }
+              const itens = Array.from(agrupado.entries())
+                .map(([farmacia, v]) => ({ farmacia, ...v }))
+                .sort((a, b) => b.soma - a.soma);
+              return (
+                <div
+                  className="border-t px-3 py-3"
+                  style={{ background: "#FFFDF5", borderColor: GOLD }}
+                  data-testid="resumo-por-farmacia"
+                >
+                  <div
+                    className="text-xs uppercase tracking-wide mb-2 font-semibold"
+                    style={{ color: NAVY }}
+                  >
+                    Soma por farmácia parceira (linhas visíveis)
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead style={{ color: ZINC }}>
+                      <tr>
+                        <th className="text-left px-2 py-1 font-semibold">Farmácia</th>
+                        <th className="text-right px-2 py-1 font-semibold">Orçamentos</th>
+                        <th className="text-right px-2 py-1 font-semibold">Soma (BRL)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map((it) => (
+                        <tr
+                          key={it.farmacia}
+                          className="border-t"
+                          data-testid={`resumo-farmacia-linha-${it.farmacia === SEM_FARMACIA ? "sem-farmacia" : it.farmacia}`}
+                        >
+                          <td
+                            className="px-2 py-1"
+                            style={{
+                              color: it.farmacia === SEM_FARMACIA ? ZINC : NAVY,
+                              fontStyle: it.farmacia === SEM_FARMACIA ? "italic" : "normal",
+                            }}
+                          >
+                            {it.farmacia}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono"
+                            style={{ color: NAVY }}
+                          >
+                            {it.n}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono font-bold"
+                            style={{ color: GOLD }}
+                          >
+                            {formatarBRL(it.soma)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+            {/* Task #82 — quebra do valor visivel por medico responsavel.
+                Mesma logica do bloco "por farmacia" (Task #81), mas pra
+                reuniao com medicos: justifica comissao medica e mostra
+                ranking de produtividade clinica. Calculo client-side a
+                partir do payload ja carregado. Linhas sem medico entram
+                em "— sem medico —" pra fechar a conta com o tfoot. */}
+            {(() => {
+              const SEM_MEDICO = "— sem médico —";
+              const linhasComValor = rows.filter((r) => r.valor_brl !== null);
+              if (linhasComValor.length === 0) return null;
+              const agrupado = new Map<string, { n: number; soma: number }>();
+              for (const r of linhasComValor) {
+                const nome = r.medico?.trim() || "";
+                const chave = nome !== "" ? nome : SEM_MEDICO;
+                const atual = agrupado.get(chave) || { n: 0, soma: 0 };
+                atual.n += 1;
+                atual.soma += r.valor_brl || 0;
+                agrupado.set(chave, atual);
+              }
+              const itens = Array.from(agrupado.entries())
+                .map(([medico, v]) => ({ medico, ...v }))
+                .sort((a, b) => b.soma - a.soma);
+              return (
+                <div
+                  className="border-t px-3 py-3"
+                  style={{ background: "#FFFDF5", borderColor: GOLD }}
+                  data-testid="resumo-por-medico"
+                >
+                  <div
+                    className="text-xs uppercase tracking-wide mb-2 font-semibold"
+                    style={{ color: NAVY }}
+                  >
+                    Soma por médico (linhas visíveis)
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead style={{ color: ZINC }}>
+                      <tr>
+                        <th className="text-left px-2 py-1 font-semibold">Médico</th>
+                        <th className="text-right px-2 py-1 font-semibold">Orçamentos</th>
+                        <th className="text-right px-2 py-1 font-semibold">Soma (BRL)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map((it) => (
+                        <tr
+                          key={it.medico}
+                          className="border-t"
+                          data-testid={`resumo-medico-linha-${it.medico === SEM_MEDICO ? "sem-medico" : it.medico}`}
+                        >
+                          <td
+                            className="px-2 py-1"
+                            style={{
+                              color: it.medico === SEM_MEDICO ? ZINC : NAVY,
+                              fontStyle: it.medico === SEM_MEDICO ? "italic" : "normal",
+                            }}
+                          >
+                            {it.medico}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono"
+                            style={{ color: NAVY }}
+                          >
+                            {it.n}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono font-bold"
+                            style={{ color: GOLD }}
+                          >
+                            {formatarBRL(it.soma)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
           </div>
         )}
 

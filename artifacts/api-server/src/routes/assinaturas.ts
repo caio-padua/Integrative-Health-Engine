@@ -643,6 +643,42 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
     const offset = Number.isFinite(offsetRaw)
       ? Math.max(Math.trunc(offsetRaw), 0)
       : 0;
+    // Task #80 + Task #84 — ordenacao opcional. Whitelist defensiva server-side:
+    // qualquer valor fora do enum cai no default (id desc = mais recente primeiro),
+    // pra nao abrir vetor de SQL injection via interpolacao no ORDER BY. NULLS LAST
+    // garante que linhas sem o campo (TCLE sem valor, solicitacoes ainda nao
+    // concluidas) ficam no fim. Fallback `s.id DESC` como segundo criterio mantem
+    // ordem estavel quando ha empate (varios orcamentos do mesmo valor/dia/status).
+    // Task #84 expandiu o whitelist com criado/concluido/status (asc/desc cada).
+    const ORDENACOES_VALIDAS = new Set([
+      "valor_desc", "valor_asc",
+      "criado_desc", "criado_asc",
+      "concluido_desc", "concluido_asc",
+      "status_desc", "status_asc",
+    ]);
+    const ordenarPorRaw = typeof req.query["ordenar_por"] === "string"
+      ? (req.query["ordenar_por"] as string).toLowerCase()
+      : "";
+    const ordenarPor = ORDENACOES_VALIDAS.has(ordenarPorRaw)
+      ? ordenarPorRaw
+      : "id_desc";
+    const orderByClause = ordenarPor === "valor_desc"
+      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "valor_asc"
+      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "criado_desc"
+      ? sql`ORDER BY s.criado_em DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "criado_asc"
+      ? sql`ORDER BY s.criado_em ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "concluido_desc"
+      ? sql`ORDER BY s.concluido_em DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "concluido_asc"
+      ? sql`ORDER BY s.concluido_em ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "status_desc"
+      ? sql`ORDER BY s.status DESC, s.id DESC`
+      : ordenarPor === "status_asc"
+      ? sql`ORDER BY s.status ASC, s.id DESC`
+      : sql`ORDER BY s.id DESC`;
     const countR = await db.execute(sql`
       SELECT COUNT(*)::int AS total
       FROM assinatura_solicitacoes s
@@ -684,18 +720,49 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
         (
           SELECT COUNT(*)::int FROM auditoria_assinaturas a
           WHERE a.solicitacao_id = s.id
-        ) AS auditoria_eventos
+        ) AS auditoria_eventos,
+        rec.valor_formula_estimado   AS receita_valor,
+        f.razao_social               AS farmacia_razao_social,
+        f.nome_fantasia              AS farmacia_nome_fantasia,
+        med.nome                     AS medico_nome
       FROM assinatura_solicitacoes s
       JOIN assinatura_templates t   ON t.id = s.template_id
       LEFT JOIN pacientes p         ON p.id = s.paciente_id
       LEFT JOIN unidades u          ON u.id = p.unidade_id
+      LEFT JOIN parmavault_receitas rec
+        ON (s.metadata->>'receitaId') ~ '^[0-9]+$'
+       AND rec.id = (s.metadata->>'receitaId')::bigint
+      LEFT JOIN farmacias_parmavault f
+        ON f.id = COALESCE(
+             rec.farmacia_id,
+             CASE WHEN (s.metadata->>'farmaciaId') ~ '^[0-9]+$'
+                  THEN (s.metadata->>'farmaciaId')::bigint END
+           )
+      LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
-      ORDER BY s.id DESC
+      ${orderByClause}
       LIMIT ${limit}
       OFFSET ${offset}
     `);
-    const rows = (r as unknown as { rows?: unknown[] }).rows || [];
+    // Task #79 — normaliza valor/farmacia/medico no payload pro frontend nao
+    // precisar fazer COALESCE de razao_social/nome_fantasia. Mesmas regras dos
+    // exports CSV/XLSX (Task #77): vazio quando o template nao tem essa
+    // dimensao (ex: TCLE = sem farmacia, sem valor).
+    const rowsRaw = (((r as unknown as { rows?: Record<string, unknown>[] }).rows) || []);
+    const rowsEnriquecidas = rowsRaw.map((row) => {
+      const valorNum = row["receita_valor"] !== null && row["receita_valor"] !== undefined
+        ? Number(row["receita_valor"])
+        : null;
+      const farmaciaNome = row["farmacia_razao_social"] || row["farmacia_nome_fantasia"] || null;
+      return {
+        ...row,
+        valor_brl: valorNum !== null && Number.isFinite(valorNum) ? valorNum : null,
+        farmacia: farmaciaNome ? String(farmaciaNome) : null,
+        medico: row["medico_nome"] ? String(row["medico_nome"]) : null,
+      };
+    });
+    const rows = rowsEnriquecidas;
     const hasMore = offset + rows.length < total;
     res.json({
       solicitacoes: rows,
@@ -711,6 +778,7 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       filtro_status: statusFiltro,
       filtro_desde: desdeFiltro,
       filtro_ate: ateFiltro,
+      ordenar_por: ordenarPor,
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -792,6 +860,21 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     // 5000 em qualquer caso pra nao explodir memoria/timeout do Express.
     const temFiltroData = desdeFiltroCsv !== null || ateFiltroCsv !== null;
     const limiteCsv = temFiltroData ? 5000 : 50;
+    // Task #83 — replica a whitelist de ordenacao do endpoint JSON pra que o
+    // CSV exportado saia na MESMA ordem renderizada na tela quando o usuario
+    // ordenou por valor. Default continua `s.id DESC` quando o param ausente
+    // ou invalido (mesmo fallback defensivo do /timeline).
+    const ordenarPorRawCsv = typeof req.query["ordenar_por"] === "string"
+      ? (req.query["ordenar_por"] as string).toLowerCase()
+      : "";
+    const ordenarPorCsv = ordenarPorRawCsv === "valor_desc" || ordenarPorRawCsv === "valor_asc"
+      ? ordenarPorRawCsv
+      : "id_desc";
+    const orderByClauseCsv = ordenarPorCsv === "valor_desc"
+      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "valor_asc"
+      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -824,7 +907,7 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
-      ORDER BY s.id DESC
+      ${orderByClauseCsv}
       LIMIT ${limiteCsv}
     `);
     const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
@@ -984,6 +1067,19 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     // sem filtro mantem 50 (mesmo cap da tela).
     const temFiltroDataXlsx = desdeFiltroXlsx !== null || ateFiltroXlsx !== null;
     const limiteXlsx = temFiltroDataXlsx ? 5000 : 50;
+    // Task #83 — mesma whitelist de ordenacao do JSON/CSV pra que o XLSX
+    // exportado bata com a ordem visivel na tela. Default `s.id DESC`.
+    const ordenarPorRawXlsx = typeof req.query["ordenar_por"] === "string"
+      ? (req.query["ordenar_por"] as string).toLowerCase()
+      : "";
+    const ordenarPorXlsx = ordenarPorRawXlsx === "valor_desc" || ordenarPorRawXlsx === "valor_asc"
+      ? ordenarPorRawXlsx
+      : "id_desc";
+    const orderByClauseXlsx = ordenarPorXlsx === "valor_desc"
+      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "valor_asc"
+      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -1016,7 +1112,7 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
-      ORDER BY s.id DESC
+      ${orderByClauseXlsx}
       LIMIT ${limiteXlsx}
     `);
     const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
