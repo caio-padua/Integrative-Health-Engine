@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileCheck, Eye, Plus, ChevronDown, ChevronUp, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+// Task #100 — ordenacao multi-coluna estilo Excel (clique substitui, Shift+clique
+// adiciona criterio secundario, badge numerada mostra prioridade). Mesmo padrao
+// aplicado em Pacientes (Task #98) e na timeline de assinaturas (Task #96).
+// Backend revalida via whitelist em routes/rasRoute.ts ORDENACOES_RAS_FRAGMENT.
+import {
+  ColunaOrdenavel,
+  type Ordenacao as OrdenacaoLib,
+  dedupePorColuna,
+  parseOrdenacoesFromString,
+  serializarOrdenacoes,
+  alternarOrdenacao,
+} from "@/lib/ordenacao-multi";
+import { useAuth } from "@/contexts/AuthContext";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
@@ -43,18 +56,103 @@ interface Ras {
   criadoEm: string;
 }
 
+// Task #100 — chaves de ordenacao da tabela de RAS. Espelha o whitelist
+// server-side em routes/rasRoute.ts (ORDENACOES_RAS_FRAGMENT). Se uma chave
+// for adicionada aqui, ADICIONAR tambem no fragment SQL — sem isso o backend
+// silenciosamente ignora o token vindo da URL.
+type ChaveOrdenacaoRas =
+  | "ID" | "PACIENTE" | "PROFISSIONAL" | "UNIDADE" | "DATA" | "TIPO" | "CRIADO";
+type OrdenacaoRas = OrdenacaoLib<ChaveOrdenacaoRas>;
+const MAX_ORDENACOES_RAS = 4;
+const ORDENACAO_URL_RAS: Record<OrdenacaoRas, string> = {
+  ID_DESC: "id_desc",                     ID_ASC: "id_asc",
+  PACIENTE_DESC: "paciente_desc",         PACIENTE_ASC: "paciente_asc",
+  PROFISSIONAL_DESC: "profissional_desc", PROFISSIONAL_ASC: "profissional_asc",
+  UNIDADE_DESC: "unidade_desc",           UNIDADE_ASC: "unidade_asc",
+  DATA_DESC: "data_desc",                 DATA_ASC: "data_asc",
+  TIPO_DESC: "tipo_desc",                 TIPO_ASC: "tipo_asc",
+  CRIADO_DESC: "criado_desc",             CRIADO_ASC: "criado_asc",
+};
+const URL_TO_ORDENACAO_RAS: Record<string, OrdenacaoRas> = (() => {
+  const m: Record<string, OrdenacaoRas> = {};
+  (Object.keys(ORDENACAO_URL_RAS) as OrdenacaoRas[]).forEach((k) => {
+    m[ORDENACAO_URL_RAS[k]] = k;
+  });
+  return m;
+})();
+function chaveStorageRas(uid: number | string | undefined): string | null {
+  if (uid === undefined || uid === null) return null;
+  return `pawards.ras.ordenar_por.${uid}`;
+}
+
 export default function RasPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [sessaoIdInput, setSessaoIdInput] = useState("");
   const [obsInput, setObsInput] = useState("");
 
+  // Task #100 — estado de ordenacao multi-coluna. Hidratado de `?ordenar_por=`
+  // (link compartilhavel tem prioridade) ou de localStorage por-usuario.
+  const parseOrdRasFromUrl = (): OrdenacaoRas[] => {
+    if (typeof window === "undefined") return [];
+    const v = new URLSearchParams(window.location.search).get("ordenar_por") || "";
+    return parseOrdenacoesFromString<ChaveOrdenacaoRas>(v, URL_TO_ORDENACAO_RAS, MAX_ORDENACOES_RAS);
+  };
+  const [ordenacoesRas, setOrdenacoesRasState] = useState<OrdenacaoRas[]>(parseOrdRasFromUrl);
+  const setOrdenacoesRas = useCallback((novas: OrdenacaoRas[]) => {
+    const dedupe = dedupePorColuna<ChaveOrdenacaoRas>(novas, MAX_ORDENACOES_RAS);
+    setOrdenacoesRasState(dedupe);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const valor = serializarOrdenacoes<ChaveOrdenacaoRas>(dedupe, ORDENACAO_URL_RAS);
+    if (valor) url.searchParams.set("ordenar_por", valor);
+    else url.searchParams.delete("ordenar_por");
+    window.history.replaceState({}, "", url.toString());
+    const k = chaveStorageRas(user?.id);
+    if (k) {
+      try { window.localStorage.setItem(k, valor); } catch { /* ignore */ }
+    }
+  }, [user?.id]);
+  // Hidrata salva quando user fica disponivel, SOMENTE se a URL nao traz
+  // `?ordenar_por=` (link compartilhavel manda).
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+    const urlTem = new URLSearchParams(window.location.search).get("ordenar_por");
+    if (urlTem) return;
+    const k = chaveStorageRas(user.id);
+    if (!k) return;
+    try {
+      const v = window.localStorage.getItem(k);
+      if (v === null) return;
+      const salvas = parseOrdenacoesFromString<ChaveOrdenacaoRas>(v, URL_TO_ORDENACAO_RAS, MAX_ORDENACOES_RAS);
+      const atual = serializarOrdenacoes<ChaveOrdenacaoRas>(ordenacoesRas, ORDENACAO_URL_RAS);
+      const proxima = serializarOrdenacoes<ChaveOrdenacaoRas>(salvas, ORDENACAO_URL_RAS);
+      if (proxima !== atual) setOrdenacoesRas(salvas);
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+  const ordenarPorString = serializarOrdenacoes<ChaveOrdenacaoRas>(ordenacoesRas, ORDENACAO_URL_RAS);
+  const onClickColuna = useCallback((chave: ChaveOrdenacaoRas, shift: boolean) => {
+    setOrdenacoesRas(alternarOrdenacao<ChaveOrdenacaoRas>(chave, shift, ordenacoesRas));
+  }, [ordenacoesRas, setOrdenacoesRas]);
+  const colunaAtivaDesc = (k: ChaveOrdenacaoRas) =>
+    ordenacoesRas.includes(`${k}_DESC` as OrdenacaoRas);
+  const colunaAtivaAsc = (k: ChaveOrdenacaoRas) =>
+    ordenacoesRas.includes(`${k}_ASC` as OrdenacaoRas);
+  const posicaoOrd = (k: ChaveOrdenacaoRas): number | undefined => {
+    if (ordenacoesRas.length < 2) return undefined;
+    const i = ordenacoesRas.findIndex((o) => o.startsWith(`${k}_`));
+    return i === -1 ? undefined : i + 1;
+  };
+
   const { data: rasList = [], isLoading } = useQuery<Ras[]>({
-    queryKey: ["ras"],
+    queryKey: ["ras", ordenarPorString],
     queryFn: async () => {
-      const res = await fetch(`/api/ras`);
+      const qs = ordenarPorString ? `?ordenarPor=${encodeURIComponent(ordenarPorString)}` : "";
+      const res = await fetch(`/api/ras${qs}`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -130,14 +228,78 @@ export default function RasPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]"></TableHead>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Profissional</TableHead>
-                    <TableHead>Unidade</TableHead>
-                    <TableHead>Data Servico</TableHead>
-                    <TableHead>Tipo</TableHead>
+                    <TableHead>
+                      <ColunaOrdenavel
+                        label="ID"
+                        ativaDesc={colunaAtivaDesc("ID")}
+                        ativaAsc={colunaAtivaAsc("ID")}
+                        posicao={posicaoOrd("ID")}
+                        onClick={(shift) => onClickColuna("ID", shift)}
+                        testId="ord-ras-id"
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <ColunaOrdenavel
+                        label="Paciente"
+                        ativaDesc={colunaAtivaDesc("PACIENTE")}
+                        ativaAsc={colunaAtivaAsc("PACIENTE")}
+                        posicao={posicaoOrd("PACIENTE")}
+                        onClick={(shift) => onClickColuna("PACIENTE", shift)}
+                        testId="ord-ras-paciente"
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <ColunaOrdenavel
+                        label="Profissional"
+                        ativaDesc={colunaAtivaDesc("PROFISSIONAL")}
+                        ativaAsc={colunaAtivaAsc("PROFISSIONAL")}
+                        posicao={posicaoOrd("PROFISSIONAL")}
+                        onClick={(shift) => onClickColuna("PROFISSIONAL", shift)}
+                        testId="ord-ras-profissional"
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <ColunaOrdenavel
+                        label="Unidade"
+                        ativaDesc={colunaAtivaDesc("UNIDADE")}
+                        ativaAsc={colunaAtivaAsc("UNIDADE")}
+                        posicao={posicaoOrd("UNIDADE")}
+                        onClick={(shift) => onClickColuna("UNIDADE", shift)}
+                        testId="ord-ras-unidade"
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <ColunaOrdenavel
+                        label="Data Servico"
+                        ativaDesc={colunaAtivaDesc("DATA")}
+                        ativaAsc={colunaAtivaAsc("DATA")}
+                        posicao={posicaoOrd("DATA")}
+                        onClick={(shift) => onClickColuna("DATA", shift)}
+                        testId="ord-ras-data"
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <ColunaOrdenavel
+                        label="Tipo"
+                        ativaDesc={colunaAtivaDesc("TIPO")}
+                        ativaAsc={colunaAtivaAsc("TIPO")}
+                        posicao={posicaoOrd("TIPO")}
+                        onClick={(shift) => onClickColuna("TIPO", shift)}
+                        testId="ord-ras-tipo"
+                      />
+                    </TableHead>
                     <TableHead>Substancias</TableHead>
                     <TableHead>Assinaturas</TableHead>
+                    <TableHead>
+                      <ColunaOrdenavel
+                        label="Criado"
+                        ativaDesc={colunaAtivaDesc("CRIADO")}
+                        ativaAsc={colunaAtivaAsc("CRIADO")}
+                        posicao={posicaoOrd("CRIADO")}
+                        onClick={(shift) => onClickColuna("CRIADO", shift)}
+                        testId="ord-ras-criado"
+                      />
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -191,10 +353,13 @@ export default function RasPage() {
                             )}
                           </div>
                         </TableCell>
+                        <TableCell className="text-xs font-mono text-muted-foreground">
+                          {new Date(ras.criadoEm).toLocaleString("pt-BR")}
+                        </TableCell>
                       </TableRow>
                       {expandedId === ras.id && (
                         <TableRow key={`${ras.id}-detail`}>
-                          <TableCell colSpan={9} className="bg-muted/20 p-4">
+                          <TableCell colSpan={10} className="bg-muted/20 p-4">
                             <div className="space-y-3">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
