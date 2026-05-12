@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/Layout";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   FileSignature,
   CheckCircle2,
@@ -163,6 +164,7 @@ function ColunaOrdenavel({
 }
 
 export default function AssinaturasTimeline() {
+  const { user } = useAuth();
   const [rows, setRows] = useState<Solicitacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
@@ -266,14 +268,24 @@ export default function AssinaturasTimeline() {
     | "VALOR_DESC" | "VALOR_ASC"
     | "CRIADO_DESC" | "CRIADO_ASC"
     | "CONCLUIDO_DESC" | "CONCLUIDO_ASC"
-    | "STATUS_DESC" | "STATUS_ASC";
-  type ChaveOrdenacao = "VALOR" | "CRIADO" | "CONCLUIDO" | "STATUS";
+    | "STATUS_DESC" | "STATUS_ASC"
+    | "PACIENTE_DESC" | "PACIENTE_ASC"
+    | "MEDICO_DESC" | "MEDICO_ASC"
+    | "FARMACIA_DESC" | "FARMACIA_ASC"
+    | "CLINICA_DESC" | "CLINICA_ASC";
+  type ChaveOrdenacao =
+    | "VALOR" | "CRIADO" | "CONCLUIDO" | "STATUS"
+    | "PACIENTE" | "MEDICO" | "FARMACIA" | "CLINICA";
   const ORDENACAO_URL: Record<Ordenacao, string> = {
     ID_DESC: "",
     VALOR_DESC: "valor_desc",     VALOR_ASC: "valor_asc",
     CRIADO_DESC: "criado_desc",   CRIADO_ASC: "criado_asc",
     CONCLUIDO_DESC: "concluido_desc", CONCLUIDO_ASC: "concluido_asc",
     STATUS_DESC: "status_desc",   STATUS_ASC: "status_asc",
+    PACIENTE_DESC: "paciente_desc", PACIENTE_ASC: "paciente_asc",
+    MEDICO_DESC: "medico_desc",     MEDICO_ASC: "medico_asc",
+    FARMACIA_DESC: "farmacia_desc", FARMACIA_ASC: "farmacia_asc",
+    CLINICA_DESC: "clinica_desc",   CLINICA_ASC: "clinica_asc",
   };
   const URL_TO_ORDENACAO: Record<string, Ordenacao> = (() => {
     const m: Record<string, Ordenacao> = {};
@@ -289,6 +301,22 @@ export default function AssinaturasTimeline() {
       .toLowerCase();
     return URL_TO_ORDENACAO[v] || "ID_DESC";
   }
+  // Task #88 — chave por-usuario pra "lembrar" a ultima ordenacao escolhida
+  // entre navegacoes. Se a URL tem `?ordenar_por=`, ele tem prioridade (link
+  // compartilhavel continua mandando); caso contrario aplicamos a salva.
+  function chaveStorageOrdenacao(uid: number | string | undefined): string | null {
+    if (uid === undefined || uid === null) return null;
+    return `pawards.timeline.ordenar_por.${uid}`;
+  }
+  function lerOrdenacaoSalva(uid: number | string | undefined): Ordenacao | null {
+    if (typeof window === "undefined") return null;
+    const k = chaveStorageOrdenacao(uid);
+    if (!k) return null;
+    try {
+      const v = (window.localStorage.getItem(k) || "").toLowerCase();
+      return URL_TO_ORDENACAO[v] || null;
+    } catch { return null; }
+  }
   const [ordenacao, setOrdenacaoState] = useState<Ordenacao>(parseOrdenacaoFromUrl);
   const setOrdenacao = useCallback((nova: Ordenacao) => {
     setOrdenacaoState(nova);
@@ -298,8 +326,30 @@ export default function AssinaturasTimeline() {
     if (valor) url.searchParams.set("ordenar_por", valor);
     else url.searchParams.delete("ordenar_por");
     window.history.replaceState({}, "", url.toString());
+    // Persiste a escolha por-usuario pra reabrir a timeline lembrando a
+    // ultima ordenacao (Task #88). Salvamos string vazia pra ID_DESC default
+    // tambem, pra "lembrar" explicitamente que o usuario voltou pro padrao.
+    const k = chaveStorageOrdenacao(user?.id);
+    if (k) {
+      try { window.localStorage.setItem(k, valor); } catch { /* ignore */ }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id]);
+
+  // Task #88 — hidrata a ordenacao salva quando o usuario fica disponivel,
+  // SOMENTE se a URL atual nao traz `?ordenar_por=` (link compartilhavel
+  // continua tendo prioridade absoluta).
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+    const urlTem = new URLSearchParams(window.location.search).get("ordenar_por");
+    if (urlTem) return;
+    const salva = lerOrdenacaoSalva(user.id);
+    if (salva && salva !== ordenacao) {
+      setOrdenacao(salva);
+    }
+    // Roda so quando o user.id muda (login/troca de conta).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
   // Ciclo do clique em qualquer cabecalho: se a coluna ja esta DESC ativa,
   // vira ASC; se ASC, volta pro padrao (ID_DESC); se inativa, abre em DESC
   // (criterio "maior/mais recente primeiro" e o intuitivo). Trocar de coluna
@@ -476,10 +526,11 @@ export default function AssinaturasTimeline() {
               if (ateInput) params.set("ate", ateInput);
               // Task #83 — repassa a ordenacao atual da tabela pros endpoints
               // de export, pra que CSV/XLSX baixem na MESMA ordem visivel na
-              // tela (id_desc default; valor_desc / valor_asc quando o usuario
-              // ordenou pelo cabecalho Valor).
-              if (ordenacao === "VALOR_DESC") params.set("ordenar_por", "valor_desc");
-              else if (ordenacao === "VALOR_ASC") params.set("ordenar_por", "valor_asc");
+              // tela. Task #93 — agora repassa qualquer valor da whitelist
+              // (status/criado/concluido/paciente/medico/farmacia + valor),
+              // nao so valor_*. ID_DESC e o default do servidor → omitido.
+              const ordenarParam = ORDENACAO_URL[ordenacao];
+              if (ordenarParam) params.set("ordenar_por", ordenarParam);
               const qs = params.toString() ? `?${params.toString()}` : "";
               return (
                 <>
@@ -676,9 +727,25 @@ export default function AssinaturasTimeline() {
                 <tr>
                   <th className="text-left px-3 py-2 font-semibold">#</th>
                   <th className="text-left px-3 py-2 font-semibold">Template</th>
-                  <th className="text-left px-3 py-2 font-semibold">Paciente</th>
+                  <th className="text-left px-3 py-2 font-semibold">
+                    <ColunaOrdenavel
+                      label="Paciente"
+                      ativaDesc={ordenacao === "PACIENTE_DESC"}
+                      ativaAsc={ordenacao === "PACIENTE_ASC"}
+                      onClick={() => alternarOrdenacao("PACIENTE")}
+                      testId="ordenar-por-paciente"
+                    />
+                  </th>
                   {filtroUnidadeId === null && (
-                    <th className="text-left px-3 py-2 font-semibold">Clínica</th>
+                    <th className="text-left px-3 py-2 font-semibold">
+                      <ColunaOrdenavel
+                        label="Clínica"
+                        ativaDesc={ordenacao === "CLINICA_DESC"}
+                        ativaAsc={ordenacao === "CLINICA_ASC"}
+                        onClick={() => alternarOrdenacao("CLINICA")}
+                        testId="ordenar-por-clinica"
+                      />
+                    </th>
                   )}
                   <th className="text-center px-3 py-2 font-semibold">
                     <ColunaOrdenavel
@@ -700,8 +767,24 @@ export default function AssinaturasTimeline() {
                       testId="ordenar-por-valor"
                     />
                   </th>
-                  <th className="text-left px-3 py-2 font-semibold">Farmácia</th>
-                  <th className="text-left px-3 py-2 font-semibold">Médico</th>
+                  <th className="text-left px-3 py-2 font-semibold">
+                    <ColunaOrdenavel
+                      label="Farmácia"
+                      ativaDesc={ordenacao === "FARMACIA_DESC"}
+                      ativaAsc={ordenacao === "FARMACIA_ASC"}
+                      onClick={() => alternarOrdenacao("FARMACIA")}
+                      testId="ordenar-por-farmacia"
+                    />
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold">
+                    <ColunaOrdenavel
+                      label="Médico"
+                      ativaDesc={ordenacao === "MEDICO_DESC"}
+                      ativaAsc={ordenacao === "MEDICO_ASC"}
+                      onClick={() => alternarOrdenacao("MEDICO")}
+                      testId="ordenar-por-medico"
+                    />
+                  </th>
                   <th className="text-center px-3 py-2 font-semibold">Signatários</th>
                   <th className="text-center px-3 py-2 font-semibold">Auditoria</th>
                   <th className="text-left px-3 py-2 font-semibold">
@@ -991,6 +1074,82 @@ export default function AssinaturasTimeline() {
                             }}
                           >
                             {it.medico}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono"
+                            style={{ color: NAVY }}
+                          >
+                            {it.n}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono font-bold"
+                            style={{ color: GOLD }}
+                          >
+                            {formatarBRL(it.soma)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+            {/* Task #85 — quebra do valor visivel por unidade (clinica).
+                Fecha o trio com farmacia (Task #81) e medico (Task #82):
+                ranking entre clinicas multi-unidade pra Caio identificar
+                quais unidades puxam o faturamento. Mesmo padrao visual,
+                calculo client-side a partir do payload ja carregado. */}
+            {(() => {
+              const SEM_UNIDADE = "— sem unidade —";
+              const linhasComValor = rows.filter((r) => r.valor_brl !== null);
+              if (linhasComValor.length === 0) return null;
+              const agrupado = new Map<string, { n: number; soma: number }>();
+              for (const r of linhasComValor) {
+                const nome = r.paciente_unidade_nome?.trim() || "";
+                const chave = nome !== "" ? nome : SEM_UNIDADE;
+                const atual = agrupado.get(chave) || { n: 0, soma: 0 };
+                atual.n += 1;
+                atual.soma += r.valor_brl || 0;
+                agrupado.set(chave, atual);
+              }
+              const itens = Array.from(agrupado.entries())
+                .map(([unidade, v]) => ({ unidade, ...v }))
+                .sort((a, b) => b.soma - a.soma);
+              return (
+                <div
+                  className="border-t px-3 py-3"
+                  style={{ background: "#FFFDF5", borderColor: GOLD }}
+                  data-testid="resumo-por-unidade"
+                >
+                  <div
+                    className="text-xs uppercase tracking-wide mb-2 font-semibold"
+                    style={{ color: NAVY }}
+                  >
+                    Soma por unidade (linhas visíveis)
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead style={{ color: ZINC }}>
+                      <tr>
+                        <th className="text-left px-2 py-1 font-semibold">Unidade</th>
+                        <th className="text-right px-2 py-1 font-semibold">Orçamentos</th>
+                        <th className="text-right px-2 py-1 font-semibold">Soma (BRL)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map((it) => (
+                        <tr
+                          key={it.unidade}
+                          className="border-t"
+                          data-testid={`resumo-unidade-linha-${it.unidade === SEM_UNIDADE ? "sem-unidade" : it.unidade}`}
+                        >
+                          <td
+                            className="px-2 py-1"
+                            style={{
+                              color: it.unidade === SEM_UNIDADE ? ZINC : NAVY,
+                              fontStyle: it.unidade === SEM_UNIDADE ? "italic" : "normal",
+                            }}
+                          >
+                            {it.unidade}
                           </td>
                           <td
                             className="px-2 py-1 text-right font-mono"
