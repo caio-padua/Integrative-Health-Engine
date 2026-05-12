@@ -1011,6 +1011,82 @@ export default function AssinaturasTimeline() {
                 </div>
               );
             })()}
+            {/* Task #85 — quebra do valor visivel por unidade (clinica).
+                Fecha o trio com farmacia (Task #81) e medico (Task #82):
+                ranking entre clinicas multi-unidade pra Caio identificar
+                quais unidades puxam o faturamento. Mesmo padrao visual,
+                calculo client-side a partir do payload ja carregado. */}
+            {(() => {
+              const SEM_UNIDADE = "— sem unidade —";
+              const linhasComValor = rows.filter((r) => r.valor_brl !== null);
+              if (linhasComValor.length === 0) return null;
+              const agrupado = new Map<string, { n: number; soma: number }>();
+              for (const r of linhasComValor) {
+                const nome = r.paciente_unidade_nome?.trim() || "";
+                const chave = nome !== "" ? nome : SEM_UNIDADE;
+                const atual = agrupado.get(chave) || { n: 0, soma: 0 };
+                atual.n += 1;
+                atual.soma += r.valor_brl || 0;
+                agrupado.set(chave, atual);
+              }
+              const itens = Array.from(agrupado.entries())
+                .map(([unidade, v]) => ({ unidade, ...v }))
+                .sort((a, b) => b.soma - a.soma);
+              return (
+                <div
+                  className="border-t px-3 py-3"
+                  style={{ background: "#FFFDF5", borderColor: GOLD }}
+                  data-testid="resumo-por-unidade"
+                >
+                  <div
+                    className="text-xs uppercase tracking-wide mb-2 font-semibold"
+                    style={{ color: NAVY }}
+                  >
+                    Soma por unidade (linhas visíveis)
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead style={{ color: ZINC }}>
+                      <tr>
+                        <th className="text-left px-2 py-1 font-semibold">Unidade</th>
+                        <th className="text-right px-2 py-1 font-semibold">Orçamentos</th>
+                        <th className="text-right px-2 py-1 font-semibold">Soma (BRL)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map((it) => (
+                        <tr
+                          key={it.unidade}
+                          className="border-t"
+                          data-testid={`resumo-unidade-linha-${it.unidade === SEM_UNIDADE ? "sem-unidade" : it.unidade}`}
+                        >
+                          <td
+                            className="px-2 py-1"
+                            style={{
+                              color: it.unidade === SEM_UNIDADE ? ZINC : NAVY,
+                              fontStyle: it.unidade === SEM_UNIDADE ? "italic" : "normal",
+                            }}
+                          >
+                            {it.unidade}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono"
+                            style={{ color: NAVY }}
+                          >
+                            {it.n}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono font-bold"
+                            style={{ color: GOLD }}
+                          >
+                            {formatarBRL(it.soma)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
           </div>
         )}
 
