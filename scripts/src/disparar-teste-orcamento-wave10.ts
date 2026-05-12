@@ -12,6 +12,12 @@ async function main() {
       email: "ceo@pawards.com.br",
       telefone: "5511946554000",
     },
+    // Wave 10 Fase B Dia 2 (11/mai/2026 noite) — Caio NAO tem certificado ICP-Brasil
+    // pra assinar como representante FAMA. Pra fechar fluxo fim-a-fim hoje (provar
+    // webhook + auditoria + cofre), forca farmacia em modo "avancada" (assinatura
+    // tela + token email/whatsapp). Em producao real, REMOVER esta linha — ICP eh
+    // exigencia juridica (defesa tripla CFM/CC/STJ).
+    farmaciaAuthMode: "avancada",
   });
 
   console.log(JSON.stringify(out, null, 2));
