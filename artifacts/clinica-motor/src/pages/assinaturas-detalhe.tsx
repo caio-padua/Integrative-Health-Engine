@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "wouter";
 import { Layout } from "@/components/Layout";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -131,15 +132,10 @@ export default function AssinaturasDetalhe() {
     setReenviandoId(signatarioId);
     setReenvioMsg(null);
     try {
-      // Task #101 — anexa Authorization Bearer (login so guarda JWT em
-      // localStorage; sem este header essa rota master retorna 401).
-      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
-      const r = await fetch(`/api/assinaturas/${id}/signatario/${signatarioId}/reenviar`, {
+      // Task #105 — apiFetch injeta Authorization Bearer automaticamente.
+      const r = await apiFetch(`/api/assinaturas/${id}/signatario/${signatarioId}/reenviar`, {
         method: "POST",
-        credentials: "include",
-        headers,
+        headers: { "Content-Type": "application/json" },
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -168,14 +164,10 @@ export default function AssinaturasDetalhe() {
     setResetandoId(eventoId);
     setResetMsg(null);
     try {
-      // Task #101 — anexa Authorization Bearer.
-      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
-      const r = await fetch(`/api/assinaturas/uploads-falhos/${eventoId}/resetar`, {
+      // Task #105 — apiFetch injeta Authorization Bearer automaticamente.
+      const r = await apiFetch(`/api/assinaturas/uploads-falhos/${eventoId}/resetar`, {
         method: "POST",
-        credentials: "include",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ motivo }),
       });
       const body = await r.json().catch(() => ({}));
@@ -202,14 +194,8 @@ export default function AssinaturasDetalhe() {
     setLoading(true);
     setErro(null);
     try {
-      // Task #101 — anexa Authorization Bearer.
-      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
-      const headers: Record<string, string> = {};
-      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
-      const r = await fetch(`/api/assinaturas/${id}`, {
-        credentials: "include",
-        headers,
-      });
+      // Task #105 — apiFetch injeta Authorization Bearer automaticamente.
+      const r = await apiFetch(`/api/assinaturas/${id}`);
       if (!r.ok) {
         throw new Error(`HTTP ${r.status}`);
       }

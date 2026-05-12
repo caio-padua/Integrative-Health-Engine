@@ -6,15 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Search, ChevronDown, ChevronRight, Syringe, Droplets, CircleDot, FlaskConical, Stethoscope, Brain, Microscope, Pencil, X, Trash2, Plus } from "lucide-react";
+import { apiFetch } from "@/lib/api-fetch";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 async function catFetch(url: string): Promise<any[]> {
-  const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
-  const headers: Record<string, string> = {};
-  if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
   try {
-    const res = await fetch(url, { credentials: "include", headers });
+    const res = await apiFetch(url);
     const j = await res.json();
     if (!Array.isArray(j)) {
       console.warn("[catFetch] resposta não-array:", url, j);
@@ -29,7 +27,7 @@ async function catFetch(url: string): Promise<any[]> {
 
 async function apiPut(url: string, data: any): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    const res = await apiFetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     if (!res.ok) { const d = await res.json().catch(() => ({})); return { ok: false, error: d.error || `Erro ${res.status}` }; }
     return { ok: true };
   } catch { return { ok: false, error: "Erro de conexao" }; }
@@ -37,7 +35,7 @@ async function apiPut(url: string, data: any): Promise<{ ok: boolean; error?: st
 
 async function apiPost(url: string, data: any): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    const res = await apiFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     if (!res.ok) { const d = await res.json().catch(() => ({})); return { ok: false, error: d.error || `Erro ${res.status}` }; }
     return { ok: true };
   } catch { return { ok: false, error: "Erro de conexao" }; }
@@ -45,7 +43,7 @@ async function apiPost(url: string, data: any): Promise<{ ok: boolean; error?: s
 
 async function apiDelete(url: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(url, { method: "DELETE" });
+    const res = await apiFetch(url, { method: "DELETE" });
     if (!res.ok) { const d = await res.json().catch(() => ({})); return { ok: false, error: d.error || `Erro ${res.status}` }; }
     return { ok: true };
   } catch { return { ok: false, error: "Erro de conexao" }; }

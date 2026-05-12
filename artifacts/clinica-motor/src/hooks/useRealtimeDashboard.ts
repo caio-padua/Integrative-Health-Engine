@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || "/api";
-const TOKEN_KEY = "pawards.auth.token";
 
 export function useRealtimeDashboard<T>(
   endpoint: string,
@@ -19,10 +19,7 @@ export function useRealtimeDashboard<T>(
       const url = endpoint.startsWith("http") || endpoint.startsWith("/api")
         ? endpoint
         : `${API_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
-      const jwt = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
-      const headers: Record<string, string> = {};
-      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
-      const res = await fetch(url, { credentials: "include", headers });
+      const res = await apiFetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as T;
       setData(json);

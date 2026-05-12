@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { useClinic } from "@/contexts/ClinicContext";
+import { apiFetch } from "@/lib/api-fetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -502,10 +503,7 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
     setLoading(true);
     try {
       const params = unidadeId ? `?unidadeId=${unidadeId}` : "";
-      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
-      const headers: Record<string, string> = {};
-      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
-      const res = await fetch(`${API_BASE}/agenda-motor/sub-agendas${params}`, { credentials: "include", headers });
+      const res = await apiFetch(`${API_BASE}/agenda-motor/sub-agendas${params}`);
       const data = await res.json();
       setSubAgendas(Array.isArray(data) ? data : []);
     } catch (err) {

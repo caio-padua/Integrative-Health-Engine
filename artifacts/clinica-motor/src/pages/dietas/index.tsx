@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Apple, Plus, Pencil, Trash2, X, Save, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { apiFetch } from "@/lib/api-fetch";
 
 const BASE = import.meta.env.BASE_URL || "/clinica-motor/";
 
@@ -46,10 +47,7 @@ export default function DietasPage() {
   const { data, isLoading } = useQuery<Dieta[]>({
     queryKey: ["dietas"],
     queryFn: async () => {
-      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
-      const headers: Record<string, string> = {};
-      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
-      const r = await fetch(`${BASE}api/catalogo/dietas`, { credentials: "include", headers });
+      const r = await apiFetch(`${BASE}api/catalogo/dietas`);
       const j = await r.json();
       return Array.isArray(j) ? j : [];
     },
@@ -58,7 +56,7 @@ export default function DietasPage() {
   const save = useMutation({
     mutationFn: async (d: any) => {
       const url = d.id ? `${BASE}api/catalogo/dietas/${d.id}` : `${BASE}api/catalogo/dietas`;
-      const r = await fetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+      const r = await apiFetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
       if (!r.ok) throw new Error("Erro ao salvar");
       return r.json();
     },
@@ -68,7 +66,7 @@ export default function DietasPage() {
 
   const del = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`${BASE}api/catalogo/dietas/${id}`, { method: "DELETE" });
+      const r = await apiFetch(`${BASE}api/catalogo/dietas/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Erro");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["dietas"] }); toast({ title: "Dieta excluida" }); },

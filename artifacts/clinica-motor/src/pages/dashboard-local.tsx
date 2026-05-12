@@ -6,15 +6,12 @@ import {
   CalendarClock, FileText, DollarSign, Mountain, ShieldAlert,
 } from "lucide-react";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
+import { apiFetch } from "@/lib/api-fetch";
 
 const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
-const TOKEN_KEY = "pawards.auth.token";
 function authedFetch(url: string) {
-  const jwt = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
-  const headers: Record<string, string> = {};
-  if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
-  return fetch(url, { credentials: "include", headers }).then((r) => r.json());
+  return apiFetch(url).then((r) => r.json());
 }
 
 export default function DashboardLocalPage() {
