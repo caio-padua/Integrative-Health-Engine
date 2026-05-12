@@ -421,8 +421,15 @@ export default function AssinaturasTimeline() {
       const offset = append ? rows.length : 0;
       params.set("offset", String(offset));
       const qs = `?${params.toString()}`;
+      // Task #101 — anexa Authorization Bearer (mesmo padrao das outras
+      // telas master). O cookie pawards.auth.token nao eh setado no login,
+      // entao sem este header /assinaturas/timeline retornava 401.
+      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
+      const headers: Record<string, string> = {};
+      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
       const r = await fetch(`/api/assinaturas/timeline${qs}`, {
         credentials: "include",
+        headers,
       });
       if (!r.ok) {
         throw new Error(`HTTP ${r.status}`);

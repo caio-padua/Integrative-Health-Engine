@@ -131,10 +131,15 @@ export default function AssinaturasDetalhe() {
     setReenviandoId(signatarioId);
     setReenvioMsg(null);
     try {
+      // Task #101 — anexa Authorization Bearer (login so guarda JWT em
+      // localStorage; sem este header essa rota master retorna 401).
+      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
       const r = await fetch(`/api/assinaturas/${id}/signatario/${signatarioId}/reenviar`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers,
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -163,10 +168,14 @@ export default function AssinaturasDetalhe() {
     setResetandoId(eventoId);
     setResetMsg(null);
     try {
+      // Task #101 — anexa Authorization Bearer.
+      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
       const r = await fetch(`/api/assinaturas/uploads-falhos/${eventoId}/resetar`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ motivo }),
       });
       const body = await r.json().catch(() => ({}));
@@ -193,8 +202,13 @@ export default function AssinaturasDetalhe() {
     setLoading(true);
     setErro(null);
     try {
+      // Task #101 — anexa Authorization Bearer.
+      const jwt = typeof window !== "undefined" ? localStorage.getItem("pawards.auth.token") : null;
+      const headers: Record<string, string> = {};
+      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
       const r = await fetch(`/api/assinaturas/${id}`, {
         credentials: "include",
+        headers,
       });
       if (!r.ok) {
         throw new Error(`HTTP ${r.status}`);
