@@ -894,6 +894,9 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     // paciente/medico/farmacia, asc+desc) pra bater com Tasks #84 e #89: a
     // tela ja aceita ordenar por todas essas dimensoes, e o anexo CSV
     // precisa sair na MESMA ordem pra contador/advogado nao se confundir.
+    // Task #95 — adicionado clinica (asc+desc) pra fechar o whitelist com o
+    // endpoint JSON: Caio exporta extrato ordenado por Clínica pra contador
+    // e o arquivo precisa sair na MESMA ordem que ele viu na tela.
     const ORDENACOES_VALIDAS_CSV = new Set([
       "valor_desc", "valor_asc",
       "criado_desc", "criado_asc",
@@ -902,6 +905,7 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       "paciente_desc", "paciente_asc",
       "medico_desc", "medico_asc",
       "farmacia_desc", "farmacia_asc",
+      "clinica_desc", "clinica_asc",
     ]);
     const ordenarPorRawCsv = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
@@ -937,6 +941,10 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
       : ordenarPorCsv === "farmacia_asc"
       ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "clinica_desc"
+      ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "clinica_asc"
+      ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
@@ -1134,6 +1142,8 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     // exportado bata com a ordem visivel na tela. Default `s.id DESC`.
     // Task #93 — expandido pra whitelist completa (status/criado/concluido/
     // paciente/medico/farmacia, asc+desc) batendo com Tasks #84 e #89.
+    // Task #95 — adicionado clinica (asc+desc) pra fechar o whitelist com o
+    // endpoint JSON: extrato XLSX precisa sair na MESMA ordem da tela.
     const ORDENACOES_VALIDAS_XLSX = new Set([
       "valor_desc", "valor_asc",
       "criado_desc", "criado_asc",
@@ -1142,6 +1152,7 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       "paciente_desc", "paciente_asc",
       "medico_desc", "medico_asc",
       "farmacia_desc", "farmacia_asc",
+      "clinica_desc", "clinica_asc",
     ]);
     const ordenarPorRawXlsx = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
@@ -1177,6 +1188,10 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
       : ordenarPorXlsx === "farmacia_asc"
       ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "clinica_desc"
+      ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "clinica_asc"
+      ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
