@@ -48,7 +48,7 @@ const ORDENACOES_TIMELINE_FRAGMENT: Record<string, ReturnType<typeof sql>> = {
   template_asc:  sql`t.codigo ASC NULLS LAST`,
 };
 const MAX_ORDENACOES_TIMELINE = 4;
-function parseTokensOrdenacao(raw: string): string[] {
+export function parseTokensOrdenacao(raw: string): string[] {
   if (!raw) return [];
   const seen = new Set<string>();
   const out: string[] = [];
