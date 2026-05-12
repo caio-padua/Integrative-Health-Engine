@@ -298,3 +298,52 @@ essas waves no mapa neuronal v1.2.
 - Fase B Dia 2 (sandbox real ZapSign 30min) DEPENDE de Caio cadastrar
   conta ZapSign sandbox + CNAME `webhooks.pawards.com.br`
 - F6 wrap-up + tag `v031-zapsign-launch` DEPENDE de Fase B Dia 2 verde
+
+---
+
+## ✅ Decisão D9 — Fase B Dia 2 disparo real fechado (2026-05-12 madrugada)
+
+**Contexto**: noite de 11→12/mai/2026, Caio colou `ZAPSIGN_API_TOKEN` em
+PRODUÇÃO (não sandbox), criou 3 webhooks no painel ZapSign apontando pra
+URL temporária `kirk.replit.dev`, e tentou assinar 2 documentos do
+envelope `ea9029e8-8d8e-4d4e-ac2b-24551b8f3979`.
+
+**Decisões tomadas no momento (todas aprovadas Caio explicitamente)**:
+
+1. **D9.1 ZapSign painel sem campo de secret/header** → adicionado branch
+   dev-only em `lib/assinatura/adapters.ts` (`NODE_ENV !== "production" &&
+   ZAPSIGN_WEBHOOK_DEV_BYPASS === "true"`) pra aceitar webhook sem header
+   custom em DEV. Em produção definitiva, precisa decisão estratégica
+   (ZapSign Enterprise vs Clicksign vs IP whitelist) — registrada como
+   dívida técnica em `04_session_plan...md` item 3.
+
+2. **D9.2 Caio sem certificado ICP-Brasil real pra FAMA** → adicionado
+   param `farmaciaAuthMode?: AuthMode` ao use-case
+   `enviarOrcamentoFarmaceutico` (default permanece `qualificada_ecnpj`
+   ICP). Script teste passa `farmaciaAuthMode: "avancada"` pra fechar
+   fluxo. Em produção real continua exigindo ICP — defesa jurídica
+   tripla CFM/CC/STJ preservada.
+
+3. **D9.3 Receita teste pra Caio (id=3104, `is_teste=true`)**:
+   - Receita 8728 (R$ 1.500 + comissão R$ 450) → envelope `ea9029e8`
+     → status `CONCLUIDO` → auditoria id=1 ✅
+   - Receita 8729 (R$ 1.500 + comissão R$ 450) → envelope `55dcabfd`
+     → status `ENVIADO` (não foi necessário assinar)
+
+4. **D9.4 Validação fim-a-fim em SQL puro** (prova preservação):
+   - `auditoria_assinaturas`: 0 → **1** (PRIMEIRA ASSINATURA REAL DO
+     PROJETO INTEIRO) com hash SHA-256 64 chars + IP real Caio
+     191.204.182.53 + auth_method=assinaturaTela + PDF no cofre
+     `replit-objstore-.../assinaturas/orc-8728-1778546495818.pdf`
+   - `parmavault_receitas` (excluindo 8728+8729) = **8.726 linhas** ✅
+   - `SUM(comissao_estimada)` (excluindo teste) = **R$ 2.735.636,10** ✅
+   - 5 triggers Wave 9 ATIVOS ✅
+
+**Lente de persona**: 🩺 médico (defesa jurídica preservada via
+default ICP) + 💰 CEO (R$ 0,50 ZapSign vale comissão R$ 450) + 📈
+empresário (replicável pra qualquer receita PARMAVAULT) + 🛡️ investidor
+(invariantes Wave 9 intactas, dívidas técnicas mapeadas e priorizadas
+pra Wave 10.5).
+
+**Próximo destravamento**: F6 wrap-up + tag `v031-zapsign-launch` em
+sessão futura (requer code_review final + suggest_deploy).

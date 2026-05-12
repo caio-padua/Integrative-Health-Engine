@@ -230,3 +230,87 @@ muito do que seria Wave 11 (Comunicação) e Wave 11.5 (Segurança IDOR)**.
 Vale revisar se faz sentido renumerar / consolidar essas duas waves agora
 que metade já existe em produção, ou se elas viram apenas "fechamento de
 lacunas" no roadmap.
+
+---
+
+## 🚀 SNAPSHOT FASE B DIA 2 — DISPARO REAL FECHADO (12/mai/2026 madrugada — 01:09 BRT)
+
+### Linha do tempo da noite
+
+| Horário (BRT) | Evento |
+|---|---|
+| ~22:30 | Caio cola `ZAPSIGN_API_TOKEN` via `requestEnvVar` (PRODUÇÃO, não sandbox) |
+| ~22:35 | `ZAPSIGN_BASE_URL=https://api.zapsign.com.br` setado via `setEnvVars` |
+| ~22:45 | 1º disparo real — receita 8728 (R$ 1.500 + R$ 450 comissão), envelope ZapSign `ea9029e8-8d8e-4d4e-ac2b-24551b8f3979`, solicitação id=8 |
+| ~22:46 | Caio recebe 2 e-mails `ola@zapsign.com.br` no Zoho |
+| ~22:50 | Caio cria 3 webhooks no painel ZapSign (`doc_signed`, `doc_refused`, `doc_deleted`) apontando pra URL temporária `https://2ef80136-...kirk.replit.dev/api/webhooks/assinatura/zapsign` |
+| ~22:52 | Painel ZapSign confirmado SEM campo de secret/header customizado por webhook |
+| ~23:00 | `ZAPSIGN_WEBHOOK_SECRET` tentativa de delete via `deleteEnvVars` — falha silenciosa (deleteEnvVars ignora SECRETS, só apaga env vars) |
+| ~23:05 | **Edit cirúrgico** em `lib/assinatura/adapters.ts` linhas 75-85: novo branch `else if` que aceita webhook sem header customizado **se e somente se** `NODE_ENV !== "production"` E `ZAPSIGN_WEBHOOK_DEV_BYPASS === "true"` (dev-only, defesa em profundidade preservada em prod) |
+| ~23:10 | `ZAPSIGN_WEBHOOK_DEV_BYPASS=true` setado · API restart · ping de teste retorna `signature_valida=t, processado=t` ✅ |
+| ~23:30 | Caio tenta assinar mas trava na tela "Certificado digital — Selecione o tipo de certificado" (FAMA configurada como `qualificada_ecnpj` ICP-Brasil) |
+| ~23:50 | **Edit cirúrgico** no use-case: novo param `farmaciaAuthMode?: AuthMode` (default mantém `qualificada_ecnpj` ICP); script teste passa `farmaciaAuthMode: "avancada"` pra fechar fluxo sem certificado real |
+| ~01:05 | **Webhook real do ZapSign chega** — evento id=19 `doc_signed` `signature_valida=t` `processado=t` `solicitacao_id=8`. Solicitação 8 vai pra `CONCLUIDO`, hash_assinado gravado, `auditoria_assinaturas` ganha linha id=1 |
+| ~01:09 | 2º disparo (receita 8729 com `farmaciaAuthMode: "avancada"`, envelope `55dcabfd-3b18-40e1-af83-d1d1a7801aa7`, solicitação id=9) — não foi mais necessário, mas ficou disponível pra teste do fluxo "leve" se precisarmos |
+
+### Prova fim-a-fim em SQL puro
+
+```sql
+SELECT id, solicitacao_id, signer_papel, signer_name, auth_method,
+       signer_ip, LENGTH(document_hash_sha256) AS hash_len,
+       pdf_storage_key, validation_url, criado_em
+  FROM auditoria_assinaturas ORDER BY id DESC LIMIT 1;
+-- id=1 | sol=8 | PACIENTE | "Caio Pádua (CEO PAWARDS - PACIENTE TESTE WAVE 10)"
+-- auth=assinaturaTela | ip=191.204.182.53 (IP REAL) | hash 64 chars
+-- pdf_storage_key=replit-objstore-b6128506-.../assinaturas/orc-8728-1778546495818.pdf
+-- validation_url=https://app.zapsign.com.br/verificar/54e9c6e3-39be-4fa9-a4dc-356c322c8c9c
+-- criado_em=2026-05-12 01:05:15 UTC
+```
+
+### Invariantes Wave 9 verificadas pós-fluxo
+
+- `parmavault_receitas` (excluindo 8728+8729 teste) = **8.726 linhas**
+- `SUM(comissao_estimada)` (excluindo teste) = **R$ 2.735.636,10** (espelho `parq_estimado` igual)
+- 5 triggers Wave 9 ATIVOS (`pg_trigger.tgenabled='O'`)
+- `assinatura_solicitacoes`: 9 linhas (8 antes + 1 nova hoje teste leve)
+- `auditoria_assinaturas`: 0 → **1** (primeira assinatura real do projeto inteiro!)
+
+### Dívidas técnicas registradas (NÃO bloqueiam Wave 10 fechamento)
+
+1. **Signatários não atualizados pós-webhook**: `assinatura_signatarios` sol=8 papel=PACIENTE continua com `status=ENVIADO` mesmo com solicitação em `CONCLUIDO` e auditoria gravada. F4 só atualiza solicitação + auditoria, não propaga pra signatários. Corrigir Wave 10.5.
+2. **Só 1 linha de auditoria pra envelope com 2 signatários**: provavelmente paciente assinou e ZapSign enviou `doc_signed` (semântica "documento totalmente assinado") porque farmácia pulou ou porque template ZapSign tinha config "1 signatário basta". Investigar Wave 10.5: nosso webhook deveria gerar 1 linha de auditoria por SIGNATÁRIO assinado, não por envelope.
+3. **`ZAPSIGN_WEBHOOK_DEV_BYPASS=true` ATIVO**: regra dev-only protegida por `NODE_ENV !== "production"`, mas em produção definitiva (com CNAME `webhooks.pawards.com.br`) o painel ZapSign continua sem campo de secret. Decisão pra Wave 10.5 ou Wave 11: **migrar pra ZapSign Enterprise** (que tem secret) ou **trocar de provedor pra Clicksign** (que tem). Outras alternativas: validar via `event_id` único + IP whitelist do ZapSign + idempotência forte.
+4. **`farmaciaAuthMode: "avancada"` no script teste**: documentado no comentário do código que NÃO usar em produção real. Wave 10.5 pode adicionar guard que recusa o param fora de `NODE_ENV !== "production"`.
+5. **Wave 10.5 Caio ainda precisa**: cadastrar e-CNPJ ICP real pra FAMA (representante real, não Caio fictício), gerar `webhooks.pawards.com.br` definitivo via CNAME, rotacionar `ZAPSIGN_WEBHOOK_SECRET` (caso provedor ofereça campo).
+
+### Status Wave 10 no fechamento da noite
+
+| Fase | Status |
+|---|---|
+| F0 invariantes baseline + bucket | ✅ |
+| F1 Migration 031 | ✅ |
+| F2 ZapsignAdapter promovido HMAC | ✅ |
+| F3.A enviarPARQ.ts | ✅ |
+| F3.B enviarTCLE.ts | ✅ |
+| F3.C enviarOrcamentoFarmaceutico.ts | ✅ |
+| Fase B Dia 1 preparação | ✅ |
+| **Fase B Dia 2 disparo real fim-a-fim** | ✅ **(noite 11→12 mai/2026)** |
+| F4 webhook handler + manifesto SHA-256 | ✅ |
+| F5 frontend timeline + detalhe | ✅ |
+| Wave 10.5 ADMIN_TOKEN rotacionado + ~25 follow-ups | ✅ |
+| **F6 wrap-up + tag `v031-zapsign-launch`** | 🟡 PENDENTE (próxima sessão, requer code_review final) |
+| Wave 13 RBAC + 2FA TOTP | 🟡 mini-RFC documentada |
+
+### Observação pro Dr. Claude (atualizada)
+
+Wave 10 pode ser oficialmente declarada **PRONTA PRA PRODUÇÃO** após F6
+(commit + tag + code_review final + suggest_deploy). Sugestões de
+priorização pra próxima sessão:
+
+1. **Wave 10.5 housekeeping urgente** (1-2 dias):
+   - Auditoria por signatário (não por envelope) — corrigir item 2 acima
+   - Atualização de `assinatura_signatarios.status` no webhook — item 1
+   - Decisão estratégica: ZapSign Enterprise vs Clicksign vs IP whitelist — item 3
+   - Guard `farmaciaAuthMode` produção — item 4
+2. **Wave 13 RBAC + 2FA TOTP** ANTES de abrir pra outros tenants (mini-RFC pronta em `02_DECISOES_PENDENTES`)
+3. **Wave 11/11.5 consolidação**: revisar se a defesa em profundidade do cofre + observabilidade CEO já merged (#34-#69) substituem totalmente as Waves originais ou apenas as encurtam
