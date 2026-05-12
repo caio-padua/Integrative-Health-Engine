@@ -665,6 +665,7 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       "medico_desc", "medico_asc",
       "farmacia_desc", "farmacia_asc",
       "clinica_desc", "clinica_asc",
+      "template_desc", "template_asc",
     ]);
     const ordenarPorRaw = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
@@ -704,6 +705,10 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
       : ordenarPor === "clinica_asc"
       ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "template_desc"
+      ? sql`ORDER BY t.codigo DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "template_asc"
+      ? sql`ORDER BY t.codigo ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const countR = await db.execute(sql`
       SELECT COUNT(*)::int AS total
@@ -906,6 +911,7 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       "medico_desc", "medico_asc",
       "farmacia_desc", "farmacia_asc",
       "clinica_desc", "clinica_asc",
+      "template_desc", "template_asc",
     ]);
     const ordenarPorRawCsv = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
@@ -945,6 +951,10 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
       : ordenarPorCsv === "clinica_asc"
       ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "template_desc"
+      ? sql`ORDER BY t.codigo DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "template_asc"
+      ? sql`ORDER BY t.codigo ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
@@ -1153,6 +1163,7 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       "medico_desc", "medico_asc",
       "farmacia_desc", "farmacia_asc",
       "clinica_desc", "clinica_asc",
+      "template_desc", "template_asc",
     ]);
     const ordenarPorRawXlsx = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
@@ -1192,6 +1203,10 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
       : ordenarPorXlsx === "clinica_asc"
       ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "template_desc"
+      ? sql`ORDER BY t.codigo DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "template_asc"
+      ? sql`ORDER BY t.codigo ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
