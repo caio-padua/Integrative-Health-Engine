@@ -47,8 +47,9 @@ em caixa real via assinatura digital com defensibilidade jurídica tripla
 - ✅ **F3.A** `enviarPARQ.ts` (Família 4 — clínica e-CNPJ + farmácia e-CNPJ)
 - ✅ **F3.B** `enviarTCLE.ts` (Família 1 — paciente avançada + médico e-CPF)
 - ✅ **F3.C** `enviarOrcamentoFarmaceutico.ts` (Família 3 — paciente avançada + farmácia e-CNPJ ICP-Brasil), com 4 correções pós code-review (externalId determinístico, metadataExtra atômico, forcarProvedor zapsign, retro-compat)
-- 🟢 **Fase B Dia 1** preparação completa (sem token ZapSign)
-- 🟡 **Fase B Dia 2** disparo real (depende cadastro ZapSign Caio + CNAME `webhooks.pawards.com.br`)
+- ✅ **Fase B Dia 1** preparação completa
+- ✅ **Fase B Dia 2** disparo real fim-a-fim FECHADO (noite 11→12 mai/2026): receita teste 8728 (R$ 1.500 + R$ 450 comissão), envelope ZapSign produção `ea9029e8-8d8e-4d4e-ac2b-24551b8f3979`, solicitação id=8 → `CONCLUIDO`, **auditoria_assinaturas 0→1** (1ª assinatura real do projeto inteiro: signer_papel=PACIENTE, auth_method=assinaturaTela, IP real Caio 191.204.182.53, hash SHA-256 64 chars, PDF persistido no cofre `assinaturas/orc-8728-...pdf`). Invariantes Wave 9 PRESERVADAS (8.726 receitas produção + R$ 2.735.636,10 + 5 triggers ATIVOS). Detalhes em `docs/dr-claude/raws/04_session_plan_wave10_atual.md` snapshot final + decisão D9 em `01_DECISOES_TOMADAS`.
+- **Dívidas técnicas Wave 10.5** registradas: (1) signatários não atualizados pós-webhook (status fica `ENVIADO` mesmo com solicitação `CONCLUIDO`); (2) auditoria por envelope, deveria ser por signatário; (3) `ZAPSIGN_WEBHOOK_DEV_BYPASS=true` ATIVO em DEV (painel ZapSign não tem campo secret) — decisão estratégica produção: ZapSign Enterprise vs Clicksign vs IP whitelist; (4) `farmaciaAuthMode: "avancada"` no script teste — adicionar guard `NODE_ENV !== production`.
 - ✅ **F4** Webhook handler completo + manifesto SHA-256 (doc_signed/refused/removed, helper `registrarManifestoAuditoria` ON CONFLICT signature_id, fixes architect: signer_papel via lookup em `assinatura_signatarios` + signatureId determinístico)
 - ✅ **F5** Frontend timeline + detalhe (2 telas mínimas, Wave 10 F5 — 11/mai/2026):
   - `/assinaturas/timeline` — tabela últimas 50 (template, paciente, status, X/Y signatários, marcador auditoria, link detalhe)
