@@ -643,23 +643,41 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
     const offset = Number.isFinite(offsetRaw)
       ? Math.max(Math.trunc(offsetRaw), 0)
       : 0;
-    // Task #80 — ordenacao opcional. Whitelist defensiva server-side: qualquer
-    // valor fora do enum cai no default (id desc = mais recente primeiro), pra
-    // nao abrir vetor de SQL injection via interpolacao no ORDER BY. NULLS LAST
-    // garante que TCLE e demais templates sem `valor_formula_estimado` ficam no
-    // fim quando ordenando por valor (item explicito do "Done looks like").
-    // Fallback `s.id DESC` como segundo criterio mantem ordem estavel quando
-    // ha empate de valor (varios orcamentos do mesmo template/farmacia).
+    // Task #80 + Task #84 — ordenacao opcional. Whitelist defensiva server-side:
+    // qualquer valor fora do enum cai no default (id desc = mais recente primeiro),
+    // pra nao abrir vetor de SQL injection via interpolacao no ORDER BY. NULLS LAST
+    // garante que linhas sem o campo (TCLE sem valor, solicitacoes ainda nao
+    // concluidas) ficam no fim. Fallback `s.id DESC` como segundo criterio mantem
+    // ordem estavel quando ha empate (varios orcamentos do mesmo valor/dia/status).
+    // Task #84 expandiu o whitelist com criado/concluido/status (asc/desc cada).
+    const ORDENACOES_VALIDAS = new Set([
+      "valor_desc", "valor_asc",
+      "criado_desc", "criado_asc",
+      "concluido_desc", "concluido_asc",
+      "status_desc", "status_asc",
+    ]);
     const ordenarPorRaw = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
       : "";
-    const ordenarPor = ordenarPorRaw === "valor_desc" || ordenarPorRaw === "valor_asc"
+    const ordenarPor = ORDENACOES_VALIDAS.has(ordenarPorRaw)
       ? ordenarPorRaw
       : "id_desc";
     const orderByClause = ordenarPor === "valor_desc"
       ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
       : ordenarPor === "valor_asc"
       ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "criado_desc"
+      ? sql`ORDER BY s.criado_em DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "criado_asc"
+      ? sql`ORDER BY s.criado_em ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "concluido_desc"
+      ? sql`ORDER BY s.concluido_em DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "concluido_asc"
+      ? sql`ORDER BY s.concluido_em ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "status_desc"
+      ? sql`ORDER BY s.status DESC, s.id DESC`
+      : ordenarPor === "status_asc"
+      ? sql`ORDER BY s.status ASC, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const countR = await db.execute(sql`
       SELECT COUNT(*)::int AS total
