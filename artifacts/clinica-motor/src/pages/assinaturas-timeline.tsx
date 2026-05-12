@@ -271,10 +271,11 @@ export default function AssinaturasTimeline() {
     | "STATUS_DESC" | "STATUS_ASC"
     | "PACIENTE_DESC" | "PACIENTE_ASC"
     | "MEDICO_DESC" | "MEDICO_ASC"
-    | "FARMACIA_DESC" | "FARMACIA_ASC";
+    | "FARMACIA_DESC" | "FARMACIA_ASC"
+    | "CLINICA_DESC" | "CLINICA_ASC";
   type ChaveOrdenacao =
     | "VALOR" | "CRIADO" | "CONCLUIDO" | "STATUS"
-    | "PACIENTE" | "MEDICO" | "FARMACIA";
+    | "PACIENTE" | "MEDICO" | "FARMACIA" | "CLINICA";
   const ORDENACAO_URL: Record<Ordenacao, string> = {
     ID_DESC: "",
     VALOR_DESC: "valor_desc",     VALOR_ASC: "valor_asc",
@@ -284,6 +285,7 @@ export default function AssinaturasTimeline() {
     PACIENTE_DESC: "paciente_desc", PACIENTE_ASC: "paciente_asc",
     MEDICO_DESC: "medico_desc",     MEDICO_ASC: "medico_asc",
     FARMACIA_DESC: "farmacia_desc", FARMACIA_ASC: "farmacia_asc",
+    CLINICA_DESC: "clinica_desc",   CLINICA_ASC: "clinica_asc",
   };
   const URL_TO_ORDENACAO: Record<string, Ordenacao> = (() => {
     const m: Record<string, Ordenacao> = {};
@@ -735,7 +737,15 @@ export default function AssinaturasTimeline() {
                     />
                   </th>
                   {filtroUnidadeId === null && (
-                    <th className="text-left px-3 py-2 font-semibold">Clínica</th>
+                    <th className="text-left px-3 py-2 font-semibold">
+                      <ColunaOrdenavel
+                        label="Clínica"
+                        ativaDesc={ordenacao === "CLINICA_DESC"}
+                        ativaAsc={ordenacao === "CLINICA_ASC"}
+                        onClick={() => alternarOrdenacao("CLINICA")}
+                        testId="ordenar-por-clinica"
+                      />
+                    </th>
                   )}
                   <th className="text-center px-3 py-2 font-semibold">
                     <ColunaOrdenavel

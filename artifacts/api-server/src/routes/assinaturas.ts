@@ -652,6 +652,10 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
     // Task #84 expandiu o whitelist com criado/concluido/status (asc/desc cada).
     // Task #89 expandiu com paciente/medico/farmacia (asc/desc) — reaproveita
     // os JOINs ja existentes (pacientes p, usuarios med, farmacias_parmavault f).
+    // Task #92 expandiu com clinica (asc/desc) — usa o JOIN ja existente em
+    // `unidades u` (pelo unidade_id do paciente). Aparece como coluna clicavel
+    // na tela apenas no modo rede-wide (sem filtro de unidade), pra agrupar
+    // visualmente "tudo da Padua Clinic em sequencia".
     const ORDENACOES_VALIDAS = new Set([
       "valor_desc", "valor_asc",
       "criado_desc", "criado_asc",
@@ -660,6 +664,7 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       "paciente_desc", "paciente_asc",
       "medico_desc", "medico_asc",
       "farmacia_desc", "farmacia_asc",
+      "clinica_desc", "clinica_asc",
     ]);
     const ordenarPorRaw = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
@@ -695,6 +700,10 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
       : ordenarPor === "farmacia_asc"
       ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
+      : ordenarPor === "clinica_desc"
+      ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "clinica_asc"
+      ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const countR = await db.execute(sql`
       SELECT COUNT(*)::int AS total
