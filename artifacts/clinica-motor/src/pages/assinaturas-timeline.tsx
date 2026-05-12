@@ -848,6 +848,83 @@ export default function AssinaturasTimeline() {
                 </div>
               );
             })()}
+            {/* Task #82 — quebra do valor visivel por medico responsavel.
+                Mesma logica do bloco "por farmacia" (Task #81), mas pra
+                reuniao com medicos: justifica comissao medica e mostra
+                ranking de produtividade clinica. Calculo client-side a
+                partir do payload ja carregado. Linhas sem medico entram
+                em "— sem medico —" pra fechar a conta com o tfoot. */}
+            {(() => {
+              const SEM_MEDICO = "— sem médico —";
+              const linhasComValor = rows.filter((r) => r.valor_brl !== null);
+              if (linhasComValor.length === 0) return null;
+              const agrupado = new Map<string, { n: number; soma: number }>();
+              for (const r of linhasComValor) {
+                const nome = r.medico?.trim() || "";
+                const chave = nome !== "" ? nome : SEM_MEDICO;
+                const atual = agrupado.get(chave) || { n: 0, soma: 0 };
+                atual.n += 1;
+                atual.soma += r.valor_brl || 0;
+                agrupado.set(chave, atual);
+              }
+              const itens = Array.from(agrupado.entries())
+                .map(([medico, v]) => ({ medico, ...v }))
+                .sort((a, b) => b.soma - a.soma);
+              return (
+                <div
+                  className="border-t px-3 py-3"
+                  style={{ background: "#FFFDF5", borderColor: GOLD }}
+                  data-testid="resumo-por-medico"
+                >
+                  <div
+                    className="text-xs uppercase tracking-wide mb-2 font-semibold"
+                    style={{ color: NAVY }}
+                  >
+                    Soma por médico (linhas visíveis)
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead style={{ color: ZINC }}>
+                      <tr>
+                        <th className="text-left px-2 py-1 font-semibold">Médico</th>
+                        <th className="text-right px-2 py-1 font-semibold">Orçamentos</th>
+                        <th className="text-right px-2 py-1 font-semibold">Soma (BRL)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map((it) => (
+                        <tr
+                          key={it.medico}
+                          className="border-t"
+                          data-testid={`resumo-medico-linha-${it.medico === SEM_MEDICO ? "sem-medico" : it.medico}`}
+                        >
+                          <td
+                            className="px-2 py-1"
+                            style={{
+                              color: it.medico === SEM_MEDICO ? ZINC : NAVY,
+                              fontStyle: it.medico === SEM_MEDICO ? "italic" : "normal",
+                            }}
+                          >
+                            {it.medico}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono"
+                            style={{ color: NAVY }}
+                          >
+                            {it.n}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono font-bold"
+                            style={{ color: GOLD }}
+                          >
+                            {formatarBRL(it.soma)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
           </div>
         )}
 
