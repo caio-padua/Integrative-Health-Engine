@@ -401,6 +401,12 @@ export default function AssinaturasTimeline() {
               if (statusList.length > 0) params.set("status", statusList.join(","));
               if (desdeInput) params.set("desde", desdeInput);
               if (ateInput) params.set("ate", ateInput);
+              // Task #83 — repassa a ordenacao atual da tabela pros endpoints
+              // de export, pra que CSV/XLSX baixem na MESMA ordem visivel na
+              // tela (id_desc default; valor_desc / valor_asc quando o usuario
+              // ordenou pelo cabecalho Valor).
+              if (ordenacao === "VALOR_DESC") params.set("ordenar_por", "valor_desc");
+              else if (ordenacao === "VALOR_ASC") params.set("ordenar_por", "valor_asc");
               const qs = params.toString() ? `?${params.toString()}` : "";
               return (
                 <>

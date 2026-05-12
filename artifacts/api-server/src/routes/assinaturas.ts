@@ -842,6 +842,21 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     // 5000 em qualquer caso pra nao explodir memoria/timeout do Express.
     const temFiltroData = desdeFiltroCsv !== null || ateFiltroCsv !== null;
     const limiteCsv = temFiltroData ? 5000 : 50;
+    // Task #83 — replica a whitelist de ordenacao do endpoint JSON pra que o
+    // CSV exportado saia na MESMA ordem renderizada na tela quando o usuario
+    // ordenou por valor. Default continua `s.id DESC` quando o param ausente
+    // ou invalido (mesmo fallback defensivo do /timeline).
+    const ordenarPorRawCsv = typeof req.query["ordenar_por"] === "string"
+      ? (req.query["ordenar_por"] as string).toLowerCase()
+      : "";
+    const ordenarPorCsv = ordenarPorRawCsv === "valor_desc" || ordenarPorRawCsv === "valor_asc"
+      ? ordenarPorRawCsv
+      : "id_desc";
+    const orderByClauseCsv = ordenarPorCsv === "valor_desc"
+      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "valor_asc"
+      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -874,7 +889,7 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
-      ORDER BY s.id DESC
+      ${orderByClauseCsv}
       LIMIT ${limiteCsv}
     `);
     const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
@@ -1034,6 +1049,19 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     // sem filtro mantem 50 (mesmo cap da tela).
     const temFiltroDataXlsx = desdeFiltroXlsx !== null || ateFiltroXlsx !== null;
     const limiteXlsx = temFiltroDataXlsx ? 5000 : 50;
+    // Task #83 — mesma whitelist de ordenacao do JSON/CSV pra que o XLSX
+    // exportado bata com a ordem visivel na tela. Default `s.id DESC`.
+    const ordenarPorRawXlsx = typeof req.query["ordenar_por"] === "string"
+      ? (req.query["ordenar_por"] as string).toLowerCase()
+      : "";
+    const ordenarPorXlsx = ordenarPorRawXlsx === "valor_desc" || ordenarPorRawXlsx === "valor_asc"
+      ? ordenarPorRawXlsx
+      : "id_desc";
+    const orderByClauseXlsx = ordenarPorXlsx === "valor_desc"
+      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "valor_asc"
+      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -1066,7 +1094,7 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
-      ORDER BY s.id DESC
+      ${orderByClauseXlsx}
       LIMIT ${limiteXlsx}
     `);
     const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
