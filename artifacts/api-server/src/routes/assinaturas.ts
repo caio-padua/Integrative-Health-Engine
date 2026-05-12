@@ -881,16 +881,53 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     // CSV exportado saia na MESMA ordem renderizada na tela quando o usuario
     // ordenou por valor. Default continua `s.id DESC` quando o param ausente
     // ou invalido (mesmo fallback defensivo do /timeline).
+    // Task #93 — expandido pra whitelist completa (status/criado/concluido/
+    // paciente/medico/farmacia, asc+desc) pra bater com Tasks #84 e #89: a
+    // tela ja aceita ordenar por todas essas dimensoes, e o anexo CSV
+    // precisa sair na MESMA ordem pra contador/advogado nao se confundir.
+    const ORDENACOES_VALIDAS_CSV = new Set([
+      "valor_desc", "valor_asc",
+      "criado_desc", "criado_asc",
+      "concluido_desc", "concluido_asc",
+      "status_desc", "status_asc",
+      "paciente_desc", "paciente_asc",
+      "medico_desc", "medico_asc",
+      "farmacia_desc", "farmacia_asc",
+    ]);
     const ordenarPorRawCsv = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
       : "";
-    const ordenarPorCsv = ordenarPorRawCsv === "valor_desc" || ordenarPorRawCsv === "valor_asc"
+    const ordenarPorCsv = ORDENACOES_VALIDAS_CSV.has(ordenarPorRawCsv)
       ? ordenarPorRawCsv
       : "id_desc";
     const orderByClauseCsv = ordenarPorCsv === "valor_desc"
       ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
       : ordenarPorCsv === "valor_asc"
       ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "criado_desc"
+      ? sql`ORDER BY s.criado_em DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "criado_asc"
+      ? sql`ORDER BY s.criado_em ASC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "concluido_desc"
+      ? sql`ORDER BY s.concluido_em DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "concluido_asc"
+      ? sql`ORDER BY s.concluido_em ASC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "status_desc"
+      ? sql`ORDER BY s.status DESC, s.id DESC`
+      : ordenarPorCsv === "status_asc"
+      ? sql`ORDER BY s.status ASC, s.id DESC`
+      : ordenarPorCsv === "paciente_desc"
+      ? sql`ORDER BY p.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "paciente_asc"
+      ? sql`ORDER BY p.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "medico_desc"
+      ? sql`ORDER BY med.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "medico_asc"
+      ? sql`ORDER BY med.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "farmacia_desc"
+      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
+      : ordenarPorCsv === "farmacia_asc"
+      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
@@ -1086,16 +1123,51 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     const limiteXlsx = temFiltroDataXlsx ? 5000 : 50;
     // Task #83 — mesma whitelist de ordenacao do JSON/CSV pra que o XLSX
     // exportado bata com a ordem visivel na tela. Default `s.id DESC`.
+    // Task #93 — expandido pra whitelist completa (status/criado/concluido/
+    // paciente/medico/farmacia, asc+desc) batendo com Tasks #84 e #89.
+    const ORDENACOES_VALIDAS_XLSX = new Set([
+      "valor_desc", "valor_asc",
+      "criado_desc", "criado_asc",
+      "concluido_desc", "concluido_asc",
+      "status_desc", "status_asc",
+      "paciente_desc", "paciente_asc",
+      "medico_desc", "medico_asc",
+      "farmacia_desc", "farmacia_asc",
+    ]);
     const ordenarPorRawXlsx = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
       : "";
-    const ordenarPorXlsx = ordenarPorRawXlsx === "valor_desc" || ordenarPorRawXlsx === "valor_asc"
+    const ordenarPorXlsx = ORDENACOES_VALIDAS_XLSX.has(ordenarPorRawXlsx)
       ? ordenarPorRawXlsx
       : "id_desc";
     const orderByClauseXlsx = ordenarPorXlsx === "valor_desc"
       ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
       : ordenarPorXlsx === "valor_asc"
       ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "criado_desc"
+      ? sql`ORDER BY s.criado_em DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "criado_asc"
+      ? sql`ORDER BY s.criado_em ASC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "concluido_desc"
+      ? sql`ORDER BY s.concluido_em DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "concluido_asc"
+      ? sql`ORDER BY s.concluido_em ASC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "status_desc"
+      ? sql`ORDER BY s.status DESC, s.id DESC`
+      : ordenarPorXlsx === "status_asc"
+      ? sql`ORDER BY s.status ASC, s.id DESC`
+      : ordenarPorXlsx === "paciente_desc"
+      ? sql`ORDER BY p.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "paciente_asc"
+      ? sql`ORDER BY p.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "medico_desc"
+      ? sql`ORDER BY med.nome DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "medico_asc"
+      ? sql`ORDER BY med.nome ASC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "farmacia_desc"
+      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
+      : ordenarPorXlsx === "farmacia_asc"
+      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
       : sql`ORDER BY s.id DESC`;
     const r = await db.execute(sql`
       SELECT
