@@ -31,7 +31,7 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { assinaturaService } from "../service";
-import type { Signatario } from "../types";
+import type { AuthMode, Signatario } from "../types";
 
 const TEMPLATE_CODIGO = "ORCAMENTO_FORMAL_V1";
 const TEMPLATE_ID = 4;
@@ -48,6 +48,14 @@ export interface EnviarOrcamentoFarmaceuticoInput {
     email?: string;
     telefone?: string;
   };
+  /**
+   * Override do auth_mode da farmacia. Default ICP-Brasil (qualificada_ecnpj).
+   * Wave 10 Fase B Dia 2: testes fim-a-fim quando o representante NAO tem
+   * certificado digital ICP real podem usar "avancada" pra fechar o fluxo
+   * (assinatura na tela + token). NAO usar em producao real — quebra a
+   * defesa juridica tripla CFM/CC/STJ pra esse envelope especifico.
+   */
+  farmaciaAuthMode?: AuthMode;
 }
 
 export interface EnviarOrcamentoFarmaceuticoResultado {
@@ -270,6 +278,7 @@ export async function enviarOrcamentoFarmaceutico(
     email: farmaciaRep.email,
     telefone: farmaciaRep.telefone,
     ordem: 2,
+    ...(input.farmaciaAuthMode ? { authMode: input.farmaciaAuthMode } : {}),
   };
 
   // Procedimento textual injeta dados da farmacia e do medicamento direto na
