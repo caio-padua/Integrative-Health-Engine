@@ -18,6 +18,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  X,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -637,6 +638,24 @@ export default function AssinaturasTimeline() {
               const qs = params.toString() ? `?${params.toString()}` : "";
               return (
                 <>
+                  {/* Task #97 — botao "Limpar ordenacao" aparece so quando
+                      ha 2+ criterios ativos (Shift+clique acumulou colunas).
+                      Volta pro padrao ID_DESC com 1 clique, limpando estado,
+                      URL (`?ordenar_por=`) e localStorage (via setOrdenacoes
+                      com lista vazia, que ja faz os 3). */}
+                  {ordenacoes.length >= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setOrdenacoes([])}
+                      data-testid="botao-limpar-ordenacao"
+                      title="Voltar à ordenação padrão (mais recente primeiro)"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition border"
+                      style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
+                    >
+                      <X size={14} />
+                      Limpar ordenação
+                    </button>
+                  )}
                   <a
                     href={`/api/assinaturas/timeline.csv${qs}`}
                     data-testid="botao-baixar-csv"
