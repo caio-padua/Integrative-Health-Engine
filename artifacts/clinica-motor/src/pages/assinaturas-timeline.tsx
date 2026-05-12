@@ -15,11 +15,19 @@ import {
   RefreshCw,
   ExternalLink,
   Download,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
   X,
 } from "lucide-react";
+// Task #98 — extraido pra lib reutilizavel (ver artifacts/clinica-motor/src/lib/ordenacao-multi.ts).
+// Pacientes (Task #98) usa o mesmo padrao Excel-like de ordenacao multi-coluna.
+import {
+  ColunaOrdenavel,
+  type Ordenacao as OrdenacaoLib,
+  chaveDeOrdenacao as chaveDeOrdenacaoLib,
+  dedupePorColuna as dedupePorColunaLib,
+  parseOrdenacoesFromString as parseOrdenacoesFromStringLib,
+  serializarOrdenacoes as serializarOrdenacoesLib,
+  alternarOrdenacao as alternarOrdenacaoLib,
+} from "@/lib/ordenacao-multi";
 
 const NAVY = "#020406";
 const GOLD = "#C89B3C";
@@ -115,69 +123,9 @@ function StatusBadge({ status }: { status: string }) {
 // adicionais sem perder filtros (paciente nao perde scroll).
 const LIMITE_PAGINA = 50;
 
-// Task #84 — cabecalho de coluna clicavel reutilizavel. Generaliza o padrao
-// criado na Task #80 (so a coluna Valor era ordenavel) pra qualquer coluna.
-// `ativaDesc`/`ativaAsc` indicam o estado atual; o componente decide qual
-// seta exibir e qual texto de tooltip mostrar. `align` controla justify
-// do botao dentro da celula (right pra numeros, left/center pra texto/badge).
-// Task #96 — `onClick` agora recebe `shift` pra distinguir clique simples
-// (substitui ordenacao) de Shift+clique (adiciona como criterio secundario).
-// `posicao` (1, 2, 3...) so aparece quando ha mais de uma coluna ordenando
-// — pra ficar claro qual e a primaria e qual e secundaria, padrao Excel.
-function ColunaOrdenavel({
-  label,
-  ativaDesc,
-  ativaAsc,
-  posicao,
-  onClick,
-  testId,
-  align = "left",
-}: {
-  label: string;
-  ativaDesc: boolean;
-  ativaAsc: boolean;
-  posicao?: number;
-  onClick: (shift: boolean) => void;
-  testId?: string;
-  align?: "left" | "right" | "center";
-}) {
-  const ativa = ativaDesc || ativaAsc;
-  const justify =
-    align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start";
-  const title = ativaDesc
-    ? `${label}: maior/mais recente primeiro · clique p/ inverter · Shift+clique p/ adicionar como critério extra`
-    : ativaAsc
-    ? `${label}: menor/mais antigo primeiro · clique p/ voltar ao padrão · Shift+clique p/ remover deste grupo`
-    : `Clique p/ ordenar por ${label} · Shift+clique p/ adicionar como critério secundário`;
-  return (
-    <button
-      type="button"
-      onClick={(e) => onClick(e.shiftKey)}
-      data-testid={testId}
-      title={title}
-      className={`inline-flex items-center gap-1 font-semibold cursor-pointer hover:opacity-70 w-full ${justify}`}
-      style={{ color: ativa ? GOLD : NAVY }}
-    >
-      {label}
-      {ativaDesc ? (
-        <ArrowDown size={12} />
-      ) : ativaAsc ? (
-        <ArrowUp size={12} />
-      ) : (
-        <ArrowUpDown size={12} style={{ opacity: 0.4 }} />
-      )}
-      {posicao !== undefined && posicao > 0 && (
-        <span
-          data-testid={testId ? `${testId}-posicao` : undefined}
-          className="text-[10px] font-bold leading-none px-1 py-0.5 rounded"
-          style={{ background: GOLD, color: NAVY }}
-        >
-          {posicao}
-        </span>
-      )}
-    </button>
-  );
-}
+// Task #84/#96/#98 — `ColunaOrdenavel` extraido pra lib compartilhada
+// (`@/lib/ordenacao-multi`). Mantido aqui apenas o re-export local pra nao
+// quebrar referencias se algum teste importar deste modulo.
 
 export default function AssinaturasTimeline() {
   const { user } = useAuth();
@@ -281,19 +229,10 @@ export default function AssinaturasTimeline() {
   // `?ordenar_por=template_asc,criado_desc` (lista) e em localStorage por-
   // usuario (mesma chave da Task #88, agora guarda lista). Backend revalida
   // server-side com whitelist + dedupe + cap de 4.
-  type Ordenacao =
-    | "VALOR_DESC" | "VALOR_ASC"
-    | "CRIADO_DESC" | "CRIADO_ASC"
-    | "CONCLUIDO_DESC" | "CONCLUIDO_ASC"
-    | "STATUS_DESC" | "STATUS_ASC"
-    | "PACIENTE_DESC" | "PACIENTE_ASC"
-    | "MEDICO_DESC" | "MEDICO_ASC"
-    | "FARMACIA_DESC" | "FARMACIA_ASC"
-    | "CLINICA_DESC" | "CLINICA_ASC"
-    | "TEMPLATE_DESC" | "TEMPLATE_ASC";
   type ChaveOrdenacao =
     | "VALOR" | "CRIADO" | "CONCLUIDO" | "STATUS"
     | "PACIENTE" | "MEDICO" | "FARMACIA" | "CLINICA" | "TEMPLATE";
+  type Ordenacao = OrdenacaoLib<ChaveOrdenacao>;
   const MAX_ORDENACOES = 4;
   const ORDENACAO_URL: Record<Ordenacao, string> = {
     VALOR_DESC: "valor_desc",     VALOR_ASC: "valor_asc",
@@ -313,41 +252,19 @@ export default function AssinaturasTimeline() {
     });
     return m;
   })();
-  function chaveDeOrdenacao(o: Ordenacao): ChaveOrdenacao {
-    return o.replace(/_(DESC|ASC)$/, "") as ChaveOrdenacao;
-  }
-  // Dedupe por coluna (mesmo criterio do backend) — primeira ocorrencia
-  // vence. Aplicado em todo lugar que cria lista (URL, storage, click).
-  function dedupePorColuna(lista: Ordenacao[]): Ordenacao[] {
-    const seen = new Set<ChaveOrdenacao>();
-    const out: Ordenacao[] = [];
-    for (const o of lista) {
-      const k = chaveDeOrdenacao(o);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      out.push(o);
-      if (out.length >= MAX_ORDENACOES) break;
-    }
-    return out;
-  }
-  function parseOrdenacoesFromString(raw: string): Ordenacao[] {
-    if (!raw) return [];
-    const lista: Ordenacao[] = [];
-    for (const bruto of raw.split(",")) {
-      const t = bruto.trim().toLowerCase();
-      const o = URL_TO_ORDENACAO[t];
-      if (o) lista.push(o);
-    }
-    return dedupePorColuna(lista);
-  }
+  const chaveDeOrdenacao = (o: Ordenacao): ChaveOrdenacao =>
+    chaveDeOrdenacaoLib<ChaveOrdenacao>(o);
+  const dedupePorColuna = (lista: Ordenacao[]): Ordenacao[] =>
+    dedupePorColunaLib<ChaveOrdenacao>(lista, MAX_ORDENACOES);
+  const parseOrdenacoesFromString = (raw: string): Ordenacao[] =>
+    parseOrdenacoesFromStringLib<ChaveOrdenacao>(raw, URL_TO_ORDENACAO, MAX_ORDENACOES);
   function parseOrdenacoesFromUrl(): Ordenacao[] {
     if (typeof window === "undefined") return [];
     const v = new URLSearchParams(window.location.search).get("ordenar_por") || "";
     return parseOrdenacoesFromString(v);
   }
-  function serializarOrdenacoes(lista: Ordenacao[]): string {
-    return lista.map((o) => ORDENACAO_URL[o]).join(",");
-  }
+  const serializarOrdenacoes = (lista: Ordenacao[]): string =>
+    serializarOrdenacoesLib<ChaveOrdenacao>(lista, ORDENACAO_URL);
   // Task #88 — chave por-usuario pra "lembrar" a ultima ordenacao escolhida
   // entre navegacoes. Se a URL tem `?ordenar_por=`, ele tem prioridade (link
   // compartilhavel continua mandando); caso contrario aplicamos a salva.
@@ -413,33 +330,7 @@ export default function AssinaturasTimeline() {
   //     - se ja esta como _DESC -> inverte pra _ASC
   //     - se ja esta como _ASC -> remove da lista
   const alternarOrdenacao = useCallback((chave: ChaveOrdenacao, shift: boolean) => {
-    const desc = `${chave}_DESC` as Ordenacao;
-    const asc = `${chave}_ASC` as Ordenacao;
-    const idx = ordenacoes.findIndex((o) => chaveDeOrdenacao(o) === chave);
-    if (shift) {
-      if (idx === -1) {
-        setOrdenacoes([...ordenacoes, desc]);
-        return;
-      }
-      const atual = ordenacoes[idx]!;
-      if (atual === desc) {
-        const nova = [...ordenacoes];
-        nova[idx] = asc;
-        setOrdenacoes(nova);
-      } else {
-        // ASC -> remove deste grupo
-        setOrdenacoes(ordenacoes.filter((_, i) => i !== idx));
-      }
-      return;
-    }
-    // Clique simples
-    if (ordenacoes.length === 1 && idx === 0) {
-      const atual = ordenacoes[0]!;
-      if (atual === desc) setOrdenacoes([asc]);
-      else setOrdenacoes([]);
-    } else {
-      setOrdenacoes([desc]);
-    }
+    setOrdenacoes(alternarOrdenacaoLib<ChaveOrdenacao>(chave, shift, ordenacoes));
   }, [ordenacoes, setOrdenacoes]);
 
   // Helpers de leitura usados pelo render do header da tabela.

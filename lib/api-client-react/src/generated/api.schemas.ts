@@ -950,6 +950,15 @@ export type ListarPacientesParams = {
   unidadeId?: number;
   busca?: string;
   pagina?: number;
+  /**
+ * Ordenação multi-coluna (Task #98). Lista CSV de tokens
+`<coluna>_<asc|desc>` separados por vírgula. Whitelist:
+nome, cpf, telefone, status, criado. Cap 4 colunas;
+servidor faz dedupe + adiciona `id DESC` como tiebreaker.
+Ex: `nome_asc,criado_desc`.
+
+ */
+  ordenarPor?: string;
 };
 
 export type CriarRespostaQuestionarioBodyRespostas = { [key: string]: unknown };

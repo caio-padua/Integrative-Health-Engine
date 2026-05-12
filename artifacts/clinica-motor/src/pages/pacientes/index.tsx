@@ -4,9 +4,22 @@ import { useListarPacientes, getListarPacientesQueryKey, useCriarPaciente, Criar
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, UserPlus } from "lucide-react";
+// Task #98 — ordenacao multi-coluna estilo Excel (clique substitui, Shift+clique
+// adiciona criterio secundario, badge numerada mostra prioridade). Lib extraida
+// da timeline de assinaturas (Task #96) — backend revalida via whitelist em
+// routes/pacientes.ts ORDENACOES_PACIENTES_FRAGMENT.
+import {
+  ColunaOrdenavel,
+  type Ordenacao as OrdenacaoLib,
+  dedupePorColuna,
+  parseOrdenacoesFromString,
+  serializarOrdenacoes,
+  alternarOrdenacao,
+} from "@/lib/ordenacao-multi";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -65,10 +78,96 @@ const pacienteSchema = z.object({
   atividadeFisica: z.enum(["sedentario","leve","moderado","intenso","atleta"]).optional().or(z.literal("").transform(() => undefined)),
 });
 
+// Task #98 — chaves de ordenacao da tabela de Pacientes. Espelha o whitelist
+// server-side em routes/pacientes.ts (ORDENACOES_PACIENTES_FRAGMENT). Se
+// uma chave for adicionada aqui, ADICIONAR tambem no fragment SQL — sem
+// isso o backend silenciosamente ignora o token vindo da URL.
+type ChaveOrdenacaoPaciente =
+  | "NOME" | "CPF" | "TELEFONE" | "STATUS" | "CRIADO";
+type OrdenacaoPaciente = OrdenacaoLib<ChaveOrdenacaoPaciente>;
+const MAX_ORDENACOES_PAC = 4;
+const ORDENACAO_URL_PAC: Record<OrdenacaoPaciente, string> = {
+  NOME_DESC: "nome_desc",         NOME_ASC: "nome_asc",
+  CPF_DESC: "cpf_desc",           CPF_ASC: "cpf_asc",
+  TELEFONE_DESC: "telefone_desc", TELEFONE_ASC: "telefone_asc",
+  STATUS_DESC: "status_desc",     STATUS_ASC: "status_asc",
+  CRIADO_DESC: "criado_desc",     CRIADO_ASC: "criado_asc",
+};
+const URL_TO_ORDENACAO_PAC: Record<string, OrdenacaoPaciente> = (() => {
+  const m: Record<string, OrdenacaoPaciente> = {};
+  (Object.keys(ORDENACAO_URL_PAC) as OrdenacaoPaciente[]).forEach((k) => {
+    m[ORDENACAO_URL_PAC[k]] = k;
+  });
+  return m;
+})();
+function chaveStoragePac(uid: number | string | undefined): string | null {
+  if (uid === undefined || uid === null) return null;
+  return `pawards.pacientes.ordenar_por.${uid}`;
+}
+
 export default function Pacientes() {
   const { unidadeSelecionada } = useClinic();
+  const { user } = useAuth();
   const [busca, setBusca] = useState("");
-  const queryParams = { busca, ...(unidadeSelecionada ? { unidadeId: unidadeSelecionada } : {}) };
+  // Task #98 — estado de ordenacao multi-coluna. Hidratado de `?ordenar_por=`
+  // (link compartilhavel tem prioridade) ou de localStorage por-usuario.
+  const parseOrdPacFromUrl = (): OrdenacaoPaciente[] => {
+    if (typeof window === "undefined") return [];
+    const v = new URLSearchParams(window.location.search).get("ordenar_por") || "";
+    return parseOrdenacoesFromString<ChaveOrdenacaoPaciente>(v, URL_TO_ORDENACAO_PAC, MAX_ORDENACOES_PAC);
+  };
+  const [ordenacoesPac, setOrdenacoesPacState] = useState<OrdenacaoPaciente[]>(parseOrdPacFromUrl);
+  const setOrdenacoesPac = useCallback((novas: OrdenacaoPaciente[]) => {
+    const dedupe = dedupePorColuna<ChaveOrdenacaoPaciente>(novas, MAX_ORDENACOES_PAC);
+    setOrdenacoesPacState(dedupe);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const valor = serializarOrdenacoes<ChaveOrdenacaoPaciente>(dedupe, ORDENACAO_URL_PAC);
+    if (valor) url.searchParams.set("ordenar_por", valor);
+    else url.searchParams.delete("ordenar_por");
+    window.history.replaceState({}, "", url.toString());
+    const k = chaveStoragePac(user?.id);
+    if (k) {
+      try { window.localStorage.setItem(k, valor); } catch { /* ignore */ }
+    }
+  }, [user?.id]);
+  // Hidrata salva quando user fica disponivel, SOMENTE se a URL nao traz
+  // `?ordenar_por=` (link compartilhavel manda).
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+    const urlTem = new URLSearchParams(window.location.search).get("ordenar_por");
+    if (urlTem) return;
+    const k = chaveStoragePac(user.id);
+    if (!k) return;
+    try {
+      const v = window.localStorage.getItem(k);
+      if (v === null) return;
+      const salvas = parseOrdenacoesFromString<ChaveOrdenacaoPaciente>(v, URL_TO_ORDENACAO_PAC, MAX_ORDENACOES_PAC);
+      const atual = serializarOrdenacoes<ChaveOrdenacaoPaciente>(ordenacoesPac, ORDENACAO_URL_PAC);
+      const proxima = serializarOrdenacoes<ChaveOrdenacaoPaciente>(salvas, ORDENACAO_URL_PAC);
+      if (proxima !== atual) setOrdenacoesPac(salvas);
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+  const ordenarPorString = serializarOrdenacoes<ChaveOrdenacaoPaciente>(ordenacoesPac, ORDENACAO_URL_PAC);
+  const onClickColuna = useCallback((chave: ChaveOrdenacaoPaciente, shift: boolean) => {
+    setOrdenacoesPac(alternarOrdenacao<ChaveOrdenacaoPaciente>(chave, shift, ordenacoesPac));
+  }, [ordenacoesPac, setOrdenacoesPac]);
+  const colunaAtivaDesc = (k: ChaveOrdenacaoPaciente) =>
+    ordenacoesPac.includes(`${k}_DESC` as OrdenacaoPaciente);
+  const colunaAtivaAsc = (k: ChaveOrdenacaoPaciente) =>
+    ordenacoesPac.includes(`${k}_ASC` as OrdenacaoPaciente);
+  const posicaoOrd = (k: ChaveOrdenacaoPaciente): number | undefined => {
+    if (ordenacoesPac.length < 2) return undefined;
+    const i = ordenacoesPac.findIndex((o) => o.startsWith(`${k}_`));
+    return i === -1 ? undefined : i + 1;
+  };
+
+  const queryParams = {
+    busca,
+    ...(unidadeSelecionada ? { unidadeId: unidadeSelecionada } : {}),
+    ...(ordenarPorString ? { ordenarPor: ordenarPorString } : {}),
+  };
   const { data: pacientes, isLoading } = useListarPacientes(queryParams, {
     query: { queryKey: getListarPacientesQueryKey(queryParams) }
   });
@@ -404,10 +503,46 @@ export default function Pacientes() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>CPF</TableHead>
-                      <TableHead>Celular</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>
+                        <ColunaOrdenavel
+                          label="Nome"
+                          ativaDesc={colunaAtivaDesc("NOME")}
+                          ativaAsc={colunaAtivaAsc("NOME")}
+                          posicao={posicaoOrd("NOME")}
+                          onClick={(shift) => onClickColuna("NOME", shift)}
+                          testId="ord-nome"
+                        />
+                      </TableHead>
+                      <TableHead>
+                        <ColunaOrdenavel
+                          label="CPF"
+                          ativaDesc={colunaAtivaDesc("CPF")}
+                          ativaAsc={colunaAtivaAsc("CPF")}
+                          posicao={posicaoOrd("CPF")}
+                          onClick={(shift) => onClickColuna("CPF", shift)}
+                          testId="ord-cpf"
+                        />
+                      </TableHead>
+                      <TableHead>
+                        <ColunaOrdenavel
+                          label="Celular"
+                          ativaDesc={colunaAtivaDesc("TELEFONE")}
+                          ativaAsc={colunaAtivaAsc("TELEFONE")}
+                          posicao={posicaoOrd("TELEFONE")}
+                          onClick={(shift) => onClickColuna("TELEFONE", shift)}
+                          testId="ord-telefone"
+                        />
+                      </TableHead>
+                      <TableHead>
+                        <ColunaOrdenavel
+                          label="Status"
+                          ativaDesc={colunaAtivaDesc("STATUS")}
+                          ativaAsc={colunaAtivaAsc("STATUS")}
+                          posicao={posicaoOrd("STATUS")}
+                          onClick={(shift) => onClickColuna("STATUS", shift)}
+                          testId="ord-status"
+                        />
+                      </TableHead>
                       <TableHead className="text-right">Acoes</TableHead>
                     </TableRow>
                   </TableHeader>
