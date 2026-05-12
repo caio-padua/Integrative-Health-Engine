@@ -643,6 +643,24 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
     const offset = Number.isFinite(offsetRaw)
       ? Math.max(Math.trunc(offsetRaw), 0)
       : 0;
+    // Task #80 — ordenacao opcional. Whitelist defensiva server-side: qualquer
+    // valor fora do enum cai no default (id desc = mais recente primeiro), pra
+    // nao abrir vetor de SQL injection via interpolacao no ORDER BY. NULLS LAST
+    // garante que TCLE e demais templates sem `valor_formula_estimado` ficam no
+    // fim quando ordenando por valor (item explicito do "Done looks like").
+    // Fallback `s.id DESC` como segundo criterio mantem ordem estavel quando
+    // ha empate de valor (varios orcamentos do mesmo template/farmacia).
+    const ordenarPorRaw = typeof req.query["ordenar_por"] === "string"
+      ? (req.query["ordenar_por"] as string).toLowerCase()
+      : "";
+    const ordenarPor = ordenarPorRaw === "valor_desc" || ordenarPorRaw === "valor_asc"
+      ? ordenarPorRaw
+      : "id_desc";
+    const orderByClause = ordenarPor === "valor_desc"
+      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
+      : ordenarPor === "valor_asc"
+      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
+      : sql`ORDER BY s.id DESC`;
     const countR = await db.execute(sql`
       SELECT COUNT(*)::int AS total
       FROM assinatura_solicitacoes s
@@ -705,7 +723,7 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       LEFT JOIN usuarios med        ON med.id = rec.medico_id
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
-      ORDER BY s.id DESC
+      ${orderByClause}
       LIMIT ${limit}
       OFFSET ${offset}
     `);
@@ -742,6 +760,7 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
       filtro_status: statusFiltro,
       filtro_desde: desdeFiltro,
       filtro_ate: ateFiltro,
+      ordenar_por: ordenarPor,
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

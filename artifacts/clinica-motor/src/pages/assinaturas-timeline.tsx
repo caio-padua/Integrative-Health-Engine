@@ -14,6 +14,9 @@ import {
   RefreshCw,
   ExternalLink,
   Download,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -203,6 +206,39 @@ export default function AssinaturasTimeline() {
     if (desde === isoLocal(d30) && ate === hoje) return "30D";
     return "PERSONALIZADO";
   }
+  // Task #80 — ordenacao da tabela. Estado persistido na URL via `?ordenar_por=`
+  // (whitelist: valor_desc | valor_asc; default = id desc, sem param na URL).
+  // Backend revalida o whitelist server-side, frontend so usa pra UX.
+  type Ordenacao = "ID_DESC" | "VALOR_DESC" | "VALOR_ASC";
+  function parseOrdenacaoFromUrl(): Ordenacao {
+    if (typeof window === "undefined") return "ID_DESC";
+    const v = (new URLSearchParams(window.location.search).get("ordenar_por") || "")
+      .toLowerCase();
+    if (v === "valor_desc") return "VALOR_DESC";
+    if (v === "valor_asc") return "VALOR_ASC";
+    return "ID_DESC";
+  }
+  const [ordenacao, setOrdenacaoState] = useState<Ordenacao>(parseOrdenacaoFromUrl);
+  const setOrdenacao = useCallback((nova: Ordenacao) => {
+    setOrdenacaoState(nova);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (nova === "VALOR_DESC") url.searchParams.set("ordenar_por", "valor_desc");
+    else if (nova === "VALOR_ASC") url.searchParams.set("ordenar_por", "valor_asc");
+    else url.searchParams.delete("ordenar_por");
+    window.history.replaceState({}, "", url.toString());
+  }, []);
+  // Ciclo do clique no cabecalho "Valor": id_desc -> valor_desc -> valor_asc -> id_desc
+  const alternarOrdenacaoValor = useCallback(() => {
+    setOrdenacao(
+      ordenacao === "VALOR_DESC"
+        ? "VALOR_ASC"
+        : ordenacao === "VALOR_ASC"
+        ? "ID_DESC"
+        : "VALOR_DESC",
+    );
+  }, [ordenacao, setOrdenacao]);
+
   const datasUrlInicial = parseDatasFromUrl();
   const [filtroData, setFiltroDataState] = useState<FiltroData>(
     detectarPresetInicial(datasUrlInicial.desde, datasUrlInicial.ate),
@@ -264,6 +300,8 @@ export default function AssinaturasTimeline() {
       if (statusList.length > 0) params.set("status", statusList.join(","));
       if (desdeInput) params.set("desde", desdeInput);
       if (ateInput) params.set("ate", ateInput);
+      if (ordenacao === "VALOR_DESC") params.set("ordenar_por", "valor_desc");
+      else if (ordenacao === "VALOR_ASC") params.set("ordenar_por", "valor_asc");
       params.set("limit", String(LIMITE_PAGINA));
       const offset = append ? rows.length : 0;
       params.set("offset", String(offset));
@@ -297,14 +335,14 @@ export default function AssinaturasTimeline() {
       setCarregandoMais(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, rows.length]);
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacao, rows.length]);
 
   // Recarrega 1a pagina sempre que qualquer filtro muda. Nao depende de
   // `carregar` direto pra evitar loop com `rows.length` na dep list.
   useEffect(() => {
     void carregar({ append: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput]);
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacao]);
 
   const totais = {
     enviado: rows.filter((r) => r.status === "ENVIADO" || r.status === "PARCIAL").length,
@@ -564,7 +602,34 @@ export default function AssinaturasTimeline() {
                     <th className="text-left px-3 py-2 font-semibold">Clínica</th>
                   )}
                   <th className="text-center px-3 py-2 font-semibold">Status</th>
-                  <th className="text-right px-3 py-2 font-semibold">Valor</th>
+                  <th className="text-right px-3 py-2 font-semibold">
+                    {/* Task #80 — cabecalho clicavel pra ordenar pelo Valor.
+                        Ciclo: id_desc -> valor_desc (maior primeiro) -> valor_asc -> id_desc.
+                        Seta indica direcao ativa; quando inativo, mostra ArrowUpDown discreto. */}
+                    <button
+                      type="button"
+                      onClick={alternarOrdenacaoValor}
+                      data-testid="ordenar-por-valor"
+                      title={
+                        ordenacao === "VALOR_DESC"
+                          ? "Maior primeiro · clique p/ inverter"
+                          : ordenacao === "VALOR_ASC"
+                          ? "Menor primeiro · clique p/ voltar ao padrão"
+                          : "Clique p/ ordenar pelo valor"
+                      }
+                      className="inline-flex items-center gap-1 font-semibold cursor-pointer hover:opacity-70"
+                      style={{ color: ordenacao !== "ID_DESC" ? GOLD : NAVY }}
+                    >
+                      Valor
+                      {ordenacao === "VALOR_DESC" ? (
+                        <ArrowDown size={12} />
+                      ) : ordenacao === "VALOR_ASC" ? (
+                        <ArrowUp size={12} />
+                      ) : (
+                        <ArrowUpDown size={12} style={{ opacity: 0.4 }} />
+                      )}
+                    </button>
+                  </th>
                   <th className="text-left px-3 py-2 font-semibold">Farmácia</th>
                   <th className="text-left px-3 py-2 font-semibold">Médico</th>
                   <th className="text-center px-3 py-2 font-semibold">Signatários</th>
