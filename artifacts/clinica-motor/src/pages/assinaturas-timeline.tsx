@@ -703,6 +703,86 @@ export default function AssinaturasTimeline() {
                 );
               })()}
             </table>
+            {/* Task #81 — quebra do valor visivel por farmacia parceira.
+                Caio usa em reuniao com FAMA/AMERIPHARMA pra justificar
+                comissao PARQ sem precisar abrir o CSV no Excel. Calculo
+                100% client-side a partir do payload ja carregado (sem
+                novo endpoint). Linhas sem farmacia (ex: TCLE) entram em
+                "— sem farmacia —" so pra fechar a conta — assim a soma
+                bate com o tfoot acima. Ordenado por soma desc. */}
+            {(() => {
+              const SEM_FARMACIA = "— sem farmácia —";
+              const linhasComValor = rows.filter((r) => r.valor_brl !== null);
+              if (linhasComValor.length === 0) return null;
+              const agrupado = new Map<string, { n: number; soma: number }>();
+              for (const r of linhasComValor) {
+                // Normaliza com trim pra "FAMA" e "FAMA " caírem na mesma chave
+                // (evita duplicar parceira se vier whitespace lateral do payload).
+                const nome = r.farmacia?.trim() || "";
+                const chave = nome !== "" ? nome : SEM_FARMACIA;
+                const atual = agrupado.get(chave) || { n: 0, soma: 0 };
+                atual.n += 1;
+                atual.soma += r.valor_brl || 0;
+                agrupado.set(chave, atual);
+              }
+              const itens = Array.from(agrupado.entries())
+                .map(([farmacia, v]) => ({ farmacia, ...v }))
+                .sort((a, b) => b.soma - a.soma);
+              return (
+                <div
+                  className="border-t px-3 py-3"
+                  style={{ background: "#FFFDF5", borderColor: GOLD }}
+                  data-testid="resumo-por-farmacia"
+                >
+                  <div
+                    className="text-xs uppercase tracking-wide mb-2 font-semibold"
+                    style={{ color: NAVY }}
+                  >
+                    Soma por farmácia parceira (linhas visíveis)
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead style={{ color: ZINC }}>
+                      <tr>
+                        <th className="text-left px-2 py-1 font-semibold">Farmácia</th>
+                        <th className="text-right px-2 py-1 font-semibold">Orçamentos</th>
+                        <th className="text-right px-2 py-1 font-semibold">Soma (BRL)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map((it) => (
+                        <tr
+                          key={it.farmacia}
+                          className="border-t"
+                          data-testid={`resumo-farmacia-linha-${it.farmacia === SEM_FARMACIA ? "sem-farmacia" : it.farmacia}`}
+                        >
+                          <td
+                            className="px-2 py-1"
+                            style={{
+                              color: it.farmacia === SEM_FARMACIA ? ZINC : NAVY,
+                              fontStyle: it.farmacia === SEM_FARMACIA ? "italic" : "normal",
+                            }}
+                          >
+                            {it.farmacia}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono"
+                            style={{ color: NAVY }}
+                          >
+                            {it.n}
+                          </td>
+                          <td
+                            className="px-2 py-1 text-right font-mono font-bold"
+                            style={{ color: GOLD }}
+                          >
+                            {formatarBRL(it.soma)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
           </div>
         )}
 
