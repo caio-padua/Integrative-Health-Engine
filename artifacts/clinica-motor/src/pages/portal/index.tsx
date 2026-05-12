@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Upload, FileCheck, User, Calendar, Shield,
   Activity, Brain, Pill, AlertTriangle, FolderOpen,
@@ -90,7 +91,7 @@ export default function PortalClientePage() {
       return;
     }
     try {
-      const res = await fetch(`/api/portal/identificar`, {
+      const res = await apiFetch(`/api/portal/identificar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cpf, dataNascimento }),
@@ -118,7 +119,7 @@ export default function PortalClientePage() {
       return;
     }
     try {
-      const res = await fetch(`/api/portal/login`, {
+      const res = await apiFetch(`/api/portal/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cpf, senha }),
@@ -147,7 +148,7 @@ export default function PortalClientePage() {
       return;
     }
     try {
-      const res = await fetch(`/api/portal/definir-senha`, {
+      const res = await apiFetch(`/api/portal/definir-senha`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cpf, dataNascimento, senha: novaSenha }),
@@ -173,7 +174,7 @@ export default function PortalClientePage() {
     }
     setOtpEnviando(true);
     try {
-      const res = await fetch(`/api/portal/otp/solicitar`, {
+      const res = await apiFetch(`/api/portal/otp/solicitar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cpf, dataNascimento }),
@@ -207,7 +208,7 @@ export default function PortalClientePage() {
       return;
     }
     try {
-      const res = await fetch(`/api/portal/otp/validar`, {
+      const res = await apiFetch(`/api/portal/otp/validar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paciente_id: otpPacienteId, codigo: otpCodigo.trim() }),
@@ -457,7 +458,7 @@ function HistoricoSection({ pacienteId }: { pacienteId: number }) {
     let cancelado = false;
     (async () => {
       try {
-        const res = await fetch(`/api/portal/historico/${pacienteId}`);
+        const res = await apiFetch(`/api/portal/historico/${pacienteId}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!cancelado) setItens(data.itens || []);
@@ -525,7 +526,7 @@ function DriveSection({ pacienteId }: { pacienteId: number }) {
     let cancelado = false;
     (async () => {
       try {
-        const res = await fetch(`/api/portal/drive-links/${pacienteId}`);
+        const res = await apiFetch(`/api/portal/drive-links/${pacienteId}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!cancelado) setInfo(data);
@@ -612,7 +613,7 @@ function SinaisVitaisForm({ pacienteId }: { pacienteId: number }) {
         return;
       }
 
-      const res = await fetch(`/api/monitoramento/sinais-vitais/lote`, {
+      const res = await apiFetch(`/api/monitoramento/sinais-vitais/lote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pacienteId, dataRegistro, indicadores }),
@@ -712,7 +713,7 @@ function SintomasForm({ pacienteId }: { pacienteId: number }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/monitoramento/tracking-sintomas`, {
+      const res = await apiFetch(`/api/monitoramento/tracking-sintomas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pacienteId, dataSemana, ...valores, origem: "PACIENTE" }),
@@ -781,7 +782,7 @@ function FormulasForm({ pacienteId }: { pacienteId: number }) {
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/monitoramento/acompanhamento-formula`, {
+      const res = await apiFetch(`/api/monitoramento/acompanhamento-formula`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -882,7 +883,7 @@ function AlertasForm({ pacienteId }: { pacienteId: number }) {
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/alerta-paciente`, {
+      const res = await apiFetch(`/api/alerta-paciente`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pacienteId, tipoAlerta, gravidade, descricao }),
@@ -978,7 +979,7 @@ function UploadForm({ pacienteId, pacienteNome }: { pacienteId: number; paciente
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
-        const res = await fetch(`/api/portal/upload/${pacienteId}`, {
+        const res = await apiFetch(`/api/portal/upload/${pacienteId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ categoria, arquivo: base64, nomeArquivo: arquivo.name, mimeType: arquivo.type }),
@@ -1106,7 +1107,7 @@ function AgendamentosSection({ pacienteId, pacienteNome }: { pacienteId: number;
   const fetchAgendamentos = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/portal/meus-agendamentos/${pacienteId}`);
+      const res = await apiFetch(`/api/portal/meus-agendamentos/${pacienteId}`);
       if (res.ok) {
         const data = await res.json();
         setAgendamentos(data);
@@ -1135,7 +1136,7 @@ function AgendamentosSection({ pacienteId, pacienteNome }: { pacienteId: number;
         tipoProcedimento: appt.tipoProcedimento,
       });
 
-      const res = await fetch(`/api/portal/slots-disponiveis?${params}`);
+      const res = await apiFetch(`/api/portal/slots-disponiveis?${params}`);
       if (res.ok) {
         const data = await res.json();
         setSlotsDisponiveis(data);
@@ -1150,7 +1151,7 @@ function AgendamentosSection({ pacienteId, pacienteNome }: { pacienteId: number;
     if (!reagendando || !slotSelecionado) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/portal/reagendar`, {
+      const res = await apiFetch(`/api/portal/reagendar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

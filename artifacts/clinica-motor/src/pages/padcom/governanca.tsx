@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   BarChart,
   Bar,
@@ -41,7 +42,7 @@ export default function PadcomGovernanca() {
   const { data, isLoading } = useQuery<DashBracos>({
     queryKey: ["padcom-dashboard-bracos"],
     queryFn: async () => {
-      const r = await fetch("/api/padcom-dashboard-bracos");
+      const r = await apiFetch("/api/padcom-dashboard-bracos");
       if (!r.ok) throw new Error("erro ao buscar dashboard");
       return r.json();
     },
@@ -50,7 +51,7 @@ export default function PadcomGovernanca() {
   const { data: competencias } = useQuery({
     queryKey: ["padcom-competencias"],
     queryFn: async () => {
-      const r = await fetch("/api/padcom-competencias");
+      const r = await apiFetch("/api/padcom-competencias");
       return r.json();
     },
   });

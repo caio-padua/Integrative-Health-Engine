@@ -14,6 +14,7 @@ import {
 import { PAWARDS } from "@/lib/pawards-tokens";
 import { Button } from "@/components/ui/button";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Cor = "VERDE" | "AMARELO" | "ALERTA" | "VERMELHO";
 type Sparkline = Array<{ data: string; valor: number }>;
 type ExameDash = {
@@ -172,7 +173,7 @@ export default function ExamesVitrinePaciente() {
   useEffect(() => {
     if (!pacienteId) return;
     setLoading(true);
-    fetch(`/api/pacientes/${pacienteId}/exames/dashboard`)
+    apiFetch(`/api/pacientes/${pacienteId}/exames/dashboard`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(j => { setDash(j); setErro(null); })
       .catch(e => setErro(String(e.message || e)))

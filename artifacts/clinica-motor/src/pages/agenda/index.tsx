@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuTrigger, DropdownMenuSeparator
@@ -169,7 +170,7 @@ function SessaoCard({ sessao, onConfirm, onEdit }: {
   const handleWhatsApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res = await fetch(`/api/sessoes/${sessao.sessao.id}/whatsapp-lembrete`);
+      const res = await apiFetch(`/api/sessoes/${sessao.sessao.id}/whatsapp-lembrete`);
       const data = await res.json();
       if (data.url) window.open(data.url, "_blank");
     } catch { toast({ title: "Erro ao gerar link WhatsApp", variant: "destructive" }); }
@@ -178,7 +179,7 @@ function SessaoCard({ sessao, onConfirm, onEdit }: {
   const handleSyncCalendar = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`/api/google-calendar/sync-session/${sessao.sessao.id}`, { method: "POST" });
+      await apiFetch(`/api/google-calendar/sync-session/${sessao.sessao.id}`, { method: "POST" });
       toast({ title: "Sincronizado com Google Calendar" });
     } catch { toast({ title: "Erro ao sincronizar", variant: "destructive" }); }
   };
@@ -186,7 +187,7 @@ function SessaoCard({ sessao, onConfirm, onEdit }: {
   const handlePreEmail = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`/api/google-gmail/pre-session/${sessao.sessao.id}`, { method: "POST" });
+      await apiFetch(`/api/google-gmail/pre-session/${sessao.sessao.id}`, { method: "POST" });
       toast({ title: "Email pre-sessao enviado" });
     } catch { toast({ title: "Erro ao enviar email", variant: "destructive" }); }
   };
@@ -194,7 +195,7 @@ function SessaoCard({ sessao, onConfirm, onEdit }: {
   const handlePostEmail = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`/api/google-gmail/post-session/${sessao.sessao.id}`, { method: "POST" });
+      await apiFetch(`/api/google-gmail/post-session/${sessao.sessao.id}`, { method: "POST" });
       toast({ title: "Email pos-sessao enviado" });
     } catch { toast({ title: "Erro ao enviar email", variant: "destructive" }); }
   };
@@ -334,7 +335,7 @@ export default function AgendaSemanal() {
     if (!editingSessao) return;
     setEditSessaoSaving(true);
     try {
-      const res = await fetch(`/api/sessoes/${editingSessao.sessao.id}`, {
+      const res = await apiFetch(`/api/sessoes/${editingSessao.sessao.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editSessaoForm),
       });
@@ -353,7 +354,7 @@ export default function AgendaSemanal() {
   const { data, isLoading } = useQuery<AgendaResponse>({
     queryKey: ["agenda-semanal", week.from, week.to],
     queryFn: async () => {
-      const res = await fetch(`/api/agenda/semanal?dataFrom=${week.from}&dataTo=${week.to}`);
+      const res = await apiFetch(`/api/agenda/semanal?dataFrom=${week.from}&dataTo=${week.to}`);
       if (!res.ok) throw new Error("Erro ao carregar agenda");
       return res.json();
     },
@@ -361,7 +362,7 @@ export default function AgendaSemanal() {
 
   const confirmMutation = useMutation({
     mutationFn: async ({ sessaoId, substanciaId, confirmado }: { sessaoId: number; substanciaId: number; confirmado: boolean }) => {
-      const res = await fetch(`/api/sessoes/${sessaoId}/confirmar-substancia`, {
+      const res = await apiFetch(`/api/sessoes/${sessaoId}/confirmar-substancia`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ substanciaId, confirmado }),

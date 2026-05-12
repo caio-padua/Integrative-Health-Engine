@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { useClinic } from "@/contexts/ClinicContext";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Users, Shield, TrendingUp, AlertTriangle, Building2, ChevronDown, ChevronRight,
   Mail, Phone, Clock, CheckCircle, XCircle, DollarSign, RefreshCw, Briefcase,
@@ -381,11 +382,11 @@ export default function ColaboradoresPage() {
 
   const fetchAll = useCallback(async () => {
     const [mRes, pRes, cRes, crRes, dRes] = await Promise.all([
-      fetch(`${API}/members${unidadeParam}`),
-      fetch(`${API}/positions${unidadeParam}`),
-      fetch(`${API}/commissions${unidadeParam}`),
-      fetch(`${API}/commissions/resumo${unidadeParam}`),
-      fetch(`${API}/disciplinary${unidadeParam}`),
+      apiFetch(`${API}/members${unidadeParam}`),
+      apiFetch(`${API}/positions${unidadeParam}`),
+      apiFetch(`${API}/commissions${unidadeParam}`),
+      apiFetch(`${API}/commissions/resumo${unidadeParam}`),
+      apiFetch(`${API}/disciplinary${unidadeParam}`),
     ]);
     if (mRes.ok) setMembers(await mRes.json());
     if (pRes.ok) setPositions(await pRes.json());
@@ -399,7 +400,7 @@ export default function ColaboradoresPage() {
   const seedData = async () => {
     setSeeding(true);
     try {
-      const res = await fetch(`${API}/seed`, { method: "POST", headers: { "Content-Type": "application/json" } });
+      const res = await apiFetch(`${API}/seed`, { method: "POST", headers: { "Content-Type": "application/json" } });
       const json = await res.json();
       alert(json.mensagem || json.error);
       fetchAll();

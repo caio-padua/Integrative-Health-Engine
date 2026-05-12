@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { RefreshCw, AlertTriangle, Send, Filter } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Linha = {
   pagamento_id: number;
   paciente_id: number;
@@ -49,7 +50,7 @@ export default function AdminInadimplencia() {
     setLoading(true);
     setMsg("");
     try {
-      const r = await fetch(`/api/admin/inadimplencia?dias_min=${diasMin || 0}`, {
+      const r = await apiFetch(`/api/admin/inadimplencia?dias_min=${diasMin || 0}`, {
         credentials: "include",
       });
       const j = await r.json();
@@ -70,7 +71,7 @@ export default function AdminInadimplencia() {
     setReenviandoId(cobrancaId);
     setMsg("");
     try {
-      const r = await fetch(
+      const r = await apiFetch(
         `/api/admin/inadimplencia/${cobrancaId}/reenviar`,
         { method: "POST", credentials: "include" }
       );

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Bot, Brain, User, CheckCircle2, MessageCircle, Phone, Workflow } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
 const RESOLVEDORES = [
@@ -22,12 +23,12 @@ export default function DemandasResolucaoPage() {
   const { data: demandas = [] } = useQuery<any[]>({
     queryKey: ["demandas-resolucao", unidadeSelecionada],
     queryFn: () =>
-      fetch(`/api/demandas-resolucao${!isTodasClinicas ? `?unidadeId=${unidadeSelecionada}` : ""}`).then((r) => r.json()),
+      apiFetch(`/api/demandas-resolucao${!isTodasClinicas ? `?unidadeId=${unidadeSelecionada}` : ""}`).then((r) => r.json()),
   });
 
   const concluir = useMutation({
     mutationFn: ({ id, resolvidoPor }: any) =>
-      fetch(`/api/demandas-resolucao/${id}/concluir`, {
+      apiFetch(`/api/demandas-resolucao/${id}/concluir`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resolvidoPor, caminhoResolucao: `concluido-via-${resolvidoPor}` }),
@@ -37,7 +38,7 @@ export default function DemandasResolucaoPage() {
 
   const criarSeed = useMutation({
     mutationFn: () =>
-      fetch(`/api/demandas-resolucao`, {
+      apiFetch(`/api/demandas-resolucao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

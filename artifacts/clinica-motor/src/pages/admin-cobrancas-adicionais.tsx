@@ -3,6 +3,7 @@ import { Layout } from "@/components/Layout";
 import { Save, RefreshCw, DollarSign, Plus, Filter } from "lucide-react";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Cobranca = {
   id: number;
   unidade_id: number;
@@ -45,7 +46,7 @@ export default function AdminCobrancasAdicionais() {
     const params = new URLSearchParams();
     if (filtroUnidade) params.set("unidade_id", filtroUnidade);
     if (filtroStatus) params.set("status", filtroStatus);
-    const r = await fetch(`/api/admin/cobrancas-adicionais?${params.toString()}`, { credentials: "include" });
+    const r = await apiFetch(`/api/admin/cobrancas-adicionais?${params.toString()}`, { credentials: "include" });
     if (r.ok) {
       const data = await r.json();
       setCobrancas(data.cobrancas ?? []);
@@ -57,7 +58,7 @@ export default function AdminCobrancasAdicionais() {
   useEffect(() => { void carregar(); }, [carregar]);
 
   useEffect(() => {
-    fetch("/api/unidades", { credentials: "include" })
+    apiFetch("/api/unidades", { credentials: "include" })
       .then(r => r.ok ? r.json() : [])
       .then((arr: any[]) => setUnidades(arr.map(u => ({ id: u.id, nome: u.nome }))));
   }, []);
@@ -68,7 +69,7 @@ export default function AdminCobrancasAdicionais() {
       return;
     }
     setCriando(true);
-    const r = await fetch("/api/admin/cobrancas-adicionais", {
+    const r = await apiFetch("/api/admin/cobrancas-adicionais", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -89,7 +90,7 @@ export default function AdminCobrancasAdicionais() {
   }
 
   async function mudarStatus(id: number, status: Cobranca["status"]) {
-    const r = await fetch(`/api/admin/cobrancas-adicionais/${id}`, {
+    const r = await apiFetch(`/api/admin/cobrancas-adicionais/${id}`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

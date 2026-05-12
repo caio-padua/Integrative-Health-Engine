@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Loader2, Copy, CheckCircle2, Pencil, Save, X } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Bloco = {
   id: number;
   categoria: string;
@@ -65,7 +66,7 @@ export default function MensagensPage() {
   async function carregar() {
     setLoading(true);
     try {
-      const r = await fetch(`${API}/mensagens-catalogo`);
+      const r = await apiFetch(`${API}/mensagens-catalogo`);
       const j = await r.json();
       setData(j);
     } finally {
@@ -128,7 +129,7 @@ export default function MensagensPage() {
     if (!cat) return;
     const bloco = data[cat].find(b => b.id === editando.id)!;
     const novoConteudo = { ...bloco.conteudo, [editando.campo]: valorEdit };
-    await fetch(`${API}/mensagens-catalogo/${editando.id}`, {
+    await apiFetch(`${API}/mensagens-catalogo/${editando.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ conteudo: novoConteudo }),

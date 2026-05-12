@@ -133,7 +133,7 @@ function BookingModal({ slot, onClose, onBooked }: { slot: any; onClose: () => v
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/pacientes`)
+    apiFetch(`${API_BASE}/pacientes`)
       .then(r => r.json())
       .then(d => setPacientes(d))
       .catch(console.error);
@@ -147,7 +147,7 @@ function BookingModal({ slot, onClose, onBooked }: { slot: any; onClose: () => v
     if (!pacienteId) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/agenda-motor/book`, {
+      const res = await apiFetch(`${API_BASE}/agenda-motor/book`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -257,9 +257,9 @@ function RulesModal({ onClose }: { onClose: () => void }) {
     setLoading(true);
     try {
       const [rulesRes, profRes, subRes] = await Promise.all([
-        fetch(`${API_BASE}/agenda-motor/availability-rules`).then(r => r.json()),
-        fetch(`${API_BASE}/usuarios`).then(r => r.json()),
-        fetch(`${API_BASE}/agenda-motor/sub-agendas`).then(r => r.json()),
+        apiFetch(`${API_BASE}/agenda-motor/availability-rules`).then(r => r.json()),
+        apiFetch(`${API_BASE}/usuarios`).then(r => r.json()),
+        apiFetch(`${API_BASE}/agenda-motor/sub-agendas`).then(r => r.json()),
       ]);
       setRules(rulesRes);
       setProfissionais(profRes);
@@ -277,7 +277,7 @@ function RulesModal({ onClose }: { onClose: () => void }) {
     if (!form.profissionalId) return;
     setSaving(true);
     try {
-      await fetch(`${API_BASE}/agenda-motor/availability-rules`, {
+      await apiFetch(`${API_BASE}/agenda-motor/availability-rules`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -300,7 +300,7 @@ function RulesModal({ onClose }: { onClose: () => void }) {
   };
 
   const handleDelete = async (id: number) => {
-    await fetch(`${API_BASE}/agenda-motor/availability-rules/${id}`, { method: "DELETE" });
+    await apiFetch(`${API_BASE}/agenda-motor/availability-rules/${id}`, { method: "DELETE" });
     fetchRules();
   };
 
@@ -398,7 +398,7 @@ function GenerateSlotsModal({ onClose, onGenerated }: { onClose: () => void; onG
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/agenda-motor/generate-slots`, {
+      const res = await apiFetch(`${API_BASE}/agenda-motor/generate-slots`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dataInicio, dataFim }),
@@ -520,7 +520,7 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
     const seedUnidadeId = unidadeId || 1;
     setSeeding(true);
     try {
-      await fetch(`${API_BASE}/agenda-motor/sub-agendas/seed`, {
+      await apiFetch(`${API_BASE}/agenda-motor/sub-agendas/seed`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ unidadeId: seedUnidadeId }),
@@ -538,7 +538,7 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
     if (!newNome.trim()) return;
     const createUnidadeId = unidadeId || 1;
     try {
-      await fetch(`${API_BASE}/agenda-motor/sub-agendas`, {
+      await apiFetch(`${API_BASE}/agenda-motor/sub-agendas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -577,7 +577,7 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
     try {
       const payload = { ...editForm };
       if (!payload.certificadoDigitalSenha) delete payload.certificadoDigitalSenha;
-      const res = await fetch(`${API_BASE}/agenda-motor/sub-agendas/${editingSub.id}`, {
+      const res = await apiFetch(`${API_BASE}/agenda-motor/sub-agendas/${editingSub.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -593,7 +593,7 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
 
   const handleToggleAtiva = async (sub: SubAgenda) => {
     try {
-      await fetch(`${API_BASE}/agenda-motor/sub-agendas/${sub.id}`, {
+      await apiFetch(`${API_BASE}/agenda-motor/sub-agendas/${sub.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ativa: !sub.ativa }),
@@ -607,7 +607,7 @@ function SubAgendaSidebar({ unidadeId, activeIds, onToggle, onSeedDone }: {
   const handleDeleteSubAgenda = async (id: number) => {
     if (!confirm("Excluir esta sub-agenda permanentemente?")) return;
     try {
-      await fetch(`${API_BASE}/agenda-motor/sub-agendas/${id}`, { method: "DELETE" });
+      await apiFetch(`${API_BASE}/agenda-motor/sub-agendas/${id}`, { method: "DELETE" });
       setEditingSub(null);
       await fetchSubAgendas();
     } catch (err) {
@@ -930,7 +930,7 @@ export default function AgendaMotorPage() {
 
   useEffect(() => {
     const params = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
-    fetch(`${API_BASE}/agenda-motor/sub-agendas${params}`)
+    apiFetch(`${API_BASE}/agenda-motor/sub-agendas${params}`)
       .then(r => r.json())
       .then((subs: SubAgenda[]) => {
         setActiveSubAgendaIds(new Set(subs.filter(s => s.ativa).map(s => s.id)));
@@ -942,7 +942,7 @@ export default function AgendaMotorPage() {
   const processarLiberacao = async () => {
     setProcessandoLiberacao(true);
     try {
-      const res = await fetch(`${API_BASE}/agenda-motor/smart-release`, {
+      const res = await apiFetch(`${API_BASE}/agenda-motor/smart-release`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -963,7 +963,7 @@ export default function AgendaMotorPage() {
   const processarFaltas = async () => {
     setProcessandoFaltas(true);
     try {
-      const res = await fetch(`${API_BASE}/agenda-motor/processar-faltas`, { method: "POST" });
+      const res = await apiFetch(`${API_BASE}/agenda-motor/processar-faltas`, { method: "POST" });
       const json = await res.json();
       if (res.ok) {
         alert(`${json.processados} falta(s) processada(s). ${json.detalhes?.filter((d: any) => d.autoReagendado).length || 0} auto-reagendamento(s).`);
@@ -984,7 +984,7 @@ export default function AgendaMotorPage() {
       if (profissionalFilter) params.set("profissionalId", profissionalFilter);
       if (unidadeSelecionada) params.set("unidadeId", String(unidadeSelecionada));
 
-      const res = await fetch(`${API_BASE}/agenda-motor/weekly-view?${params.toString()}`);
+      const res = await apiFetch(`${API_BASE}/agenda-motor/weekly-view?${params.toString()}`);
       const json = await res.json();
       setData(json);
     } catch (err) {
@@ -1005,7 +1005,7 @@ export default function AgendaMotorPage() {
   const handleBlock = async (slot: any) => {
     const motivo = prompt("Motivo do bloqueio:");
     if (!motivo) return;
-    await fetch(`${API_BASE}/agenda-motor/slots/${slot.id}/block`, {
+    await apiFetch(`${API_BASE}/agenda-motor/slots/${slot.id}/block`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ motivo }),
@@ -1014,7 +1014,7 @@ export default function AgendaMotorPage() {
   };
 
   const handleUnblock = async (slot: any) => {
-    await fetch(`${API_BASE}/agenda-motor/slots/${slot.id}/unblock`, { method: "POST" });
+    await apiFetch(`${API_BASE}/agenda-motor/slots/${slot.id}/unblock`, { method: "POST" });
     fetchData();
   };
 

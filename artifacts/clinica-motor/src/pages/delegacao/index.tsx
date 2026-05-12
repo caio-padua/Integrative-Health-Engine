@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Plus, Clock, CheckCircle, AlertTriangle, XCircle, ArrowRight,
   User, BarChart3, Star, TrendingUp, MessageSquare, Filter, RefreshCw
@@ -93,8 +94,8 @@ export default function DelegacaoPage() {
 
   const fetchAll = useCallback(async () => {
     const [dRes, sRes, fRes, frRes, uRes, unRes] = await Promise.all([
-      fetch(API), fetch(`${API}/scoring`), fetch(`${API}/feedback`),
-      fetch(`${API}/feedback/resumo`), fetch("/api/usuarios"), fetch("/api/unidades"),
+      apiFetch(API), apiFetch(`${API}/scoring`), apiFetch(`${API}/feedback`),
+      apiFetch(`${API}/feedback/resumo`), apiFetch("/api/usuarios"), apiFetch("/api/unidades"),
     ]);
     if (dRes.ok) setDelegacoes(await dRes.json());
     if (sRes.ok) setScoring(await sRes.json());
@@ -106,14 +107,14 @@ export default function DelegacaoPage() {
 
   useEffect(() => {
     fetchAll();
-    fetch(`${API}/trello/status`).then(r => r.ok ? r.json() : null).then(d => d && setTrelloStatus(d)).catch(() => {});
+    apiFetch(`${API}/trello/status`).then(r => r.ok ? r.json() : null).then(d => d && setTrelloStatus(d)).catch(() => {});
   }, [fetchAll]);
 
   const syncTrello = async (direction: "push" | "pull") => {
     setSyncingTrello(true);
     try {
       const endpoint = direction === "push" ? `${API}/sync-trello` : `${API}/pull-trello`;
-      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" } });
+      const res = await apiFetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" } });
       const json = await res.json();
       if (res.ok) {
         alert(json.mensagem);
@@ -128,7 +129,7 @@ export default function DelegacaoPage() {
   };
 
   const criarDelegacao = async () => {
-    const res = await fetch(API, {
+    const res = await apiFetch(API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, delegadoPorId: 1, unidadeId: form.unidadeId || undefined }),
@@ -141,7 +142,7 @@ export default function DelegacaoPage() {
   };
 
   const mudarStatus = async (id: number, novoStatus: string) => {
-    await fetch(`${API}/${id}/status`, {
+    await apiFetch(`${API}/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: novoStatus }),

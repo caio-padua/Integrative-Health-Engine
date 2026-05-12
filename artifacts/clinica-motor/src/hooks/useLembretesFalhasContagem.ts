@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { apiFetch } from "@/lib/api-fetch";
 interface ContagemFalhasResponse {
   unidadeId: number | null;
   janelaHoras: number;
@@ -39,7 +40,7 @@ export function useLembretesFalhasContagem(unidadeId: number | null) {
         const qs = new URLSearchParams();
         qs.set("unidadeId", String(unidadeId));
         qs.set("janelaHoras", "24");
-        const res = await fetch(
+        const res = await apiFetch(
           `${apiBase}/prescricoes-lembrete/falhas/contagem?${qs.toString()}`,
           { signal: ctrl.signal },
         );

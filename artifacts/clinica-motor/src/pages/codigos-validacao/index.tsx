@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface CodigoValidacao {
@@ -38,7 +39,7 @@ export default function CodigosValidacaoPage() {
   const { data: codigos = [], isLoading } = useQuery<CodigoValidacao[]>({
     queryKey: ["codigos-validacao"],
     queryFn: async () => {
-      const res = await fetch(`/api/codigos-validacao`);
+      const res = await apiFetch(`/api/codigos-validacao`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -46,7 +47,7 @@ export default function CodigosValidacaoPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/codigos-validacao`, {
+      const res = await apiFetch(`/api/codigos-validacao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -71,7 +72,7 @@ export default function CodigosValidacaoPage() {
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/codigos-validacao/verificar`, {
+      const res = await apiFetch(`/api/codigos-validacao/verificar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codigo: codigoInput.toUpperCase() }),

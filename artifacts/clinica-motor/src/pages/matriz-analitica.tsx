@@ -4,6 +4,7 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Grid3X3, Download, Filter, Search, X, FlaskConical, Activity, Users
 } from "lucide-react";
@@ -72,7 +73,7 @@ export default function MatrizAnaliticaPage() {
     setLoading(true);
     try {
       const params = buildParams();
-      const res = await fetch(`${API_BASE}/matrix/therapy-facts?${params.toString()}`);
+      const res = await apiFetch(`${API_BASE}/matrix/therapy-facts?${params.toString()}`);
       const json = await res.json();
       setData(json);
     } catch (err) {
@@ -88,7 +89,7 @@ export default function MatrizAnaliticaPage() {
     setExporting(true);
     try {
       const params = buildParams();
-      const res = await fetch(`${API_BASE}/matrix/export?${params.toString()}`);
+      const res = await apiFetch(`${API_BASE}/matrix/export?${params.toString()}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

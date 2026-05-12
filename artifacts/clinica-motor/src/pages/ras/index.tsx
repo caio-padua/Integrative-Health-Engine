@@ -27,6 +27,7 @@ import {
 } from "@/lib/ordenacao-multi";
 import { useAuth } from "@/contexts/AuthContext";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface RasSubstancia {
@@ -152,7 +153,7 @@ export default function RasPage() {
     queryKey: ["ras", ordenarPorString],
     queryFn: async () => {
       const qs = ordenarPorString ? `?ordenarPor=${encodeURIComponent(ordenarPorString)}` : "";
-      const res = await fetch(`/api/ras${qs}`);
+      const res = await apiFetch(`/api/ras${qs}`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -160,7 +161,7 @@ export default function RasPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/ras`, {
+      const res = await apiFetch(`/api/ras`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessaoId: Number(sessaoIdInput), observacoes: obsInput || null }),

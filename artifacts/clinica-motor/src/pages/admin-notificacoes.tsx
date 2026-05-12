@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { RefreshCw, Send, Eye, Bell, Clock, Save, Search } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type NotifRow = {
   id: number;
   canal: "EMAIL" | "WHATSAPP" | "DRIVE";
@@ -86,7 +87,7 @@ export default function AdminNotificacoes() {
       ...(filtroQ && { q: filtroQ }),
     });
     try {
-      const r = await fetch(`/api/admin/notif-assinatura/list?${qs}`, { credentials: "include" });
+      const r = await apiFetch(`/api/admin/notif-assinatura/list?${qs}`, { credentials: "include" });
       if (r.ok) {
         const j = await r.json();
         setRows(j.rows || []);
@@ -98,7 +99,7 @@ export default function AdminNotificacoes() {
   }, [page, pageSize, filtroStatus, filtroCanal, filtroDia, filtroQ]);
 
   const carregarStatus = useCallback(async () => {
-    const r = await fetch("/api/admin/notif-assinatura/status", { credentials: "include" });
+    const r = await apiFetch("/api/admin/notif-assinatura/status", { credentials: "include" });
     if (r.ok) {
       const j = await r.json();
       setStatusSummary(j.por_status || []);
@@ -106,7 +107,7 @@ export default function AdminNotificacoes() {
   }, []);
 
   const carregarConfig = useCallback(async () => {
-    const r = await fetch("/api/admin/notif-config", { credentials: "include" });
+    const r = await apiFetch("/api/admin/notif-config", { credentials: "include" });
     if (r.ok) {
       const j = await r.json();
       setConfig(j.config);
@@ -120,7 +121,7 @@ export default function AdminNotificacoes() {
     if (!confirm(`Reenfileirar notificação #${id}?`)) return;
     setReenviandoId(id);
     try {
-      const r = await fetch(`/api/admin/notif-assinatura/${id}/reenviar`, {
+      const r = await apiFetch(`/api/admin/notif-assinatura/${id}/reenviar`, {
         method: "POST",
         credentials: "include",
       });
@@ -139,7 +140,7 @@ export default function AdminNotificacoes() {
     if (!confirm("Rodar 1 tick do worker agora? (processa até 50 PENDENTES)")) return;
     setLoading(true);
     try {
-      const r = await fetch("/api/admin/notif-assinatura/tick", {
+      const r = await apiFetch("/api/admin/notif-assinatura/tick", {
         method: "POST",
         credentials: "include",
       });
@@ -168,7 +169,7 @@ export default function AdminNotificacoes() {
     if (!config) return;
     setSavingConfig(true);
     try {
-      const r = await fetch("/api/admin/notif-config", {
+      const r = await apiFetch("/api/admin/notif-config", {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

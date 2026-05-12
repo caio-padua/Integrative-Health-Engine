@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Building, Plus, Pencil, Trash2, X, Save, Search, Mail, Phone, Crown } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface Consultoria {
@@ -45,7 +46,7 @@ export default function ConsultoriasPage() {
   const { data, isLoading } = useQuery<Consultoria[]>({
     queryKey: ["consultorias"],
     queryFn: async () => {
-      const r = await fetch(`${BASE}api/consultorias`);
+      const r = await apiFetch(`${BASE}api/consultorias`);
       return r.json();
     },
   });
@@ -53,7 +54,7 @@ export default function ConsultoriasPage() {
   const save = useMutation({
     mutationFn: async (d: any) => {
       const url = d.id ? `${BASE}api/consultorias/${d.id}` : `${BASE}api/consultorias`;
-      const r = await fetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+      const r = await apiFetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
       if (!r.ok) throw new Error("Erro ao salvar");
       return r.json();
     },
@@ -63,7 +64,7 @@ export default function ConsultoriasPage() {
 
   const del = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`${BASE}api/consultorias/${id}`, { method: "DELETE" });
+      const r = await apiFetch(`${BASE}api/consultorias/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Erro");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["consultorias"] }); toast({ title: "Consultoria excluida" }); },

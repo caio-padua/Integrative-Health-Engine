@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/Layout";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   AlertTriangle,
   RefreshCw,
@@ -135,7 +136,7 @@ export default function AssinaturasUploadsFalhos() {
     setLoading(true);
     setErro(null);
     try {
-      const r = await fetch("/api/assinaturas/uploads-falhos", {
+      const r = await apiFetch("/api/assinaturas/uploads-falhos", {
         credentials: "include",
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -156,7 +157,7 @@ export default function AssinaturasUploadsFalhos() {
     setRetentando(true);
     setErro(null);
     try {
-      const r = await fetch("/api/assinaturas/uploads-falhos/retentar", {
+      const r = await apiFetch("/api/assinaturas/uploads-falhos/retentar", {
         method: "POST",
         credentials: "include",
       });

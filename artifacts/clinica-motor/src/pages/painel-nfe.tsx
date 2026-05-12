@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Ban, Pencil, Trash2, Shield, Eye, RefreshCcw, AlertTriangle } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleString("pt-BR") : "—";
 
@@ -27,24 +28,24 @@ export default function PainelNfePage() {
 
   const { data: dash, isLoading } = useQuery<any>({
     queryKey: ["painel-nfe", filtroUnidade],
-    queryFn: () => fetch(`/api/painel-nfe/dashboard${filtroUnidade ? `?unidadeId=${filtroUnidade}` : ""}`).then((r) => r.json()),
+    queryFn: () => apiFetch(`/api/painel-nfe/dashboard${filtroUnidade ? `?unidadeId=${filtroUnidade}` : ""}`).then((r) => r.json()),
     refetchInterval: 30_000,
   });
 
   const { data: provedoresNfe } = useQuery<any[]>({
     queryKey: ["provedores-nfe"],
-    queryFn: () => fetch("/api/provedores-nfe").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/provedores-nfe").then((r) => r.json()),
   });
 
   const { data: eventos } = useQuery<any[]>({
     queryKey: ["nf-eventos", nfSelecionada],
-    queryFn: () => fetch(`/api/painel-nfe/${nfSelecionada}/eventos`).then((r) => r.json()),
+    queryFn: () => apiFetch(`/api/painel-nfe/${nfSelecionada}/eventos`).then((r) => r.json()),
     enabled: !!nfSelecionada,
   });
 
   const cancelar = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`/api/painel-nfe/${id}/cancelar`, {
+      const r = await apiFetch(`/api/painel-nfe/${id}/cancelar`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
         body: JSON.stringify({ motivo }),
@@ -57,7 +58,7 @@ export default function PainelNfePage() {
 
   const apagar = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`/api/painel-nfe/${id}`, { method: "DELETE", headers: { "x-admin-token": adminToken } });
+      const r = await apiFetch(`/api/painel-nfe/${id}`, { method: "DELETE", headers: { "x-admin-token": adminToken } });
       if (!r.ok) throw new Error((await r.json()).error ?? "Falha");
       return r.json();
     },

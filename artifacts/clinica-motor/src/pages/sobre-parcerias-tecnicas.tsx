@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { ShieldCheck, Search, ExternalLink, BookOpen } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const NAVY = "#020406";
 const GOLD = "#C89B3C";
 const GOLD_BG = "#FAF6EC";
@@ -22,7 +23,7 @@ export default function SobreParceriasTecnicas() {
         setVerifResult({ ok: false, error: "Hash deve ter 64 caracteres hexadecimais." });
         return;
       }
-      const r = await fetch(`/api/parq/verificar-hash/${h}`);
+      const r = await apiFetch(`/api/parq/verificar-hash/${h}`);
       const j = await r.json();
       setVerifResult(j);
     } catch (e) {

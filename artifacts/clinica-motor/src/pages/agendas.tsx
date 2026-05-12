@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { CalendarDays, MapPin, Wifi, User, Stethoscope, Heart, Coffee } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Agenda = {
   id: number;
   unidade_id: number;
@@ -46,8 +47,8 @@ export default function AgendasPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/agendas-profissionais").then((r) => r.json()),
-      fetch("/api/agendas-profissionais/resumo").then((r) => r.json()),
+      apiFetch("/api/agendas-profissionais").then((r) => r.json()),
+      apiFetch("/api/agendas-profissionais/resumo").then((r) => r.json()),
     ])
       .then(([ag, res]) => {
         setAgendas(ag);

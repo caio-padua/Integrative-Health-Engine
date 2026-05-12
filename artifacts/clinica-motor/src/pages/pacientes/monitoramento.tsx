@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 const CORES_CLASSIFICACAO: Record<string, string> = {
@@ -59,10 +60,10 @@ export default function MonitoramentoPacientePage() {
   useEffect(() => {
     if (!pacienteId) return;
     Promise.all([
-      fetch(`/api/pacientes/${pacienteId}/sinais-vitais`).then(r => r.json()),
-      fetch(`/api/pacientes/${pacienteId}/sintomas-grafico`).then(r => r.json()),
-      fetch(`/api/pacientes/${pacienteId}/acompanhamento-formulas`).then(r => r.json()),
-      fetch(`/api/pacientes/${pacienteId}/alertas`).then(r => r.json()),
+      apiFetch(`/api/pacientes/${pacienteId}/sinais-vitais`).then(r => r.json()),
+      apiFetch(`/api/pacientes/${pacienteId}/sintomas-grafico`).then(r => r.json()),
+      apiFetch(`/api/pacientes/${pacienteId}/acompanhamento-formulas`).then(r => r.json()),
+      apiFetch(`/api/pacientes/${pacienteId}/alertas`).then(r => r.json()),
     ]).then(([s, st, f, a]) => {
       setSinais(s);
       setSintomas(st);
@@ -294,12 +295,12 @@ export default function MonitoramentoPacientePage() {
     if (!resposta) return;
     const contatouTelefone = confirm("Realizou contato telefonico?");
     try {
-      await fetch(`/api/alerta-paciente/${alertaId}/responder`, {
+      await apiFetch(`/api/alerta-paciente/${alertaId}/responder`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ respostaAssistente: resposta, contatoTelefone: contatouTelefone }),
       });
-      const updatedAlertas = await fetch(`/api/pacientes/${pacienteId}/alertas`).then(r => r.json());
+      const updatedAlertas = await apiFetch(`/api/pacientes/${pacienteId}/alertas`).then(r => r.json());
       setAlertas(updatedAlertas);
     } catch {
       alert("Erro ao responder alerta");

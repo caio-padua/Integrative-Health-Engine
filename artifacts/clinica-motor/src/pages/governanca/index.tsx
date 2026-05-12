@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import { apiFetch } from "@/lib/api-fetch";
 interface KpiData {
   valor: number;
   status: "VERDE" | "AMARELO" | "VERMELHO";
@@ -133,7 +134,7 @@ const baseUrl = import.meta.env.BASE_URL || "/";
 const apiBase = `${baseUrl}api`.replace(/\/\//g, "/");
 
 async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetch(`${apiBase}${path}`);
+  const res = await apiFetch(`${apiBase}${path}`);
   if (!res.ok) throw new Error(`Erro ${res.status}`);
   return res.json();
 }

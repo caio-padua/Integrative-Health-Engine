@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   DollarSign, TrendingUp, Package, Zap, Shield, BarChart3, Users,
   CheckCircle, AlertTriangle, Clock, ArrowUpRight, FileText,
@@ -27,7 +28,7 @@ const MODELO_CONFIG: Record<string, { label: string; icon: any; cor: string }> =
 function ModulosTab() {
   const { data: modulos, isLoading } = useQuery({
     queryKey: ["comercial-modulos"],
-    queryFn: async () => { const r = await fetch(`${API}/comercial/modulos`); return r.json(); },
+    queryFn: async () => { const r = await apiFetch(`${API}/comercial/modulos`); return r.json(); },
   });
 
   if (isLoading) return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-48" />)}</div>;
@@ -98,7 +99,7 @@ function ContratosTab() {
     queryKey: ["comercial-contratos", unidadeSelecionada],
     queryFn: async () => {
       const params = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
-      const r = await fetch(`${API}/comercial/contratos${params}`);
+      const r = await apiFetch(`${API}/comercial/contratos${params}`);
       return r.json();
     },
   });
@@ -181,7 +182,7 @@ function FaturamentoTab() {
     queryFn: async () => {
       let params = `?mes=${mes}&ano=${ano}`;
       if (unidadeSelecionada) params += `&unidadeId=${unidadeSelecionada}`;
-      const r = await fetch(`${API}/comercial/dashboard-financeiro${params}`);
+      const r = await apiFetch(`${API}/comercial/dashboard-financeiro${params}`);
       return r.json();
     },
   });

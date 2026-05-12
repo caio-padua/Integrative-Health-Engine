@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Save, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const STORAGE_KEY = "pawards:padcom:draft";
 
 interface Pergunta {
@@ -56,7 +57,7 @@ export default function PadcomPaciente() {
   const { data: perguntas = [], isLoading } = useQuery<Pergunta[]>({
     queryKey: ["padcom-questionarios"],
     queryFn: async () => {
-      const r = await fetch("/api/padcom-questionarios?ativo=true");
+      const r = await apiFetch("/api/padcom-questionarios?ativo=true");
       if (!r.ok) throw new Error("Falha ao carregar perguntas");
       return r.json();
     },
@@ -81,7 +82,7 @@ export default function PadcomPaciente() {
   // Criar sessão
   const criarSessao = useMutation({
     mutationFn: async (data: any) => {
-      const r = await fetch("/api/padcom-sessoes", {
+      const r = await apiFetch("/api/padcom-sessoes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -96,7 +97,7 @@ export default function PadcomPaciente() {
   // Salvar resposta no servidor
   const salvarResposta = useMutation({
     mutationFn: async (data: any) => {
-      const r = await fetch(`/api/padcom-sessoes/${draft.sessaoId}/responder`, {
+      const r = await apiFetch(`/api/padcom-sessoes/${draft.sessaoId}/responder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -108,7 +109,7 @@ export default function PadcomPaciente() {
   // Finalizar sessão
   const finalizarSessao = useMutation({
     mutationFn: async () => {
-      const r = await fetch(`/api/padcom-sessoes/${draft.sessaoId}/finalizar`, {
+      const r = await apiFetch(`/api/padcom-sessoes/${draft.sessaoId}/finalizar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

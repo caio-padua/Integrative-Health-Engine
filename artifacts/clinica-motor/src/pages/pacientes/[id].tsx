@@ -22,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 function formatCpf(value: string): string {
@@ -130,7 +131,7 @@ export default function PacienteDetalhe() {
     const digits = cep.replace(/\D/g, '');
     if (digits.length !== 8) return;
     try {
-      const resp = await fetch(`/api/cep/${digits}`);
+      const resp = await apiFetch(`/api/cep/${digits}`);
       if (!resp.ok) return;
       const data = await resp.json();
       form.setValue("endereco", data.endereco || "");
@@ -154,7 +155,7 @@ export default function PacienteDetalhe() {
     if (payload.condicoesClinicas === "") payload.condicoesClinicas = null;
     if (payload.medicamentosContinuos === "") payload.medicamentosContinuos = null;
     try {
-      const res = await fetch(`/api/pacientes/${id}`, {
+      const res = await apiFetch(`/api/pacientes/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -186,7 +187,7 @@ export default function PacienteDetalhe() {
     reader.onload = async () => {
       const base64 = reader.result as string;
       try {
-        const res = await fetch(`/api/pacientes/${id}/fotos`, {
+        const res = await apiFetch(`/api/pacientes/${id}/fotos`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ [tipo]: base64 }),

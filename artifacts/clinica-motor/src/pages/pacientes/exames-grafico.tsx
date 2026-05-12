@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, TrendingUp, ShoppingCart, AlertTriangle } from "lucide-react";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend,
   ReferenceLine, ResponsiveContainer, Cell, CartesianGrid,
@@ -70,7 +71,7 @@ export default function ExamesGrafico() {
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/laboratorio/analitos`)
+    apiFetch(`/api/laboratorio/analitos`)
       .then(r => r.json())
       .then(j => setAnalitos(j.analitos || []))
       .catch(e => setErro(String(e)));
@@ -79,7 +80,7 @@ export default function ExamesGrafico() {
   useEffect(() => {
     if (!pacienteId || !analitoSelecionado) return;
     setCarregando(true); setErro(null);
-    fetch(`/api/laboratorio/pacientes/${pacienteId}/serie/${analitoSelecionado}`)
+    apiFetch(`/api/laboratorio/pacientes/${pacienteId}/serie/${analitoSelecionado}`)
       .then(r => r.json())
       .then(j => { if (j.error) setErro(j.error); else setSerie(j); })
       .catch(e => setErro(String(e)))

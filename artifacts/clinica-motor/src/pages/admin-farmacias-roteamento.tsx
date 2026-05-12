@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { RefreshCw, Save, Wand2 } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Farmacia = {
   id: number;
   nome_fantasia: string;
@@ -62,8 +63,8 @@ export default function AdminFarmaciasRoteamento() {
     setLoading(true); setMsg("");
     try {
       const [r1, r2] = await Promise.all([
-        fetch(`/api/admin/farmacias-roteamento`, { credentials: "include" }),
-        fetch(`/api/admin/contratos-farmacia/options`, { credentials: "include" }),
+        apiFetch(`/api/admin/farmacias-roteamento`, { credentials: "include" }),
+        apiFetch(`/api/admin/contratos-farmacia/options`, { credentials: "include" }),
       ]);
       const j1 = await r1.json();
       const j2 = await r2.json();
@@ -98,7 +99,7 @@ export default function AdminFarmaciasRoteamento() {
         body.aceita_blocos_tipos = body.aceita_blocos_tipos
           .split(",").map((s: string) => s.trim()).filter(Boolean);
       }
-      const r = await fetch(`/api/admin/farmacias-roteamento/${f.id}`, {
+      const r = await apiFetch(`/api/admin/farmacias-roteamento/${f.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -118,7 +119,7 @@ export default function AdminFarmaciasRoteamento() {
     if (!simUni) { setMsg("Selecione unidade pra simular."); return; }
     setSimulating(true); setSimResult(null); setMsg("");
     try {
-      const r = await fetch(`/api/admin/farmacias-roteamento/preview`, {
+      const r = await apiFetch(`/api/admin/farmacias-roteamento/preview`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

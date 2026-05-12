@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   FileText, Play, BookOpen, Scale, ChevronDown, ChevronRight,
   CheckCircle2, Clock, AlertCircle, Send, Archive, Loader2, RefreshCw,
@@ -117,9 +118,9 @@ export default function RaclRacjPanel({ pacienteId }: { pacienteId: number }) {
     setLoading(true);
     try {
       const [cadernosRes, eventosRes, tratRes] = await Promise.all([
-        fetch(`${apiBase}/ras/cadernos/${pacienteId}`),
-        fetch(`${apiBase}/ras/evento-start/${pacienteId}`),
-        fetch(`${apiBase}/tratamentos?pacienteId=${pacienteId}`),
+        apiFetch(`${apiBase}/ras/cadernos/${pacienteId}`),
+        apiFetch(`${apiBase}/ras/evento-start/${pacienteId}`),
+        apiFetch(`${apiBase}/tratamentos?pacienteId=${pacienteId}`),
       ]);
       if (cadernosRes.ok) {
         const data = await cadernosRes.json();
@@ -143,7 +144,7 @@ export default function RaclRacjPanel({ pacienteId }: { pacienteId: number }) {
 
   const fetchPreview = useCallback(async () => {
     try {
-      const res = await fetch(`${apiBase}/ras/resolver-cadernos`, {
+      const res = await apiFetch(`${apiBase}/ras/resolver-cadernos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(modalidades),
@@ -164,7 +165,7 @@ export default function RaclRacjPanel({ pacienteId }: { pacienteId: number }) {
     }
     setStartingEvent(true);
     try {
-      const res = await fetch(`${apiBase}/ras/evento-start`, {
+      const res = await apiFetch(`${apiBase}/ras/evento-start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -192,7 +193,7 @@ export default function RaclRacjPanel({ pacienteId }: { pacienteId: number }) {
   const handleStatusUpdate = async (cadernoId: number, novoStatus: string) => {
     setUpdatingStatus(cadernoId);
     try {
-      const res = await fetch(`${apiBase}/ras/cadernos/${cadernoId}/status`, {
+      const res = await apiFetch(`${apiBase}/ras/cadernos/${cadernoId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: novoStatus }),

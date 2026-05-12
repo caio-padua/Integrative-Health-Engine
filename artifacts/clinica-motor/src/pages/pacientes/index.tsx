@@ -31,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "wouter";
 import { useClinic } from "@/contexts/ClinicContext";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 function formatCpf(value: string): string {
@@ -190,7 +191,7 @@ export default function Pacientes() {
     const digits = cep.replace(/\D/g, '');
     if (digits.length !== 8) return;
     try {
-      const resp = await fetch(`/api/cep/${digits}`);
+      const resp = await apiFetch(`/api/cep/${digits}`);
       if (!resp.ok) return;
       const data = await resp.json();
       form.setValue("endereco", data.endereco || "");

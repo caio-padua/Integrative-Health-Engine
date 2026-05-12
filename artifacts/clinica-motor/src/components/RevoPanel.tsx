@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Activity, Heart, Pill, ArrowDown, ArrowUp, Plus, Edit, Trash2,
   Loader2, RefreshCw, Zap, Brain, ChevronDown, ChevronRight, Save, X,
@@ -27,7 +28,7 @@ function PosologiaPreview({ texto, contexto }: { texto: string; contexto?: { cat
     if (!t) { setEstado(null); return; }
     const handle = setTimeout(async () => {
       try {
-        const r = await fetch(`${apiBase}/posologia/parse`, {
+        const r = await apiFetch(`${apiBase}/posologia/parse`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -117,16 +118,16 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
     setLoading(true);
     setDicLookup({});
     try {
-      const res = await fetch(`${apiBase}/rasx/${pacienteId}/revo/master`);
+      const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/revo/master`);
       let revo: any = null;
       if (res.ok) { revo = await res.json(); setData(revo); }
       let trat: any = null;
-      const tRes = await fetch(`${apiBase}/tratamentos?pacienteId=${pacienteId}`);
+      const tRes = await apiFetch(`${apiBase}/tratamentos?pacienteId=${pacienteId}`);
       if (tRes.ok) {
         const lista = await tRes.json();
         const ativo = (lista || []).find((t: any) => t.status !== "cancelado") || lista?.[0];
         if (ativo?.id) {
-          const detRes = await fetch(`${apiBase}/financeiro/tratamentos/${ativo.id}`);
+          const detRes = await apiFetch(`${apiBase}/financeiro/tratamentos/${ativo.id}`);
           if (detRes.ok) { trat = await detRes.json(); setTratamentoAtivo(trat); }
         }
       }
@@ -136,7 +137,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
       for (const m of (revo?.medicamentos || [])) if (m.codigoSemantico) codes.add(m.codigoSemantico);
       for (const it of (trat?.itens || [])) if (it.codigoSemantico) codes.add(it.codigoSemantico);
       if (codes.size > 0) {
-        const lookupRes = await fetch(`${apiBase}/codigos-semanticos/lookup`, {
+        const lookupRes = await apiFetch(`${apiBase}/codigos-semanticos/lookup`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ codes: Array.from(codes) }),
         });
@@ -153,7 +154,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
   const handleStart = async () => {
     setStarting(true);
     try {
-      const res = await fetch(`${apiBase}/rasx/${pacienteId}/revo/start`, {
+      const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/revo/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -181,7 +182,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
     if (!newPat.nome.trim()) { toast({ title: "Nome da patologia e obrigatorio", variant: "destructive" }); return; }
     setAddingPat(true);
     try {
-      const res = await fetch(`${apiBase}/rasx/${pacienteId}/revo/patologia`, {
+      const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/revo/patologia`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -210,7 +211,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
   const handleUpdatePatologia = async () => {
     if (!editingPat) return;
     try {
-      const res = await fetch(`${apiBase}/rasx/revo/patologia/${editingPat.id}`, {
+      const res = await apiFetch(`${apiBase}/rasx/revo/patologia/${editingPat.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -232,7 +233,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const handleDeletePatologia = async (id: number) => {
     try {
-      await fetch(`${apiBase}/rasx/revo/patologia/${id}`, { method: "DELETE" });
+      await apiFetch(`${apiBase}/rasx/revo/patologia/${id}`, { method: "DELETE" });
       toast({ title: "Patologia removida" });
       fetchData();
     } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
@@ -254,7 +255,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
         medicamentoDoseInline: newMed.tipoMed === "remedio" ? `${newMed.nome} ${newMed.dose}`.trim() : newMed.nome,
       };
       if (newMed.tipoMed === "formula") payload.componentesFormula = newMed.componentesFormula;
-      const res = await fetch(`${apiBase}/rasx/${pacienteId}/revo/medicamento`, {
+      const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/revo/medicamento`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -273,7 +274,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
   const handleUpdateMedicamento = async () => {
     if (!editingMed) return;
     try {
-      const res = await fetch(`${apiBase}/rasx/revo/medicamento/${editingMed.id}`, {
+      const res = await apiFetch(`${apiBase}/rasx/revo/medicamento/${editingMed.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -292,7 +293,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const handleDeleteMedicamento = async (id: number) => {
     try {
-      await fetch(`${apiBase}/rasx/revo/medicamento/${id}`, { method: "DELETE" });
+      await apiFetch(`${apiBase}/rasx/revo/medicamento/${id}`, { method: "DELETE" });
       toast({ title: "Medicamento removido" });
       fetchData();
     } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
@@ -302,7 +303,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
     if (!newEvento.medicamentoId || !newEvento.apresentacao) { toast({ title: "Medicamento e apresentacao sao obrigatorios", variant: "destructive" }); return; }
     setAddingEvento(true);
     try {
-      const res = await fetch(`${apiBase}/rasx/${pacienteId}/evento-medicacao`, {
+      const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/evento-medicacao`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newEvento, medicamentoId: Number(newEvento.medicamentoId) }),
       });
@@ -321,7 +322,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const handleDeleteEvento = async (id: number) => {
     try {
-      const res = await fetch(`${apiBase}/rasx/evento-medicacao/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`${apiBase}/rasx/evento-medicacao/${id}`, { method: "DELETE" });
       if (res.ok) { toast({ title: "Evento removido" }); fetchData(); }
     } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
   };
@@ -330,7 +331,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
     if (!newEtapa.descricao) { toast({ title: "Descricao obrigatoria", variant: "destructive" }); return; }
     setAddingEtapa(true);
     try {
-      const res = await fetch(`${apiBase}/rasx/${pacienteId}/proxima-etapa`, {
+      const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/proxima-etapa`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newEtapa),
       });
@@ -346,14 +347,14 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const handleConcluirEtapa = async (id: number) => {
     try {
-      const res = await fetch(`${apiBase}/rasx/proxima-etapa/${id}/concluir`, { method: "PUT" });
+      const res = await apiFetch(`${apiBase}/rasx/proxima-etapa/${id}/concluir`, { method: "PUT" });
       if (res.ok) { toast({ title: "Etapa concluida" }); fetchData(); }
     } catch { toast({ title: "Erro", variant: "destructive" }); }
   };
 
   const handleDeleteEtapa = async (id: number) => {
     try {
-      const res = await fetch(`${apiBase}/rasx/proxima-etapa/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`${apiBase}/rasx/proxima-etapa/${id}`, { method: "DELETE" });
       if (res.ok) { toast({ title: "Etapa removida" }); fetchData(); }
       else toast({ title: "Erro ao remover etapa", variant: "destructive" });
     } catch { toast({ title: "Erro", variant: "destructive" }); }
@@ -362,7 +363,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);
     try {
-      const res = await fetch(`${apiBase}/rasx/${pacienteId}/arqu/pdf`);
+      const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/arqu/pdf`);
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -381,7 +382,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const fetchAuditLogs = async () => {
     try {
-      const res = await fetch(`${apiBase}/rasx/${pacienteId}/audit-log`);
+      const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/audit-log`);
       if (res.ok) setAuditLogs(await res.json());
     } catch {}
   };

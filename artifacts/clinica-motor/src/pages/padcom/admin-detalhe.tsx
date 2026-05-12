@@ -2,6 +2,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { motion } from "framer-motion";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   ArrowLeft, CheckCircle2, AlertTriangle, Clock, FileText,
   Beaker, Pill, Syringe, Activity, Shield, Download
@@ -69,7 +70,7 @@ export default function PadcomAdminDetalhe() {
   const { data, isLoading } = useQuery<SessaoDetalhe>({
     queryKey: ["padcom-sessao", sessaoId],
     queryFn: async () => {
-      const r = await fetch(`/api/padcom-sessoes/${sessaoId}`);
+      const r = await apiFetch(`/api/padcom-sessoes/${sessaoId}`);
       if (!r.ok) throw new Error("Sessão não encontrada");
       return r.json();
     },
@@ -79,7 +80,7 @@ export default function PadcomAdminDetalhe() {
   const validar = useMutation({
     mutationFn: async () => {
       // Em produção, usar o ID do médico logado
-      const r = await fetch(`/api/padcom-sessoes/${sessaoId}`, {
+      const r = await apiFetch(`/api/padcom-sessoes/${sessaoId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "validada", validadaEm: new Date().toISOString() }),

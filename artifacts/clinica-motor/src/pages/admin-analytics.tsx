@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   RefreshCw, TrendingUp, TrendingDown, Award, AlertTriangle, FileDown,
   BarChart3, LineChart as LineIcon, Grid, ArrowUpRight, ArrowDownRight, Minus,
@@ -306,8 +307,8 @@ export default function AdminAnalytics() {
   const carregar = useCallback(async () => {
     setLoading(true);
     const [r1, r2] = await Promise.all([
-      fetch("/api/admin/analytics/crescimento-clinicas", { credentials: "include" }),
-      fetch("/api/admin/analytics/produtos-comparativo", { credentials: "include" }),
+      apiFetch("/api/admin/analytics/crescimento-clinicas", { credentials: "include" }),
+      apiFetch("/api/admin/analytics/produtos-comparativo", { credentials: "include" }),
     ]);
     if (r1.ok) setCrescimento(await r1.json());
     if (r2.ok) {
@@ -324,7 +325,7 @@ export default function AdminAnalytics() {
     const m = matriz.find(x => x.unidade_id === unidadeId);
     const nome = m?.nome ?? crescimento?.ranking.find(r => r.unidade_id === unidadeId)?.nome ?? "";
     setUnidadeFoco({ id: unidadeId, nome });
-    const r = await fetch(`/api/admin/analytics/tendencia-produto?unidade_id=${unidadeId}&meses=12`, { credentials: "include" });
+    const r = await apiFetch(`/api/admin/analytics/tendencia-produto?unidade_id=${unidadeId}&meses=12`, { credentials: "include" });
     if (r.ok) setTendencia(await r.json());
   }
 
@@ -333,7 +334,7 @@ export default function AdminAnalytics() {
     setBaixandoPdf(true);
     try {
       const url = `/api/admin/relatorios/rede-mensal.pdf?periodo_a=${crescimento.periodo_a}&periodo_b=${crescimento.periodo_b}`;
-      const r = await fetch(url, { credentials: "include" });
+      const r = await apiFetch(url, { credentials: "include" });
       if (!r.ok) {
         // fallback: usa window.print (que ja eh disparado pelo BotaoImprimirFlutuante)
         window.print();

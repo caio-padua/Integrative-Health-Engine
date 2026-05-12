@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
+import { apiFetch } from "@/lib/api-fetch";
 const usuarioSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("Email inválido"),
@@ -49,7 +50,7 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
   const fetchConfigs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${apiBase}/agenda-motor/smart-release-config`);
+      const res = await apiFetch(`${apiBase}/agenda-motor/smart-release-config`);
       if (res.ok) setConfigs(await res.json());
     } catch {}
     setLoading(false);
@@ -61,7 +62,7 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
     if (!newForm.unidadeId) { toast({ title: "Selecione uma unidade", variant: "destructive" }); return; }
     setSaving(true);
     try {
-      const res = await fetch(`${apiBase}/agenda-motor/smart-release-config`, {
+      const res = await apiFetch(`${apiBase}/agenda-motor/smart-release-config`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           unidadeId: Number(newForm.unidadeId),
@@ -88,7 +89,7 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
   const handleDelete = async (id: number) => {
     if (!confirm("Excluir esta configuracao?")) return;
     try {
-      const res = await fetch(`${apiBase}/agenda-motor/smart-release-config/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`${apiBase}/agenda-motor/smart-release-config/${id}`, { method: "DELETE" });
       if (res.ok) {
         toast({ title: "Configuracao removida" });
         fetchConfigs();
@@ -113,7 +114,7 @@ function SmartReleaseConfigCard({ apiBase, toast, unidades }: { apiBase: string;
   const saveEdit = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${apiBase}/agenda-motor/smart-release-config/${editing.id}`, {
+      const res = await apiFetch(`${apiBase}/agenda-motor/smart-release-config/${editing.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           turnoManhaInicio: editForm.turnoManhaInicio,
@@ -300,8 +301,8 @@ function OperationalConfigCard({ apiBase, toast }: { apiBase: string; toast: any
       setLoading(true);
       try {
         const [sobRes, casRes] = await Promise.all([
-          fetch(`${apiBase}/soberania/config`),
-          fetch(`${apiBase}/auditoria-cascata/stats`).catch(() => null),
+          apiFetch(`${apiBase}/soberania/config`),
+          apiFetch(`${apiBase}/auditoria-cascata/stats`).catch(() => null),
         ]);
         if (sobRes.ok) setSoberaniaConfig(await sobRes.json());
         if (casRes?.ok) setCascataStats(await casRes.json());
@@ -317,7 +318,7 @@ function OperationalConfigCard({ apiBase, toast }: { apiBase: string; toast: any
     }
     setSaving(true);
     try {
-      const res = await fetch(`${apiBase}/soberania/config`, {
+      const res = await apiFetch(`${apiBase}/soberania/config`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ validacaoSupremaAtiva: ativa, prazoHomologacaoHoras: soberaniaConfig?.prazoHomologacaoHoras || 48, alteradoPorId: 1, motivo: soberaniaMotivo }),
       });
@@ -337,7 +338,7 @@ function OperationalConfigCard({ apiBase, toast }: { apiBase: string; toast: any
   const updatePrazo = async (prazo: number) => {
     setSaving(true);
     try {
-      const res = await fetch(`${apiBase}/soberania/config`, {
+      const res = await apiFetch(`${apiBase}/soberania/config`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ validacaoSupremaAtiva: soberaniaConfig?.validacaoSupremaAtiva ?? true, prazoHomologacaoHoras: prazo, alteradoPorId: 1, motivo: `Prazo atualizado para ${prazo}h` }),
       });
@@ -476,7 +477,7 @@ export default function ConfiguracoesPage() {
   const fetchWaConfigs = async () => {
     setWaLoading(true);
     try {
-      const res = await fetch(`${apiBase}/whatsapp/config`);
+      const res = await apiFetch(`${apiBase}/whatsapp/config`);
       if (res.ok) setWaConfigs(await res.json());
     } catch {}
     setWaLoading(false);
@@ -484,14 +485,14 @@ export default function ConfiguracoesPage() {
 
   const fetchWaMensagens = async () => {
     try {
-      const res = await fetch(`${apiBase}/whatsapp/mensagens?limite=10`);
+      const res = await apiFetch(`${apiBase}/whatsapp/mensagens?limite=10`);
       if (res.ok) setWaMensagens(await res.json());
     } catch {}
   };
 
   const fetchWaStats = async () => {
     try {
-      const res = await fetch(`${apiBase}/whatsapp/mensagens/stats`);
+      const res = await apiFetch(`${apiBase}/whatsapp/mensagens/stats`);
       if (res.ok) setWaStats(await res.json());
     } catch {}
   };
@@ -505,7 +506,7 @@ export default function ConfiguracoesPage() {
   const handleSaveWaConfig = async () => {
     setWaSavingConfig(true);
     try {
-      const res = await fetch(`${apiBase}/whatsapp/config`, {
+      const res = await apiFetch(`${apiBase}/whatsapp/config`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(waNewConfig),
@@ -529,7 +530,7 @@ export default function ConfiguracoesPage() {
     setWaTestLoading(configId);
     setWaTestResult(null);
     try {
-      const res = await fetch(`${apiBase}/whatsapp/config/${configId}/testar`, { method: "POST" });
+      const res = await apiFetch(`${apiBase}/whatsapp/config/${configId}/testar`, { method: "POST" });
       const data = await res.json();
       setWaTestResult(data);
       toast({ title: data.sucesso ? "Conexao OK!" : `Falha: ${data.erro}`, variant: data.sucesso ? "default" : "destructive" });
@@ -546,7 +547,7 @@ export default function ConfiguracoesPage() {
     }
     setWaTesteEnviando(true);
     try {
-      const res = await fetch(`${apiBase}/whatsapp/enviar-teste`, {
+      const res = await apiFetch(`${apiBase}/whatsapp/enviar-teste`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ configId, telefone: waTesteTelefone.trim() }),
@@ -585,7 +586,7 @@ export default function ConfiguracoesPage() {
       if (!body.accountSid) delete body.accountSid;
       if (!body.authToken) delete body.authToken;
       if (!body.apiKey) delete body.apiKey;
-      const res = await fetch(`${apiBase}/whatsapp/config/${waEditConfig.id}`, {
+      const res = await apiFetch(`${apiBase}/whatsapp/config/${waEditConfig.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -603,7 +604,7 @@ export default function ConfiguracoesPage() {
 
   const handleDeleteWaConfig = async (id: number) => {
     try {
-      const res = await fetch(`${apiBase}/whatsapp/config/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`${apiBase}/whatsapp/config/${id}`, { method: "DELETE" });
       if (res.ok) {
         toast({ title: "Configuracao removida" });
         fetchWaConfigs();
@@ -633,7 +634,7 @@ export default function ConfiguracoesPage() {
     try {
       const baseUrl = import.meta.env.BASE_URL || "/";
       const apiUrl = `${window.location.origin}${baseUrl}api/backup-drive`.replace(/\/+/g, "/").replace(":/", "://");
-      const res = await fetch(apiUrl, {
+      const res = await apiFetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resumo: backupResumo.trim() }),
@@ -695,7 +696,7 @@ export default function ConfiguracoesPage() {
   const saveEditUser = async () => {
     setEditSaving(true);
     try {
-      const res = await fetch(`${apiBase}/usuarios/${editingUser.id}`, {
+      const res = await apiFetch(`${apiBase}/usuarios/${editingUser.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
       });
@@ -714,7 +715,7 @@ export default function ConfiguracoesPage() {
   const deleteUser = async () => {
     if (!confirm("Excluir este usuario permanentemente?")) return;
     try {
-      await fetch(`${apiBase}/usuarios/${editingUser.id}`, { method: "DELETE" });
+      await apiFetch(`${apiBase}/usuarios/${editingUser.id}`, { method: "DELETE" });
       toast({ title: "Usuario removido" });
       queryClient.invalidateQueries({ queryKey: getListarUsuariosQueryKey({}) });
       setEditingUser(null);

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Save, RefreshCw, Building2, Percent, Tag, ClipboardList, FileText, Package } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type AnyRow = Record<string, any> & { id: number };
 
 interface FieldDef {
@@ -157,7 +158,7 @@ export default function AdminComercialPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(activeTab.api);
+      const r = await apiFetch(activeTab.api);
       const data = await r.json();
       setRows(Array.isArray(data) ? data : []);
       setDirty({});
@@ -179,7 +180,7 @@ export default function AdminComercialPage() {
     setSaving((s) => ({ ...s, [row.id]: true }));
     try {
       const { id, criadoEm, atualizadoEm, ...payload } = row;
-      const r = await fetch(`${activeTab.api}/${id}`, {
+      const r = await apiFetch(`${activeTab.api}/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

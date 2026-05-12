@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface EstoqueItem {
@@ -59,7 +60,7 @@ export default function EstoquePage() {
   const { data: items = [], isLoading } = useQuery<EstoqueItem[]>({
     queryKey: ["estoque"],
     queryFn: async () => {
-      const res = await fetch(`/api/estoque`);
+      const res = await apiFetch(`/api/estoque`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -68,7 +69,7 @@ export default function EstoquePage() {
   const { data: substancias = [] } = useQuery<{ id: number; nome: string }[]>({
     queryKey: ["substancias-list"],
     queryFn: async () => {
-      const res = await fetch(`/api/substancias`);
+      const res = await apiFetch(`/api/substancias`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -89,7 +90,7 @@ export default function EstoquePage() {
       };
       const url = isEdit ? `/api/estoque/${editItem!.item.id}` : `/api/estoque`;
       const method = isEdit ? "PUT" : "POST";
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },

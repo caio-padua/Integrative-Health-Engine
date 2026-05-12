@@ -29,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 const formaLabels: Record<string, string> = {
@@ -95,7 +96,7 @@ export default function FinanceiroPage() {
 
   const { data: substancias } = useQuery({
     queryKey: ["/api/substancias"],
-    queryFn: () => fetch("/api/substancias").then(r => r.json()),
+    queryFn: () => apiFetch("/api/substancias").then(r => r.json()),
   });
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -154,7 +155,7 @@ export default function FinanceiroPage() {
     if (!editingTrat) return;
     setEditTratSaving(true);
     try {
-      const res = await fetch(`/api/financeiro/tratamentos/${editingTrat.id}`, {
+      const res = await apiFetch(`/api/financeiro/tratamentos/${editingTrat.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editTratForm),
       });
@@ -728,7 +729,7 @@ function TratamentoDetail({ tratamentoId }: { tratamentoId: number }) {
   
   useEffect(() => {
     setIsLoading(true);
-    fetch(`/api/financeiro/tratamentos/${tratamentoId}`)
+    apiFetch(`/api/financeiro/tratamentos/${tratamentoId}`)
       .then(r => r.json())
       .then(d => { setData(d); setIsLoading(false); })
       .catch(() => setIsLoading(false));

@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { Layout } from "@/components/Layout";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   ClipboardCheck,
   Save,
@@ -159,7 +160,7 @@ export default function AdminParqChecklist() {
     setWorking(true);
     setMsg("");
     try {
-      const r = await fetch("/api/parq/visitas/concluir", {
+      const r = await apiFetch("/api/parq/visitas/concluir", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -190,7 +191,7 @@ export default function AdminParqChecklist() {
     setWorking(true);
     setMsg("");
     try {
-      const r = await fetch("/api/parq/visitas/reprovar", {
+      const r = await apiFetch("/api/parq/visitas/reprovar", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

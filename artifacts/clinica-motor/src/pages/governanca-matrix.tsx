@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Shield, Beaker, Syringe, FlaskConical, CircleDot, Microscope, Lock, Check } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Linha = {
   unidade_id: number;
   unidade_nome: string;
@@ -31,7 +32,7 @@ export default function GovernancaMatrix() {
   const [salvando, setSalvando] = useState<string | null>(null);
 
   const carregar = async () => {
-    const r = await fetch("/api/matrix-governanca-categoria");
+    const r = await apiFetch("/api/matrix-governanca-categoria");
     setDados(await r.json());
   };
 
@@ -40,7 +41,7 @@ export default function GovernancaMatrix() {
   const toggle = async (unidadeId: number, categoria: string, atual: boolean) => {
     const key = `${unidadeId}-${categoria}`;
     setSalvando(key);
-    await fetch(`/api/matrix-governanca-categoria/${unidadeId}/${categoria}`, {
+    await apiFetch(`/api/matrix-governanca-categoria/${unidadeId}/${categoria}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ativo: !atual, usuario: "caio" }),

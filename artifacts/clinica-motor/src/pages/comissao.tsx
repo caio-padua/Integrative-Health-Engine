@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   DollarSign, Target, TrendingUp, Award, Users,
   Zap, CheckCircle, Clock, ChevronRight, Trophy
@@ -53,7 +54,7 @@ function ProgressBar({ pct, faixaAtingida }: { pct: number; faixaAtingida: strin
 function ConsultorView({ userId }: { userId: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["comissao-consultor", userId],
-    queryFn: () => fetch(`${API}/comissao/consultor/${userId}`).then(r => r.json()),
+    queryFn: () => apiFetch(`${API}/comissao/consultor/${userId}`).then(r => r.json()),
   });
 
   if (isLoading) return <div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div>;
@@ -208,7 +209,7 @@ function GestorView() {
   const qp = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
   const { data, isLoading } = useQuery({
     queryKey: ["comissao-gestor", unidadeSelecionada],
-    queryFn: () => fetch(`${API}/comissao/painel-gestor${qp}`).then(r => r.json()),
+    queryFn: () => apiFetch(`${API}/comissao/painel-gestor${qp}`).then(r => r.json()),
   });
 
   if (isLoading) return <div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div>;

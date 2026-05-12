@@ -22,6 +22,7 @@ import {
 } from "recharts";
 import { PAWARDS } from "@/lib/pawards-tokens";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 // ---------- tipos ----------
@@ -204,7 +205,7 @@ export default function ExamesDashboardMedico() {
     if (!pacienteId) return;
     setLoading(true);
     try {
-      const r = await fetch(`/api/pacientes/${pacienteId}/exames/dashboard`);
+      const r = await apiFetch(`/api/pacientes/${pacienteId}/exames/dashboard`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       setDash(j);

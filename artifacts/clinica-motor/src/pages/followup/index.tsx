@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/contexts/ClinicContext";
 
+import { apiFetch } from "@/lib/api-fetch";
 const followupSchema = z.object({
   pacienteId: z.coerce.number().min(1, "Paciente é obrigatório"),
   tipo: z.nativeEnum(CriarFollowupBodyTipo),
@@ -75,7 +76,7 @@ export default function FollowupPage() {
   const saveEditFw = async () => {
     setEditSaving(true);
     try {
-      const res = await fetch(`/api/followup/${editingFw.id}`, {
+      const res = await apiFetch(`/api/followup/${editingFw.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
       });
@@ -94,7 +95,7 @@ export default function FollowupPage() {
   const deleteEditFw = async () => {
     if (!confirm("Excluir este follow-up permanentemente?")) return;
     try {
-      const res = await fetch(`/api/followup/${editingFw.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/followup/${editingFw.id}`, { method: "DELETE" });
       if (res.ok) {
         toast({ title: "Follow-up removido" });
         queryClient.invalidateQueries({ queryKey: getListarFollowupsQueryKey({}) });

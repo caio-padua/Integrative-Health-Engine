@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useClinic } from "@/contexts/ClinicContext";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Agendamento = {
   id: string;
   sessaoId: string;
@@ -52,7 +53,7 @@ export default function PadcomAgendaRetornos() {
     queryKey: ["padcom-agendamentos", clinicaId],
     enabled: clinicaId != null,
     queryFn: async () => {
-      const r = await fetch("/api/padcom-agendamentos", { headers });
+      const r = await apiFetch("/api/padcom-agendamentos", { headers });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
         throw new Error(body?.error || `Erro HTTP ${r.status}`);
@@ -66,7 +67,7 @@ export default function PadcomAgendaRetornos() {
     queryKey: ["padcom-notificacoes", "nao-lidas", clinicaId],
     enabled: clinicaId != null,
     queryFn: async () => {
-      const r = await fetch("/api/padcom-notificacoes?lida=false", { headers });
+      const r = await apiFetch("/api/padcom-notificacoes?lida=false", { headers });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
         throw new Error(body?.error || `Erro HTTP ${r.status}`);
@@ -79,7 +80,7 @@ export default function PadcomAgendaRetornos() {
 
   const patchAgenda = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const r = await fetch(`/api/padcom-agendamentos/${id}`, {
+      const r = await apiFetch(`/api/padcom-agendamentos/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(headers ?? {}) },
         body: JSON.stringify({ status }),
@@ -95,7 +96,7 @@ export default function PadcomAgendaRetornos() {
 
   const marcarLida = useMutation({
     mutationFn: async (id: string) => {
-      const r = await fetch(`/api/padcom-notificacoes/${id}/marcar-lida`, {
+      const r = await apiFetch(`/api/padcom-notificacoes/${id}/marcar-lida`, {
         method: "PATCH",
         headers,
       });

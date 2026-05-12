@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Receipt, Shield, KeyRound, Image as ImageIcon, CheckCircle2 } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 export default function CredenciaisNfePage() {
   const qc = useQueryClient();
   const [adminToken, setAdminToken] = useState<string>(localStorage.getItem("padcon_admin_token") ?? "");
@@ -24,19 +25,19 @@ export default function CredenciaisNfePage() {
 
   const { data: provedoresNfe } = useQuery<any[]>({
     queryKey: ["provedores-nfe"],
-    queryFn: () => fetch("/api/provedores-nfe").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/provedores-nfe").then((r) => r.json()),
   });
   const { data: cadastradas } = useQuery<any[]>({
     queryKey: ["credenciais-nfe"],
-    queryFn: () => fetch("/api/credenciais/nfe").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/credenciais/nfe").then((r) => r.json()),
   });
   const { data: unidades } = useQuery<any[]>({
     queryKey: ["unidades-cadastradas"],
-    queryFn: () => fetch("/api/unidades").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/unidades").then((r) => r.json()),
   });
   const { data: logos } = useQuery<any[]>({
     queryKey: ["logos-clinicas"],
-    queryFn: () => fetch("/api/credenciais/logo").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/credenciais/logo").then((r) => r.json()),
   });
 
   const cadastrarNfe = useMutation({
@@ -45,7 +46,7 @@ export default function CredenciaisNfePage() {
       if (form.metadataExtra.trim()) {
         try { metadata = JSON.parse(form.metadataExtra); } catch { throw new Error("Metadata extra precisa ser JSON válido"); }
       }
-      const r = await fetch("/api/credenciais/nfe", {
+      const r = await apiFetch("/api/credenciais/nfe", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
         body: JSON.stringify({
@@ -71,7 +72,7 @@ export default function CredenciaisNfePage() {
 
   const salvarLogo = useMutation({
     mutationFn: async () => {
-      const r = await fetch("/api/credenciais/logo", {
+      const r = await apiFetch("/api/credenciais/logo", {
         method: "PUT",
         headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
         body: JSON.stringify({ unidadeId: parseInt(logoForm.unidadeId, 10), logotipoUrl: logoForm.logotipoUrl }),

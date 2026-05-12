@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 
+import { apiFetch } from "@/lib/api-fetch";
 const API = "/api";
 
 const PLANO_CONFIG = {
@@ -40,22 +41,22 @@ export default function AcompanhamentoPage() {
 
   const { data: distribuicao, isLoading: loadDist } = useQuery({
     queryKey: ["acomp-dist"],
-    queryFn: () => fetch(`${API}/acompanhamento/distribuicao`).then(r => r.json()),
+    queryFn: () => apiFetch(`${API}/acompanhamento/distribuicao`).then(r => r.json()),
   });
 
   const { data: resumoDemandas, isLoading: loadResumo } = useQuery({
     queryKey: ["demandas-resumo", unidadeSelecionada],
-    queryFn: () => fetch(`${API}/demandas/resumo${qp}`).then(r => r.json()),
+    queryFn: () => apiFetch(`${API}/demandas/resumo${qp}`).then(r => r.json()),
   });
 
   const { data: demandas, isLoading: loadDemandas } = useQuery({
     queryKey: ["demandas-list", unidadeSelecionada],
-    queryFn: () => fetch(`${API}/demandas${qp}`).then(r => r.json()),
+    queryFn: () => apiFetch(`${API}/demandas${qp}`).then(r => r.json()),
   });
 
   const updatePlano = useMutation({
     mutationFn: (args: { pacienteId: number; plano: string }) =>
-      fetch(`${API}/acompanhamento/paciente/${args.pacienteId}/plano`, {
+      apiFetch(`${API}/acompanhamento/paciente/${args.pacienteId}/plano`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plano: args.plano }),

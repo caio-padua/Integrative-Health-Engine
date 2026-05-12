@@ -3,6 +3,7 @@
 // Substitui "comissão" por contraprestação técnica de auditoria Kaizen.
 import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   ShieldCheck,
   FileText,
@@ -134,7 +135,7 @@ export default function AdminParq() {
     setLoading(true);
     setMsg("");
     try {
-      const r = await fetch("/api/admin/farmacias", { credentials: "include" });
+      const r = await apiFetch("/api/admin/farmacias", { credentials: "include" });
       const j = await r.json();
       const lista = j.farmacias ?? j ?? [];
       setFarmacias(Array.isArray(lista) ? lista : []);
@@ -142,7 +143,7 @@ export default function AdminParq() {
       const promessas = (Array.isArray(lista) ? lista : []).map(
         async (f: Farmacia) => {
           try {
-            const rr = await fetch(`/api/parq/status-farmacia/${f.id}`, {
+            const rr = await apiFetch(`/api/parq/status-farmacia/${f.id}`, {
               credentials: "include",
             });
             const jj = await rr.json();
@@ -172,7 +173,7 @@ export default function AdminParq() {
     setWzWorking(true);
     setMsg("");
     try {
-      const r = await fetch("/api/parq/emitir", {
+      const r = await apiFetch("/api/parq/emitir", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -203,7 +204,7 @@ export default function AdminParq() {
     setWzWorking(true);
     setMsg("");
     try {
-      const r = await fetch("/api/parq/assinar-clinica-icp", {
+      const r = await apiFetch("/api/parq/assinar-clinica-icp", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

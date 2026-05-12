@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 
+import { apiFetch } from "@/lib/api-fetch";
 const PALETA = {
   petroleo: "#1F4E5F",
   offwhite: "#FAF7F2",
@@ -43,7 +44,7 @@ export default function Inundacao() {
   const [msg, setMsg] = useState<string>("");
 
   async function carregar() {
-    const r = await fetch("/api/inundacao/status");
+    const r = await apiFetch("/api/inundacao/status");
     setData(await r.json());
   }
 
@@ -53,7 +54,7 @@ export default function Inundacao() {
     if (!confirm("Abrir a barragem? Vai inundar TODAS as unidades.")) return;
     setLoading(true); setMsg("");
     try {
-      const r = await fetch("/api/inundacao/disparar", { method: "POST" });
+      const r = await apiFetch("/api/inundacao/disparar", { method: "POST" });
       const j = await r.json();
       setMsg(`✓ ${j.mensagem} — ${j.novosCadernos} cadernos novos · ${j.novosExames} exames novos`);
       await carregar();

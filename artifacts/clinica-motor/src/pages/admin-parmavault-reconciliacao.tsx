@@ -9,6 +9,7 @@
 // Tema navy/gold (PAWARDS MEDCORE).
 import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   RefreshCw,
   FileText,
@@ -111,7 +112,7 @@ export default function AdminParmavaultReconciliacao() {
     setLoading(true);
     setMsg("");
     try {
-      const r1 = await fetch(`/api/admin/parmavault/matriz?meses=${meses}`, {
+      const r1 = await apiFetch(`/api/admin/parmavault/matriz?meses=${meses}`, {
         credentials: "include",
       });
       const j1 = await r1.json();
@@ -119,7 +120,7 @@ export default function AdminParmavaultReconciliacao() {
       setLinhas(j1.linhas || []);
       setKpis(j1.kpis || { previsto: 0, declarado: 0, recebido: 0, gap: 0, qtd: 0 });
 
-      const r2 = await fetch(`/api/admin/parmavault/relatorios`, { credentials: "include" });
+      const r2 = await apiFetch(`/api/admin/parmavault/relatorios`, { credentials: "include" });
       const j2 = await r2.json();
       if (r2.ok && j2.ok) setRelatorios(j2.relatorios || []);
     } catch (e) {
@@ -142,7 +143,7 @@ export default function AdminParmavaultReconciliacao() {
     setSavingPct(farmaciaId);
     setMsg("");
     try {
-      const r = await fetch(`/api/admin/parmavault/farmacia/${farmaciaId}/percentual`, {
+      const r = await apiFetch(`/api/admin/parmavault/farmacia/${farmaciaId}/percentual`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -167,7 +168,7 @@ export default function AdminParmavaultReconciliacao() {
   async function rodarJobRetroativo() {
     setRecalcStatus("Rodando...");
     try {
-      const r = await fetch(`/api/admin/parmavault/comissao/recalcular`, {
+      const r = await apiFetch(`/api/admin/parmavault/comissao/recalcular`, {
         method: "POST",
         credentials: "include",
       });
@@ -187,7 +188,7 @@ export default function AdminParmavaultReconciliacao() {
     setGerando(true);
     setMsg("");
     try {
-      const r = await fetch(`/api/admin/parmavault/relatorios/gerar`, {
+      const r = await apiFetch(`/api/admin/parmavault/relatorios/gerar`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -213,7 +214,7 @@ export default function AdminParmavaultReconciliacao() {
   async function salvarDeclaracaoManual() {
     if (!showDeclaracao) return;
     try {
-      const r = await fetch(`/api/admin/parmavault/declaracoes`, {
+      const r = await apiFetch(`/api/admin/parmavault/declaracoes`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -241,7 +242,7 @@ export default function AdminParmavaultReconciliacao() {
   async function importarCsv() {
     if (!showDeclaracao || !decCsv.trim()) return;
     try {
-      const r = await fetch(`/api/admin/parmavault/declaracoes/csv`, {
+      const r = await apiFetch(`/api/admin/parmavault/declaracoes/csv`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -260,7 +261,7 @@ export default function AdminParmavaultReconciliacao() {
   async function salvarRepasse() {
     if (!showRepasse) return;
     try {
-      const r = await fetch(`/api/admin/parmavault/repasses`, {
+      const r = await apiFetch(`/api/admin/parmavault/repasses`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

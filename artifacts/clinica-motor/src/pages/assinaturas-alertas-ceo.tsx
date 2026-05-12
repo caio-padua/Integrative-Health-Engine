@@ -5,6 +5,7 @@
 // Mesma estetica navy/gold das telas Wave 10 F5 (timeline + detalhe).
 import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Bell,
   CheckCircle2,
@@ -164,7 +165,7 @@ export default function AssinaturasAlertasCEO() {
     setLoading(true);
     setErro(null);
     try {
-      const r = await fetch("/api/assinaturas/alertas-ceo?limit=200", {
+      const r = await apiFetch("/api/assinaturas/alertas-ceo?limit=200", {
         credentials: "include",
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -185,7 +186,7 @@ export default function AssinaturasAlertasCEO() {
   const marcarVisto = async (id: number) => {
     setMarcando(id);
     try {
-      const r = await fetch(`/api/assinaturas/alertas-ceo/${id}/visualizar`, {
+      const r = await apiFetch(`/api/assinaturas/alertas-ceo/${id}/visualizar`, {
         method: "POST",
         credentials: "include",
       });
@@ -205,7 +206,7 @@ export default function AssinaturasAlertasCEO() {
     setMarcandoTodos(true);
     setErro(null);
     try {
-      const r = await fetch("/api/assinaturas/alertas-ceo/marcar-todos-vistos", {
+      const r = await apiFetch("/api/assinaturas/alertas-ceo/marcar-todos-vistos", {
         method: "POST",
         credentials: "include",
       });
@@ -242,7 +243,7 @@ export default function AssinaturasAlertasCEO() {
     const ids = undoToast.ids;
     setDesfazendo(true);
     try {
-      const r = await fetch("/api/assinaturas/alertas-ceo/desfazer-vistos", {
+      const r = await apiFetch("/api/assinaturas/alertas-ceo/desfazer-vistos", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AtSign, Shield, AlertTriangle, CheckCircle2, Power, Sparkles, ListChecks, Eraser, Filter } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const STATUS_COLORS: Record<string, string> = {
   available: "bg-slate-100 text-slate-700",
   selected: "bg-amber-100 text-amber-800",
@@ -25,23 +26,23 @@ export default function IdentidadeEmailsPage() {
 
   const { data: unidades } = useQuery<any[]>({
     queryKey: ["unidades-cadastradas"],
-    queryFn: () => fetch("/api/unidades").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/unidades").then((r) => r.json()),
   });
 
   const { data: providerStatus } = useQuery<any>({
     queryKey: ["email-identity-provider-status"],
-    queryFn: () => fetch("/api/email-identity/provider-status").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/email-identity/provider-status").then((r) => r.json()),
   });
 
   const { data: identidades } = useQuery<any>({
     queryKey: ["email-identity", unidadeId],
-    queryFn: () => unidadeId ? fetch(`/api/email-identity/clinic/${unidadeId}`).then((r) => r.json()) : null,
+    queryFn: () => unidadeId ? apiFetch(`/api/email-identity/clinic/${unidadeId}`).then((r) => r.json()) : null,
     enabled: !!unidadeId,
   });
 
   const gerarCatalogo = useMutation({
     mutationFn: async () => {
-      const r = await fetch(`/api/email-identity/clinic/${unidadeId}/generate`, {
+      const r = await apiFetch(`/api/email-identity/clinic/${unidadeId}/generate`, {
         method: "POST",
         headers: { "x-admin-token": adminToken },
       });
@@ -53,7 +54,7 @@ export default function IdentidadeEmailsPage() {
 
   const toggleSelecao = useMutation({
     mutationFn: async ({ id, acao }: { id: number; acao: "selecionar" | "desselecionar" }) => {
-      const r = await fetch(`/api/email-identity/${id}/toggle`, {
+      const r = await apiFetch(`/api/email-identity/${id}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
         body: JSON.stringify({ acao }),
@@ -66,7 +67,7 @@ export default function IdentidadeEmailsPage() {
 
   const provisionar = useMutation({
     mutationFn: async () => {
-      const r = await fetch(`/api/email-identity/clinic/${unidadeId}/provision-selected`, {
+      const r = await apiFetch(`/api/email-identity/clinic/${unidadeId}/provision-selected`, {
         method: "POST",
         headers: { "x-admin-token": adminToken },
       });
@@ -79,7 +80,7 @@ export default function IdentidadeEmailsPage() {
 
   const desativar = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`/api/email-identity/${id}/disable`, {
+      const r = await apiFetch(`/api/email-identity/${id}/disable`, {
         method: "POST",
         headers: { "x-admin-token": adminToken },
       });
@@ -107,7 +108,7 @@ export default function IdentidadeEmailsPage() {
     mutationFn: async () => {
       const alvos = lista.filter((it) => it.status === "available");
       await Promise.all(alvos.map((it) =>
-        fetch(`/api/email-identity/${it.id}/toggle`, {
+        apiFetch(`/api/email-identity/${it.id}/toggle`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
           body: JSON.stringify({ acao: "selecionar" }),
@@ -122,7 +123,7 @@ export default function IdentidadeEmailsPage() {
     mutationFn: async () => {
       const alvos = lista.filter((it) => it.status === "selected");
       await Promise.all(alvos.map((it) =>
-        fetch(`/api/email-identity/${it.id}/toggle`, {
+        apiFetch(`/api/email-identity/${it.id}/toggle`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
           body: JSON.stringify({ acao: "desselecionar" }),

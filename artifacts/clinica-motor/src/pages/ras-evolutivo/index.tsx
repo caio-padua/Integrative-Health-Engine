@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, TrendingUp, Clock, User, BarChart3 } from "lucide-react";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 const ADERENCIA_CONFIG: Record<string, { color: string; label: string }> = {
@@ -18,7 +19,7 @@ export default function RasEvolutivoPage() {
   const { data: evolutivos = [], isLoading } = useQuery<any[]>({
     queryKey: ["ras-evolutivo"],
     queryFn: async () => {
-      const res = await fetch(`/api/ras-evolutivo`);
+      const res = await apiFetch(`/api/ras-evolutivo`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },

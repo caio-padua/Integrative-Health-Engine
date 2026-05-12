@@ -18,6 +18,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCont
 import { useQuery } from "@tanstack/react-query";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
+import { apiFetch } from "@/lib/api-fetch";
 const API_BASE = "/api";
 
 const PLANO_CORES: Record<string, { cor: string; icon: any; label: string; sla: string }> = {
@@ -64,7 +65,7 @@ export default function Dashboard() {
   const { data: consultoria, isLoading: loadingConsultoria } = useQuery({
     queryKey: ["dashboard-consultoria"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/dashboard/consultoria`);
+      const res = await apiFetch(`${API_BASE}/dashboard/consultoria`);
       if (!res.ok) throw new Error("Erro ao carregar consultoria");
       return res.json();
     },
@@ -74,7 +75,7 @@ export default function Dashboard() {
   const { data: cockpit, isLoading: loadingCockpit } = useQuery({
     queryKey: ["dashboard-cockpit"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/dashboard/cockpit`);
+      const res = await apiFetch(`${API_BASE}/dashboard/cockpit`);
       if (!res.ok) throw new Error("Erro ao carregar cockpit");
       return res.json();
     },
@@ -84,7 +85,7 @@ export default function Dashboard() {
   const { data: donoClinica, isLoading: loadingDono } = useQuery({
     queryKey: ["dashboard-dono-clinica", unidadeSelecionada],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/dashboard/dono-clinica/${unidadeSelecionada}`);
+      const res = await apiFetch(`${API_BASE}/dashboard/dono-clinica/${unidadeSelecionada}`);
       if (!res.ok) throw new Error("Erro ao carregar dados da clinica");
       return res.json();
     },
@@ -722,7 +723,7 @@ function DuploEspelhoPaduaGenesis() {
   const { data } = useQuery<Array<{ unidade_id: number; unidade_nome: string; total_agendas: number; total_pacientes: number }>>({
     queryKey: ["resumo-agendas-padua-genesis"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/agendas-profissionais/resumo`);
+      const res = await apiFetch(`${API_BASE}/agendas-profissionais/resumo`);
       if (!res.ok) throw new Error("erro");
       return res.json();
     },

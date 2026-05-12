@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   FileText,
   Plus,
@@ -106,18 +107,18 @@ export default function PedidosExame() {
 
   async function carregarPedidos() {
     setLoading(true);
-    const res = await fetch(`/api/pedidos-exame`);
+    const res = await apiFetch(`/api/pedidos-exame`);
     if (res.ok) setPedidos(await res.json());
     setLoading(false);
   }
 
   async function carregarPacientes() {
-    const res = await fetch(`/api/pacientes`);
+    const res = await apiFetch(`/api/pacientes`);
     if (res.ok) setPacientes(await res.json());
   }
 
   async function carregarExames() {
-    const res = await fetch(`/api/catalogo/exames-base`);
+    const res = await apiFetch(`/api/catalogo/exames-base`);
     if (res.ok) {
       const data = await res.json();
       setExamesDisponiveis(data);
@@ -137,7 +138,7 @@ export default function PedidosExame() {
 
   async function criarPedido() {
     if (!pacienteSelecionado || examesSelecionados.length === 0) return;
-    const res = await fetch(`/api/pedidos-exame`, {
+    const res = await apiFetch(`/api/pedidos-exame`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -157,7 +158,7 @@ export default function PedidosExame() {
 
   async function carregarPreviasJustificativa(pedidoId: number) {
     setCarregandoPrevias(true);
-    const res = await fetch(`/api/pedidos-exame/${pedidoId}/previa-justificativas`);
+    const res = await apiFetch(`/api/pedidos-exame/${pedidoId}/previa-justificativas`);
     if (res.ok) {
       const data = await res.json();
       setPrevias(data.exames);
@@ -166,7 +167,7 @@ export default function PedidosExame() {
   }
 
   async function validarPedido(pedidoId: number) {
-    const res = await fetch(`/api/pedidos-exame/${pedidoId}/validar`, {
+    const res = await apiFetch(`/api/pedidos-exame/${pedidoId}/validar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

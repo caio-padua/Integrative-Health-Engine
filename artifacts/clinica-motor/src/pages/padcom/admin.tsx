@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Search, Filter, Clock, CheckCircle2, AlertTriangle, User, ChevronRight } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 interface Sessao {
   id: string;
   pacienteId: string;
@@ -43,7 +44,7 @@ export default function PadcomAdmin() {
       const params = new URLSearchParams();
       if (filtroStatus !== "todos") params.set("status", filtroStatus);
       if (filtroBanda !== "todas") params.set("banda", filtroBanda);
-      const r = await fetch(`/api/padcom-sessoes?${params}`);
+      const r = await apiFetch(`/api/padcom-sessoes?${params}`);
       if (!r.ok) throw new Error("Falha ao carregar sessões");
       return r.json();
     },

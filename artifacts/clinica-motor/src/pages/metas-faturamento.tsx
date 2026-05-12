@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { PAWARDS, fmtBRL } from "@/lib/pawards-tokens";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 
+import { apiFetch } from "@/lib/api-fetch";
 const API_BASE: string = import.meta.env.VITE_API_URL ?? "/api";
 const ADMIN_TOKEN_KEY = "padcon_admin_token";
 
@@ -49,7 +50,7 @@ function errorMessage(e: unknown): string {
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { credentials: "include", headers: authHeaders(), ...init });
+  const res = await apiFetch(`${API_BASE}${path}`, { credentials: "include", headers: authHeaders(), ...init });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`HTTP ${res.status} — ${body}`);

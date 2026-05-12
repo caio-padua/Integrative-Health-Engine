@@ -17,6 +17,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCont
 import { useClinic } from "@/contexts/ClinicContext";
 import { FEATURE_PARQ_BANNER_CEO, FEATURE_ASSINATURAS_RESUMO_CEO } from "@/lib/feature-flags";
 
+import { apiFetch } from "@/lib/api-fetch";
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 interface SubstanciaResumo {
@@ -241,7 +242,7 @@ export default function PainelComando() {
   useEffect(() => {
     setLoading(true);
     const params = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
-    fetch(`${API_BASE}/dashboard/comando${params}`)
+    apiFetch(`${API_BASE}/dashboard/comando${params}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -264,7 +265,7 @@ export default function PainelComando() {
 
     const carregar = async () => {
       try {
-        const r = await fetch(`${API_BASE}/assinaturas/resumo-hoje${qs}`, { credentials: "include" });
+        const r = await apiFetch(`${API_BASE}/assinaturas/resumo-hoje${qs}`, { credentials: "include" });
         if (!r.ok || !alive) return;
         const d = await r.json();
         if (!alive || !d) return;
@@ -317,7 +318,7 @@ export default function PainelComando() {
     let alive = true;
     const carregar = async () => {
       try {
-        const r = await fetch(`${API_BASE}/assinaturas/cofre/ausentes`, { credentials: "include" });
+        const r = await apiFetch(`${API_BASE}/assinaturas/cofre/ausentes`, { credentials: "include" });
         if (!r.ok || !alive) return;
         const d = await r.json();
         if (!alive || !d) return;
@@ -336,7 +337,7 @@ export default function PainelComando() {
     let alive = true;
     const carregar = async () => {
       try {
-        const r = await fetch(`${API_BASE}/assinaturas/alertas-ceo?limit=200`, { credentials: "include" });
+        const r = await apiFetch(`${API_BASE}/assinaturas/alertas-ceo?limit=200`, { credentials: "include" });
         if (!r.ok || !alive) return;
         const d = await r.json();
         if (!alive) return;

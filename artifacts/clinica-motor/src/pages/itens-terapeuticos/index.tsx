@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface ExameDetalhe {
@@ -233,7 +234,7 @@ export default function ItensTerapeuticos() {
   const { data, isLoading } = useQuery<ItensUnificadosResponse>({
     queryKey: ["catalogo", "itens-unificados"],
     queryFn: async () => {
-      const res = await fetch(`/api/catalogo/itens-unificados`);
+      const res = await apiFetch(`/api/catalogo/itens-unificados`);
       return res.json();
     },
   });

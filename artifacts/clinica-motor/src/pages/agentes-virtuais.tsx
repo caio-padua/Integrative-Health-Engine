@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useClinic } from "@/contexts/ClinicContext";
 
+import { apiFetch } from "@/lib/api-fetch";
 const API = "/api/agentes-virtuais";
 
 const COR_CARGO: Record<string, string> = {
@@ -200,9 +201,9 @@ export default function AgentesVirtuaisPage() {
     setLoading(true);
     try {
       const [catRes, agRes, stRes] = await Promise.all([
-        fetch(`${API}/catalogo`),
-        fetch(`${API}/clinica/${clinicaId}`),
-        fetch(`${API}/stats`),
+        apiFetch(`${API}/catalogo`),
+        apiFetch(`${API}/clinica/${clinicaId}`),
+        apiFetch(`${API}/stats`),
       ]);
       setCatalogo(await catRes.json());
       setAgentesClinica(await agRes.json());
@@ -214,13 +215,13 @@ export default function AgentesVirtuaisPage() {
   }
 
   async function loadCatalogoDetalhe(id: number) {
-    const res = await fetch(`${API}/catalogo/${id}`);
+    const res = await apiFetch(`${API}/catalogo/${id}`);
     const data = await res.json();
     setSelectedCatalogo(data);
   }
 
   async function loadAgenteDetalhe(agenteId: number) {
-    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${agenteId}`);
+    const res = await apiFetch(`${API}/clinica/${clinicaId}/agente/${agenteId}`);
     const data = await res.json();
     setAgenteDetalhe(data);
   }
@@ -676,7 +677,7 @@ function NarrativasTab({ catalogo }: { catalogo: CatalogoAgente[] }) {
 
   async function loadNarrativas(catalogoId: number) {
     setSelectedId(catalogoId);
-    const res = await fetch(`${API}/narrativas/${catalogoId}`);
+    const res = await apiFetch(`${API}/narrativas/${catalogoId}`);
     setNarrativas(await res.json());
   }
 
@@ -735,8 +736,8 @@ function IdentidadeTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]
     setSelectedAgente(ag);
     setMsg("");
     const [persRes, motorRes] = await Promise.all([
-      fetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/personalidade`),
-      fetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/motor-escrita`),
+      apiFetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/personalidade`),
+      apiFetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/motor-escrita`),
     ]);
     setPersonalidade(await persRes.json());
     setMotorEscrita(await motorRes.json());
@@ -746,7 +747,7 @@ function IdentidadeTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]
     if (!selectedAgente || !personalidade) return;
     setSaving(true);
     setMsg("");
-    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/personalidade`, {
+    const res = await apiFetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/personalidade`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(personalidade),
     });
@@ -761,7 +762,7 @@ function IdentidadeTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]
     if (!selectedAgente || !motorEscrita) return;
     setSaving(true);
     setMsg("");
-    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/motor-escrita`, {
+    const res = await apiFetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/motor-escrita`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(motorEscrita),
     });
@@ -1120,13 +1121,13 @@ function FrasesTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]; cl
   async function loadFrases(ag: Agente) {
     setSelectedAgente(ag);
     setMsg("");
-    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/frases`);
+    const res = await apiFetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/frases`);
     setFrases(await res.json());
   }
 
   async function adicionarFrase() {
     if (!selectedAgente || !novaFrase.texto.trim()) return;
-    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/frases`, {
+    const res = await apiFetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/frases`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(novaFrase),
     });
@@ -1139,7 +1140,7 @@ function FrasesTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]; cl
 
   async function toggleFrase(frase: FraseAgente) {
     if (!selectedAgente) return;
-    await fetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/frases/${frase.id}`, {
+    await apiFetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/frases/${frase.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ativa: !frase.ativa }),
     });
@@ -1262,7 +1263,7 @@ function RegrasTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]; cl
   async function loadRegras(ag: Agente) {
     setSelectedAgente(ag);
     setMsg("");
-    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/regras`);
+    const res = await apiFetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/regras`);
     setRegras(await res.json());
   }
 
@@ -1270,7 +1271,7 @@ function RegrasTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]; cl
     if (!selectedAgente || !regras) return;
     setSaving(true);
     setMsg("");
-    const res = await fetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/regras`, {
+    const res = await apiFetch(`${API}/clinica/${clinicaId}/agente/${selectedAgente.id}/regras`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(regras),
     });
@@ -1283,7 +1284,7 @@ function RegrasTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]; cl
 
   async function toggleAgente(ag: Agente) {
     const novo = ag.estadoProntidao === "ativo" ? "pausado" : "ativo";
-    await fetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/toggle`, {
+    await apiFetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/toggle`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ habilitado: novo === "ativo", estadoProntidao: novo }),
     });

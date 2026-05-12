@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Edit3, ShieldCheck, History, AlertCircle } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 type Analito = {
@@ -55,7 +56,7 @@ export default function LaboratorioValidacao() {
   const [validador, setValidador] = useState("");
 
   function carregar() {
-    fetch(`/api/laboratorio/analitos`)
+    apiFetch(`/api/laboratorio/analitos`)
       .then(r => r.json())
       .then(j => setAnalitos(j.analitos || []))
       .catch(e => setErro(String(e)));
@@ -68,7 +69,7 @@ export default function LaboratorioValidacao() {
     setObs(a.observacao_clinica ?? "");
     setOrigem(a.origem_referencia ?? "");
     setValidador("");
-    fetch(`/api/laboratorio/analitos/${a.codigo}/historico-validacoes`)
+    apiFetch(`/api/laboratorio/analitos/${a.codigo}/historico-validacoes`)
       .then(r => r.json()).then(j => setHistorico(j.validacoes || []))
       .catch(() => setHistorico([]));
   }
@@ -77,7 +78,7 @@ export default function LaboratorioValidacao() {
     if (!editando) return;
     setSalvando(true);
     try {
-      const resp = await fetch(`/api/laboratorio/analitos/${editando.codigo}`, {
+      const resp = await apiFetch(`/api/laboratorio/analitos/${editando.codigo}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Activity, DollarSign, Calendar, MessageSquare, Sparkles, Cloud, Mountain, Heart } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Aba = "agenda" | "aplicacao" | "mensageria" | "provisionamento" | "live";
 
 const ABAS: { id: Aba; nome: string; icon: any; cor: string }[] = [
@@ -60,16 +61,16 @@ function MatrizModulosEventos({ grupo }: { grupo: Exclude<Aba, "live"> }) {
   const qc = useQueryClient();
   const { data: matriz = [], isLoading } = useQuery<any[]>({
     queryKey: ["modulos-padcon-matriz"],
-    queryFn: () => fetch("/api/modulos-padcon/matriz").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/modulos-padcon/matriz").then((r) => r.json()),
   });
   const { data: eventos = [] } = useQuery<any[]>({
     queryKey: ["eventos-cobraveis"],
-    queryFn: () => fetch("/api/eventos-cobraveis").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/eventos-cobraveis").then((r) => r.json()),
   });
 
   const mut = useMutation({
     mutationFn: ({ unidadeId, moduloId, ativo }: any) =>
-      fetch(`/api/modulos-padcon/ativar/${unidadeId}/${moduloId}`, {
+      apiFetch(`/api/modulos-padcon/ativar/${unidadeId}/${moduloId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ativo, usuario: "caio" }),
@@ -79,7 +80,7 @@ function MatrizModulosEventos({ grupo }: { grupo: Exclude<Aba, "live"> }) {
 
   const dispMut = useMutation({
     mutationFn: ({ unidadeId, eventoCodigo }: any) =>
-      fetch(`/api/eventos-cobraveis/disparar`, {
+      apiFetch(`/api/eventos-cobraveis/disparar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ unidadeId, eventoCodigo, referenciaExterna: "teste-manual-painel" }),
@@ -208,7 +209,7 @@ function FaturamentoLive() {
   const competencia = new Date().toISOString().slice(0, 7);
   const { data, isLoading } = useQuery<any>({
     queryKey: ["faturamento-live", competencia],
-    queryFn: () => fetch(`/api/ledger/faturamento-live?competencia=${competencia}`).then((r) => r.json()),
+    queryFn: () => apiFetch(`/api/ledger/faturamento-live?competencia=${competencia}`).then((r) => r.json()),
     refetchInterval: 10000,
   });
 

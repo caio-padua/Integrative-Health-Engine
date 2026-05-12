@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { apiFetch } from "@/lib/api-fetch";
 
 export type PaymentMethod = 'pix' | 'boleto' | 'credit_card'
 export type GatewayName = 'asaas' | 'mercadopago' | 'stripe' | 'infinitpay'
@@ -72,7 +73,7 @@ export function usePayment(options: UsePaymentOptions = {}) {
     (gateway: GatewayName, paymentId: string, intervalMs = 5000) => {
       const timer = setInterval(async () => {
         try {
-          const res = await fetch(`${apiBase}/${gateway}/${paymentId}/status`)
+          const res = await apiFetch(`${apiBase}/${gateway}/${paymentId}/status`)
           const data = await res.json()
           if (data.status === 'paid') {
             stopPolling()
@@ -97,7 +98,7 @@ export function usePayment(options: UsePaymentOptions = {}) {
       setStatus('loading')
       setError(null)
       try {
-        const res = await fetch(`${apiBase}/patient`, {
+        const res = await apiFetch(`${apiBase}/patient`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -137,7 +138,7 @@ export function usePayment(options: UsePaymentOptions = {}) {
       setStatus('loading')
       setError(null)
       try {
-        const res = await fetch(`${apiBase}/clinic/subscribe`, {
+        const res = await apiFetch(`${apiBase}/clinic/subscribe`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface PerfilPermissao {
@@ -60,7 +61,7 @@ export default function PermissoesPage() {
   const { data, isLoading, isError } = useQuery<{ perfis: PerfilPermissao[]; total: number }>({
     queryKey: ["permissoes"],
     queryFn: async () => {
-      const res = await fetch(`/api/permissoes`);
+      const res = await apiFetch(`/api/permissoes`);
       if (!res.ok) throw new Error("Erro ao carregar permissoes");
       return res.json();
     },
@@ -69,7 +70,7 @@ export default function PermissoesPage() {
   const save = useMutation({
     mutationFn: async (d: any) => {
       const url = d.id ? `/api/permissoes/${d.id}` : `/api/permissoes`;
-      const r = await fetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+      const r = await apiFetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
       if (!r.ok) throw new Error("Erro ao salvar");
       return r.json();
     },
@@ -79,7 +80,7 @@ export default function PermissoesPage() {
 
   const del = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`/api/permissoes/${id}`, { method: "DELETE" });
+      const r = await apiFetch(`/api/permissoes/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Erro");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["permissoes"] }); toast({ title: "Perfil excluido" }); },

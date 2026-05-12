@@ -3,6 +3,7 @@ import { Layout } from "@/components/Layout";
 import { Save, RefreshCw, Building2, Power, PowerOff, Target } from "lucide-react";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Unidade = {
   id: number;
   nome: string;
@@ -30,7 +31,7 @@ export default function AdminClinicas() {
   const carregar = useCallback(async () => {
     setLoading(true);
     const url = `/api/unidades${incluirArquivadas ? "?incluirArquivadas=true" : ""}`;
-    const r = await fetch(url, { credentials: "include" });
+    const r = await apiFetch(url, { credentials: "include" });
     if (r.ok) setUnidades(await r.json());
     setLoading(false);
   }, [incluirArquivadas]);
@@ -45,7 +46,7 @@ export default function AdminClinicas() {
     const e = edits[u.id];
     if (!e) return;
     setSavingId(u.id);
-    const r = await fetch(`/api/unidades/${u.id}`, {
+    const r = await apiFetch(`/api/unidades/${u.id}`, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

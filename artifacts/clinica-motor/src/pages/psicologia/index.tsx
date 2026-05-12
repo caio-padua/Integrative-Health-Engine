@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Brain, Plus, Pencil, Trash2, X, Save, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface Psicologia {
@@ -37,7 +38,7 @@ export default function PsicologiaPage() {
   const { data, isLoading } = useQuery<Psicologia[]>({
     queryKey: ["psicologia"],
     queryFn: async () => {
-      const r = await fetch(`${BASE}api/catalogo/psicologia`);
+      const r = await apiFetch(`${BASE}api/catalogo/psicologia`);
       return r.json();
     },
   });
@@ -45,7 +46,7 @@ export default function PsicologiaPage() {
   const save = useMutation({
     mutationFn: async (d: any) => {
       const url = d.id ? `${BASE}api/catalogo/psicologia/${d.id}` : `${BASE}api/catalogo/psicologia`;
-      const r = await fetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+      const r = await apiFetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
       if (!r.ok) throw new Error("Erro ao salvar");
       return r.json();
     },
@@ -55,7 +56,7 @@ export default function PsicologiaPage() {
 
   const del = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`${BASE}api/catalogo/psicologia/${id}`, { method: "DELETE" });
+      const r = await apiFetch(`${BASE}api/catalogo/psicologia/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Erro");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["psicologia"] }); toast({ title: "Protocolo excluido" }); },

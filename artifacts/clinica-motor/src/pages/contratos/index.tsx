@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FileSignature, Plus, Pencil, Trash2, X, Save, Search, Building2, Calendar, DollarSign } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface Contrato {
@@ -58,7 +59,7 @@ export default function ContratosPage() {
   const { data, isLoading } = useQuery<{ contratos: Contrato[] }>({
     queryKey: ["contratos"],
     queryFn: async () => {
-      const r = await fetch(`${BASE}api/contratos`);
+      const r = await apiFetch(`${BASE}api/contratos`);
       return r.json();
     },
   });
@@ -66,7 +67,7 @@ export default function ContratosPage() {
   const unidadesQ = useQuery<any[]>({
     queryKey: ["unidades-list"],
     queryFn: async () => {
-      const r = await fetch(`${BASE}api/unidades`);
+      const r = await apiFetch(`${BASE}api/unidades`);
       const j = await r.json();
       return j.unidades || j;
     },
@@ -75,7 +76,7 @@ export default function ContratosPage() {
   const save = useMutation({
     mutationFn: async (d: any) => {
       const url = d.id ? `${BASE}api/contratos/${d.id}` : `${BASE}api/contratos`;
-      const r = await fetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+      const r = await apiFetch(url, { method: d.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
       if (!r.ok) throw new Error("Erro ao salvar");
       return r.json();
     },
@@ -85,7 +86,7 @@ export default function ContratosPage() {
 
   const del = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`${BASE}api/contratos/${id}`, { method: "DELETE" });
+      const r = await apiFetch(`${BASE}api/contratos/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Erro");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["contratos"] }); toast({ title: "Contrato excluido" }); },

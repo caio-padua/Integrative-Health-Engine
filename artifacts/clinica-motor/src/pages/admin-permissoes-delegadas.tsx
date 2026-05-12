@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Save, RefreshCw, Shield, DollarSign, ToggleLeft, ToggleRight } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Toggle = {
   permissao: string;
   ativo: boolean;
@@ -33,7 +34,7 @@ export default function AdminPermissoesDelegadas() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    const r = await fetch("/api/admin/permissoes-delegadas", { credentials: "include" });
+    const r = await apiFetch("/api/admin/permissoes-delegadas", { credentials: "include" });
     if (r.ok) setLinhas(await r.json());
     setLoading(false);
   }, []);
@@ -52,7 +53,7 @@ export default function AdminPermissoesDelegadas() {
     const novo = { ...atual, ...patch };
     const key = `${linha.unidade_id}-${permissao}`;
     setSalvandoKey(key);
-    const r = await fetch(`/api/admin/permissoes-delegadas/${linha.unidade_id}`, {
+    const r = await apiFetch(`/api/admin/permissoes-delegadas/${linha.unidade_id}`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 interface Unidade {
@@ -203,7 +204,7 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
         ? `/api/unidades/${unidade!.id}`
         : `/api/unidades`;
       const method = isEdit ? "PUT" : "POST";
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -462,7 +463,7 @@ export default function UnidadesPage() {
   const { data: unidades = [], isLoading } = useQuery<Unidade[]>({
     queryKey: ["unidades"],
     queryFn: async () => {
-      const res = await fetch(`/api/unidades`);
+      const res = await apiFetch(`/api/unidades`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
     },
@@ -475,7 +476,7 @@ export default function UnidadesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`/api/unidades/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/unidades/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erro");
     },
     onSuccess: () => { refresh(); toast({ title: "Unidade excluida" }); },

@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { ArrowLeft, TrendingUp, Users, AlertTriangle, Clock } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 interface DashboardData {
   porStatus: Array<{ status: string; total: number }>;
   porBanda: Array<{ banda: string; total: number; scoreMedia: string | null }>;
@@ -48,7 +49,7 @@ export default function PadcomAdminDashboard() {
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["padcom-dashboard"],
     queryFn: async () => {
-      const r = await fetch("/api/padcom-dashboard");
+      const r = await apiFetch("/api/padcom-dashboard");
       if (!r.ok) throw new Error("Falha ao carregar dashboard");
       return r.json();
     },

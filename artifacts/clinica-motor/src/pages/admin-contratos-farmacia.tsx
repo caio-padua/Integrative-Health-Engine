@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { RefreshCw, Plus, Power, Edit2, Save, X } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 type Contrato = {
   id: number;
   unidade_id: number;
@@ -53,8 +54,8 @@ export default function AdminContratosFarmacia() {
     setMsg("");
     try {
       const [r1, r2] = await Promise.all([
-        fetch(`/api/admin/contratos-farmacia?incluir_inativos=${incluirInativos}`, { credentials: "include" }),
-        fetch(`/api/admin/contratos-farmacia/options`, { credentials: "include" }),
+        apiFetch(`/api/admin/contratos-farmacia?incluir_inativos=${incluirInativos}`, { credentials: "include" }),
+        apiFetch(`/api/admin/contratos-farmacia/options`, { credentials: "include" }),
       ]);
       const j1 = await r1.json();
       const j2 = await r2.json();
@@ -83,7 +84,7 @@ export default function AdminContratosFarmacia() {
     setSalvando(true);
     setMsg("");
     try {
-      const r = await fetch(`/api/admin/contratos-farmacia`, {
+      const r = await apiFetch(`/api/admin/contratos-farmacia`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -113,7 +114,7 @@ export default function AdminContratosFarmacia() {
   async function toggleAtivo(c: Contrato) {
     setMsg("");
     try {
-      const r = await fetch(`/api/admin/contratos-farmacia/${c.id}`, {
+      const r = await apiFetch(`/api/admin/contratos-farmacia/${c.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

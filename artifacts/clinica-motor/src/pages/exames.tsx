@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Loader2, Search, X, FlaskConical, Activity, Network } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 const API = (import.meta as any).env.VITE_API_URL || "/api";
 
 type Faixa = { laboratorio: string; sexo: string; min: number; max: number; unidade: string; idadeMin?: number; idadeMax?: number };
@@ -55,8 +56,8 @@ export default function ExamesPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`${API}/exames/catalogo`).then((r) => r.json()),
-      fetch(`${API}/exames/blocos`).then((r) => r.json()),
+      apiFetch(`${API}/exames/catalogo`).then((r) => r.json()),
+      apiFetch(`${API}/exames/blocos`).then((r) => r.json()),
     ])
       .then(([cat, blk]) => {
         setAnalitos(cat.analitos || []);
@@ -83,7 +84,7 @@ export default function ExamesPage() {
     setSelecionado(a);
     setAnastomose(null);
     setAba("anastomose");
-    fetch(`${API}/exames/anastomose/${a.codigo}`)
+    apiFetch(`${API}/exames/anastomose/${a.codigo}`)
       .then((r) => r.json())
       .then(setAnastomose);
   }

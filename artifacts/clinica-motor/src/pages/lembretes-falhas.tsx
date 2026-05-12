@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
 import { useListarUnidades, type Unidade } from "@workspace/api-client-react";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Select,
   SelectContent,
@@ -66,7 +67,7 @@ export default function LembretesFalhasPage() {
       const qs = new URLSearchParams();
       qs.set("unidadeId", unidadeId);
       qs.set("limit", "100");
-      const res = await fetch(
+      const res = await apiFetch(
         `${apiBase}/prescricoes-lembrete/falhas?${qs.toString()}`,
       );
       if (res.ok) {

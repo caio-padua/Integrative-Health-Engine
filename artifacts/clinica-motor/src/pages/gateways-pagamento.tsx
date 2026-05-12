@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, Plus, Shield, KeyRound, CheckCircle2 } from "lucide-react";
 
+import { apiFetch } from "@/lib/api-fetch";
 export default function GatewaysPagamentoPage() {
   const qc = useQueryClient();
   const [adminToken, setAdminToken] = useState<string>(localStorage.getItem("padcon_admin_token") ?? "");
@@ -19,22 +20,22 @@ export default function GatewaysPagamentoPage() {
 
   const { data: provedores } = useQuery<any[]>({
     queryKey: ["provedores-pagamento"],
-    queryFn: () => fetch("/api/provedores-pagamento").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/provedores-pagamento").then((r) => r.json()),
   });
 
   const { data: cadastradas } = useQuery<any[]>({
     queryKey: ["credenciais-gateway"],
-    queryFn: () => fetch("/api/credenciais/gateway").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/credenciais/gateway").then((r) => r.json()),
   });
 
   const { data: unidades } = useQuery<any[]>({
     queryKey: ["unidades-cadastradas"],
-    queryFn: () => fetch("/api/unidades").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/unidades").then((r) => r.json()),
   });
 
   const cadastrar = useMutation({
     mutationFn: async () => {
-      const r = await fetch("/api/credenciais/gateway", {
+      const r = await apiFetch("/api/credenciais/gateway", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
         body: JSON.stringify({
@@ -56,7 +57,7 @@ export default function GatewaysPagamentoPage() {
 
   const desativar = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`/api/credenciais/gateway/${id}`, { method: "DELETE", headers: { "x-admin-token": adminToken } });
+      const r = await apiFetch(`/api/credenciais/gateway/${id}`, { method: "DELETE", headers: { "x-admin-token": adminToken } });
       if (!r.ok) throw new Error("Falha");
       return r.json();
     },

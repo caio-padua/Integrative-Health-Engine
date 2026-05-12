@@ -4,6 +4,7 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   AlertTriangle, Clock, CheckCircle2, ChevronUp,
   MessageSquare, ArrowUpRight, Filter, RefreshCw
@@ -56,7 +57,7 @@ function JustifyModal({ item, onClose, onSubmitted }: { item: any; onClose: () =
     if (!motivoPadrao || !justificativa) return;
     setLoading(true);
     try {
-      await fetch(`${API_BASE}/sla/justify`, {
+      await apiFetch(`${API_BASE}/sla/justify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -152,7 +153,7 @@ function EscalateModal({ item, onClose, onSubmitted }: { item: any; onClose: () 
     if (!nivel || !motivo) return;
     setLoading(true);
     try {
-      await fetch(`${API_BASE}/sla/escalate`, {
+      await apiFetch(`${API_BASE}/sla/escalate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -250,7 +251,7 @@ export default function JustificativasPage() {
     try {
       const params = new URLSearchParams();
       if (unidadeSelecionada) params.set("unidadeId", String(unidadeSelecionada));
-      const res = await fetch(`${API_BASE}/sla/queue?${params.toString()}`);
+      const res = await apiFetch(`${API_BASE}/sla/queue?${params.toString()}`);
       const json = await res.json();
       setData(json);
     } catch (err) {
