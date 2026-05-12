@@ -69,6 +69,16 @@ abstract class BaseMockableAdapter implements SignatureProviderAdapter {
       // PRODUCAO: rejeita webhook sem secret configurado (anti-forjamento).
       // DEV/MOCK: aceita pra fluxo de teste sem provedor real.
       signatureValid = process.env["NODE_ENV"] !== "production";
+    } else if (
+      // Wave 10 Fase B Dia 2 (11/mai/2026 noite) — bypass dev-only quando o painel
+      // do provedor (ex: ZapSign sandbox/free) NAO oferece campo pra header
+      // customizado x-pawards-secret. So aceita se NODE_ENV != production
+      // E flag explicita ZAPSIGN_WEBHOOK_DEV_BYPASS=true. Em producao
+      // este branch eh ignorado.
+      process.env["NODE_ENV"] !== "production" &&
+      process.env["ZAPSIGN_WEBHOOK_DEV_BYPASS"] === "true"
+    ) {
+      signatureValid = true;
     }
 
     let parsed: Record<string, unknown> = {};
