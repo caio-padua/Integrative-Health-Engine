@@ -119,10 +119,15 @@ const LIMITE_PAGINA = 50;
 // `ativaDesc`/`ativaAsc` indicam o estado atual; o componente decide qual
 // seta exibir e qual texto de tooltip mostrar. `align` controla justify
 // do botao dentro da celula (right pra numeros, left/center pra texto/badge).
+// Task #96 — `onClick` agora recebe `shift` pra distinguir clique simples
+// (substitui ordenacao) de Shift+clique (adiciona como criterio secundario).
+// `posicao` (1, 2, 3...) so aparece quando ha mais de uma coluna ordenando
+// — pra ficar claro qual e a primaria e qual e secundaria, padrao Excel.
 function ColunaOrdenavel({
   label,
   ativaDesc,
   ativaAsc,
+  posicao,
   onClick,
   testId,
   align = "left",
@@ -130,7 +135,8 @@ function ColunaOrdenavel({
   label: string;
   ativaDesc: boolean;
   ativaAsc: boolean;
-  onClick: () => void;
+  posicao?: number;
+  onClick: (shift: boolean) => void;
   testId?: string;
   align?: "left" | "right" | "center";
 }) {
@@ -138,14 +144,14 @@ function ColunaOrdenavel({
   const justify =
     align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start";
   const title = ativaDesc
-    ? `${label}: maior/mais recente primeiro · clique p/ inverter`
+    ? `${label}: maior/mais recente primeiro · clique p/ inverter · Shift+clique p/ adicionar como critério extra`
     : ativaAsc
-    ? `${label}: menor/mais antigo primeiro · clique p/ voltar ao padrão`
-    : `Clique p/ ordenar por ${label}`;
+    ? `${label}: menor/mais antigo primeiro · clique p/ voltar ao padrão · Shift+clique p/ remover deste grupo`
+    : `Clique p/ ordenar por ${label} · Shift+clique p/ adicionar como critério secundário`;
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => onClick(e.shiftKey)}
       data-testid={testId}
       title={title}
       className={`inline-flex items-center gap-1 font-semibold cursor-pointer hover:opacity-70 w-full ${justify}`}
@@ -158,6 +164,15 @@ function ColunaOrdenavel({
         <ArrowUp size={12} />
       ) : (
         <ArrowUpDown size={12} style={{ opacity: 0.4 }} />
+      )}
+      {posicao !== undefined && posicao > 0 && (
+        <span
+          data-testid={testId ? `${testId}-posicao` : undefined}
+          className="text-[10px] font-bold leading-none px-1 py-0.5 rounded"
+          style={{ background: GOLD, color: NAVY }}
+        >
+          {posicao}
+        </span>
       )}
     </button>
   );
@@ -257,14 +272,15 @@ export default function AssinaturasTimeline() {
     if (desde === isoLocal(d30) && ate === hoje) return "30D";
     return "PERSONALIZADO";
   }
-  // Task #80 + Task #84 — ordenacao da tabela. Estado persistido na URL via
-  // `?ordenar_por=` (whitelist: valor_desc | valor_asc | criado_desc | criado_asc
-  // | concluido_desc | concluido_asc | status_desc | status_asc; default = id desc
-  // sem param). Backend revalida o whitelist server-side, frontend so usa pra UX.
-  // Apenas UMA coluna fica ativa por vez: clicar em outra reseta a anterior
-  // (alternarOrdenacao decide com base na chave atual).
+  // Task #80 + Task #84 + Task #96 — ordenacao da tabela. Estado agora e
+  // LISTA de colunas (Task #96): clique simples substitui a ordenacao;
+  // Shift+clique adiciona a coluna como criterio secundario/terciario.
+  // Ex: clicar Template + Shift-clicar Criado = "todos os PARQ juntos, e
+  // dentro de cada bloco, os mais recentes primeiro". Persistido na URL via
+  // `?ordenar_por=template_asc,criado_desc` (lista) e em localStorage por-
+  // usuario (mesma chave da Task #88, agora guarda lista). Backend revalida
+  // server-side com whitelist + dedupe + cap de 4.
   type Ordenacao =
-    | "ID_DESC"
     | "VALOR_DESC" | "VALOR_ASC"
     | "CRIADO_DESC" | "CRIADO_ASC"
     | "CONCLUIDO_DESC" | "CONCLUIDO_ASC"
@@ -277,8 +293,8 @@ export default function AssinaturasTimeline() {
   type ChaveOrdenacao =
     | "VALOR" | "CRIADO" | "CONCLUIDO" | "STATUS"
     | "PACIENTE" | "MEDICO" | "FARMACIA" | "CLINICA" | "TEMPLATE";
+  const MAX_ORDENACOES = 4;
   const ORDENACAO_URL: Record<Ordenacao, string> = {
-    ID_DESC: "",
     VALOR_DESC: "valor_desc",     VALOR_ASC: "valor_asc",
     CRIADO_DESC: "criado_desc",   CRIADO_ASC: "criado_asc",
     CONCLUIDO_DESC: "concluido_desc", CONCLUIDO_ASC: "concluido_asc",
@@ -292,16 +308,44 @@ export default function AssinaturasTimeline() {
   const URL_TO_ORDENACAO: Record<string, Ordenacao> = (() => {
     const m: Record<string, Ordenacao> = {};
     (Object.keys(ORDENACAO_URL) as Ordenacao[]).forEach((k) => {
-      const v = ORDENACAO_URL[k];
-      if (v) m[v] = k;
+      m[ORDENACAO_URL[k]] = k;
     });
     return m;
   })();
-  function parseOrdenacaoFromUrl(): Ordenacao {
-    if (typeof window === "undefined") return "ID_DESC";
-    const v = (new URLSearchParams(window.location.search).get("ordenar_por") || "")
-      .toLowerCase();
-    return URL_TO_ORDENACAO[v] || "ID_DESC";
+  function chaveDeOrdenacao(o: Ordenacao): ChaveOrdenacao {
+    return o.replace(/_(DESC|ASC)$/, "") as ChaveOrdenacao;
+  }
+  // Dedupe por coluna (mesmo criterio do backend) — primeira ocorrencia
+  // vence. Aplicado em todo lugar que cria lista (URL, storage, click).
+  function dedupePorColuna(lista: Ordenacao[]): Ordenacao[] {
+    const seen = new Set<ChaveOrdenacao>();
+    const out: Ordenacao[] = [];
+    for (const o of lista) {
+      const k = chaveDeOrdenacao(o);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(o);
+      if (out.length >= MAX_ORDENACOES) break;
+    }
+    return out;
+  }
+  function parseOrdenacoesFromString(raw: string): Ordenacao[] {
+    if (!raw) return [];
+    const lista: Ordenacao[] = [];
+    for (const bruto of raw.split(",")) {
+      const t = bruto.trim().toLowerCase();
+      const o = URL_TO_ORDENACAO[t];
+      if (o) lista.push(o);
+    }
+    return dedupePorColuna(lista);
+  }
+  function parseOrdenacoesFromUrl(): Ordenacao[] {
+    if (typeof window === "undefined") return [];
+    const v = new URLSearchParams(window.location.search).get("ordenar_por") || "";
+    return parseOrdenacoesFromString(v);
+  }
+  function serializarOrdenacoes(lista: Ordenacao[]): string {
+    return lista.map((o) => ORDENACAO_URL[o]).join(",");
   }
   // Task #88 — chave por-usuario pra "lembrar" a ultima ordenacao escolhida
   // entre navegacoes. Se a URL tem `?ordenar_por=`, ele tem prioridade (link
@@ -310,27 +354,30 @@ export default function AssinaturasTimeline() {
     if (uid === undefined || uid === null) return null;
     return `pawards.timeline.ordenar_por.${uid}`;
   }
-  function lerOrdenacaoSalva(uid: number | string | undefined): Ordenacao | null {
+  function lerOrdenacoesSalvas(uid: number | string | undefined): Ordenacao[] | null {
     if (typeof window === "undefined") return null;
     const k = chaveStorageOrdenacao(uid);
     if (!k) return null;
     try {
-      const v = (window.localStorage.getItem(k) || "").toLowerCase();
-      return URL_TO_ORDENACAO[v] || null;
+      const v = window.localStorage.getItem(k);
+      if (v === null) return null;
+      // String vazia = "padrao explicito" (lista vazia / ID_DESC default).
+      return parseOrdenacoesFromString(v);
     } catch { return null; }
   }
-  const [ordenacao, setOrdenacaoState] = useState<Ordenacao>(parseOrdenacaoFromUrl);
-  const setOrdenacao = useCallback((nova: Ordenacao) => {
-    setOrdenacaoState(nova);
+  const [ordenacoes, setOrdenacoesState] = useState<Ordenacao[]>(parseOrdenacoesFromUrl);
+  const setOrdenacoes = useCallback((novas: Ordenacao[]) => {
+    const dedupe = dedupePorColuna(novas);
+    setOrdenacoesState(dedupe);
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    const valor = ORDENACAO_URL[nova];
+    const valor = serializarOrdenacoes(dedupe);
     if (valor) url.searchParams.set("ordenar_por", valor);
     else url.searchParams.delete("ordenar_por");
     window.history.replaceState({}, "", url.toString());
-    // Persiste a escolha por-usuario pra reabrir a timeline lembrando a
-    // ultima ordenacao (Task #88). Salvamos string vazia pra ID_DESC default
-    // tambem, pra "lembrar" explicitamente que o usuario voltou pro padrao.
+    // Persiste a escolha por-usuario (Task #88 + Task #96 = lista). Salvamos
+    // string vazia pra "padrao" tambem, pra reabrir a timeline lembrando que
+    // o usuario voltou explicitamente pro default (sem `?ordenar_por=`).
     const k = chaveStorageOrdenacao(user?.id);
     if (k) {
       try { window.localStorage.setItem(k, valor); } catch { /* ignore */ }
@@ -338,31 +385,82 @@ export default function AssinaturasTimeline() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Task #88 — hidrata a ordenacao salva quando o usuario fica disponivel,
-  // SOMENTE se a URL atual nao traz `?ordenar_por=` (link compartilhavel
-  // continua tendo prioridade absoluta).
+  // Task #88 + Task #96 — hidrata a lista salva quando o usuario fica
+  // disponivel, SOMENTE se a URL atual nao traz `?ordenar_por=` (link
+  // compartilhavel continua tendo prioridade absoluta).
   useEffect(() => {
     if (!user?.id || typeof window === "undefined") return;
     const urlTem = new URLSearchParams(window.location.search).get("ordenar_por");
     if (urlTem) return;
-    const salva = lerOrdenacaoSalva(user.id);
-    if (salva && salva !== ordenacao) {
-      setOrdenacao(salva);
-    }
+    const salvas = lerOrdenacoesSalvas(user.id);
+    if (salvas === null) return;
+    const atual = serializarOrdenacoes(ordenacoes);
+    const proxima = serializarOrdenacoes(salvas);
+    if (proxima !== atual) setOrdenacoes(salvas);
     // Roda so quando o user.id muda (login/troca de conta).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
-  // Ciclo do clique em qualquer cabecalho: se a coluna ja esta DESC ativa,
-  // vira ASC; se ASC, volta pro padrao (ID_DESC); se inativa, abre em DESC
-  // (criterio "maior/mais recente primeiro" e o intuitivo). Trocar de coluna
-  // reseta automaticamente a anterior porque o estado guarda apenas UMA chave.
-  const alternarOrdenacao = useCallback((chave: ChaveOrdenacao) => {
+  // Task #96 — clique simples substitui a ordenacao (mantem comportamento
+  // anterior); Shift+clique adiciona a coluna como criterio secundario.
+  // Regras:
+  //   clique simples (shift=false):
+  //     - se a unica coluna ativa ja e essa em DESC -> vira ASC
+  //     - se a unica coluna ativa ja e essa em ASC -> volta pro padrao (lista vazia)
+  //     - caso contrario -> substitui a lista por [chave_DESC]
+  //   Shift+clique (shift=true):
+  //     - se a coluna nao esta na lista -> appendiza como _DESC
+  //     - se ja esta como _DESC -> inverte pra _ASC
+  //     - se ja esta como _ASC -> remove da lista
+  const alternarOrdenacao = useCallback((chave: ChaveOrdenacao, shift: boolean) => {
     const desc = `${chave}_DESC` as Ordenacao;
     const asc = `${chave}_ASC` as Ordenacao;
-    setOrdenacao(
-      ordenacao === desc ? asc : ordenacao === asc ? "ID_DESC" : desc,
-    );
-  }, [ordenacao, setOrdenacao]);
+    const idx = ordenacoes.findIndex((o) => chaveDeOrdenacao(o) === chave);
+    if (shift) {
+      if (idx === -1) {
+        setOrdenacoes([...ordenacoes, desc]);
+        return;
+      }
+      const atual = ordenacoes[idx]!;
+      if (atual === desc) {
+        const nova = [...ordenacoes];
+        nova[idx] = asc;
+        setOrdenacoes(nova);
+      } else {
+        // ASC -> remove deste grupo
+        setOrdenacoes(ordenacoes.filter((_, i) => i !== idx));
+      }
+      return;
+    }
+    // Clique simples
+    if (ordenacoes.length === 1 && idx === 0) {
+      const atual = ordenacoes[0]!;
+      if (atual === desc) setOrdenacoes([asc]);
+      else setOrdenacoes([]);
+    } else {
+      setOrdenacoes([desc]);
+    }
+  }, [ordenacoes, setOrdenacoes]);
+
+  // Helpers de leitura usados pelo render do header da tabela.
+  const colunaAtivaDesc = useCallback(
+    (k: ChaveOrdenacao) => ordenacoes.includes(`${k}_DESC` as Ordenacao),
+    [ordenacoes],
+  );
+  const colunaAtivaAsc = useCallback(
+    (k: ChaveOrdenacao) => ordenacoes.includes(`${k}_ASC` as Ordenacao),
+    [ordenacoes],
+  );
+  const posicaoOrdenacao = useCallback(
+    (k: ChaveOrdenacao): number | undefined => {
+      if (ordenacoes.length < 2) return undefined;
+      const i = ordenacoes.findIndex((o) => chaveDeOrdenacao(o) === k);
+      return i === -1 ? undefined : i + 1;
+    },
+    [ordenacoes],
+  );
+  // String estavel pra dependencia do useEffect/useCallback (evitar laco
+  // infinito por mudanca de referencia do array a cada render).
+  const ordenacoesKey = serializarOrdenacoes(ordenacoes);
 
   const datasUrlInicial = parseDatasFromUrl();
   const [filtroData, setFiltroDataState] = useState<FiltroData>(
@@ -425,7 +523,7 @@ export default function AssinaturasTimeline() {
       if (statusList.length > 0) params.set("status", statusList.join(","));
       if (desdeInput) params.set("desde", desdeInput);
       if (ateInput) params.set("ate", ateInput);
-      const valorOrdenacao = ORDENACAO_URL[ordenacao];
+      const valorOrdenacao = serializarOrdenacoes(ordenacoes);
       if (valorOrdenacao) params.set("ordenar_por", valorOrdenacao);
       params.set("limit", String(LIMITE_PAGINA));
       const offset = append ? rows.length : 0;
@@ -460,14 +558,16 @@ export default function AssinaturasTimeline() {
       setCarregandoMais(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacao, rows.length]);
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacoesKey, rows.length]);
 
   // Recarrega 1a pagina sempre que qualquer filtro muda. Nao depende de
   // `carregar` direto pra evitar loop com `rows.length` na dep list.
+  // Task #96 — depende de `ordenacoesKey` (string serializada) ao inves do
+  // array em si pra evitar loop por mudanca de referencia a cada render.
   useEffect(() => {
     void carregar({ append: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacao]);
+  }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacoesKey]);
 
   const totais = {
     enviado: rows.filter((r) => r.status === "ENVIADO" || r.status === "PARCIAL").length,
@@ -531,7 +631,8 @@ export default function AssinaturasTimeline() {
               // tela. Task #93 — agora repassa qualquer valor da whitelist
               // (status/criado/concluido/paciente/medico/farmacia + valor),
               // nao so valor_*. ID_DESC e o default do servidor → omitido.
-              const ordenarParam = ORDENACAO_URL[ordenacao];
+              // Task #96 — agora pode ser lista (ex: `template_asc,criado_desc`).
+              const ordenarParam = serializarOrdenacoes(ordenacoes);
               if (ordenarParam) params.set("ordenar_por", ordenarParam);
               const qs = params.toString() ? `?${params.toString()}` : "";
               return (
@@ -731,18 +832,20 @@ export default function AssinaturasTimeline() {
                   <th className="text-left px-3 py-2 font-semibold">
                     <ColunaOrdenavel
                       label="Template"
-                      ativaDesc={ordenacao === "TEMPLATE_DESC"}
-                      ativaAsc={ordenacao === "TEMPLATE_ASC"}
-                      onClick={() => alternarOrdenacao("TEMPLATE")}
+                      ativaDesc={colunaAtivaDesc("TEMPLATE")}
+                      ativaAsc={colunaAtivaAsc("TEMPLATE")}
+                      posicao={posicaoOrdenacao("TEMPLATE")}
+                      onClick={(shift) => alternarOrdenacao("TEMPLATE", shift)}
                       testId="ordenar-por-template"
                     />
                   </th>
                   <th className="text-left px-3 py-2 font-semibold">
                     <ColunaOrdenavel
                       label="Paciente"
-                      ativaDesc={ordenacao === "PACIENTE_DESC"}
-                      ativaAsc={ordenacao === "PACIENTE_ASC"}
-                      onClick={() => alternarOrdenacao("PACIENTE")}
+                      ativaDesc={colunaAtivaDesc("PACIENTE")}
+                      ativaAsc={colunaAtivaAsc("PACIENTE")}
+                      posicao={posicaoOrdenacao("PACIENTE")}
+                      onClick={(shift) => alternarOrdenacao("PACIENTE", shift)}
                       testId="ordenar-por-paciente"
                     />
                   </th>
@@ -750,9 +853,10 @@ export default function AssinaturasTimeline() {
                     <th className="text-left px-3 py-2 font-semibold">
                       <ColunaOrdenavel
                         label="Clínica"
-                        ativaDesc={ordenacao === "CLINICA_DESC"}
-                        ativaAsc={ordenacao === "CLINICA_ASC"}
-                        onClick={() => alternarOrdenacao("CLINICA")}
+                        ativaDesc={colunaAtivaDesc("CLINICA")}
+                        ativaAsc={colunaAtivaAsc("CLINICA")}
+                        posicao={posicaoOrdenacao("CLINICA")}
+                        onClick={(shift) => alternarOrdenacao("CLINICA", shift)}
                         testId="ordenar-por-clinica"
                       />
                     </th>
@@ -761,9 +865,10 @@ export default function AssinaturasTimeline() {
                     <ColunaOrdenavel
                       label="Status"
                       align="center"
-                      ativaDesc={ordenacao === "STATUS_DESC"}
-                      ativaAsc={ordenacao === "STATUS_ASC"}
-                      onClick={() => alternarOrdenacao("STATUS")}
+                      ativaDesc={colunaAtivaDesc("STATUS")}
+                      ativaAsc={colunaAtivaAsc("STATUS")}
+                      posicao={posicaoOrdenacao("STATUS")}
+                      onClick={(shift) => alternarOrdenacao("STATUS", shift)}
                       testId="ordenar-por-status"
                     />
                   </th>
@@ -771,27 +876,30 @@ export default function AssinaturasTimeline() {
                     <ColunaOrdenavel
                       label="Valor"
                       align="right"
-                      ativaDesc={ordenacao === "VALOR_DESC"}
-                      ativaAsc={ordenacao === "VALOR_ASC"}
-                      onClick={() => alternarOrdenacao("VALOR")}
+                      ativaDesc={colunaAtivaDesc("VALOR")}
+                      ativaAsc={colunaAtivaAsc("VALOR")}
+                      posicao={posicaoOrdenacao("VALOR")}
+                      onClick={(shift) => alternarOrdenacao("VALOR", shift)}
                       testId="ordenar-por-valor"
                     />
                   </th>
                   <th className="text-left px-3 py-2 font-semibold">
                     <ColunaOrdenavel
                       label="Farmácia"
-                      ativaDesc={ordenacao === "FARMACIA_DESC"}
-                      ativaAsc={ordenacao === "FARMACIA_ASC"}
-                      onClick={() => alternarOrdenacao("FARMACIA")}
+                      ativaDesc={colunaAtivaDesc("FARMACIA")}
+                      ativaAsc={colunaAtivaAsc("FARMACIA")}
+                      posicao={posicaoOrdenacao("FARMACIA")}
+                      onClick={(shift) => alternarOrdenacao("FARMACIA", shift)}
                       testId="ordenar-por-farmacia"
                     />
                   </th>
                   <th className="text-left px-3 py-2 font-semibold">
                     <ColunaOrdenavel
                       label="Médico"
-                      ativaDesc={ordenacao === "MEDICO_DESC"}
-                      ativaAsc={ordenacao === "MEDICO_ASC"}
-                      onClick={() => alternarOrdenacao("MEDICO")}
+                      ativaDesc={colunaAtivaDesc("MEDICO")}
+                      ativaAsc={colunaAtivaAsc("MEDICO")}
+                      posicao={posicaoOrdenacao("MEDICO")}
+                      onClick={(shift) => alternarOrdenacao("MEDICO", shift)}
                       testId="ordenar-por-medico"
                     />
                   </th>
@@ -800,18 +908,20 @@ export default function AssinaturasTimeline() {
                   <th className="text-left px-3 py-2 font-semibold">
                     <ColunaOrdenavel
                       label="Criado"
-                      ativaDesc={ordenacao === "CRIADO_DESC"}
-                      ativaAsc={ordenacao === "CRIADO_ASC"}
-                      onClick={() => alternarOrdenacao("CRIADO")}
+                      ativaDesc={colunaAtivaDesc("CRIADO")}
+                      ativaAsc={colunaAtivaAsc("CRIADO")}
+                      posicao={posicaoOrdenacao("CRIADO")}
+                      onClick={(shift) => alternarOrdenacao("CRIADO", shift)}
                       testId="ordenar-por-criado"
                     />
                   </th>
                   <th className="text-left px-3 py-2 font-semibold">
                     <ColunaOrdenavel
                       label="Concluído"
-                      ativaDesc={ordenacao === "CONCLUIDO_DESC"}
-                      ativaAsc={ordenacao === "CONCLUIDO_ASC"}
-                      onClick={() => alternarOrdenacao("CONCLUIDO")}
+                      ativaDesc={colunaAtivaDesc("CONCLUIDO")}
+                      ativaAsc={colunaAtivaAsc("CONCLUIDO")}
+                      posicao={posicaoOrdenacao("CONCLUIDO")}
+                      onClick={(shift) => alternarOrdenacao("CONCLUIDO", shift)}
                       testId="ordenar-por-concluido"
                     />
                   </th>

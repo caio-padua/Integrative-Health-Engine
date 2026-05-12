@@ -21,6 +21,55 @@ import {
 
 const router: IRouter = Router();
 
+// Task #96 — whitelist + fragmentos `ORDER BY` por coluna, compartilhados pelos
+// 3 endpoints de timeline (JSON, CSV, XLSX). Centralizar aqui evita drift
+// entre eles (achado historico das Tasks #83/#93/#95). `s.id DESC` final NUNCA
+// vem deste mapa — e sempre adicionado por `montarOrderBy()` como tiebreaker
+// estavel pra paginacao determinar ordem mesmo quando 2 linhas empatam em
+// todos os criterios solicitados.
+const ORDENACOES_TIMELINE_FRAGMENT: Record<string, ReturnType<typeof sql>> = {
+  valor_desc:    sql`rec.valor_formula_estimado DESC NULLS LAST`,
+  valor_asc:     sql`rec.valor_formula_estimado ASC NULLS LAST`,
+  criado_desc:   sql`s.criado_em DESC NULLS LAST`,
+  criado_asc:    sql`s.criado_em ASC NULLS LAST`,
+  concluido_desc: sql`s.concluido_em DESC NULLS LAST`,
+  concluido_asc:  sql`s.concluido_em ASC NULLS LAST`,
+  status_desc:   sql`s.status DESC`,
+  status_asc:    sql`s.status ASC`,
+  paciente_desc: sql`p.nome DESC NULLS LAST`,
+  paciente_asc:  sql`p.nome ASC NULLS LAST`,
+  medico_desc:   sql`med.nome DESC NULLS LAST`,
+  medico_asc:    sql`med.nome ASC NULLS LAST`,
+  farmacia_desc: sql`COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST`,
+  farmacia_asc:  sql`COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST`,
+  clinica_desc:  sql`u.nome DESC NULLS LAST`,
+  clinica_asc:   sql`u.nome ASC NULLS LAST`,
+  template_desc: sql`t.codigo DESC NULLS LAST`,
+  template_asc:  sql`t.codigo ASC NULLS LAST`,
+};
+const MAX_ORDENACOES_TIMELINE = 4;
+function parseTokensOrdenacao(raw: string): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const bruto of raw.split(",")) {
+    const t = bruto.trim();
+    if (!ORDENACOES_TIMELINE_FRAGMENT[t]) continue;
+    // Dedupe por coluna (template_asc e template_desc nao podem coexistir).
+    const colKey = t.replace(/_(desc|asc)$/, "");
+    if (seen.has(colKey)) continue;
+    seen.add(colKey);
+    out.push(t);
+    if (out.length >= MAX_ORDENACOES_TIMELINE) break;
+  }
+  return out;
+}
+function montarOrderBy(tokens: string[]): ReturnType<typeof sql> {
+  if (tokens.length === 0) return sql`ORDER BY s.id DESC`;
+  const fragments = tokens.map((t) => ORDENACOES_TIMELINE_FRAGMENT[t]!);
+  return sql`ORDER BY ${sql.join(fragments, sql`, `)}, s.id DESC`;
+}
+
 // Wave 10 F5 · gate alinhado ao padrao parq.ts (validador_mestre + master estrito).
 // Endpoints que retornam manifesto SHA-256, IP, geo e CPF integral DEVEM
 // passar por aqui — caso contrario abrem IDOR cross-tenant + vazamento PII.
@@ -656,60 +705,20 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
     // `unidades u` (pelo unidade_id do paciente). Aparece como coluna clicavel
     // na tela apenas no modo rede-wide (sem filtro de unidade), pra agrupar
     // visualmente "tudo da Padua Clinic em sequencia".
-    const ORDENACOES_VALIDAS = new Set([
-      "valor_desc", "valor_asc",
-      "criado_desc", "criado_asc",
-      "concluido_desc", "concluido_asc",
-      "status_desc", "status_asc",
-      "paciente_desc", "paciente_asc",
-      "medico_desc", "medico_asc",
-      "farmacia_desc", "farmacia_asc",
-      "clinica_desc", "clinica_asc",
-      "template_desc", "template_asc",
-    ]);
+    // Task #96 — `ordenar_por` agora aceita LISTA de colunas separadas por
+    // virgula (ex: `template_asc,criado_desc` = "todos os PARQ juntos, e
+    // dentro de cada bloco os mais recentes primeiro"). Cada token e
+    // validado contra a whitelist; tokens invalidos sao silenciosamente
+    // descartados. Dedupe por coluna (mantem 1a ocorrencia) evita conflito
+    // entre `template_asc` e `template_desc` no mesmo pedido. Cap de 4
+    // dimensoes pra nao explodir o planner do Postgres em ordenacoes
+    // absurdas. Single-token continua compativel com o contrato anterior.
     const ordenarPorRaw = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
       : "";
-    const ordenarPor = ORDENACOES_VALIDAS.has(ordenarPorRaw)
-      ? ordenarPorRaw
-      : "id_desc";
-    const orderByClause = ordenarPor === "valor_desc"
-      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
-      : ordenarPor === "valor_asc"
-      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
-      : ordenarPor === "criado_desc"
-      ? sql`ORDER BY s.criado_em DESC NULLS LAST, s.id DESC`
-      : ordenarPor === "criado_asc"
-      ? sql`ORDER BY s.criado_em ASC NULLS LAST, s.id DESC`
-      : ordenarPor === "concluido_desc"
-      ? sql`ORDER BY s.concluido_em DESC NULLS LAST, s.id DESC`
-      : ordenarPor === "concluido_asc"
-      ? sql`ORDER BY s.concluido_em ASC NULLS LAST, s.id DESC`
-      : ordenarPor === "status_desc"
-      ? sql`ORDER BY s.status DESC, s.id DESC`
-      : ordenarPor === "status_asc"
-      ? sql`ORDER BY s.status ASC, s.id DESC`
-      : ordenarPor === "paciente_desc"
-      ? sql`ORDER BY p.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPor === "paciente_asc"
-      ? sql`ORDER BY p.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPor === "medico_desc"
-      ? sql`ORDER BY med.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPor === "medico_asc"
-      ? sql`ORDER BY med.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPor === "farmacia_desc"
-      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
-      : ordenarPor === "farmacia_asc"
-      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
-      : ordenarPor === "clinica_desc"
-      ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPor === "clinica_asc"
-      ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPor === "template_desc"
-      ? sql`ORDER BY t.codigo DESC NULLS LAST, s.id DESC`
-      : ordenarPor === "template_asc"
-      ? sql`ORDER BY t.codigo ASC NULLS LAST, s.id DESC`
-      : sql`ORDER BY s.id DESC`;
+    const tokens = parseTokensOrdenacao(ordenarPorRaw);
+    const ordenarPor = tokens.length > 0 ? tokens.join(",") : "id_desc";
+    const orderByClause = montarOrderBy(tokens);
     const countR = await db.execute(sql`
       SELECT COUNT(*)::int AS total
       FROM assinatura_solicitacoes s
@@ -902,60 +911,14 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     // Task #95 — adicionado clinica (asc+desc) pra fechar o whitelist com o
     // endpoint JSON: Caio exporta extrato ordenado por Clínica pra contador
     // e o arquivo precisa sair na MESMA ordem que ele viu na tela.
-    const ORDENACOES_VALIDAS_CSV = new Set([
-      "valor_desc", "valor_asc",
-      "criado_desc", "criado_asc",
-      "concluido_desc", "concluido_asc",
-      "status_desc", "status_asc",
-      "paciente_desc", "paciente_asc",
-      "medico_desc", "medico_asc",
-      "farmacia_desc", "farmacia_asc",
-      "clinica_desc", "clinica_asc",
-      "template_desc", "template_asc",
-    ]);
+    // Task #96 — mesma logica multi-coluna do JSON. CSV exportado precisa
+    // bater 1:1 com a ordem visivel na tela (contador/advogado nao se
+    // confunde). Fragmentos compartilhados em ORDENACOES_TIMELINE_FRAGMENT.
     const ordenarPorRawCsv = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
       : "";
-    const ordenarPorCsv = ORDENACOES_VALIDAS_CSV.has(ordenarPorRawCsv)
-      ? ordenarPorRawCsv
-      : "id_desc";
-    const orderByClauseCsv = ordenarPorCsv === "valor_desc"
-      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "valor_asc"
-      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "criado_desc"
-      ? sql`ORDER BY s.criado_em DESC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "criado_asc"
-      ? sql`ORDER BY s.criado_em ASC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "concluido_desc"
-      ? sql`ORDER BY s.concluido_em DESC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "concluido_asc"
-      ? sql`ORDER BY s.concluido_em ASC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "status_desc"
-      ? sql`ORDER BY s.status DESC, s.id DESC`
-      : ordenarPorCsv === "status_asc"
-      ? sql`ORDER BY s.status ASC, s.id DESC`
-      : ordenarPorCsv === "paciente_desc"
-      ? sql`ORDER BY p.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "paciente_asc"
-      ? sql`ORDER BY p.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "medico_desc"
-      ? sql`ORDER BY med.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "medico_asc"
-      ? sql`ORDER BY med.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "farmacia_desc"
-      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "farmacia_asc"
-      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "clinica_desc"
-      ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "clinica_asc"
-      ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "template_desc"
-      ? sql`ORDER BY t.codigo DESC NULLS LAST, s.id DESC`
-      : ordenarPorCsv === "template_asc"
-      ? sql`ORDER BY t.codigo ASC NULLS LAST, s.id DESC`
-      : sql`ORDER BY s.id DESC`;
+    const tokensCsv = parseTokensOrdenacao(ordenarPorRawCsv);
+    const orderByClauseCsv = montarOrderBy(tokensCsv);
     const r = await db.execute(sql`
       SELECT
         s.id,
@@ -1154,60 +1117,14 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     // paciente/medico/farmacia, asc+desc) batendo com Tasks #84 e #89.
     // Task #95 — adicionado clinica (asc+desc) pra fechar o whitelist com o
     // endpoint JSON: extrato XLSX precisa sair na MESMA ordem da tela.
-    const ORDENACOES_VALIDAS_XLSX = new Set([
-      "valor_desc", "valor_asc",
-      "criado_desc", "criado_asc",
-      "concluido_desc", "concluido_asc",
-      "status_desc", "status_asc",
-      "paciente_desc", "paciente_asc",
-      "medico_desc", "medico_asc",
-      "farmacia_desc", "farmacia_asc",
-      "clinica_desc", "clinica_asc",
-      "template_desc", "template_asc",
-    ]);
+    // Task #96 — mesma logica multi-coluna do JSON/CSV. XLSX precisa bater
+    // 1:1 com a ordem visivel na tela. Fragmentos compartilhados em
+    // ORDENACOES_TIMELINE_FRAGMENT (modulo-level).
     const ordenarPorRawXlsx = typeof req.query["ordenar_por"] === "string"
       ? (req.query["ordenar_por"] as string).toLowerCase()
       : "";
-    const ordenarPorXlsx = ORDENACOES_VALIDAS_XLSX.has(ordenarPorRawXlsx)
-      ? ordenarPorRawXlsx
-      : "id_desc";
-    const orderByClauseXlsx = ordenarPorXlsx === "valor_desc"
-      ? sql`ORDER BY rec.valor_formula_estimado DESC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "valor_asc"
-      ? sql`ORDER BY rec.valor_formula_estimado ASC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "criado_desc"
-      ? sql`ORDER BY s.criado_em DESC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "criado_asc"
-      ? sql`ORDER BY s.criado_em ASC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "concluido_desc"
-      ? sql`ORDER BY s.concluido_em DESC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "concluido_asc"
-      ? sql`ORDER BY s.concluido_em ASC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "status_desc"
-      ? sql`ORDER BY s.status DESC, s.id DESC`
-      : ordenarPorXlsx === "status_asc"
-      ? sql`ORDER BY s.status ASC, s.id DESC`
-      : ordenarPorXlsx === "paciente_desc"
-      ? sql`ORDER BY p.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "paciente_asc"
-      ? sql`ORDER BY p.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "medico_desc"
-      ? sql`ORDER BY med.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "medico_asc"
-      ? sql`ORDER BY med.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "farmacia_desc"
-      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) DESC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "farmacia_asc"
-      ? sql`ORDER BY COALESCE(f.razao_social, f.nome_fantasia) ASC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "clinica_desc"
-      ? sql`ORDER BY u.nome DESC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "clinica_asc"
-      ? sql`ORDER BY u.nome ASC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "template_desc"
-      ? sql`ORDER BY t.codigo DESC NULLS LAST, s.id DESC`
-      : ordenarPorXlsx === "template_asc"
-      ? sql`ORDER BY t.codigo ASC NULLS LAST, s.id DESC`
-      : sql`ORDER BY s.id DESC`;
+    const tokensXlsx = parseTokensOrdenacao(ordenarPorRawXlsx);
+    const orderByClauseXlsx = montarOrderBy(tokensXlsx);
     const r = await db.execute(sql`
       SELECT
         s.id,
