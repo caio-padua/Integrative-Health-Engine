@@ -90,6 +90,34 @@ const COR_SEMANTICA_HEX: Record<CorSemantica, string> = {
   neutro:    "#71717a",
 };
 
+// Task #174 — beep curto (~300ms) via Web Audio API pra alerta de novo
+// bloqueio de 2FA. Mute via localStorage("alertas_seguranca_som_mudo" === "1").
+// Usa AudioContext lazy (instancia no primeiro disparo) e fecha em seguida pra
+// nao segurar recurso. Falha silenciosa quando o browser bloqueia o contexto
+// por falta de gesto do usuario — toast visual continua funcionando.
+function tocarBeepSeguranca(): void {
+  try {
+    if (typeof window === "undefined") return;
+    if (window.localStorage?.getItem("alertas_seguranca_som_mudo") === "1") return;
+    const Ctor = window.AudioContext
+      || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    const ctx = new Ctor();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.32);
+    osc.onended = () => { ctx.close().catch(() => { /* silencioso */ }); };
+  } catch { /* silencioso */ }
+}
+
 function fmtVarPct(pct: number | null | undefined): string {
   if (pct === null || pct === undefined) return "—";
   const sinal = pct > 0 ? "+" : "";
@@ -417,6 +445,12 @@ export default function PainelComando() {
               </ToastAction>
             ),
           });
+          // Task #174 — beep curto (~300ms) junto com o toast vermelho pra
+          // chamar atencao do CEO quando a aba estiver em segundo plano.
+          // Mute opcional via localStorage("alertas_seguranca_som_mudo" === "1").
+          // Falha silenciosa quando o browser bloqueia AudioContext (sem
+          // gesto do usuario ainda) — toast visual continua funcionando.
+          tocarBeepSeguranca();
         }
         alertasSegurancaRef.current = total;
         setAlertasSegurancaNaoVistos(total);
