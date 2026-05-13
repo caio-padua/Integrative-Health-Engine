@@ -27,6 +27,7 @@ import { RankingClinicas } from "@/components/pawards/RankingClinicas";
 import { AgendaHoje, type AgendaItem } from "@/components/pawards/AgendaHoje";
 import { AlertasPanel, type AlertasData } from "@/components/pawards/AlertasPanel";
 import { CaixaPanel, type CaixaData } from "@/components/pawards/CaixaPanel";
+import { AuditoriaAcessosPanel } from "@/components/pawards/AuditoriaAcessosPanel";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { PAWARDS, fmtBRL, fmtInt } from "@/lib/pawards-tokens";
@@ -388,6 +389,9 @@ export default function DashboardGlobal() {
           <AlertasPanel data={alertas ?? null} />
           <CaixaPanel data={caixa ?? null} />
         </div>
+
+        {/* AUDITORIA DE ACESSOS — quem entrou no dashboard global */}
+        <AuditoriaAcessosPanel />
 
         {/* FOOTER */}
         <div

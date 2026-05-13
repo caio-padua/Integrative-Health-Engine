@@ -900,6 +900,7 @@ router.get("/auditoria/acessos", async (req, res) => {
   try {
     if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
     const limit = Math.min(Math.max(Number(req.query.limit ?? 100) || 100, 1), 500);
+    const offset = Math.max(Number(req.query.offset ?? 0) || 0, 0);
     const usuarioId = req.query.usuario_id ? Number(req.query.usuario_id) : null;
     const desde = typeof req.query.desde === "string" ? req.query.desde : null;
 
@@ -913,17 +914,30 @@ router.get("/auditoria/acessos", async (req, res) => {
       params.push(desde);
       where.push(`acessado_em >= $${params.length}::timestamptz`);
     }
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
     params.push(limit);
+    const limitIdx = params.length;
+    params.push(offset);
+    const offsetIdx = params.length;
 
     const sql = `
       SELECT id, usuario_id, email, perfil, metodo, endpoint, ip, user_agent, acessado_em
       FROM painel_pawards_auditoria
-      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ${whereSql}
       ORDER BY acessado_em DESC
-      LIMIT $${params.length}
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `;
     const { rows } = await pool.query(sql, params);
-    res.json(rows);
+
+    // Total para paginação — sem limit/offset.
+    const countParams = params.slice(0, params.length - 2);
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM painel_pawards_auditoria ${whereSql}`,
+      countParams,
+    );
+
+    res.json({ items: rows, total: countRows[0]?.total ?? 0, limit, offset });
   } catch (e: any) {
     console.error("[painel-pawards/auditoria/acessos]", e);
     res.status(500).json({ error: e.message });
