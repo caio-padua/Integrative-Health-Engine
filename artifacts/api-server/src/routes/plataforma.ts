@@ -204,6 +204,15 @@ type DetalheEnvioWhatsappAuditoria = {
   erro: string | null;
 };
 
+// Task #148 — detalhe por destinatario de email (analogo ao detalhes_whatsapp
+// existente). Permite o painel de auditoria pintar cada email com icone
+// verde/vermelho e oferecer "Reenviar so pros que falharam".
+type DetalheEnvioEmailAuditoria = {
+  destinatario: string;
+  sucesso: boolean;
+  erro: string | null;
+};
+
 type RegistroAviso = {
   tipo:
     | "SUSPENSAO"
@@ -227,6 +236,13 @@ type RegistroAviso = {
   via_hsm?: number;
   via_texto_livre?: number;
   detalhes_whatsapp?: DetalheEnvioWhatsappAuditoria[];
+  // Task #148 — detalhe por destinatario de email (so populado em
+  // registros novos; registros antigos so tinham agregados enviados/falhas).
+  detalhes_email?: DetalheEnvioEmailAuditoria[];
+  // Task #148 — quando o reenvio foi restrito a um subconjunto (ex.: so
+  // pros que falharam na ultima tentativa). Permite a UI mostrar "reenvio
+  // parcial" e auditar exatamente o escopo da retentativa.
+  apenas_falhas?: boolean;
 };
 
 async function anexarAvisoEmAuditoria(
@@ -983,7 +999,49 @@ router.post(
 
     const actor = getActor(req);
     const motivoOriginal = evento.motivo ?? "(motivo nao registrado)";
-    let emailRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+
+    // Task #148 — quando apenasFalhas=true, restringe o reenvio aos
+    // destinatarios EMAIL que falharam na tentativa registrada mais recente
+    // do mesmo evento (canal default = EMAIL pra retrocompat). Permite o
+    // platform_owner reenviar so pra quem nao recebeu, sem spammear os ja
+    // notificados. Se nao houver tentativa anterior com falhas, devolve 400
+    // pra deixar claro que nao ha o que reenviar nesse modo.
+    const apenasFalhas = req.body?.apenasFalhas === true;
+    let destinatariosOverride: string[] | undefined;
+    if (apenasFalhas) {
+      const histRes = await db.execute(sql`
+        SELECT COALESCE(metadata->'avisos', '[]'::jsonb) AS avisos
+          FROM auditoria_kill_switch
+         WHERE id = ${eventoId}
+         LIMIT 1
+      `);
+      const avisos = ((histRes.rows[0] as { avisos?: RegistroAviso[] } | undefined)?.avisos ?? []) as RegistroAviso[];
+      const ultimoEmail = [...avisos]
+        .reverse()
+        .find((a) => (a.canal ?? "EMAIL") === "EMAIL");
+      const falhados: string[] = [];
+      if (ultimoEmail?.detalhes_email) {
+        for (const d of ultimoEmail.detalhes_email) {
+          if (!d.sucesso && d.destinatario) falhados.push(d.destinatario);
+        }
+      }
+      if (falhados.length === 0) {
+        res.status(400).json({
+          error:
+            "Nao ha destinatarios com falha registrada na ultima tentativa de email. " +
+            "Use o reenvio normal (sem apenasFalhas) ou aguarde uma nova tentativa que registre falhas.",
+        });
+        return;
+      }
+      destinatariosOverride = Array.from(new Set(falhados.map((e) => e.trim().toLowerCase())));
+    }
+
+    let emailRes = {
+      destinatarios: [] as string[],
+      enviados: 0,
+      falhas: 0,
+      detalhes: [] as DetalheEnvioEmailAuditoria[],
+    };
     let emailErro: string | null = null;
     try {
       if (evento.acao === "SUSPENDER") {
@@ -992,6 +1050,7 @@ router.post(
           unidade,
           motivo: motivoOriginal,
           suspensoEm: new Date(evento.criado_em),
+          destinatariosOverride,
         });
       } else {
         emailRes = await enviarEmailReativacao({
@@ -999,10 +1058,11 @@ router.post(
           unidade,
           motivo: motivoOriginal,
           reativadoEm: new Date(evento.criado_em),
+          destinatariosOverride,
         });
       }
       req.log?.info(
-        { eventoId, ...emailRes },
+        { eventoId, apenasFalhas, ...emailRes },
         "[plataforma] reenvio de aviso executado",
       );
     } catch (err) {
@@ -1014,12 +1074,15 @@ router.post(
       evento.acao as AcaoKillSwitch,
       {
         tipo: evento.acao === "SUSPENDER" ? "REENVIO_SUSPENSAO" : "REENVIO_REATIVACAO",
+        canal: "EMAIL",
         destinatarios: emailRes.destinatarios,
         enviados: emailRes.enviados,
         falhas: emailRes.falhas,
         erro: emailErro,
         em: new Date().toISOString(),
         executado_por_usuario_id: actor.userId,
+        detalhes_email: emailRes.detalhes,
+        apenas_falhas: apenasFalhas,
       },
       eventoId,
     );
@@ -1034,7 +1097,7 @@ router.post(
            AND visualizado_em IS NULL
       `);
     }
-    res.json({ ok: true, email: emailRes, erro: emailErro });
+    res.json({ ok: true, email: emailRes, erro: emailErro, apenasFalhas });
   },
 );
 

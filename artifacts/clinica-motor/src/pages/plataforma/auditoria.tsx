@@ -3,13 +3,22 @@ import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
-import { Scale, RefreshCw, ShieldAlert, Mail, MessageCircle, Send, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
+import { Scale, RefreshCw, ShieldAlert, Mail, MessageCircle, Send, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 
 type DetalheEnvioWhatsapp = {
   destinatario: string;
   sucesso: boolean;
   viaHsm: boolean;
   viaTextoLivre: boolean;
+  erro: string | null;
+};
+
+// Task #148 — analogo a DetalheEnvioWhatsapp, mas pro canal EMAIL. So
+// existe em registros gravados a partir desta task; registros antigos
+// caem no fallback (lista de destinatarios sem icone individual).
+type DetalheEnvioEmail = {
+  destinatario: string;
+  sucesso: boolean;
   erro: string | null;
 };
 
@@ -27,6 +36,8 @@ type RegistroAviso = {
   via_hsm?: number;
   via_texto_livre?: number;
   detalhes_whatsapp?: DetalheEnvioWhatsapp[];
+  detalhes_email?: DetalheEnvioEmail[];
+  apenas_falhas?: boolean;
 };
 
 type Evento = {
@@ -69,6 +80,7 @@ export default function PlataformaAuditoria() {
   const [filtroExecutor, setFiltroExecutor] = useState<string>("");
   const [expandidoEventoId, setExpandidoEventoId] = useState<number | null>(null);
   const [reenviandoEventoId, setReenviandoEventoId] = useState<number | null>(null);
+  const [reenviandoApenasFalhas, setReenviandoApenasFalhas] = useState(false);
   const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
@@ -89,19 +101,28 @@ export default function PlataformaAuditoria() {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
-  async function reenviarAvisos(eventoId: number) {
-    if (!window.confirm(
-      "Reenviar emails de aviso pra todos os destinatarios deste evento?\n" +
-      "O resultado ficara registrado no historico (auditoria_kill_switch).",
-    )) return;
+  async function reenviarAvisos(eventoId: number, apenasFalhas: boolean) {
+    const msg = apenasFalhas
+      ? "Reenviar emails de aviso APENAS pros destinatarios que falharam na ultima tentativa?\n" +
+        "O resultado ficara registrado no historico (auditoria_kill_switch)."
+      : "Reenviar emails de aviso pra todos os destinatarios deste evento?\n" +
+        "O resultado ficara registrado no historico (auditoria_kill_switch).";
+    if (!window.confirm(msg)) return;
     setReenviandoEventoId(eventoId);
+    setReenviandoApenasFalhas(apenasFalhas);
     const r = await runWithStepUp(() =>
       apiFetch(
         `/api/plataforma/auditoria/${eventoId}/reenviar-avisos`,
-        { method: "POST", credentials: "include" },
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apenasFalhas }),
+        },
       ),
     );
     setReenviandoEventoId(null);
+    setReenviandoApenasFalhas(false);
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
       alert(`Erro: ${j.error ?? r.statusText}`);
@@ -109,7 +130,7 @@ export default function PlataformaAuditoria() {
     }
     const j = await r.json();
     alert(
-      `Reenvio concluido.\n\n` +
+      `Reenvio concluido${apenasFalhas ? " (apenas falhas)" : ""}.\n\n` +
       `Destinatarios: ${j.email?.destinatarios?.length ?? 0}\n` +
       `Enviados: ${j.email?.enviados ?? 0}\n` +
       `Falhas: ${j.email?.falhas ?? 0}` +
@@ -281,15 +302,44 @@ export default function PlataformaAuditoria() {
                               )}
                             </button>
                             {podeReenviar && (
-                              <button
-                                disabled={reenviandoEventoId === e.id}
-                                onClick={() => void reenviarAvisos(e.id)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
-                                title="Reenviar emails de aviso pra todos os destinatarios"
-                              >
-                                <Send size={11} />
-                                {reenviandoEventoId === e.id ? "reenviando..." : "Reenviar avisos"}
-                              </button>
+                              <div className="flex flex-wrap items-center gap-1">
+                                <button
+                                  disabled={reenviandoEventoId === e.id}
+                                  onClick={() => void reenviarAvisos(e.id, false)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
+                                  title="Reenviar emails de aviso pra todos os destinatarios"
+                                >
+                                  <Send size={11} />
+                                  {reenviandoEventoId === e.id && !reenviandoApenasFalhas
+                                    ? "reenviando..."
+                                    : "Reenviar avisos"}
+                                </button>
+                                {/* Task #148 — botao extra so aparece quando ha
+                                    pelo menos uma tentativa anterior de EMAIL com
+                                    detalhes_email contendo falhas. Sem isso o
+                                    backend devolve 400 (sem nada pra reenviar). */}
+                                {(() => {
+                                  const ultimoEmail = [...avisos]
+                                    .reverse()
+                                    .find((a) => (a.canal ?? "EMAIL") === "EMAIL");
+                                  const falhadosEmail = (ultimoEmail?.detalhes_email ?? [])
+                                    .filter((d) => !d.sucesso);
+                                  if (falhadosEmail.length === 0) return null;
+                                  return (
+                                    <button
+                                      disabled={reenviandoEventoId === e.id}
+                                      onClick={() => void reenviarAvisos(e.id, true)}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-50"
+                                      title={`Reenviar so pros ${falhadosEmail.length} destinatario(s) que falharam na ultima tentativa de email`}
+                                    >
+                                      <Send size={11} />
+                                      {reenviandoEventoId === e.id && reenviandoApenasFalhas
+                                        ? "reenviando..."
+                                        : `Reenviar so pros que falharam (${falhadosEmail.length})`}
+                                    </button>
+                                  );
+                                })()}
+                              </div>
                             )}
                           </div>
                           {expandido && temAvisos && (
@@ -370,10 +420,20 @@ export default function PlataformaAuditoria() {
                                       </div>
                                     </div>
                                   )}
+                                  {av.apenas_falhas && (
+                                    <div className="mt-1 text-[10px] text-amber-300/80 italic">
+                                      reenvio parcial — apenas destinatarios que falharam na tentativa anterior
+                                    </div>
+                                  )}
                                   {isWhatsapp && detalhes.length > 0 ? (
                                     <div className="text-zinc-500 mt-0.5 space-y-0.5">
                                       {detalhes.map((d, j) => (
                                         <div key={j} className="flex flex-wrap gap-1.5 items-center break-all">
+                                          {d.sucesso ? (
+                                            <CheckCircle2 size={10} className="text-emerald-400 shrink-0" />
+                                          ) : (
+                                            <XCircle size={10} className="text-red-400 shrink-0" />
+                                          )}
                                           <span className="font-mono text-zinc-400">{d.destinatario}</span>
                                           {d.sucesso ? (
                                             d.viaHsm ? (
@@ -402,10 +462,45 @@ export default function PlataformaAuditoria() {
                                         </div>
                                       ))}
                                     </div>
+                                  ) : !isWhatsapp && (av.detalhes_email?.length ?? 0) > 0 ? (
+                                    // Task #148 — render por-destinatario com icone
+                                    // verde/vermelho pra deixar visivel quem recebeu
+                                    // e quem nao. So aparece em registros gravados a
+                                    // partir desta task; antigos caem no fallback
+                                    // abaixo (lista plana sem icone individual).
+                                    <div className="text-zinc-500 mt-0.5 space-y-0.5">
+                                      {(av.detalhes_email ?? []).map((d, j) => (
+                                        <div key={j} className="flex flex-wrap gap-1.5 items-center break-all">
+                                          {d.sucesso ? (
+                                            <CheckCircle2 size={10} className="text-emerald-400 shrink-0" />
+                                          ) : (
+                                            <XCircle size={10} className="text-red-400 shrink-0" />
+                                          )}
+                                          <span className="font-mono text-zinc-400">{d.destinatario}</span>
+                                          {d.sucesso ? (
+                                            <span className="px-1 py-0 rounded text-[9px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">
+                                              enviado
+                                            </span>
+                                          ) : (
+                                            <span className="px-1 py-0 rounded text-[9px] bg-red-500/15 text-red-300 border border-red-500/40">
+                                              falhou
+                                            </span>
+                                          )}
+                                          {d.erro && (
+                                            <span className="text-red-400/80 text-[10px]">
+                                              {d.erro}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
                                   ) : (
                                     av.destinatarios.length > 0 && (
                                       <div className="text-zinc-500 mt-0.5 break-all">
                                         {av.destinatarios.join(", ")}
+                                        <span className="ml-1 text-zinc-600 italic text-[10px]">
+                                          (registro antigo — sem detalhe por destinatario)
+                                        </span>
                                       </div>
                                     )
                                   )}

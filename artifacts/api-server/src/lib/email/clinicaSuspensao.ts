@@ -122,32 +122,51 @@ function htmlReativacao(opts: {
 </body></html>`;
 }
 
+export type DetalheEnvioEmail = {
+  destinatario: string;
+  sucesso: boolean;
+  erro: string | null;
+};
+
 async function enviarParaTodos(
   destinatarios: string[],
   subject: string,
   html: string,
-): Promise<{ enviados: number; falhas: number }> {
-  if (destinatarios.length === 0) return { enviados: 0, falhas: 0 };
+): Promise<{ enviados: number; falhas: number; detalhes: DetalheEnvioEmail[] }> {
+  if (destinatarios.length === 0) return { enviados: 0, falhas: 0, detalhes: [] };
   let enviados = 0;
   let falhas = 0;
+  const detalhes: DetalheEnvioEmail[] = [];
   let gmail;
   try {
     gmail = await getGmailClient();
   } catch (err) {
     logger.error({ err }, "[clinicaSuspensao] gmail client indisponivel");
-    return { enviados: 0, falhas: destinatarios.length };
+    const erroMsg = err instanceof Error ? err.message : String(err);
+    return {
+      enviados: 0,
+      falhas: destinatarios.length,
+      detalhes: destinatarios.map((d) => ({
+        destinatario: d,
+        sucesso: false,
+        erro: `gmail client indisponivel: ${erroMsg}`,
+      })),
+    };
   }
   for (const to of destinatarios) {
     try {
       const raw = buildRaw(to, subject, html);
       await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
       enviados++;
+      detalhes.push({ destinatario: to, sucesso: true, erro: null });
     } catch (err) {
       falhas++;
+      const erroMsg = err instanceof Error ? err.message : String(err);
+      detalhes.push({ destinatario: to, sucesso: false, erro: erroMsg });
       logger.warn({ err, to }, "[clinicaSuspensao] falha ao enviar email");
     }
   }
-  return { enviados, falhas };
+  return { enviados, falhas, detalhes };
 }
 
 const CONTATO_RECURSO_PADRAO =
@@ -159,8 +178,15 @@ export async function enviarEmailSuspensao(opts: {
   unidade: Unidade;
   motivo: string;
   suspensoEm: Date;
-}): Promise<{ destinatarios: string[]; enviados: number; falhas: number }> {
-  const destinatarios = await coletarDestinatarios(opts.unidadeId, opts.unidade);
+  // Task #148 — quando informado, restringe envio a este subconjunto
+  // (intersecao com destinatarios atuais da unidade) em vez de coletar
+  // a lista completa. Usado pelo "Reenviar so pros que falharam".
+  destinatariosOverride?: string[];
+}): Promise<{ destinatarios: string[]; enviados: number; falhas: number; detalhes: DetalheEnvioEmail[] }> {
+  const todos = await coletarDestinatarios(opts.unidadeId, opts.unidade);
+  const destinatarios = opts.destinatariosOverride
+    ? todos.filter((d) => opts.destinatariosOverride!.includes(d))
+    : todos;
   const html = htmlSuspensao({
     unidadeNome: opts.unidade.nome,
     motivo: opts.motivo,
@@ -168,8 +194,8 @@ export async function enviarEmailSuspensao(opts: {
     contatoRecurso: CONTATO_RECURSO_PADRAO,
   });
   const subject = `[PAWARDS] Clinica ${opts.unidade.nome} foi suspensa`;
-  const { enviados, falhas } = await enviarParaTodos(destinatarios, subject, html);
-  return { destinatarios, enviados, falhas };
+  const { enviados, falhas, detalhes } = await enviarParaTodos(destinatarios, subject, html);
+  return { destinatarios, enviados, falhas, detalhes };
 }
 
 export async function enviarEmailReativacao(opts: {
@@ -177,16 +203,20 @@ export async function enviarEmailReativacao(opts: {
   unidade: Unidade;
   motivo: string;
   reativadoEm: Date;
-}): Promise<{ destinatarios: string[]; enviados: number; falhas: number }> {
-  const destinatarios = await coletarDestinatarios(opts.unidadeId, opts.unidade);
+  destinatariosOverride?: string[];
+}): Promise<{ destinatarios: string[]; enviados: number; falhas: number; detalhes: DetalheEnvioEmail[] }> {
+  const todos = await coletarDestinatarios(opts.unidadeId, opts.unidade);
+  const destinatarios = opts.destinatariosOverride
+    ? todos.filter((d) => opts.destinatariosOverride!.includes(d))
+    : todos;
   const html = htmlReativacao({
     unidadeNome: opts.unidade.nome,
     motivo: opts.motivo,
     reativadoEm: opts.reativadoEm,
   });
   const subject = `[PAWARDS] Clinica ${opts.unidade.nome} foi reativada`;
-  const { enviados, falhas } = await enviarParaTodos(destinatarios, subject, html);
-  return { destinatarios, enviados, falhas };
+  const { enviados, falhas, detalhes } = await enviarParaTodos(destinatarios, subject, html);
+  return { destinatarios, enviados, falhas, detalhes };
 }
 
 /**

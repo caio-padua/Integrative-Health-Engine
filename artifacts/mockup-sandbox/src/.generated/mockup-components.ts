@@ -15,6 +15,7 @@ export const modules: ModuleMap = {
   "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx"),
   "./components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx": () => import("../components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx"),
   "./components/mockups/padua-atelier/PaduaAtelierPanel.tsx": () => import("../components/mockups/padua-atelier/PaduaAtelierPanel.tsx"),
+  "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx"),
   "./components/mockups/pawards-showcase/LogoOptions.tsx": () => import("../components/mockups/pawards-showcase/LogoOptions.tsx"),
   "./components/mockups/pawards-showcase/PdfHeaderFooter.tsx": () => import("../components/mockups/pawards-showcase/PdfHeaderFooter.tsx"),
   "./components/mockups/pawards-showcase/RasHmed.tsx": () => import("../components/mockups/pawards-showcase/RasHmed.tsx"),
