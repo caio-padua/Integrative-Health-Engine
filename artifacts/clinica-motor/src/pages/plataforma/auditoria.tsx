@@ -3,7 +3,17 @@ import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
-import { Scale, RefreshCw, ShieldAlert } from "lucide-react";
+import { Scale, RefreshCw, ShieldAlert, Mail, Send, ChevronDown, ChevronRight } from "lucide-react";
+
+type RegistroAviso = {
+  tipo: "SUSPENSAO" | "REATIVACAO" | "REENVIO_SUSPENSAO" | "REENVIO_REATIVACAO";
+  destinatarios: string[];
+  enviados: number;
+  falhas: number;
+  erro: string | null;
+  em: string;
+  executado_por_usuario_id: number;
+};
 
 type Evento = {
   id: number;
@@ -13,7 +23,7 @@ type Evento = {
   motivo: string | null;
   ip: string | null;
   user_agent: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, unknown> & { avisos?: RegistroAviso[] };
   criado_em: string;
   unidade_nome: string | null;
   executor_nome: string | null;
@@ -31,11 +41,18 @@ const ACAO_COR: Record<string, string> = {
   EXCLUIR_CANCELAR: "bg-zinc-700/50 text-zinc-300 border-zinc-600",
 };
 
+function metadataSemAvisos(metadata: Record<string, unknown>): Record<string, unknown> {
+  const { avisos: _avisos, ...resto } = metadata;
+  return resto;
+}
+
 export default function PlataformaAuditoria() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroAcao, setFiltroAcao] = useState<string>("");
+  const [expandidoEventoId, setExpandidoEventoId] = useState<number | null>(null);
+  const [reenviandoEventoId, setReenviandoEventoId] = useState<number | null>(null);
   const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
@@ -55,6 +72,35 @@ export default function PlataformaAuditoria() {
   }, []);
 
   useEffect(() => { void carregar(); }, [carregar]);
+
+  async function reenviarAvisos(eventoId: number) {
+    if (!window.confirm(
+      "Reenviar emails de aviso pra todos os destinatarios deste evento?\n" +
+      "O resultado ficara registrado no historico (auditoria_kill_switch).",
+    )) return;
+    setReenviandoEventoId(eventoId);
+    const r = await runWithStepUp(() =>
+      apiFetch(
+        `/api/plataforma/auditoria/${eventoId}/reenviar-avisos`,
+        { method: "POST", credentials: "include" },
+      ),
+    );
+    setReenviandoEventoId(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Erro: ${j.error ?? r.statusText}`);
+      return;
+    }
+    const j = await r.json();
+    alert(
+      `Reenvio concluido.\n\n` +
+      `Destinatarios: ${j.email?.destinatarios?.length ?? 0}\n` +
+      `Enviados: ${j.email?.enviados ?? 0}\n` +
+      `Falhas: ${j.email?.falhas ?? 0}` +
+      (j.erro ? `\n\nErro geral: ${j.erro}` : ""),
+    );
+    await carregar();
+  }
 
   const acoes = Array.from(new Set(eventos.map(e => e.acao))).sort();
   const visiveis = filtroAcao ? eventos.filter(e => e.acao === filtroAcao) : eventos;
@@ -118,6 +164,13 @@ export default function PlataformaAuditoria() {
               )}
               {!loading && visiveis.map(e => {
                 const cor = ACAO_COR[e.acao] ?? "bg-zinc-700/40 text-zinc-300 border-zinc-600";
+                const avisos = Array.isArray(e.metadata?.avisos) ? e.metadata.avisos : [];
+                const temAvisos = avisos.length > 0;
+                const totalEnviados = avisos.reduce((a, av) => a + (av.enviados ?? 0), 0);
+                const totalFalhas = avisos.reduce((a, av) => a + (av.falhas ?? 0), 0);
+                const podeReenviar = e.acao === "SUSPENDER" || e.acao === "REASSUMIR";
+                const expandido = expandidoEventoId === e.id;
+                const restoMetadata = metadataSemAvisos(e.metadata ?? {});
                 return (
                   <tr key={e.id} className="border-t border-zinc-800 align-top">
                     <td className="px-4 py-3 text-xs text-zinc-400 whitespace-nowrap">
@@ -138,10 +191,85 @@ export default function PlataformaAuditoria() {
                       {e.ip && <div className="text-[10px] text-zinc-600 font-mono mt-1">ip {e.ip}</div>}
                     </td>
                     <td className="px-4 py-3 text-xs text-zinc-300 max-w-md">
-                      {e.motivo && <div className="italic mb-1">"{e.motivo}"</div>}
-                      {e.metadata && Object.keys(e.metadata).length > 0 && (
+                      {e.motivo && <div className="italic mb-2">"{e.motivo}"</div>}
+
+                      {(temAvisos || podeReenviar) && (
+                        <div className="mb-2 border border-zinc-800 rounded bg-zinc-950/40 p-2">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <button
+                              onClick={() => setExpandidoEventoId(expandido ? null : e.id)}
+                              className="inline-flex items-center gap-1 text-zinc-300 hover:text-amber-300"
+                            >
+                              {expandido ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                              <Mail size={12} />
+                              <span className="font-semibold">Avisos</span>
+                              {temAvisos ? (
+                                <>
+                                  <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                    {totalEnviados} enviados
+                                  </span>
+                                  {totalFalhas > 0 && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300 border border-red-500/40">
+                                      {totalFalhas} falhas
+                                    </span>
+                                  )}
+                                  <span className="text-zinc-500 text-[10px]">
+                                    · {avisos.length} tentativa(s)
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="ml-1 text-zinc-500 italic text-[10px]">
+                                  nenhum aviso registrado
+                                </span>
+                              )}
+                            </button>
+                            {podeReenviar && (
+                              <button
+                                disabled={reenviandoEventoId === e.id}
+                                onClick={() => void reenviarAvisos(e.id)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
+                                title="Reenviar emails de aviso pra todos os destinatarios"
+                              >
+                                <Send size={11} />
+                                {reenviandoEventoId === e.id ? "reenviando..." : "Reenviar avisos"}
+                              </button>
+                            )}
+                          </div>
+                          {expandido && temAvisos && (
+                            <div className="mt-2 space-y-1">
+                              {avisos.map((av, i) => (
+                                <div key={i} className="border-l-2 border-zinc-700 pl-2 text-[11px]">
+                                  <div className="flex flex-wrap gap-2 items-center">
+                                    <span className="text-zinc-300 font-mono">{av.tipo}</span>
+                                    <span className="text-zinc-500">
+                                      {new Date(av.em).toLocaleString("pt-BR")}
+                                    </span>
+                                    <span className="text-emerald-300">{av.enviados} enviados</span>
+                                    {av.falhas > 0 && (
+                                      <span className="text-red-300">{av.falhas} falhas</span>
+                                    )}
+                                    <span className="text-zinc-500">
+                                      · {av.destinatarios.length} destinatario(s)
+                                    </span>
+                                  </div>
+                                  {av.destinatarios.length > 0 && (
+                                    <div className="text-zinc-500 mt-0.5 break-all">
+                                      {av.destinatarios.join(", ")}
+                                    </div>
+                                  )}
+                                  {av.erro && (
+                                    <div className="text-red-400 mt-0.5">erro: {av.erro}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {Object.keys(restoMetadata).length > 0 && (
                         <pre className="text-[10px] bg-zinc-950/60 border border-zinc-800 rounded p-2 overflow-x-auto text-zinc-400">
-{JSON.stringify(e.metadata, null, 2)}
+{JSON.stringify(restoMetadata, null, 2)}
                         </pre>
                       )}
                     </td>
