@@ -990,6 +990,17 @@ router.post(
       },
       eventoId,
     );
+    // Task #150 — marca alerta de email travado (Task #141) como visualizado
+    // quando o Caio reenvia o aviso pelo painel (Task #134). Idempotente:
+    // a clausula visualizado_em IS NULL evita sobrescrever timestamp anterior.
+    if (emailErro === null) {
+      await db.execute(sql`
+        UPDATE alertas_ceo_killswitch_emails
+           SET visualizado_em = NOW()
+         WHERE evento_id = ${eventoId}
+           AND visualizado_em IS NULL
+      `);
+    }
     res.json({ ok: true, email: emailRes, erro: emailErro });
   },
 );
