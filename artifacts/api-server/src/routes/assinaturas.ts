@@ -1522,7 +1522,7 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
     }
 
     // 4. Dispara worker imediatamente — sem esperar 5min
-    let stats: { tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number } | null = null;
+    let stats: { tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number; alertaCeoTeimoso: number } | null = null;
     try {
       const { rodarPdfRetryUploadAgora } = await import("../lib/recorrencia/pdfRetryUpload.js");
       stats = await rodarPdfRetryUploadAgora();

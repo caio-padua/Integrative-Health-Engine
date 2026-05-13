@@ -46,7 +46,14 @@ interface EventoFalho {
   envelope_id: string | null;
   payload_bruto: Record<string, unknown>;
   tentativas_retry: number;
+  resets_manuais_count: number;
 }
+
+// Task #72 — limiar de "reset teimoso". 3 resets manuais que continuam
+// falhando indica que a causa raiz nao foi resolvida (bucket continua
+// cheio, credencial ainda invalida) e o CEO precisa escalar pra inspecao
+// manual real (baixar o PDF do ZapSign na mao).
+const RESETS_TEIMOSO_LIMITE = 3;
 
 async function buscarEventosElegiveis(): Promise<EventoFalho[]> {
   // Filtra:
@@ -58,7 +65,8 @@ async function buscarEventosElegiveis(): Promise<EventoFalho[]> {
   // O backoff eh montado em SQL via CASE WHEN pra evitar IO entre selecao
   // e elegibilidade.
   const r: any = await db.execute(sql`
-    SELECT id, provedor_codigo, envelope_id, payload_bruto, tentativas_retry
+    SELECT id, provedor_codigo, envelope_id, payload_bruto, tentativas_retry,
+           resets_manuais_count
     FROM assinatura_webhook_eventos
     WHERE erro_processamento LIKE 'pdf_upload_falhou:%'
       AND recebido_em > NOW() - INTERVAL '${sql.raw(String(JANELA_DIAS))} days'
@@ -307,8 +315,140 @@ async function dispararAlertaCeoUploadEsgotado(
   }
 }
 
-async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number }> {
-  const stats = { tentados: 0, sucesso: 0, falhou: 0, bloqueados: 0, alertaCeo: 0 };
+// Task #72 — Avisa o CEO quando o mesmo evento ja foi resetado manualmente
+// 3+ vezes (resets_manuais_count >= 3) e voltou a falhar. Indica que a
+// causa raiz NAO foi resolvida e o operador esta queimando ciclos clicando
+// em "tentar de novo" sem subir pra escalar (ex.: baixar PDF do ZapSign na
+// mao). Reusa a fila `assinatura_notificacoes` igual ao alerta da task #50,
+// com codigo proprio `UPLOAD_PDF_RESET_TEIMOSO` e idempotencia atomica via
+// UNIQUE parcial em (webhook_evento_id, canal, destinatario) WHERE
+// momento='UPLOAD_PDF_RESET_TEIMOSO' (1 alerta por evento — resets futuros
+// nao spammam).
+//
+// Defensivo: nunca lanca; falha em silencio com log. O alerta eh secundario
+// — o objetivo principal do worker (gravar PDF no bucket) ja falhou nesse
+// ponto, e nao queremos derrubar o tick por falha em enfileirar e-mail.
+async function dispararAlertaCeoResetTeimoso(
+  eventoId: number,
+  envelopeId: string | null,
+  solicitacaoId: number | null,
+  resetsManuaisCount: number,
+  motivoUltimaTentativa: string,
+): Promise<void> {
+  try {
+    const tx: any = await db.execute(sql`
+      SELECT assunto, corpo
+      FROM assinatura_textos_institucionais
+      WHERE codigo = 'UPLOAD_PDF_RESET_TEIMOSO' AND ativo = true
+      LIMIT 1
+    `);
+    const txRow = ((tx.rows ?? tx) as Array<{ assunto: string | null; corpo: string }>)[0];
+    if (!txRow) {
+      console.warn(`[pdfRetryUpload] alerta CEO sem texto institucional cadastrado (codigo=UPLOAD_PDF_RESET_TEIMOSO)`);
+      return;
+    }
+
+    let templateNome = "(template desconhecido)";
+    let pacienteNome = "(sem paciente)";
+    let ultimoResetPor = "(desconhecido)";
+    let ultimoResetMotivo: string | null = null;
+    if (solicitacaoId) {
+      const meta: any = await db.execute(sql`
+        SELECT t.nome_exibicao AS template_nome,
+               p.nome AS paciente_nome
+        FROM assinatura_solicitacoes s
+        LEFT JOIN assinatura_templates t ON t.id = s.template_id
+        LEFT JOIN pacientes p ON p.id = s.paciente_id
+        WHERE s.id = ${solicitacaoId}
+        LIMIT 1
+      `);
+      const mrow = ((meta.rows ?? meta) as Array<{ template_nome: string | null; paciente_nome: string | null }>)[0];
+      if (mrow) {
+        templateNome = mrow.template_nome || templateNome;
+        pacienteNome = mrow.paciente_nome || pacienteNome;
+      }
+    }
+    const auditoriaReset: any = await db.execute(sql`
+      SELECT ultimo_reset_por, ultimo_reset_motivo
+      FROM assinatura_webhook_eventos
+      WHERE id = ${eventoId}
+      LIMIT 1
+    `);
+    const arRow = ((auditoriaReset.rows ?? auditoriaReset) as Array<{ ultimo_reset_por: string | null; ultimo_reset_motivo: string | null }>)[0];
+    if (arRow) {
+      ultimoResetPor = arRow.ultimo_reset_por || ultimoResetPor;
+      ultimoResetMotivo = arRow.ultimo_reset_motivo;
+    }
+
+    const ceos: any = await db.execute(sql`
+      SELECT email, telefone FROM usuarios
+      WHERE perfil = 'validador_mestre' AND ativo = true
+    `);
+    const ceoRows = ((ceos.rows ?? ceos) as Array<{ email: string | null; telefone: string | null }>);
+    if (ceoRows.length === 0) {
+      console.warn(`[pdfRetryUpload] alerta CEO reset teimoso sem destinatarios (nenhum validador_mestre ativo)`);
+      return;
+    }
+
+    const baseUrl = (
+      process.env.PUBLIC_APP_URL ||
+      (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0].trim()}` : "") ||
+      "http://localhost:80"
+    ).replace(/\/+$/, "");
+    const linkSolicitacao = solicitacaoId ? `${baseUrl}/assinaturas/${solicitacaoId}` : "(sem solicitacao vinculada)";
+    const corpo =
+      `${txRow.corpo}\n\n` +
+      `--- detalhes ---\n` +
+      `Template: ${templateNome}\n` +
+      `Paciente: ${pacienteNome}\n` +
+      `Solicitacao: ${solicitacaoId ? `#${solicitacaoId}` : "(nao vinculada)"}\n` +
+      `Envelope: ${envelopeId ?? "(ausente)"}\n` +
+      `Evento webhook: #${eventoId}\n` +
+      `Resets manuais: ${resetsManuaisCount}x\n` +
+      `Ultimo reset por: ${ultimoResetPor}\n` +
+      `Ultimo reset motivo: ${ultimoResetMotivo ?? "(nao informado)"}\n` +
+      `Ultima falha do worker: ${motivoUltimaTentativa}\n\n` +
+      `Abrir detalhe: ${linkSolicitacao}`;
+    const assunto = txRow.assunto || "[CEO] PAWARDS · upload de PDF resetado 3+ vezes e continua falhando";
+
+    for (const ceo of ceoRows) {
+      const emailDest = (ceo.email || "").trim();
+      if (emailDest && emailDest.includes("@")) {
+        await db.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, assunto, corpo,
+             status, is_sistema_ceo, webhook_evento_id)
+          VALUES
+            (${solicitacaoId}, 'EMAIL', 'UPLOAD_PDF_RESET_TEIMOSO', ${emailDest},
+             ${assunto}, ${corpo}, 'PENDENTE', true, ${eventoId})
+          ON CONFLICT (webhook_evento_id, canal, destinatario)
+            WHERE momento = 'UPLOAD_PDF_RESET_TEIMOSO' AND webhook_evento_id IS NOT NULL
+            DO NOTHING
+        `);
+      }
+      const telDest = (ceo.telefone || "").trim();
+      if (telDest) {
+        await db.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, corpo,
+             status, is_sistema_ceo, webhook_evento_id)
+          VALUES
+            (${solicitacaoId}, 'WHATSAPP', 'UPLOAD_PDF_RESET_TEIMOSO', ${telDest},
+             ${corpo}, 'PENDENTE', true, ${eventoId})
+          ON CONFLICT (webhook_evento_id, canal, destinatario)
+            WHERE momento = 'UPLOAD_PDF_RESET_TEIMOSO' AND webhook_evento_id IS NOT NULL
+            DO NOTHING
+        `);
+      }
+    }
+    console.log(`[pdfRetryUpload] alerta CEO reset teimoso enfileirado evento=${eventoId} solicitacao=${solicitacaoId} resets=${resetsManuaisCount} destinatarios=${ceoRows.length}`);
+  } catch (e) {
+    console.error(`[pdfRetryUpload] falha ao enfileirar alerta CEO reset teimoso evento=${eventoId}:`, (e as Error).message);
+  }
+}
+
+async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number; alertaCeoTeimoso: number }> {
+  const stats = { tentados: 0, sucesso: 0, falhou: 0, bloqueados: 0, alertaCeo: 0, alertaCeoTeimoso: 0 };
   const eventos = await buscarEventosElegiveis();
   for (const ev of eventos) {
     const reservou = await reservarTentativa(ev.id, ev.tentativas_retry);
@@ -382,6 +522,39 @@ async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: n
       await dispararAlertaCeoUploadEsgotado(ev.id, envelopeId, solicitacaoId, motivoFalha);
       stats.alertaCeo += 1;
     }
+
+    // Task #72 — Reset teimoso: o mesmo evento ja foi resetado manualmente
+    // 3+ vezes (resets_manuais_count >= 3) e voltou a falhar. Indica que
+    // a causa raiz NAO foi resolvida (bucket cheio, credencial invalida) e
+    // o Caio esta queimando ciclos clicando em "tentar de novo". Dispara
+    // alerta CEO independente do esgotamento — o evento pode ainda estar
+    // em tentativa 1/5 do ciclo atual, o que importa eh o padrao acumulado
+    // de resets que continuam falhando. Idempotencia via UNIQUE parcial em
+    // momento='UPLOAD_PDF_RESET_TEIMOSO' (1 alerta por evento total).
+    // Tambem ignora o caso "auditoria_inexistente_*" que NAO conta como
+    // falha real (estamos esperando o webhook reentregar).
+    if (motivoFalha !== null && ev.resets_manuais_count >= RESETS_TEIMOSO_LIMITE) {
+      const envelopeId = ev.envelope_id || extrairEnvelopeIdDoPayload(ev.payload_bruto);
+      let solicitacaoId: number | null = null;
+      if (envelopeId) {
+        const sol: any = await db.execute(sql`
+          SELECT id FROM assinatura_solicitacoes
+          WHERE provedor_envelope_id = ${envelopeId}
+            AND provedor_codigo = ${ev.provedor_codigo}
+          LIMIT 1
+        `);
+        const srow = ((sol.rows ?? sol) as Array<{ id: number }>)[0];
+        if (srow) solicitacaoId = srow.id;
+      }
+      await dispararAlertaCeoResetTeimoso(
+        ev.id,
+        envelopeId,
+        solicitacaoId,
+        ev.resets_manuais_count,
+        motivoFalha,
+      );
+      stats.alertaCeoTeimoso += 1;
+    }
   }
   return stats;
 }
@@ -400,7 +573,7 @@ export function iniciarWorkerPdfRetryUpload(): void {
         if (!lockAdquirido) return;
         const stats = await rodarCiclo(runId);
         if (stats.tentados > 0 || stats.bloqueados > 0) {
-          console.log(`[pdfRetryUpload ${runId}] tentados=${stats.tentados} sucesso=${stats.sucesso} falhou=${stats.falhou} bloqueados=${stats.bloqueados} alertaCeo=${stats.alertaCeo}`);
+          console.log(`[pdfRetryUpload ${runId}] tentados=${stats.tentados} sucesso=${stats.sucesso} falhou=${stats.falhou} bloqueados=${stats.bloqueados} alertaCeo=${stats.alertaCeo} alertaCeoTeimoso=${stats.alertaCeoTeimoso}`);
         }
       } catch (e) {
         console.error(`[pdfRetryUpload ${runId}] erro fatal:`, (e as Error).message);
@@ -415,6 +588,6 @@ export function iniciarWorkerPdfRetryUpload(): void {
 }
 
 // Exposto pra teste manual / endpoint admin
-export async function rodarPdfRetryUploadAgora(): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number }> {
+export async function rodarPdfRetryUploadAgora(): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number; alertaCeoTeimoso: number }> {
   return rodarCiclo(`manual_${Date.now()}`);
 }
