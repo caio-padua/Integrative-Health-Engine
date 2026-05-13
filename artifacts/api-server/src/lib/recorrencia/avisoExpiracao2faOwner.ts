@@ -51,6 +51,9 @@ interface OwnerCandidato {
   nome: string;
   email: string;
   ultimo_login_2fa_em: Date;
+  // Task #159 — preferencia de canais por owner. Default DB: ['email','whatsapp'].
+  // Array vazio = mudo (so o banner in-app da Task #130 avisa).
+  canais_aviso_2fa: string[];
 }
 
 function sanitizeHeader(s: string): string {
@@ -164,7 +167,7 @@ async function tick(): Promise<void> {
     const maxMin = JANELA_2FA_MIN;                    // 480min = 8h
 
     const candidatosResult: any = await db.execute(sql`
-      SELECT id, nome, email, ultimo_login_2fa_em
+      SELECT id, nome, email, ultimo_login_2fa_em, canais_aviso_2fa
         FROM usuarios
        WHERE perfil_plataforma = 'platform_owner'
          AND ativo = true
@@ -199,8 +202,20 @@ async function tick(): Promise<void> {
       let emailOk = false;
       let whatsappOk = false;
 
-      // Email — alvo principal (sempre tenta).
-      try {
+      // Task #159 — owner pode desligar canais individualmente.
+      // Distincao critica:
+      //   - NULL/undefined (row legada pre-Migration 048) -> default
+      //     ['email','whatsapp'] pra preservar comportamento da Task #146.
+      //   - [] (array vazio explicito) -> MUDO. Owner desligou ambos
+      //     conscientemente; so o banner in-app da Task #130 avisa.
+      const canais = Array.isArray(c.canais_aviso_2fa)
+        ? c.canais_aviso_2fa
+        : ["email", "whatsapp"];
+      const querEmail = canais.includes("email");
+      const querWhatsapp = canais.includes("whatsapp");
+
+      // Email — alvo principal (so se o owner ainda quiser receber por email).
+      if (querEmail) try {
         const gmail = await getGmailClient();
         const html = montarHtml({
           nome: c.nome,
@@ -221,8 +236,9 @@ async function tick(): Promise<void> {
         );
       }
 
-      // WhatsApp — best-effort (so se CEO_WHATSAPP estiver setado).
-      if (CEO_WHATSAPP) {
+      // WhatsApp — best-effort (so se CEO_WHATSAPP estiver setado E o owner
+      // mantiver o canal "whatsapp" em canais_aviso_2fa — Task #159).
+      if (CEO_WHATSAPP && querWhatsapp) {
         try {
           const r = await enviarWhatsapp(
             CEO_WHATSAPP,

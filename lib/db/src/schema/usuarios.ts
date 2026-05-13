@@ -31,6 +31,10 @@ export const usuariosTable = pgTable("usuarios", {
   totpSecretCifrado: text("totp_secret_cifrado"),
   totpAtivadoEm: timestamp("totp_ativado_em", { withTimezone: true }),
   ultimoLogin2faEm: timestamp("ultimo_login_2fa_em", { withTimezone: true }),
+  // Task #159 — preferencia de canais pra aviso de expiracao 2FA
+  // (Migration 048). Default ['email','whatsapp'] preserva comportamento
+  // legado do worker avisoExpiracao2faOwner (Task #146).
+  canaisAviso2fa: text("canais_aviso_2fa").array().notNull().default(["email", "whatsapp"]),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

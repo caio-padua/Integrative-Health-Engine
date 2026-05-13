@@ -193,6 +193,9 @@ router.get("/usuarios/perfil-atual", async (req, res): Promise<void> => {
       // Task #130: usado pelo banner de aviso 2FA no painel /plataforma/*
       // pra mostrar countdown antes da janela de 8h expirar.
       ultimoLogin2faEm: usuariosTable.ultimoLogin2faEm,
+      // Task #159 — preferencia de canais pra aviso de expiracao 2FA
+      // (usado pela tela /plataforma/perfil pra mostrar o estado atual).
+      canaisAviso2fa: usuariosTable.canaisAviso2fa,
     })
     .from(usuariosTable)
     .leftJoin(unidadesTable, eq(usuariosTable.unidadeId, unidadesTable.id))
@@ -227,6 +230,50 @@ const PERFIS_ADMIN = new Set(["validador_mestre", "consultoria_master"]);
 function isAdmin(req: any): boolean {
   return !!req.user && (PERFIS_ADMIN.has(req.user.perfil) || req.user.escopo === "consultoria_master");
 }
+
+// Task #159 — PATCH dedicado pra preferencia de canais de aviso 2FA do
+// platform_owner. Isolado do PUT /usuarios/:id pra evitar misturar com
+// SELF_FIELDS (e o owner editando a propria preferencia, nao um campo
+// cadastral). Aceita "email" e "whatsapp" — array vazio = mudo (so o
+// banner in-app da Task #130 avisa). Sempre normaliza removendo dupes
+// e valores invalidos.
+router.patch("/usuarios/me/canais-aviso-2fa", async (req, res): Promise<void> => {
+  if (!req.user) { res.status(401).json({ error: "Nao autenticado" }); return; }
+  // Hardening pos-code-review: a preferencia so faz sentido pra
+  // platform_owner (o worker filtra por esse perfil antes de disparar).
+  // Bloqueia escrita pra evitar drift silencioso em outras contas.
+  if (req.user.perfilPlataforma !== "platform_owner") {
+    res.status(403).json({
+      error: "Preferencia de aviso 2FA e exclusiva do platform_owner.",
+      perfil_minimo: "platform_owner",
+    });
+    return;
+  }
+  const body = req.body as { canaisAviso2fa?: unknown };
+  if (!Array.isArray(body.canaisAviso2fa)) {
+    res.status(400).json({ error: "canaisAviso2fa deve ser array" });
+    return;
+  }
+  const VALIDOS = new Set(["email", "whatsapp"]);
+  const canais = Array.from(
+    new Set(
+      body.canaisAviso2fa
+        .filter((c): c is string => typeof c === "string")
+        .filter((c) => VALIDOS.has(c)),
+    ),
+  );
+  try {
+    const [updated] = await db
+      .update(usuariosTable)
+      .set({ canaisAviso2fa: canais })
+      .where(eq(usuariosTable.id, req.user.sub))
+      .returning({ canaisAviso2fa: usuariosTable.canaisAviso2fa });
+    if (!updated) { res.status(404).json({ error: "Usuario nao encontrado" }); return; }
+    res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Erro interno" });
+  }
+});
 
 router.put("/usuarios/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
