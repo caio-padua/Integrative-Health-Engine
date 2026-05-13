@@ -128,11 +128,28 @@ export default function AssinaturasAlertasCEO() {
   const [undoToast, setUndoToast] = useState<{ ids: number[]; expiraEm: number } | null>(null);
   const [desfazendo, setDesfazendo] = useState(false);
   const [undoRestanteMs, setUndoRestanteMs] = useState(0);
+  // Task #78: pausar contagem regressiva ao pairar/focar o toast.
+  // Guardamos o instante em que a pausa começou pra calcular quanto tempo
+  // o toast ficou parado e empurrar o expiraEm pra frente quando o mouse sair.
+  const [undoPausadoEm, setUndoPausadoEm] = useState<number | null>(null);
 
   // Auto-fechar o toast de undo quando a janela expira (8s) + tickar contagem
   // regressiva (Task #74) a cada 100ms pra animar barra/contador suavemente.
   useEffect(() => {
-    if (!undoToast) { setUndoRestanteMs(0); return; }
+    if (!undoToast) {
+      setUndoRestanteMs(0);
+      // Task #78: limpa qualquer pausa pendente quando o toast some
+      // (ex: usuário clicou Desfazer com mouse ainda em cima — onMouseLeave
+      // não dispara nesse caso). Sem isso, o próximo toast nasceria pausado.
+      setUndoPausadoEm(null);
+      return;
+    }
+    // Task #78: enquanto pausado, congela o display no tempo restante atual
+    // e não roda o interval (não decrementa nem fecha sozinho).
+    if (undoPausadoEm !== null) {
+      setUndoRestanteMs(Math.max(0, undoToast.expiraEm - undoPausadoEm));
+      return;
+    }
     const atualizar = () => {
       const restante = Math.max(0, undoToast.expiraEm - Date.now());
       setUndoRestanteMs(restante);
@@ -141,7 +158,20 @@ export default function AssinaturasAlertasCEO() {
     atualizar();
     const i = setInterval(atualizar, 100);
     return () => clearInterval(i);
-  }, [undoToast]);
+  }, [undoToast, undoPausadoEm]);
+
+  const pausarUndo = useCallback(() => {
+    setUndoPausadoEm((prev) => (prev !== null ? prev : Date.now()));
+  }, []);
+
+  const retomarUndo = useCallback(() => {
+    setUndoPausadoEm((pausadoEm) => {
+      if (pausadoEm === null) return null;
+      const tempoParado = Date.now() - pausadoEm;
+      setUndoToast((t) => (t ? { ...t, expiraEm: t.expiraEm + tempoParado } : t));
+      return null;
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -296,6 +326,10 @@ export default function AssinaturasAlertasCEO() {
           data-testid="toast-undo-marcar-todos"
           role="status"
           aria-live="polite"
+          onMouseEnter={pausarUndo}
+          onMouseLeave={retomarUndo}
+          onFocus={pausarUndo}
+          onBlur={retomarUndo}
         >
           <div className="flex items-center gap-3 px-4 py-3">
             <CheckCircle2 size={16} style={{ color: GOLD }} />
