@@ -13,8 +13,39 @@ export type ArtifactConfig = {
   helperFn: string;
   allowlist: string[];
   helperMissing?: boolean;
+  helperExportMissing?: boolean;
   helperExpectedPath?: string;
 };
+
+export function helperFileExports(src: string, fnName: string): boolean {
+  const stripped = src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  const escaped = fnName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const named = new RegExp(
+    `\\bexport\\s+(?:async\\s+)?(?:function|const|let|var|class)\\s+${escaped}\\b`,
+  );
+  if (named.test(stripped)) return true;
+  // Re-exports: export { foo, bar as baz } from "..."
+  // Pula `export type { ... }` (type-only nao e export de runtime).
+  const reexportRe = /\bexport\s+(type\s+)?\{([^}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = reexportRe.exec(stripped)) !== null) {
+    if (m[1]) continue;
+    const parts = m[2]
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      const asMatch = part.match(/^(\w+)\s+as\s+(\w+)$/);
+      const exportedName = asMatch
+        ? asMatch[2]
+        : part.match(/^\w+$/)?.[0];
+      if (exportedName === fnName) return true;
+    }
+  }
+  return false;
+}
 
 const EXPLICIT_CONFIGS: ArtifactConfig[] = [
   {
@@ -48,15 +79,22 @@ function discoverArtifacts(): ArtifactConfig[] {
     if (kind !== "web") continue;
     const src = join(artifactDir, "src");
     if (!existsSync(src) || !statSync(src).isDirectory()) continue;
+    const helperFn = "apiFetch";
     const helperCandidate = join(src, "lib/api-fetch.ts");
     const helperMissing = !existsSync(helperCandidate);
+    let helperExportMissing = false;
+    if (!helperMissing) {
+      const helperSrc = readFileSync(helperCandidate, "utf8");
+      helperExportMissing = !helperFileExports(helperSrc, helperFn);
+    }
     found.push({
       name: entry,
       root: src,
       helperImport: "./lib/api-fetch",
-      helperFn: "apiFetch",
+      helperFn,
       allowlist: helperMissing ? [] : [helperCandidate],
       helperMissing,
+      helperExportMissing,
       helperExpectedPath: helperCandidate,
     });
   }
@@ -148,13 +186,18 @@ export function scanAll(
   return { configs, violations };
 }
 
-const isMain =
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith("check-api-fetch.ts");
-
-if (isMain) {
-  const { configs, violations } = scanAll();
+export function emitHelperWarnings(
+  configs: ArtifactConfig[],
+  violations: Violation[],
+  out: { warn: (msg: string) => void; error: (msg: string) => void } = {
+    warn: (m) => console.warn(m),
+    error: (m) => console.error(m),
+  },
+): { helperMissingHardFail: boolean } {
   const missingHelper = configs.filter((c) => c.helperMissing);
+  const exportMissingHelper = configs.filter(
+    (c) => !c.helperMissing && c.helperExportMissing,
+  );
   const violationsByArtifactPre = new Map<string, number>();
   for (const v of violations) {
     violationsByArtifactPre.set(
@@ -170,15 +213,33 @@ if (isMain) {
       : `${cfg.name}/src/lib/api-fetch.ts`;
     if (violCount > 0) {
       helperMissingHardFail = true;
-      console.error(
+      out.error(
         `[check-api-fetch] ERRO: artifact "${cfg.name}" (kind=web) nao tem helper autenticado em ${expected} e ja faz ${violCount} chamada(s) crua(s) a /api. Crie o helper (export ${cfg.helperFn}) e use-o em vez de fetch().`,
       );
     } else {
-      console.warn(
+      out.warn(
         `[check-api-fetch] AVISO: artifact "${cfg.name}" (kind=web) foi descoberto sem helper autenticado em ${expected}. Crie o arquivo exportando ${cfg.helperFn} antes de fazer chamadas a /api, senao o frontend nasce vulneravel a 401 silencioso (ver Task #108).`,
       );
     }
   }
+  for (const cfg of exportMissingHelper) {
+    const expected = cfg.helperExpectedPath
+      ? relative(process.cwd(), cfg.helperExpectedPath)
+      : `${cfg.name}/src/lib/api-fetch.ts`;
+    out.warn(
+      `[check-api-fetch] AVISO: artifact "${cfg.name}" (kind=web) tem o arquivo ${expected}, mas ele nao exporta ${cfg.helperFn}. Adicione \`export function ${cfg.helperFn}\` (ou \`export const ${cfg.helperFn}\`) — sem isso, importar ${cfg.helperFn} no resto do codigo resolve para undefined e o frontend nasce vulneravel a 401 silencioso (ver Task #108/#113).`,
+    );
+  }
+  return { helperMissingHardFail };
+}
+
+const isMain =
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith("check-api-fetch.ts");
+
+if (isMain) {
+  const { configs, violations } = scanAll();
+  const { helperMissingHardFail } = emitHelperWarnings(configs, violations);
   if (violations.length > 0) {
     console.error(
       "\n[check-api-fetch] Chamadas cruas a fetch('/api/...') detectadas.\n",
