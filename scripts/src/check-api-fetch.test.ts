@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { loadArtifactConfigs, scanFile, helperFileExports, emitHelperWarnings, type ArtifactConfig } from "./check-api-fetch.js";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { loadArtifactConfigs, scanFile, helperFileExports, helperFunctionBodyOk, emitHelperWarnings, type ArtifactConfig } from "./check-api-fetch.js";
 
 const FAKE = "/fake/file.tsx";
 
@@ -144,6 +148,102 @@ test("clinica-motor (helper presente com export) NAO marca helperExportMissing",
   assert.ok(!cm!.helperExportMissing, "clinica-motor exporta apiFetch, helperExportMissing deve ser falsy");
 });
 
+test("helperFunctionBodyOk: funcao com fetch real -> ok", () => {
+  assert.equal(
+    helperFunctionBodyOk(
+      `export async function apiFetch(input, init) { return fetch(input, init); }`,
+      "apiFetch",
+    ),
+    true,
+  );
+});
+
+test("helperFunctionBodyOk: funcao com corpo vazio -> NAO ok", () => {
+  assert.equal(
+    helperFunctionBodyOk(`export function apiFetch() {}`, "apiFetch"),
+    false,
+  );
+  assert.equal(
+    helperFunctionBodyOk(
+      `export async function apiFetch(input, init) {\n  // TODO\n}`,
+      "apiFetch",
+    ),
+    false,
+  );
+});
+
+test("helperFunctionBodyOk: funcao apenas com return (sem fetch) -> ok", () => {
+  assert.equal(
+    helperFunctionBodyOk(
+      `export function apiFetch() { return Promise.resolve(new Response()); }`,
+      "apiFetch",
+    ),
+    true,
+  );
+});
+
+test("helperFunctionBodyOk: const arrow com chaves vazias -> NAO ok", () => {
+  assert.equal(
+    helperFunctionBodyOk(`export const apiFetch = () => {};`, "apiFetch"),
+    false,
+  );
+});
+
+test("helperFunctionBodyOk: const arrow com fetch nas chaves -> ok", () => {
+  assert.equal(
+    helperFunctionBodyOk(
+      `export const apiFetch = (i, init) => { return fetch(i, init); };`,
+      "apiFetch",
+    ),
+    true,
+  );
+});
+
+test("helperFunctionBodyOk: const arrow expression body sempre retorna -> ok", () => {
+  assert.equal(
+    helperFunctionBodyOk(`export const apiFetch = (i) => fetch(i);`, "apiFetch"),
+    true,
+  );
+  assert.equal(
+    helperFunctionBodyOk(`export const apiFetch = (i) => doSomething(i);`, "apiFetch"),
+    true,
+  );
+});
+
+test("helperFunctionBodyOk: re-export sem corpo local -> ok (nao alarma)", () => {
+  assert.equal(
+    helperFunctionBodyOk(`export { apiFetch } from "./impl";`, "apiFetch"),
+    true,
+  );
+});
+
+test("helperFunctionBodyOk: const = outraFn (atribuicao) -> ok", () => {
+  assert.equal(
+    helperFunctionBodyOk(`import { real } from "./x"; export const apiFetch = real;`, "apiFetch"),
+    true,
+  );
+});
+
+test("helperFunctionBodyOk: ignora fetch dentro de comentarios", () => {
+  assert.equal(
+    helperFunctionBodyOk(
+      `export function apiFetch() {\n  // fetch(input)\n  /* return fetch(x) */\n}`,
+      "apiFetch",
+    ),
+    false,
+  );
+});
+
+test("helperFunctionBodyOk: clinica-motor real exporta corpo valido", () => {
+  // Smoke: o helper de verdade do projeto nao pode ser sinalizado como vazio.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const helperPath = resolve(here, "../../artifacts/clinica-motor/src/lib/api-fetch.ts");
+  if (existsSync(helperPath)) {
+    const src = readFileSync(helperPath, "utf8");
+    assert.equal(helperFunctionBodyOk(src, "apiFetch"), true);
+  }
+});
+
 function makeRecorder() {
   const warns: string[] = [];
   const errors: string[] = [];
@@ -182,6 +282,83 @@ test("emitHelperWarnings: helper presente sem export -> AVISO claro", () => {
 test("emitHelperWarnings: helper presente com export correto -> SILENCIO", () => {
   const rec = makeRecorder();
   const cfg = baseCfg({ name: "ok-front", helperExportMissing: false });
+  const { helperMissingHardFail } = emitHelperWarnings([cfg], [], rec.out);
+  assert.equal(helperMissingHardFail, false);
+  assert.equal(rec.warns.length, 0);
+  assert.equal(rec.errors.length, 0);
+});
+
+test("emitHelperWarnings: helper exporta mas corpo vazio -> AVISO Task #114", () => {
+  const rec = makeRecorder();
+  const cfg = baseCfg({
+    name: "noop-front",
+    helperExportMissing: false,
+    helperBodyEmpty: true,
+  });
+  const { helperMissingHardFail } = emitHelperWarnings([cfg], [], rec.out);
+  assert.equal(helperMissingHardFail, false);
+  assert.equal(rec.errors.length, 0);
+  assert.equal(rec.warns.length, 1);
+  assert.match(rec.warns[0], /AVISO/);
+  assert.match(rec.warns[0], /noop-front/);
+  assert.match(rec.warns[0], /no-op/);
+  assert.match(rec.warns[0], /#114/);
+});
+
+test("integracao: explicit config (clinica-motor-style) com helper de corpo vazio -> AVISO Task #114", () => {
+  // Cria um artifact temporario com helper esvaziado, monta um ArtifactConfig
+  // explicito (mesma forma de EXPLICIT_CONFIGS) e roda o pipeline real
+  // (normalize -> emitHelperWarnings) pra provar que explicit configs tambem
+  // disparam o aviso quando o corpo do helper e no-op.
+  const dir = join(tmpdir(), `pawards-task114-${process.pid}-${Date.now()}`);
+  const helperPath = join(dir, "src/lib/api-fetch.ts");
+  try {
+    mkdirSync(dirname(helperPath), { recursive: true });
+    writeFileSync(helperPath, `export function apiFetch() {}\n`, "utf8");
+
+    // Reusa loadArtifactConfigs via override: criamos manualmente o config
+    // explicito (sem helperMissing pre-populado, igual EXPLICIT_CONFIGS) e
+    // chamamos a normalizacao pelo caminho publico — emitHelperWarnings.
+    const cfg: ArtifactConfig = {
+      name: "explicit-tmp",
+      root: join(dir, "src"),
+      helperImport: "@/lib/api-fetch",
+      helperFn: "apiFetch",
+      allowlist: [helperPath],
+    };
+    // normalizeHelperFlags nao e exportado; a normalizacao acontece dentro
+    // de loadArtifactConfigs. Replicamos aqui o mesmo passo que ela faz pra
+    // validar explicit configs sem mexer no EXPLICIT_CONFIGS real do projeto.
+    const helperSrc = readFileSync(helperPath, "utf8");
+    const normalized: ArtifactConfig = {
+      ...cfg,
+      helperMissing: false,
+      helperExportMissing: !helperFileExports(helperSrc, cfg.helperFn),
+      helperBodyEmpty: !helperFunctionBodyOk(helperSrc, cfg.helperFn),
+      helperExpectedPath: helperPath,
+    };
+    assert.equal(normalized.helperExportMissing, false);
+    assert.equal(normalized.helperBodyEmpty, true);
+
+    const rec = makeRecorder();
+    emitHelperWarnings([normalized], [], rec.out);
+    assert.equal(rec.errors.length, 0);
+    assert.equal(rec.warns.length, 1);
+    assert.match(rec.warns[0], /explicit-tmp/);
+    assert.match(rec.warns[0], /no-op/);
+    assert.match(rec.warns[0], /#114/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("emitHelperWarnings: helper com fetch real -> SILENCIO (sem aviso de corpo)", () => {
+  const rec = makeRecorder();
+  const cfg = baseCfg({
+    name: "real-front",
+    helperExportMissing: false,
+    helperBodyEmpty: false,
+  });
   const { helperMissingHardFail } = emitHelperWarnings([cfg], [], rec.out);
   assert.equal(helperMissingHardFail, false);
   assert.equal(rec.warns.length, 0);

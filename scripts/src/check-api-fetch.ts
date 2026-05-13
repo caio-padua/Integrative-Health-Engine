@@ -14,6 +14,7 @@ export type ArtifactConfig = {
   allowlist: string[];
   helperMissing?: boolean;
   helperExportMissing?: boolean;
+  helperBodyEmpty?: boolean;
   helperExpectedPath?: string;
 };
 
@@ -45,6 +46,122 @@ export function helperFileExports(src: string, fnName: string): boolean {
     }
   }
   return false;
+}
+
+function extractBalancedBraces(src: string, openIdx: number): string {
+  let depth = 0;
+  for (let i = openIdx; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return src.slice(openIdx + 1, i);
+    }
+  }
+  return src.slice(openIdx + 1);
+}
+
+// Pula um par balanceado de delimitadores (ex.: parens da lista de parametros,
+// que podem conter `{}` em valores default tipo `init = {}`). Retorna o indice
+// imediatamente apos o delimitador de fechamento, ou -1 se nao casar.
+function skipBalanced(
+  src: string,
+  openIdx: number,
+  open: string,
+  close: string,
+): number {
+  if (src[openIdx] !== open) return -1;
+  let depth = 0;
+  for (let i = openIdx; i < src.length; i++) {
+    if (src[i] === open) depth++;
+    else if (src[i] === close) {
+      depth--;
+      if (depth === 0) return i + 1;
+    }
+  }
+  return -1;
+}
+
+function bodyHasFetchOrReturn(body: string): boolean {
+  return /\bfetch\s*\(/.test(body) || /\breturn\b/.test(body);
+}
+
+// Heuristica complementar ao helperFileExports: confere que o corpo da
+// funcao exportada nao e um no-op silencioso (ex.: `export function apiFetch() {}`).
+// Retorna true quando:
+//   - a funcao nao e definida diretamente neste arquivo (so re-export) — nao da
+//     pra inspecionar sem seguir o import, entao nao alarma;
+//   - o corpo contem `fetch(` ou `return` (heuristica suficiente pra Task #114);
+//   - e uma arrow sem chaves (ex.: `() => fetch(...)`), que sempre retorna implicito.
+// Retorna false quando o corpo esta visivelmente vazio / sem fetch nem return.
+export function helperFunctionBodyOk(src: string, fnName: string): boolean {
+  const stripped = src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  const escaped = fnName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  // Funcao declarada: `export [async] function NAME (...) [: ReturnType] { ... }`
+  const fnDeclRe = new RegExp(
+    `\\bexport\\s+(?:async\\s+)?function\\s+${escaped}\\s*\\(`,
+  );
+  const declMatch = fnDeclRe.exec(stripped);
+  if (declMatch) {
+    const parenStart = stripped.indexOf("(", declMatch.index);
+    const afterParens = skipBalanced(stripped, parenStart, "(", ")");
+    if (afterParens < 0) return true;
+    const braceIdx = stripped.indexOf("{", afterParens);
+    if (braceIdx < 0) return true;
+    const body = extractBalancedBraces(stripped, braceIdx);
+    return bodyHasFetchOrReturn(body);
+  }
+
+  const constRe = new RegExp(
+    `\\bexport\\s+(?:const|let|var)\\s+${escaped}\\b\\s*(?::[^=]+)?=\\s*`,
+  );
+  const constMatch = constRe.exec(stripped);
+  if (constMatch) {
+    let pos = constMatch.index + constMatch[0].length;
+    // Pula `async` opcional.
+    const asyncMatch = stripped.slice(pos).match(/^async\s+/);
+    if (asyncMatch) pos += asyncMatch[0].length;
+    // Caso 1: `function ...` expression.
+    if (/^function\b/.test(stripped.slice(pos))) {
+      const parenStart = stripped.indexOf("(", pos);
+      const afterParens = skipBalanced(stripped, parenStart, "(", ")");
+      if (afterParens < 0) return true;
+      const braceIdx = stripped.indexOf("{", afterParens);
+      if (braceIdx < 0) return true;
+      const body = extractBalancedBraces(stripped, braceIdx);
+      return bodyHasFetchOrReturn(body);
+    }
+    // Caso 2: arrow function — params (parens balanceados ou ident unico) + `=>`.
+    let afterParams = -1;
+    if (stripped[pos] === "(") {
+      afterParams = skipBalanced(stripped, pos, "(", ")");
+    } else {
+      const identMatch = stripped.slice(pos).match(/^[A-Za-z_$][\w$]*/);
+      if (identMatch) afterParams = pos + identMatch[0].length;
+    }
+    if (afterParams > 0) {
+      // Pula return type opcional `: ...` ate o `=>`, se houver.
+      const tail = stripped.slice(afterParams);
+      const arrowMatch = tail.match(/^(\s*(?::[^=]*?)?\s*)=>\s*/);
+      if (arrowMatch) {
+        const afterArrow = afterParams + arrowMatch[0].length;
+        if (stripped[afterArrow] === "{") {
+          const body = extractBalancedBraces(stripped, afterArrow);
+          return bodyHasFetchOrReturn(body);
+        }
+        // arrow expression body — sempre retorna algo implicitamente.
+        return true;
+      }
+    }
+    // Atribuicao a outro identificador / chamada — nao da pra inspecionar.
+    return true;
+  }
+
+  // So re-export — sem corpo pra inspecionar.
+  return true;
 }
 
 const EXPLICIT_CONFIGS: ArtifactConfig[] = [
@@ -83,9 +200,13 @@ function discoverArtifacts(): ArtifactConfig[] {
     const helperCandidate = join(src, "lib/api-fetch.ts");
     const helperMissing = !existsSync(helperCandidate);
     let helperExportMissing = false;
+    let helperBodyEmpty = false;
     if (!helperMissing) {
       const helperSrc = readFileSync(helperCandidate, "utf8");
       helperExportMissing = !helperFileExports(helperSrc, helperFn);
+      if (!helperExportMissing) {
+        helperBodyEmpty = !helperFunctionBodyOk(helperSrc, helperFn);
+      }
     }
     found.push({
       name: entry,
@@ -95,14 +216,49 @@ function discoverArtifacts(): ArtifactConfig[] {
       allowlist: helperMissing ? [] : [helperCandidate],
       helperMissing,
       helperExportMissing,
+      helperBodyEmpty,
       helperExpectedPath: helperCandidate,
     });
   }
   return found;
 }
 
+// Normaliza qualquer ArtifactConfig (explicito OU auto-descoberto) com a
+// mesma logica de inspecao do helper: arquivo presente? exporta a funcao?
+// corpo nao e no-op? Os explicit configs ja vem com allowlist apontando pro
+// helper, entao basta ler esse arquivo e popular helperMissing/
+// helperExportMissing/helperBodyEmpty + helperExpectedPath. Sem isso, o
+// clinica-motor nunca dispararia o aviso da Task #114, mesmo que alguem
+// esvaziasse o corpo de apiFetch.
+function normalizeHelperFlags(cfg: ArtifactConfig): ArtifactConfig {
+  // Configs auto-descobertos ja vem com tudo populado.
+  if (typeof cfg.helperMissing === "boolean") return cfg;
+  const helperPath = cfg.allowlist[0];
+  if (!helperPath) return cfg;
+  const helperMissing = !existsSync(helperPath);
+  let helperExportMissing = false;
+  let helperBodyEmpty = false;
+  if (!helperMissing) {
+    const helperSrc = readFileSync(helperPath, "utf8");
+    helperExportMissing = !helperFileExports(helperSrc, cfg.helperFn);
+    if (!helperExportMissing) {
+      helperBodyEmpty = !helperFunctionBodyOk(helperSrc, cfg.helperFn);
+    }
+  }
+  return {
+    ...cfg,
+    helperMissing,
+    helperExportMissing,
+    helperBodyEmpty,
+    helperExpectedPath: cfg.helperExpectedPath ?? helperPath,
+  };
+}
+
 export function loadArtifactConfigs(): ArtifactConfig[] {
-  return [...EXPLICIT_CONFIGS, ...discoverArtifacts()];
+  return [
+    ...EXPLICIT_CONFIGS.map(normalizeHelperFlags),
+    ...discoverArtifacts(),
+  ];
 }
 
 const FETCH_CALL_RE = /\bfetch\s*\(/g;
@@ -228,6 +384,17 @@ export function emitHelperWarnings(
       : `${cfg.name}/src/lib/api-fetch.ts`;
     out.warn(
       `[check-api-fetch] AVISO: artifact "${cfg.name}" (kind=web) tem o arquivo ${expected}, mas ele nao exporta ${cfg.helperFn}. Adicione \`export function ${cfg.helperFn}\` (ou \`export const ${cfg.helperFn}\`) — sem isso, importar ${cfg.helperFn} no resto do codigo resolve para undefined e o frontend nasce vulneravel a 401 silencioso (ver Task #108/#113).`,
+    );
+  }
+  const bodyEmptyHelper = configs.filter(
+    (c) => !c.helperMissing && !c.helperExportMissing && c.helperBodyEmpty,
+  );
+  for (const cfg of bodyEmptyHelper) {
+    const expected = cfg.helperExpectedPath
+      ? relative(process.cwd(), cfg.helperExpectedPath)
+      : `${cfg.name}/src/lib/api-fetch.ts`;
+    out.warn(
+      `[check-api-fetch] AVISO: artifact "${cfg.name}" (kind=web) exporta ${cfg.helperFn} em ${expected}, mas o corpo da funcao nao chama \`fetch(\` nem tem \`return\` — parece um no-op. Em runtime as chamadas viram silencio (sem request, sem resposta) e o frontend nasce vulneravel a 401 silencioso (ver Task #108/#113/#114). Implemente o corpo da funcao chamando fetch e retornando a Response.`,
     );
   }
   return { helperMissingHardFail };
