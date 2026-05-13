@@ -25,6 +25,7 @@ import {
   coletarTelefonesResponsaveis,
 } from "../lib/whatsapp/clinicaSuspensaoWhatsapp";
 import { avisarPacientesSuspensao } from "../lib/notificacoes/avisarPacientesSuspensao";
+import { uploadExportLgpdUnidade } from "../lib/arquivos/drive";
 
 type AuthedRequest = Request & {
   user?: JwtPayload & { perfil?: string; perfilPlataforma?: string };
@@ -771,15 +772,35 @@ router.post(
       auditoria_kill_switch: auditoria.rows,
     };
     const json = JSON.stringify(snapshot, null, 2);
-    const dataUrl =
-      "data:application/json;base64," + Buffer.from(json, "utf8").toString("base64");
+
+    // Task #136 — sobe pro Drive em vez de embutir como data:URL.
+    // Se o upload falhar (Drive offline, unidade sem clientes_subfolder_id,
+    // etc.) propagamos 502 — NÃO temos mais fallback pra data:URL porque o
+    // problema da v1 era exatamente o blob gigante na coluna.
+    let upload;
+    try {
+      upload = await uploadExportLgpdUnidade({
+        unidadeId: id,
+        unidadeNome: unidade.nome,
+        nick: unidade.nick,
+        json,
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      req.log?.error({ err: msg, unidadeId: id }, "[plataforma] falha ao subir export LGPD pro Drive");
+      res.status(502).json({ error: "Falha ao subir export LGPD pro Drive", detalhe: msg });
+      return;
+    }
 
     const actor = getActor(req);
     await db.transaction(async (tx) => {
       await tx.execute(sql`
         UPDATE unidades
-           SET lgpd_export_url = ${dataUrl},
-               lgpd_export_em = now()
+           SET lgpd_export_url           = ${upload.driveUrl},
+               lgpd_export_sha256        = ${upload.sha256},
+               lgpd_export_tamanho_bytes = ${upload.tamanhoBytes},
+               lgpd_export_drive_file_id = ${upload.driveFileId},
+               lgpd_export_em            = now()
          WHERE id = ${id}
       `);
       await registrarAuditoria(tx, {
@@ -787,20 +808,32 @@ router.post(
         motivo, ip: actor.ip, ua: actor.ua,
         metadata: {
           nome: unidade.nome,
-          tamanho_bytes: Buffer.byteLength(json, "utf8"),
+          tamanho_bytes: upload.tamanhoBytes,
+          sha256: upload.sha256,
+          drive_file_id: upload.driveFileId,
+          drive_url: upload.driveUrl,
+          nome_arquivo: upload.nomeArquivo,
           contagens: counts.rows[0] ?? {},
         },
       });
     });
     req.log?.info(
-      { unidadeId: id, bytes: Buffer.byteLength(json, "utf8") },
-      "[plataforma] export LGPD gerado",
+      {
+        unidadeId: id,
+        bytes: upload.tamanhoBytes,
+        sha256: upload.sha256,
+        driveFileId: upload.driveFileId,
+      },
+      "[plataforma] export LGPD gravado no Drive",
     );
     res.json({
       ok: true,
-      lgpd_export_url: dataUrl,
+      lgpd_export_url: upload.driveUrl,
       lgpd_export_em: new Date().toISOString(),
-      tamanho_bytes: Buffer.byteLength(json, "utf8"),
+      lgpd_export_sha256: upload.sha256,
+      lgpd_export_drive_file_id: upload.driveFileId,
+      tamanho_bytes: upload.tamanhoBytes,
+      nome_arquivo: upload.nomeArquivo,
     });
   },
 );

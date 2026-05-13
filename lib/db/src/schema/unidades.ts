@@ -49,13 +49,15 @@ export const unidadesTable = pgTable("unidades", {
   exclusaoCarenciaAte: timestamp("exclusao_carencia_ate", { withTimezone: true }),
   lgpdExportUrl: text("lgpd_export_url"),
   lgpdExportEm: timestamp("lgpd_export_em", { withTimezone: true }),
-  // Task #11 — Janelas padrao de envio de lembretes de prescricao por unidade.
-  // Lista de horarios HH:MM herdada por prescricoes que nao definirem
-  // `horariosEnvio` proprio. Tolerancia em minutos eh quanto tempo apos o
-  // horario alvo o worker ainda pode disparar o lembrete (default 5 min,
-  // que mantem a constante historica do prescricaoLembreteService).
-  lembreteHorariosPadrao: jsonb("lembrete_horarios_padrao").notNull().$type<string[]>().default([]),
-  lembreteToleranciaMinutos: integer("lembrete_tolerancia_minutos").notNull().default(5),
+  // Task #136 (Migration 051) — export LGPD virou arquivo permanente no Drive.
+  // `lgpdExportUrl` agora guarda link http(s) canônico (webViewLink) em vez de
+  // data:URL embutido. Os 3 campos abaixo dão prova de integridade (sha256),
+  // sanity (tamanho_bytes) e redundância de recuperação (drive_file_id).
+  // Nota rebase: as colunas `lembrete_horarios_padrao` + `lembrete_tolerancia_minutos`
+  // (Task #11/#12) já vieram pelo main acima — não duplicar aqui.
+  lgpdExportSha256: text("lgpd_export_sha256"),
+  lgpdExportTamanhoBytes: integer("lgpd_export_tamanho_bytes"),
+  lgpdExportDriveFileId: text("lgpd_export_drive_file_id"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

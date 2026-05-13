@@ -409,6 +409,117 @@ export async function uploadArquivoPaciente(p: UploadParams): Promise<UploadResu
 }
 
 // ============================================================================
+// EXPORT LGPD da UNIDADE — arquivo permanente no Drive (Task #136)
+// ============================================================================
+//
+// O export LGPD não pertence a um paciente específico — é um snapshot da
+// CLÍNICA inteira. Por isso vai numa pasta "EXPORTS LGPD" criada como sibling
+// de CLIENTES [CLINICA] dentro da pasta da empresa (parent comum apurado via
+// Drive API a partir de unidades.clientes_subfolder_id).
+//
+// Decisão Caio (Task #136): a v1 embutia o JSON como data:URL em
+// unidades.lgpd_export_url — quebrava pra clínicas grandes. Agora subimos
+// pro Drive e guardamos só link http(s) + sha256 pra prova de integridade.
+//
+// Idempotente: se a pasta "EXPORTS LGPD" já existe, reaproveita.
+// ============================================================================
+import { createHash } from "node:crypto";
+
+export interface ExportLgpdUploadResultado {
+  driveFileId: string;
+  driveUrl: string;
+  driveFolderId: string;
+  nomeArquivo: string;
+  sha256: string;
+  tamanhoBytes: number;
+}
+
+/**
+ * Resolve o parent (pasta da empresa) a partir de clientes_subfolder_id da
+ * unidade. Cria/encontra a pasta "EXPORTS LGPD" como sibling.
+ */
+async function getOrCreateExportsLgpdFolder(unidadeId: number): Promise<string> {
+  const u = (await db.execute(sql`
+    SELECT clientes_subfolder_id FROM unidades WHERE id = ${unidadeId}
+  `)) as unknown as { rows: Array<{ clientes_subfolder_id: string | null }> };
+  const clientesId = u.rows[0]?.clientes_subfolder_id;
+  if (!clientesId) {
+    throw new Error(
+      `[drive] unidade ${unidadeId} sem clientes_subfolder_id configurado. ` +
+        `Rode UPDATE unidades SET clientes_subfolder_id='...' WHERE id=${unidadeId}`,
+    );
+  }
+
+  const drive = await getDrive();
+  const meta = await drive.files.get({
+    fileId: clientesId,
+    fields: "parents",
+    supportsAllDrives: true,
+  });
+  const parents = meta.data.parents ?? [];
+  const empresaFolderId = parents[0];
+  if (!empresaFolderId) {
+    throw new Error(
+      `[drive] clientes_subfolder_id ${clientesId} (unidade ${unidadeId}) sem parent — ` +
+        `não consigo posicionar a pasta EXPORTS LGPD.`,
+    );
+  }
+
+  return findOrCreateFolder(empresaFolderId, "EXPORTS LGPD");
+}
+
+/**
+ * Sobe o JSON do export LGPD da clínica como arquivo permanente no Drive.
+ * Devolve URL canônica (webViewLink), file id, sha256 e tamanho em bytes.
+ *
+ * Nome do arquivo: `YY.MM.DD EXPORT LGPD [NICK_OU_NOME].json`
+ */
+export async function uploadExportLgpdUnidade(opts: {
+  unidadeId: number;
+  unidadeNome: string;
+  nick?: string | null;
+  json: string;
+  data?: Date;
+}): Promise<ExportLgpdUploadResultado> {
+  const folderId = await getOrCreateExportsLgpdFolder(opts.unidadeId);
+
+  const data = opts.data ?? new Date();
+  const yy = String(data.getFullYear()).slice(-2);
+  const mm = String(data.getMonth() + 1).padStart(2, "0");
+  const dd = String(data.getDate()).padStart(2, "0");
+  const hh = String(data.getHours()).padStart(2, "0");
+  const mi = String(data.getMinutes()).padStart(2, "0");
+  const ss = String(data.getSeconds()).padStart(2, "0");
+  const rotulo = (opts.nick && opts.nick.trim()) || opts.unidadeNome;
+  const rotuloLimpo = rotulo
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const nomeArquivo = `${yy}.${mm}.${dd} ${hh}${mi}${ss} EXPORT LGPD ${rotuloLimpo}.json`;
+
+  const buffer = Buffer.from(opts.json, "utf8");
+  const tamanhoBytes = buffer.byteLength;
+  const sha256 = createHash("sha256").update(buffer).digest("hex");
+
+  const drive = await getDrive();
+  const r = await drive.files.create({
+    requestBody: { name: nomeArquivo, parents: [folderId] },
+    media: { mimeType: "application/json", body: Readable.from(buffer) },
+    fields: "id, webViewLink",
+    supportsAllDrives: true,
+  });
+  if (!r.data.id) throw new Error(`[drive] Falha ao subir export LGPD ${nomeArquivo}`);
+
+  const driveFileId = r.data.id;
+  const driveUrl = r.data.webViewLink || `https://drive.google.com/file/d/${driveFileId}/view`;
+
+  return { driveFileId, driveUrl, driveFolderId: folderId, nomeArquivo, sha256, tamanhoBytes };
+}
+
+// ============================================================================
 // Helper de leitura unificada (pra IA, WhatsApp bot, painel)
 // ============================================================================
 export interface PacienteContexto {
