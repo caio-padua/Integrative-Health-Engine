@@ -213,7 +213,7 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     res.status(401).json({ error: "Challenge nao e de 2FA." });
     return;
   }
-  if (estaBloqueadoTotp(payload.sub)) {
+  if (await estaBloqueadoTotp(payload.sub)) {
     res.status(429).json({
       error:
         "Muitas tentativas erradas. Aguarde 5 minutos e tente novamente.",
@@ -231,7 +231,7 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     return;
   }
   if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
-    const r = registrarTentativaErradaTotp(usuario.id);
+    const r = await registrarTentativaErradaTotp(usuario.id);
     if (r.transicaoParaBloqueio) {
       // Task #143 — fire-and-forget. Helper e defensivo (nunca lanca).
       void dispararAlertaBruteForceTotp({
@@ -246,7 +246,7 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     res.status(401).json({ error: "Codigo invalido." });
     return;
   }
-  resetTentativasTotp(usuario.id);
+  await resetTentativasTotp(usuario.id);
 
   // Task #126 — bloqueia entrada se a clinica do usuario estiver SUSPENSA.
   // Mesmo apos validar 2FA o login nao prossegue. platform_owner passa.

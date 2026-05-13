@@ -192,7 +192,7 @@ router.post(
     // Task #131 — rate-limit por usuario (5 tentativas erradas / 5min).
     // Helper compartilhado com login 2FA. Devolve 429 antes de gastar
     // CPU validando o codigo TOTP.
-    if (estaBloqueadoTotp(userId)) {
+    if (await estaBloqueadoTotp(userId)) {
       req.log?.warn({ userId }, "[plataforma] 2fa step-up bloqueado por excesso de tentativas");
       res.status(429).json({
         error: "Muitas tentativas erradas. Aguarde 5 minutos e tente novamente.",
@@ -201,7 +201,7 @@ router.post(
       return;
     }
     if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
-      const r = registrarTentativaErradaTotp(userId);
+      const r = await registrarTentativaErradaTotp(userId);
       if (r.transicaoParaBloqueio) {
         // Task #143 — alerta CEO. Step-up vem do PROPRIO platform_owner,
         // entao um brute-force aqui significa session-hijack ativo na conta
@@ -218,7 +218,7 @@ router.post(
       res.status(401).json({ error: "Codigo invalido.", codigo: "TOTP_INVALIDO" });
       return;
     }
-    resetTentativasTotp(userId);
+    await resetTentativasTotp(userId);
     const agora = new Date();
     await db
       .update(usuariosTable)
