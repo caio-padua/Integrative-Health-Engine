@@ -1228,6 +1228,63 @@ router.get("/plataforma/seguranca/avisos-2fa", ...guardas, async (req, res): Pro
   });
 });
 
+// ─────────────── HISTORICO ALERTAS KILLSWITCH EMAILS (Task #149) ───────
+// GET /api/plataforma/alertas-killswitch-emails — timeline historica dos
+// alertas disparados pelo worker `alertaKillSwitchEmailsCEO` (Task #141)
+// quando os emails de SUSPENDER/REASSUMIR uma clinica falham. Permite ao
+// CEO ver tendencia (ex: "Gmail caiu 3x essa semana, troca a credencial").
+//
+// Filtros opcionais:
+//   - unidade_id (int): so alertas desta unidade
+//   - motivo    (str): ERRO_NO_ENVIO | SEM_DESTINATARIO | FALHA_ACIMA_DO_THRESHOLD
+//   - limite    (int 1..500, default 200)
+router.get(
+  "/plataforma/alertas-killswitch-emails",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const limite = Math.max(1, Math.min(Number(req.query["limite"] ?? 200) || 200, 500));
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeId =
+      unidadeIdRaw !== undefined && unidadeIdRaw !== ""
+        ? Number(unidadeIdRaw)
+        : null;
+    const motivoRaw = String(req.query["motivo"] ?? "");
+    const MOTIVOS_VALIDOS = new Set([
+      "ERRO_NO_ENVIO",
+      "SEM_DESTINATARIO",
+      "FALHA_ACIMA_DO_THRESHOLD",
+    ]);
+    const motivo = MOTIVOS_VALIDOS.has(motivoRaw) ? motivoRaw : null;
+
+    const filtroUnidade =
+      unidadeId && Number.isInteger(unidadeId)
+        ? sql`a.unidade_id = ${unidadeId}`
+        : sql`true`;
+    const filtroMotivo = motivo
+      ? sql`a.motivo_alerta = ${motivo}`
+      : sql`true`;
+
+    const result = await db.execute(sql`
+      SELECT
+        a.id, a.evento_id, a.tentativa_idx, a.unidade_id, a.acao,
+        a.tipo_aviso, a.destinatarios, a.enviados, a.falhas, a.erro,
+        a.motivo_alerta, a.pct_falha, a.notif_email_ok, a.notif_wpp_ok,
+        a.visualizado_em, a.criado_em,
+        un.nome AS unidade_nome
+      FROM alertas_ceo_killswitch_emails a
+      LEFT JOIN unidades un ON un.id = a.unidade_id
+      WHERE ${filtroUnidade} AND ${filtroMotivo}
+      ORDER BY a.criado_em DESC
+      LIMIT ${limite}
+    `);
+    res.json({
+      alertas: result.rows ?? [],
+      total: result.rows?.length ?? 0,
+      filtro: { unidade_id: unidadeId, motivo },
+    });
+  },
+);
+
 // ──────────────────────────── AUDITORIA ────────────────────────────────
 // GET /api/plataforma/auditoria — timeline cronologica das acoes sensiveis
 router.get("/plataforma/auditoria", ...guardas, async (req, res): Promise<void> => {
