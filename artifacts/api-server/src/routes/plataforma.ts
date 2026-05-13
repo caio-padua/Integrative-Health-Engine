@@ -7,7 +7,9 @@ import {
   estaBloqueadoTotp,
   registrarTentativaErradaTotp,
   resetTentativasTotp,
+  TOTP_TENTATIVAS_MAX,
 } from "../lib/auth/rateLimitTotp";
+import { dispararAlertaBruteForceTotp } from "../lib/auth/alertaBruteForceTotp";
 import type { JwtPayload } from "../lib/auth/jwt";
 import {
   enviarEmailSuspensao,
@@ -199,7 +201,20 @@ router.post(
       return;
     }
     if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
-      registrarTentativaErradaTotp(userId);
+      const r = registrarTentativaErradaTotp(userId);
+      if (r.transicaoParaBloqueio) {
+        // Task #143 — alerta CEO. Step-up vem do PROPRIO platform_owner,
+        // entao um brute-force aqui significa session-hijack ativo na conta
+        // dele mesmo. Helper e defensivo (nao lanca).
+        void dispararAlertaBruteForceTotp({
+          usuarioId: userId,
+          ip: (req.ip || req.header("x-forwarded-for") || "").toString().slice(0, 200),
+          userAgent: (req.header("user-agent") || "").slice(0, 500),
+          janelaInicioEm: r.janelaInicioEm,
+          contexto: "STEP_UP_PAINEL",
+          tentativas: TOTP_TENTATIVAS_MAX,
+        });
+      }
       res.status(401).json({ error: "Codigo invalido.", codigo: "TOTP_INVALIDO" });
       return;
     }
@@ -805,6 +820,47 @@ router.post(
     res.json({ ok: true, email: emailRes, erro: emailErro });
   },
 );
+
+// ─────────────────────── ALERTAS SEGURANCA (Task #143) ─────────────────
+// GET /api/plataforma/alertas-seguranca — fila de alertas de seguranca
+// (atualmente: 2FA_BRUTE_FORCE). Junta nome/email do usuario alvo pra UI.
+router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promise<void> => {
+  const limite = Math.min(Number(req.query["limite"] ?? 100) || 100, 500);
+  const apenasNaoVistos = String(req.query["apenas_nao_vistos"] ?? "") === "true";
+  const result = await db.execute(sql`
+    SELECT
+      a.id, a.tipo, a.usuario_id, a.janela_inicio_em, a.ip, a.user_agent,
+      a.contexto, a.payload, a.notif_email_enviados, a.notif_email_falhas,
+      a.notif_destinatarios, a.visualizado_em, a.visualizado_por_usuario_id,
+      a.criado_em,
+      us.nome AS usuario_nome,
+      us.email AS usuario_email
+    FROM alertas_ceo_seguranca a
+    LEFT JOIN usuarios us ON us.id = a.usuario_id
+    WHERE ${apenasNaoVistos ? sql`a.visualizado_em IS NULL` : sql`true`}
+    ORDER BY a.criado_em DESC
+    LIMIT ${limite}
+  `);
+  res.json({ alertas: result.rows, total: result.rows?.length ?? 0 });
+});
+
+// POST /api/plataforma/alertas-seguranca/:id/visualizar — marca como lido.
+router.post("/plataforma/alertas-seguranca/:id/visualizar", ...guardas, async (req, res): Promise<void> => {
+  const id = Number(req.params["id"]);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "id invalido" });
+    return;
+  }
+  const u = (req as AuthedRequest).user;
+  const userId = Number(u?.sub ?? 0);
+  await db.execute(sql`
+    UPDATE alertas_ceo_seguranca
+       SET visualizado_em = COALESCE(visualizado_em, NOW()),
+           visualizado_por_usuario_id = COALESCE(visualizado_por_usuario_id, ${userId})
+     WHERE id = ${id}
+  `);
+  res.json({ ok: true });
+});
 
 // ──────────────────────────── AUDITORIA ────────────────────────────────
 // GET /api/plataforma/auditoria — timeline cronologica das acoes sensiveis

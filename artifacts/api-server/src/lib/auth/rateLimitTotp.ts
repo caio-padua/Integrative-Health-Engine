@@ -12,16 +12,46 @@
 const TENTATIVAS_MAX = 5;
 const JANELA_MS = 5 * 60 * 1000;
 
-const tentativasPorUsuario = new Map<number, { count: number; reseteEm: number }>();
+type RegistroTentativas = {
+  count: number;
+  reseteEm: number;
+  janelaInicioEm: number;
+};
 
-export function registrarTentativaErradaTotp(usuarioId: number): void {
+const tentativasPorUsuario = new Map<number, RegistroTentativas>();
+
+/**
+ * Resultado da tentativa errada. `transicaoParaBloqueio` e true APENAS na
+ * chamada que faz o contador atingir TENTATIVAS_MAX pela primeira vez na
+ * janela atual — usado pelos callers pra disparar o alerta CEO 1 unica vez
+ * por bloqueio (Task #143, requisito "nao spammar").
+ */
+export type TentativaErradaResultado = {
+  count: number;
+  bloqueado: boolean;
+  transicaoParaBloqueio: boolean;
+  janelaInicioEm: Date;
+};
+
+export function registrarTentativaErradaTotp(usuarioId: number): TentativaErradaResultado {
   const agora = Date.now();
   const atual = tentativasPorUsuario.get(usuarioId);
+  let registro: RegistroTentativas;
   if (!atual || atual.reseteEm < agora) {
-    tentativasPorUsuario.set(usuarioId, { count: 1, reseteEm: agora + JANELA_MS });
-    return;
+    registro = { count: 1, reseteEm: agora + JANELA_MS, janelaInicioEm: agora };
+    tentativasPorUsuario.set(usuarioId, registro);
+  } else {
+    atual.count += 1;
+    registro = atual;
   }
-  atual.count += 1;
+  const bloqueado = registro.count >= TENTATIVAS_MAX;
+  const transicaoParaBloqueio = registro.count === TENTATIVAS_MAX;
+  return {
+    count: registro.count,
+    bloqueado,
+    transicaoParaBloqueio,
+    janelaInicioEm: new Date(registro.janelaInicioEm),
+  };
 }
 
 export function estaBloqueadoTotp(usuarioId: number): boolean {
@@ -32,6 +62,18 @@ export function estaBloqueadoTotp(usuarioId: number): boolean {
     return false;
   }
   return atual.count >= TENTATIVAS_MAX;
+}
+
+/**
+ * Devolve o inicio da janela ativa de rate-limit pro usuario, ou null se
+ * nao ha janela ativa. Usado pelo alerta CEO pra carimbar o evento com a
+ * mesma chave de idempotencia do UNIQUE em alertas_ceo_seguranca.
+ */
+export function getJanelaInicioTotp(usuarioId: number): Date | null {
+  const atual = tentativasPorUsuario.get(usuarioId);
+  if (!atual) return null;
+  if (atual.reseteEm < Date.now()) return null;
+  return new Date(atual.janelaInicioEm);
 }
 
 export function resetTentativasTotp(usuarioId: number): void {

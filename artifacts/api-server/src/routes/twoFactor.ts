@@ -35,7 +35,9 @@ import {
   estaBloqueadoTotp,
   registrarTentativaErradaTotp,
   resetTentativasTotp,
+  TOTP_TENTATIVAS_MAX,
 } from "../lib/auth/rateLimitTotp";
+import { dispararAlertaBruteForceTotp } from "../lib/auth/alertaBruteForceTotp";
 
 const router = Router();
 
@@ -229,7 +231,18 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     return;
   }
   if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
-    registrarTentativaErradaTotp(usuario.id);
+    const r = registrarTentativaErradaTotp(usuario.id);
+    if (r.transicaoParaBloqueio) {
+      // Task #143 — fire-and-forget. Helper e defensivo (nunca lanca).
+      void dispararAlertaBruteForceTotp({
+        usuarioId: usuario.id,
+        ip: (req.ip || req.header("x-forwarded-for") || "").toString().slice(0, 200),
+        userAgent: (req.header("user-agent") || "").slice(0, 500),
+        janelaInicioEm: r.janelaInicioEm,
+        contexto: "LOGIN_2FA",
+        tentativas: TOTP_TENTATIVAS_MAX,
+      });
+    }
     res.status(401).json({ error: "Codigo invalido." });
     return;
   }
