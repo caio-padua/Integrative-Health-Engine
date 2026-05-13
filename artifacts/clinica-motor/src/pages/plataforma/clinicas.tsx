@@ -80,6 +80,7 @@ export default function PlataformaClinicas() {
   const [previaSuspensao, setPreviaSuspensao] = useState<{
     clinica: Clinica;
     previa: PreviaDestinatarios;
+    acao: "suspender" | "reativar";
   } | null>(null);
   const [carregandoPreviaId, setCarregandoPreviaId] = useState<number | null>(null);
 
@@ -102,60 +103,36 @@ export default function PlataformaClinicas() {
   useEffect(() => { void carregar(); }, [carregar]);
 
   async function executar(c: Clinica, acao: "suspender" | "reativar") {
-    const verbo = acao === "suspender" ? "SUSPENDER" : "REATIVAR";
-    // Pra REATIVAR vai direto (operacao religa, nao paralisa). Pra SUSPENDER
-    // (Task #138) abre modal com previa de destinatarios antes de pedir motivo.
-    if (acao === "suspender") {
-      setCarregandoPreviaId(c.id);
-      try {
-        const r = await runWithStepUp(() =>
-          apiFetch(`/api/plataforma/clinicas/${c.id}/destinatarios-aviso`, {
-            credentials: "include",
-          }),
-        );
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          alert(`Falha ao carregar previa de destinatarios: ${j.error ?? r.statusText}`);
-          return;
-        }
-        const previa = (await r.json()) as PreviaDestinatarios;
-        setPreviaSuspensao({ clinica: c, previa });
-      } finally {
-        setCarregandoPreviaId(null);
+    // Tanto SUSPENDER quanto REATIVAR abrem modal com previa de destinatarios
+    // antes de pedir motivo (Task #138 cobriu suspensao; Task #179 estendeu
+    // pra reativacao porque os mesmos responsaveis recebem aviso e a lista
+    // pode ter mudado durante a suspensao).
+    setCarregandoPreviaId(c.id);
+    try {
+      const r = await runWithStepUp(() =>
+        apiFetch(`/api/plataforma/clinicas/${c.id}/destinatarios-aviso`, {
+          credentials: "include",
+        }),
+      );
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        alert(`Falha ao carregar previa de destinatarios: ${j.error ?? r.statusText}`);
+        return;
       }
-      return;
+      const previa = (await r.json()) as PreviaDestinatarios;
+      setPreviaSuspensao({ clinica: c, previa, acao });
+    } finally {
+      setCarregandoPreviaId(null);
     }
-    const motivo = window.prompt(
-      `Motivo para ${verbo} a clinica "${c.nome}" (id ${c.id}).\nMinimo 8 caracteres. Sera registrado em auditoria_kill_switch.`,
-    );
-    if (!motivo || motivo.trim().length < 8) {
-      if (motivo !== null) alert("Motivo precisa ter pelo menos 8 caracteres.");
-      return;
-    }
+  }
+
+  async function confirmarAcaoComPrevia(motivo: string) {
+    if (!previaSuspensao) return;
+    const c = previaSuspensao.clinica;
+    const acao = previaSuspensao.acao;
     setAcaoId(c.id);
     const r = await runWithStepUp(() =>
       apiFetch(`/api/plataforma/clinicas/${c.id}/${acao}`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ motivo: motivo.trim() }),
-      }),
-    );
-    setAcaoId(null);
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      alert(`Erro: ${j.error ?? r.statusText}`);
-      return;
-    }
-    await carregar();
-  }
-
-  async function confirmarSuspensaoComPrevia(motivo: string) {
-    if (!previaSuspensao) return;
-    const c = previaSuspensao.clinica;
-    setAcaoId(c.id);
-    const r = await runWithStepUp(() =>
-      apiFetch(`/api/plataforma/clinicas/${c.id}/suspender`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -493,11 +470,12 @@ export default function PlataformaClinicas() {
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {suspendido ? (
                             <button
-                              disabled={desabilitado}
+                              disabled={desabilitado || carregandoPreviaId === c.id}
                               onClick={() => void executar(c, "reativar")}
                               className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50"
                             >
-                              <Power size={12} /> Reativar
+                              <Power size={12} />
+                              {carregandoPreviaId === c.id ? "carregando previa..." : "Reativar"}
                             </button>
                           ) : (
                             <button
@@ -635,9 +613,10 @@ export default function PlataformaClinicas() {
         <PreviaSuspensaoModalImpl
           clinica={previaSuspensao.clinica}
           previa={previaSuspensao.previa}
+          acao={previaSuspensao.acao}
           desabilitado={acaoId === previaSuspensao.clinica.id}
           onCancelar={() => setPreviaSuspensao(null)}
-          onConfirmar={(motivo) => void confirmarSuspensaoComPrevia(motivo)}
+          onConfirmar={(motivo) => void confirmarAcaoComPrevia(motivo)}
         />
       )}
     </Layout>
@@ -647,12 +626,14 @@ export default function PlataformaClinicas() {
 function PreviaSuspensaoModalImpl({
   clinica,
   previa,
+  acao,
   desabilitado,
   onCancelar,
   onConfirmar,
 }: {
   clinica: Clinica;
   previa: PreviaDestinatarios;
+  acao: "suspender" | "reativar";
   desabilitado: boolean;
   onCancelar: () => void;
   onConfirmar: (motivo: string) => void;
@@ -660,10 +641,12 @@ function PreviaSuspensaoModalImpl({
   const [motivo, setMotivo] = useState("");
   const [confirmacaoExtra, setConfirmacaoExtra] = useState("");
   const motivoOk = motivo.trim().length >= 8;
-  // Confirmacao dupla obrigatoria quando NENHUM responsavel tem WhatsApp
-  // cadastrado — cenario em que a clinica acorda offline sem aviso no
-  // celular e nao entende por que nao consegue logar (Task #138).
-  const exigeConfirmacaoExtra = previa.whatsappVazio;
+  const ehSuspender = acao === "suspender";
+  // Confirmacao dupla obrigatoria APENAS pra SUSPENDER quando nenhum
+  // responsavel tem WhatsApp — cenario em que a clinica acorda offline
+  // sem aviso no celular (Task #138). Reativar nao e destrutivo, entao
+  // nao exige confirmacao extra mesmo sem WhatsApp (Task #179).
+  const exigeConfirmacaoExtra = ehSuspender && previa.whatsappVazio;
   const confirmacaoExtraOk =
     !exigeConfirmacaoExtra || confirmacaoExtra.trim().toUpperCase() === "SUSPENDER MESMO ASSIM";
   const podeConfirmar = motivoOk && confirmacaoExtraOk && !desabilitado;
@@ -678,8 +661,9 @@ function PreviaSuspensaoModalImpl({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between px-5 py-3 border-b border-zinc-800">
-          <h2 className="text-amber-400 font-semibold flex items-center gap-2">
-            <PowerOff size={18} /> Suspender clinica · previa de avisos
+          <h2 className={`font-semibold flex items-center gap-2 ${ehSuspender ? "text-amber-400" : "text-emerald-400"}`}>
+            {ehSuspender ? <PowerOff size={18} /> : <Power size={18} />}
+            {ehSuspender ? "Suspender clinica · previa de avisos" : "Reativar clinica · previa de avisos"}
           </h2>
           <button
             onClick={onCancelar}
@@ -699,8 +683,9 @@ function PreviaSuspensaoModalImpl({
           </div>
 
           <div className="text-xs text-zinc-400 bg-zinc-800/40 border border-zinc-800 rounded p-3">
-            Suspender paralisa a operacao inteira (login bloqueado, agenda/prescricoes/faturamento
-            pausados). Antes de confirmar, verifique pra QUEM o aviso de suspensao vai chegar.
+            {ehSuspender
+              ? "Suspender paralisa a operacao inteira (login bloqueado, agenda/prescricoes/faturamento pausados). Antes de confirmar, verifique pra QUEM o aviso de suspensao vai chegar."
+              : "Reativar religa a operacao da clinica. O aviso de reativacao vai pros mesmos responsaveis abaixo — confira a lista (pode ter mudado durante a suspensao) antes de confirmar."}
           </div>
 
           <div className="grid md:grid-cols-2 gap-3">
@@ -747,8 +732,9 @@ function PreviaSuspensaoModalImpl({
                 <div className="font-semibold mb-1">
                   Atencao: lista de WhatsApp vazia.
                 </div>
-                A clinica vai acordar offline sem aviso no celular. Considere cadastrar pelo
-                menos um responsavel com telefone antes de suspender.
+                {ehSuspender
+                  ? "A clinica vai acordar offline sem aviso no celular. Considere cadastrar pelo menos um responsavel com telefone antes de suspender."
+                  : "Nenhum responsavel vai receber o aviso de reativacao no celular — apenas por email."}
               </div>
             </div>
           )}
@@ -793,10 +779,16 @@ function PreviaSuspensaoModalImpl({
           <button
             disabled={!podeConfirmar}
             onClick={() => onConfirmar(motivo)}
-            className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+            className={`inline-flex items-center gap-1 px-3 py-2 text-sm rounded disabled:opacity-40 disabled:cursor-not-allowed ${
+              ehSuspender
+                ? "bg-red-500/20 text-red-300 hover:bg-red-500/30"
+                : "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
+            }`}
           >
-            <PowerOff size={14} />
-            {desabilitado ? "Suspendendo..." : "Suspender"}
+            {ehSuspender ? <PowerOff size={14} /> : <Power size={14} />}
+            {ehSuspender
+              ? (desabilitado ? "Suspendendo..." : "Suspender")
+              : (desabilitado ? "Reativando..." : "Reativar")}
           </button>
         </footer>
       </div>
