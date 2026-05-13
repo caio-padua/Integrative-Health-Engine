@@ -48,7 +48,12 @@ export interface RequirePlataformaOpts {
    * que `req.params[paramKey]` (ou `req.body[bodyKey]`) seja igual a `req.user.unidadeId`.
    */
   mesmoTenant?: boolean;
-  /** Nome do parametro de rota com a unidade alvo. Default: 'unidadeId' (fallback 'id'). */
+  /**
+   * Nome do parametro de rota com a unidade alvo. Default: 'unidadeId'.
+   * Hardening F2: NAO ha mais fallback implicito pra `params.id` — se a rota usa
+   * `:id` pra outra entidade (receitaId/pacienteId), informe explicitamente
+   * `paramKey: 'id'` (opt-in consciente do autor).
+   */
   paramKey?: string;
   /** Nome do campo no body com a unidade alvo. Default: 'unidadeId'. */
   bodyKey?: string;

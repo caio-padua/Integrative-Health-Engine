@@ -107,14 +107,10 @@ router.post("/usuarios/login", async (req, res): Promise<void> => {
     escopo: usuario.escopo ?? null,
     unidadeId: usuario.unidadeId ?? null,
     consultoriaId: usuario.consultoriaId ?? null,
-    // Wave 13 F2 — RBAC plataforma. Default seguro 'tenant_user' se coluna ainda nao
-    // populada (Migration 044 ja aplicada, default DB = 'tenant_user').
-    perfilPlataforma:
-      ((usuario as any).perfilPlataforma as
-        | "platform_owner"
-        | "tenant_admin"
-        | "tenant_user"
-        | undefined) ?? "tenant_user",
+    // Wave 13 F2 — RBAC plataforma. Tipado direto pelo schema Drizzle
+    // (usuariosTable.perfilPlataforma com enum + NOT NULL DEFAULT 'tenant_user'
+    // garantido em Migration 044). Sem cast pra any.
+    perfilPlataforma: usuario.perfilPlataforma ?? "tenant_user",
   });
 
   res.json({
