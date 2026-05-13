@@ -138,16 +138,51 @@ export default function AssinaturasTimeline() {
   const [totalReal, setTotalReal] = useState<number>(0);
   const [hasMore, setHasMore] = useState<boolean>(false);
 
+  // Task #90 — helpers genericos pra persistir filtros por-usuario em
+  // localStorage. Mesma estrategia da Task #88 (que ja salvava `ordenar_por`):
+  // chave dedicada por filtro + por user.id, hidratacao so quando a URL nao
+  // traz o param (link compartilhavel sempre vence). String vazia = "limpo
+  // explicitamente" pra a hidratacao saber que nao deve restaurar valor antigo.
+  function chaveStorageFiltro(nome: string, uid: number | string | undefined): string | null {
+    if (uid === undefined || uid === null) return null;
+    return `pawards.timeline.${nome}.${uid}`;
+  }
+  function lerStorageFiltro(nome: string, uid: number | string | undefined): string | null {
+    if (typeof window === "undefined") return null;
+    const k = chaveStorageFiltro(nome, uid);
+    if (!k) return null;
+    try { return window.localStorage.getItem(k); } catch { return null; }
+  }
+  function salvarStorageFiltro(nome: string, uid: number | string | undefined, valor: string) {
+    if (typeof window === "undefined") return;
+    const k = chaveStorageFiltro(nome, uid);
+    if (!k) return;
+    try { window.localStorage.setItem(k, valor); } catch { /* ignore */ }
+  }
+
   // Task #51 — leitura do filtro `?unidade_id=` na URL pra abrir a timeline
   // ja escopada numa clinica especifica (clique vindo do banner CEO).
   // Usamos window.location direto pra nao depender de hook de router.
-  const filtroUnidadeId = (() => {
+  // Task #90 — agora com state + persistencia por-usuario; URL continua tendo
+  // prioridade na inicializacao (link compartilhavel).
+  function parseUnidadeFromUrl(): number | null {
     if (typeof window === "undefined") return null;
     const v = new URLSearchParams(window.location.search).get("unidade_id");
     if (!v) return null;
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
-  })();
+  }
+  const [filtroUnidadeId, setFiltroUnidadeIdState] = useState<number | null>(parseUnidadeFromUrl);
+  const setFiltroUnidadeId = useCallback((novo: number | null) => {
+    setFiltroUnidadeIdState(novo);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (novo !== null) url.searchParams.set("unidade_id", String(novo));
+    else url.searchParams.delete("unidade_id");
+    window.history.replaceState({}, "", url.toString());
+    salvarStorageFiltro("filtro_unidade_id", user?.id, novo === null ? "" : String(novo));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Task #55 — chips de filtro por status no topo da tabela. Cada chip mapeia
   // pra 1+ status crus (ex.: "Em andamento" agrupa ENVIADO+PARCIAL, "Rejeitada"
@@ -186,8 +221,11 @@ export default function AssinaturasTimeline() {
     if (valor) url.searchParams.set("status", valor);
     else url.searchParams.delete("status");
     window.history.replaceState({}, "", url.toString());
+    // Task #90 — persiste por-usuario; "TODOS" salva string vazia (= "limpo
+    // explicitamente") pra reabrir a timeline lembrando do default.
+    salvarStorageFiltro("filtro_status", user?.id, valor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id]);
 
   // Task #64 — filtro por intervalo de datas (criado_em). Persistido na URL
   // via `?desde=YYYY-MM-DD&ate=YYYY-MM-DD` pra link compartilhavel. Chips
@@ -319,6 +357,61 @@ export default function AssinaturasTimeline() {
     // Roda so quando o user.id muda (login/troca de conta).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Task #90 — hidrata os demais filtros (unidade, status, datas) por-usuario
+  // quando o user.id fica disponivel. Cada filtro so e restaurado se a URL
+  // atual NAO traz o param correspondente — link compartilhavel sempre vence
+  // por filtro (granular, ex: URL com `?status=` mas sem `?desde=` restaura
+  // so as datas, mantendo o status do link). String vazia salva = "limpo
+  // explicitamente" e nao dispara restauracao.
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+
+    // Unidade
+    if (!sp.get("unidade_id")) {
+      const salvo = lerStorageFiltro("filtro_unidade_id", user.id);
+      if (salvo !== null && salvo !== "") {
+        const n = Number(salvo);
+        if (Number.isFinite(n) && n !== filtroUnidadeId) setFiltroUnidadeId(n);
+      }
+    }
+
+    // Status
+    if (!sp.get("status")) {
+      const salvo = lerStorageFiltro("filtro_status", user.id);
+      if (salvo !== null && salvo !== "") {
+        const proximo: FiltroStatus | null =
+          salvo === "em_andamento" ? "EM_ANDAMENTO" :
+          salvo === "concluido"    ? "CONCLUIDO"    :
+          salvo === "rejeitado"    ? "REJEITADO"    : null;
+        if (proximo && proximo !== filtroStatus) setFiltroStatus(proximo);
+      }
+    }
+
+    // Datas (preset + desde + ate). Hidrata so se nem `desde` nem `ate`
+    // estao na URL — se um dos dois veio do link, respeitamos o link inteiro.
+    if (!sp.get("desde") && !sp.get("ate")) {
+      const presetSalvo = lerStorageFiltro("filtro_data_preset", user.id);
+      const desdeSalvo = lerStorageFiltro("filtro_data_desde", user.id) || "";
+      const ateSalvo = lerStorageFiltro("filtro_data_ate", user.id) || "";
+      const reData = /^\d{4}-\d{2}-\d{2}$/;
+      const desdeOk = reData.test(desdeSalvo) ? desdeSalvo : "";
+      const ateOk = reData.test(ateSalvo) ? ateSalvo : "";
+      if (presetSalvo && presetSalvo !== "" && presetSalvo !== "TUDO") {
+        // Preset com datas calculadas (HOJE/7D/30D recomputam pra "hoje" da
+        // sessao atual; PERSONALIZADO usa o que foi salvo).
+        if (presetSalvo === "PERSONALIZADO") {
+          if (desdeOk || ateOk) aplicarPersonalizado(desdeOk, ateOk);
+        } else if (
+          presetSalvo === "HOJE" || presetSalvo === "7D" || presetSalvo === "30D"
+        ) {
+          aplicarPresetData(presetSalvo as FiltroData);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
   // Task #96 — clique simples substitui a ordenacao (mantem comportamento
   // anterior); Shift+clique adiciona a coluna como criterio secundario.
   // Regras:
@@ -372,6 +465,15 @@ export default function AssinaturasTimeline() {
     window.history.replaceState({}, "", url.toString());
   }, []);
 
+  // Task #90 — persiste preset + datas por-usuario. Salvamos preset, desde
+  // e ate em chaves separadas pra cada um seguir o mesmo contrato (URL vence,
+  // string vazia = "limpo explicitamente").
+  const persistirDatas = useCallback((preset: FiltroData, desde: string, ate: string) => {
+    salvarStorageFiltro("filtro_data_preset", user?.id, preset === "TUDO" ? "" : preset);
+    salvarStorageFiltro("filtro_data_desde", user?.id, desde);
+    salvarStorageFiltro("filtro_data_ate", user?.id, ate);
+  }, [user?.id]);
+
   const aplicarPresetData = useCallback((preset: FiltroData) => {
     setFiltroDataState(preset);
     const hoje = isoLocal(new Date());
@@ -391,14 +493,16 @@ export default function AssinaturasTimeline() {
     setDesdeInput(desde);
     setAteInput(ate);
     sincronizarDatasUrl(desde, ate);
-  }, [desdeInput, ateInput, sincronizarDatasUrl]);
+    persistirDatas(preset, desde, ate);
+  }, [desdeInput, ateInput, sincronizarDatasUrl, persistirDatas]);
 
   const aplicarPersonalizado = useCallback((novoDesde: string, novoAte: string) => {
     setFiltroDataState("PERSONALIZADO");
     setDesdeInput(novoDesde);
     setAteInput(novoAte);
     sincronizarDatasUrl(novoDesde, novoAte);
-  }, [sincronizarDatasUrl]);
+    persistirDatas("PERSONALIZADO", novoDesde, novoAte);
+  }, [sincronizarDatasUrl, persistirDatas]);
 
   // Task #73 — `carregar({ append })`: append=false reseta a tabela (1a pagina);
   // append=true appendiza usando offset = rows.length pra paginar sem perder
@@ -497,13 +601,20 @@ export default function AssinaturasTimeline() {
                 data-testid="filtro-unidade-ativo"
               >
                 Filtrado por unidade #{filtroUnidadeId}
-                <a
-                  href="/assinaturas/timeline"
+                {/* Task #90 — antes era um <a href> que recarregava a pagina,
+                    o que disparava a hidratacao do localStorage e trazia o
+                    filtro de volta. Agora usa o setter pra limpar estado +
+                    URL + storage de uma vez (string vazia salva = "limpo
+                    explicitamente"). */}
+                <button
+                  type="button"
+                  onClick={() => setFiltroUnidadeId(null)}
+                  data-testid="limpar-filtro-unidade"
                   className="underline opacity-80 hover:opacity-100"
-                  style={{ color: NAVY }}
+                  style={{ color: NAVY, background: "transparent", border: 0, cursor: "pointer", padding: 0 }}
                 >
                   limpar
-                </a>
+                </button>
               </div>
             )}
           </div>
@@ -710,6 +821,32 @@ export default function AssinaturasTimeline() {
               </button>
             );
           })}
+          {/* Task #90 — botao "Limpar filtros" aparece quando ha qualquer
+              filtro ativo (unidade / status / datas). Resetando estado +
+              URL + localStorage de uma vez, pra reabrir a timeline crua na
+              proxima visita. Nao mexe na ordenacao (tem botao proprio:
+              "Limpar ordenacao", Task #97). */}
+          {(filtroUnidadeId !== null
+            || filtroStatus !== "TODOS"
+            || filtroData !== "TUDO"
+            || desdeInput !== ""
+            || ateInput !== "") && (
+            <button
+              type="button"
+              onClick={() => {
+                setFiltroUnidadeId(null);
+                setFiltroStatus("TODOS");
+                aplicarPresetData("TUDO");
+              }}
+              data-testid="botao-limpar-filtros"
+              title="Limpar todos os filtros (unidade, status, datas) e esquecer a preferencia salva"
+              className="ml-auto flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border transition"
+              style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
+            >
+              <X size={12} />
+              Limpar filtros
+            </button>
+          )}
         </div>
 
         {/* Erros / vazio */}
