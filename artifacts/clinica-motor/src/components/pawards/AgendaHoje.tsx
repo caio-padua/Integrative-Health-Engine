@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import { PAWARDS } from "@/lib/pawards-tokens";
 
 export interface AgendaItem {
@@ -6,8 +7,10 @@ export interface AgendaItem {
   procedimento?: string;
   status: string;
   paciente: string;
+  paciente_id?: number | null;
   profissional: string;
   unidade?: string;
+  unidade_id?: number | null;
 }
 
 interface Props {
@@ -38,6 +41,7 @@ function fmtHorario(h: string) {
 }
 
 export function AgendaHoje({ consultas, origem }: Props) {
+  const [, setLocation] = useLocation();
   return (
     <div
       style={{
@@ -93,9 +97,42 @@ export function AgendaHoje({ consultas, origem }: Props) {
       >
         {consultas.map((c) => {
           const color = STATUS_COLOR[c.status] ?? PAWARDS.colors.text.tertiary;
+          const isSintetico = origem === "sintetico";
+          const temPaciente = c.paciente_id != null;
+          const temUnidade = c.unidade_id != null;
+          const clicavel = (!isSintetico && temPaciente) || (isSintetico && temUnidade);
+          const destino = !isSintetico && temPaciente
+            ? `/pacientes/${c.paciente_id}`
+            : isSintetico && temUnidade
+              ? `/unidades?unidadeId=${c.unidade_id}`
+              : null;
+          const titulo = !isSintetico && temPaciente
+            ? `Abrir ficha de ${c.paciente}`
+            : isSintetico && temUnidade
+              ? `Prévia sintética — abrir unidade ${c.unidade ?? ""}`
+              : "Sem destino disponível";
+          const handleClick = () => {
+            if (destino) setLocation(destino);
+          };
           return (
             <div
               key={c.id}
+              role={clicavel ? "button" : undefined}
+              tabIndex={clicavel ? 0 : undefined}
+              title={titulo}
+              aria-label={titulo}
+              aria-disabled={clicavel ? undefined : true}
+              onClick={clicavel ? handleClick : undefined}
+              onKeyDown={
+                clicavel
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleClick();
+                      }
+                    }
+                  : undefined
+              }
               style={{
                 display: "grid",
                 gridTemplateColumns: "52px 1fr auto",
@@ -105,6 +142,16 @@ export function AgendaHoje({ consultas, origem }: Props) {
                 borderRadius: 10,
                 background: "rgba(255,255,255,0.02)",
                 borderLeft: `3px solid ${color}`,
+                cursor: clicavel ? "pointer" : "not-allowed",
+                opacity: clicavel ? 1 : 0.75,
+                outline: "none",
+                transition: "background 120ms ease",
+              }}
+              onMouseEnter={(e) => {
+                if (clicavel) e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.02)";
               }}
             >
               <div

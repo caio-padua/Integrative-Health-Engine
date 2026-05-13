@@ -592,6 +592,7 @@ router.get("/agenda-hoje", async (req, res) => {
         a.tipo_procedimento AS procedimento,
         a.status,
         COALESCE(p.nome, 'Paciente') AS paciente,
+        a.paciente_id,
         COALESCE(u.nome, 'Profissional') AS profissional,
         COALESCE(un.nick, un.nome, '—') AS unidade,
         un.id AS unidade_id
@@ -654,6 +655,7 @@ router.get("/agenda-hoje", async (req, res) => {
           ELSE        'agendado'
         END AS status,
         COALESCE(pu.nome, 'Paciente ' || s.slot) AS paciente,
+        pu.id AS paciente_id,
         COALESCE(pp.nome, 'Profissional') AS profissional,
         b.unidade,
         b.unidade_id
