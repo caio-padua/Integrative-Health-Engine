@@ -46,6 +46,7 @@ import PortalClientePage from "@/pages/portal";
 import GovernancaPage from "@/pages/governanca";
 import MonitoramentoPacientePage from "@/pages/pacientes/monitoramento";
 import SegurancaPage from "@/pages/seguranca";
+import PerfilSeguranca2faPage from "@/pages/perfil/seguranca-2fa";
 import PainelComandoPage from "@/pages/painel-comando";
 import PainelTransmutacao from "@/pages/painel-transmutacao";
 import ProtocoloNatacha from "@/pages/protocolo-natacha";
@@ -198,6 +199,7 @@ function Router() {
       <Route path="/portal" component={PortalClientePage} />
       <Route path="/governanca" component={GovernancaPage} />
       <Route path="/seguranca" component={SegurancaPage} />
+      <Route path="/perfil/seguranca-2fa" component={PerfilSeguranca2faPage} />
       <Route path="/painel-comando" component={PainelComandoPage} />
       <Route path="/painel-transmutacao" component={PainelTransmutacao} />
       <Route path="/protocolo-natacha" component={ProtocoloNatacha} />

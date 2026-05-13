@@ -193,6 +193,10 @@ router.get("/usuarios/perfil-atual", async (req, res): Promise<void> => {
       // Task #130: usado pelo banner de aviso 2FA no painel /plataforma/*
       // pra mostrar countdown antes da janela de 8h expirar.
       ultimoLogin2faEm: usuariosTable.ultimoLogin2faEm,
+      // Task #122: usado pela tela /perfil/seguranca-2fa pra decidir se
+      // mostra o fluxo de cadastro (inativo) ou o de "Ativo em <data>
+      // + Desativar". Sem esse campo a tela sempre renderiza inativo.
+      totpAtivadoEm: usuariosTable.totpAtivadoEm,
       // Task #173 — timestamp do ultimo aviso de expiracao 2FA enviado
       // pelo worker (Migration 047). UI /plataforma/perfil mostra
       // "Ultimo aviso enviado: <data/hora relativa>" pro owner confirmar

@@ -1,5 +1,6 @@
 import { ReactNode, useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import type { Usuario } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
 import { useLembretesFalhasContagem } from "@/hooks/useLembretesFalhasContagem";
@@ -180,7 +181,7 @@ type Grupo = { id: string; nome: string; icon: any; cor?: string; items: Item[] 
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis } = useClinic();
   const { total: falhasLembrete } = useLembretesFalhasContagem(unidadeSelecionada);
 
@@ -443,6 +444,26 @@ export function Layout({ children }: { children: ReactNode }) {
               : <VolumeX className="mr-3 h-4 w-4" />}
             {sound.enabled ? "Som ligado" : "Som silenciado"}
           </Button>
+          {(() => {
+            // Task #122 — perfilPlataforma so eh exposto via /perfil-atual
+            // (estende Usuario do api-client com campo opcional). Tipagem
+            // local pra evitar `any` espalhado pelo Layout.
+            const perfilPlataforma = (user as Usuario & {
+              perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user" | null;
+            } | null)?.perfilPlataforma;
+            return perfilPlataforma === "platform_owner" || perfilPlataforma === "tenant_admin";
+          })() && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs"
+              onClick={() => setLocation("/perfil/seguranca-2fa")}
+              data-testid="link-perfil-seguranca-2fa"
+              title="Configurar verificacao em duas etapas (2FA TOTP)"
+            >
+              <Lock className="mr-3 h-4 w-4" />
+              Seguranca · 2FA
+            </Button>
+          )}
           <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs" onClick={logout}>
             <LogOut className="mr-3 h-4 w-4" />
             Sair

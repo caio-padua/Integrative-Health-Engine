@@ -20,11 +20,25 @@ function writeToken(token: string | null): void {
 
 setAuthTokenGetter(() => readToken());
 
+// Task #122 — quando o backend devolve { requires2fa: true, challenge },
+// o login precisa de uma segunda etapa: o usuario digita o codigo TOTP
+// de 6 digitos e o frontend chama /usuarios/login/2fa-verificar pra
+// trocar challenge+codigo pelo JWT real. Esse estado vive aqui pra
+// sobreviver a re-render do form e pra que o Layout nao seja montado
+// no meio do processo (ainda nao ha JWT).
+export interface PendingTwoFactor {
+  challenge: string;
+  email: string;
+}
+
 interface AuthContextType {
   user: Usuario | null;
   isLoading: boolean;
   login: (data: LoginBody) => void;
   logout: () => void;
+  pendingTwoFactor: PendingTwoFactor | null;
+  cancelTwoFactor: () => void;
+  verifyTwoFactor: (codigo: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const [user, setUser] = useState<Usuario | null>(null);
+  const [pendingTwoFactor, setPendingTwoFactor] = useState<PendingTwoFactor | null>(null);
   const { toast } = useToast();
 
   const loginMutation = useLoginUsuario();
@@ -59,14 +74,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [perfilError, hasToken, queryClient]);
 
+  // Task #122 — o openapi.yaml ainda nao declara o branch requires2fa
+  // do POST /usuarios/login (challenge curto de 5min em vez de JWT) nem
+  // o POST /usuarios/login/2fa-verificar. Tipamos localmente pra evitar
+  // `any` e narrowing por discriminante em runtime.
+  type LoginRespostaSemSegundaEtapa = {
+    token: string;
+    usuario: Usuario;
+    requires2fa?: false;
+  };
+  type LoginRespostaPedindoSegundaEtapa = {
+    requires2fa: true;
+    challenge: string;
+  };
+  type LoginResposta = LoginRespostaSemSegundaEtapa | LoginRespostaPedindoSegundaEtapa;
+  type ErroJson = { error?: string };
+
+  function isPedindoSegundaEtapa(
+    r: LoginResposta,
+  ): r is LoginRespostaPedindoSegundaEtapa {
+    return r.requires2fa === true;
+  }
+
   const login = (data: LoginBody) => {
     loginMutation.mutate({ data }, {
-      onSuccess: (res: any) => {
-        if (res?.token) {
-          writeToken(res.token);
+      onSuccess: (res) => {
+        const resp = res as unknown as LoginResposta;
+        // Task #122 — backend pode pedir segunda etapa antes de devolver
+        // o JWT real. Guarda o challenge curto (5min) e deixa a tela de
+        // login mostrar o input de 6 digitos.
+        if (isPedindoSegundaEtapa(resp)) {
+          setPendingTwoFactor({ challenge: resp.challenge, email: data.email ?? "" });
+          toast({
+            title: "Digite o codigo do app autenticador",
+            description: "Sua conta tem 2FA ativo. Confirme o codigo de 6 digitos pra entrar.",
+          });
+          return;
+        }
+        if (resp.token) {
+          writeToken(resp.token);
           setHasToken(true);
         }
-        setUser(res.usuario);
+        setUser(resp.usuario);
+        setPendingTwoFactor(null);
         queryClient.invalidateQueries({ queryKey: ["/usuarios/perfil-atual"] });
         toast({ title: "Login realizado com sucesso." });
       },
@@ -76,15 +126,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Task #122 — segunda etapa do login: troca challenge+codigo pelo JWT
+  // chamando POST /api/usuarios/login/2fa-verificar (rota publica, nao
+  // exige Authorization). Sucesso: persiste token, dispara perfil-atual.
+  const verifyTwoFactor = async (codigo: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!pendingTwoFactor) return { ok: false, error: "Sem login pendente" };
+    try {
+      const r = await fetch("/api/usuarios/login/2fa-verificar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ challenge: pendingTwoFactor.challenge, codigo }),
+      });
+      if (!r.ok) {
+        const erro = (await r.json().catch(() => ({}) as ErroJson)) as ErroJson;
+        return { ok: false, error: erro.error ?? `Falha (${r.status})` };
+      }
+      const j = (await r.json()) as LoginRespostaSemSegundaEtapa;
+      if (j.token) {
+        writeToken(j.token);
+        setHasToken(true);
+      }
+      if (j.usuario) setUser(j.usuario);
+      setPendingTwoFactor(null);
+      queryClient.invalidateQueries({ queryKey: ["/usuarios/perfil-atual"] });
+      toast({ title: "Login realizado com sucesso." });
+      return { ok: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Sem conexao com o servidor";
+      return { ok: false, error: msg };
+    }
+  };
+
+  const cancelTwoFactor = () => {
+    setPendingTwoFactor(null);
+  };
+
   const logout = () => {
     writeToken(null);
     setHasToken(false);
     setUser(null);
+    setPendingTwoFactor(null);
     queryClient.clear();
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading: hasToken && isLoadingPerfil, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading: hasToken && isLoadingPerfil,
+        login,
+        logout,
+        pendingTwoFactor,
+        cancelTwoFactor,
+        verifyTwoFactor,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
