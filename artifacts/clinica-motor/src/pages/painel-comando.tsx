@@ -299,6 +299,15 @@ export default function PainelComando() {
       setSomSegurancaMudo(novo);
     } catch { /* silencioso */ }
   }
+  // Task #175 — tendencia de bloqueios 2FA nas ultimas 24h vs 24h anteriores.
+  // Mini-card pequeno (Bloqueios 2FA 24h: N ▲/▼ vs ontem). Cor verde quando
+  // tendencia caindo, vermelho quando subindo, neutro quando estavel/sem dado.
+  const [bloqueios2faTendencia, setBloqueios2faTendencia] = useState<{
+    total_janela: number;
+    total_janela_anterior: number;
+    variacao_pct: number | null;
+    tendencia: "subindo" | "caindo" | "estavel";
+  } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -421,6 +430,53 @@ export default function PainelComando() {
       alive = false;
       clearInterval(id);
       window.removeEventListener("alertas_ceo_marcados", onMarcados);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  // Task #175 — polling de tendencia de bloqueios 2FA nas ultimas 24h.
+  // Mesmo gate/cadencia (60s) e mesmo padrao silencioso de 401/403 (zera).
+  // Usa janela_horas=24 que devolve total_janela / total_janela_anterior /
+  // variacao_pct / tendencia agregados (independente de apenas_nao_vistos).
+  useEffect(() => {
+    if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await apiFetch(
+          `${API_BASE}/plataforma/alertas-seguranca?janela_horas=24&limite=1`,
+          { credentials: "include" },
+        );
+        if (!alive) return;
+        if (!r.ok) {
+          setBloqueios2faTendencia(null);
+          return;
+        }
+        const d = await r.json();
+        if (!alive || !d || d.total_janela === undefined) return;
+        setBloqueios2faTendencia({
+          total_janela: Number(d.total_janela ?? 0),
+          total_janela_anterior: Number(d.total_janela_anterior ?? 0),
+          variacao_pct:
+            d.variacao_pct === null || d.variacao_pct === undefined
+              ? null
+              : Number(d.variacao_pct),
+          tendencia: (d.tendencia ?? "estavel") as "subindo" | "caindo" | "estavel",
+        });
+      } catch { /* silencioso */ }
+    };
+    carregar();
+    const id = setInterval(carregar, 60_000);
+    const onMarcados = () => { carregar(); };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "alertas_seguranca_marcados_em") carregar();
+    };
+    window.addEventListener("alertas_seguranca_marcados", onMarcados);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("alertas_seguranca_marcados", onMarcados);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
@@ -832,6 +888,51 @@ export default function PainelComando() {
                 </div>
               </div>
             </div>
+          );
+        })()}
+
+        {/* Task #175 — mini-card de tendencia de bloqueios 2FA (24h vs 24h anteriores).
+            Verde caindo · vermelho subindo · neutro estavel. Clica e abre fila. */}
+        {FEATURE_ASSINATURAS_RESUMO_CEO && bloqueios2faTendencia && (() => {
+          const t = bloqueios2faTendencia;
+          const cor: CorSemantica =
+            t.tendencia === "subindo" ? "critico"
+            : t.tendencia === "caindo" ? "excelente"
+            : "neutro";
+          const corHex = COR_SEMANTICA_HEX[cor];
+          const seta = t.tendencia === "subindo" ? "▲" : t.tendencia === "caindo" ? "▼" : "▬";
+          const delta = t.total_janela - t.total_janela_anterior;
+          const deltaTxt = delta > 0 ? `+${delta}` : `${delta}`;
+          return (
+            <a
+              href="/plataforma/alertas-seguranca"
+              className="block border-l-4 px-4 py-2 rounded-sm bg-[var(--pw-petroleo)]/5 hover:bg-[var(--pw-petroleo)]/10 transition-colors"
+              style={{ borderLeftColor: corHex }}
+              data-testid="card-ceo-bloqueios-2fa-24h"
+              title="Abrir fila de alertas de seguranca"
+            >
+              <div className="flex items-center gap-3 flex-wrap">
+                <Shield className="w-4 h-4 flex-shrink-0" style={{ color: corHex }} />
+                <span className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold">
+                  Bloqueios 2FA · 24h
+                </span>
+                <span
+                  className="text-sm font-bold tracking-tight"
+                  style={{ color: corHex }}
+                  data-testid="card-ceo-bloqueios-2fa-24h-total"
+                >
+                  {t.total_janela}
+                </span>
+                <span className="text-[11px] text-[var(--pw-tinta)]" data-testid="card-ceo-bloqueios-2fa-24h-tendencia">
+                  <span style={{ color: corHex }}>{seta}</span>{" "}
+                  {deltaTxt} vs ontem ({t.total_janela_anterior})
+                  {t.variacao_pct !== null && (
+                    <span className="ml-1 opacity-80">· {fmtVarPct(t.variacao_pct)}</span>
+                  )}
+                </span>
+                <ChevronRight className="w-4 h-4 text-[var(--pw-tinta)] ml-auto flex-shrink-0" />
+              </div>
+            </a>
           );
         })()}
 

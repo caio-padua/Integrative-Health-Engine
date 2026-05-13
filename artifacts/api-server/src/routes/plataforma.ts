@@ -979,6 +979,22 @@ router.post(
 router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promise<void> => {
   const limite = Math.min(Number(req.query["limite"] ?? 100) || 100, 500);
   const apenasNaoVistos = String(req.query["apenas_nao_vistos"] ?? "") === "true";
+  // Task #175 — filtro de janela temporal (horas). Quando informado:
+  //   - Filtra rows da fila por criado_em >= now() - janela
+  //   - Retorna agregados `total_janela` / `total_janela_anterior` /
+  //     `variacao_pct` pra mini-card de tendencia no painel-comando.
+  // Janela: inteiro 1..720h (30 dias). Fora do range = ignorado.
+  const janelaRaw = req.query["janela_horas"];
+  const janelaHoras =
+    janelaRaw !== undefined && janelaRaw !== ""
+      ? Math.max(1, Math.min(Number(janelaRaw) || 0, 720))
+      : null;
+
+  const filtroJanela = janelaHoras
+    ? sql`a.criado_em >= now() - (${janelaHoras}::int * INTERVAL '1 hour')`
+    : sql`true`;
+  const filtroNaoVistos = apenasNaoVistos ? sql`a.visualizado_em IS NULL` : sql`true`;
+
   const result = await db.execute(sql`
     SELECT
       a.id, a.tipo, a.usuario_id, a.janela_inicio_em, a.ip, a.user_agent,
@@ -989,11 +1005,54 @@ router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promis
       us.email AS usuario_email
     FROM alertas_ceo_seguranca a
     LEFT JOIN usuarios us ON us.id = a.usuario_id
-    WHERE ${apenasNaoVistos ? sql`a.visualizado_em IS NULL` : sql`true`}
+    WHERE ${filtroJanela} AND ${filtroNaoVistos}
     ORDER BY a.criado_em DESC
     LIMIT ${limite}
   `);
-  res.json({ alertas: result.rows, total: result.rows?.length ?? 0 });
+
+  const resposta: Record<string, unknown> = {
+    alertas: result.rows,
+    total: result.rows?.length ?? 0,
+  };
+
+  if (janelaHoras) {
+    // Conta total absoluto na janela atual (sem o LIMIT) e na janela
+    // anterior do mesmo tamanho. Ignora apenas_nao_vistos pra dar a
+    // tendencia "real" de bloqueios criados na janela.
+    const agg = await db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (
+          WHERE a.criado_em >= now() - (${janelaHoras}::int * INTERVAL '1 hour')
+        )::int AS total_janela,
+        COUNT(*) FILTER (
+          WHERE a.criado_em >= now() - (${janelaHoras * 2}::int * INTERVAL '1 hour')
+            AND a.criado_em <  now() - (${janelaHoras}::int * INTERVAL '1 hour')
+        )::int AS total_janela_anterior
+      FROM alertas_ceo_seguranca a
+      WHERE a.criado_em >= now() - (${janelaHoras * 2}::int * INTERVAL '1 hour')
+    `);
+    const row = (agg.rows?.[0] ?? {}) as {
+      total_janela?: number;
+      total_janela_anterior?: number;
+    };
+    const atual = Number(row.total_janela ?? 0);
+    const anterior = Number(row.total_janela_anterior ?? 0);
+    const variacaoPct =
+      anterior === 0
+        ? atual === 0
+          ? 0
+          : null
+        : ((atual - anterior) / anterior) * 100;
+    const tendencia: "subindo" | "caindo" | "estavel" =
+      atual > anterior ? "subindo" : atual < anterior ? "caindo" : "estavel";
+    resposta["janela_horas"] = janelaHoras;
+    resposta["total_janela"] = atual;
+    resposta["total_janela_anterior"] = anterior;
+    resposta["variacao_pct"] = variacaoPct;
+    resposta["tendencia"] = tendencia;
+  }
+
+  res.json(resposta);
 });
 
 // GET /api/plataforma/alertas-seguranca/contagem — endpoint leve (Task #168).
