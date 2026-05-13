@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadArtifactConfigs, scanFile, helperFileExports, helperFunctionBodyOk, emitHelperWarnings, type ArtifactConfig } from "./check-api-fetch.js";
+import { loadArtifactConfigs, scanFile, helperFileExports, helperFunctionBodyOk, helperFileHasAuthHints, emitHelperWarnings, type ArtifactConfig } from "./check-api-fetch.js";
 
 const FAKE = "/fake/file.tsx";
 
@@ -363,6 +363,109 @@ test("emitHelperWarnings: helper com fetch real -> SILENCIO (sem aviso de corpo)
   assert.equal(helperMissingHardFail, false);
   assert.equal(rec.warns.length, 0);
   assert.equal(rec.errors.length, 0);
+});
+
+test("helperFileHasAuthHints: detecta Authorization", () => {
+  assert.equal(helperFileHasAuthHints(`headers.set("Authorization", x);`), true);
+});
+
+test("helperFileHasAuthHints: detecta Bearer", () => {
+  assert.equal(helperFileHasAuthHints("`Bearer ${jwt}`"), true);
+});
+
+test("helperFileHasAuthHints: detecta getPawardsToken", () => {
+  assert.equal(helperFileHasAuthHints(`const t = getPawardsToken();`), true);
+});
+
+test("helperFileHasAuthHints: detecta PAWARDS_TOKEN_KEY", () => {
+  assert.equal(helperFileHasAuthHints(`localStorage.getItem(PAWARDS_TOKEN_KEY)`), true);
+});
+
+test("helperFileHasAuthHints: fetch cru sem nenhuma pista -> false", () => {
+  const src = `export function apiFetch(input, init) { return fetch(input, init); }`;
+  assert.equal(helperFileHasAuthHints(src), false);
+});
+
+test("helperFileHasAuthHints: ignora pistas dentro de comentarios", () => {
+  const src = `// usa Authorization\n/* getPawardsToken */\nexport function apiFetch(i,init){return fetch(i,init);}`;
+  assert.equal(helperFileHasAuthHints(src), false);
+});
+
+test("helperFileHasAuthHints: clinica-motor real menciona pistas de auth", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const helperPath = resolve(here, "../../artifacts/clinica-motor/src/lib/api-fetch.ts");
+  if (existsSync(helperPath)) {
+    const src = readFileSync(helperPath, "utf8");
+    assert.equal(helperFileHasAuthHints(src), true);
+  }
+});
+
+test("emitHelperWarnings: helper com corpo valido mas sem pistas de auth -> AVISO Task #115", () => {
+  const rec = makeRecorder();
+  const cfg = baseCfg({
+    name: "fetch-cru-front",
+    helperExportMissing: false,
+    helperBodyEmpty: false,
+    helperAuthHintsMissing: true,
+  });
+  const { helperMissingHardFail } = emitHelperWarnings([cfg], [], rec.out);
+  assert.equal(helperMissingHardFail, false);
+  assert.equal(rec.errors.length, 0);
+  assert.equal(rec.warns.length, 1);
+  assert.match(rec.warns[0], /AVISO/);
+  assert.match(rec.warns[0], /fetch-cru-front/);
+  assert.match(rec.warns[0], /Authorization/);
+  assert.match(rec.warns[0], /Bearer/);
+  assert.match(rec.warns[0], /#115/);
+});
+
+test("integracao Task #115: helper com fetch cru (return fetch sem token) dispara aviso, helper real do clinica-motor fica em silencio", () => {
+  // Ramo 1: helper que so faz `return fetch(input, init)` cru.
+  const dir = join(tmpdir(), `pawards-task115-${process.pid}-${Date.now()}`);
+  const helperPath = join(dir, "src/lib/api-fetch.ts");
+  try {
+    mkdirSync(dirname(helperPath), { recursive: true });
+    writeFileSync(
+      helperPath,
+      `export function apiFetch(input, init) { return fetch(input, init); }\n`,
+      "utf8",
+    );
+    const helperSrc = readFileSync(helperPath, "utf8");
+    const cfg: ArtifactConfig = {
+      name: "cru-tmp",
+      root: join(dir, "src"),
+      helperImport: "@/lib/api-fetch",
+      helperFn: "apiFetch",
+      allowlist: [helperPath],
+      helperMissing: false,
+      helperExportMissing: !helperFileExports(helperSrc, "apiFetch"),
+      helperBodyEmpty: !helperFunctionBodyOk(helperSrc, "apiFetch"),
+      helperAuthHintsMissing: !helperFileHasAuthHints(helperSrc),
+      helperExpectedPath: helperPath,
+    };
+    assert.equal(cfg.helperExportMissing, false);
+    assert.equal(cfg.helperBodyEmpty, false);
+    assert.equal(cfg.helperAuthHintsMissing, true);
+
+    const rec = makeRecorder();
+    emitHelperWarnings([cfg], [], rec.out);
+    assert.equal(rec.errors.length, 0);
+    assert.equal(rec.warns.length, 1);
+    assert.match(rec.warns[0], /cru-tmp/);
+    assert.match(rec.warns[0], /#115/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  // Ramo 2: helper real do clinica-motor — silencio.
+  const cfgs = loadArtifactConfigs();
+  const cm = cfgs.find((c) => c.name === "clinica-motor");
+  assert.ok(cm);
+  assert.ok(!cm!.helperAuthHintsMissing, "clinica-motor real menciona Authorization/Bearer/getPawardsToken");
+  const rec2 = makeRecorder();
+  emitHelperWarnings([cm!], [], rec2.out);
+  assert.equal(rec2.warns.length, 0);
+  assert.equal(rec2.errors.length, 0);
 });
 
 test("emitHelperWarnings: helper ausente sem violacoes -> AVISO Task #108", () => {

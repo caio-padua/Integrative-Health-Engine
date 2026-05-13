@@ -15,8 +15,25 @@ export type ArtifactConfig = {
   helperMissing?: boolean;
   helperExportMissing?: boolean;
   helperBodyEmpty?: boolean;
+  helperAuthHintsMissing?: boolean;
   helperExpectedPath?: string;
 };
+
+const AUTH_HINT_RE = /\b(Authorization|Bearer|getPawardsToken|PAWARDS_TOKEN_KEY)\b/;
+
+// Heuristica complementar a helperFunctionBodyOk (Task #115): apos confirmar
+// que o helper exporta a funcao e o corpo nao e no-op, ainda da pra alguem
+// escrever um corpo "valido" tipo `return fetch(input, init)` cru, sem ler
+// token nem injetar Authorization. Esse check garante que o ARQUIVO inteiro
+// do helper menciona pelo menos uma das pistas esperadas de auth. Olhamos o
+// arquivo (e nao so o corpo) porque o token costuma ser lido via helper
+// auxiliar (`getPawardsToken`) declarado fora da funcao apiFetch.
+export function helperFileHasAuthHints(src: string): boolean {
+  const stripped = src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  return AUTH_HINT_RE.test(stripped);
+}
 
 export function helperFileExports(src: string, fnName: string): boolean {
   const stripped = src
@@ -201,11 +218,15 @@ function discoverArtifacts(): ArtifactConfig[] {
     const helperMissing = !existsSync(helperCandidate);
     let helperExportMissing = false;
     let helperBodyEmpty = false;
+    let helperAuthHintsMissing = false;
     if (!helperMissing) {
       const helperSrc = readFileSync(helperCandidate, "utf8");
       helperExportMissing = !helperFileExports(helperSrc, helperFn);
       if (!helperExportMissing) {
         helperBodyEmpty = !helperFunctionBodyOk(helperSrc, helperFn);
+        if (!helperBodyEmpty) {
+          helperAuthHintsMissing = !helperFileHasAuthHints(helperSrc);
+        }
       }
     }
     found.push({
@@ -217,6 +238,7 @@ function discoverArtifacts(): ArtifactConfig[] {
       helperMissing,
       helperExportMissing,
       helperBodyEmpty,
+      helperAuthHintsMissing,
       helperExpectedPath: helperCandidate,
     });
   }
@@ -238,11 +260,15 @@ function normalizeHelperFlags(cfg: ArtifactConfig): ArtifactConfig {
   const helperMissing = !existsSync(helperPath);
   let helperExportMissing = false;
   let helperBodyEmpty = false;
+  let helperAuthHintsMissing = false;
   if (!helperMissing) {
     const helperSrc = readFileSync(helperPath, "utf8");
     helperExportMissing = !helperFileExports(helperSrc, cfg.helperFn);
     if (!helperExportMissing) {
       helperBodyEmpty = !helperFunctionBodyOk(helperSrc, cfg.helperFn);
+      if (!helperBodyEmpty) {
+        helperAuthHintsMissing = !helperFileHasAuthHints(helperSrc);
+      }
     }
   }
   return {
@@ -250,6 +276,7 @@ function normalizeHelperFlags(cfg: ArtifactConfig): ArtifactConfig {
     helperMissing,
     helperExportMissing,
     helperBodyEmpty,
+    helperAuthHintsMissing,
     helperExpectedPath: cfg.helperExpectedPath ?? helperPath,
   };
 }
@@ -395,6 +422,21 @@ export function emitHelperWarnings(
       : `${cfg.name}/src/lib/api-fetch.ts`;
     out.warn(
       `[check-api-fetch] AVISO: artifact "${cfg.name}" (kind=web) exporta ${cfg.helperFn} em ${expected}, mas o corpo da funcao nao chama \`fetch(\` nem tem \`return\` — parece um no-op. Em runtime as chamadas viram silencio (sem request, sem resposta) e o frontend nasce vulneravel a 401 silencioso (ver Task #108/#113/#114). Implemente o corpo da funcao chamando fetch e retornando a Response.`,
+    );
+  }
+  const authHintsMissingHelper = configs.filter(
+    (c) =>
+      !c.helperMissing &&
+      !c.helperExportMissing &&
+      !c.helperBodyEmpty &&
+      c.helperAuthHintsMissing,
+  );
+  for (const cfg of authHintsMissingHelper) {
+    const expected = cfg.helperExpectedPath
+      ? relative(process.cwd(), cfg.helperExpectedPath)
+      : `${cfg.name}/src/lib/api-fetch.ts`;
+    out.warn(
+      `[check-api-fetch] AVISO: artifact "${cfg.name}" (kind=web) tem ${cfg.helperFn} em ${expected} com corpo nao vazio, mas o arquivo nao menciona nenhuma das pistas esperadas de auth (Authorization, Bearer, getPawardsToken ou PAWARDS_TOKEN_KEY). O helper pode estar fazendo fetch cru sem injetar o JWT, deixando o frontend vulneravel a 401 silencioso (ver Task #108/#113/#114/#115). Confira que ${cfg.helperFn} le o token do localStorage e seta o header Authorization: Bearer.`,
     );
   }
   return { helperMissingHardFail };
