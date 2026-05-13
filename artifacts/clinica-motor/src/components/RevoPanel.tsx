@@ -17,15 +17,66 @@ const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 const apiBase = `${window.location.origin}/api`.replace(/\/+/g, "/").replace(":/", "://");
 
 /**
- * Preview live da posologia interpretada pelo backend (/api/posologia/parse).
- * Função pura no servidor — apenas mostra a frase canônica + bandeira interpretado/bruto.
- * Debounce 350 ms pra não floodar o endpoint enquanto o médico digita.
+ * Estrutura PosologiaEstruturada espelhada de @workspace/posologia.
+ * Mantida local pra não acoplar o frontend ao tipo do lib (idêntica ao schema do backend).
  */
-function PosologiaPreview({ texto, contexto }: { texto: string; contexto?: { categoria?: string } }) {
-  const [estado, setEstado] = useState<{ frase: string; interpretado: boolean } | null>(null);
+type PosologiaEstruturadaUI = {
+  raw: string;
+  interpretado: boolean;
+  quantidade?: number;
+  unidadeForma?: string;
+  via?: string;
+  doseMg?: number;
+  volumeMl?: number;
+  frequencia?: { tipo: string; vezes?: number; intervaloHoras?: number };
+  momento?: string[];
+  duracaoDias?: number;
+  observacoes?: string;
+};
+
+const FORMAS_OPTS = ["capsula","comprimido","dose","pellet","ml","gota","ampola","sache","spray","puff","unidade"];
+const VIAS_OPTS = ["oral","sublingual","intramuscular","endovenosa","subcutanea","topica","nasal","retal","vaginal","ocular","implante"];
+const FREQ_TIPOS = ["diaria","semanal","mensal","horaria","unica","continua"];
+const MOMENTOS_OPTS = ["jejum","antes_dormir","antes_cafe","antes_almoco","antes_jantar","com_refeicao","apos_refeicao","manha","tarde","noite"];
+
+/**
+ * Painel "confirma-ou-corrige" da posologia interpretada (task #41).
+ *
+ * - Continua chamando /api/posologia/parse com debounce 350 ms para mostrar o
+ *   preview enquanto o médico digita o texto livre.
+ * - Mostra a frase canônica + bandeira interpretado/bruto (mesmo que antes).
+ * - Agora é expansível: ao abrir, mostra cards individuais por campo da
+ *   estrutura (quantidade, forma, via, dose, volume, frequência, momento,
+ *   duração) editáveis via Input/Select/badges multi-select.
+ * - Quando o médico edita qualquer campo, marca `editado=true` e chama
+ *   `onEstruturaChange(estrutura)` no pai. O pai envia essa estrutura no POST
+ *   junto do texto livre — o backend grava `origem_posologia='manual'`.
+ * - Sem edição, o pai não envia estrutura → backend roda parser e grava
+ *   `origem_posologia='parser'` (comportamento histórico preservado).
+ */
+function PosologiaPreview({
+  texto,
+  contexto,
+  onEstruturaChange,
+}: {
+  texto: string;
+  contexto?: { categoria?: string };
+  onEstruturaChange?: (estrutura: PosologiaEstruturadaUI | null) => void;
+}) {
+  const [estado, setEstado] = useState<{ frase: string; estrutura: PosologiaEstruturadaUI } | null>(null);
+  const [aberto, setAberto] = useState(false);
+  const [estruturaEditada, setEstruturaEditada] = useState<PosologiaEstruturadaUI | null>(null);
+
+  // Invariante de segurança clínica: qualquer mudança no texto livre OU no
+  // contexto invalida imediatamente a estrutura editada manualmente. O médico
+  // precisa reconfirmar/corrigir a partir do novo parse — nunca persistimos
+  // structure stale como `manual` para um texto diferente.
   useEffect(() => {
+    setEstruturaEditada(null);
+    onEstruturaChange?.(null);
+    setEstado(null);
     const t = (texto || "").trim();
-    if (!t) { setEstado(null); return; }
+    if (!t) return;
     const handle = setTimeout(async () => {
       try {
         const r = await apiFetch(`${apiBase}/posologia/parse`, {
@@ -36,18 +87,161 @@ function PosologiaPreview({ texto, contexto }: { texto: string; contexto?: { cat
         });
         if (!r.ok) { setEstado(null); return; }
         const j = await r.json();
-        setEstado({ frase: j.fraseCanonica, interpretado: !!j.estrutura?.interpretado });
+        setEstado({ frase: j.fraseCanonica, estrutura: j.estrutura });
       } catch { setEstado(null); }
     }, 350);
     return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texto, contexto?.categoria]);
+
   if (!estado) return null;
+
+  const editado = estruturaEditada !== null;
+  const interpretado = estado.estrutura.interpretado;
+  const atual: PosologiaEstruturadaUI = estruturaEditada ?? estado.estrutura;
+
+  // Aplica uma patch tipada sobre a estrutura corrente, marca como editada e
+  // notifica o pai. Campos opcionais são removidos quando recebem undefined,
+  // mantendo o JSON enviado ao backend o mais enxuto possível.
+  const aplicar = (delta: Partial<PosologiaEstruturadaUI>) => {
+    const proxima: PosologiaEstruturadaUI = { ...atual, ...delta, interpretado: true };
+    (Object.keys(delta) as Array<keyof PosologiaEstruturadaUI>).forEach((k) => {
+      if (delta[k] === undefined) delete proxima[k];
+    });
+    setEstruturaEditada(proxima);
+    onEstruturaChange?.(proxima);
+  };
+
+  const aplicarFreq = (delta: Partial<NonNullable<PosologiaEstruturadaUI["frequencia"]>>) => {
+    const freqAtual = atual.frequencia ?? { tipo: "diaria" as const };
+    const proxFreq = { ...freqAtual, ...delta };
+    (Object.keys(delta) as Array<keyof typeof proxFreq>).forEach((k) => {
+      if ((delta as Record<string, unknown>)[k] === undefined) delete (proxFreq as Record<string, unknown>)[k];
+    });
+    aplicar({ frequencia: proxFreq.tipo ? proxFreq : undefined });
+  };
+
+  const toggleMomento = (m: string) => {
+    const set = new Set(atual.momento ?? []);
+    if (set.has(m)) set.delete(m); else set.add(m);
+    aplicar({ momento: set.size ? Array.from(set) : undefined });
+  };
+
+  const resetar = () => {
+    setEstruturaEditada(null);
+    onEstruturaChange?.(null);
+  };
+
+  // Aceitação explícita da estrutura interpretada pelo parser, mesmo sem
+  // editar nenhum campo. Confirma o que está na tela como `manual` (médico
+  // declarou que está correto) — fecha o loop "confirma-ou-corrige".
+  const aceitar = () => {
+    const confirmada: PosologiaEstruturadaUI = { ...atual, interpretado: true };
+    setEstruturaEditada(confirmada);
+    onEstruturaChange?.(confirmada);
+  };
+
   return (
-    <div className={`text-[10px] px-2 py-1 mt-1 border ${estado.interpretado ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300" : "border-amber-500/30 bg-amber-500/5 text-amber-300"}`}>
-      <span className="font-semibold uppercase tracking-wider mr-2">
-        {estado.interpretado ? "Interpretado" : "Texto cru"}
-      </span>
-      {estado.frase}
+    <div className={`mt-1 border ${editado ? "border-blue-500/40 bg-blue-500/5" : interpretado ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+      <button
+        type="button"
+        onClick={() => setAberto(a => !a)}
+        className={`w-full flex items-center gap-2 text-[10px] px-2 py-1 ${editado ? "text-blue-300" : interpretado ? "text-emerald-300" : "text-amber-300"}`}
+      >
+        {aberto ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        <span className="font-semibold uppercase tracking-wider">
+          {editado ? "Manual" : interpretado ? "Interpretado" : "Texto cru"}
+        </span>
+        <span className="truncate text-left flex-1">{estado.frase}</span>
+        <span className="text-[9px] opacity-70">{aberto ? "fechar" : "confirmar / corrigir"}</span>
+      </button>
+
+      {aberto && (
+        <div className="border-t border-border/30 p-2 space-y-2 bg-background/40">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Quantidade</div>
+              <Input className="h-7 text-xs" type="number" step="any" value={atual.quantidade ?? ""} onChange={e => aplicar({ quantidade: e.target.value === "" ? undefined : Number(e.target.value) })} />
+            </label>
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Forma</div>
+              <Select value={atual.unidadeForma ?? ""} onValueChange={v => aplicar({ unidadeForma: v || undefined })}>
+                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>{FORMAS_OPTS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+              </Select>
+            </label>
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Via</div>
+              <Select value={atual.via ?? ""} onValueChange={v => aplicar({ via: v || undefined })}>
+                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>{VIAS_OPTS.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+              </Select>
+            </label>
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Dose (mg)</div>
+              <Input className="h-7 text-xs" type="number" step="any" value={atual.doseMg ?? ""} onChange={e => aplicar({ doseMg: e.target.value === "" ? undefined : Number(e.target.value) })} />
+            </label>
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Volume (mL)</div>
+              <Input className="h-7 text-xs" type="number" step="any" value={atual.volumeMl ?? ""} onChange={e => aplicar({ volumeMl: e.target.value === "" ? undefined : Number(e.target.value) })} />
+            </label>
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Freq. tipo</div>
+              <Select value={atual.frequencia?.tipo ?? ""} onValueChange={v => aplicarFreq({ tipo: v || undefined })}>
+                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>{FREQ_TIPOS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+              </Select>
+            </label>
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Vezes</div>
+              <Input className="h-7 text-xs" type="number" step="1" value={atual.frequencia?.vezes ?? ""} onChange={e => aplicarFreq({ vezes: e.target.value === "" ? undefined : Number(e.target.value) })} />
+            </label>
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Interv. (h)</div>
+              <Input className="h-7 text-xs" type="number" step="any" value={atual.frequencia?.intervaloHoras ?? ""} onChange={e => aplicarFreq({ intervaloHoras: e.target.value === "" ? undefined : Number(e.target.value) })} />
+            </label>
+            <label className="space-y-1">
+              <div className="text-[9px] uppercase text-muted-foreground">Duração (dias)</div>
+              <Input className="h-7 text-xs" type="number" step="1" value={atual.duracaoDias ?? ""} onChange={e => aplicar({ duracaoDias: e.target.value === "" ? undefined : Number(e.target.value) })} />
+            </label>
+          </div>
+
+          <div className="space-y-1">
+            <div className="text-[9px] uppercase text-muted-foreground">Momento</div>
+            <div className="flex flex-wrap gap-1">
+              {MOMENTOS_OPTS.map(m => {
+                const ativo = (atual.momento || []).includes(m);
+                return (
+                  <button key={m} type="button" onClick={() => toggleMomento(m)}
+                    className={`text-[10px] px-2 py-0.5 border ${ativo ? "border-blue-500 bg-blue-500/20 text-blue-300" : "border-border bg-muted/10 text-muted-foreground"}`}>
+                    {m}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1 border-t border-border/30 gap-2">
+            <div className="text-[9px] text-muted-foreground flex-1">
+              {editado
+                ? "Estrutura confirmada/editada — será gravada como origem 'manual'."
+                : "Estrutura ainda não confirmada — sem ação, será gravada como 'parser'."}
+            </div>
+            <div className="flex gap-1">
+              {editado && (
+                <Button type="button" size="sm" variant="ghost" className="h-6 text-[10px]" onClick={resetar}>
+                  <X className="w-3 h-3 mr-1" /> Restaurar parser
+                </Button>
+              )}
+              {!editado && (
+                <Button type="button" size="sm" variant="default" className="h-6 text-[10px]" onClick={aceitar}>
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Aceitar e gravar
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -89,6 +283,10 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
   const [showNewPat, setShowNewPat] = useState(false);
 
   const [newMed, setNewMed] = useState({ tipoMed: "remedio" as "remedio"|"formula", nome: "", dose: "", posologia: "", motivoUso: "", tempoUso: "", criterioReducao: "", componentesFormula: [] as Array<{substancia:string;dosagem:string}> });
+  // Task #41: estrutura da posologia editada manualmente pelo médico no
+  // PosologiaPreview. Quando preenchida, é enviada no POST e o backend grava
+  // origem_posologia='manual' em vez de rodar o parser automático.
+  const [newMedPosologiaManual, setNewMedPosologiaManual] = useState<PosologiaEstruturadaUI | null>(null);
   const [addingMed, setAddingMed] = useState(false);
   const [showNewMed, setShowNewMed] = useState(false);
   const [newComponente, setNewComponente] = useState({ substancia: "", dosagem: "" });
@@ -255,6 +453,9 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
         medicamentoDoseInline: newMed.tipoMed === "remedio" ? `${newMed.nome} ${newMed.dose}`.trim() : newMed.nome,
       };
       if (newMed.tipoMed === "formula") payload.componentesFormula = newMed.componentesFormula;
+      // Task #41: se o médico editou a estrutura no PosologiaPreview, envia
+      // junto. Backend respeita e grava `origem_posologia='manual'`.
+      if (newMedPosologiaManual) payload.posologiaEstruturada = newMedPosologiaManual;
       const res = await apiFetch(`${apiBase}/rasx/${pacienteId}/revo/medicamento`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -264,6 +465,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
         toast({ title: newMed.tipoMed === "formula" ? "Formula adicionada" : "Medicamento adicionado" });
         setNewMed({ tipoMed: "remedio", nome: "", dose: "", posologia: "", motivoUso: "", tempoUso: "", criterioReducao: "", componentesFormula: [] });
         setNewComponente({ substancia: "", dosagem: "" });
+        setNewMedPosologiaManual(null);
         setShowNewMed(false);
         fetchData();
       }
@@ -762,7 +964,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                       <Input placeholder="Medicamento + dose (ex: Captopril 25mg)" value={newMed.nome} onChange={e => setNewMed(m => ({ ...m, nome: e.target.value }))} />
                       <div>
                         <Input placeholder="Posologia (ex: 1 comp 2x/dia)" value={newMed.posologia} onChange={e => setNewMed(m => ({ ...m, posologia: e.target.value }))} />
-                        <PosologiaPreview texto={newMed.posologia} contexto={{ categoria: "revo_medicamento" }} />
+                        <PosologiaPreview texto={newMed.posologia} contexto={{ categoria: "revo_medicamento" }} onEstruturaChange={setNewMedPosologiaManual} />
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
@@ -775,7 +977,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                   <div className="space-y-2">
                     <Input placeholder="Nome da formula (ex: Formula Neuroprotetora)" value={newMed.nome} onChange={e => setNewMed(m => ({ ...m, nome: e.target.value }))} />
                     <Input placeholder="Posologia (ex: 2 caps 2x/dia)" value={newMed.posologia} onChange={e => setNewMed(m => ({ ...m, posologia: e.target.value }))} />
-                    <PosologiaPreview texto={newMed.posologia} contexto={{ categoria: "revo_formula" }} />
+                    <PosologiaPreview texto={newMed.posologia} contexto={{ categoria: "revo_formula" }} onEstruturaChange={setNewMedPosologiaManual} />
                     <div className="border border-purple-500/20 bg-purple-500/5 p-2 space-y-2">
                       <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Substancias da Formula</p>
                       {newMed.componentesFormula.length > 0 && (
@@ -814,7 +1016,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                 )}
 
                 <div className="flex gap-2 justify-end">
-                  <Button size="sm" variant="ghost" onClick={() => { setShowNewMed(false); setNewComponente({ substancia: "", dosagem: "" }); }}><X className="w-3 h-3 mr-1" /> Cancelar</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowNewMed(false); setNewComponente({ substancia: "", dosagem: "" }); setNewMedPosologiaManual(null); }}><X className="w-3 h-3 mr-1" /> Cancelar</Button>
                   <Button size="sm" onClick={handleAddMedicamento} disabled={addingMed}>
                     {addingMed ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3 mr-1" />} {newMed.tipoMed === "formula" ? "Adicionar Formula" : "Adicionar Remedio"}
                   </Button>

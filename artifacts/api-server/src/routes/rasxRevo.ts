@@ -274,8 +274,16 @@ router.post("/rasx/:pacienteId/revo/medicamento", async (req, res): Promise<void
   const clean: any = {};
   for (const k of allowed) { if (req.body[k] !== undefined) clean[k] = req.body[k]; }
 
-  if (typeof clean.posologia === "string" && clean.posologia.trim()) {
+  // Task #41: confirma-ou-corrige. Se o frontend envia uma estrutura editada
+  // pelo médico (`posologiaEstruturada` no body), gravamos ela como `manual`.
+  // Caso contrário, caímos no parser automático e marcamos como `parser`.
+  const estruturaManual = req.body.posologiaEstruturada;
+  if (estruturaManual && typeof estruturaManual === "object") {
+    clean.posologiaEstruturada = { ...estruturaManual, raw: clean.posologia ?? estruturaManual.raw ?? "", interpretado: true };
+    clean.origemPosologia = "manual";
+  } else if (typeof clean.posologia === "string" && clean.posologia.trim()) {
     clean.posologiaEstruturada = parsePosologia(clean.posologia);
+    clean.origemPosologia = "parser";
   }
 
   const [med] = await db.insert(revoMedicamentosTable).values({
@@ -291,8 +299,14 @@ router.put("/rasx/revo/medicamento/:id", async (req, res): Promise<void> => {
   if (isNaN(id)) { res.status(400).json({ error: "ID invalido" }); return; }
 
   const patch: any = { ...req.body };
-  if (typeof patch.posologia === "string" && patch.posologia.trim()) {
+  // Task #41: idem POST — estrutura manual vinda do RevoPanel ganha precedência
+  // sobre o parser automático e marca origem='manual'.
+  if (patch.posologiaEstruturada && typeof patch.posologiaEstruturada === "object") {
+    patch.posologiaEstruturada = { ...patch.posologiaEstruturada, raw: patch.posologia ?? patch.posologiaEstruturada.raw ?? "", interpretado: true };
+    patch.origemPosologia = "manual";
+  } else if (typeof patch.posologia === "string" && patch.posologia.trim()) {
     patch.posologiaEstruturada = parsePosologia(patch.posologia);
+    patch.origemPosologia = "parser";
   }
 
   const [updated] = await db.update(revoMedicamentosTable)

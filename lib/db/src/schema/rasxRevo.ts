@@ -123,6 +123,10 @@ export const revoMedicamentosTable = pgTable("revo_medicamentos", {
   // Estrutura normalizada produzida por @workspace/posologia parsePosologia().
   // Aditiva (migration 034). Sempre devolve raw + interpretado=false como fallback.
   posologiaEstruturada: jsonb("posologia_estruturada"),
+  // Origem da posologiaEstruturada: 'parser' (parsePosologia automático) ou
+  // 'manual' (médico confirmou/corrigiu via RevoPanel — task #41 confirma-ou-corrige).
+  // Aditivo (migration 050). Default 'parser' preserva semântica histórica.
+  origemPosologia: text("origem_posologia", { enum: ["parser", "manual"] }).notNull().default("parser"),
   componentesFormula: jsonb("componentes_formula").$type<Array<{ substancia: string; dosagem: string }>>(),
   motivoUso: text("motivo_uso"),
   tempoUso: text("tempo_uso"),
