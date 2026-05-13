@@ -79,3 +79,22 @@ test("loadArtifactConfigs ignora artifacts backend (kind != web)", () => {
   assert.ok(!names.includes("api-server"), `api-server (kind=api) NAO deve ser auto-descoberto: ${names.join(",")}`);
   assert.ok(!names.includes("mockup-sandbox"), `mockup-sandbox (kind=design) NAO deve ser auto-descoberto: ${names.join(",")}`);
 });
+
+test("clinica-motor (helper presente) NAO marca helperMissing", () => {
+  const cfgs = loadArtifactConfigs();
+  const cm = cfgs.find((c) => c.name === "clinica-motor");
+  assert.ok(cm);
+  assert.ok(!cm!.helperMissing, "clinica-motor tem helper, helperMissing deve ser falsy");
+});
+
+test("artifacts auto-descobertos expoem helperMissing/helperExpectedPath", () => {
+  const cfgs = loadArtifactConfigs();
+  for (const cfg of cfgs) {
+    if (cfg.name === "clinica-motor") continue;
+    assert.equal(typeof cfg.helperMissing, "boolean", `${cfg.name} deve ter helperMissing booleano`);
+    assert.ok(cfg.helperExpectedPath, `${cfg.name} deve expor helperExpectedPath para o aviso`);
+    if (cfg.helperMissing) {
+      assert.equal(cfg.allowlist.length, 0, `${cfg.name} sem helper deve ter allowlist vazia`);
+    }
+  }
+});

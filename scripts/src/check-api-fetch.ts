@@ -12,6 +12,8 @@ export type ArtifactConfig = {
   helperImport: string;
   helperFn: string;
   allowlist: string[];
+  helperMissing?: boolean;
+  helperExpectedPath?: string;
 };
 
 const EXPLICIT_CONFIGS: ArtifactConfig[] = [
@@ -47,12 +49,15 @@ function discoverArtifacts(): ArtifactConfig[] {
     const src = join(artifactDir, "src");
     if (!existsSync(src) || !statSync(src).isDirectory()) continue;
     const helperCandidate = join(src, "lib/api-fetch.ts");
+    const helperMissing = !existsSync(helperCandidate);
     found.push({
       name: entry,
       root: src,
       helperImport: "./lib/api-fetch",
       helperFn: "apiFetch",
-      allowlist: existsSync(helperCandidate) ? [helperCandidate] : [],
+      allowlist: helperMissing ? [] : [helperCandidate],
+      helperMissing,
+      helperExpectedPath: helperCandidate,
     });
   }
   return found;
@@ -149,6 +154,31 @@ const isMain =
 
 if (isMain) {
   const { configs, violations } = scanAll();
+  const missingHelper = configs.filter((c) => c.helperMissing);
+  const violationsByArtifactPre = new Map<string, number>();
+  for (const v of violations) {
+    violationsByArtifactPre.set(
+      v.artifact,
+      (violationsByArtifactPre.get(v.artifact) ?? 0) + 1,
+    );
+  }
+  let helperMissingHardFail = false;
+  for (const cfg of missingHelper) {
+    const violCount = violationsByArtifactPre.get(cfg.name) ?? 0;
+    const expected = cfg.helperExpectedPath
+      ? relative(process.cwd(), cfg.helperExpectedPath)
+      : `${cfg.name}/src/lib/api-fetch.ts`;
+    if (violCount > 0) {
+      helperMissingHardFail = true;
+      console.error(
+        `[check-api-fetch] ERRO: artifact "${cfg.name}" (kind=web) nao tem helper autenticado em ${expected} e ja faz ${violCount} chamada(s) crua(s) a /api. Crie o helper (export ${cfg.helperFn}) e use-o em vez de fetch().`,
+      );
+    } else {
+      console.warn(
+        `[check-api-fetch] AVISO: artifact "${cfg.name}" (kind=web) foi descoberto sem helper autenticado em ${expected}. Crie o arquivo exportando ${cfg.helperFn} antes de fazer chamadas a /api, senao o frontend nasce vulneravel a 401 silencioso (ver Task #108).`,
+      );
+    }
+  }
   if (violations.length > 0) {
     console.error(
       "\n[check-api-fetch] Chamadas cruas a fetch('/api/...') detectadas.\n",
@@ -176,6 +206,9 @@ if (isMain) {
     console.error(
       `Total: ${violations.length} violacao(oes) em ${byArtifact.size} artifact(s).\n`,
     );
+    process.exit(1);
+  }
+  if (helperMissingHardFail) {
     process.exit(1);
   }
   console.log(
