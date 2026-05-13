@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   ColunaOrdenavel,
   type Ordenacao as OrdenacaoLib,
+  chaveDeOrdenacao,
   dedupePorColuna,
   parseOrdenacoesFromString,
   serializarOrdenacoes,
@@ -136,6 +137,24 @@ export default function RasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
   const ordenarPorString = serializarOrdenacoes<ChaveOrdenacaoRas>(ordenacoesRas, ORDENACAO_URL_RAS);
+  // Task #103 — descreve no cabecalho impresso/exportado qual ordenacao foi
+  // aplicada. Quando nao ha criterio customizado, mostra o padrao do backend
+  // (ORDER BY criado_em DESC em routes/rasRoute.ts). Renderizado num bloco
+  // `apenas-impressao` que so aparece via window.print() / Ctrl+P.
+  const LABELS_RAS_ORDENACAO: Record<ChaveOrdenacaoRas, string> = {
+    ID: "ID",
+    PACIENTE: "Paciente",
+    PROFISSIONAL: "Profissional",
+    UNIDADE: "Unidade",
+    DATA: "Data Servico",
+    TIPO: "Tipo",
+    CRIADO: "Criado em",
+  };
+  const descricaoOrdenacaoImpressao = ordenacoesRas.length === 0
+    ? "padrão (Criado em DESC)"
+    : ordenacoesRas
+        .map((o) => `${LABELS_RAS_ORDENACAO[chaveDeOrdenacao(o)]} ${o.endsWith("_DESC") ? "DESC" : "ASC"}`)
+        .join(" > ");
   const onClickColuna = useCallback((chave: ChaveOrdenacaoRas, shift: boolean) => {
     setOrdenacoesRas(alternarOrdenacao<ChaveOrdenacaoRas>(chave, shift, ordenacoesRas));
   }, [ordenacoesRas, setOrdenacoesRas]);
@@ -210,6 +229,13 @@ export default function RasPage() {
             <Plus className="mr-2 h-4 w-4" />
             Gerar RAS
           </Button>
+        </div>
+
+        {/* Task #103 — cabecalho de ordenacao no PDF/print (Ctrl+P).
+            So aparece no modo impressao via classe `apenas-impressao`
+            definida em styles/print-relatorio.css. */}
+        <div className="apenas-impressao text-sm font-mono mb-2" data-testid="ras-ordenacao-impressao">
+          Ordenado por: {descricaoOrdenacaoImpressao}
         </div>
 
         <Card>
