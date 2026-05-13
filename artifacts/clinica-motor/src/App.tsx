@@ -108,6 +108,7 @@ import DemandasResolucaoPage from "@/pages/demandas-resolucao";
 import PlataformaClinicas from "@/pages/plataforma/clinicas";
 import PlataformaAdmins from "@/pages/plataforma/admins";
 import PlataformaAuditoria from "@/pages/plataforma/auditoria";
+import PlataformaAlertasSeguranca from "@/pages/plataforma/alertas-seguranca";
 // EXAMES-2 — 5 zonas + nomes proprios Caio
 import ExamesDashboardMedico from "@/pages/atendimento/exames/[pacienteId]";
 import ExamesVitrinePaciente from "@/pages/atendimento/exames/[pacienteId]/vitrine";
@@ -231,6 +232,7 @@ function Router() {
       <Route path="/plataforma/clinicas" component={PlataformaClinicas} />
       <Route path="/plataforma/admins" component={PlataformaAdmins} />
       <Route path="/plataforma/auditoria" component={PlataformaAuditoria} />
+      <Route path="/plataforma/alertas-seguranca" component={PlataformaAlertasSeguranca} />
       <Route component={NotFound} />
     </Switch>
   );
