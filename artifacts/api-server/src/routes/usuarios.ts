@@ -190,6 +190,9 @@ router.get("/usuarios/perfil-atual", async (req, res): Promise<void> => {
       unidadeNome: unidadesTable.nome,
       ativo: usuariosTable.ativo,
       criadoEm: usuariosTable.criadoEm,
+      // Task #130: usado pelo banner de aviso 2FA no painel /plataforma/*
+      // pra mostrar countdown antes da janela de 8h expirar.
+      ultimoLogin2faEm: usuariosTable.ultimoLogin2faEm,
     })
     .from(usuariosTable)
     .leftJoin(unidadesTable, eq(usuariosTable.unidadeId, unidadesTable.id))

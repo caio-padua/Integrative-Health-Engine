@@ -13,14 +13,29 @@ type Pendente = {
   original: Response;
 };
 
+// Task #130: alem do fluxo reativo (403 -> modal), expomos `openStepUp()`
+// pra abrir o mesmo modal proativamente (banner de aviso quando faltam
+// <15min pra janela de 8h expirar). Nesse modo nao ha request original
+// nem retry — so renova `ultimo_login_2fa_em` e fecha.
+type ModoRenovacao = { tipo: "renovacao_proativa"; onSucesso?: () => void };
+
 export function usePlatformStepUp(): {
   runWithStepUp: (makeRequest: () => Promise<Response>) => Promise<Response>;
+  openStepUp: (onSucesso?: () => void) => void;
   modal: ReactNode;
 } {
   const [pendente, setPendente] = useState<Pendente | null>(null);
+  const [renovacao, setRenovacao] = useState<ModoRenovacao | null>(null);
   const [codigo, setCodigo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  const openStepUp = useCallback((onSucesso?: () => void): void => {
+    setCodigo("");
+    setErro(null);
+    setEnviando(false);
+    setRenovacao({ tipo: "renovacao_proativa", onSucesso });
+  }, []);
 
   const runWithStepUp = useCallback(
     async (makeRequest: () => Promise<Response>): Promise<Response> => {
@@ -43,7 +58,7 @@ export function usePlatformStepUp(): {
   );
 
   async function confirmar(): Promise<void> {
-    if (!pendente) return;
+    if (!pendente && !renovacao) return;
     const codigoLimpo = codigo.trim();
     if (codigoLimpo.length < 6) {
       setErro("Digite os 6 digitos do app autenticador.");
@@ -63,22 +78,36 @@ export function usePlatformStepUp(): {
       setEnviando(false);
       return;
     }
-    // 2FA renovado — refaz a request original e devolve a nova resposta
-    // pro caller, que segue o fluxo como se nao tivesse passado por aqui.
-    const retried = await pendente.retry();
-    pendente.resolve(retried);
-    setPendente(null);
+    if (pendente) {
+      // 2FA renovado — refaz a request original e devolve a nova resposta
+      // pro caller, que segue o fluxo como se nao tivesse passado por aqui.
+      const retried = await pendente.retry();
+      pendente.resolve(retried);
+      setPendente(null);
+    } else if (renovacao) {
+      // Task #130: renovacao proativa via banner — so fecha + callback
+      // pra o caller invalidar /usuarios/perfil-atual e reesconder o aviso.
+      renovacao.onSucesso?.();
+      setRenovacao(null);
+    }
     setEnviando(false);
   }
 
   function cancelar(): void {
-    if (!pendente) return;
-    // Cancelado: devolve o 403 original pro caller exibir como erro normal.
-    pendente.resolve(pendente.original);
-    setPendente(null);
+    if (pendente) {
+      // Cancelado: devolve o 403 original pro caller exibir como erro normal.
+      pendente.resolve(pendente.original);
+      setPendente(null);
+      return;
+    }
+    if (renovacao) {
+      setRenovacao(null);
+    }
   }
 
-  const modal = pendente ? (
+  const modalAberto = pendente !== null || renovacao !== null;
+  const modoRenovacao = renovacao !== null && pendente === null;
+  const modal = modalAberto ? (
     <div
       className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
       onKeyDown={(e) => {
@@ -87,12 +116,15 @@ export function usePlatformStepUp(): {
     >
       <div className="bg-zinc-900 border border-amber-500/40 rounded-lg p-6 max-w-md w-full">
         <h2 className="text-lg font-bold text-amber-400 flex items-center gap-2 mb-2">
-          <ShieldAlert size={20} /> 2FA expirou — confirme novamente
+          <ShieldAlert size={20} />
+          {modoRenovacao
+            ? "Renovar 2FA antes de expirar"
+            : "2FA expirou — confirme novamente"}
         </h2>
         <p className="text-sm text-zinc-300 mb-4">
-          A janela de 8h do seu 2FA expirou no meio do uso. Digite o codigo
-          atual de 6 digitos do seu app autenticador (Google Authenticator /
-          Authy / 1Password) pra refazer essa acao sem precisar deslogar.
+          {modoRenovacao
+            ? "Sua janela de 8h do 2FA esta prestes a expirar. Digite o codigo atual de 6 digitos do seu app autenticador (Google Authenticator / Authy / 1Password) pra renovar agora e nao ser pego no meio de uma acao destrutiva."
+            : "A janela de 8h do seu 2FA expirou no meio do uso. Digite o codigo atual de 6 digitos do seu app autenticador (Google Authenticator / Authy / 1Password) pra refazer essa acao sem precisar deslogar."}
         </p>
         <input
           autoFocus
@@ -132,5 +164,5 @@ export function usePlatformStepUp(): {
     </div>
   ) : null;
 
-  return { runWithStepUp, modal };
+  return { runWithStepUp, openStepUp, modal };
 }

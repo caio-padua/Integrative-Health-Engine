@@ -1608,6 +1608,12 @@ export const ListarUsuariosResponseItem = zod.object({
   unidadeNome: zod.string().optional(),
   ativo: zod.boolean(),
   criadoEm: zod.coerce.date(),
+  ultimoLogin2faEm: zod.coerce
+    .date()
+    .nullish()
+    .describe(
+      "Timestamp do último 2FA TOTP validado. Usado pelo painel\n\/plataforma\/\* (Task #130) pra avisar com antecedência quando\na janela de 8h está prestes a expirar e oferecer renovação.\n",
+    ),
 });
 export const ListarUsuariosResponse = zod.array(ListarUsuariosResponseItem);
 
@@ -1651,6 +1657,12 @@ export const LoginUsuarioResponse = zod.object({
     unidadeNome: zod.string().optional(),
     ativo: zod.boolean(),
     criadoEm: zod.coerce.date(),
+    ultimoLogin2faEm: zod.coerce
+      .date()
+      .nullish()
+      .describe(
+        "Timestamp do último 2FA TOTP validado. Usado pelo painel\n\/plataforma\/\* (Task #130) pra avisar com antecedência quando\na janela de 8h está prestes a expirar e oferecer renovação.\n",
+      ),
   }),
 });
 
@@ -1671,6 +1683,12 @@ export const ObterPerfilAtualResponse = zod.object({
   unidadeNome: zod.string().optional(),
   ativo: zod.boolean(),
   criadoEm: zod.coerce.date(),
+  ultimoLogin2faEm: zod.coerce
+    .date()
+    .nullish()
+    .describe(
+      "Timestamp do último 2FA TOTP validado. Usado pelo painel\n\/plataforma\/\* (Task #130) pra avisar com antecedência quando\na janela de 8h está prestes a expirar e oferecer renovação.\n",
+    ),
 });
 
 /**

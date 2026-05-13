@@ -16,4 +16,9 @@ export interface Usuario {
   unidadeNome?: string;
   ativo: boolean;
   criadoEm: Date;
+  /** Timestamp do último 2FA TOTP validado. Usado pelo painel
+/plataforma/* (Task #130) pra avisar com antecedência quando
+a janela de 8h está prestes a expirar e oferecer renovação.
+ */
+  ultimoLogin2faEm?: Date | null;
 }

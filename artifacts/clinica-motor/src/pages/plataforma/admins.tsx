@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
+import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import { UserCheck, ArrowUpCircle, ArrowDownCircle, RefreshCw, ShieldAlert, Crown } from "lucide-react";
 
 type Admin = {
@@ -27,7 +28,7 @@ export default function PlataformaAdmins() {
   const [erro, setErro] = useState<string | null>(null);
   const [acaoId, setAcaoId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState("");
-  const { runWithStepUp, modal: stepUpModal } = usePlatformStepUp();
+  const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -186,6 +187,7 @@ export default function PlataformaAdmins() {
           </table>
         </div>
       </div>
+      <Platform2faExpiryBanner onRenovar={openStepUp} />
       {stepUpModal}
     </Layout>
   );

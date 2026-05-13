@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
+import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import {
   Building2, Power, PowerOff, RefreshCw, ShieldAlert,
   Trash2, Undo2, Download, Clock, Mail, ChevronDown, ChevronRight, Send,
@@ -61,7 +62,7 @@ export default function PlataformaClinicas() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [acaoId, setAcaoId] = useState<number | null>(null);
-  const { runWithStepUp, modal: stepUpModal } = usePlatformStepUp();
+  const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
   const [expandidoId, setExpandidoId] = useState<number | null>(null);
   const [avisosPorClinica, setAvisosPorClinica] = useState<
     Record<number, EventoComAvisos[] | "loading" | "erro">
@@ -569,6 +570,7 @@ export default function PlataformaClinicas() {
           </table>
         </div>
       </div>
+      <Platform2faExpiryBanner onRenovar={openStepUp} />
       {stepUpModal}
     </Layout>
   );

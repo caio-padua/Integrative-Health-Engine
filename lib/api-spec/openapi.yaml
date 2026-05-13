@@ -2350,6 +2350,14 @@ components:
         criadoEm:
           type: string
           format: date-time
+        ultimoLogin2faEm:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Timestamp do último 2FA TOTP validado. Usado pelo painel
+            /plataforma/* (Task #130) pra avisar com antecedência quando
+            a janela de 8h está prestes a expirar e oferecer renovação.
       required:
         - id
         - nome

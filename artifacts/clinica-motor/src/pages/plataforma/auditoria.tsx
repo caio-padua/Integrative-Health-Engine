@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
+import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import { Scale, RefreshCw, ShieldAlert } from "lucide-react";
 
 type Evento = {
@@ -35,7 +36,7 @@ export default function PlataformaAuditoria() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroAcao, setFiltroAcao] = useState<string>("");
-  const { runWithStepUp, modal: stepUpModal } = usePlatformStepUp();
+  const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -155,6 +156,7 @@ export default function PlataformaAuditoria() {
           Mostrando {visiveis.length} de {eventos.length} eventos (limite servidor: 500).
         </div>
       </div>
+      <Platform2faExpiryBanner onRenovar={openStepUp} />
       {stepUpModal}
     </Layout>
   );
