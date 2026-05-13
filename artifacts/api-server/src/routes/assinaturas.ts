@@ -925,12 +925,14 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     const filtroStatusWhere = filtrosWhereCsv.length > 0
       ? sql`WHERE ${sql.join(filtrosWhereCsv, sql` AND `)}`
       : sql``;
-    // Task #76 — quando ha filtro de datas (desde ou ate), libera o cap de 50
-    // pra permitir extrato mensal/trimestral pedido por contador/advogado.
-    // Sem filtro de datas, mantem 50 (mesmo cap da tela). Cap defensivo de
-    // 5000 em qualquer caso pra nao explodir memoria/timeout do Express.
-    const temFiltroData = desdeFiltroCsv !== null || ateFiltroCsv !== null;
-    const limiteCsv = temFiltroData ? 5000 : 50;
+    // Task #75 — cap defensivo unificado em 5000 linhas, INDEPENDENTE de filtro
+    // de datas. Antes (Task #76) o limite caia pra 50 quando nao havia desde/ate
+    // — mas o objetivo desta task e exportar o conjunto filtrado COMPLETO pra
+    // auditoria CFM/conferencia farmacia, e amarrar a 50 transformava o CSV em
+    // pagina visivel (vide Task #73). 5000 cobre extrato anual da maior unidade
+    // sem explodir memoria/timeout do Express; truncamento sinalizado via
+    // X-Truncated + linha de aviso no rodape (ver abaixo).
+    const limiteCsv = 5000;
     // Task #83 — replica a whitelist de ordenacao do endpoint JSON pra que o
     // CSV exportado saia na MESMA ordem renderizada na tela quando o usuario
     // ordenou por valor. Default continua `s.id DESC` quando o param ausente
@@ -983,9 +985,14 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
       ${orderByClauseCsv}
-      LIMIT ${limiteCsv}
+      LIMIT ${limiteCsv + 1}
     `);
-    const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+    const rowsBrutas = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+    // Task #75 — pede LIMIT+1 pra detectar truncamento sem COUNT extra (em
+    // 5000 linhas o COUNT custa quase o mesmo que o SELECT). Se retornou
+    // limite+1, descarta a sobra e marca pra emitir aviso no rodape do CSV.
+    const truncadoCsv = rowsBrutas.length > limiteCsv;
+    const rows = truncadoCsv ? rowsBrutas.slice(0, limiteCsv) : rowsBrutas;
 
     // CSV escape: envolve em aspas duplas e duplica aspas internas.
     // Aceita null/undefined virando string vazia. Nunca interpola CRLF/aspas
@@ -1040,7 +1047,7 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       return String(row["farmacia_razao_social"] || row["farmacia_nome_fantasia"] || "");
     };
     const header = [
-      "id", "template", "paciente", "status",
+      "id", "template", "paciente", "unidade", "status",
       "signatarios", "criado_em", "concluido_em",
       "valor_brl", "farmacia", "medico",
     ].map(esc).join(",");
@@ -1048,6 +1055,7 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       row["id"],
       row["template_codigo"],
       mascararNome(row["paciente_nome"]),
+      row["paciente_unidade_nome"] ?? "",
       row["status"],
       `${row["signatarios_assinados"] ?? 0}/${row["signatarios_total"] ?? 0}`,
       isoOuVazio(row["criado_em"]),
@@ -1065,6 +1073,8 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     // advogado) ve imediatamente por qual coluna foi ordenado e quais
     // filtros estavam ativos no momento do download — fecha o ciclo de
     // auditoria sem precisar voltar pra tela.
+    // Task #75 — meta tambem inclui flag `truncado=sim|nao` pra deixar
+    // explicito ja na 1a linha quando o cap de 5000 cortou registros.
     const partesMeta: string[] = [];
     partesMeta.push(`unidade=${unidadeIdFiltro !== null ? String(unidadeIdFiltro) : "todas"}`);
     partesMeta.push(`status=${statusFiltro.length > 0 ? statusFiltro.join("|") : "todos"}`);
@@ -1072,16 +1082,34 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     partesMeta.push(`ate=${ateFiltroCsv ?? "—"}`);
     partesMeta.push(`ordenado_por=${descreverOrdenacaoTimeline(tokensCsv)}`);
     partesMeta.push(`total_linhas=${rows.length}`);
+    partesMeta.push(`truncado=${truncadoCsv ? `sim (cap ${limiteCsv})` : "nao"}`);
     partesMeta.push(`exportado_em=${new Date().toISOString()}`);
     const linhaMeta = esc(`# PAWARDS · timeline assinaturas · ${partesMeta.join(" · ")}`);
+
+    // Task #75 — quando o filtro casa com mais que `limiteCsv` registros,
+    // anexa uma linha de aviso no rodape (1a coluna) deixando claro pro
+    // contador/auditor que o arquivo NAO contem o conjunto completo. Tambem
+    // expoe via header X-Truncated pra clientes programaticos detectarem
+    // sem ter que parsear a ultima linha. Sugere refinar filtro de datas.
+    const linhaAvisoTrunc = truncadoCsv
+      ? [
+          esc(`AVISO: export truncado em ${limiteCsv} linhas — refine o filtro de datas para obter o restante.`),
+        ].join(",")
+      : null;
+
     // BOM UTF-8 (\uFEFF) faz o Excel reconhecer encoding e renderizar acentos.
-    const csv = "\uFEFF" + [linhaMeta, header, ...linhas].join("\r\n") + "\r\n";
+    const corpoCsv = linhaAvisoTrunc !== null
+      ? [linhaMeta, header, ...linhas, linhaAvisoTrunc]
+      : [linhaMeta, header, ...linhas];
+    const csv = "\uFEFF" + corpoCsv.join("\r\n") + "\r\n";
 
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const filename = `assinaturas-timeline-${stamp}.csv`;
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Truncated", truncadoCsv ? "1" : "0");
+    res.setHeader("X-Truncated-Limit", String(limiteCsv));
     res.send(csv);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
