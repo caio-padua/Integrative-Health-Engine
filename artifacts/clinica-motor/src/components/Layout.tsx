@@ -16,6 +16,8 @@ import { Button } from "./ui/button";
 import { CommandPalette } from "./CommandPalette";
 import { useSound } from "@/hooks/useSound";
 import { Platform2faFooterIndicator } from "@/lib/Platform2faFooterIndicator";
+import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-fetch";
 
 // Task #168 — campainha global de alertas de seguranca (2FA brute-force)
@@ -184,6 +186,13 @@ export function Layout({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis } = useClinic();
   const { total: falhasLembrete } = useLembretesFalhasContagem(unidadeSelecionada);
+  // Task #157: hook compartilhado pra abrir o modal TOTP de step-up
+  // direto do indicador do rodape (botao "Renovar"). Mesma instancia
+  // (`openStepUp` + `modal`) ja usada pelo Platform2faExpiryBanner —
+  // aqui o modal vive no Layout pra ficar disponivel sempre que o
+  // platform_owner estiver navegando em /plataforma/*.
+  const { openStepUp: openStepUp2fa, modal: modalStepUp2fa } = usePlatformStepUp();
+  const queryClient = useQueryClient();
 
   // Default Pádua APENAS na primeira sessão (não anula escolha "Todas as Clínicas")
   useEffect(() => {
@@ -432,7 +441,20 @@ export function Layout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="px-4 py-3 border-t border-border space-y-1">
-          {location.startsWith("/plataforma") && <Platform2faFooterIndicator />}
+          {location.startsWith("/plataforma") && (
+            <Platform2faFooterIndicator
+              onRenovar={() =>
+                openStepUp2fa(() => {
+                  // Task #157: apos sucesso, invalida /usuarios/perfil-atual
+                  // pra refrescar `ultimoLogin2faEm` e o indicador re-renderizar
+                  // sozinho com a nova janela de 8h. Mesmo padrao do banner #130.
+                  void queryClient.invalidateQueries({
+                    queryKey: ["/usuarios/perfil-atual"],
+                  });
+                })
+              }
+            />
+          )}
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs"
@@ -477,6 +499,10 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </main>
       <CommandPalette />
+      {/* Task #157: modal TOTP de step-up compartilhado — disparado pelo
+          botao "Renovar" do Platform2faFooterIndicator (ou pelo fluxo
+          reativo, caso outras telas adotem o hook depois). */}
+      {modalStepUp2fa}
     </div>
   );
 }

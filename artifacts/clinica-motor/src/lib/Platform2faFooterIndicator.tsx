@@ -19,7 +19,16 @@ function formatarHora(ms: number): string {
   return `${hh}:${mm}`;
 }
 
-export function Platform2faFooterIndicator(): ReactElement | null {
+// Task #157: aceita callback `onRenovar` pra abrir o modal TOTP de
+// step-up direto do indicador (botao "Renovar" inline) — antes o
+// platform_owner so renovava reativamente via banner <15min ou via
+// 403 numa acao destrutiva. Layout passa a callback que invalida
+// /usuarios/perfil-atual no sucesso, igual ao Platform2faExpiryBanner.
+export function Platform2faFooterIndicator({
+  onRenovar,
+}: {
+  onRenovar?: () => void;
+} = {}): ReactElement | null {
   const { user } = useAuth();
   const [agora, setAgora] = useState<number>(() => Date.now());
 
@@ -70,17 +79,30 @@ export function Platform2faFooterIndicator(): ReactElement | null {
         <ShieldCheck className={`w-3 h-3 ${corTexto}`} />
         <span>2FA Plataforma</span>
       </div>
-      <div className={`mt-1 ${corTexto}`}>
-        {expirado ? (
-          <span data-testid="platform-2fa-footer-expirado">Expirado — renove no proximo passo</span>
-        ) : (
-          <>
-            <span data-testid="platform-2fa-footer-confirmado">
-              Confirmado as {formatarHora(ultimoMs)}
-            </span>
-            <span className="text-muted-foreground"> — expira </span>
-            <span data-testid="platform-2fa-footer-expira">{formatarHora(expiraEm)}</span>
-          </>
+      <div className={`mt-1 flex items-center justify-between gap-2 ${corTexto}`}>
+        <div className="min-w-0 truncate">
+          {expirado ? (
+            <span data-testid="platform-2fa-footer-expirado">Expirado — renove agora</span>
+          ) : (
+            <>
+              <span data-testid="platform-2fa-footer-confirmado">
+                Confirmado as {formatarHora(ultimoMs)}
+              </span>
+              <span className="text-muted-foreground"> — expira </span>
+              <span data-testid="platform-2fa-footer-expira">{formatarHora(expiraEm)}</span>
+            </>
+          )}
+        </div>
+        {onRenovar && (
+          <button
+            type="button"
+            onClick={onRenovar}
+            data-testid="platform-2fa-footer-renovar"
+            className="shrink-0 px-1.5 py-0.5 border border-current/40 text-[10px] uppercase tracking-widest hover:bg-current/10"
+            title="Renovar a janela de 8h do 2FA agora"
+          >
+            Renovar
+          </button>
         )}
       </div>
     </div>
