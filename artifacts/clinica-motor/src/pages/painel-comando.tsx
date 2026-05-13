@@ -10,7 +10,7 @@ import {
   Users, Calendar, AlertTriangle, Pill, Activity,
   TrendingUp, Heart, Clock, XCircle, CheckCircle2,
   Flame, Eye, ChevronRight, Shield, FileDown,
-  FileSignature
+  FileSignature, ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line } from "recharts";
@@ -270,6 +270,23 @@ export default function PainelComando() {
   // /plataforma/alertas-seguranca. Endpoint exige step-up; quando faltar,
   // o fetch falha em 401/403 e o badge fica zerado (silencioso).
   const [alertasSegurancaNaoVistos, setAlertasSegurancaNaoVistos] = useState<number>(0);
+  // Task #153 — banner inline com a lista de bloqueios pendentes pra o CEO
+  // agir direto do painel (marcar como visto / abrir fila completa) sem
+  // precisar abrir email nem navegar pra /plataforma/alertas-seguranca.
+  // Mesmo fetch do badge (Task #161); apenas guarda a lista alem do total.
+  const [alertasSegurancaLista, setAlertasSegurancaLista] = useState<Array<{
+    id: number;
+    tipo: string;
+    usuario_id: number;
+    ip: string | null;
+    user_agent: string | null;
+    contexto: string | null;
+    janela_inicio_em: string;
+    criado_em: string;
+    usuario_nome: string | null;
+    usuario_email: string | null;
+  }>>([]);
+  const [marcandoSegurancaId, setMarcandoSegurancaId] = useState<number | null>(null);
   // Task #164 — snapshot anterior do contador de bloqueios 2FA pra disparar
   // toast vermelho apenas em deltas reais (snapshot inicial = null, nao avisa).
   const alertasSegurancaRef = useRef<number | null>(null);
@@ -499,6 +516,7 @@ export default function PainelComando() {
           // 401/403 (sem step-up ou nao-master): zera o badge pra evitar
           // contagem stale apos expirar 2FA recente.
           setAlertasSegurancaNaoVistos(0);
+          setAlertasSegurancaLista([]);
           // Reset do snapshot pra evitar disparo espurio quando o step-up
           // voltar (baseline precisa ser reestabelecido).
           alertasSegurancaRef.current = null;
@@ -536,6 +554,8 @@ export default function PainelComando() {
         }
         alertasSegurancaRef.current = total;
         setAlertasSegurancaNaoVistos(total);
+        // Task #153 — guarda a lista pra render inline no banner do painel.
+        setAlertasSegurancaLista(Array.isArray(d.alertas) ? d.alertas : []);
       } catch { /* silencioso */ }
     };
     carregar();
@@ -600,10 +620,143 @@ export default function PainelComando() {
     pacientes: s.pacientesUnicos,
   }));
 
+  // Task #153 — marca um bloqueio como visto direto do banner do painel,
+  // sem precisar abrir /plataforma/alertas-seguranca. Otimista: remove da
+  // lista local antes da resposta + dispara o mesmo CustomEvent que a fila
+  // dedicada (alertas_seguranca_marcados) pra refresh entre abas.
+  async function marcarSegurancaComoVisto(id: number) {
+    setMarcandoSegurancaId(id);
+    try {
+      const r = await apiFetch(
+        `${API_BASE}/plataforma/alertas-seguranca/${id}/visualizar`,
+        { method: "POST", credentials: "include" },
+      );
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        toast({
+          title: "Falha ao marcar como visto",
+          description: String((j as { error?: string }).error ?? r.statusText),
+          variant: "destructive",
+        });
+        return;
+      }
+      setAlertasSegurancaLista((prev) => prev.filter((a) => a.id !== id));
+      setAlertasSegurancaNaoVistos((n) => Math.max(0, n - 1));
+      try {
+        window.dispatchEvent(new CustomEvent("alertas_seguranca_marcados"));
+        window.localStorage.setItem(
+          "alertas_seguranca_marcados_em",
+          String(Date.now()),
+        );
+      } catch { /* silencioso */ }
+    } finally {
+      setMarcandoSegurancaId(null);
+    }
+  }
+
+  function formatarSegurancaData(iso: string | null): string {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString("pt-BR", {
+      day: "2-digit", month: "2-digit", year: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    });
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
         {/* Wave 9 PARQ — Banner de autonomia preservada (não-fechável, link p/ admin) */}
+        {/* Task #153 — banner inline com a fila de bloqueios 2FA pendentes.
+            Antes o CEO so via o badge dentro do banner de assinaturas (Task
+            #161); agora ve a lista completa direto no painel + pode marcar
+            como visto sem trocar de pagina. Independe de assinaturasResumo
+            pra nao sumir quando nao houver atividade de assinaturas. */}
+        {alertasSegurancaLista.length > 0 && (
+          <div
+            className="border-l-4 border-[var(--pw-vermelho-escuro,#7d1d2e)] bg-[var(--pw-vermelho-escuro,#7d1d2e)]/5 px-4 py-3 rounded-sm"
+            data-testid="banner-ceo-alertas-seguranca"
+          >
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-[var(--pw-vermelho-escuro,#b53030)] flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-vermelho-escuro,#b53030)] font-semibold flex items-center gap-2 flex-wrap">
+                    <span>Bloqueios 2FA · pendentes de revisao</span>
+                    <span
+                      className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold"
+                      style={{ backgroundColor: COR_SEMANTICA_HEX.critico, color: "white" }}
+                      data-testid="banner-alertas-seguranca-total"
+                    >
+                      {alertasSegurancaLista.length}
+                      {" "}
+                      sem ver
+                    </span>
+                  </div>
+                  <a
+                    href="/plataforma/alertas-seguranca"
+                    className="text-[11px] underline text-[var(--pw-vermelho-escuro,#b53030)] hover:opacity-80"
+                    data-testid="link-banner-alertas-seguranca-fila"
+                  >
+                    Abrir fila completa →
+                  </a>
+                </div>
+                <ul className="mt-2 divide-y divide-[var(--pw-vermelho-escuro,#7d1d2e)]/15">
+                  {alertasSegurancaLista.slice(0, 5).map((a) => (
+                    <li
+                      key={a.id}
+                      className="py-2 flex items-start justify-between gap-3 text-xs"
+                      data-testid={`banner-alerta-seguranca-${a.id}`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-[var(--pw-tinta)]">
+                          {a.usuario_nome ?? `Usuario #${a.usuario_id}`}
+                          {a.usuario_email && (
+                            <span className="font-normal text-muted-foreground ml-1">
+                              ({a.usuario_email})
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                          <span>{formatarSegurancaData(a.janela_inicio_em ?? a.criado_em)}</span>
+                          {a.contexto && <span>contexto: <code>{a.contexto}</code></span>}
+                          {a.ip && <span>IP: <code>{a.ip}</code></span>}
+                          {a.user_agent && (
+                            <span className="truncate max-w-[18rem]" title={a.user_agent}>
+                              UA: {a.user_agent}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void marcarSegurancaComoVisto(a.id)}
+                        disabled={marcandoSegurancaId === a.id}
+                        className="shrink-0 text-[10px] uppercase tracking-wider px-2 py-1 rounded-sm font-bold border border-[var(--pw-vermelho-escuro,#b53030)]/40 text-[var(--pw-vermelho-escuro,#b53030)] hover:bg-[var(--pw-vermelho-escuro,#7d1d2e)]/10 disabled:opacity-50"
+                        data-testid={`button-banner-marcar-visto-${a.id}`}
+                      >
+                        {marcandoSegurancaId === a.id ? "..." : "Marcar visto"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {alertasSegurancaLista.length > 5 && (
+                  <div className="mt-2 text-[11px] text-muted-foreground">
+                    + {alertasSegurancaLista.length - 5} bloqueio
+                    {alertasSegurancaLista.length - 5 > 1 ? "s" : ""} adicional
+                    {alertasSegurancaLista.length - 5 > 1 ? "is" : ""}.
+                    {" "}
+                    <a
+                      href="/plataforma/alertas-seguranca"
+                      className="underline text-[var(--pw-vermelho-escuro,#b53030)]"
+                    >
+                      Ver tudo
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Task #35 — resumo diario de assinaturas (24h), so renderiza com dados */}
         {FEATURE_ASSINATURAS_RESUMO_CEO && assinaturasResumo && (
           <a
