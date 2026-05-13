@@ -153,6 +153,81 @@ router.post(
 );
 
 /**
+ * POST /usuarios/2fa/reverificar { codigo }  (Task #124)
+ * Step-up genérico de 2FA pro usuário logado: valida o código TOTP e
+ * atualiza `ultimo_login_2fa_em = now()` SEM emitir novo JWT. Usado pelo
+ * frontend quando o middleware `require2faRecente` devolve 403 com
+ * `requer_reverificacao_2fa: true` e abre o modal pedindo o código.
+ *
+ * Espelha a lógica de /plataforma/2fa/step-up (Task #125) — mas exposto
+ * em /usuarios/* pra que qualquer perfil com 2FA ativo possa renovar a
+ * janela de 8h sem precisar deslogar.
+ */
+const ReverificarBody = z.object({
+  codigo: z.string().regex(/^\d{6}$/, "codigo deve ter exatamente 6 digitos"),
+});
+router.post(
+  "/usuarios/2fa/reverificar",
+  async (req, res): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ error: "Autenticacao necessaria" });
+      return;
+    }
+    const parsed = ReverificarBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "codigo invalido (6 digitos)" });
+      return;
+    }
+    const userId = Number(req.user.sub);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      res.status(401).json({ error: "Token sem identidade valida" });
+      return;
+    }
+    const [usuario] = await db
+      .select()
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, userId))
+      .limit(1);
+    if (!usuario || !usuario.totpSecretCifrado || !usuario.totpAtivadoEm) {
+      res.status(409).json({
+        error: "Usuario nao tem 2FA ativo. Faca o enrollment em /usuarios/2fa/iniciar.",
+        codigo: "2FA_NAO_ATIVO",
+      });
+      return;
+    }
+    if (await estaBloqueadoTotp(userId)) {
+      res.status(429).json({
+        error: "Muitas tentativas erradas. Aguarde 5 minutos e tente novamente.",
+        codigo: "TOTP_RATE_LIMITED",
+      });
+      return;
+    }
+    if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
+      const r = await registrarTentativaErradaTotp(userId);
+      if (r.transicaoParaBloqueio) {
+        void dispararAlertaBruteForceTotp({
+          usuarioId: userId,
+          ip: (req.ip || req.header("x-forwarded-for") || "").toString().slice(0, 200),
+          userAgent: (req.header("user-agent") || "").slice(0, 500),
+          janelaInicioEm: r.janelaInicioEm,
+          contexto: "REVERIFICAR_ACAO_DESTRUTIVA",
+          tentativas: TOTP_TENTATIVAS_MAX,
+        });
+      }
+      res.status(401).json({ error: "Codigo invalido.", codigo: "TOTP_INVALIDO" });
+      return;
+    }
+    await resetTentativasTotp(userId);
+    const agora = new Date();
+    await db
+      .update(usuariosTable)
+      .set({ ultimoLogin2faEm: agora })
+      .where(eq(usuariosTable.id, usuario.id));
+    res.json({ ok: true, ultimo_2fa_em: agora.toISOString() });
+  },
+);
+
+/**
  * POST /usuarios/2fa/desativar { codigo }
  * Desativa o 2FA (zera secret + flags). Exige codigo valido pra evitar
  * que um session hijack desligue o 2FA do dono da conta.

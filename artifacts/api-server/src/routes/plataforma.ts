@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { db, usuariosTable, unidadesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requirePlataforma } from "../middlewares/requirePlataforma";
+import { require2faRecente, JANELA_2FA_HORAS as JANELA_2FA_HORAS_SHARED } from "../middlewares/require2faRecente";
 import { verificarCodigoTotp } from "../lib/auth/totp";
 import {
   estaBloqueadoTotp,
@@ -31,7 +32,7 @@ type AuthedRequest = Request & {
 
 const router = Router();
 
-const JANELA_2FA_HORAS = 8;
+const JANELA_2FA_HORAS = JANELA_2FA_HORAS_SHARED;
 
 // Hardening Task #119 (post code-review): platform_owner ESTRITO.
 // `requirePlataforma('platform_owner')` aceita `perfil === 'admin'`
@@ -57,59 +58,12 @@ function requirePlatformOwnerEstrito(
   next();
 }
 
-// Middleware: exige 2FA recente (<JANELA_2FA_HORAS) do platform_owner.
-// Sem bypass por perfil legado (admin) — o atalho admin nao passa por
-// 2FA real, entao quebraria o requisito do Task #119. Em DEV permite
-// PLATFORM_BYPASS_2FA=1 SOMENTE pra rodar a UI offline (NODE_ENV gate).
-function require2faRecente(
-  req: Request, res: Response, next: NextFunction,
-): void {
-  const u = (req as AuthedRequest).user;
-  if (!u) {
-    res.status(401).json({ error: "Autenticacao necessaria" });
-    return;
-  }
-  if (
-    process.env.NODE_ENV !== "production" &&
-    process.env.PLATFORM_BYPASS_2FA === "1"
-  ) {
-    next();
-    return;
-  }
-  void (async () => {
-    try {
-      const userId = Number(u.sub);
-      if (!Number.isInteger(userId) || userId <= 0) {
-        res.status(401).json({ error: "Token sem identidade valida" });
-        return;
-      }
-      const [row] = await db
-        .select({ ultimo: usuariosTable.ultimoLogin2faEm })
-        .from(usuariosTable)
-        .where(eq(usuariosTable.id, userId));
-      const ultimo = row?.ultimo ? new Date(row.ultimo) : null;
-      const limite = Date.now() - JANELA_2FA_HORAS * 60 * 60 * 1000;
-      if (!ultimo || ultimo.getTime() < limite) {
-        res.status(403).json({
-          error: `Acao sensivel exige 2FA recente (<${JANELA_2FA_HORAS}h). Refaca o login com TOTP.`,
-          codigo: "2FA_EXPIRADO",
-          janela_horas: JANELA_2FA_HORAS,
-          ultimo_2fa_em: ultimo?.toISOString() ?? null,
-        });
-        return;
-      }
-      next();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao validar 2FA";
-      res.status(500).json({ error: msg });
-    }
-  })();
-}
-
+// Middleware `require2faRecente` movido pra ../middlewares/require2faRecente.ts
+// pra ser reutilizavel em outras rotas destrutivas (Task #124).
 const guardas = [
   requirePlataforma("platform_owner"),
   requirePlatformOwnerEstrito,
-  require2faRecente,
+  require2faRecente(),
 ] as const;
 
 function getActor(req: Request): { userId: number; ip: string; ua: string } {
