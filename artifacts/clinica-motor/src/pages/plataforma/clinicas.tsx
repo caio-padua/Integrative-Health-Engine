@@ -6,7 +6,16 @@ import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import {
   Building2, Power, PowerOff, RefreshCw, ShieldAlert,
   Trash2, Undo2, Download, Clock, Mail, ChevronDown, ChevronRight, Send,
+  Phone, AlertTriangle, X,
 } from "lucide-react";
+
+type PreviaDestinatarios = {
+  unidadeId: number;
+  unidadeNome: string;
+  emails: string[];
+  telefones: string[];
+  whatsappVazio: boolean;
+};
 
 type RegistroAviso = {
   tipo: "SUSPENSAO" | "REATIVACAO" | "REENVIO_SUSPENSAO" | "REENVIO_REATIVACAO";
@@ -68,6 +77,11 @@ export default function PlataformaClinicas() {
     Record<number, EventoComAvisos[] | "loading" | "erro">
   >({});
   const [reenviandoEventoId, setReenviandoEventoId] = useState<number | null>(null);
+  const [previaSuspensao, setPreviaSuspensao] = useState<{
+    clinica: Clinica;
+    previa: PreviaDestinatarios;
+  } | null>(null);
+  const [carregandoPreviaId, setCarregandoPreviaId] = useState<number | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -89,6 +103,28 @@ export default function PlataformaClinicas() {
 
   async function executar(c: Clinica, acao: "suspender" | "reativar") {
     const verbo = acao === "suspender" ? "SUSPENDER" : "REATIVAR";
+    // Pra REATIVAR vai direto (operacao religa, nao paralisa). Pra SUSPENDER
+    // (Task #138) abre modal com previa de destinatarios antes de pedir motivo.
+    if (acao === "suspender") {
+      setCarregandoPreviaId(c.id);
+      try {
+        const r = await runWithStepUp(() =>
+          apiFetch(`/api/plataforma/clinicas/${c.id}/destinatarios-aviso`, {
+            credentials: "include",
+          }),
+        );
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          alert(`Falha ao carregar previa de destinatarios: ${j.error ?? r.statusText}`);
+          return;
+        }
+        const previa = (await r.json()) as PreviaDestinatarios;
+        setPreviaSuspensao({ clinica: c, previa });
+      } finally {
+        setCarregandoPreviaId(null);
+      }
+      return;
+    }
     const motivo = window.prompt(
       `Motivo para ${verbo} a clinica "${c.nome}" (id ${c.id}).\nMinimo 8 caracteres. Sera registrado em auditoria_kill_switch.`,
     );
@@ -106,6 +142,28 @@ export default function PlataformaClinicas() {
       }),
     );
     setAcaoId(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Erro: ${j.error ?? r.statusText}`);
+      return;
+    }
+    await carregar();
+  }
+
+  async function confirmarSuspensaoComPrevia(motivo: string) {
+    if (!previaSuspensao) return;
+    const c = previaSuspensao.clinica;
+    setAcaoId(c.id);
+    const r = await runWithStepUp(() =>
+      apiFetch(`/api/plataforma/clinicas/${c.id}/suspender`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: motivo.trim() }),
+      }),
+    );
+    setAcaoId(null);
+    setPreviaSuspensao(null);
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
       alert(`Erro: ${j.error ?? r.statusText}`);
@@ -443,11 +501,12 @@ export default function PlataformaClinicas() {
                             </button>
                           ) : (
                             <button
-                              disabled={desabilitado}
+                              disabled={desabilitado || carregandoPreviaId === c.id}
                               onClick={() => void executar(c, "suspender")}
                               className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-50"
                             >
-                              <PowerOff size={12} /> Suspender
+                              <PowerOff size={12} />
+                              {carregandoPreviaId === c.id ? "carregando previa..." : "Suspender"}
                             </button>
                           )}
                           <button
@@ -572,6 +631,175 @@ export default function PlataformaClinicas() {
       </div>
       <Platform2faExpiryBanner onRenovar={openStepUp} />
       {stepUpModal}
+      {previaSuspensao && (
+        <PreviaSuspensaoModalImpl
+          clinica={previaSuspensao.clinica}
+          previa={previaSuspensao.previa}
+          desabilitado={acaoId === previaSuspensao.clinica.id}
+          onCancelar={() => setPreviaSuspensao(null)}
+          onConfirmar={(motivo) => void confirmarSuspensaoComPrevia(motivo)}
+        />
+      )}
     </Layout>
+  );
+}
+
+function PreviaSuspensaoModalImpl({
+  clinica,
+  previa,
+  desabilitado,
+  onCancelar,
+  onConfirmar,
+}: {
+  clinica: Clinica;
+  previa: PreviaDestinatarios;
+  desabilitado: boolean;
+  onCancelar: () => void;
+  onConfirmar: (motivo: string) => void;
+}) {
+  const [motivo, setMotivo] = useState("");
+  const [confirmacaoExtra, setConfirmacaoExtra] = useState("");
+  const motivoOk = motivo.trim().length >= 8;
+  // Confirmacao dupla obrigatoria quando NENHUM responsavel tem WhatsApp
+  // cadastrado — cenario em que a clinica acorda offline sem aviso no
+  // celular e nao entende por que nao consegue logar (Task #138).
+  const exigeConfirmacaoExtra = previa.whatsappVazio;
+  const confirmacaoExtraOk =
+    !exigeConfirmacaoExtra || confirmacaoExtra.trim().toUpperCase() === "SUSPENDER MESMO ASSIM";
+  const podeConfirmar = motivoOk && confirmacaoExtraOk && !desabilitado;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center overflow-y-auto p-6"
+      onClick={onCancelar}
+    >
+      <div
+        className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-2xl w-full mt-8 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between px-5 py-3 border-b border-zinc-800">
+          <h2 className="text-amber-400 font-semibold flex items-center gap-2">
+            <PowerOff size={18} /> Suspender clinica · previa de avisos
+          </h2>
+          <button
+            onClick={onCancelar}
+            className="text-zinc-500 hover:text-zinc-200"
+            aria-label="Fechar"
+          >
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="px-5 py-4 space-y-4 text-sm text-zinc-300">
+          <div>
+            <div className="text-xs text-zinc-500">Clinica</div>
+            <div className="font-semibold text-zinc-100">
+              {clinica.nome} <span className="text-zinc-500 font-normal">(id {clinica.id})</span>
+            </div>
+          </div>
+
+          <div className="text-xs text-zinc-400 bg-zinc-800/40 border border-zinc-800 rounded p-3">
+            Suspender paralisa a operacao inteira (login bloqueado, agenda/prescricoes/faturamento
+            pausados). Antes de confirmar, verifique pra QUEM o aviso de suspensao vai chegar.
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="border border-zinc-800 rounded p-3 bg-zinc-950/40">
+              <div className="flex items-center gap-2 text-zinc-200 font-semibold mb-2">
+                <Mail size={14} /> Emails ({previa.emails.length})
+              </div>
+              {previa.emails.length === 0 ? (
+                <div className="text-xs text-amber-300 italic">
+                  Nenhum email cadastrado pros responsaveis desta clinica.
+                </div>
+              ) : (
+                <ul className="text-xs text-zinc-300 space-y-1 break-all">
+                  {previa.emails.map((e) => (
+                    <li key={e}>· {e}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="border border-zinc-800 rounded p-3 bg-zinc-950/40">
+              <div className="flex items-center gap-2 text-zinc-200 font-semibold mb-2">
+                <Phone size={14} /> WhatsApp ({previa.telefones.length})
+              </div>
+              {previa.whatsappVazio ? (
+                <div className="text-xs text-red-300 italic">
+                  Nenhum responsavel com telefone valido — o aviso de WhatsApp NAO chegara em
+                  ninguem.
+                </div>
+              ) : (
+                <ul className="text-xs text-zinc-300 space-y-1 break-all">
+                  {previa.telefones.map((t) => (
+                    <li key={t}>· {t}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {previa.whatsappVazio && (
+            <div className="flex items-start gap-2 p-3 rounded border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <div className="font-semibold mb-1">
+                  Atencao: lista de WhatsApp vazia.
+                </div>
+                A clinica vai acordar offline sem aviso no celular. Considere cadastrar pelo
+                menos um responsavel com telefone antes de suspender.
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">
+              Motivo (minimo 8 caracteres — registrado em <code>auditoria_kill_switch</code>)
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-sm text-zinc-100 focus:border-amber-500 focus:outline-none"
+              placeholder="Ex: Inadimplencia ha 60 dias sem retorno do contato"
+            />
+          </div>
+
+          {exigeConfirmacaoExtra && (
+            <div>
+              <label className="block text-xs text-amber-300 mb-1">
+                Confirmacao dupla — digite EXATAMENTE{" "}
+                <code className="font-mono">SUSPENDER MESMO ASSIM</code>
+              </label>
+              <input
+                type="text"
+                value={confirmacaoExtra}
+                onChange={(e) => setConfirmacaoExtra(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-950 border border-amber-500/40 rounded text-sm text-zinc-100 focus:border-amber-500 focus:outline-none"
+                placeholder="SUSPENDER MESMO ASSIM"
+              />
+            </div>
+          )}
+        </div>
+
+        <footer className="flex items-center justify-end gap-2 px-5 py-3 border-t border-zinc-800 bg-zinc-950/40">
+          <button
+            onClick={onCancelar}
+            className="px-3 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 rounded text-zinc-200"
+          >
+            Cancelar
+          </button>
+          <button
+            disabled={!podeConfirmar}
+            onClick={() => onConfirmar(motivo)}
+            className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <PowerOff size={14} />
+            {desabilitado ? "Suspendendo..." : "Suspender"}
+          </button>
+        </footer>
+      </div>
+    </div>
   );
 }

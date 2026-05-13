@@ -29,7 +29,7 @@ function telefoneValido(t: string | null | undefined): t is string {
   return digitos.length >= 10;
 }
 
-async function coletarTelefonesResponsaveis(
+export async function coletarTelefonesResponsaveis(
   unidadeId: number,
   unidade: Unidade,
 ): Promise<string[]> {

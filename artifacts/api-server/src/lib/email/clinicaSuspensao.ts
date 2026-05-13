@@ -49,7 +49,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-async function coletarDestinatarios(unidadeId: number, unidade: Unidade): Promise<string[]> {
+export async function coletarDestinatarios(unidadeId: number, unidade: Unidade): Promise<string[]> {
   const set = new Set<string>();
   const camposUnidade: Array<string | null | undefined> = [
     unidade.emailGeral,

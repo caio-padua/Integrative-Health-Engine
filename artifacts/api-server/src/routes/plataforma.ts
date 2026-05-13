@@ -14,12 +14,14 @@ import type { JwtPayload } from "../lib/auth/jwt";
 import {
   enviarEmailSuspensao,
   enviarEmailReativacao,
+  coletarDestinatarios,
 } from "../lib/email/clinicaSuspensao";
 import { z } from "zod";
 import { logger } from "../lib/logger.js";
 import {
   enviarWhatsappSuspensao,
   enviarWhatsappReativacao,
+  coletarTelefonesResponsaveis,
 } from "../lib/whatsapp/clinicaSuspensaoWhatsapp";
 
 type AuthedRequest = Request & {
@@ -304,6 +306,37 @@ router.get("/plataforma/clinicas", ...guardas, async (_req, res): Promise<void> 
   `);
   res.json(result.rows);
 });
+
+// GET /api/plataforma/clinicas/:id/destinatarios-aviso
+// Pre-visualizacao Task #138: mostra a quem o aviso de suspensao chegaria
+// (emails + whatsapps), reusando exatamente as MESMAS funcoes que o POST
+// /suspender chama. Sem isso, o platform_owner suspende as cegas e so
+// descobre depois quem foi avisado — pior, nao detecta o cenario em que
+// nenhum responsavel tem telefone (clinica acorda offline sem aviso).
+router.get(
+  "/plataforma/clinicas/:id/destinatarios-aviso",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "id invalido" });
+      return;
+    }
+    const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
+    if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+    const [emails, telefones] = await Promise.all([
+      coletarDestinatarios(id, unidade),
+      coletarTelefonesResponsaveis(id, unidade),
+    ]);
+    res.json({
+      unidadeId: id,
+      unidadeNome: unidade.nome,
+      emails,
+      telefones,
+      whatsappVazio: telefones.length === 0,
+    });
+  },
+);
 
 // POST /api/plataforma/clinicas/:id/suspender { motivo }
 router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): Promise<void> => {
