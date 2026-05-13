@@ -25,6 +25,15 @@ export const usuariosTable = pgTable("usuarios", {
   podeAssinar: boolean("pode_assinar").notNull().default(false),
   podeBypass: boolean("pode_bypass").notNull().default(false),
   nuncaOpera: boolean("nunca_opera").notNull().default(false),
+  // Wave 13 F1 (Migration 044) — RBAC hierarquico ortogonal ao `perfil` clinico legado.
+  // Valores: platform_owner | tenant_admin | tenant_user. Naming: regra ferro Caio
+  // (NUNCA `papel` ou `role`). Convencao Wave 13: status UPPERCASE, perfis lowercase.
+  perfilPlataforma: text("perfil_plataforma", {
+    enum: ["platform_owner", "tenant_admin", "tenant_user"],
+  }).notNull().default("tenant_user"),
+  totpSecretCifrado: text("totp_secret_cifrado"),
+  totpAtivadoEm: timestamp("totp_ativado_em", { withTimezone: true }),
+  ultimoLogin2faEm: timestamp("ultimo_login_2fa_em", { withTimezone: true }),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

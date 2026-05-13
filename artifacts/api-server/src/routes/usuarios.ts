@@ -107,6 +107,14 @@ router.post("/usuarios/login", async (req, res): Promise<void> => {
     escopo: usuario.escopo ?? null,
     unidadeId: usuario.unidadeId ?? null,
     consultoriaId: usuario.consultoriaId ?? null,
+    // Wave 13 F2 — RBAC plataforma. Default seguro 'tenant_user' se coluna ainda nao
+    // populada (Migration 044 ja aplicada, default DB = 'tenant_user').
+    perfilPlataforma:
+      ((usuario as any).perfilPlataforma as
+        | "platform_owner"
+        | "tenant_admin"
+        | "tenant_user"
+        | undefined) ?? "tenant_user",
   });
 
   res.json({
