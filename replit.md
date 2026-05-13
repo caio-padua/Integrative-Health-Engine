@@ -129,6 +129,25 @@ o campo, e os históricos caíam no texto bruto.
 - Re-execução confirmada idempotente (0 linhas pendentes).
 - Migration 034 aplicada antes do backfill (era pré-requisito ausente no DB).
 
+## Wave V46 — WhatsApp do CEO ativado (13/mai/2026)
+
+Task #46 fechada: tela `/plataforma/perfil` agora permite cadastrar o
+telefone celular do CEO (validador_mestre) com mascara BR
+`(11) 91234-5678` + validacao E.164. O numero e gravado em
+`usuarios.telefone` no formato `+55DDD9XXXXXXXX` via `PUT /api/usuarios/:id`
+(rota ja aceitava `telefone` em SELF_FIELDS).
+
+**Canal WhatsApp do CEO depende deste cadastro.** Sem `usuarios.telefone`
+preenchido pra um usuario com `perfil = '''validador_mestre''' AND ativo = true`,
+o service de assinatura (`artifacts/api-server/src/lib/assinatura/service.ts`,
+funcao `notificarCeoAssinaturaConcluida`) so consegue enfileirar e-mail
+nos eventos `doc_signed`/`doc_refused` (Task #36). Apos o cadastro, o
+proximo evento ZapSign ja dispara WhatsApp via Twilio/Gupshup — sem
+mudar codigo, sem deploy.
+
+`GET /api/usuarios/perfil-atual` agora devolve `telefone` pra hidratar
+a tela. PUT existente continua sendo a rota oficial de escrita.
+
 ## User Preferences
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.

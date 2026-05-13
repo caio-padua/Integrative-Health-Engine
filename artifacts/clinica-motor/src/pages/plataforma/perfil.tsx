@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
-import { Bell, Key, Mail, MessageCircle, RefreshCw, Save, Send, ShieldAlert, UserCog } from "lucide-react";
+import { Bell, Key, Mail, MessageCircle, Phone, RefreshCw, Save, Send, ShieldAlert, UserCog } from "lucide-react";
 
 // Task #159 — pagina de perfil do platform_owner pra escolher por quais
 // canais quer receber o aviso de expiracao do 2FA (worker da Task #146).
@@ -29,6 +29,11 @@ interface PerfilAtual {
   totpAtivadoEm?: string | null;
   codigosRecuperacao2faRestantes?: number;
   codigosRecuperacao2faTotal?: number;
+  // Task #46 — telefone E.164 do CEO. Sem cadastro, o worker da Task #36
+  // (notif assinatura ZapSign) so consegue mandar e-mail no doc_signed/
+  // doc_refused. Cadastrar uma vez ativa o canal WhatsApp pro service
+  // de assinatura (lib/assinatura/service.ts).
+  telefone?: string | null;
 }
 
 // Task #173 — formata o "Ultimo aviso enviado" como data/hora relativa
@@ -55,6 +60,48 @@ function formatarRelativo(iso: string): string {
   return data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
+
+// Task #46 — Mascara BR pra telefone celular ((11) 91234-5678) +
+// validacao E.164 (+55 + DDD + 9 + 8 digitos). Mantemos a entrada
+// formatada na UI mas guardamos no banco no formato E.164 puro
+// (+5511912345678) que e o aceito pelos providers Twilio/Gupshup
+// usados pelo worker de notificacao (Task #36).
+function aplicarMascaraTelefoneBr(valor: string): string {
+  const dig = valor.replace(/\D/g, "").slice(0, 11);
+  if (dig.length === 0) return "";
+  if (dig.length <= 2) return `(${dig}`;
+  if (dig.length <= 6) return `(${dig.slice(0, 2)}) ${dig.slice(2)}`;
+  if (dig.length <= 10)
+    return `(${dig.slice(0, 2)}) ${dig.slice(2, 6)}-${dig.slice(6)}`;
+  return `(${dig.slice(0, 2)}) ${dig.slice(2, 7)}-${dig.slice(7)}`;
+}
+
+function digitosTelefoneBr(formatado: string): string {
+  return formatado.replace(/\D/g, "");
+}
+
+function validarTelefoneCelularBr(formatado: string): string | null {
+  const dig = digitosTelefoneBr(formatado);
+  if (dig.length === 0) return "Informe o numero do celular.";
+  if (dig.length !== 11) return "Celular precisa ter DDD + 11 digitos (ex: 11 91234-5678).";
+  const ddd = parseInt(dig.slice(0, 2), 10);
+  if (!Number.isFinite(ddd) || ddd < 11 || ddd > 99) return "DDD invalido.";
+  if (dig[2] !== "9") return "Celular brasileiro precisa comecar com 9 depois do DDD.";
+  return null;
+}
+
+function paraE164Br(formatado: string): string {
+  return `+55${digitosTelefoneBr(formatado)}`;
+}
+
+function deE164ParaMascaraBr(e164: string | null | undefined): string {
+  if (!e164) return "";
+  const dig = e164.replace(/\D/g, "");
+  // Aceita +55XXXXXXXXXXX (13) ou ja sem +55 (11) — tenta normalizar
+  const base = dig.length === 13 && dig.startsWith("55") ? dig.slice(2) : dig;
+  return aplicarMascaraTelefoneBr(base);
+}
+
 export default function PlataformaPerfil() {
   const [perfil, setPerfil] = useState<PerfilAtual | null>(null);
   const [canais, setCanais] = useState<Set<CanalAviso>>(new Set());
@@ -63,6 +110,16 @@ export default function PlataformaPerfil() {
   const [erro, setErro] = useState<string | null>(null);
   const [msgOk, setMsgOk] = useState<string | null>(null);
   const { openStepUp, modal: stepUpModal } = usePlatformStepUp();
+
+  // Task #46 — campo de telefone WhatsApp do CEO. Editado nesta tela e
+  // gravado em usuarios.telefone via PUT /api/usuarios/:id (rota ja
+  // aceita "telefone" em SELF_FIELDS). Worker da Task #36 le essa
+  // coluna pra disparar WhatsApp em doc_signed/doc_refused.
+  const [telefone, setTelefone] = useState<string>("");
+  const [telefoneInicial, setTelefoneInicial] = useState<string>("");
+  const [salvandoTel, setSalvandoTel] = useState(false);
+  const [erroTel, setErroTel] = useState<string | null>(null);
+  const [okTel, setOkTel] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -79,6 +136,9 @@ export default function PlataformaPerfil() {
       setPerfil(data);
       const atuais = Array.isArray(data.canaisAviso2fa) ? data.canaisAviso2fa : ["email", "whatsapp"];
       setCanais(new Set(atuais.filter((c): c is CanalAviso => (CANAIS_VALIDOS as string[]).includes(c))));
+      const telMascara = deE164ParaMascaraBr(data.telefone ?? null);
+      setTelefone(telMascara);
+      setTelefoneInicial(telMascara);
     } catch (e: any) {
       setErro(e?.message ?? "Erro inesperado");
     }
@@ -123,6 +183,39 @@ export default function PlataformaPerfil() {
       setSalvando(false);
     }
   }
+
+  async function salvarTelefone() {
+    setErroTel(null);
+    setOkTel(null);
+    if (!perfil) return;
+    const erroVal = validarTelefoneCelularBr(telefone);
+    if (erroVal) { setErroTel(erroVal); return; }
+    setSalvandoTel(true);
+    try {
+      const r = await apiFetch(`/api/usuarios/${perfil.id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telefone: paraE164Br(telefone) }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        setErroTel(j.error ?? `Falha ao salvar (${r.status})`);
+        return;
+      }
+      const data = await r.json().catch(() => ({}));
+      const novo = deE164ParaMascaraBr(data?.telefone ?? null);
+      setTelefone(novo);
+      setTelefoneInicial(novo);
+      setOkTel("WhatsApp cadastrado. O proximo aviso de contrato assinado/recusado ja sai por aqui.");
+    } catch (e: any) {
+      setErroTel(e?.message ?? "Sem conexao com o servidor.");
+    } finally {
+      setSalvandoTel(false);
+    }
+  }
+
+  const telefoneSujo = telefone !== telefoneInicial;
 
   const isOwner = perfil?.perfilPlataforma === "platform_owner";
   const nenhumCanal = canais.size === 0;
@@ -204,6 +297,72 @@ export default function PlataformaPerfil() {
               <div className="text-sm text-zinc-400">{perfil.email}</div>
               <div className="text-xs font-mono mt-2 inline-block px-2 py-1 rounded border border-amber-500/40 bg-amber-500/10 text-amber-300">
                 {perfil.perfilPlataforma}
+              </div>
+            </section>
+
+            {/* Task #46 — cadastro do WhatsApp do CEO. Sem isso, o worker
+                da Task #36 (notif ZapSign doc_signed/doc_refused) so manda
+                e-mail. Cadastrado uma vez, o proximo evento ja dispara
+                WhatsApp via Twilio/Gupshup (lib/assinatura/service.ts). */}
+            <section className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-5">
+              <div className="flex items-start gap-3 mb-4">
+                <Phone size={20} className="text-amber-400 mt-1" />
+                <div>
+                  <h2 className="font-semibold text-zinc-100">WhatsApp pra alertas no celular</h2>
+                  <p className="text-sm text-zinc-400 mt-1">
+                    Numero usado pra avisar contratos assinados/recusados em
+                    tempo real (alem do e-mail). Sem cadastrar, voce so
+                    recebe por e-mail. Use o seu celular pessoal com 9
+                    digito.
+                  </p>
+                </div>
+              </div>
+
+              <label className="block">
+                <span className="text-xs uppercase tracking-wide text-zinc-500 mb-1 block">
+                  Celular (DDD + 11 digitos)
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  placeholder="(11) 91234-5678"
+                  value={telefone}
+                  onChange={(e) => {
+                    setOkTel(null);
+                    setErroTel(null);
+                    setTelefone(aplicarMascaraTelefoneBr(e.target.value));
+                  }}
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-zinc-100 font-mono text-sm focus:outline-none focus:border-amber-500/50"
+                />
+                <div className="text-xs text-zinc-500 mt-1">
+                  Sera salvo como{" "}
+                  <span className="font-mono text-zinc-300">
+                    {telefone.trim() ? paraE164Br(telefone) : "+55..."}
+                  </span>{" "}
+                  (formato internacional E.164).
+                </div>
+              </label>
+
+              {erroTel && (
+                <div className="mt-3 p-3 text-xs text-red-200 bg-red-500/10 border border-red-500/40 rounded">
+                  {erroTel}
+                </div>
+              )}
+              {okTel && (
+                <div className="mt-3 p-3 text-xs text-emerald-200 bg-emerald-500/10 border border-emerald-500/30 rounded">
+                  {okTel}
+                </div>
+              )}
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => void salvarTelefone()}
+                  disabled={salvandoTel || !telefoneSujo}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 rounded text-sm disabled:opacity-50"
+                >
+                  <Save size={16} /> {salvandoTel ? "Salvando..." : "Salvar WhatsApp"}
+                </button>
               </div>
             </section>
 

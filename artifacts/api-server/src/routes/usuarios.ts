@@ -185,6 +185,7 @@ router.get("/usuarios/perfil-atual", async (req, res): Promise<void> => {
       perfil: usuariosTable.perfil,
       escopo: usuariosTable.escopo,
       perfilPlataforma: usuariosTable.perfilPlataforma,
+      telefone: usuariosTable.telefone,
       unidadeId: usuariosTable.unidadeId,
       consultoriaId: usuariosTable.consultoriaId,
       unidadeNome: unidadesTable.nome,
