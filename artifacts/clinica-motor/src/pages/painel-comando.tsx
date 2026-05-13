@@ -242,6 +242,9 @@ export default function PainelComando() {
   // /plataforma/alertas-seguranca. Endpoint exige step-up; quando faltar,
   // o fetch falha em 401/403 e o badge fica zerado (silencioso).
   const [alertasSegurancaNaoVistos, setAlertasSegurancaNaoVistos] = useState<number>(0);
+  // Task #164 — snapshot anterior do contador de bloqueios 2FA pra disparar
+  // toast vermelho apenas em deltas reais (snapshot inicial = null, nao avisa).
+  const alertasSegurancaRef = useRef<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -386,11 +389,37 @@ export default function PainelComando() {
           // 401/403 (sem step-up ou nao-master): zera o badge pra evitar
           // contagem stale apos expirar 2FA recente.
           setAlertasSegurancaNaoVistos(0);
+          // Reset do snapshot pra evitar disparo espurio quando o step-up
+          // voltar (baseline precisa ser reestabelecido).
+          alertasSegurancaRef.current = null;
           return;
         }
         const d = await r.json();
         if (!alive) return;
-        setAlertasSegurancaNaoVistos(Number(d.total ?? (Array.isArray(d.alertas) ? d.alertas.length : 0)) || 0);
+        const total = Number(d.total ?? (Array.isArray(d.alertas) ? d.alertas.length : 0)) || 0;
+        // Task #164 — toast vermelho quando entrar bloqueio novo na fila.
+        // Snapshot inicial (ref === null) nao dispara, mesmo padrao do
+        // assinaturasRef. Disparo apenas em delta positivo.
+        const prev = alertasSegurancaRef.current;
+        if (prev !== null && total > prev) {
+          const novos = total - prev;
+          toast({
+            title: `🚨 ${novos} novo${novos > 1 ? "s" : ""} bloqueio${novos > 1 ? "s" : ""} de 2FA`,
+            description: "Possível tentativa de brute-force detectada agora.",
+            variant: "destructive",
+            duration: 15000,
+            action: (
+              <ToastAction
+                altText="Abrir fila"
+                onClick={() => { window.location.href = "/plataforma/alertas-seguranca"; }}
+              >
+                Abrir fila
+              </ToastAction>
+            ),
+          });
+        }
+        alertasSegurancaRef.current = total;
+        setAlertasSegurancaNaoVistos(total);
       } catch { /* silencioso */ }
     };
     carregar();
@@ -410,7 +439,7 @@ export default function PainelComando() {
       window.removeEventListener("alertas_seguranca_marcados", onMarcados);
       window.removeEventListener("storage", onStorage);
     };
-  }, []);
+  }, [toast]);
 
   if (loading) {
     return (
