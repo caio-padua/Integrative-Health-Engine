@@ -180,6 +180,10 @@ router.use(assinaturasTcleRouter);
 // Wave 10 F3.C — Orcamento Farmaceutico (Familia 3 ZapSign)
 import orcamentosRouter from "./orcamentos";
 router.use(orcamentosRouter);
+// Wave Blindagem CEO PDF Diario — relatorio executivo 24h por email
+// (routes ja sao montadas sob /api em app.ts, entao caminho final = /api/admin/relatorio-diario/*)
+import relatorioDiarioCEORouter from "./relatorioDiarioCEO";
+router.use(relatorioDiarioCEORouter);
 router.use(relatorioOperacionalDiaRouter);
 router.use(examesRouter);
 router.use(agendasProfissionaisRouter);

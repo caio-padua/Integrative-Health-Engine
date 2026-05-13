@@ -9,6 +9,7 @@ import { iniciarWorkerPdfRetryUpload } from "./lib/recorrencia/pdfRetryUpload";
 import { iniciarWorkerPdfRetryUploadResumoDiario } from "./lib/recorrencia/pdfRetryUploadResumoDiario";
 import { iniciarWorkerVerificarPdfsCofre } from "./lib/recorrencia/verificarPdfsCofre";
 import { iniciarWorkerAlertaAssinaturasCEO } from "./lib/recorrencia/alertaAssinaturasCEO";
+import { iniciarWorkerRelatorioDiarioCEO } from "./lib/recorrencia/relatorioDiarioCEO";
 
 const rawPort = process.env["PORT"];
 
@@ -40,4 +41,5 @@ app.listen(port, (err) => {
   iniciarWorkerPdfRetryUploadResumoDiario();
   iniciarWorkerVerificarPdfsCofre();
   iniciarWorkerAlertaAssinaturasCEO();
+  iniciarWorkerRelatorioDiarioCEO();
 });

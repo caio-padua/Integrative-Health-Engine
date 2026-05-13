@@ -67,7 +67,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const isPainelPawards = path === "/painel-pawards" || path.startsWith("/painel-pawards/");
   // Match tanto rota raiz (POST /api/prescricoes) quanto sub-rotas (/api/prescricoes/123)
   const isWave10Juridico =
-    /^\/(api\/)?(orcamentos|parq|prescricoes)(\/.*)?$/.test(path);
+    /^\/(api\/)?(orcamentos|parq|prescricoes|admin\/relatorio-diario)(\/.*)?$/.test(path);
   const adminToken = process.env["ADMIN_TOKEN"];
   if (
     !isPainelPawards &&
