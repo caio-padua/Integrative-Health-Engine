@@ -17,6 +17,10 @@ import {
 } from "../lib/email/clinicaSuspensao";
 import { z } from "zod";
 import { logger } from "../lib/logger.js";
+import {
+  enviarWhatsappSuspensao,
+  enviarWhatsappReativacao,
+} from "../lib/whatsapp/clinicaSuspensaoWhatsapp";
 
 type AuthedRequest = Request & {
   user?: JwtPayload & { perfil?: string; perfilPlataforma?: string };
@@ -363,7 +367,22 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
     executado_por_usuario_id: actor.userId,
   });
 
-  res.json({ ok: true, email: emailRes });
+  // Aviso por WhatsApp — best-effort, igual ao email. Suspensao paralisa
+  // operacao inteira, entao o aviso precisa chegar no celular alem do email.
+  let whatsappRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+  try {
+    whatsappRes = await enviarWhatsappSuspensao({
+      unidadeId: id,
+      unidade: { ...unidade, status: "SUSPENSO", suspensaoMotivo: motivo, suspensoEm: new Date() },
+      motivo,
+      suspensoEm: new Date(),
+    });
+    req.log?.info({ unidadeId: id, ...whatsappRes }, "[plataforma] whatsapp suspensao enviado");
+  } catch (err) {
+    req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar whatsapp de suspensao");
+  }
+
+  res.json({ ok: true, email: emailRes, whatsapp: whatsappRes });
 });
 
 // POST /api/plataforma/clinicas/:id/reativar { motivo }
@@ -419,7 +438,20 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
     executado_por_usuario_id: actor.userId,
   });
 
-  res.json({ ok: true, email: emailRes });
+  let whatsappRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+  try {
+    whatsappRes = await enviarWhatsappReativacao({
+      unidadeId: id,
+      unidade: { ...unidade, status: "ATIVO", suspensaoMotivo: null, suspensoEm: null },
+      motivo,
+      reativadoEm: new Date(),
+    });
+    req.log?.info({ unidadeId: id, ...whatsappRes }, "[plataforma] whatsapp reativacao enviado");
+  } catch (err) {
+    req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar whatsapp de reativacao");
+  }
+
+  res.json({ ok: true, email: emailRes, whatsapp: whatsappRes });
 });
 
 // ─────────────────────── EXCLUSAO COM CARENCIA LGPD ──────────────────
