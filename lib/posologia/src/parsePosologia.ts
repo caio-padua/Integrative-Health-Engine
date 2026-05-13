@@ -106,6 +106,98 @@ function detectarDuracaoDias(t: string): number | undefined {
   return undefined;
 }
 
+/**
+ * Detecta escalonamento por semanas, ex.:
+ *   "1 cap na 1ª semana, 2 caps na 2ª semana, 3 caps na 3ª semana"
+ *   "1 capsula na primeira semana e 2 capsulas na segunda semana"
+ */
+function detectarFases(t: string): Array<{ semana: number; quantidade: number }> | undefined {
+  const ordinais: Record<string, number> = {
+    primeira: 1, segunda: 2, terceira: 3, quarta: 4, quinta: 5, sexta: 6,
+    setima: 7, "sétima": 7, oitava: 8,
+  };
+  const out: Array<{ semana: number; quantidade: number }> = [];
+
+  // Forma "N <forma> na Xª semana" / "na X semana" / "na <ordinal> semana"
+  const re = /(\d+(?:[.,]\d+)?)\s*(?:[a-zçãéí-]+\s+)?(?:na|n[ao]s?)\s+(\d+)\s*[ªa°o]?\s*semana\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(t)) !== null) {
+    out.push({ quantidade: Number(m[1].replace(",", ".")), semana: Number(m[2]) });
+  }
+
+  const reOrd = /(\d+(?:[.,]\d+)?)\s*(?:[a-zçãéí-]+\s+)?(?:na|n[ao]s?)\s+([a-zçãéí]+)\s+semana\b/g;
+  while ((m = reOrd.exec(t)) !== null) {
+    const sem = ordinais[m[2]];
+    if (sem !== undefined) out.push({ quantidade: Number(m[1].replace(",", ".")), semana: sem });
+  }
+
+  if (out.length === 0) return undefined;
+  // Dedup + ordena
+  const map = new Map<number, number>();
+  for (const f of out) if (!map.has(f.semana)) map.set(f.semana, f.quantidade);
+  return Array.from(map.entries())
+    .map(([semana, quantidade]) => ({ semana, quantidade }))
+    .sort((a, b) => a.semana - b.semana);
+}
+
+/**
+ * Detecta ciclos on/off, ex.: "21 dias on / 7 dias off",
+ * "uso 21 dias e pausa 7 dias", "ciclo 21/7".
+ */
+function detectarCiclo(t: string): { diasOn: number; diasOff: number } | undefined {
+  const m1 = t.match(/(\d+)\s*dias?\s*on\s*[\/,e]?\s*(\d+)\s*dias?\s*off\b/);
+  if (m1) return { diasOn: Number(m1[1]), diasOff: Number(m1[2]) };
+  const m2 = t.match(/(?:usar?|uso|tomar?)\s+(?:por\s+)?(\d+)\s*dias?\s+(?:e\s+)?(?:pausar?|pausa|descansar?|interromper?)\s+(?:por\s+)?(\d+)\s*dias?\b/);
+  if (m2) return { diasOn: Number(m2[1]), diasOff: Number(m2[2]) };
+  const m3 = t.match(/\bciclo\s+(?:de\s+)?(\d+)\s*\/\s*(\d+)\b/);
+  if (m3) return { diasOn: Number(m3[1]), diasOff: Number(m3[2]) };
+  return undefined;
+}
+
+/**
+ * Detecta tomadas múltiplas em momentos distintos:
+ *   "1 comp pela manhã + 2 comp à noite"
+ *   "1 cap manhã e 2 cap noite"
+ *   "2 gotas pela manhã, 3 gotas à tarde e 4 gotas à noite"
+ */
+function detectarTomadas(t: string): Array<{ quantidade: number; momento: MomentoIngestao }> | undefined {
+  const segmentos = t.split(/\s*(?:\+|,|\se\s)\s*/);
+  if (segmentos.length < 2) return undefined;
+  const out: Array<{ quantidade: number; momento: MomentoIngestao }> = [];
+  for (const seg of segmentos) {
+    const mQty = seg.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s+/);
+    if (!mQty) continue;
+    const qty = Number(mQty[1].replace(",", "."));
+    const momentos = detectarMomentos(seg);
+    // Considera apenas momentos do dia (não jejum/refeição) pra evitar falsos positivos.
+    let momentoDia = momentos.find((m) => m === "manha" || m === "tarde" || m === "noite" || m === "antes_dormir");
+    // Fallback: aceita "manha"/"tarde"/"noite" bare quando estamos dentro de uma tomada.
+    if (!momentoDia) {
+      if (/\bmanh[ãa]\b/.test(seg)) momentoDia = "manha";
+      else if (/\btarde\b/.test(seg)) momentoDia = "tarde";
+      else if (/\bnoite\b/.test(seg)) momentoDia = "noite";
+    }
+    if (momentoDia) out.push({ quantidade: qty, momento: momentoDia });
+  }
+  if (out.length < 2) return undefined;
+  // Garante momentos distintos
+  const vistos = new Set<MomentoIngestao>();
+  const filtrado = out.filter((x) => (vistos.has(x.momento) ? false : (vistos.add(x.momento), true)));
+  return filtrado.length >= 2 ? filtrado : undefined;
+}
+
+/**
+ * Range de quantidade por tomada, ex.: "1-2 cps ao dia", "2 a 3 gotas".
+ */
+function detectarRange(t: string): { min: number; max: number } | undefined {
+  const m = t.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(?:-|a)\s*(\d+(?:[.,]\d+)?)\s+(?=caps?|comp|cp|cpr|gotas?|ml|doses?|pellets?|ampolas?|sach|sprays?|puffs?|unid)/);
+  if (!m) return undefined;
+  const min = Number(m[1].replace(",", "."));
+  const max = Number(m[2].replace(",", "."));
+  if (max < min) return undefined;
+  return { min, max };
+}
+
 function detectarFrequencia(t: string): Frequencia | undefined {
   // Nx/dia, Nx ao dia, N vezes ao dia
   const mDia = t.match(/(\d+)\s*x\s*(?:\/|ao|por|no)?\s*dia\b/) || t.match(/(\d+)\s*vezes?\s*(?:ao|por)\s*dia\b/);
@@ -200,14 +292,45 @@ export function parsePosologia(
     };
   }
 
-  const quantidade = detectarQuantidade(t);
+  const fases = detectarFases(t);
+  const ciclo = detectarCiclo(t);
+  const tomadas = detectarTomadas(t);
+  const quantidadeRange = detectarRange(t);
+
+  // Quando o texto é puramente um ciclo (ex.: "21 dias on / 7 dias off"),
+  // os números do ciclo não são quantidade/duração da prescrição. Mascaramos
+  // o trecho do ciclo antes de rodar os detectores de quantidade/duração
+  // para evitar contaminação cruzada.
+  const tParaQty = ciclo
+    ? t
+        .replace(/\d+\s*dias?\s*on\s*[\/,e]?\s*\d+\s*dias?\s*off\b/g, "")
+        .replace(/(?:usar?|uso|tomar?)\s+(?:por\s+)?\d+\s*dias?\s+(?:e\s+)?(?:pausar?|pausa|descansar?|interromper?)\s+(?:por\s+)?\d+\s*dias?\b/g, "")
+        .replace(/\bciclo\s+(?:de\s+)?\d+\s*\/\s*\d+\b/g, "")
+        .trim()
+    : t;
+
+  const quantidade =
+    quantidadeRange?.min ??
+    (tomadas?.[0]?.quantidade) ??
+    (fases?.[0]?.quantidade) ??
+    detectarQuantidade(tParaQty);
   const unidadeForma = detectarForma(t);
   const via = detectarVia(t) ?? contexto?.viaPadrao;
   const doseMg = detectarDoseMg(t);
   const volumeMl = detectarVolumeMl(t);
-  const momento = detectarMomentos(t);
+  const momentoBase = detectarMomentos(t);
+  const momento = tomadas
+    ? tomadas.map((x) => x.momento)
+    : momentoBase;
   let frequencia = detectarFrequencia(t);
-  const duracaoDias = detectarDuracaoDias(t);
+  const duracaoDias = detectarDuracaoDias(tParaQty);
+
+  if (!frequencia && tomadas && tomadas.length >= 2) {
+    frequencia = { tipo: "diaria", vezes: tomadas.length };
+  }
+  if (!frequencia && fases && fases.length > 0) {
+    frequencia = { tipo: "diaria", vezes: 1 };
+  }
 
   // Heurística: "1 capsula 1 hora antes de dormir" → frequência diária 1x.
   if (!frequencia && momento.length > 0 && quantidade !== undefined) {
@@ -222,7 +345,11 @@ export function parsePosologia(
     volumeMl !== undefined ||
     frequencia ||
     momento.length > 0 ||
-    duracaoDias !== undefined,
+    duracaoDias !== undefined ||
+    fases ||
+    ciclo ||
+    tomadas ||
+    quantidadeRange,
   );
 
   const out: PosologiaEstruturada = { raw, interpretado };
@@ -234,6 +361,10 @@ export function parsePosologia(
   if (frequencia) out.frequencia = frequencia;
   if (momento.length > 0) out.momento = momento;
   if (duracaoDias !== undefined) out.duracaoDias = duracaoDias;
+  if (fases) out.fases = fases;
+  if (ciclo) out.ciclo = ciclo;
+  if (tomadas) out.tomadas = tomadas;
+  if (quantidadeRange) out.quantidadeRange = quantidadeRange;
   return out;
 }
 
@@ -318,12 +449,24 @@ export function formatarPosologiaEstruturada(p: PosologiaEstruturada): string {
     partes.push(`${p.volumeMl} mL`);
   }
 
+  if (p.quantidadeRange) {
+    partes.push(`${p.quantidadeRange.min}-${p.quantidadeRange.max} por tomada`);
+  }
   if (p.via) partes.push(VIA_LABEL[p.via]);
   if (p.frequencia) partes.push(fraseFrequencia(p.frequencia));
   if (p.momento && p.momento.length > 0) {
     partes.push(p.momento.map((m) => MOMENTO_LABEL[m]).join(", "));
   }
   if (p.duracaoDias !== undefined) partes.push(`por ${p.duracaoDias} dias`);
+  if (p.ciclo) partes.push(`ciclo ${p.ciclo.diasOn} dias on / ${p.ciclo.diasOff} dias off`);
+  if (p.fases && p.fases.length > 0) {
+    const detalhe = p.fases.map((f) => `${f.quantidade} na ${f.semana}ª semana`).join(", ");
+    partes.push(`escalonamento: ${detalhe}`);
+  }
+  if (p.tomadas && p.tomadas.length > 0) {
+    const detalhe = p.tomadas.map((tm) => `${tm.quantidade} ${MOMENTO_LABEL[tm.momento]}`).join(" + ");
+    partes.push(`tomadas: ${detalhe}`);
+  }
 
   return partes.length > 0 ? partes.join(", ") : p.raw;
 }

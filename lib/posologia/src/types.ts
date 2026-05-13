@@ -90,6 +90,28 @@ export interface PosologiaEstruturada {
   duracaoDias?: number;
   /** Texto residual / observações livres não mapeáveis. */
   observacoes?: string;
+  /**
+   * Quando a quantidade varia ao longo de semanas (escalonamento).
+   * Ex.: "1 cap na 1ª semana, 2 caps na 2ª semana" →
+   *   [{ semana: 1, quantidade: 1 }, { semana: 2, quantidade: 2 }].
+   */
+  fases?: Array<{ semana: number; quantidade: number }>;
+  /**
+   * Ciclo de uso intermitente.
+   * Ex.: "21 dias on / 7 dias off" → { diasOn: 21, diasOff: 7 }.
+   */
+  ciclo?: { diasOn: number; diasOff: number };
+  /**
+   * Quando há tomadas separadas com quantidades distintas em momentos
+   * diferentes do dia. Ex.: "1 comp pela manhã + 2 comp à noite" →
+   *   [{ quantidade: 1, momento: "manha" }, { quantidade: 2, momento: "noite" }].
+   */
+  tomadas?: Array<{ quantidade: number; momento: MomentoIngestao }>;
+  /**
+   * Range de quantidade por tomada (ex.: "1-2 cps ao dia" → { min: 1, max: 2 }).
+   * Quando presente, `quantidade` traz o mínimo (compatibilidade).
+   */
+  quantidadeRange?: { min: number; max: number };
 }
 
 export interface ParseContexto {
