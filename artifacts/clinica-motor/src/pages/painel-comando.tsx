@@ -273,6 +273,32 @@ export default function PainelComando() {
   // Task #164 — snapshot anterior do contador de bloqueios 2FA pra disparar
   // toast vermelho apenas em deltas reais (snapshot inicial = null, nao avisa).
   const alertasSegurancaRef = useRef<number | null>(null);
+  // Task #185 — botao toggle pro mute do beep de seguranca (Task #174).
+  // Antes so dava pra alternar via devtools (localStorage). Agora ha botao
+  // visivel proximo ao badge, com persistencia + sync entre abas (storage event).
+  const [somSegurancaMudo, setSomSegurancaMudo] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage?.getItem("alertas_seguranca_som_mudo") === "1"; }
+    catch { return false; }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onStorage(e: StorageEvent) {
+      if (e.key === "alertas_seguranca_som_mudo") {
+        setSomSegurancaMudo(e.newValue === "1");
+      }
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+  function alternarSomSeguranca() {
+    try {
+      const novo = !somSegurancaMudo;
+      if (novo) window.localStorage?.setItem("alertas_seguranca_som_mudo", "1");
+      else window.localStorage?.removeItem("alertas_seguranca_som_mudo");
+      setSomSegurancaMudo(novo);
+    } catch { /* silencioso */ }
+  }
   const { toast } = useToast();
 
   useEffect(() => {
@@ -584,6 +610,25 @@ export default function PainelComando() {
                       {alertasSegurancaNaoVistos} bloqueio{alertasSegurancaNaoVistos > 1 ? "s" : ""} 2FA pendente{alertasSegurancaNaoVistos > 1 ? "s" : ""}
                     </span>
                   )}
+                  {/* Task #185 — toggle mute do beep de seguranca (Task #174). */}
+                  {/* Visivel sempre pra deixar a opcao auto-explicativa, sem precisar abrir devtools. */}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); alternarSomSeguranca(); }}
+                    className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold cursor-pointer hover:opacity-90 border"
+                    style={{
+                      backgroundColor: somSegurancaMudo ? COR_SEMANTICA_HEX.neutro : COR_SEMANTICA_HEX.bom,
+                      color: "white",
+                      borderColor: "transparent",
+                    }}
+                    title={somSegurancaMudo
+                      ? "Som do alerta de bloqueio 2FA esta MUDO. Clique pra reativar."
+                      : "Som do alerta de bloqueio 2FA esta ATIVO. Clique pra silenciar."}
+                    aria-pressed={somSegurancaMudo}
+                    data-testid="botao-toggle-som-alertas-seguranca"
+                  >
+                    {somSegurancaMudo ? "🔕 som mudo" : "🔔 som ativo"}
+                  </button>
                   {assinaturasResumo.taxa_conversao_pct !== null && assinaturasResumo.taxa_conversao_pct !== undefined && (
                     <span
                       className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold"
