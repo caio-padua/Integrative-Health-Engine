@@ -241,6 +241,14 @@ router.post(
 // chamada faz append ao array, nunca sobrescreve. Se nao achar o evento
 // (caso raro de race), apenas loga e segue — auditoria nunca bloqueia o
 // fluxo principal.
+type DetalheEnvioWhatsappAuditoria = {
+  destinatario: string;
+  sucesso: boolean;
+  viaHsm: boolean;
+  viaTextoLivre: boolean;
+  erro: string | null;
+};
+
 type RegistroAviso = {
   tipo:
     | "SUSPENSAO"
@@ -248,6 +256,9 @@ type RegistroAviso = {
     | "REENVIO_SUSPENSAO"
     | "REENVIO_REATIVACAO"
     | "SUSPENSAO_PACIENTES";
+  // Canal de envio. Default "EMAIL" pra retrocompat com registros antigos
+  // gravados antes da Task #176, quando so email era persistido na auditoria.
+  canal?: "EMAIL" | "WHATSAPP";
   destinatarios: string[];
   enviados: number;
   falhas: number;
@@ -255,6 +266,12 @@ type RegistroAviso = {
   em: string;
   executado_por_usuario_id: number;
   detalhes?: Record<string, unknown>;
+  // Campos especificos de WhatsApp (Task #176): pro CEO ver se o aviso saiu
+  // pela "porta da frente" (template HSM aprovado, entrega garantida fora da
+  // janela de 24h) ou "pela janela" (texto livre, entrega so dentro da janela).
+  via_hsm?: number;
+  via_texto_livre?: number;
+  detalhes_whatsapp?: DetalheEnvioWhatsappAuditoria[];
 };
 
 async function anexarAvisoEmAuditoria(
@@ -407,6 +424,7 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
   }
   await anexarAvisoEmAuditoria(id, "SUSPENDER", {
     tipo: "SUSPENSAO",
+    canal: "EMAIL",
     destinatarios: emailRes.destinatarios,
     enviados: emailRes.enviados,
     falhas: emailRes.falhas,
@@ -417,13 +435,22 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
 
   // Aviso por WhatsApp — best-effort, igual ao email. Suspensao paralisa
   // operacao inteira, entao o aviso precisa chegar no celular alem do email.
-  let whatsappRes = {
-    destinatarios: [] as string[],
+  let whatsappRes: {
+    destinatarios: string[];
+    enviados: number;
+    falhas: number;
+    viaHsm: number;
+    viaTextoLivre: number;
+    detalhes: DetalheEnvioWhatsappAuditoria[];
+  } = {
+    destinatarios: [],
     enviados: 0,
     falhas: 0,
     viaHsm: 0,
     viaTextoLivre: 0,
+    detalhes: [],
   };
+  let whatsappErro: string | null = null;
   try {
     whatsappRes = await enviarWhatsappSuspensao({
       unidadeId: id,
@@ -433,8 +460,24 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
     });
     req.log?.info({ unidadeId: id, ...whatsappRes }, "[plataforma] whatsapp suspensao enviado");
   } catch (err) {
+    whatsappErro = err instanceof Error ? err.message : String(err);
     req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar whatsapp de suspensao");
   }
+  // Task #176: persiste o registro do WhatsApp em auditoria_kill_switch.metadata.avisos[]
+  // pro painel do CEO mostrar HSM x texto livre por destinatario.
+  await anexarAvisoEmAuditoria(id, "SUSPENDER", {
+    tipo: "SUSPENSAO",
+    canal: "WHATSAPP",
+    destinatarios: whatsappRes.destinatarios,
+    enviados: whatsappRes.enviados,
+    falhas: whatsappRes.falhas,
+    erro: whatsappErro,
+    em: new Date().toISOString(),
+    executado_por_usuario_id: actor.userId,
+    via_hsm: whatsappRes.viaHsm,
+    via_texto_livre: whatsappRes.viaTextoLivre,
+    detalhes_whatsapp: whatsappRes.detalhes,
+  });
 
   // Task #139 — aviso pra pacientes com consulta marcada nos proximos
   // dias. SO dispara quando ha transicao real (clinica nao estava ja
@@ -544,6 +587,7 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
   }
   await anexarAvisoEmAuditoria(id, "REASSUMIR", {
     tipo: "REATIVACAO",
+    canal: "EMAIL",
     destinatarios: emailRes.destinatarios,
     enviados: emailRes.enviados,
     falhas: emailRes.falhas,
@@ -552,13 +596,22 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
     executado_por_usuario_id: actor.userId,
   });
 
-  let whatsappRes = {
-    destinatarios: [] as string[],
+  let whatsappRes: {
+    destinatarios: string[];
+    enviados: number;
+    falhas: number;
+    viaHsm: number;
+    viaTextoLivre: number;
+    detalhes: DetalheEnvioWhatsappAuditoria[];
+  } = {
+    destinatarios: [],
     enviados: 0,
     falhas: 0,
     viaHsm: 0,
     viaTextoLivre: 0,
+    detalhes: [],
   };
+  let whatsappErro: string | null = null;
   try {
     whatsappRes = await enviarWhatsappReativacao({
       unidadeId: id,
@@ -568,8 +621,22 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
     });
     req.log?.info({ unidadeId: id, ...whatsappRes }, "[plataforma] whatsapp reativacao enviado");
   } catch (err) {
+    whatsappErro = err instanceof Error ? err.message : String(err);
     req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar whatsapp de reativacao");
   }
+  await anexarAvisoEmAuditoria(id, "REASSUMIR", {
+    tipo: "REATIVACAO",
+    canal: "WHATSAPP",
+    destinatarios: whatsappRes.destinatarios,
+    enviados: whatsappRes.enviados,
+    falhas: whatsappRes.falhas,
+    erro: whatsappErro,
+    em: new Date().toISOString(),
+    executado_por_usuario_id: actor.userId,
+    via_hsm: whatsappRes.viaHsm,
+    via_texto_livre: whatsappRes.viaTextoLivre,
+    detalhes_whatsapp: whatsappRes.detalhes,
+  });
 
   res.json({ ok: true, email: emailRes, whatsapp: whatsappRes });
 });

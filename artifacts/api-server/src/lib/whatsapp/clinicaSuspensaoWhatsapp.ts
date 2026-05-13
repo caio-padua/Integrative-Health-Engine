@@ -102,20 +102,35 @@ function mensagemReativacao(opts: {
   ].join("\n");
 }
 
+export type DetalheEnvioWhatsapp = {
+  destinatario: string;
+  sucesso: boolean;
+  viaHsm: boolean;
+  viaTextoLivre: boolean;
+  erro: string | null;
+};
+
 async function enviarParaTodos(
   destinatarios: string[],
   mensagemFallback: string,
   variaveis: Record<string, string>,
   unidadeId: number,
   templateNome: string,
-): Promise<{ enviados: number; falhas: number; viaHsm: number; viaTextoLivre: number }> {
+): Promise<{
+  enviados: number;
+  falhas: number;
+  viaHsm: number;
+  viaTextoLivre: number;
+  detalhes: DetalheEnvioWhatsapp[];
+}> {
   if (destinatarios.length === 0) {
-    return { enviados: 0, falhas: 0, viaHsm: 0, viaTextoLivre: 0 };
+    return { enviados: 0, falhas: 0, viaHsm: 0, viaTextoLivre: 0, detalhes: [] };
   }
   let enviados = 0;
   let falhas = 0;
   let viaHsm = 0;
   let viaTextoLivre = 0;
+  const detalhes: DetalheEnvioWhatsapp[] = [];
   for (const telefone of destinatarios) {
     try {
       const r = await enviarComTemplateHsm(telefone, templateNome, variaveis, {
@@ -126,12 +141,26 @@ async function enviarParaTodos(
         enviados++;
         if (r.viaHsm) viaHsm++;
         if (r.usouFallback) viaTextoLivre++;
+        detalhes.push({
+          destinatario: telefone,
+          sucesso: true,
+          viaHsm: !!r.viaHsm,
+          viaTextoLivre: !!r.usouFallback,
+          erro: null,
+        });
       } else {
         falhas++;
         logger.warn(
           { telefone, erro: r.erro, unidadeId, templateNome },
           "[clinicaSuspensaoWhatsapp] envio retornou falha (HSM e fallback)",
         );
+        detalhes.push({
+          destinatario: telefone,
+          sucesso: false,
+          viaHsm: false,
+          viaTextoLivre: false,
+          erro: r.erro ?? "envio retornou falha",
+        });
       }
     } catch (err) {
       falhas++;
@@ -139,9 +168,16 @@ async function enviarParaTodos(
         { err, telefone, unidadeId, templateNome },
         "[clinicaSuspensaoWhatsapp] excecao ao enviar whatsapp",
       );
+      detalhes.push({
+        destinatario: telefone,
+        sucesso: false,
+        viaHsm: false,
+        viaTextoLivre: false,
+        erro: err instanceof Error ? err.message : String(err),
+      });
     }
   }
-  return { enviados, falhas, viaHsm, viaTextoLivre };
+  return { enviados, falhas, viaHsm, viaTextoLivre, detalhes };
 }
 
 export async function enviarWhatsappSuspensao(opts: {
@@ -155,6 +191,7 @@ export async function enviarWhatsappSuspensao(opts: {
   falhas: number;
   viaHsm: number;
   viaTextoLivre: number;
+  detalhes: DetalheEnvioWhatsapp[];
 }> {
   const destinatarios = await coletarTelefonesResponsaveis(opts.unidadeId, opts.unidade);
   const mensagem = mensagemSuspensao({
@@ -173,14 +210,14 @@ export async function enviarWhatsappSuspensao(opts: {
     motivo: opts.motivo,
     contatoRecurso: CONTATO_RECURSO_PADRAO,
   };
-  const { enviados, falhas, viaHsm, viaTextoLivre } = await enviarParaTodos(
+  const { enviados, falhas, viaHsm, viaTextoLivre, detalhes } = await enviarParaTodos(
     destinatarios,
     mensagem,
     variaveis,
     opts.unidadeId,
     "CLINICA_SUSPENSA",
   );
-  return { destinatarios, enviados, falhas, viaHsm, viaTextoLivre };
+  return { destinatarios, enviados, falhas, viaHsm, viaTextoLivre, detalhes };
 }
 
 export async function enviarWhatsappReativacao(opts: {
@@ -194,6 +231,7 @@ export async function enviarWhatsappReativacao(opts: {
   falhas: number;
   viaHsm: number;
   viaTextoLivre: number;
+  detalhes: DetalheEnvioWhatsapp[];
 }> {
   const destinatarios = await coletarTelefonesResponsaveis(opts.unidadeId, opts.unidade);
   const mensagem = mensagemReativacao({
@@ -206,12 +244,12 @@ export async function enviarWhatsappReativacao(opts: {
     reativadoEm: dataPtBr(opts.reativadoEm),
     motivo: opts.motivo,
   };
-  const { enviados, falhas, viaHsm, viaTextoLivre } = await enviarParaTodos(
+  const { enviados, falhas, viaHsm, viaTextoLivre, detalhes } = await enviarParaTodos(
     destinatarios,
     mensagem,
     variaveis,
     opts.unidadeId,
     "CLINICA_REATIVADA",
   );
-  return { destinatarios, enviados, falhas, viaHsm, viaTextoLivre };
+  return { destinatarios, enviados, falhas, viaHsm, viaTextoLivre, detalhes };
 }

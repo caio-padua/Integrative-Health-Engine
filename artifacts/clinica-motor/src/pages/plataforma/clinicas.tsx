@@ -19,12 +19,23 @@ type PreviaDestinatarios = {
 
 type RegistroAviso = {
   tipo: "SUSPENSAO" | "REATIVACAO" | "REENVIO_SUSPENSAO" | "REENVIO_REATIVACAO";
+  // Default "EMAIL" pra registros gravados antes da Task #176.
+  canal?: "EMAIL" | "WHATSAPP";
   destinatarios: string[];
   enviados: number;
   falhas: number;
   erro: string | null;
   em: string;
   executado_por_usuario_id: number;
+  via_hsm?: number;
+  via_texto_livre?: number;
+  detalhes_whatsapp?: Array<{
+    destinatario: string;
+    sucesso: boolean;
+    viaHsm: boolean;
+    viaTextoLivre: boolean;
+    erro: string | null;
+  }>;
 };
 
 type EventoComAvisos = {
@@ -564,9 +575,26 @@ export default function PlataformaClinicas() {
                                       </div>
                                     ) : (
                                       <div className="space-y-1">
-                                        {ev.avisos.map((av, i) => (
+                                        {ev.avisos.map((av, i) => {
+                                          const canal = av.canal ?? "EMAIL";
+                                          const isWhatsapp = canal === "WHATSAPP";
+                                          const viaHsm = av.via_hsm ?? 0;
+                                          const viaTextoLivre = av.via_texto_livre ?? 0;
+                                          const tudoTextoLivre =
+                                            isWhatsapp &&
+                                            av.enviados > 0 &&
+                                            viaHsm === 0 &&
+                                            viaTextoLivre === av.enviados;
+                                          return (
                                           <div key={i} className="border-l-2 border-zinc-700 pl-2 text-[11px]">
                                             <div className="flex flex-wrap gap-2 items-center">
+                                              <span className={`px-1.5 py-0.5 rounded text-[10px] border ${
+                                                isWhatsapp
+                                                  ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40"
+                                                  : "bg-blue-500/10 text-blue-300 border-blue-500/40"
+                                              }`}>
+                                                {canal}
+                                              </span>
                                               <span className="text-zinc-300 font-mono">{av.tipo}</span>
                                               <span className="text-zinc-500">
                                                 {new Date(av.em).toLocaleString("pt-BR")}
@@ -578,7 +606,31 @@ export default function PlataformaClinicas() {
                                               <span className="text-zinc-500">
                                                 · {av.destinatarios.length} destinatario(s)
                                               </span>
+                                              {isWhatsapp && viaHsm > 0 && (
+                                                <span
+                                                  className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/40"
+                                                  title="Template HSM aprovado pelo Meta — entrega garantida fora da janela de 24h"
+                                                >
+                                                  HSM: {viaHsm}
+                                                </span>
+                                              )}
+                                              {isWhatsapp && viaTextoLivre > 0 && (
+                                                <span
+                                                  className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/40"
+                                                  title="Texto livre — so entrega dentro da janela de 24h apos o destinatario falar com a clinica"
+                                                >
+                                                  Texto livre: {viaTextoLivre}
+                                                </span>
+                                              )}
                                             </div>
+                                            {tudoTextoLivre && (
+                                              <div className="mt-1 px-2 py-1 bg-amber-500/10 border border-amber-500/40 rounded text-amber-200 text-[10px]">
+                                                ⚠ aviso pode ter sido bloqueado pelo provedor: 100%
+                                                saiu por texto livre. Se o destinatario nao falou
+                                                com a clinica nas ultimas 24h, a entrega pode ter
+                                                sido bloqueada silenciosamente.
+                                              </div>
+                                            )}
                                             {av.destinatarios.length > 0 && (
                                               <div className="text-zinc-500 mt-0.5 break-all">
                                                 {av.destinatarios.join(", ")}
@@ -588,7 +640,8 @@ export default function PlataformaClinicas() {
                                               <div className="text-red-400 mt-0.5">erro: {av.erro}</div>
                                             )}
                                           </div>
-                                        ))}
+                                          );
+                                        })}
                                       </div>
                                     )}
                                   </div>
