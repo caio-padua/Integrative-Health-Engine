@@ -719,11 +719,13 @@ export class AssinaturaService {
       // (CEO nao eh paciente) e quiet hours (alerta operacional tempo real).
       const emailDest = (ceo.email || "").trim();
       if (emailDest && emailDest.includes("@")) {
+        // Task #45: evento_ceo discrimina ASSINADO vs REJEITADO pra o worker
+        // decidir aplicar quiet hours proprias do CEO (so silencia ASSINADO).
         await db.execute(sql`
           INSERT INTO assinatura_notificacoes
-            (solicitacao_id, canal, momento, destinatario, assunto, corpo, status, is_sistema_ceo)
+            (solicitacao_id, canal, momento, destinatario, assunto, corpo, status, is_sistema_ceo, evento_ceo)
           SELECT ${solicitacaoId}, 'EMAIL', 'POS_ASSINATURA', ${emailDest},
-                 ${assunto}, ${corpoBase}, 'PENDENTE', true
+                 ${assunto}, ${corpoBase}, 'PENDENTE', true, ${tipo}
           WHERE NOT EXISTS (
             SELECT 1 FROM assinatura_notificacoes
             WHERE solicitacao_id = ${solicitacaoId}
@@ -739,9 +741,9 @@ export class AssinaturaService {
       if (telDest) {
         await db.execute(sql`
           INSERT INTO assinatura_notificacoes
-            (solicitacao_id, canal, momento, destinatario, corpo, status, is_sistema_ceo)
+            (solicitacao_id, canal, momento, destinatario, corpo, status, is_sistema_ceo, evento_ceo)
           SELECT ${solicitacaoId}, 'WHATSAPP', 'POS_ASSINATURA', ${telDest},
-                 ${corpoBase}, 'PENDENTE', true
+                 ${corpoBase}, 'PENDENTE', true, ${tipo}
           WHERE NOT EXISTS (
             SELECT 1 FROM assinatura_notificacoes
             WHERE solicitacao_id = ${solicitacaoId}

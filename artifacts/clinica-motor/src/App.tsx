@@ -85,6 +85,7 @@ import AssinaturasDetalhe from "@/pages/assinaturas-detalhe";
 import AssinaturasUploadsFalhos from "@/pages/assinaturas-uploads-falhos";
 import AssinaturasAlertasCEO from "@/pages/assinaturas-alertas-ceo";
 import AdminUploadsPdfResumo from "@/pages/admin-uploads-pdf-resumo";
+import CeoJanelasDescanso from "@/pages/ceo-janelas-descanso";
 import SobreParceriasTecnicas from "@/pages/sobre-parcerias-tecnicas";
 import AdminFarmaciasRoteamento from "@/pages/admin-farmacias-roteamento";
 import AdminAnalytics from "@/pages/admin-analytics";
@@ -152,6 +153,7 @@ function Router() {
       <Route path="/assinaturas/uploads-falhos" component={AssinaturasUploadsFalhos} />
       <Route path="/assinaturas/alertas-ceo" component={AssinaturasAlertasCEO} />
       <Route path="/admin/uploads-pdf-resumo" component={AdminUploadsPdfResumo} />
+      <Route path="/ceo/janelas-descanso" component={CeoJanelasDescanso} />
       <Route path="/assinaturas/:id" component={AssinaturasDetalhe} />
       <Route path="/sobre-parcerias-tecnicas" component={SobreParceriasTecnicas} />
       <Route path="/admin/farmacias-roteamento" component={AdminFarmaciasRoteamento} />

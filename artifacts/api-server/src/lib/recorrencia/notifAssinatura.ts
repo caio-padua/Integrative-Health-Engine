@@ -28,6 +28,7 @@ import {
   formatFileName,
 } from "../google-drive";
 import { wrapEmailMedcore, type MomentoNotif } from "./notifTemplate";
+import { logger } from "../logger";
 
 const TICK_MS = 5 * 60 * 1000; // 5 min
 const MAX_TENTATIVAS = 3;
@@ -45,6 +46,9 @@ type NotifRow = {
   tentativas: number;
   // Task #36: alerta operacional pro CEO bypassa opt-out e quiet hours.
   is_sistema_ceo: boolean | null;
+  // Task #45: discrimina ASSINADO vs REJEITADO pra aplicar quiet hours
+  // proprias do CEO (so silencia ASSINADO; REJEITADO sempre passa).
+  evento_ceo: string | null;
   // joined from assinatura_solicitacoes + pacientes
   paciente_id: number | null;
   paciente_nome: string | null;
@@ -90,6 +94,79 @@ async function getNotifConfig(): Promise<NotifConfig> {
 /** Invalida cache da config (chamado quando admin atualiza via endpoint). */
 export function invalidarCacheNotifConfig(): void {
   _cfgCache = null;
+}
+
+/**
+ * Task #45 — Janelas de descanso proprias do CEO (ceo_notif_preferencias).
+ *
+ * Indexado por (destinatario, canal) — `destinatario` casa com email/telefone
+ * em `usuarios` filtrando perfil='validador_mestre'. Cache 60s, mesmo padrao
+ * do quiet hours global. Defensivo: se nao houver linha, devolve null e o
+ * worker entende como "sem preferencia → envia 24/7" (preserva semantica
+ * Wave 10 onde alertas CEO sempre passavam).
+ */
+type CEOPref = {
+  quiet_inicio: string;
+  quiet_fim: string;
+  tz: string;
+  habilitar_quiet_hours: boolean;
+  nunca_silenciar_recusa: boolean;
+};
+
+let _ceoPrefsCache: { at: number; map: Map<string, CEOPref> } | null = null;
+
+async function getCEOPref(destinatario: string, canal: string): Promise<CEOPref | null> {
+  const key = `${canal}::${destinatario.trim().toLowerCase()}`;
+  if (_ceoPrefsCache && Date.now() - _ceoPrefsCache.at < 60_000) {
+    return _ceoPrefsCache.map.get(key) ?? null;
+  }
+  const r: any = await db.execute(sql`
+    SELECT u.email, u.telefone, p.canal,
+           p.quiet_inicio::text AS quiet_inicio,
+           p.quiet_fim::text    AS quiet_fim,
+           p.tz, p.habilitar_quiet_hours, p.nunca_silenciar_recusa
+    FROM ceo_notif_preferencias p
+    JOIN usuarios u ON u.id = p.usuario_id
+    WHERE u.perfil = 'validador_mestre' AND u.ativo = true
+  `);
+  const rows: Array<{
+    email: string | null;
+    telefone: string | null;
+    canal: string;
+    quiet_inicio: string;
+    quiet_fim: string;
+    tz: string;
+    habilitar_quiet_hours: boolean;
+    nunca_silenciar_recusa: boolean;
+  }> = (r.rows ?? r) ?? [];
+  const map = new Map<string, CEOPref>();
+  for (const row of rows) {
+    const dest = (row.canal === "EMAIL" ? row.email : row.telefone) || "";
+    if (!dest) continue;
+    map.set(`${row.canal}::${dest.trim().toLowerCase()}`, {
+      quiet_inicio: row.quiet_inicio,
+      quiet_fim: row.quiet_fim,
+      tz: row.tz,
+      habilitar_quiet_hours: row.habilitar_quiet_hours,
+      nunca_silenciar_recusa: row.nunca_silenciar_recusa,
+    });
+  }
+  _ceoPrefsCache = { at: Date.now(), map };
+  return map.get(key) ?? null;
+}
+
+export function invalidarCacheCEOPrefs(): void {
+  _ceoPrefsCache = null;
+}
+
+/** Calcula proximo quiet_fim a partir das prefs do CEO (paralelo a calcProximoQuietFim global). */
+function calcProximoQuietFimCEO(pref: CEOPref, base: Date = new Date()): Date {
+  const fim = parseHHMMSS(pref.quiet_fim);
+  const agora = horaLocal(pref.tz, base);
+  const segAgora = agora.h * 3600 + agora.m * 60 + agora.s;
+  const segFim = fim.h * 3600 + fim.m * 60 + fim.s;
+  const deltaSeg = segFim > segAgora ? segFim - segAgora : 24 * 3600 - segAgora + segFim;
+  return new Date(base.getTime() + deltaSeg * 1000 + 60_000);
 }
 
 /** Hora local em America/Sao_Paulo (ou tz da config) — formato HH:MM:SS. */
@@ -383,10 +460,10 @@ export async function tickNotifAssinatura(): Promise<{
       FROM alvos
       WHERE n.id = alvos.id
       RETURNING n.id, n.canal, n.momento, n.destinatario, n.assunto, n.corpo,
-                n.anexo_url, n.tentativas, n.is_sistema_ceo, n.solicitacao_id
+                n.anexo_url, n.tentativas, n.is_sistema_ceo, n.evento_ceo, n.solicitacao_id
     )
     SELECT c.id, c.canal, c.momento, c.destinatario, c.assunto, c.corpo,
-           c.anexo_url, c.tentativas, c.is_sistema_ceo,
+           c.anexo_url, c.tentativas, c.is_sistema_ceo, c.evento_ceo,
            s.paciente_id,
            p.nome AS paciente_nome,
            p.notif_opt_out_email AS paciente_opt_out_email,
@@ -434,8 +511,8 @@ export async function tickNotifAssinatura(): Promise<{
 
     // --- Pre-check 2: quiet hours global (não-terminal, reagenda) ---
     // Aplica só pra canais que tocam o paciente (EMAIL/WHATSAPP); DRIVE roda 24/7.
-    // Task #36: alerta sistema pro CEO ignora quiet hours (eh tempo real,
-    // qualquer assinatura/recusa precisa chegar imediatamente).
+    // Task #36: alerta sistema pro CEO ignora quiet hours globais — agora
+    //           a decisao eh delegada pra ceo_notif_preferencias (Task #45).
     if (!isSistemaCEO && inQuiet && (canal === "EMAIL" || canal === "WHATSAPP")) {
       const reagendar = calcProximoQuietFim(cfg, agora);
       // Status PULADO_QUIET é não-terminal: o tick aceita PULADO_QUIET no SELECT,
@@ -449,6 +526,48 @@ export async function tickNotifAssinatura(): Promise<{
       `);
       pulado_quiet++;
       continue;
+    }
+
+    // --- Pre-check 2b (Task #45): quiet hours proprias do CEO ---
+    // Aplica APENAS quando is_sistema_ceo=true e canal eh EMAIL/WHATSAPP.
+    // INVARIANTE: recusas (evento_ceo='REJEITADO') SEMPRE passam, sem
+    // condicional — eh requisito da Task #45 ("recusas sempre passam,
+    // independente do horario"). Hard-locked no worker, nao configuravel.
+    // Sem prefs cadastradas, o alerta CEO continua passando 24/7
+    // (preserva Wave 10).
+    const eventoCeo = (row.evento_ceo || "").toUpperCase();
+    const ehRecusa = eventoCeo === "REJEITADO";
+    if (isSistemaCEO && !ehRecusa && (canal === "EMAIL" || canal === "WHATSAPP")) {
+      try {
+        const pref = await getCEOPref(row.destinatario, canal);
+        if (pref && pref.habilitar_quiet_hours) {
+          const inQuietCEO = dentroDoQuiet(
+            horaLocal(pref.tz, agora),
+            parseHHMMSS(pref.quiet_inicio),
+            parseHHMMSS(pref.quiet_fim),
+          );
+          if (inQuietCEO) {
+            const reagendar = calcProximoQuietFimCEO(pref, agora);
+            await db.execute(sql`
+              UPDATE assinatura_notificacoes
+              SET status = 'PULADO_QUIET',
+                  proxima_tentativa_em = ${reagendar.toISOString()}::timestamptz,
+                  erro = ${`ceo_quiet_hours:${pref.quiet_inicio}-${pref.quiet_fim} ${pref.tz} (evento=${eventoCeo || "?"})`}
+              WHERE id = ${row.id}
+            `);
+            pulado_quiet++;
+            continue;
+          }
+        }
+      } catch (e) {
+        // Defensivo: se a pref do CEO estiver malformada (tz invalido, etc),
+        // nao deixa o tick inteiro abortar. Loga e segue pro envio normal —
+        // alerta CEO 24/7 (preserva semantica Wave 10) eh fallback seguro.
+        logger.warn(
+          { err: String((e as Error).message), notifId: row.id, canal },
+          "ceo_quiet_pref_falhou_fallback_envio",
+        );
+      }
     }
 
     // --- Processamento normal ---

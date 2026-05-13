@@ -17,7 +17,8 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireMasterEstrito } from "../middlewares/requireMasterEstrito";
-import { tickNotifAssinatura, invalidarCacheNotifConfig } from "../lib/recorrencia/notifAssinatura";
+import { requireAuth } from "../middlewares/requireAuth";
+import { tickNotifAssinatura, invalidarCacheNotifConfig, invalidarCacheCEOPrefs } from "../lib/recorrencia/notifAssinatura";
 import { wrapEmailMedcore, type MomentoNotif } from "../lib/recorrencia/notifTemplate";
 
 const router = Router();
@@ -232,6 +233,136 @@ router.get(
       res.status(500).send((e as Error).message);
     }
   }
+);
+
+/**
+ * Task #45 — Janelas de descanso proprias do CEO (por canal).
+ *
+ * GET /admin/ceo-notif-preferencias
+ *   Retorna as 2 linhas (EMAIL/WHATSAPP) do CEO logado. Se inexistentes,
+ *   devolve defaults (habilitar_quiet_hours=false → preserva semantica
+ *   atual de "alerta CEO 24/7" enquanto nao configurado).
+ *
+ * PUT /admin/ceo-notif-preferencias
+ *   Body: { canal, quiet_inicio, quiet_fim, tz, habilitar_quiet_hours,
+ *           nunca_silenciar_recusa }
+ *   Upsert por (usuario_id, canal). Invalida cache em memoria do worker.
+ */
+router.get(
+  "/admin/ceo-notif-preferencias",
+  requireAuth,
+  requireRole("validador_mestre"),
+  requireMasterEstrito,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const usuarioId = (req as any).user?.id;
+      if (!usuarioId || usuarioId < 0) {
+        res.status(400).json({ ok: false, error: "usuario_id_indisponivel" });
+        return;
+      }
+      const r: any = await db.execute(sql`
+        SELECT canal, quiet_inicio::text AS quiet_inicio,
+               quiet_fim::text AS quiet_fim,
+               tz, habilitar_quiet_hours, nunca_silenciar_recusa,
+               atualizado_em
+        FROM ceo_notif_preferencias
+        WHERE usuario_id = ${usuarioId}
+      `);
+      const rows: any[] = r.rows ?? r ?? [];
+      // Garante 2 linhas (EMAIL/WHATSAPP) na resposta — preenche default
+      // quando o CEO ainda nao configurou aquele canal.
+      const byCanal = new Map<string, any>();
+      for (const row of rows) byCanal.set(row.canal, row);
+      const preferencias = ["EMAIL", "WHATSAPP"].map((canal) =>
+        byCanal.get(canal) ?? {
+          canal,
+          quiet_inicio: "22:00:00",
+          quiet_fim: "07:00:00",
+          tz: "America/Sao_Paulo",
+          habilitar_quiet_hours: false,
+          nunca_silenciar_recusa: true,
+          atualizado_em: null,
+        },
+      );
+      res.json({ ok: true, preferencias });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: (e as Error).message });
+    }
+  },
+);
+
+router.put(
+  "/admin/ceo-notif-preferencias",
+  requireAuth,
+  requireRole("validador_mestre"),
+  requireMasterEstrito,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const usuarioId = (req as any).user?.id;
+      if (!usuarioId || usuarioId < 0) {
+        res.status(400).json({ ok: false, error: "usuario_id_indisponivel" });
+        return;
+      }
+      const body = (req.body ?? {}) as {
+        canal?: string;
+        quiet_inicio?: string;
+        quiet_fim?: string;
+        tz?: string;
+        habilitar_quiet_hours?: boolean;
+      };
+      const canal = String(body.canal || "").toUpperCase();
+      if (canal !== "EMAIL" && canal !== "WHATSAPP") {
+        res.status(400).json({ ok: false, error: "canal_invalido" });
+        return;
+      }
+      const reHora = /^\d{2}:\d{2}(:\d{2})?$/;
+      const quiet_inicio = body.quiet_inicio ?? "22:00:00";
+      const quiet_fim = body.quiet_fim ?? "07:00:00";
+      if (!reHora.test(quiet_inicio)) { res.status(400).json({ ok: false, error: "quiet_inicio_invalido" }); return; }
+      if (!reHora.test(quiet_fim)) { res.status(400).json({ ok: false, error: "quiet_fim_invalido" }); return; }
+      const tz = body.tz ?? "America/Sao_Paulo";
+      // Task #45 hardening: tz precisa ser IANA valido — Intl.DateTimeFormat
+      // levanta RangeError no worker se tz for invalido, o que abortaria o
+      // tick. Validamos aqui via probe pra rejeitar entrada antes de persistir.
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: tz });
+      } catch {
+        res.status(400).json({ ok: false, error: "tz_invalido" });
+        return;
+      }
+      const habilitar = body.habilitar_quiet_hours === true;
+      // INVARIANTE Task #45: recusa sempre passa, hard-locked no worker.
+      // Coluna `nunca_silenciar_recusa` permanece pra compat de schema mas
+      // eh forcada como true aqui — nao expomos como configuravel pra nao
+      // permitir um futuro "silenciar recusa" via API.
+
+      await db.execute(sql`
+        INSERT INTO ceo_notif_preferencias
+          (usuario_id, canal, quiet_inicio, quiet_fim, tz,
+           habilitar_quiet_hours, nunca_silenciar_recusa, atualizado_em)
+        VALUES (${usuarioId}, ${canal}, ${quiet_inicio}::time, ${quiet_fim}::time,
+                ${tz}, ${habilitar}, true, NOW())
+        ON CONFLICT (usuario_id, canal) DO UPDATE SET
+          quiet_inicio = EXCLUDED.quiet_inicio,
+          quiet_fim    = EXCLUDED.quiet_fim,
+          tz           = EXCLUDED.tz,
+          habilitar_quiet_hours  = EXCLUDED.habilitar_quiet_hours,
+          nunca_silenciar_recusa = true,
+          atualizado_em = NOW()
+      `);
+      invalidarCacheCEOPrefs();
+      const r: any = await db.execute(sql`
+        SELECT canal, quiet_inicio::text AS quiet_inicio,
+               quiet_fim::text AS quiet_fim,
+               tz, habilitar_quiet_hours, nunca_silenciar_recusa, atualizado_em
+        FROM ceo_notif_preferencias
+        WHERE usuario_id = ${usuarioId} AND canal = ${canal}
+      `);
+      res.json({ ok: true, preferencia: (r.rows ?? r)[0] });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: (e as Error).message });
+    }
+  },
 );
 
 export default router;
