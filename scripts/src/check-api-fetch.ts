@@ -1,17 +1,78 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "../..");
-const ROOT = resolve(REPO_ROOT, "artifacts/clinica-motor/src");
-const ALLOWLIST = new Set([resolve(ROOT, "lib/api-fetch.ts")]);
+const ARTIFACTS_DIR = resolve(REPO_ROOT, "artifacts");
+
+export type ArtifactConfig = {
+  name: string;
+  root: string;
+  helperImport: string;
+  helperFn: string;
+  allowlist: string[];
+};
+
+const EXPLICIT_CONFIGS: ArtifactConfig[] = [
+  {
+    name: "clinica-motor",
+    root: resolve(ARTIFACTS_DIR, "clinica-motor/src"),
+    helperImport: "@/lib/api-fetch",
+    helperFn: "apiFetch",
+    allowlist: [resolve(ARTIFACTS_DIR, "clinica-motor/src/lib/api-fetch.ts")],
+  },
+];
+
+function readArtifactKind(artifactDir: string): string | null {
+  const tomlPath = join(artifactDir, ".replit-artifact/artifact.toml");
+  if (!existsSync(tomlPath)) return null;
+  const src = readFileSync(tomlPath, "utf8");
+  const m = src.match(/^\s*kind\s*=\s*"([^"]+)"/m);
+  return m ? m[1] : null;
+}
+
+function discoverArtifacts(): ArtifactConfig[] {
+  const known = new Set(EXPLICIT_CONFIGS.map((c) => c.name));
+  const found: ArtifactConfig[] = [];
+  if (!existsSync(ARTIFACTS_DIR)) return found;
+  for (const entry of readdirSync(ARTIFACTS_DIR)) {
+    if (known.has(entry)) continue;
+    const artifactDir = join(ARTIFACTS_DIR, entry);
+    if (!statSync(artifactDir).isDirectory()) continue;
+    // Apenas artifacts frontend (web) — backends fazem chamadas HTTP externas
+    // legitimas que nao devem ser tratadas como fetch cru a /api.
+    const kind = readArtifactKind(artifactDir);
+    if (kind !== "web") continue;
+    const src = join(artifactDir, "src");
+    if (!existsSync(src) || !statSync(src).isDirectory()) continue;
+    const helperCandidate = join(src, "lib/api-fetch.ts");
+    found.push({
+      name: entry,
+      root: src,
+      helperImport: "./lib/api-fetch",
+      helperFn: "apiFetch",
+      allowlist: existsSync(helperCandidate) ? [helperCandidate] : [],
+    });
+  }
+  return found;
+}
+
+export function loadArtifactConfigs(): ArtifactConfig[] {
+  return [...EXPLICIT_CONFIGS, ...discoverArtifacts()];
+}
 
 const FETCH_CALL_RE = /\bfetch\s*\(/g;
 const API_IN_ARG_RE =
   /^\s*(?:`[^`]*\/api\b|"[^"]*\/api\b|'[^']*\/api\b)/;
 
-type Violation = { file: string; line: number; col: number; text: string };
+export type Violation = {
+  artifact: string;
+  file: string;
+  line: number;
+  col: number;
+  text: string;
+};
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -36,38 +97,50 @@ function lineColFromIndex(src: string, index: number): { line: number; col: numb
   return { line, col: index - lastNl };
 }
 
-export function scanFile(file: string, src: string): Violation[] {
+export function scanFile(
+  file: string,
+  src: string,
+  artifact = "",
+): Violation[] {
   const violations: Violation[] = [];
   FETCH_CALL_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = FETCH_CALL_RE.exec(src)) !== null) {
     const callStart = m.index;
-    // Reject method-style calls like .fetch( or obj?.fetch(
     const before = src
       .slice(Math.max(0, callStart - 2), callStart)
       .replace(/\s+$/, "");
     if (before.endsWith(".") || before.endsWith("?.")) continue;
     const argStart = m.index + m[0].length;
-    // Look ahead, skipping whitespace/newlines, at the first argument expression.
     const tail = src.slice(argStart);
     if (API_IN_ARG_RE.test(tail.replace(/^\s+/, ""))) {
       const { line, col } = lineColFromIndex(src, callStart);
       const lineText = src.split("\n")[line - 1] ?? "";
-      violations.push({ file, line, col, text: lineText.trim() });
+      violations.push({ artifact, file, line, col, text: lineText.trim() });
     }
   }
   return violations;
 }
 
-function scanAll(): Violation[] {
+function scanArtifact(cfg: ArtifactConfig): Violation[] {
   const violations: Violation[] = [];
-  for (const file of walk(ROOT)) {
-    if (ALLOWLIST.has(file)) continue;
+  if (!existsSync(cfg.root)) return violations;
+  const allow = new Set(cfg.allowlist);
+  for (const file of walk(cfg.root)) {
+    if (allow.has(file)) continue;
     const src = readFileSync(file, "utf8");
     if (!src.includes("fetch(") && !/fetch\s*\(/.test(src)) continue;
-    violations.push(...scanFile(file, src));
+    violations.push(...scanFile(file, src, cfg.name));
   }
   return violations;
+}
+
+export function scanAll(
+  configs: ArtifactConfig[] = loadArtifactConfigs(),
+): { configs: ArtifactConfig[]; violations: Violation[] } {
+  const violations: Violation[] = [];
+  for (const cfg of configs) violations.push(...scanArtifact(cfg));
+  return { configs, violations };
 }
 
 const isMain =
@@ -75,23 +148,37 @@ const isMain =
   process.argv[1]?.endsWith("check-api-fetch.ts");
 
 if (isMain) {
-  const violations = scanAll();
+  const { configs, violations } = scanAll();
   if (violations.length > 0) {
     console.error(
-      "\n[check-api-fetch] Chamadas cruas a fetch('/api/...') detectadas.\n" +
-        "Use apiFetch de @/lib/api-fetch para garantir Authorization automatico.\n",
+      "\n[check-api-fetch] Chamadas cruas a fetch('/api/...') detectadas.\n",
     );
+    const byArtifact = new Map<string, Violation[]>();
     for (const v of violations) {
+      const list = byArtifact.get(v.artifact) ?? [];
+      list.push(v);
+      byArtifact.set(v.artifact, list);
+    }
+    for (const [name, list] of byArtifact) {
+      const cfg = configs.find((c) => c.name === name);
+      const helperFn = cfg?.helperFn ?? "apiFetch";
+      const helperImport = cfg?.helperImport ?? "<helper do artifact>";
       console.error(
-        `  ${relative(process.cwd(), v.file)}:${v.line}:${v.col}  ${v.text}`,
+        `Artifact "${name}": use ${helperFn} de ${helperImport} para garantir Authorization automatico.`,
       );
+      for (const v of list) {
+        console.error(
+          `  ${relative(process.cwd(), v.file)}:${v.line}:${v.col}  ${v.text}`,
+        );
+      }
+      console.error("");
     }
     console.error(
-      `\nTotal: ${violations.length} violacao(oes). Substitua por apiFetch.\n`,
+      `Total: ${violations.length} violacao(oes) em ${byArtifact.size} artifact(s).\n`,
     );
     process.exit(1);
   }
   console.log(
-    "[check-api-fetch] OK — nenhuma chamada crua a /api encontrada.",
+    `[check-api-fetch] OK — nenhuma chamada crua a /api encontrada (${configs.length} artifact(s) verificado(s): ${configs.map((c) => c.name).join(", ")}).`,
   );
 }

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { scanFile } from "./check-api-fetch.js";
+import { loadArtifactConfigs, scanFile } from "./check-api-fetch.js";
 
 const FAKE = "/fake/file.tsx";
 
@@ -56,4 +56,26 @@ test("detects multiple violations in one file", () => {
   const src = `fetch("/api/a")\nfetch(\n  "/api/b"\n)\napiFetch("/api/c")`;
   const v = scanFile(FAKE, src);
   assert.equal(v.length, 2);
+});
+
+test("propaga nome do artifact nas violacoes", () => {
+  const v = scanFile(FAKE, `fetch("/api/foo")`, "meu-artifact");
+  assert.equal(v.length, 1);
+  assert.equal(v[0].artifact, "meu-artifact");
+});
+
+test("loadArtifactConfigs inclui clinica-motor com helper apiFetch", () => {
+  const cfgs = loadArtifactConfigs();
+  const cm = cfgs.find((c) => c.name === "clinica-motor");
+  assert.ok(cm, "clinica-motor deve estar configurado");
+  assert.equal(cm!.helperFn, "apiFetch");
+  assert.match(cm!.helperImport, /api-fetch/);
+  assert.ok(cm!.allowlist.length > 0);
+});
+
+test("loadArtifactConfigs ignora artifacts backend (kind != web)", () => {
+  const cfgs = loadArtifactConfigs();
+  const names = cfgs.map((c) => c.name);
+  assert.ok(!names.includes("api-server"), `api-server (kind=api) NAO deve ser auto-descoberto: ${names.join(",")}`);
+  assert.ok(!names.includes("mockup-sandbox"), `mockup-sandbox (kind=design) NAO deve ser auto-descoberto: ${names.join(",")}`);
 });
