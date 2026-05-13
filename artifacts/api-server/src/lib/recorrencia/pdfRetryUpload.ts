@@ -55,6 +55,15 @@ interface EventoFalho {
 // manual real (baixar o PDF do ZapSign na mao).
 const RESETS_TEIMOSO_LIMITE = 3;
 
+// Task #67 — limiar de "preso aguardando webhook". Eventos com sentinel
+// `pdf_upload_falhou_sem_manifesto:` ficam parados sem retry (so o webhook
+// ZapSign reentregue eh dono da gravacao do manifesto). Se o ZapSign nunca
+// reentregar, o evento morre silenciosamente. Apos 24h consideramos preso
+// e disparamos alerta CEO. ZapSign reentrega normalmente em minutos/horas;
+// 24h eh margem segura pra evitar falso-positivo durante incidente do
+// provedor.
+const AGUARDANDO_WEBHOOK_LIMITE_HORAS = 24;
+
 async function buscarEventosElegiveis(): Promise<EventoFalho[]> {
   // Filtra:
   //  - prefixo do erro
@@ -447,8 +456,173 @@ async function dispararAlertaCeoResetTeimoso(
   }
 }
 
-async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number; alertaCeoTeimoso: number }> {
-  const stats = { tentados: 0, sucesso: 0, falhou: 0, bloqueados: 0, alertaCeo: 0, alertaCeoTeimoso: 0 };
+// Task #67 — Avisa o CEO quando um evento fica preso em
+// `pdf_upload_falhou_sem_manifesto:` (grupo `aguardando_webhook` na rota
+// /assinaturas/uploads-falhos) por mais de AGUARDANDO_WEBHOOK_LIMITE_HORAS
+// (24h) e o ZapSign nunca reentregou o webhook. Reusa a fila
+// `assinatura_notificacoes` igual aos alertas das tasks #50/#72, com codigo
+// proprio `UPLOAD_PDF_AGUARDANDO_WEBHOOK` e idempotencia atomica via UNIQUE
+// parcial em (webhook_evento_id, canal, destinatario) WHERE
+// momento='UPLOAD_PDF_AGUARDANDO_WEBHOOK' (1 alerta por evento total).
+//
+// Defensivo: nunca lanca; falha em silencio com log. O alerta eh
+// secundario — o evento ja esta parado nesse ponto, e nao queremos derrubar
+// o tick por falha em enfileirar e-mail.
+async function dispararAlertaCeoAguardandoWebhook(
+  eventoId: number,
+  envelopeId: string | null,
+  solicitacaoId: number | null,
+  presoHaHoras: number,
+): Promise<void> {
+  try {
+    const tx: any = await db.execute(sql`
+      SELECT assunto, corpo
+      FROM assinatura_textos_institucionais
+      WHERE codigo = 'UPLOAD_PDF_AGUARDANDO_WEBHOOK' AND ativo = true
+      LIMIT 1
+    `);
+    const txRow = ((tx.rows ?? tx) as Array<{ assunto: string | null; corpo: string }>)[0];
+    if (!txRow) {
+      console.warn(`[pdfRetryUpload] alerta CEO sem texto institucional cadastrado (codigo=UPLOAD_PDF_AGUARDANDO_WEBHOOK)`);
+      return;
+    }
+
+    let templateNome = "(template desconhecido)";
+    let pacienteNome = "(sem paciente)";
+    if (solicitacaoId) {
+      const meta: any = await db.execute(sql`
+        SELECT t.nome_exibicao AS template_nome,
+               p.nome AS paciente_nome
+        FROM assinatura_solicitacoes s
+        LEFT JOIN assinatura_templates t ON t.id = s.template_id
+        LEFT JOIN pacientes p ON p.id = s.paciente_id
+        WHERE s.id = ${solicitacaoId}
+        LIMIT 1
+      `);
+      const mrow = ((meta.rows ?? meta) as Array<{ template_nome: string | null; paciente_nome: string | null }>)[0];
+      if (mrow) {
+        templateNome = mrow.template_nome || templateNome;
+        pacienteNome = mrow.paciente_nome || pacienteNome;
+      }
+    }
+
+    const ceos: any = await db.execute(sql`
+      SELECT email, telefone FROM usuarios
+      WHERE perfil = 'validador_mestre' AND ativo = true
+    `);
+    const ceoRows = ((ceos.rows ?? ceos) as Array<{ email: string | null; telefone: string | null }>);
+    if (ceoRows.length === 0) {
+      console.warn(`[pdfRetryUpload] alerta CEO aguardando webhook sem destinatarios (nenhum validador_mestre ativo)`);
+      return;
+    }
+
+    const baseUrl = (
+      process.env.PUBLIC_APP_URL ||
+      (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0].trim()}` : "") ||
+      "http://localhost:80"
+    ).replace(/\/+$/, "");
+    const linkFila = `${baseUrl}/assinaturas/uploads-falhos`;
+    const linkSolicitacao = solicitacaoId ? `${baseUrl}/assinaturas/${solicitacaoId}` : "(sem solicitacao vinculada)";
+    const corpo =
+      `${txRow.corpo}\n\n` +
+      `--- detalhes ---\n` +
+      `Template: ${templateNome}\n` +
+      `Paciente: ${pacienteNome}\n` +
+      `Solicitacao: ${solicitacaoId ? `#${solicitacaoId}` : "(nao vinculada)"}\n` +
+      `Envelope: ${envelopeId ?? "(ausente)"}\n` +
+      `Evento webhook: #${eventoId}\n` +
+      `Preso ha: ${presoHaHoras}h (limite ${AGUARDANDO_WEBHOOK_LIMITE_HORAS}h)\n\n` +
+      `Abrir fila uploads-falhos: ${linkFila}\n` +
+      `Abrir detalhe: ${linkSolicitacao}`;
+    const assunto = txRow.assunto || "[CEO] PAWARDS · upload de PDF preso aguardando ZapSign reentregar webhook";
+
+    for (const ceo of ceoRows) {
+      const emailDest = (ceo.email || "").trim();
+      if (emailDest && emailDest.includes("@")) {
+        await db.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, assunto, corpo,
+             status, is_sistema_ceo, webhook_evento_id)
+          VALUES
+            (${solicitacaoId}, 'EMAIL', 'UPLOAD_PDF_AGUARDANDO_WEBHOOK', ${emailDest},
+             ${assunto}, ${corpo}, 'PENDENTE', true, ${eventoId})
+          ON CONFLICT (webhook_evento_id, canal, destinatario)
+            WHERE momento = 'UPLOAD_PDF_AGUARDANDO_WEBHOOK' AND webhook_evento_id IS NOT NULL
+            DO NOTHING
+        `);
+      }
+      const telDest = (ceo.telefone || "").trim();
+      if (telDest) {
+        await db.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, corpo,
+             status, is_sistema_ceo, webhook_evento_id)
+          VALUES
+            (${solicitacaoId}, 'WHATSAPP', 'UPLOAD_PDF_AGUARDANDO_WEBHOOK', ${telDest},
+             ${corpo}, 'PENDENTE', true, ${eventoId})
+          ON CONFLICT (webhook_evento_id, canal, destinatario)
+            WHERE momento = 'UPLOAD_PDF_AGUARDANDO_WEBHOOK' AND webhook_evento_id IS NOT NULL
+            DO NOTHING
+        `);
+      }
+    }
+    console.log(`[pdfRetryUpload] alerta CEO aguardando webhook enfileirado evento=${eventoId} solicitacao=${solicitacaoId} preso_ha=${presoHaHoras}h destinatarios=${ceoRows.length}`);
+  } catch (e) {
+    console.error(`[pdfRetryUpload] falha ao enfileirar alerta CEO aguardando webhook evento=${eventoId}:`, (e as Error).message);
+  }
+}
+
+// Task #67 — Varre eventos presos em `pdf_upload_falhou_sem_manifesto:` ha
+// mais de AGUARDANDO_WEBHOOK_LIMITE_HORAS. Esses eventos NAO sao varridos
+// pelo ciclo principal (`buscarEventosElegiveis` filtra `pdf_upload_falhou:%`,
+// que NAO casa com o sentinel). Resolve solicitacao_id pra enriquecer o
+// alerta e dispara `dispararAlertaCeoAguardandoWebhook` — a idempotencia
+// via UNIQUE parcial garante que reprocessar o ciclo nao spamma o CEO.
+async function varrerEventosPresos(runId: string): Promise<number> {
+  const presos: any = await db.execute(sql`
+    SELECT id, provedor_codigo, envelope_id, payload_bruto,
+           EXTRACT(EPOCH FROM (NOW() - COALESCE(ultima_tentativa_em, recebido_em)))::bigint AS preso_ha_segundos
+    FROM assinatura_webhook_eventos
+    WHERE erro_processamento LIKE 'pdf_upload_falhou_sem_manifesto:%'
+      AND COALESCE(ultima_tentativa_em, recebido_em)
+          <= NOW() - INTERVAL '${sql.raw(String(AGUARDANDO_WEBHOOK_LIMITE_HORAS))} hours'
+    ORDER BY recebido_em ASC
+    LIMIT 50
+  `);
+  const rows = ((presos.rows ?? presos) as Array<{
+    id: number;
+    provedor_codigo: ProvedorCodigo;
+    envelope_id: string | null;
+    payload_bruto: Record<string, unknown>;
+    preso_ha_segundos: number | string;
+  }>);
+
+  let alertados = 0;
+  for (const ev of rows) {
+    const envelopeId = ev.envelope_id || extrairEnvelopeIdDoPayload(ev.payload_bruto);
+    let solicitacaoId: number | null = null;
+    if (envelopeId) {
+      const sol: any = await db.execute(sql`
+        SELECT id FROM assinatura_solicitacoes
+        WHERE provedor_envelope_id = ${envelopeId}
+          AND provedor_codigo = ${ev.provedor_codigo}
+        LIMIT 1
+      `);
+      const srow = ((sol.rows ?? sol) as Array<{ id: number }>)[0];
+      if (srow) solicitacaoId = srow.id;
+    }
+    const presoHaHoras = Math.floor(Number(ev.preso_ha_segundos) / 3600);
+    await dispararAlertaCeoAguardandoWebhook(ev.id, envelopeId, solicitacaoId, presoHaHoras);
+    alertados += 1;
+  }
+  if (alertados > 0) {
+    console.log(`[pdfRetryUpload ${runId}] aguardando-webhook varridos=${rows.length} alertasEnfileirados=${alertados}`);
+  }
+  return alertados;
+}
+
+async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number; alertaCeoTeimoso: number; alertaCeoAguardandoWebhook: number }> {
+  const stats = { tentados: 0, sucesso: 0, falhou: 0, bloqueados: 0, alertaCeo: 0, alertaCeoTeimoso: 0, alertaCeoAguardandoWebhook: 0 };
   const eventos = await buscarEventosElegiveis();
   for (const ev of eventos) {
     const reservou = await reservarTentativa(ev.id, ev.tentativas_retry);
@@ -556,6 +730,16 @@ async function rodarCiclo(runId: string): Promise<{ tentados: number; sucesso: n
       stats.alertaCeoTeimoso += 1;
     }
   }
+
+  // Task #67 — Apos o ciclo principal de retry, varre eventos presos em
+  // `pdf_upload_falhou_sem_manifesto:` ha mais de 24h. Roda fora do loop
+  // de eventos elegiveis porque o filtro principal nao casa com o sentinel.
+  try {
+    stats.alertaCeoAguardandoWebhook = await varrerEventosPresos(runId);
+  } catch (e) {
+    console.error(`[pdfRetryUpload ${runId}] erro varrerEventosPresos:`, (e as Error).message);
+  }
+
   return stats;
 }
 
@@ -573,7 +757,7 @@ export function iniciarWorkerPdfRetryUpload(): void {
         if (!lockAdquirido) return;
         const stats = await rodarCiclo(runId);
         if (stats.tentados > 0 || stats.bloqueados > 0) {
-          console.log(`[pdfRetryUpload ${runId}] tentados=${stats.tentados} sucesso=${stats.sucesso} falhou=${stats.falhou} bloqueados=${stats.bloqueados} alertaCeo=${stats.alertaCeo} alertaCeoTeimoso=${stats.alertaCeoTeimoso}`);
+          console.log(`[pdfRetryUpload ${runId}] tentados=${stats.tentados} sucesso=${stats.sucesso} falhou=${stats.falhou} bloqueados=${stats.bloqueados} alertaCeo=${stats.alertaCeo} alertaCeoTeimoso=${stats.alertaCeoTeimoso} alertaCeoAguardandoWebhook=${stats.alertaCeoAguardandoWebhook}`);
         }
       } catch (e) {
         console.error(`[pdfRetryUpload ${runId}] erro fatal:`, (e as Error).message);
@@ -588,6 +772,6 @@ export function iniciarWorkerPdfRetryUpload(): void {
 }
 
 // Exposto pra teste manual / endpoint admin
-export async function rodarPdfRetryUploadAgora(): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number; alertaCeoTeimoso: number }> {
+export async function rodarPdfRetryUploadAgora(): Promise<{ tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number; alertaCeoTeimoso: number; alertaCeoAguardandoWebhook: number }> {
   return rodarCiclo(`manual_${Date.now()}`);
 }
