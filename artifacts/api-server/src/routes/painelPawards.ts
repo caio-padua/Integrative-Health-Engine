@@ -756,32 +756,117 @@ router.get("/alertas", async (req, res) => {
 });
 
 // ===========================================================================
-// 11C) FLUXO DE CAIXA 30d — entradas reais (faturamento_diario) vs saídas estimadas
+// 11C) FLUXO DE CAIXA 30d — entradas reais (faturamento_diario) vs saídas
+// reais (contas_a_pagar pagas). Task #25: trocamos a heurística antiga
+// (0.58 * entradas + comissao_magistral_estimada) por dados de pagamento
+// efetivo registrados pelo módulo financeiro / contas a pagar (migration
+// 050_contas_a_pagar_saidas_reais.sql).
 // ===========================================================================
 router.get("/caixa-30d", async (req, res) => {
   try {
     if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
-    // Saídas estimadas: 58% do realizado (operação) + comissão magistral devida.
-    const { rows } = await pool.query(`
-      SELECT
-        data,
-        SUM(valor_realizado)::numeric AS entradas,
-        ROUND(
-          (SUM(valor_realizado) * 0.58 + SUM(comissao_magistral_estimada))::numeric, 2
-        )::numeric AS saidas
+
+    // 1) Entradas reais por dia (faturamento_diario).
+    const entradasQ = await pool.query(`
+      SELECT data::date AS data, SUM(valor_realizado)::numeric AS entradas
       FROM faturamento_diario
       WHERE data >= CURRENT_DATE - INTERVAL '30 days'
         AND data <= CURRENT_DATE
       GROUP BY data
       ORDER BY data ASC
     `);
-    const entradas = rows.reduce((a, r) => a + Number(r.entradas), 0);
-    const saidas = rows.reduce((a, r) => a + Number(r.saidas), 0);
+
+    // 2) Saídas REAIS por dia, vindas de contas_a_pagar pagas na janela.
+    // Considera apenas linhas com data_pagamento NOT NULL (pago de fato),
+    // status='pago' e nao arquivadas. Fallback gracioso: se a tabela nao
+    // existir ainda por algum motivo (migration 050 nao aplicada),
+    // retorna saidas=0 ao inves de quebrar o card.
+    let saidasRows: { data: string; saidas: string; folha: string; magistral: string; operacional: string; outros: string }[] = [];
+    try {
+      const saidasQ = await pool.query(`
+        SELECT
+          data_pagamento::date AS data,
+          SUM(valor_brl)::numeric AS saidas,
+          SUM(CASE WHEN categoria = 'folha'       THEN valor_brl ELSE 0 END)::numeric AS folha,
+          SUM(CASE WHEN categoria = 'magistral'   THEN valor_brl ELSE 0 END)::numeric AS magistral,
+          SUM(CASE WHEN categoria = 'operacional' THEN valor_brl ELSE 0 END)::numeric AS operacional,
+          SUM(CASE WHEN categoria = 'outros'      THEN valor_brl ELSE 0 END)::numeric AS outros
+        FROM contas_a_pagar
+        WHERE data_pagamento IS NOT NULL
+          AND status = 'pago'
+          AND arquivado_em IS NULL
+          AND data_pagamento >= CURRENT_DATE - INTERVAL '30 days'
+          AND data_pagamento <= CURRENT_DATE
+        GROUP BY data_pagamento
+        ORDER BY data_pagamento ASC
+      `);
+      saidasRows = saidasQ.rows;
+    } catch (err: any) {
+      // Fallback estreito: SO engole "undefined_table" (Postgres 42P01),
+      // que ocorre quando a migration 050 ainda nao foi aplicada num
+      // ambiente. Qualquer outro erro (conexao, sintaxe, permissao) e
+      // re-lancado pra nao mascarar problema operacional retornando R$ 0
+      // como se fosse dado real.
+      if (err?.code === "42P01") {
+        console.warn("[caixa-30d] contas_a_pagar nao existe (migration 050 pendente), saidas=0");
+      } else {
+        throw err;
+      }
+    }
+
+    // 3) Merge por data. Usamos um Map data->{entradas,saidas,...} pra
+    // garantir que dias com so entrada ou so saida apareçam no grafico.
+    type Ponto = {
+      data: string;
+      entradas: number;
+      saidas: number;
+      folha: number;
+      magistral: number;
+      operacional: number;
+      outros: number;
+    };
+    const mapa = new Map<string, Ponto>();
+    const chave = (d: any) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10));
+    for (const r of entradasQ.rows) {
+      const k = chave(r.data);
+      mapa.set(k, { data: k, entradas: Number(r.entradas), saidas: 0, folha: 0, magistral: 0, operacional: 0, outros: 0 });
+    }
+    for (const r of saidasRows) {
+      const k = chave(r.data);
+      const atual = mapa.get(k) ?? { data: k, entradas: 0, saidas: 0, folha: 0, magistral: 0, operacional: 0, outros: 0 };
+      atual.saidas = Number(r.saidas);
+      atual.folha = Number(r.folha);
+      atual.magistral = Number(r.magistral);
+      atual.operacional = Number(r.operacional);
+      atual.outros = Number(r.outros);
+      mapa.set(k, atual);
+    }
+    const pontos = Array.from(mapa.values()).sort((a, b) => a.data.localeCompare(b.data));
+
+    const total_entradas = pontos.reduce((a, p) => a + p.entradas, 0);
+    const total_saidas = pontos.reduce((a, p) => a + p.saidas, 0);
+    const breakdown = {
+      folha: pontos.reduce((a, p) => a + p.folha, 0),
+      magistral: pontos.reduce((a, p) => a + p.magistral, 0),
+      operacional: pontos.reduce((a, p) => a + p.operacional, 0),
+      outros: pontos.reduce((a, p) => a + p.outros, 0),
+    };
+
     res.json({
-      pontos: rows,
-      total_entradas: Number(entradas.toFixed(2)),
-      total_saidas: Number(saidas.toFixed(2)),
-      saldo: Number((entradas - saidas).toFixed(2)),
+      pontos,
+      total_entradas: Number(total_entradas.toFixed(2)),
+      total_saidas: Number(total_saidas.toFixed(2)),
+      saldo: Number((total_entradas - total_saidas).toFixed(2)),
+      breakdown: {
+        folha: Number(breakdown.folha.toFixed(2)),
+        magistral: Number(breakdown.magistral.toFixed(2)),
+        operacional: Number(breakdown.operacional.toFixed(2)),
+        outros: Number(breakdown.outros.toFixed(2)),
+      },
+      // origem='real' indica que as saidas vem de contas_a_pagar pagas
+      // (mesmo que zero, e dado real, nao mais a heuristica 0.58).
+      origem_saidas: "real",
+      legenda_saidas: "folha + custos magistrais pagos + despesas operacionais",
     });
   } catch (e: any) {
     console.error("[painel-pawards/caixa-30d]", e);

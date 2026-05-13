@@ -7,11 +7,21 @@ export interface CaixaPonto {
   saidas: string | number;
 }
 
+export interface CaixaBreakdown {
+  folha: number;
+  magistral: number;
+  operacional: number;
+  outros: number;
+}
+
 export interface CaixaData {
   pontos: CaixaPonto[];
   total_entradas: number;
   total_saidas: number;
   saldo: number;
+  breakdown?: CaixaBreakdown;
+  origem_saidas?: "real" | "estimada";
+  legenda_saidas?: string;
 }
 
 interface Props {
@@ -113,7 +123,7 @@ export function CaixaPanel({ data }: Props) {
           }}
         >
           <div style={{ color: PAWARDS.colors.text.muted, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            Saídas estim.
+            Saídas reais
           </div>
           <div
             style={{
@@ -126,6 +136,31 @@ export function CaixaPanel({ data }: Props) {
             {fmtBRL(data?.total_saidas ?? 0, { compact: true })}
           </div>
         </div>
+      </div>
+
+      {/* Legenda do que conta como "saídas reais" — pedido da task #25,
+          pra Dr. Caio confiar no número. Mostra breakdown se vier do API. */}
+      <div
+        style={{
+          fontSize: 9,
+          letterSpacing: "0.05em",
+          color: PAWARDS.colors.text.muted,
+          marginBottom: 10,
+          lineHeight: 1.4,
+          fontFamily: "ui-monospace, monospace",
+        }}
+      >
+        Saídas = {data?.legenda_saidas ?? "folha + custos magistrais pagos + despesas operacionais"}
+        {data?.breakdown ? (
+          <span style={{ display: "block", marginTop: 2 }}>
+            folha {fmtBRL(data.breakdown.folha, { compact: true })} ·
+            {" "}magistral {fmtBRL(data.breakdown.magistral, { compact: true })} ·
+            {" "}operacional {fmtBRL(data.breakdown.operacional, { compact: true })}
+            {data.breakdown.outros > 0
+              ? <> · outros {fmtBRL(data.breakdown.outros, { compact: true })}</>
+              : null}
+          </span>
+        ) : null}
       </div>
 
       <div style={{ flex: 1, minHeight: 200 }}>
