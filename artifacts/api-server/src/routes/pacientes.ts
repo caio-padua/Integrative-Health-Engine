@@ -117,14 +117,30 @@ router.post("/pacientes", async (req, res): Promise<void> => {
   if (dados.email) dados.email = emailCanonico(String(dados.email)) ?? dados.email;
   if (dados.cep) dados.cep = cepCanonico(String(dados.cep)) ?? dados.cep;
 
+  // Wave Cadastro Pádua (13/mai/2026): verifica dados crucias do código
+  // semântico ANTES do INSERT pra avisar o usuário (mas NÃO bloquear).
+  // Caio aprovou: se faltar, o cadastro segue, código fica com "X" no
+  // lugar das peças faltantes (trigger DB recalcula quando completar).
+  const camposCruciaisFaltantes: string[] = [];
+  if (!dados.nome || String(dados.nome).trim().length === 0) camposCruciaisFaltantes.push("nome");
+  if (!dados.cpf) camposCruciaisFaltantes.push("cpf");
+  if (!(dados as { genero?: unknown }).genero) camposCruciaisFaltantes.push("sexo");
+  if (!(dados as { dataNascimento?: unknown }).dataNascimento) camposCruciaisFaltantes.push("data_nascimento");
+  // sobrenome = 2ª palavra do nome (ou +); se nome tiver só 1 palavra, falta sobrenome
+  if (dados.nome && String(dados.nome).trim().split(/\s+/).length < 2) {
+    camposCruciaisFaltantes.push("sobrenome");
+  }
+
   const [paciente] = await db.insert(pacientesTable).values(dados as typeof parsed.data).returning();
   if (!paciente) {
     res.status(500).json({ error: "Falha ao criar paciente" });
     return;
   }
 
-  // Calcula código semântico interno (ex: PADU-VIEI-ACEL-FEMI-1945-8420)
+  // Calcula código semântico interno (ex: PADU VIEI ACEL FEMI 1945 8420)
   // — depende do slug da clínica em unidades.slug_codigo_semantico.
+  // Trigger DB (Migration 042) também recalcula em INSERT/UPDATE; aqui é
+  // pra garantir o valor na resposta imediata e no provision do Drive.
   try {
     const r = await db.execute(sql`SELECT slug_codigo_semantico FROM unidades WHERE id = ${paciente.unidadeId}`);
     const slug = ((r as unknown as { rows: Array<{ slug_codigo_semantico: string | null }> }).rows[0]?.slug_codigo_semantico) ?? "XXXX";
@@ -150,7 +166,19 @@ router.post("/pacientes", async (req, res): Promise<void> => {
     console.error(`[POST /pacientes] Falha código semântico/provision paciente ${paciente.id}:`, (e as Error).message);
   }
 
-  res.status(201).json(paciente);
+  // Wave Cadastro Pádua: monta resposta com aviso quando faltam dados crucias
+  // do código semântico. Frontend mostra alerta amarelo mas mantém o cadastro.
+  const respostaPaciente: Record<string, unknown> = { ...(paciente as unknown as Record<string, unknown>) };
+  if (camposCruciaisFaltantes.length > 0) {
+    respostaPaciente.avisoCadastroIncompleto = {
+      camposFaltantes: camposCruciaisFaltantes,
+      mensagem:
+        `Cadastro criado, mas o CÓDIGO SEMÂNTICO CLIENTE ficou incompleto ` +
+        `(faltam: ${camposCruciaisFaltantes.join(", ")}). ` +
+        `Quando esses dados forem completados, o código será recalculado automaticamente.`,
+    };
+  }
+  res.status(201).json(respostaPaciente);
 });
 
 router.get("/pacientes/:id", async (req, res): Promise<void> => {

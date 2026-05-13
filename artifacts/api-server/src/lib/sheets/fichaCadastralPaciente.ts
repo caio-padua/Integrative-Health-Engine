@@ -34,10 +34,11 @@ function semAcento(s: string): string {
 }
 
 // ============================================================================
-// COLUNAS DA FICHA CADASTRAL — 32 colunas (ordem = print Caio modelo)
+// COLUNAS DA FICHA CADASTRAL — 33 colunas (v2.2: + CODIGO SEMANTICO CLIENTE)
 // ============================================================================
 export const COLUNAS_FICHA = [
   "CODIGO",
+  "CODIGO SEMANTICO CLIENTE",
   "STATUS",
   "NOME",
   "NOME SOCIAL",
@@ -84,14 +85,14 @@ interface GrupoCor {
 }
 
 const GRUPOS_COR: GrupoCor[] = [
-  { start: 0,  end: 2,  cor: { red: 0.85, green: 0.92, blue: 0.97 }, rotulo: "AZUL CLARO", campos: "CODIGO, STATUS" },
-  { start: 2,  end: 6,  cor: { red: 0.79, green: 0.87, blue: 0.94 }, rotulo: "AZUL",       campos: "NOME, NOME SOCIAL, CPF, RG" },
-  { start: 6,  end: 10, cor: { red: 0.83, green: 0.92, blue: 0.83 }, rotulo: "VERDE CLARO", campos: "DATA DE NASCIMENTO, SEXO, ESTADO CIVIL, ESCOLARIDADE" },
-  { start: 10, end: 15, cor: { red: 0.92, green: 0.83, blue: 0.94 }, rotulo: "ROXO CLARO",  campos: "CELULAR, WHATSAPP, TELEFONE, E-MAIL, INSTAGRAM" },
-  { start: 15, end: 22, cor: { red: 1.00, green: 0.95, blue: 0.80 }, rotulo: "AMARELO",     campos: "CEP, ENDERECO, NUMERO, COMPLEMENTO, BAIRRO, CIDADE, ESTADO" },
-  { start: 22, end: 25, cor: { red: 0.78, green: 0.91, blue: 0.94 }, rotulo: "CIANO",       campos: "PROFISSAO, PLANO DE SAUDE, NUMERO DO PLANO" },
-  { start: 25, end: 28, cor: { red: 0.96, green: 0.80, blue: 0.83 }, rotulo: "ROSA",        campos: "MAE, PAI, CONJUGE" },
-  { start: 28, end: 32, cor: { red: 0.93, green: 0.93, blue: 0.93 }, rotulo: "CINZA",       campos: "PROFISSIONAL RESPONSAVEL, COMO NOS CONHECEU, OBSERVACOES, DATAS" },
+  { start: 0,  end: 3,  cor: { red: 0.85, green: 0.92, blue: 0.97 }, rotulo: "AZUL CLARO", campos: "CODIGO, CODIGO SEMANTICO CLIENTE, STATUS" },
+  { start: 3,  end: 7,  cor: { red: 0.79, green: 0.87, blue: 0.94 }, rotulo: "AZUL",       campos: "NOME, NOME SOCIAL, CPF, RG" },
+  { start: 7,  end: 11, cor: { red: 0.83, green: 0.92, blue: 0.83 }, rotulo: "VERDE CLARO", campos: "DATA DE NASCIMENTO, SEXO, ESTADO CIVIL, ESCOLARIDADE" },
+  { start: 11, end: 16, cor: { red: 0.92, green: 0.83, blue: 0.94 }, rotulo: "ROXO CLARO",  campos: "CELULAR, WHATSAPP, TELEFONE, E-MAIL, INSTAGRAM" },
+  { start: 16, end: 23, cor: { red: 1.00, green: 0.95, blue: 0.80 }, rotulo: "AMARELO",     campos: "CEP, ENDERECO, NUMERO, COMPLEMENTO, BAIRRO, CIDADE, ESTADO" },
+  { start: 23, end: 26, cor: { red: 0.78, green: 0.91, blue: 0.94 }, rotulo: "CIANO",       campos: "PROFISSAO, PLANO DE SAUDE, NUMERO DO PLANO" },
+  { start: 26, end: 29, cor: { red: 0.96, green: 0.80, blue: 0.83 }, rotulo: "ROSA",        campos: "MAE, PAI, CONJUGE" },
+  { start: 29, end: 33, cor: { red: 0.93, green: 0.93, blue: 0.93 }, rotulo: "CINZA",       campos: "PROFISSIONAL RESPONSAVEL, COMO NOS CONHECEU, OBSERVACOES, DATAS" },
 ];
 
 const PRETO = { red: 0, green: 0, blue: 0 };
@@ -127,6 +128,7 @@ const COR_PAINEL_ANAMNESE   = { red: 0.79, green: 0.87, blue: 0.94 }; // azul
 
 export interface PacienteFicha {
   id: number;
+  codigo_semantico: string | null;
   status_ativo: boolean;
   nome: string;
   nome_social: string | null;
@@ -173,6 +175,7 @@ export function montarLinhaPaciente(p: PacienteFicha): string[] {
   const v = (s: string | null | undefined) => semAcento(s ?? "");
   return [
     String(p.id),
+    v(p.codigo_semantico),
     p.status_ativo ? "ATIVO" : "INATIVO",
     v(p.nome),
     v(p.nome_social),

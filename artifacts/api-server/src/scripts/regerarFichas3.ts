@@ -56,7 +56,7 @@ async function carregarDadosClinicos(pacienteId: number): Promise<DadosClinicos>
 
 async function main() {
   const rows = await db.execute<any>(sql`
-    SELECT id, status_ativo, nome, nome_social, cpf, rg, data_nascimento,
+    SELECT id, codigo_semantico, status_ativo, nome, nome_social, cpf, rg, data_nascimento,
            genero, estado_civil, escolaridade, telefone, whatsapp, telefone_fixo,
            email, instagram, cep, endereco, numero_endereco, complemento, bairro,
            cidade, estado, profissao, plano_saude, numero_plano, nome_mae,
