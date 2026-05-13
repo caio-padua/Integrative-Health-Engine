@@ -7,6 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "reificacao": "tsx ./src/reificacao.ts",
     "check-api-fetch": "tsx ./src/check-api-fetch.ts",
+    "gerar-v25-luciano": "tsx ./src/gerar-v25-luciano.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
