@@ -7,20 +7,19 @@ import { useLocation } from "wouter";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
-import { getPawardsToken, clearPawardsToken } from "@/lib/api-fetch";
-
-const USER_KEY = "pawards.auth.user";
+import {
+  getPawardsToken,
+  clearPawardsToken,
+  getPawardsUser,
+  clearPawardsUser,
+  type PawardsSessionUser,
+} from "@/lib/api-fetch";
 
 // Tempo (em minutos) sem interação até deslogar automaticamente o painel global.
 const INACTIVITY_TIMEOUT_MINUTES = 30;
 // Quantos segundos antes do logout exibir o aviso com contagem regressiva.
 const INACTIVITY_WARNING_SECONDS = 60;
 
-interface SessionUser {
-  email?: string | null;
-  nome?: string | null;
-  perfil?: string | null;
-}
 import { KpiCard } from "@/components/pawards/KpiCard";
 import { Gauge } from "@/components/pawards/Gauge";
 import { Led } from "@/components/pawards/Led";
@@ -68,21 +67,13 @@ export default function DashboardGlobal() {
   const [, setLocation] = useLocation();
   const hasToken = typeof window !== "undefined" && !!getPawardsToken();
 
-  const [sessionUser, setSessionUser] = useState<SessionUser | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem(USER_KEY);
-      return raw ? (JSON.parse(raw) as SessionUser) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [sessionUser, setSessionUser] = useState<PawardsSessionUser | null>(
+    () => getPawardsUser(),
+  );
 
   const handleLogout = () => {
     clearPawardsToken();
-    try {
-      localStorage.removeItem(USER_KEY);
-    } catch { /* ignore */ }
+    clearPawardsUser();
     setSessionUser(null);
     setLocation("/admin/login");
   };
@@ -113,9 +104,7 @@ export default function DashboardGlobal() {
 
     const doLogout = () => {
       clearPawardsToken();
-      try {
-        localStorage.removeItem(USER_KEY);
-      } catch { /* ignore */ }
+      clearPawardsUser();
       setSessionUser(null);
       setLocation("/admin/login");
     };
@@ -202,9 +191,7 @@ export default function DashboardGlobal() {
   useEffect(() => {
     if (errKpi?.includes("401")) {
       clearPawardsToken();
-      try {
-        localStorage.removeItem(USER_KEY);
-      } catch { /* ignore */ }
+      clearPawardsUser();
       setLocation("/admin/login");
     }
   }, [errKpi, setLocation]);

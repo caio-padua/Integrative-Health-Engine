@@ -6,9 +6,8 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useLoginUsuario, type LoginResponse } from "@workspace/api-client-react";
 import { PAWARDS } from "@/lib/pawards-tokens";
-import { getPawardsToken, PAWARDS_TOKEN_KEY } from "@/lib/api-fetch";
+import { getPawardsToken, PAWARDS_TOKEN_KEY, setPawardsUser } from "@/lib/api-fetch";
 
-const USER_KEY = "pawards.auth.user";
 const MASTER_PERFIS = new Set(["validador_mestre", "consultoria_master", "master", "admin"]);
 
 export default function AdminLogin() {
@@ -39,17 +38,12 @@ export default function AdminLogin() {
           }
           if (res.token) {
             localStorage.setItem(PAWARDS_TOKEN_KEY, res.token);
-            try {
-              const usr = res.usuario;
-              localStorage.setItem(
-                USER_KEY,
-                JSON.stringify({
-                  email: usr?.email ?? email.trim(),
-                  nome: usr?.nome ?? null,
-                  perfil,
-                }),
-              );
-            } catch { /* ignore */ }
+            const usr = res.usuario;
+            setPawardsUser({
+              email: usr?.email ?? email.trim(),
+              nome: usr?.nome ?? null,
+              perfil,
+            });
             setLocation("/admin/dashboard-global");
           } else {
             setErro("Resposta de login sem token.");

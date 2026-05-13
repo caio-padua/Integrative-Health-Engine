@@ -11,7 +11,7 @@ import { Led } from "@/components/pawards/Led";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { PAWARDS, fmtBRL, fmtInt } from "@/lib/pawards-tokens";
-import { clearPawardsToken } from "@/lib/api-fetch";
+import { clearPawardsToken, clearPawardsUser } from "@/lib/api-fetch";
 
 const ADMIN_TOKEN_KEY = "padcon_admin_token";
 
@@ -89,9 +89,9 @@ export default function FarmaciasParmavault() {
   // Auto-logout por inatividade nas telas administrativas (limpa o JWT do master).
   const inactivityLogout = useCallback(() => {
     clearPawardsToken();
+    clearPawardsUser();
     try {
       localStorage.removeItem(ADMIN_TOKEN_KEY);
-      localStorage.removeItem("pawards.auth.user");
     } catch { /* ignore */ }
     if (typeof window !== "undefined") window.location.reload();
   }, []);

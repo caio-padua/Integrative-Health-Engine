@@ -35,6 +35,49 @@ export function clearPawardsToken(): void {
   }
 }
 
+// Cadastro do usuario logado (subset do payload do JWT) persistido pra o
+// dashboard global mostrar nome/email/perfil sem refazer /perfil-atual a
+// cada navegacao. Mesma motivacao do helper do token (Task #107): centralizar
+// pra ninguem mais ler/gravar `pawards.auth.user` direto via localStorage.
+
+export const PAWARDS_USER_KEY = "pawards.auth.user";
+
+export interface PawardsSessionUser {
+  email?: string | null;
+  nome?: string | null;
+  perfil?: string | null;
+}
+
+export function getPawardsUser(): PawardsSessionUser | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(PAWARDS_USER_KEY);
+    return raw ? (JSON.parse(raw) as PawardsSessionUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setPawardsUser(user: PawardsSessionUser): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(PAWARDS_USER_KEY, JSON.stringify(user));
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearPawardsUser(): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(PAWARDS_USER_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function apiFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
