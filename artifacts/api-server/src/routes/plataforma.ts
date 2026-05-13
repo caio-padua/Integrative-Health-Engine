@@ -369,7 +369,13 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
 
   // Aviso por WhatsApp — best-effort, igual ao email. Suspensao paralisa
   // operacao inteira, entao o aviso precisa chegar no celular alem do email.
-  let whatsappRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+  let whatsappRes = {
+    destinatarios: [] as string[],
+    enviados: 0,
+    falhas: 0,
+    viaHsm: 0,
+    viaTextoLivre: 0,
+  };
   try {
     whatsappRes = await enviarWhatsappSuspensao({
       unidadeId: id,
@@ -438,7 +444,13 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
     executado_por_usuario_id: actor.userId,
   });
 
-  let whatsappRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+  let whatsappRes = {
+    destinatarios: [] as string[],
+    enviados: 0,
+    falhas: 0,
+    viaHsm: 0,
+    viaTextoLivre: 0,
+  };
   try {
     whatsappRes = await enviarWhatsappReativacao({
       unidadeId: id,

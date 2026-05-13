@@ -1,6 +1,6 @@
 import { db, usuariosTable, unidadesTable, type Unidade } from "@workspace/db";
 import { and, eq, inArray, isNotNull, or } from "drizzle-orm";
-import { enviarWhatsapp } from "../../services/whatsappService";
+import { enviarComTemplateHsm } from "../../services/whatsappService";
 import { logger } from "../logger";
 
 function dataPtBr(d: Date | null | undefined): string {
@@ -104,36 +104,44 @@ function mensagemReativacao(opts: {
 
 async function enviarParaTodos(
   destinatarios: string[],
-  mensagem: string,
+  mensagemFallback: string,
+  variaveis: Record<string, string>,
   unidadeId: number,
   templateNome: string,
-): Promise<{ enviados: number; falhas: number }> {
-  if (destinatarios.length === 0) return { enviados: 0, falhas: 0 };
+): Promise<{ enviados: number; falhas: number; viaHsm: number; viaTextoLivre: number }> {
+  if (destinatarios.length === 0) {
+    return { enviados: 0, falhas: 0, viaHsm: 0, viaTextoLivre: 0 };
+  }
   let enviados = 0;
   let falhas = 0;
+  let viaHsm = 0;
+  let viaTextoLivre = 0;
   for (const telefone of destinatarios) {
     try {
-      const r = await enviarWhatsapp(telefone, mensagem, {
+      const r = await enviarComTemplateHsm(telefone, templateNome, variaveis, {
         unidadeId,
-        templateNome,
+        mensagemFallback,
       });
-      if (r.sucesso) enviados++;
-      else {
+      if (r.sucesso) {
+        enviados++;
+        if (r.viaHsm) viaHsm++;
+        if (r.usouFallback) viaTextoLivre++;
+      } else {
         falhas++;
         logger.warn(
-          { telefone, erro: r.erro, unidadeId },
-          "[clinicaSuspensaoWhatsapp] envio retornou falha",
+          { telefone, erro: r.erro, unidadeId, templateNome },
+          "[clinicaSuspensaoWhatsapp] envio retornou falha (HSM e fallback)",
         );
       }
     } catch (err) {
       falhas++;
       logger.warn(
-        { err, telefone, unidadeId },
+        { err, telefone, unidadeId, templateNome },
         "[clinicaSuspensaoWhatsapp] excecao ao enviar whatsapp",
       );
     }
   }
-  return { enviados, falhas };
+  return { enviados, falhas, viaHsm, viaTextoLivre };
 }
 
 export async function enviarWhatsappSuspensao(opts: {
@@ -141,7 +149,13 @@ export async function enviarWhatsappSuspensao(opts: {
   unidade: Unidade;
   motivo: string;
   suspensoEm: Date;
-}): Promise<{ destinatarios: string[]; enviados: number; falhas: number }> {
+}): Promise<{
+  destinatarios: string[];
+  enviados: number;
+  falhas: number;
+  viaHsm: number;
+  viaTextoLivre: number;
+}> {
   const destinatarios = await coletarTelefonesResponsaveis(opts.unidadeId, opts.unidade);
   const mensagem = mensagemSuspensao({
     unidadeNome: opts.unidade.nome,
@@ -149,13 +163,24 @@ export async function enviarWhatsappSuspensao(opts: {
     suspensoEm: opts.suspensoEm,
     contatoRecurso: CONTATO_RECURSO_PADRAO,
   });
-  const { enviados, falhas } = await enviarParaTodos(
+  // Variaveis pro template HSM aprovado pelo Meta. A ordem real das
+  // variaveis no template e definida em
+  // `whatsapp_config.metadados.hsmTemplates.CLINICA_SUSPENSA.ordemVariaveis`
+  // (ver docs/operacoes/whatsapp-hsm-clinica-suspensao.md).
+  const variaveis: Record<string, string> = {
+    unidadeNome: opts.unidade.nome,
+    suspensoEm: dataPtBr(opts.suspensoEm),
+    motivo: opts.motivo,
+    contatoRecurso: CONTATO_RECURSO_PADRAO,
+  };
+  const { enviados, falhas, viaHsm, viaTextoLivre } = await enviarParaTodos(
     destinatarios,
     mensagem,
+    variaveis,
     opts.unidadeId,
     "CLINICA_SUSPENSA",
   );
-  return { destinatarios, enviados, falhas };
+  return { destinatarios, enviados, falhas, viaHsm, viaTextoLivre };
 }
 
 export async function enviarWhatsappReativacao(opts: {
@@ -163,18 +188,30 @@ export async function enviarWhatsappReativacao(opts: {
   unidade: Unidade;
   motivo: string;
   reativadoEm: Date;
-}): Promise<{ destinatarios: string[]; enviados: number; falhas: number }> {
+}): Promise<{
+  destinatarios: string[];
+  enviados: number;
+  falhas: number;
+  viaHsm: number;
+  viaTextoLivre: number;
+}> {
   const destinatarios = await coletarTelefonesResponsaveis(opts.unidadeId, opts.unidade);
   const mensagem = mensagemReativacao({
     unidadeNome: opts.unidade.nome,
     motivo: opts.motivo,
     reativadoEm: opts.reativadoEm,
   });
-  const { enviados, falhas } = await enviarParaTodos(
+  const variaveis: Record<string, string> = {
+    unidadeNome: opts.unidade.nome,
+    reativadoEm: dataPtBr(opts.reativadoEm),
+    motivo: opts.motivo,
+  };
+  const { enviados, falhas, viaHsm, viaTextoLivre } = await enviarParaTodos(
     destinatarios,
     mensagem,
+    variaveis,
     opts.unidadeId,
     "CLINICA_REATIVADA",
   );
-  return { destinatarios, enviados, falhas };
+  return { destinatarios, enviados, falhas, viaHsm, viaTextoLivre };
 }
