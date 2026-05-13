@@ -2,8 +2,20 @@ import { Router } from "express";
 import { db, unidadesTable } from "@workspace/db";
 import { eq, and, gt, sql } from "drizzle-orm";
 import { CriarUnidadeBody } from "@workspace/api-zod";
+import { z } from "zod";
 
 const router = Router();
+
+// Task #11 — validacao dos novos campos de janelas padrao de lembrete.
+const HORARIO_HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const lembreteHorariosSchema = z
+  .array(z.string().regex(HORARIO_HHMM, "Horario deve estar no formato HH:MM"))
+  .max(24, "No maximo 24 horarios por unidade");
+const lembreteToleranciaSchema = z
+  .number()
+  .int("Tolerancia deve ser inteira")
+  .min(0, "Tolerancia nao pode ser negativa")
+  .max(720, "Tolerancia maxima e 720 minutos (12h)");
 
 router.get("/unidades", async (req, res): Promise<void> => {
   // Por padrao filtra arquivadas (ids 1-7 sao agendas-historicas confundidas).
@@ -21,7 +33,26 @@ router.post("/unidades", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [unidade] = await db.insert(unidadesTable).values(parsed.data).returning();
+  // Task #11 — aceita os defaults de lembrete na criacao (opcionais; sem
+  // valor cai no default da coluna).
+  const extras: Record<string, unknown> = {};
+  if (req.body?.lembreteHorariosPadrao !== undefined) {
+    const r = lembreteHorariosSchema.safeParse(req.body.lembreteHorariosPadrao);
+    if (!r.success) {
+      res.status(400).json({ error: r.error.issues[0]?.message ?? "lembreteHorariosPadrao invalido" });
+      return;
+    }
+    extras.lembreteHorariosPadrao = r.data;
+  }
+  if (req.body?.lembreteToleranciaMinutos !== undefined) {
+    const r = lembreteToleranciaSchema.safeParse(Number(req.body.lembreteToleranciaMinutos));
+    if (!r.success) {
+      res.status(400).json({ error: r.error.issues[0]?.message ?? "lembreteToleranciaMinutos invalido" });
+      return;
+    }
+    extras.lembreteToleranciaMinutos = r.data;
+  }
+  const [unidade] = await db.insert(unidadesTable).values({ ...parsed.data, ...extras }).returning();
   res.status(201).json(unidade);
 });
 
@@ -55,25 +86,24 @@ router.put("/unidades/:id", async (req, res): Promise<void> => {
   for (const key of allowedFields) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
   }
-
-  // Task #12 — sanitizacao defensiva dos horarios de lembrete
-  if (updates.lembreteHorariosPadrao !== undefined) {
-    const arr = updates.lembreteHorariosPadrao;
-    // Task #12 — valida HH:MM real (00:00 a 23:59), nao so o formato.
-    const horarioRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
-    if (!Array.isArray(arr) || !arr.every((h) => typeof h === "string" && horarioRegex.test(h.trim()))) {
-      res.status(400).json({ error: "lembreteHorariosPadrao deve ser um array de strings HH:MM (00:00 a 23:59)" });
+  // Task #11 + #12 — defaults de lembrete validados via Zod (HH:MM real e
+  // tolerancia inteira ate 720 min). Sobrescreve qualquer valor capturado
+  // pelo loop allowedFields acima com o resultado canonico do schema.
+  if (req.body?.lembreteHorariosPadrao !== undefined) {
+    const r = lembreteHorariosSchema.safeParse(req.body.lembreteHorariosPadrao);
+    if (!r.success) {
+      res.status(400).json({ error: r.error.issues[0]?.message ?? "lembreteHorariosPadrao invalido" });
       return;
     }
-    updates.lembreteHorariosPadrao = (arr as string[]).map((h) => h.trim());
+    updates.lembreteHorariosPadrao = r.data.map((h) => h.trim());
   }
-  if (updates.lembreteToleranciaMinutos !== undefined) {
-    const n = Number(updates.lembreteToleranciaMinutos);
-    if (!Number.isInteger(n) || n < 0 || n > 120) {
-      res.status(400).json({ error: "lembreteToleranciaMinutos deve ser um inteiro entre 0 e 120" });
+  if (req.body?.lembreteToleranciaMinutos !== undefined) {
+    const r = lembreteToleranciaSchema.safeParse(Number(req.body.lembreteToleranciaMinutos));
+    if (!r.success) {
+      res.status(400).json({ error: r.error.issues[0]?.message ?? "lembreteToleranciaMinutos invalido" });
       return;
     }
-    updates.lembreteToleranciaMinutos = n;
+    updates.lembreteToleranciaMinutos = r.data;
   }
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "Nenhum campo para atualizar" });

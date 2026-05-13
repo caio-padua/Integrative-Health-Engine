@@ -49,6 +49,13 @@ export const unidadesTable = pgTable("unidades", {
   exclusaoCarenciaAte: timestamp("exclusao_carencia_ate", { withTimezone: true }),
   lgpdExportUrl: text("lgpd_export_url"),
   lgpdExportEm: timestamp("lgpd_export_em", { withTimezone: true }),
+  // Task #11 — Janelas padrao de envio de lembretes de prescricao por unidade.
+  // Lista de horarios HH:MM herdada por prescricoes que nao definirem
+  // `horariosEnvio` proprio. Tolerancia em minutos eh quanto tempo apos o
+  // horario alvo o worker ainda pode disparar o lembrete (default 5 min,
+  // que mantem a constante historica do prescricaoLembreteService).
+  lembreteHorariosPadrao: jsonb("lembrete_horarios_padrao").notNull().$type<string[]>().default([]),
+  lembreteToleranciaMinutos: integer("lembrete_tolerancia_minutos").notNull().default(5),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

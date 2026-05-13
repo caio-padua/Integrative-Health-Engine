@@ -98,6 +98,7 @@ import PadcomAdminDashboard from "@/pages/padcom/admin-dashboard";
 import PadcomGovernanca from "@/pages/padcom/governanca";
 import PadcomAgendaRetornos from "@/pages/padcom/agenda-retornos";
 import LembretesFalhasPage from "@/pages/lembretes-falhas";
+import PrescricoesLembretePage from "@/pages/prescricoes-lembrete";
 import MensagensPage from "@/pages/mensagens";
 import ExamesPage from "@/pages/exames";
 import AgendasPage from "@/pages/agendas";
@@ -227,6 +228,7 @@ function Router() {
       <Route path="/padcom-governanca" component={PadcomGovernanca} />
       <Route path="/padcom-agenda-retornos" component={PadcomAgendaRetornos} />
       <Route path="/lembretes-falhas" component={LembretesFalhasPage} />
+      <Route path="/prescricoes-lembrete" component={PrescricoesLembretePage} />
       <Route path="/mensagens" component={MensagensPage} />
       <Route path="/exames" component={ExamesPage} />
       <Route path="/monetizar" component={MonetizarPage} />

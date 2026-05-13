@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Building2, MapPin, Pencil, Calendar, Trash2, Mail, ExternalLink, Link2, HardDrive, Users, Bell } from "lucide-react";
+import { Plus, Building2, MapPin, Pencil, Calendar, Trash2, Mail, ExternalLink, Link2, HardDrive, Users, Bell, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,10 +41,12 @@ interface Unidade {
   emailOuvidoria01: string | null;
   cor: string;
   ativa: boolean;
-  // Task #12 — janelas padrao de envio de lembrete
-  lembreteHorariosPadrao?: string[] | null;
-  lembreteToleranciaMinutos?: number | null;
+  // Task #11 + #12 — janelas padrao de envio de lembrete
+  lembreteHorariosPadrao: string[] | null;
+  lembreteToleranciaMinutos: number | null;
 }
+
+const HORARIO_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const EMAIL_SECTION_1 = [
   { key: "emailGeral", label: "EMAIL PRINCIPAL", sublabel: "Cadastro da clinica, comunicacoes oficiais, notificacoes do sistema PAWARDS", suffix: "geral", example: "pawards.[nome].geral@gmail.com" },
@@ -95,9 +97,9 @@ interface UnidadeForm {
   emailSupervisor02: string;
   emailFinanceiro01: string;
   emailOuvidoria01: string;
-  // Task #12 — janelas padrao de envio de lembrete (por unidade)
-  lembreteHorariosPadrao: string;     // editado como CSV "07:00, 13:00, 20:00"
-  lembreteToleranciaMinutos: string;  // string para o input number
+  // Task #11 + #12 — janelas padrao de envio de lembrete (chips HH:MM + tolerancia)
+  lembreteHorariosPadrao: string[];
+  lembreteToleranciaMinutos: number;
 }
 
 const defaultForm: UnidadeForm = {
@@ -109,8 +111,8 @@ const defaultForm: UnidadeForm = {
   emailConsultor01: "", emailConsultor02: "",
   emailSupervisor01: "", emailSupervisor02: "",
   emailFinanceiro01: "", emailOuvidoria01: "",
-  lembreteHorariosPadrao: "07:00, 13:00, 20:00",
-  lembreteToleranciaMinutos: "5",
+  lembreteHorariosPadrao: [],
+  lembreteToleranciaMinutos: 5,
 };
 
 function sanitizeNick(value: string): string {
@@ -157,12 +159,8 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
         emailSupervisor02: unidade.emailSupervisor02 || "",
         emailFinanceiro01: unidade.emailFinanceiro01 || "",
         emailOuvidoria01: unidade.emailOuvidoria01 || "",
-        lembreteHorariosPadrao: Array.isArray(unidade.lembreteHorariosPadrao) && unidade.lembreteHorariosPadrao.length > 0
-          ? unidade.lembreteHorariosPadrao.join(", ")
-          : "07:00, 13:00, 20:00",
-        lembreteToleranciaMinutos: unidade.lembreteToleranciaMinutos != null
-          ? String(unidade.lembreteToleranciaMinutos)
-          : "5",
+        lembreteHorariosPadrao: Array.isArray(unidade.lembreteHorariosPadrao) ? unidade.lembreteHorariosPadrao : [],
+        lembreteToleranciaMinutos: typeof unidade.lembreteToleranciaMinutos === "number" ? unidade.lembreteToleranciaMinutos : 5,
       });
     } else if (open) {
       setForm(defaultForm);
@@ -212,40 +210,60 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
     }
   }, [toast]);
 
+  // Task #11 — controle local do input "novo horario" (HH:MM) sem misturar
+  // com o estado da lista persistida.
+  const [novoHorario, setNovoHorario] = useState("");
+  const [horarioErro, setHorarioErro] = useState<string | null>(null);
+
+  const adicionarHorario = () => {
+    const v = novoHorario.trim();
+    if (!HORARIO_HHMM_RE.test(v)) {
+      setHorarioErro("Formato invalido. Use HH:MM (ex: 07:00).");
+      return;
+    }
+    if (form.lembreteHorariosPadrao.includes(v)) {
+      setHorarioErro("Esse horario ja foi adicionado.");
+      return;
+    }
+    const ordenado = [...form.lembreteHorariosPadrao, v].sort();
+    setForm(prev => ({ ...prev, lembreteHorariosPadrao: ordenado }));
+    setNovoHorario("");
+    setHorarioErro(null);
+  };
+
+  const removerHorario = (h: string) => {
+    setForm(prev => ({
+      ...prev,
+      lembreteHorariosPadrao: prev.lembreteHorariosPadrao.filter(x => x !== h),
+    }));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Validacao client-side dos defaults de lembrete antes de enviar.
+      for (const h of form.lembreteHorariosPadrao) {
+        if (!HORARIO_HHMM_RE.test(h)) {
+          throw new Error(`Horario invalido: ${h}. Use HH:MM.`);
+        }
+      }
+      const tol = Number(form.lembreteToleranciaMinutos);
+      if (!Number.isFinite(tol) || tol < 0 || tol > 720 || !Number.isInteger(tol)) {
+        throw new Error("Tolerancia deve ser inteira entre 0 e 720 minutos.");
+      }
+
       const url = isEdit
         ? `/api/unidades/${unidade!.id}`
         : `/api/unidades`;
       const method = isEdit ? "PUT" : "POST";
-
-      // Task #12 — converte CSV "07:00, 13:00, 20:00" para array e valida
-      // tolerancia antes de enviar pro backend.
-      const horariosArray = form.lembreteHorariosPadrao
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-      const invalido = horariosArray.find((h) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(h));
-      if (invalido) {
-        throw new Error(`Horario invalido: "${invalido}". Use formato HH:MM separado por virgula.`);
-      }
-      const tolerancia = parseInt(form.lembreteToleranciaMinutos, 10);
-      if (!Number.isInteger(tolerancia) || tolerancia < 0 || tolerancia > 120) {
-        throw new Error("Tolerancia deve ser um inteiro entre 0 e 120 minutos.");
-      }
-
-      const { lembreteHorariosPadrao: _csv, lembreteToleranciaMinutos: _tol, ...rest } = form;
-      const payload = {
-        ...rest,
-        lembreteHorariosPadrao: horariosArray,
-        lembreteToleranciaMinutos: tolerancia,
-      };
       const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error("Erro ao salvar");
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        throw new Error(msg || "Erro ao salvar");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -253,8 +271,8 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
       onSaved();
       onOpenChange(false);
     },
-    onError: () => {
-      toast({ title: "Erro ao salvar unidade", variant: "destructive" });
+    onError: (err: Error) => {
+      toast({ title: "Erro ao salvar unidade", description: err.message, variant: "destructive" });
     },
   });
 
@@ -516,6 +534,77 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
                 />
                 <p className="text-[9px] text-muted-foreground mt-0.5">Inteiro entre 0 e 120. Default 5 (preserva o comportamento legado do worker).</p>
               </div>
+            </div>
+          </div>
+
+          <div className="rounded border border-purple-800/50 bg-purple-950/30 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Bell className="h-4 w-4 text-purple-400" />
+              <span className="font-semibold text-sm text-purple-300">LEMBRETES DE PRESCRICAO — JANELAS PADRAO DA UNIDADE</span>
+            </div>
+            <p className="text-[10px] text-purple-300/70 mb-3">
+              Horarios padrao usados pelas prescricoes que nao definirem horarios proprios (ex.: <span className="font-mono">07:00, 13:00, 20:00</span>).
+              Tolerancia eh quanto tempo APOS o horario marcado o lembrete ainda pode sair (default 5 min — preserva o comportamento atual).
+            </p>
+
+            <div className="mb-3">
+              <Label className="text-xs font-bold">HORARIOS PADRAO (HH:MM)</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1.5 mb-2">
+                {form.lembreteHorariosPadrao.length === 0 ? (
+                  <span className="text-[10px] text-muted-foreground italic">
+                    Nenhum horario padrao. Prescricoes sem horarios proprios nao receberao lembretes.
+                  </span>
+                ) : (
+                  form.lembreteHorariosPadrao.map(h => (
+                    <Badge key={h} variant="outline" className="font-mono text-xs gap-1 pr-1">
+                      {h}
+                      <button
+                        type="button"
+                        onClick={() => removerHorario(h)}
+                        className="hover:bg-destructive/20 rounded p-0.5"
+                        aria-label={`Remover ${h}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={novoHorario}
+                  onChange={e => { setNovoHorario(e.target.value); setHorarioErro(null); }}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); adicionarHorario(); } }}
+                  placeholder="HH:MM (ex: 07:00)"
+                  className="font-mono text-xs h-8"
+                  maxLength={5}
+                />
+                <Button type="button" size="sm" variant="outline" onClick={adicionarHorario}>
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar
+                </Button>
+              </div>
+              {horarioErro && (
+                <p className="text-[10px] text-red-400 mt-1">{horarioErro}</p>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold">TOLERANCIA (MINUTOS APOS O HORARIO)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={720}
+                step={1}
+                value={form.lembreteToleranciaMinutos}
+                onChange={e => {
+                  const v = e.target.value === "" ? 0 : parseInt(e.target.value, 10);
+                  setForm(prev => ({ ...prev, lembreteToleranciaMinutos: Number.isFinite(v) ? v : 0 }));
+                }}
+                className="font-mono text-xs h-8 w-32"
+              />
+              <p className="text-[9px] text-muted-foreground mt-1">
+                Default: 5 min. Maximo: 720 min (12h). Use valores maiores se o worker nao roda a cada minuto.
+              </p>
             </div>
           </div>
 

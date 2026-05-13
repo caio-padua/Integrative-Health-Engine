@@ -266,6 +266,7 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "⛰️ Visão da Clínica", path: "/dashboard-local", icon: Mountain, slug: "dashboard-local" },
         { name: "🏷️ Demandas Resolução", path: "/demandas-resolucao", icon: MessageCircle, slug: "demandas-resolucao" },
         { name: "Lembretes & Falhas", path: "/lembretes-falhas", icon: BellRing, slug: "lembretes-falhas" },
+        { name: "Prescrições (Lembretes)", path: "/prescricoes-lembrete", icon: BellRing, slug: "prescricoes-lembrete" },
         { name: "Mensagens", path: "/mensagens", icon: MessageSquareText, slug: "mensagens" },
         { name: "Acompanhamento", path: "/acompanhamento", icon: Diamond, slug: "acompanhamento" },
       ],

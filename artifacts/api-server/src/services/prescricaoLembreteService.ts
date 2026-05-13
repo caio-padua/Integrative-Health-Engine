@@ -123,8 +123,9 @@ interface PrescricaoComContexto {
   pacienteGenero: Genero;
   unidadeId: number | null;
   unidadeTimezone: string;
-  // Task #12 — defaults configurados na unidade, usados quando a prescricao
-  // nao define horariosEnvio proprios e/ou para sobrescrever a tolerancia.
+  // Task #11 + #12 — defaults configurados na unidade. Quando a prescricao
+  // nao define `horariosEnvio` proprio, herda destes; tolerancia segue a
+  // mesma regra (override explicito do worker tem prioridade).
   unidadeHorariosPadrao: string[];
   unidadeToleranciaMinutos: number;
 }
@@ -162,9 +163,11 @@ async function carregarPrescricoesAtivas(): Promise<PrescricaoComContexto[]> {
     pacienteGenero: (r.pacienteGenero ?? "nao_informado") as Genero,
     unidadeId: r.unidadeIdResolvida,
     unidadeTimezone: r.unidadeTimezone || "America/Sao_Paulo",
+    // Sem padrao configurado, mantem array vazio: prescricoes sem horarios
+    // proprios serao puladas (loga 'pulados', nao envia nada).
     unidadeHorariosPadrao: Array.isArray(r.unidadeHorariosPadrao)
       ? (r.unidadeHorariosPadrao as string[])
-      : ["07:00", "13:00", "20:00"],
+      : [],
     unidadeToleranciaMinutos:
       typeof r.unidadeToleranciaMinutos === "number" && r.unidadeToleranciaMinutos >= 0
         ? r.unidadeToleranciaMinutos
@@ -214,8 +217,9 @@ export async function executarLembretesPrescricao(
   options: ExecutarLembretesOptions = {},
 ): Promise<ExecutarLembretesResult> {
   const now = options.now ?? new Date();
-  // Task #12 — toleranciaMinutos do worker continua tendo prioridade (override
-  // explicito), mas se nao for passado, herdamos da unidade. Mantem fallback 5.
+  // Task #11 + #12 — toleranciaMinutos do worker continua tendo prioridade
+  // (override explicito util para testes/forcar disparo); se nao for passado,
+  // herdamos da unidade (default 5 min na coluna).
   const toleranciaOverride = options.toleranciaMinutos;
 
   const prescricoes = await carregarPrescricoesAtivas();
@@ -225,7 +229,9 @@ export async function executarLembretesPrescricao(
   let pulados = 0;
 
   for (const ctx of prescricoes) {
-    // Task #12 — herda da unidade quando a prescricao nao define horarios.
+    // Task #11 + #12 — herda da unidade quando a prescricao nao define
+    // horariosEnvio proprios. Helper `resolverHorariosEnvio` centraliza a
+    // regra (testavel isoladamente).
     const horarios = resolverHorariosEnvio(
       ctx.prescricao.horariosEnvio as string[] | null,
       ctx.unidadeHorariosPadrao,
@@ -429,7 +435,7 @@ export function iniciarWorkerLembretesPrescricao(intervalMs = 60 * 1000): void {
   if (workerStarted) return;
   workerStarted = true;
   console.log(
-    `[lembretePrescricao] Worker iniciado (intervalo ${intervalMs / 1000}s, tolerancia configurada por unidade — Task #12)`,
+    `[lembretePrescricao] Worker iniciado (intervalo ${intervalMs / 1000}s, tolerancia por unidade — default 5 min, override por chamada permitido — Task #11+#12)`,
   );
   setInterval(async () => {
     try {
