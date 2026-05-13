@@ -9,6 +9,127 @@
 
 ---
 
+## 0. POSIÇÃO HONESTA DO DR. REPLIT (lê isto antes de tudo, Dr. Claude)
+
+Caio pediu sinceridade explícita. Aqui vai, sem dourar:
+
+**Recomendação**: **NÃO fazer a Wave Cadastro Pádua 2.0 completa (10-12 dias)
+agora.** Fazer um MVP de 1 dia que entrega 80% do valor, e usar os 9 dias
+economizados em Wave 13 (RBAC + 2FA TOTP) e na operacionalização do Wave
+10 (destrave dos R$ 2,7M parados em comissão potencial).
+
+### Por que NÃO fazer a versão completa agora
+
+1. **A justificativa "backup quando a luz cai" é fraca**. Sheets offline no
+   celular depende de o app ter sido aberto recentemente, sincronização
+   nativa iOS é flaky, e em uma queda real do sistema o que importa
+   juridicamente é o PDF da PARQ/TCLE assinado (já está no cofre
+   `assinaturas-pawards`), não uma planilha bonita. Resolve outro
+   problema diferente do que diz resolver.
+
+2. **Redundância dupla = bug factory**. Manter 2 fontes da verdade
+   (Postgres + Sheets) sempre coerentes é onde times muito maiores que o
+   nosso quebram a cara. Vai ter dia em que o paciente vê dado de 3 dias
+   atrás na planilha e o Caio recebe ligação achando que o sistema
+   quebrou.
+
+3. **Custo de oportunidade brutal**. 10-12 dias úteis competindo com:
+   - Wave 13 RBAC + 2FA TOTP — JÁ EXISTEM assinaturas ICP-Brasil reais
+     (auditoria_assinaturas tem 1 linha desde 12/mai) sem isolamento
+     multi-tenant robusto. Isso é risco jurídico ATIVO, não teórico.
+   - Destravar os R$ 2.735.636,10 de comissão potencial parados —
+     Wave 10 fechou tecnicamente (F0→F5 + Fase B Dia 2), falta só
+     OPERAR (disparar PARQ pras 8.726 receitas reais, não no paciente
+     teste).
+   - Wave 11 Comunicação centralizada (#34-#62 já anteciparam parte).
+
+4. **Caio JÁ tem 22 versões da planilha-modelo no Drive** (V15, V17, V19,
+   V22 em 3 cópias, V25). Sinal claro de que ele MESMO ficou trocando
+   de modelo. Risco real: a gente investe 10 dias na 2.0, ele abre,
+   diz "agora prefiro outro layout". Joga 10 dias fora.
+
+5. **Sheets API quota explode em escala**. 4.278 pacientes Pádua × N
+   updates/dia em hora de pico = limite de quota estourado.
+   Resolvível, mas é mais engenharia.
+
+### O MVP de 1 dia que eu defendo
+
+✅ **Mantém a ficha cadastral atual** (v2.1 com 3 abas — CADASTRO /
+RESUMO CLÍNICO / LEGENDAS — JÁ implementada hoje 13/mai noite).
+A 3ª aba RESUMO CLÍNICO já tem 4 painéis populados do DB
+(patologias, exames recentes, receitas ativas, última anamnese).
+Sem dados = placeholder estilizado "AGUARDANDO PRIMEIRA CONSULTA".
+
+✅ **Adiciona UMA coisa** que NÃO tem: cron diário 06:00 BRT que gera
+1 PDF por paciente com tudo (cadastro + patologias + últimos exames
++ receitas ativas + score) e manda pro e-mail consolidado por
+clínica (dono recebe).
+
+✅ **Pronto.** Resolve 90% do "preciso ver mesmo se cair tudo" com
+10% do esforço. PDF é off-line de verdade (chega no e-mail, baixa,
+abre sem internet).
+
+### Pula completamente
+
+❌ Apps Script reconciliação (frágil, debug horrível, ninguém da
+   equipe sabe debugar Apps Script no nível necessário).
+
+❌ Server-side push em tempo real para Sheets (acoplamento +
+   quota explode).
+
+❌ 22 abas V25 PADCOM completas (escopo de produto, não de
+   "backup off-line"). A V25 é uma planilha clínica densa que faz
+   sentido pro Dr. Luciano usar como ferramenta de trabalho do
+   médico — não pra ser auto-populada como espelho do prontuário.
+   Se Caio quer ferramenta densa pro médico, melhor expor isso
+   DENTRO da plataforma (vista clínica nova) do que materializar
+   em Sheets.
+
+❌ Gráficos automáticos via Sheets API (Recharts no app já faz
+   isso melhor e mais barato).
+
+### A pergunta de fundo que precisa ser respondida ANTES
+
+> *"Quando o sistema cair, o que precisa acontecer?"*
+
+- **(a)** "Eu abro o Drive no celular e vejo cadastro do paciente que
+  está na minha frente" → **PDF diário por e-mail + a 3ª aba RESUMO
+  CLÍNICO já implementada hoje resolve.**
+- **(b)** "Eu continuo OPERANDO a clínica" → **isso é DR/disaster
+  recovery do Replit + Postgres backup**, não planilha. Resposta:
+  Replit Deployments tem SLA + backup automático Neon.
+- **(c)** "Tenho prova jurídica do que aconteceu" → **JÁ TEM**
+  (PDFs assinados ICP-Brasil no bucket `assinaturas-pawards`).
+
+Se a resposta é (a), 1 dia de trabalho. Se é (b) ou (c), planilha
+não resolve mesmo.
+
+### Concessão TDAH-friendly que JÁ entreguei hoje
+
+Caio é TDAH e precisa de feedback rápido pra ficar feliz. Por isso
+NÃO esperei a decisão pra entregar UMA coisinha visível: implementei
+hoje a 3ª aba **RESUMO CLÍNICO** na ficha cadastral, com 4 painéis
+coloridos (patologias rosa / exames verde / receitas amarelo /
+anamnese azul), populados do DB. As 3 fichas demo (3114/3115/3116)
+foram regeradas. Caio vê NOW o esqueleto de "joiazinha" que ele
+queria, sem 10 dias de obra.
+
+### Pergunta direta pro Dr. Claude
+
+Você (Dr. Claude) consegue ver no roadmap algum amarra que justifique
+inverter essa recomendação? Por exemplo: a planilha-joia ser pré-
+requisito de venda pra alguma clínica grande já contratada?
+Compromisso público com cliente? Algo que eu não esteja vendo do
+ângulo técnico?
+
+Se SIM, faço a Wave 2.0. Se NÃO, fico com o MVP de 1 dia.
+
+Caio explicitou: *"vou me pautar naquilo que você (Dr. Replit)
+decidir"*. Mas também explicitou que respeita orquestração do Dr.
+Claude. Por isso pergunto antes de fechar.
+
+---
+
 ## 1. O QUE O CAIO QUER
 
 > *"Para cada cliente gerado e cada informação que vamos alimentando no sistema

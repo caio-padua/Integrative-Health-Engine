@@ -12,8 +12,12 @@
  *   - Linha de DADOS (linha 4) fica branca
  *   - Aba LEGENDAS contém SOMENTE a explicação das cores
  *
- * v3 próxima onda: formatação 1:1 + watcher de update + sandbox real
- *   (PATOLOGIAS / EXAMES INCLUSAO / EXAMES EVOLUCAO / EXAMES GRAFICOS / FOTO)
+ * v2.1 (13/mai noite — joiazinha TDAH): adicionada 3ª aba RESUMO CLINICO
+ *   com 4 painéis (PATOLOGIAS / EXAMES RECENTES / RECEITAS ATIVAS /
+ *   ULTIMA ANAMNESE). Populada via DadosClinicos opcional. Sem dados =
+ *   placeholder "AGUARDANDO PRIMEIRA CONSULTA" estilizado.
+ *
+ * v3 próxima onda: 22 abas V25 PADCOM completas (depende validação Dr. Claude)
  */
 import { google } from "googleapis";
 import { getAccessToken } from "../google-drive";
@@ -106,6 +110,21 @@ async function getDrive() {
   return google.drive({ version: "v3", auth: oauth });
 }
 
+// ============================================================================
+// RESUMO CLÍNICO (joiazinha v2.1) — 4 painéis populados do DB
+// ============================================================================
+export interface DadosClinicos {
+  patologias?: Array<{ nome: string; cid10?: string | null; status?: string | null; intensidade?: string | null }>;
+  examesRecentes?: Array<{ nome: string; data?: string | Date | null; resultado?: string | null }>;
+  receitasAtivas?: Array<{ numero?: string | null; emitidaEm?: string | Date | null; status?: string | null; valor?: number | null }>;
+  ultimaAnamnese?: { criadoEm?: string | Date | null; status?: string | null; sinaisSemanticos?: string[] | null } | null;
+}
+
+const COR_PAINEL_PATOLOGIAS = { red: 0.96, green: 0.80, blue: 0.83 }; // rosa
+const COR_PAINEL_EXAMES     = { red: 0.83, green: 0.92, blue: 0.83 }; // verde claro
+const COR_PAINEL_RECEITAS   = { red: 1.00, green: 0.95, blue: 0.80 }; // amarelo
+const COR_PAINEL_ANAMNESE   = { red: 0.79, green: 0.87, blue: 0.94 }; // azul
+
 export interface PacienteFicha {
   id: number;
   status_ativo: boolean;
@@ -196,8 +215,9 @@ export async function criarFichaCadastralPaciente(opts: {
   dadosPessoaisFolderId: string;
   fileName: string;
   forceRecreate?: boolean;
+  dadosClinicos?: DadosClinicos;
 }): Promise<{ spreadsheetId: string; spreadsheetUrl: string; jaExistia: boolean }> {
-  const { paciente, dadosPessoaisFolderId, fileName, forceRecreate } = opts;
+  const { paciente, dadosPessoaisFolderId, fileName, forceRecreate, dadosClinicos } = opts;
   const drive = await getDrive();
   const sheets = await getSheets();
 
@@ -223,19 +243,21 @@ export async function criarFichaCadastralPaciente(opts: {
     }
   }
 
-  // 1. cria spreadsheet com 2 abas — CADASTRO e LEGENDAS
+  // 1. cria spreadsheet com 3 abas — CADASTRO, RESUMO CLINICO, LEGENDAS
   const create = await sheets.spreadsheets.create({
     requestBody: {
       properties: { title: fileName, locale: "pt_BR", timeZone: "America/Sao_Paulo" },
       sheets: [
         { properties: { title: "CADASTRO", gridProperties: { rowCount: 200, columnCount: COLUNAS_FICHA.length } } },
+        { properties: { title: "RESUMO CLINICO", gridProperties: { rowCount: 100, columnCount: 6 } } },
         { properties: { title: "LEGENDAS", gridProperties: { rowCount: 60, columnCount: 4 } } },
       ],
     },
   });
   const spreadsheetId = create.data.spreadsheetId!;
   const sheetIdCadastro = create.data.sheets![0].properties!.sheetId!;
-  const sheetIdLegendas = create.data.sheets![1].properties!.sheetId!;
+  const sheetIdResumo   = create.data.sheets![1].properties!.sheetId!;
+  const sheetIdLegendas = create.data.sheets![2].properties!.sheetId!;
 
   // 2. move pra DADOS PESSOAIS
   await drive.files.update({
@@ -254,6 +276,76 @@ export async function criarFichaCadastralPaciente(opts: {
     ...GRUPOS_COR.map((g) => ["", g.rotulo, g.campos]),
   ];
 
+  // RESUMO CLINICO — montagem dos 4 painéis com tracking de linhas pra formatação
+  const dc = dadosClinicos ?? {};
+  const PLACEHOLDER = "AGUARDANDO PRIMEIRA CONSULTA";
+  const resumoLinhas: string[][] = [];
+  const paineis: Array<{ titulo: string; cor: { red: number; green: number; blue: number }; rowTituloIdx: number; rowDadosStart: number; rowDadosEnd: number }> = [];
+
+  resumoLinhas.push([`RESUMO CLINICO — ${semAcento(paciente.nome)}`]);
+  resumoLinhas.push([]);
+
+  function abrirPainel(titulo: string, cor: { red: number; green: number; blue: number }, cabecalho: string[]) {
+    const rowTitulo = resumoLinhas.length;
+    resumoLinhas.push([titulo]);
+    resumoLinhas.push(cabecalho);
+    return { rowTitulo, rowDadosStart: resumoLinhas.length };
+  }
+  function fecharPainel(p: { titulo: string; cor: { red: number; green: number; blue: number }; rowTitulo: number; rowDadosStart: number }, vazio: boolean) {
+    if (vazio) resumoLinhas.push([PLACEHOLDER]);
+    paineis.push({ titulo: p.titulo, cor: p.cor, rowTituloIdx: p.rowTitulo, rowDadosStart: p.rowDadosStart, rowDadosEnd: resumoLinhas.length });
+    resumoLinhas.push([]);
+  }
+
+  // Painel 1 — PATOLOGIAS
+  {
+    const p = abrirPainel("PATOLOGIAS", COR_PAINEL_PATOLOGIAS, ["NOME", "CID-10", "STATUS", "INTENSIDADE"]);
+    const rows = dc.patologias ?? [];
+    for (const r of rows) {
+      resumoLinhas.push([semAcento(r.nome ?? ""), semAcento(r.cid10 ?? ""), semAcento(r.status ?? ""), semAcento(r.intensidade ?? "")]);
+    }
+    fecharPainel({ titulo: "PATOLOGIAS", cor: COR_PAINEL_PATOLOGIAS, ...p }, rows.length === 0);
+  }
+
+  // Painel 2 — EXAMES RECENTES
+  {
+    const p = abrirPainel("EXAMES RECENTES", COR_PAINEL_EXAMES, ["NOME", "DATA", "RESULTADO"]);
+    const rows = dc.examesRecentes ?? [];
+    for (const r of rows) {
+      resumoLinhas.push([semAcento(r.nome ?? ""), fmtData(r.data ?? null), semAcento(r.resultado ?? "")]);
+    }
+    fecharPainel({ titulo: "EXAMES RECENTES", cor: COR_PAINEL_EXAMES, ...p }, rows.length === 0);
+  }
+
+  // Painel 3 — RECEITAS ATIVAS
+  {
+    const p = abrirPainel("RECEITAS ATIVAS", COR_PAINEL_RECEITAS, ["NUMERO", "EMITIDA EM", "STATUS", "VALOR R$"]);
+    const rows = dc.receitasAtivas ?? [];
+    for (const r of rows) {
+      resumoLinhas.push([
+        semAcento(r.numero ?? ""),
+        fmtData(r.emitidaEm ?? null),
+        semAcento(r.status ?? ""),
+        r.valor != null ? r.valor.toFixed(2).replace(".", ",") : "",
+      ]);
+    }
+    fecharPainel({ titulo: "RECEITAS ATIVAS", cor: COR_PAINEL_RECEITAS, ...p }, rows.length === 0);
+  }
+
+  // Painel 4 — ULTIMA ANAMNESE
+  {
+    const p = abrirPainel("ULTIMA ANAMNESE", COR_PAINEL_ANAMNESE, ["DATA", "STATUS", "SINAIS SEMANTICOS"]);
+    const a = dc.ultimaAnamnese;
+    if (a) {
+      resumoLinhas.push([
+        fmtData(a.criadoEm ?? null),
+        semAcento(a.status ?? ""),
+        semAcento((a.sinaisSemanticos ?? []).join(", ")),
+      ]);
+    }
+    fecharPainel({ titulo: "ULTIMA ANAMNESE", cor: COR_PAINEL_ANAMNESE, ...p }, !a);
+  }
+
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
     requestBody: {
@@ -261,6 +353,7 @@ export async function criarFichaCadastralPaciente(opts: {
       data: [
         { range: "CADASTRO!A3", values: [COLUNAS_FICHA] },
         { range: "CADASTRO!A4", values: [linhaPaciente] },
+        { range: "RESUMO CLINICO!A1", values: resumoLinhas },
         { range: "LEGENDAS!A1", values: linhasLegendas },
       ],
     },
@@ -344,6 +437,62 @@ export async function criarFichaCadastralPaciente(opts: {
     autoResizeDimensions: {
       dimensions: { sheetId: sheetIdCadastro, dimension: "COLUMNS", startIndex: 0, endIndex: COLUNAS_FICHA.length },
     },
+  });
+
+  // 4.6.1 RESUMO CLINICO — título grande linha 1
+  reqs.push({
+    repeatCell: {
+      range: { sheetId: sheetIdResumo, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 },
+      cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 14, fontFamily: "Roboto" }, backgroundColor: { red: 0.93, green: 0.93, blue: 0.93 }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
+      fields: "userEnteredFormat(textFormat,backgroundColor,horizontalAlignment,verticalAlignment)",
+    },
+  });
+  reqs.push({
+    mergeCells: { range: { sheetId: sheetIdResumo, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 }, mergeType: "MERGE_ALL" },
+  });
+  reqs.push({
+    updateDimensionProperties: { range: { sheetId: sheetIdResumo, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 40 }, fields: "pixelSize" },
+  });
+
+  // 4.6.2 painéis: título colorido (merge) + cabeçalho cinza-claro + bordas
+  for (const painel of paineis) {
+    reqs.push({
+      repeatCell: {
+        range: { sheetId: sheetIdResumo, startRowIndex: painel.rowTituloIdx, endRowIndex: painel.rowTituloIdx + 1, startColumnIndex: 0, endColumnIndex: 6 },
+        cell: { userEnteredFormat: { backgroundColor: painel.cor, textFormat: { bold: true, fontSize: 12, fontFamily: "Roboto" }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE", padding: { left: 8 } } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,padding)",
+      },
+    });
+    reqs.push({
+      mergeCells: { range: { sheetId: sheetIdResumo, startRowIndex: painel.rowTituloIdx, endRowIndex: painel.rowTituloIdx + 1, startColumnIndex: 0, endColumnIndex: 6 }, mergeType: "MERGE_ALL" },
+    });
+    reqs.push({
+      updateDimensionProperties: { range: { sheetId: sheetIdResumo, dimension: "ROWS", startIndex: painel.rowTituloIdx, endIndex: painel.rowTituloIdx + 1 }, properties: { pixelSize: 28 }, fields: "pixelSize" },
+    });
+    const rowCab = painel.rowTituloIdx + 1;
+    reqs.push({
+      repeatCell: {
+        range: { sheetId: sheetIdResumo, startRowIndex: rowCab, endRowIndex: rowCab + 1, startColumnIndex: 0, endColumnIndex: 6 },
+        cell: { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 }, textFormat: { bold: true, fontSize: 10, fontFamily: "Roboto" }, horizontalAlignment: "LEFT" } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+      },
+    });
+    reqs.push({
+      updateBorders: {
+        range: { sheetId: sheetIdResumo, startRowIndex: painel.rowTituloIdx, endRowIndex: painel.rowDadosEnd, startColumnIndex: 0, endColumnIndex: 6 },
+        top: { style: "SOLID", color: PRETO, width: 1 },
+        bottom: { style: "SOLID", color: PRETO, width: 1 },
+        left: { style: "SOLID", color: PRETO, width: 1 },
+        right: { style: "SOLID", color: PRETO, width: 1 },
+        innerHorizontal: { style: "SOLID", color: { red: 0.7, green: 0.7, blue: 0.7 }, width: 1 },
+      },
+    });
+  }
+  reqs.push({
+    updateSheetProperties: { properties: { sheetId: sheetIdResumo, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" },
+  });
+  reqs.push({
+    autoResizeDimensions: { dimensions: { sheetId: sheetIdResumo, dimension: "COLUMNS", startIndex: 0, endIndex: 6 } },
   });
 
   // 4.7 LEGENDAS: título grande + linhas com a cor real preenchendo a coluna A
