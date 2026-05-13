@@ -9,12 +9,72 @@ import {
   FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
   ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
   ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign, Stethoscope,
-  Volume2, VolumeX, Command as CommandIcon,
+  Volume2, VolumeX, Command as CommandIcon, Bell,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { CommandPalette } from "./CommandPalette";
 import { useSound } from "@/hooks/useSound";
 import { Platform2faFooterIndicator } from "@/lib/Platform2faFooterIndicator";
+import { apiFetch } from "@/lib/api-fetch";
+
+// Task #168 — campainha global de alertas de seguranca (2FA brute-force)
+// pendentes. Polla o endpoint leve /contagem a cada 60s. Endpoint exige
+// guardas + step-up; quando faltar, devolve 401/403 e o sino fica oculto
+// (silencioso, mesmo padrao dos badges do painel-comando). Click abre a
+// fila ja filtrada por nao-vistos.
+function CampainhaAlertasSeguranca() {
+  const API_BASE = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL || "/api";
+  const [total, setTotal] = useState<number>(0);
+  useEffect(() => {
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await apiFetch(`${API_BASE}/plataforma/alertas-seguranca/contagem`, {
+          credentials: "include",
+        });
+        if (!alive) return;
+        if (!r.ok) { setTotal(0); return; }
+        const d = await r.json();
+        if (!alive) return;
+        setTotal(Number(d?.total ?? 0) || 0);
+      } catch { /* silencioso */ }
+    };
+    carregar();
+    const id = setInterval(carregar, 60_000);
+    const onMarcados = () => { carregar(); };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "alertas_seguranca_marcados_em") carregar();
+    };
+    window.addEventListener("alertas_seguranca_marcados", onMarcados);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("alertas_seguranca_marcados", onMarcados);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [API_BASE]);
+
+  if (total <= 0) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => { window.location.href = "/plataforma/alertas-seguranca?apenas_nao_vistos=true"; }}
+      className="relative inline-flex items-center justify-center w-8 h-8 hover:bg-sidebar-accent/50 transition-colors rounded-sm"
+      title={`${total} alerta${total > 1 ? "s" : ""} de seguranca nao-visto${total > 1 ? "s" : ""} — abrir fila`}
+      aria-label={`${total} alertas de seguranca nao-vistos`}
+      data-testid="campainha-alertas-seguranca"
+    >
+      <Bell className="w-4 h-4 text-foreground" />
+      <span
+        className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none"
+        data-testid="campainha-alertas-seguranca-badge"
+      >
+        {total > 99 ? "99+" : total}
+      </span>
+    </button>
+  );
+}
 
 function ClinicSwitcher() {
   const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, escopo } = useClinic();
@@ -295,10 +355,11 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="w-9 h-9 flex items-center justify-center bg-white/90 border border-border mr-3 p-1">
             <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain invert-0" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <span className="font-bold text-sm text-sidebar-foreground tracking-tight uppercase">Pawards</span>
             <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">Developed by Pawards MedCore</span>
           </div>
+          <CampainhaAlertasSeguranca />
         </div>
         <div className="px-5 py-3 border-b border-border">
           <div className="text-sm font-semibold text-sidebar-foreground truncate">{user.nome}</div>

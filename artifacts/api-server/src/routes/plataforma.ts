@@ -996,6 +996,24 @@ router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promis
   res.json({ alertas: result.rows, total: result.rows?.length ?? 0 });
 });
 
+// GET /api/plataforma/alertas-seguranca/contagem — endpoint leve (Task #168).
+// Retorna apenas o total de alertas nao-visualizados pra alimentar o badge da
+// campainha no header global sem precisar puxar a lista inteira (200 linhas
+// + JOIN). Usado em polling de 60s, entao precisa ser o mais barato possivel.
+router.get(
+  "/plataforma/alertas-seguranca/contagem",
+  ...guardas,
+  async (_req, res): Promise<void> => {
+    const result = await db.execute(sql`
+      SELECT COUNT(*)::int AS total
+        FROM alertas_ceo_seguranca
+       WHERE visualizado_em IS NULL
+    `);
+    const total = Number((result.rows[0] as { total?: number } | undefined)?.total ?? 0) || 0;
+    res.json({ total });
+  },
+);
+
 // POST /api/plataforma/alertas-seguranca/:id/visualizar — marca como lido.
 router.post("/plataforma/alertas-seguranca/:id/visualizar", ...guardas, async (req, res): Promise<void> => {
   const id = Number(req.params["id"]);
