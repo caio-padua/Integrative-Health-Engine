@@ -9,6 +9,7 @@ import { iniciarWorkerPdfRetryUpload } from "./lib/recorrencia/pdfRetryUpload";
 import { iniciarWorkerPdfRetryUploadResumoDiario } from "./lib/recorrencia/pdfRetryUploadResumoDiario";
 import { iniciarWorkerVerificarPdfsCofre } from "./lib/recorrencia/verificarPdfsCofre";
 import { iniciarWorkerAlertaAssinaturasCEO } from "./lib/recorrencia/alertaAssinaturasCEO";
+import { iniciarWorkerAlertaKillSwitchEmailsCEO } from "./lib/recorrencia/alertaKillSwitchEmailsCEO";
 import { iniciarWorkerRelatorioDiarioCEO } from "./lib/recorrencia/relatorioDiarioCEO";
 import { iniciarWorkerCarenciaLgpd2fa } from "./lib/recorrencia/carenciaLgpd2fa";
 import { iniciarWorkerExclusaoCarencia } from "./lib/recorrencia/exclusaoCarenciaExecutor";
@@ -43,6 +44,7 @@ app.listen(port, (err) => {
   iniciarWorkerPdfRetryUploadResumoDiario();
   iniciarWorkerVerificarPdfsCofre();
   iniciarWorkerAlertaAssinaturasCEO();
+  iniciarWorkerAlertaKillSwitchEmailsCEO();
   iniciarWorkerRelatorioDiarioCEO();
   iniciarWorkerCarenciaLgpd2fa();
   iniciarWorkerExclusaoCarencia();
