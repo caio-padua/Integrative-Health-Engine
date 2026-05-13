@@ -573,6 +573,121 @@ router.post("/assinaturas/alertas-ceo/:id/visualizar", guardMaster, async (req: 
 });
 
 /**
+ * GET /api/admin/uploads-pdf-resumo-diario — Task #70
+ *
+ * Lista o historico (default 30 dias) de dispatches de resumo diario de
+ * uploads de PDF esgotados gravados pelo worker `pdfRetryUploadResumoDiario`
+ * (task #58) na tabela `pdf_upload_resumo_diario`. 1 linha por dia BRT.
+ *
+ * Quando o resumo de hoje ainda nao foi disparado (worker so roda 08:00 BRT
+ * e exige >= 3 esgotados nas ultimas 24h), retorna `previa_hoje` com a
+ * contagem atual da janela 24h — assim o Caio ve "se rodasse agora,
+ * dispararia X" antes do tick oficial.
+ *
+ * Mesma protecao guardMaster (validador_mestre + master estrito) das demais
+ * telas Wave 10 — historico inclui evento_ids que sao IDs internos de
+ * webhook events (auditoria sensivel, nao vaza pra outros perfis).
+ *
+ * Resposta:
+ *   { gerado_em, dias: [{ dia_brt, total_esgotados, qtd_eventos,
+ *     evento_ids, notificado_em, variacao_vs_anterior }],
+ *     previa_hoje: { ja_disparado, total_esgotados_janela_24h, dia_brt } }
+ */
+router.get("/admin/uploads-pdf-resumo-diario", guardMaster, async (req: Request, res: Response) => {
+  try {
+    // Sanitizar `dias` defensivamente — querystring `?dias=abc` viraria NaN
+    // e quebraria a aritmetica do generate_series com 500.
+    const diasRaw = Number(req.query["dias"] ?? 30);
+    const diasJanela = Number.isFinite(diasRaw)
+      ? Math.min(Math.max(Math.floor(diasRaw), 1), 90)
+      : 30;
+
+    // Serie densa de N dias calendario (generate_series) LEFT JOIN com a
+    // tabela de dispatches. Dias sem resumo aparecem com total=0/qtd=0/[]
+    // — assim a variacao via LAG eh true D-1 vs D ("0 ontem, 12 hoje" do
+    // briefing) e nao "vs ultimo dispatch", que pulava dias e mascarava
+    // a anomalia. Ordem final DESC pra UI mostrar mais recente em cima.
+    const r = await db.execute(sql`
+      WITH serie AS (
+        SELECT generate_series(
+          (NOW() AT TIME ZONE 'America/Sao_Paulo')::date - ${diasJanela - 1},
+          (NOW() AT TIME ZONE 'America/Sao_Paulo')::date,
+          interval '1 day'
+        )::date AS dia
+      ), denso AS (
+        SELECT
+          s.dia                                                  AS dia_brt,
+          COALESCE(p.total_esgotados, 0)                         AS total_esgotados,
+          COALESCE(array_length(p.evento_ids, 1), 0)::int        AS qtd_eventos,
+          COALESCE(p.evento_ids, ARRAY[]::int[])                 AS evento_ids,
+          p.notificado_em                                        AS notificado_em,
+          (p.dia_brt IS NOT NULL)                                AS dispatched
+        FROM serie s
+        LEFT JOIN pdf_upload_resumo_diario p ON p.dia_brt = s.dia
+      )
+      SELECT
+        to_char(dia_brt, 'YYYY-MM-DD') AS dia_brt,
+        total_esgotados,
+        qtd_eventos,
+        evento_ids,
+        notificado_em,
+        dispatched,
+        total_esgotados - COALESCE(
+          LAG(total_esgotados) OVER (ORDER BY dia_brt ASC), 0
+        ) AS variacao_vs_anterior
+      FROM denso
+      ORDER BY dia_brt DESC
+    `);
+    const dias = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+
+    // Previa de hoje: se ja existe linha pra hoje, worker ja disparou.
+    // Caso contrario, contar quantos esgotados estao na janela de 24h
+    // exatamente como o worker faz (mesma query/condicoes).
+    const hojeR = await db.execute(sql`
+      SELECT to_char((NOW() AT TIME ZONE 'America/Sao_Paulo')::date, 'YYYY-MM-DD') AS dia_brt
+    `);
+    const diaHoje = String(
+      (((hojeR as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {})["dia_brt"] || "",
+    );
+    // BUG-FIX (code review): a serie densa do generate_series sempre inclui
+    // hoje (mesmo sem dispatch, via LEFT JOIN). Checar so o dia nao basta —
+    // precisa olhar `dispatched` (true apenas quando ha linha real em
+    // pdf_upload_resumo_diario). Caso contrario `ja_disparado` ficava sempre
+    // true e a previa de 24h nunca era calculada.
+    const jaDisparado = dias.some(
+      (d) => String(d["dia_brt"]) === diaHoje && d["dispatched"] === true,
+    );
+
+    let totalJanela24h = 0;
+    if (!jaDisparado) {
+      const previaR = await db.execute(sql`
+        SELECT COUNT(*)::int AS total
+        FROM assinatura_webhook_eventos e
+        WHERE e.erro_processamento LIKE 'pdf_upload_falhou:%'
+          AND e.tentativas_retry >= 5
+          AND e.ultima_tentativa_em > NOW() - INTERVAL '24 hours'
+      `);
+      totalJanela24h = Number(
+        (((previaR as unknown as { rows?: Record<string, unknown>[] }).rows || [])[0] || {})["total"] || 0,
+      );
+    }
+
+    res.json({
+      gerado_em: new Date().toISOString(),
+      janela_dias: diasJanela,
+      dias,
+      previa_hoje: {
+        dia_brt: diaHoje,
+        ja_disparado: jaDisparado,
+        total_esgotados_janela_24h: totalJanela24h,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /api/assinaturas/cofre/ausentes — Task #47 · cofre LGPD/CFM
  *
  * Lista as auditoria_assinaturas dos ultimos 30 dias com `pdf_verificado_ok = false`
