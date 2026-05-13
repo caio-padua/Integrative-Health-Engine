@@ -14,6 +14,7 @@ import {
 import { Button } from "./ui/button";
 import { CommandPalette } from "./CommandPalette";
 import { useSound } from "@/hooks/useSound";
+import { Platform2faFooterIndicator } from "@/lib/Platform2faFooterIndicator";
 
 function ClinicSwitcher() {
   const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, escopo } = useClinic();
@@ -368,6 +369,7 @@ export function Layout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="px-4 py-3 border-t border-border space-y-1">
+          {location.startsWith("/plataforma") && <Platform2faFooterIndicator />}
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs"
