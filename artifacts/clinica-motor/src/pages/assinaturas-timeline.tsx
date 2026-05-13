@@ -1,11 +1,13 @@
 // PAWARDS MEDCORE · Wave 10 F5 · /assinaturas/timeline
 // Lista as últimas 50 solicitações de assinatura digital (PARQ + TCLE + Orçamento).
 // Master-only no router; backend filtra via cookie pawards.auth.token.
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/api-fetch";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import {
   FileSignature,
   CheckCircle2,
@@ -342,18 +344,78 @@ export default function AssinaturasTimeline() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Task #91 — labels humanos pra montar o aviso "Ordenando por X (Y) — sua
+  // ultima escolha" quando a ordenacao salva e aplicada automaticamente.
+  const LABEL_COLUNA: Record<ChaveOrdenacao, string> = {
+    VALOR: "Valor", CRIADO: "Criado em", CONCLUIDO: "Concluído em",
+    STATUS: "Status", PACIENTE: "Paciente", MEDICO: "Médico",
+    FARMACIA: "Farmácia", CLINICA: "Clínica", TEMPLATE: "Template",
+  };
+  function descreverOrdenacao(o: Ordenacao): string {
+    const k = chaveDeOrdenacao(o);
+    const desc = o.endsWith("_DESC");
+    let direcao: string;
+    if (k === "VALOR") direcao = desc ? "maior primeiro" : "menor primeiro";
+    else if (k === "CRIADO" || k === "CONCLUIDO") direcao = desc ? "mais recente primeiro" : "mais antigo primeiro";
+    else direcao = desc ? "Z→A" : "A→Z";
+    return `${LABEL_COLUNA[k]} (${direcao})`;
+  }
+
+  const { toast } = useToast();
+  const avisoOrdenacaoMostradoRef = useRef(false);
+  const ultimoUserIdAvisoRef = useRef<number | string | null>(null);
+
   // Task #88 + Task #96 — hidrata a lista salva quando o usuario fica
   // disponivel, SOMENTE se a URL atual nao traz `?ordenar_por=` (link
   // compartilhavel continua tendo prioridade absoluta).
+  // Task #91 — quando a hidratacao realmente aplica uma ordenacao salva
+  // diferente do padrao, dispara um toast discreto de 3s explicando que a
+  // tela respeitou a preferencia salva, com acao "voltar pro padrao" que
+  // reseta pra ID_DESC (lista vazia).
   useEffect(() => {
     if (!user?.id || typeof window === "undefined") return;
+    // Reset do ref de "ja avisou" quando troca de conta na mesma sessao
+    // (evita engolir o aviso pra outro usuario sem remount).
+    if (ultimoUserIdAvisoRef.current !== user.id) {
+      ultimoUserIdAvisoRef.current = user.id;
+      avisoOrdenacaoMostradoRef.current = false;
+    }
     const urlTem = new URLSearchParams(window.location.search).get("ordenar_por");
     if (urlTem) return;
     const salvas = lerOrdenacoesSalvas(user.id);
     if (salvas === null) return;
     const atual = serializarOrdenacoes(ordenacoes);
     const proxima = serializarOrdenacoes(salvas);
-    if (proxima !== atual) setOrdenacoes(salvas);
+    if (proxima !== atual) {
+      setOrdenacoes(salvas);
+      if (!avisoOrdenacaoMostradoRef.current && salvas.length > 0) {
+        avisoOrdenacaoMostradoRef.current = true;
+        const descricao = salvas.map(descreverOrdenacao).join(" · ");
+        const t = toast({
+          title: `Ordenando por ${descricao}`,
+          description: "Aplicamos sua última escolha de ordenação.",
+          duration: 3000,
+          action: (
+            <ToastAction
+              altText="Voltar para a ordenação padrão"
+              onClick={() => {
+                // Reseta pra ID_DESC (lista vazia) E remove a chave do
+                // localStorage literalmente — proxima visita re-mostra o
+                // toast se o usuario configurar uma nova ordenacao.
+                setOrdenacoes([]);
+                const k = chaveStorageOrdenacao(user?.id);
+                if (k && typeof window !== "undefined") {
+                  try { window.localStorage.removeItem(k); } catch { /* ignore */ }
+                }
+                t.dismiss();
+              }}
+            >
+              voltar pro padrão
+            </ToastAction>
+          ),
+        });
+      }
+    }
     // Roda so quando o user.id muda (login/troca de conta).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
