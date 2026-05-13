@@ -237,6 +237,11 @@ export default function PainelComando() {
   // Task #52 — contagem de alertas CEO nao-visualizados (Wave 10.6).
   // Exibido como badge dentro do banner de assinaturas + link pra fila dedicada.
   const [alertasCeoNaoVistos, setAlertasCeoNaoVistos] = useState<number>(0);
+  // Task #161 — contagem de bloqueios de 2FA pendentes (alertas de seguranca).
+  // Mesmo padrao de polling/badge do alertasCeoNaoVistos, mas link pra
+  // /plataforma/alertas-seguranca. Endpoint exige step-up; quando faltar,
+  // o fetch falha em 401/403 e o badge fica zerado (silencioso).
+  const [alertasSegurancaNaoVistos, setAlertasSegurancaNaoVistos] = useState<number>(0);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -363,6 +368,36 @@ export default function PainelComando() {
     };
   }, []);
 
+  // Task #161 — polling leve de alertas de seguranca pendentes (2FA brute-force).
+  // Mesma cadencia (60s) e mesmo padrao silencioso do badge alertas-ceo.
+  // Endpoint /api/plataforma/alertas-seguranca exige guardas + step-up; quando
+  // o usuario nao tiver, devolve 401/403 e o badge fica zerado.
+  useEffect(() => {
+    if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await apiFetch(
+          `${API_BASE}/plataforma/alertas-seguranca?apenas_nao_vistos=true&limite=200`,
+          { credentials: "include" },
+        );
+        if (!alive) return;
+        if (!r.ok) {
+          // 401/403 (sem step-up ou nao-master): zera o badge pra evitar
+          // contagem stale apos expirar 2FA recente.
+          setAlertasSegurancaNaoVistos(0);
+          return;
+        }
+        const d = await r.json();
+        if (!alive) return;
+        setAlertasSegurancaNaoVistos(Number(d.total ?? (Array.isArray(d.alertas) ? d.alertas.length : 0)) || 0);
+      } catch { /* silencioso */ }
+    };
+    carregar();
+    const id = setInterval(carregar, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
   if (loading) {
     return (
       <Layout>
@@ -445,6 +480,31 @@ export default function PainelComando() {
                       data-testid="badge-alertas-ceo-nao-vistos"
                     >
                       {alertasCeoNaoVistos} alerta{alertasCeoNaoVistos > 1 ? "s" : ""} CEO sem ver
+                    </span>
+                  )}
+                  {/* Task #161 — badge contagem alertas seguranca (2FA brute-force) pendentes */}
+                  {alertasSegurancaNaoVistos > 0 && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.href = "/plataforma/alertas-seguranca";
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.location.href = "/plataforma/alertas-seguranca";
+                        }
+                      }}
+                      className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold cursor-pointer hover:opacity-90"
+                      style={{ backgroundColor: COR_SEMANTICA_HEX.critico, color: "white" }}
+                      title="Abrir fila de alertas de seguranca (bloqueios de 2FA)"
+                      data-testid="badge-alertas-seguranca-nao-vistos"
+                    >
+                      {alertasSegurancaNaoVistos} bloqueio{alertasSegurancaNaoVistos > 1 ? "s" : ""} 2FA pendente{alertasSegurancaNaoVistos > 1 ? "s" : ""}
                     </span>
                   )}
                   {assinaturasResumo.taxa_conversao_pct !== null && assinaturasResumo.taxa_conversao_pct !== undefined && (
