@@ -106,6 +106,13 @@ export default function PlataformaAlertasSeguranca() {
       alert(`Erro ao marcar como visto: ${j.error ?? r.statusText}`);
       return;
     }
+    // Task #165 — refresh imediato do badge no painel-comando (mesma aba via
+    // CustomEvent + outras abas via storage event). Mesmo padrao do
+    // "alertas_ceo_marcados" (Task #61).
+    try {
+      window.dispatchEvent(new CustomEvent("alertas_seguranca_marcados"));
+      window.localStorage.setItem("alertas_seguranca_marcados_em", String(Date.now()));
+    } catch { /* silencioso */ }
     await carregar();
   }
 

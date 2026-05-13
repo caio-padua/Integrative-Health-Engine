@@ -395,7 +395,21 @@ export default function PainelComando() {
     };
     carregar();
     const id = setInterval(carregar, 60_000);
-    return () => { alive = false; clearInterval(id); };
+    // Task #165 — refresh imediato quando a tela /plataforma/alertas-seguranca
+    // marca um alerta como visto (mesma aba via CustomEvent + outras abas via
+    // storage event). Mesmo padrao do "alertas_ceo_marcados" (Task #61).
+    const onMarcados = () => { carregar(); };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "alertas_seguranca_marcados_em") carregar();
+    };
+    window.addEventListener("alertas_seguranca_marcados", onMarcados);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("alertas_seguranca_marcados", onMarcados);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   if (loading) {
