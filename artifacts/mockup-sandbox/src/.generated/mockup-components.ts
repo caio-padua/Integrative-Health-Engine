@@ -12,7 +12,6 @@ export const modules: ModuleMap = {
   "./components/mockups/ReceitaVarianteB.tsx": () => import("../components/mockups/ReceitaVarianteB.tsx"),
   "./components/mockups/ReceitaVarianteC.tsx": () => import("../components/mockups/ReceitaVarianteC.tsx"),
   "./components/mockups/ReceitaVarianteD.tsx": () => import("../components/mockups/ReceitaVarianteD.tsx"),
-  "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx"),
   "./components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx": () => import("../components/mockups/blueprint-emails/EmailCalendarBlueprint.tsx"),
   "./components/mockups/padua-atelier/PaduaAtelierPanel.tsx": () => import("../components/mockups/padua-atelier/PaduaAtelierPanel.tsx"),
   "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx"),
