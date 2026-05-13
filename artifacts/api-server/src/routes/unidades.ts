@@ -48,10 +48,32 @@ router.put("/unidades/:id", async (req, res): Promise<void> => {
     "emailGeral", "emailAgenda", "emailEnfermagem01", "emailEnfermagem02",
     "emailConsultor01", "emailConsultor02", "emailSupervisor01", "emailSupervisor02",
     "emailFinanceiro01", "emailOuvidoria01",
+    // Task #12 — janelas padrao de envio de lembrete por unidade
+    "lembreteHorariosPadrao", "lembreteToleranciaMinutos",
   ];
   const updates: Record<string, any> = {};
   for (const key of allowedFields) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+
+  // Task #12 — sanitizacao defensiva dos horarios de lembrete
+  if (updates.lembreteHorariosPadrao !== undefined) {
+    const arr = updates.lembreteHorariosPadrao;
+    // Task #12 — valida HH:MM real (00:00 a 23:59), nao so o formato.
+    const horarioRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!Array.isArray(arr) || !arr.every((h) => typeof h === "string" && horarioRegex.test(h.trim()))) {
+      res.status(400).json({ error: "lembreteHorariosPadrao deve ser um array de strings HH:MM (00:00 a 23:59)" });
+      return;
+    }
+    updates.lembreteHorariosPadrao = (arr as string[]).map((h) => h.trim());
+  }
+  if (updates.lembreteToleranciaMinutos !== undefined) {
+    const n = Number(updates.lembreteToleranciaMinutos);
+    if (!Number.isInteger(n) || n < 0 || n > 120) {
+      res.status(400).json({ error: "lembreteToleranciaMinutos deve ser um inteiro entre 0 e 120" });
+      return;
+    }
+    updates.lembreteToleranciaMinutos = n;
   }
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "Nenhum campo para atualizar" });

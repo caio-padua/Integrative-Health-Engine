@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { consultoriasTable } from "./consultorias";
@@ -32,6 +32,13 @@ export const unidadesTable = pgTable("unidades", {
   cor: text("cor").notNull().default("#3B82F6"),
   ativa: boolean("ativa").notNull().default(true),
   timezone: text("timezone").notNull().default("America/Sao_Paulo"),
+  // Task #12 (Migration 050) — janelas padrao de envio de lembrete por unidade.
+  // Usados como fallback pelo prescricaoLembreteService quando a prescricao
+  // nao define horariosEnvio proprios. Tolerancia em minutos define quanto
+  // tempo APOS o horario alvo o worker ainda dispara o lembrete (para
+  // recuperar ticks perdidos sem adiantar o envio).
+  lembreteHorariosPadrao: jsonb("lembrete_horarios_padrao").notNull().$type<string[]>().default(["07:00", "13:00", "20:00"]),
+  lembreteToleranciaMinutos: integer("lembrete_tolerancia_minutos").notNull().default(5),
   // Wave 13 F1 (Migration 044) — kill-switch lifecycle
   status: text("status", {
     enum: ["ATIVO", "SUSPENSO", "EXCLUIDO_PENDENTE", "EXCLUIDO"],

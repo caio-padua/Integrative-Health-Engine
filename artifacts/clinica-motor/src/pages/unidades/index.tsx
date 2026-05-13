@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Building2, MapPin, Pencil, Calendar, Trash2, Mail, ExternalLink, Link2, HardDrive, Users } from "lucide-react";
+import { Plus, Building2, MapPin, Pencil, Calendar, Trash2, Mail, ExternalLink, Link2, HardDrive, Users, Bell } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,6 +41,9 @@ interface Unidade {
   emailOuvidoria01: string | null;
   cor: string;
   ativa: boolean;
+  // Task #12 — janelas padrao de envio de lembrete
+  lembreteHorariosPadrao?: string[] | null;
+  lembreteToleranciaMinutos?: number | null;
 }
 
 const EMAIL_SECTION_1 = [
@@ -92,6 +95,9 @@ interface UnidadeForm {
   emailSupervisor02: string;
   emailFinanceiro01: string;
   emailOuvidoria01: string;
+  // Task #12 — janelas padrao de envio de lembrete (por unidade)
+  lembreteHorariosPadrao: string;     // editado como CSV "07:00, 13:00, 20:00"
+  lembreteToleranciaMinutos: string;  // string para o input number
 }
 
 const defaultForm: UnidadeForm = {
@@ -103,6 +109,8 @@ const defaultForm: UnidadeForm = {
   emailConsultor01: "", emailConsultor02: "",
   emailSupervisor01: "", emailSupervisor02: "",
   emailFinanceiro01: "", emailOuvidoria01: "",
+  lembreteHorariosPadrao: "07:00, 13:00, 20:00",
+  lembreteToleranciaMinutos: "5",
 };
 
 function sanitizeNick(value: string): string {
@@ -149,6 +157,12 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
         emailSupervisor02: unidade.emailSupervisor02 || "",
         emailFinanceiro01: unidade.emailFinanceiro01 || "",
         emailOuvidoria01: unidade.emailOuvidoria01 || "",
+        lembreteHorariosPadrao: Array.isArray(unidade.lembreteHorariosPadrao) && unidade.lembreteHorariosPadrao.length > 0
+          ? unidade.lembreteHorariosPadrao.join(", ")
+          : "07:00, 13:00, 20:00",
+        lembreteToleranciaMinutos: unidade.lembreteToleranciaMinutos != null
+          ? String(unidade.lembreteToleranciaMinutos)
+          : "5",
       });
     } else if (open) {
       setForm(defaultForm);
@@ -204,10 +218,32 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
         ? `/api/unidades/${unidade!.id}`
         : `/api/unidades`;
       const method = isEdit ? "PUT" : "POST";
+
+      // Task #12 — converte CSV "07:00, 13:00, 20:00" para array e valida
+      // tolerancia antes de enviar pro backend.
+      const horariosArray = form.lembreteHorariosPadrao
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      const invalido = horariosArray.find((h) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(h));
+      if (invalido) {
+        throw new Error(`Horario invalido: "${invalido}". Use formato HH:MM separado por virgula.`);
+      }
+      const tolerancia = parseInt(form.lembreteToleranciaMinutos, 10);
+      if (!Number.isInteger(tolerancia) || tolerancia < 0 || tolerancia > 120) {
+        throw new Error("Tolerancia deve ser um inteiro entre 0 e 120 minutos.");
+      }
+
+      const { lembreteHorariosPadrao: _csv, lembreteToleranciaMinutos: _tol, ...rest } = form;
+      const payload = {
+        ...rest,
+        lembreteHorariosPadrao: horariosArray,
+        lembreteToleranciaMinutos: tolerancia,
+      };
       const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
       return res.json();
@@ -444,6 +480,42 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
                 </a>
               </div>
               <p className="text-[9px] text-amber-400/60 mt-2">PAWARDS e a agenda MASTER. Google Calendar e COMPLEMENTO — paciente recebe convite no celular para visualizar facilmente.</p>
+            </div>
+
+            {/* Task #12 — janelas padrao de envio de lembrete por unidade */}
+            <div className="rounded border border-emerald-800/50 bg-emerald-950/30 p-3 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Bell className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="text-xs font-bold text-emerald-300">4. JANELAS DE ENVIO DE LEMBRETE — PADRAO DA UNIDADE</span>
+              </div>
+              <p className="text-[9px] text-emerald-300/70 mb-3">
+                Horarios padrao usados pelos lembretes de prescricao quando a propria prescricao nao define horarios proprios.
+                Cada paciente herda automaticamente esses valores. Tolerancia define quantos minutos APOS o horario marcado o
+                worker ainda dispara o lembrete (recupera ticks perdidos sem adiantar o envio).
+              </p>
+              <div className="mb-3">
+                <Label className="text-xs font-bold">HORARIOS PADRAO (HH:MM separados por virgula)</Label>
+                <Input
+                  value={form.lembreteHorariosPadrao}
+                  onChange={(e) => update("lembreteHorariosPadrao", e.target.value)}
+                  placeholder="07:00, 13:00, 20:00"
+                  className="font-mono text-xs"
+                />
+                <p className="text-[9px] text-muted-foreground mt-0.5">Ex.: <span className="font-mono">07:00, 13:00, 20:00</span> (manha / tarde / noite). Pode usar apenas 1 horario.</p>
+              </div>
+              <div>
+                <Label className="text-xs font-bold">TOLERANCIA EM MINUTOS</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={120}
+                  value={form.lembreteToleranciaMinutos}
+                  onChange={(e) => update("lembreteToleranciaMinutos", e.target.value)}
+                  placeholder="5"
+                  className="font-mono text-xs"
+                />
+                <p className="text-[9px] text-muted-foreground mt-0.5">Inteiro entre 0 e 120. Default 5 (preserva o comportamento legado do worker).</p>
+              </div>
             </div>
           </div>
 

@@ -123,6 +123,10 @@ interface PrescricaoComContexto {
   pacienteGenero: Genero;
   unidadeId: number | null;
   unidadeTimezone: string;
+  // Task #12 — defaults configurados na unidade, usados quando a prescricao
+  // nao define horariosEnvio proprios e/ou para sobrescrever a tolerancia.
+  unidadeHorariosPadrao: string[];
+  unidadeToleranciaMinutos: number;
 }
 
 async function carregarPrescricoesAtivas(): Promise<PrescricaoComContexto[]> {
@@ -135,6 +139,8 @@ async function carregarPrescricoesAtivas(): Promise<PrescricaoComContexto[]> {
       pacienteUnidadeId: pacientesTable.unidadeId,
       unidadeTimezone: unidadesTable.timezone,
       unidadeIdResolvida: unidadesTable.id,
+      unidadeHorariosPadrao: unidadesTable.lembreteHorariosPadrao,
+      unidadeToleranciaMinutos: unidadesTable.lembreteToleranciaMinutos,
     })
     .from(prescricoesLembreteTable)
     .innerJoin(pacientesTable, eq(pacientesTable.id, prescricoesLembreteTable.pacienteId))
@@ -156,7 +162,32 @@ async function carregarPrescricoesAtivas(): Promise<PrescricaoComContexto[]> {
     pacienteGenero: (r.pacienteGenero ?? "nao_informado") as Genero,
     unidadeId: r.unidadeIdResolvida,
     unidadeTimezone: r.unidadeTimezone || "America/Sao_Paulo",
+    unidadeHorariosPadrao: Array.isArray(r.unidadeHorariosPadrao)
+      ? (r.unidadeHorariosPadrao as string[])
+      : ["07:00", "13:00", "20:00"],
+    unidadeToleranciaMinutos:
+      typeof r.unidadeToleranciaMinutos === "number" && r.unidadeToleranciaMinutos >= 0
+        ? r.unidadeToleranciaMinutos
+        : 5,
   }));
+}
+
+/**
+ * Task #12 — resolve a janela efetiva da prescricao:
+ * - se a prescricao tem horariosEnvio proprios, usa-os;
+ * - senao, herda lembrete_horarios_padrao da unidade.
+ *
+ * A tolerancia segue a mesma regra: prioridade ao override explicito do
+ * worker (options.toleranciaMinutos), depois lembrete_tolerancia_minutos
+ * da unidade, depois fallback 5 minutos (comportamento legado).
+ */
+export function resolverHorariosEnvio(
+  horariosPrescricao: string[] | null | undefined,
+  horariosUnidade: string[],
+): string[] {
+  const explicitos = Array.isArray(horariosPrescricao) ? horariosPrescricao : [];
+  if (explicitos.length > 0) return explicitos;
+  return horariosUnidade;
 }
 
 function montarSaudacaoLocal(ctx: PrescricaoComContexto, horaLocalMin: number): string {
@@ -183,7 +214,9 @@ export async function executarLembretesPrescricao(
   options: ExecutarLembretesOptions = {},
 ): Promise<ExecutarLembretesResult> {
   const now = options.now ?? new Date();
-  const tolerancia = options.toleranciaMinutos ?? 5;
+  // Task #12 — toleranciaMinutos do worker continua tendo prioridade (override
+  // explicito), mas se nao for passado, herdamos da unidade. Mantem fallback 5.
+  const toleranciaOverride = options.toleranciaMinutos;
 
   const prescricoes = await carregarPrescricoesAtivas();
   const detalhes: LembreteEnvioResult[] = [];
@@ -192,13 +225,16 @@ export async function executarLembretesPrescricao(
   let pulados = 0;
 
   for (const ctx of prescricoes) {
-    const horarios = Array.isArray(ctx.prescricao.horariosEnvio)
-      ? ctx.prescricao.horariosEnvio
-      : [];
+    // Task #12 — herda da unidade quando a prescricao nao define horarios.
+    const horarios = resolverHorariosEnvio(
+      ctx.prescricao.horariosEnvio as string[] | null,
+      ctx.unidadeHorariosPadrao,
+    );
     if (horarios.length === 0) {
       pulados += 1;
       continue;
     }
+    const tolerancia = toleranciaOverride ?? ctx.unidadeToleranciaMinutos;
 
     const local = tentarPartsParaTimezone(now, ctx.unidadeTimezone);
     if (!local) {
@@ -393,7 +429,7 @@ export function iniciarWorkerLembretesPrescricao(intervalMs = 60 * 1000): void {
   if (workerStarted) return;
   workerStarted = true;
   console.log(
-    `[lembretePrescricao] Worker iniciado (intervalo ${intervalMs / 1000}s, tolerancia 5 min)`,
+    `[lembretePrescricao] Worker iniciado (intervalo ${intervalMs / 1000}s, tolerancia configurada por unidade — Task #12)`,
   );
   setInterval(async () => {
     try {

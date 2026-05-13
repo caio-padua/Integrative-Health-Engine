@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   partsParaTimezone,
   horarioDentroDaJanela,
+  resolverHorariosEnvio,
 } from "./prescricaoLembreteService.js";
 
 test("partsParaTimezone calcula HH:MM e data em America/Sao_Paulo", () => {
@@ -58,4 +59,25 @@ test("horarioDentroDaJanela retorna o primeiro horario que casa", () => {
   // ambos dentro da tolerancia -> retorna o primeiro
   const r = horarioDentroDaJanela(["07:00", "07:05"], 7 * 60 + 2, 5);
   assert.equal(r, "07:00");
+});
+
+// Task #12 — janelas padrao por unidade
+test("resolverHorariosEnvio usa horarios da prescricao quando definidos", () => {
+  const r = resolverHorariosEnvio(["08:30"], ["07:00", "13:00", "20:00"]);
+  assert.deepEqual(r, ["08:30"]);
+});
+
+test("resolverHorariosEnvio herda da unidade quando prescricao esta vazia", () => {
+  const r = resolverHorariosEnvio([], ["07:00", "13:00", "20:00"]);
+  assert.deepEqual(r, ["07:00", "13:00", "20:00"]);
+});
+
+test("resolverHorariosEnvio herda da unidade quando prescricao e null", () => {
+  const r = resolverHorariosEnvio(null, ["09:00"]);
+  assert.deepEqual(r, ["09:00"]);
+});
+
+test("resolverHorariosEnvio retorna array vazio se ambos vazios (paciente sem janela)", () => {
+  const r = resolverHorariosEnvio(null, []);
+  assert.deepEqual(r, []);
 });
