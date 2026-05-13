@@ -11,6 +11,7 @@ import { Led } from "@/components/pawards/Led";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { PAWARDS, fmtBRL, fmtInt } from "@/lib/pawards-tokens";
+import { clearPawardsToken } from "@/lib/api-fetch";
 
 const ADMIN_TOKEN_KEY = "padcon_admin_token";
 
@@ -81,16 +82,15 @@ export default function FarmaciasParmavault() {
   }, []);
 
   // O modal "x-admin-token" foi removido. A autenticacao agora vem 100% do JWT
-  // (cookie pawards.auth.token + Authorization header) que ja e injetado pelo
-  // useRealtimeDashboard. Mantemos apenas um banner discreto se vier 401, com
-  // link pro bridge de validacao.
+  // injetado automaticamente pelo apiFetch / useRealtimeDashboard. Mantemos
+  // apenas um banner discreto se vier 401, com link pro bridge de validacao.
   const needsAuth = errRanking?.includes("401");
 
   // Auto-logout por inatividade nas telas administrativas (limpa o JWT do master).
   const inactivityLogout = useCallback(() => {
+    clearPawardsToken();
     try {
       localStorage.removeItem(ADMIN_TOKEN_KEY);
-      localStorage.removeItem("pawards.auth.token");
       localStorage.removeItem("pawards.auth.user");
     } catch { /* ignore */ }
     if (typeof window !== "undefined") window.location.reload();

@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useLoginUsuario, type LoginResponse } from "@workspace/api-client-react";
 import { PAWARDS } from "@/lib/pawards-tokens";
+import { getPawardsToken, PAWARDS_TOKEN_KEY } from "@/lib/api-fetch";
 
-const TOKEN_KEY = "pawards.auth.token";
 const USER_KEY = "pawards.auth.user";
 const MASTER_PERFIS = new Set(["validador_mestre", "consultoria_master", "master", "admin"]);
 
@@ -19,7 +19,7 @@ export default function AdminLogin() {
   const loginMutation = useLoginUsuario();
 
   useEffect(() => {
-    const existing = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+    const existing = typeof window !== "undefined" ? getPawardsToken() : null;
     if (existing) {
       setLocation("/admin/dashboard-global");
     }
@@ -38,7 +38,7 @@ export default function AdminLogin() {
             return;
           }
           if (res.token) {
-            localStorage.setItem(TOKEN_KEY, res.token);
+            localStorage.setItem(PAWARDS_TOKEN_KEY, res.token);
             try {
               const usr = res.usuario;
               localStorage.setItem(

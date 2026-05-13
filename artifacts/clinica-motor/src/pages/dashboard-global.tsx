@@ -7,8 +7,8 @@ import { useLocation } from "wouter";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
+import { getPawardsToken, clearPawardsToken } from "@/lib/api-fetch";
 
-const TOKEN_KEY = "pawards.auth.token";
 const USER_KEY = "pawards.auth.user";
 
 // Tempo (em minutos) sem interação até deslogar automaticamente o painel global.
@@ -66,7 +66,7 @@ interface TrendPoint {
 
 export default function DashboardGlobal() {
   const [, setLocation] = useLocation();
-  const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
+  const hasToken = typeof window !== "undefined" && !!getPawardsToken();
 
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(() => {
     if (typeof window === "undefined") return null;
@@ -79,8 +79,8 @@ export default function DashboardGlobal() {
   });
 
   const handleLogout = () => {
+    clearPawardsToken();
     try {
-      localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     } catch { /* ignore */ }
     setSessionUser(null);
@@ -112,8 +112,8 @@ export default function DashboardGlobal() {
     let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
     const doLogout = () => {
+      clearPawardsToken();
       try {
-        localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
       } catch { /* ignore */ }
       setSessionUser(null);
@@ -201,8 +201,8 @@ export default function DashboardGlobal() {
 
   useEffect(() => {
     if (errKpi?.includes("401")) {
+      clearPawardsToken();
       try {
-        localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
       } catch { /* ignore */ }
       setLocation("/admin/login");
