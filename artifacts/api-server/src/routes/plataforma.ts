@@ -23,6 +23,7 @@ import {
   enviarWhatsappReativacao,
   coletarTelefonesResponsaveis,
 } from "../lib/whatsapp/clinicaSuspensaoWhatsapp";
+import { avisarPacientesSuspensao } from "../lib/notificacoes/avisarPacientesSuspensao";
 
 type AuthedRequest = Request & {
   user?: JwtPayload & { perfil?: string; perfilPlataforma?: string };
@@ -241,13 +242,19 @@ router.post(
 // (caso raro de race), apenas loga e segue — auditoria nunca bloqueia o
 // fluxo principal.
 type RegistroAviso = {
-  tipo: "SUSPENSAO" | "REATIVACAO" | "REENVIO_SUSPENSAO" | "REENVIO_REATIVACAO";
+  tipo:
+    | "SUSPENSAO"
+    | "REATIVACAO"
+    | "REENVIO_SUSPENSAO"
+    | "REENVIO_REATIVACAO"
+    | "SUSPENSAO_PACIENTES";
   destinatarios: string[];
   enviados: number;
   falhas: number;
   erro: string | null;
   em: string;
   executado_por_usuario_id: number;
+  detalhes?: Record<string, unknown>;
 };
 
 async function anexarAvisoEmAuditoria(
@@ -352,6 +359,10 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
   }
 
   const actor = getActor(req);
+  // Task #139 — captura se a chamada e uma transicao real ou um re-POST
+  // sobre clinica ja SUSPENSA. So a transicao real dispara aviso pra
+  // pacientes (re-POST nao deve spammear).
+  const transicaoEfetiva = unidade.status !== "SUSPENSO";
   // Transacao: UPDATE + auditoria juntos. Se a auditoria falhar a clinica
   // NAO pode ficar suspensa sem registro (compliance kill-switch).
   await db.transaction(async (tx) => {
@@ -367,10 +378,14 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
     await registrarAuditoria(tx, {
       acao: "SUSPENDER", unidadeId: id, executadoPorUsuarioId: actor.userId,
       motivo, ip: actor.ip, ua: actor.ua,
-      metadata: { status_anterior: unidade.status, nome: unidade.nome },
+      metadata: {
+        status_anterior: unidade.status,
+        nome: unidade.nome,
+        transicao_efetiva: transicaoEfetiva,
+      },
     });
   });
-  req.log?.info({ unidadeId: id, motivo }, "[plataforma] clinica suspensa");
+  req.log?.info({ unidadeId: id, motivo, transicaoEfetiva }, "[plataforma] clinica suspensa");
 
   // Aviso por email — fora da transacao (falha de email NAO desfaz suspensao,
   // ja que a auditoria ja foi gravada e o status no DB e a fonte da verdade).
@@ -421,7 +436,67 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
     req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar whatsapp de suspensao");
   }
 
-  res.json({ ok: true, email: emailRes, whatsapp: whatsappRes });
+  // Task #139 — aviso pra pacientes com consulta marcada nos proximos
+  // dias. SO dispara quando ha transicao real (clinica nao estava ja
+  // SUSPENSA), pra evitar spammear pacientes em re-POST do endpoint.
+  // Best-effort, fora da transacao. Resultado vai pra metadata.avisos[]
+  // da auditoria pra que o platform_owner consiga ver no painel.
+  let pacientesRes = {
+    pacientesAvisados: 0,
+    emailEnviados: 0,
+    emailFalhas: 0,
+    whatsappEnviados: 0,
+    whatsappFalhas: 0,
+    whatsappViaHsm: 0,
+    whatsappViaTextoLivre: 0,
+    pacientesSemContato: 0,
+    janelaDias: 0,
+  };
+  let pacientesErro: string | null = null;
+  if (transicaoEfetiva) {
+    try {
+      pacientesRes = await avisarPacientesSuspensao({
+        unidadeId: id,
+        unidade,
+        suspensoEm: new Date(),
+      });
+      req.log?.info({ unidadeId: id, ...pacientesRes }, "[plataforma] aviso pacientes suspensao enviado");
+    } catch (err) {
+      pacientesErro = err instanceof Error ? err.message : String(err);
+      req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao avisar pacientes da suspensao");
+    }
+    await anexarAvisoEmAuditoria(id, "SUSPENDER", {
+      tipo: "SUSPENSAO_PACIENTES",
+      destinatarios: [],
+      enviados: pacientesRes.emailEnviados + pacientesRes.whatsappEnviados,
+      falhas: pacientesRes.emailFalhas + pacientesRes.whatsappFalhas,
+      erro: pacientesErro,
+      em: new Date().toISOString(),
+      executado_por_usuario_id: actor.userId,
+      detalhes: { ...pacientesRes, transicao_efetiva: true },
+    });
+  } else {
+    req.log?.info(
+      { unidadeId: id },
+      "[plataforma] suspensao re-postada em clinica ja SUSPENSA — aviso pra pacientes pulado",
+    );
+    await anexarAvisoEmAuditoria(id, "SUSPENDER", {
+      tipo: "SUSPENSAO_PACIENTES",
+      destinatarios: [],
+      enviados: 0,
+      falhas: 0,
+      erro: null,
+      em: new Date().toISOString(),
+      executado_por_usuario_id: actor.userId,
+      detalhes: {
+        pulado: true,
+        motivo_pulo: "clinica_ja_estava_suspensa",
+        transicao_efetiva: false,
+      },
+    });
+  }
+
+  res.json({ ok: true, email: emailRes, whatsapp: whatsappRes, pacientes: pacientesRes });
 });
 
 // POST /api/plataforma/clinicas/:id/reativar { motivo }

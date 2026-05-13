@@ -1,0 +1,304 @@
+import { db, type Unidade } from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { getGmailClient } from "../google-gmail";
+import { enviarComTemplateHsm } from "../../services/whatsappService";
+import { logger } from "../logger";
+
+const FROM_LABEL = "PAWARDS - Plataforma";
+const FROM_ADDR =
+  process.env.PAWARDS_EMAIL_FROM || "clinica.padua.agenda@gmail.com";
+
+const CONTATO_RECURSO_PADRAO =
+  process.env.PAWARDS_CONTATO_RECURSO ||
+  "o CEO da PAWARDS (Dr. Caio) pelo canal oficial da consultoria";
+
+// Janela default: avisa pacientes com consulta nos proximos 14 dias.
+// Override via env (PAWARDS_AVISO_PACIENTES_DIAS). Pacientes com consulta
+// alem desse horizonte vao saber pelo proprio portal (Task #132 ja cobre)
+// — aqui o foco e o paciente que esperaria a consulta sem entender o
+// silencio da clinica.
+const JANELA_DIAS_DEFAULT = Number(process.env.PAWARDS_AVISO_PACIENTES_DIAS || "14");
+
+function sanitizeHeader(value: string): string {
+  return value.replace(/[\r\n]/g, "").trim();
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function dataPtBr(d: Date | null | undefined): string {
+  if (!d) return "data nao registrada";
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Sao_Paulo",
+    }).format(d);
+  } catch {
+    return d.toISOString();
+  }
+}
+
+function dataConsultaPtBr(dataIso: string, horaInicio: string): string {
+  // appointmentsTable.data e text "YYYY-MM-DD"; horaInicio e "HH:MM".
+  // Formata pra "DD/MM/YYYY as HH:MM" sem montar Date (evita TZ shift).
+  const m = dataIso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return `${dataIso} as ${horaInicio}`;
+  return `${m[3]}/${m[2]}/${m[1]} as ${horaInicio}`;
+}
+
+function telefoneValido(t: string | null | undefined): t is string {
+  if (!t) return false;
+  return t.replace(/\D/g, "").length >= 10;
+}
+
+function buildRaw(to: string, subject: string, html: string): string {
+  const messageParts = [
+    `From: ${FROM_LABEL} <${sanitizeHeader(FROM_ADDR)}>`,
+    `To: ${sanitizeHeader(to)}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from(html).toString("base64"),
+  ];
+  return Buffer.from(messageParts.join("\r\n")).toString("base64url");
+}
+
+function htmlPaciente(opts: {
+  pacienteNome: string;
+  unidadeNome: string;
+  consultaQuando: string;
+  suspensoEm: Date;
+  contatoRecurso: string;
+}): string {
+  const { pacienteNome, unidadeNome, consultaQuando, suspensoEm, contatoRecurso } = opts;
+  return `
+<!DOCTYPE html><html><body style="font-family: Georgia, serif; color:#1a1a2e; max-width:640px; margin:0 auto; padding:24px;">
+  <h2 style="color:#7d1d2e; border-bottom: 2px solid #7d1d2e; padding-bottom:8px;">Sua consulta precisara ser remarcada</h2>
+  <p>Ola, ${escapeHtml(pacienteNome)}.</p>
+  <p>A clinica <strong>${escapeHtml(unidadeNome)}</strong> esta temporariamente <strong>suspensa</strong> na plataforma PAWARDS desde <strong>${escapeHtml(dataPtBr(suspensoEm))}</strong>.</p>
+  <p style="background:#f5f1e8; padding:12px; border-left:4px solid #7d1d2e;"><strong>Sua consulta marcada para ${escapeHtml(consultaQuando)} nao podera acontecer</strong> enquanto a clinica estiver suspensa.</p>
+  <p>Assim que a clinica voltar a operar, a equipe entrara em contato pra remarcar seu atendimento na primeira data disponivel.</p>
+  <p><strong>Duvidas ou urgencia clinica?</strong> Fale com ${escapeHtml(contatoRecurso)}.</p>
+  <p style="font-size:12px; color:#666; margin-top:32px; border-top:1px solid #ddd; padding-top:8px;">Mensagem automatica do motor de governanca PAWARDS. Pedimos desculpas pelo transtorno.</p>
+</body></html>`;
+}
+
+function mensagemWhatsappPaciente(opts: {
+  pacienteNome: string;
+  unidadeNome: string;
+  consultaQuando: string;
+  contatoRecurso: string;
+}): string {
+  return [
+    `Ola, ${opts.pacienteNome}.`,
+    "",
+    `A clinica *${opts.unidadeNome}* esta temporariamente suspensa na plataforma PAWARDS.`,
+    "",
+    `Sua consulta marcada para *${opts.consultaQuando}* nao podera acontecer enquanto a clinica estiver suspensa.`,
+    "",
+    "Assim que a clinica voltar a operar, a equipe vai entrar em contato pra remarcar.",
+    "",
+    `Duvidas ou urgencia clinica: ${opts.contatoRecurso}.`,
+    "",
+    "Mensagem automatica PAWARDS.",
+  ].join("\n");
+}
+
+type ConsultaProxima = {
+  pacienteId: number;
+  pacienteNome: string;
+  email: string | null;
+  telefone: string | null;
+  whatsapp: string | null;
+  data: string;
+  horaInicio: string;
+};
+
+/**
+ * Busca pacientes com consulta agendada/confirmada nos proximos `dias`
+ * para a unidade. Considera apenas o PROXIMO atendimento de cada paciente
+ * (DISTINCT ON paciente_id) — se o paciente tem 3 consultas marcadas
+ * durante a janela, ele recebe UM aviso, citando a primeira.
+ */
+async function buscarPacientesComConsultaProxima(
+  unidadeId: number,
+  dias: number,
+): Promise<ConsultaProxima[]> {
+  const hojeMs = Date.now();
+  const hoje = new Date(hojeMs);
+  const ate = new Date(hojeMs + dias * 24 * 60 * 60 * 1000);
+  const isoHoje = hoje.toISOString().slice(0, 10);
+  const isoAte = ate.toISOString().slice(0, 10);
+
+  // Lemos via SQL bruto pra usar DISTINCT ON (proximo agendamento por
+  // paciente). Drizzle nao expressa DISTINCT ON nativamente.
+  const rows = await db.execute(sql`
+    SELECT DISTINCT ON (a.paciente_id)
+      a.paciente_id,
+      p.nome   AS paciente_nome,
+      p.email  AS email,
+      p.telefone AS telefone,
+      p.whatsapp AS whatsapp,
+      a.data,
+      a.hora_inicio
+    FROM appointments a
+    INNER JOIN pacientes p ON p.id = a.paciente_id
+    WHERE a.unidade_id = ${unidadeId}
+      AND a.status IN ('agendado', 'confirmado')
+      AND a.data >= ${isoHoje}
+      AND a.data <= ${isoAte}
+    ORDER BY a.paciente_id, a.data ASC, a.hora_inicio ASC
+  `);
+
+  return rows.rows.map((r: Record<string, unknown>) => ({
+    pacienteId: Number(r.paciente_id),
+    pacienteNome: String(r.paciente_nome ?? ""),
+    email: r.email ? String(r.email) : null,
+    telefone: r.telefone ? String(r.telefone) : null,
+    whatsapp: r.whatsapp ? String(r.whatsapp) : null,
+    data: String(r.data),
+    horaInicio: String(r.hora_inicio),
+  }));
+}
+
+export type ResultadoAvisoPacientes = {
+  pacientesAvisados: number;
+  emailEnviados: number;
+  emailFalhas: number;
+  whatsappEnviados: number;
+  whatsappFalhas: number;
+  whatsappViaHsm: number;
+  whatsappViaTextoLivre: number;
+  pacientesSemContato: number;
+  janelaDias: number;
+};
+
+/**
+ * Task #139 — Quando uma unidade entra em SUSPENSO, dispara aviso pra
+ * pacientes com consulta nos proximos N dias. Roda fora da transacao de
+ * suspensao (best-effort), igual ao aviso pra responsaveis.
+ *
+ * Nao re-aciona se a clinica ja estava SUSPENSA — isso e responsabilidade
+ * do caller (a rota so chama quando a transicao acontece).
+ */
+export async function avisarPacientesSuspensao(opts: {
+  unidadeId: number;
+  unidade: Unidade;
+  suspensoEm: Date;
+  janelaDias?: number;
+}): Promise<ResultadoAvisoPacientes> {
+  const dias = Math.max(1, Math.floor(opts.janelaDias ?? JANELA_DIAS_DEFAULT));
+  const consultas = await buscarPacientesComConsultaProxima(opts.unidadeId, dias);
+  const subject = `[PAWARDS] Sua consulta na ${opts.unidade.nome} precisara ser remarcada`;
+
+  const resultado: ResultadoAvisoPacientes = {
+    pacientesAvisados: 0,
+    emailEnviados: 0,
+    emailFalhas: 0,
+    whatsappEnviados: 0,
+    whatsappFalhas: 0,
+    whatsappViaHsm: 0,
+    whatsappViaTextoLivre: 0,
+    pacientesSemContato: 0,
+    janelaDias: dias,
+  };
+
+  if (consultas.length === 0) return resultado;
+
+  let gmail: Awaited<ReturnType<typeof getGmailClient>> | null = null;
+  try {
+    gmail = await getGmailClient();
+  } catch (err) {
+    logger.warn(
+      { err, unidadeId: opts.unidadeId },
+      "[avisarPacientesSuspensao] gmail client indisponivel — segue so com whatsapp",
+    );
+  }
+
+  for (const c of consultas) {
+    const consultaQuando = dataConsultaPtBr(c.data, c.horaInicio);
+    const tem_email = !!(c.email && c.email.includes("@"));
+    const telCanal = c.whatsapp || c.telefone;
+    const tem_whatsapp = telefoneValido(telCanal);
+
+    if (!tem_email && !tem_whatsapp) {
+      resultado.pacientesSemContato++;
+      continue;
+    }
+    resultado.pacientesAvisados++;
+
+    if (tem_email && gmail) {
+      try {
+        const html = htmlPaciente({
+          pacienteNome: c.pacienteNome,
+          unidadeNome: opts.unidade.nome,
+          consultaQuando,
+          suspensoEm: opts.suspensoEm,
+          contatoRecurso: CONTATO_RECURSO_PADRAO,
+        });
+        const raw = buildRaw(c.email!, subject, html);
+        await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+        resultado.emailEnviados++;
+      } catch (err) {
+        resultado.emailFalhas++;
+        logger.warn(
+          { err, pacienteId: c.pacienteId, unidadeId: opts.unidadeId },
+          "[avisarPacientesSuspensao] falha email",
+        );
+      }
+    }
+
+    if (tem_whatsapp) {
+      try {
+        const mensagem = mensagemWhatsappPaciente({
+          pacienteNome: c.pacienteNome,
+          unidadeNome: opts.unidade.nome,
+          consultaQuando,
+          contatoRecurso: CONTATO_RECURSO_PADRAO,
+        });
+        const variaveis: Record<string, string> = {
+          pacienteNome: c.pacienteNome,
+          unidadeNome: opts.unidade.nome,
+          consultaQuando,
+          contatoRecurso: CONTATO_RECURSO_PADRAO,
+        };
+        const r = await enviarComTemplateHsm(
+          telCanal!,
+          "CLINICA_SUSPENSA_PACIENTE",
+          variaveis,
+          { unidadeId: opts.unidadeId, mensagemFallback: mensagem },
+        );
+        if (r.sucesso) {
+          resultado.whatsappEnviados++;
+          if (r.viaHsm) resultado.whatsappViaHsm++;
+          if (r.usouFallback) resultado.whatsappViaTextoLivre++;
+        } else {
+          resultado.whatsappFalhas++;
+          logger.warn(
+            { erro: r.erro, pacienteId: c.pacienteId, unidadeId: opts.unidadeId },
+            "[avisarPacientesSuspensao] whatsapp retornou falha",
+          );
+        }
+      } catch (err) {
+        resultado.whatsappFalhas++;
+        logger.warn(
+          { err, pacienteId: c.pacienteId, unidadeId: opts.unidadeId },
+          "[avisarPacientesSuspensao] excecao whatsapp",
+        );
+      }
+    }
+  }
+
+  return resultado;
+}
