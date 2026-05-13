@@ -30,6 +30,22 @@ import { enviarWhatsapp } from "../../services/whatsappService";
  */
 const CEO_WHATSAPP = process.env["CEO_WHATSAPP"] || "";
 
+// Task #163 — seam de injecao pro gmail client. Em producao usa o factory
+// real (`getGmailClient`); em testes a suite substitui por um stub sem
+// rede via `_setGmailClientFactoryParaTestes`. Mesmo padrao do
+// `_setTotpRateLimitStoreParaTestes` (Task #144) — preferimos injecao
+// explicita no codigo do que mock de modulo (mais frageis entre versoes).
+type GmailLike = Awaited<ReturnType<typeof getGmailClient>>;
+let gmailClientFactory: () => Promise<GmailLike> = getGmailClient;
+export function _setGmailClientFactoryParaTestes(
+  f: () => Promise<GmailLike>,
+): void {
+  gmailClientFactory = f;
+}
+export function _resetGmailClientFactoryParaTestes(): void {
+  gmailClientFactory = getGmailClient;
+}
+
 const FROM_LABEL = "PAWARDS - Seguranca";
 const FROM_ADDR =
   process.env["PAWARDS_EMAIL_FROM"] || "clinica.padua.agenda@gmail.com";
@@ -291,7 +307,7 @@ export async function dispararAlertaBruteForceTotp(
       } else {
         let gmail;
         try {
-          gmail = await getGmailClient();
+          gmail = await gmailClientFactory();
         } catch (err) {
           logger.error({ err, alertaId }, "[alertaBruteForceTotp] gmail client indisponivel");
           await db.execute(sql`
