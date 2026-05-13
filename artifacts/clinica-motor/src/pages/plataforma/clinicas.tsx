@@ -1,11 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import {
   Building2, Power, PowerOff, RefreshCw, ShieldAlert,
-  Trash2, Undo2, Download, Clock,
+  Trash2, Undo2, Download, Clock, Mail, ChevronDown, ChevronRight, Send,
 } from "lucide-react";
+
+type RegistroAviso = {
+  tipo: "SUSPENSAO" | "REATIVACAO" | "REENVIO_SUSPENSAO" | "REENVIO_REATIVACAO";
+  destinatarios: string[];
+  enviados: number;
+  falhas: number;
+  erro: string | null;
+  em: string;
+  executado_por_usuario_id: number;
+};
+
+type EventoComAvisos = {
+  id: number;
+  acao: "SUSPENDER" | "REASSUMIR";
+  criado_em: string;
+  motivo: string | null;
+  executor_nome: string | null;
+  avisos: RegistroAviso[];
+};
 
 type Clinica = {
   id: number;
@@ -43,6 +62,11 @@ export default function PlataformaClinicas() {
   const [erro, setErro] = useState<string | null>(null);
   const [acaoId, setAcaoId] = useState<number | null>(null);
   const { runWithStepUp, modal: stepUpModal } = usePlatformStepUp();
+  const [expandidoId, setExpandidoId] = useState<number | null>(null);
+  const [avisosPorClinica, setAvisosPorClinica] = useState<
+    Record<number, EventoComAvisos[] | "loading" | "erro">
+  >({});
+  const [reenviandoEventoId, setReenviandoEventoId] = useState<number | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -158,6 +182,57 @@ export default function PlataformaClinicas() {
     await carregar();
   }
 
+  const carregarAvisos = useCallback(async (clinicaId: number) => {
+    setAvisosPorClinica(prev => ({ ...prev, [clinicaId]: "loading" }));
+    const r = await apiFetch(`/api/plataforma/clinicas/${clinicaId}/avisos`, {
+      credentials: "include",
+    });
+    if (!r.ok) {
+      setAvisosPorClinica(prev => ({ ...prev, [clinicaId]: "erro" }));
+      return;
+    }
+    const dados = (await r.json()) as EventoComAvisos[];
+    setAvisosPorClinica(prev => ({ ...prev, [clinicaId]: dados }));
+  }, []);
+
+  async function alternarExpansao(c: Clinica) {
+    if (expandidoId === c.id) {
+      setExpandidoId(null);
+      return;
+    }
+    setExpandidoId(c.id);
+    if (!avisosPorClinica[c.id] || avisosPorClinica[c.id] === "erro") {
+      await carregarAvisos(c.id);
+    }
+  }
+
+  async function reenviarAvisos(clinicaId: number, eventoId: number) {
+    if (!window.confirm(
+      "Reenviar emails de aviso pra todos os destinatarios deste evento?\n" +
+      "O resultado ficara registrado no historico (auditoria_kill_switch).",
+    )) return;
+    setReenviandoEventoId(eventoId);
+    const r = await apiFetch(
+      `/api/plataforma/auditoria/${eventoId}/reenviar-avisos`,
+      { method: "POST", credentials: "include" },
+    );
+    setReenviandoEventoId(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Erro: ${j.error ?? r.statusText}`);
+      return;
+    }
+    const j = await r.json();
+    alert(
+      `Reenvio concluido.\n\n` +
+      `Destinatarios: ${j.email?.destinatarios?.length ?? 0}\n` +
+      `Enviados: ${j.email?.enviados ?? 0}\n` +
+      `Falhas: ${j.email?.falhas ?? 0}` +
+      (j.erro ? `\n\nErro geral: ${j.erro}` : ""),
+    );
+    await carregarAvisos(clinicaId);
+  }
+
   async function exportarLgpd(c: Clinica) {
     const motivo = window.prompt(
       `EXPORTAR LGPD da clinica "${c.nome}".\n\n` +
@@ -230,16 +305,18 @@ export default function PlataformaClinicas() {
           <table className="w-full text-sm">
             <thead className="bg-zinc-800/50 text-zinc-300">
               <tr>
+                <th className="w-8 px-2 py-3"></th>
                 <th className="text-left px-4 py-3">Clinica</th>
                 <th className="text-left px-4 py-3">Status</th>
                 <th className="text-left px-4 py-3">Suspensao</th>
+                <th className="text-left px-4 py-3">Avisos</th>
                 <th className="text-center px-4 py-3">Acoes</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-500">Carregando...</td></tr>}
+              {loading && <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-500">Carregando...</td></tr>}
               {!loading && clinicas.length === 0 && !erro && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-500">Nenhuma clinica encontrada.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-500">Nenhuma clinica encontrada.</td></tr>
               )}
               {!loading && clinicas.map(c => {
                 const cor = STATUS_COR[c.status] ?? STATUS_COR.ATIVO;
@@ -249,8 +326,32 @@ export default function PlataformaClinicas() {
                 const podeAlterar = c.tipo !== "genesis_seed";
                 const dias = diasAteCarencia(c.exclusao_carencia_ate);
                 const desabilitado = acaoId === c.id;
+                const expandido = expandidoId === c.id;
+                const avisosState = avisosPorClinica[c.id];
+                const totalEnviados = Array.isArray(avisosState)
+                  ? avisosState.reduce(
+                      (acc, ev) => acc + ev.avisos.reduce((a, av) => a + av.enviados, 0),
+                      0,
+                    )
+                  : null;
+                const totalFalhas = Array.isArray(avisosState)
+                  ? avisosState.reduce(
+                      (acc, ev) => acc + ev.avisos.reduce((a, av) => a + av.falhas, 0),
+                      0,
+                    )
+                  : null;
                 return (
-                  <tr key={c.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                  <Fragment key={c.id}>
+                  <tr className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                    <td className="px-2 py-3 text-center align-top">
+                      <button
+                        onClick={() => void alternarExpansao(c)}
+                        className="text-zinc-500 hover:text-zinc-200"
+                        title="Ver historico de avisos enviados"
+                      >
+                        {expandido ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </button>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="font-semibold text-zinc-100">{c.nome}</div>
                       <div className="text-xs text-zinc-500">
@@ -287,6 +388,25 @@ export default function PlataformaClinicas() {
                           )}
                         </>
                       ) : <span className="text-zinc-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-zinc-400 align-top">
+                      {avisosState === "loading" && <span className="text-zinc-500">carregando...</span>}
+                      {avisosState === "erro" && <span className="text-red-400">falha</span>}
+                      {Array.isArray(avisosState) && avisosState.length === 0 && (
+                        <span className="text-zinc-600">—</span>
+                      )}
+                      {Array.isArray(avisosState) && avisosState.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Mail size={12} className="text-zinc-500" />
+                          <span className="text-emerald-300">{totalEnviados} enviados</span>
+                          {totalFalhas !== null && totalFalhas > 0 && (
+                            <span className="text-red-300">· {totalFalhas} falhas</span>
+                          )}
+                        </div>
+                      )}
+                      {!avisosState && (
+                        <span className="text-zinc-600 italic">expanda pra ver</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {!podeAlterar ? (
@@ -347,6 +467,102 @@ export default function PlataformaClinicas() {
                       )}
                     </td>
                   </tr>
+                  {expandido && (
+                    <tr className="border-t border-zinc-800 bg-zinc-950/40">
+                      <td colSpan={6} className="px-6 py-4">
+                        <div className="text-xs text-zinc-300">
+                          <div className="font-semibold text-amber-300 mb-2 flex items-center gap-2">
+                            <Mail size={14} /> Historico de avisos enviados (eventos SUSPENDER / REASSUMIR)
+                          </div>
+                          {avisosState === "loading" && <div className="text-zinc-500">Carregando...</div>}
+                          {avisosState === "erro" && (
+                            <div className="text-red-400">Falha ao carregar historico de avisos.</div>
+                          )}
+                          {Array.isArray(avisosState) && avisosState.length === 0 && (
+                            <div className="text-zinc-500 italic">
+                              Sem eventos de suspensao/reativacao registrados pra esta clinica.
+                            </div>
+                          )}
+                          {Array.isArray(avisosState) && avisosState.length > 0 && (
+                            <div className="space-y-3">
+                              {avisosState.map(ev => {
+                                const podeReenviar = ev.acao === "SUSPENDER" || ev.acao === "REASSUMIR";
+                                const corAcao = ev.acao === "SUSPENDER"
+                                  ? "bg-red-500/20 text-red-300 border-red-500/40"
+                                  : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40";
+                                return (
+                                  <div key={ev.id} className="border border-zinc-800 rounded p-3 bg-zinc-900/40">
+                                    <div className="flex items-center justify-between gap-3 mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${corAcao}`}>
+                                          {ev.acao}
+                                        </span>
+                                        <span className="text-zinc-400">
+                                          {new Date(ev.criado_em).toLocaleString("pt-BR")}
+                                        </span>
+                                        <span className="text-zinc-500">
+                                          por {ev.executor_nome ?? "—"}
+                                        </span>
+                                      </div>
+                                      {podeReenviar && (
+                                        <button
+                                          disabled={reenviandoEventoId === ev.id}
+                                          onClick={() => void reenviarAvisos(c.id, ev.id)}
+                                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
+                                          title="Reenviar emails de aviso pra todos os destinatarios"
+                                        >
+                                          <Send size={11} />
+                                          {reenviandoEventoId === ev.id ? "reenviando..." : "Reenviar avisos"}
+                                        </button>
+                                      )}
+                                    </div>
+                                    {ev.motivo && (
+                                      <div className="italic text-zinc-400 mb-2">"{ev.motivo}"</div>
+                                    )}
+                                    {ev.avisos.length === 0 ? (
+                                      <div className="text-zinc-600 italic">
+                                        Nenhum aviso registrado neste evento (anterior ao Task #134
+                                        ou envio nao executado).
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-1">
+                                        {ev.avisos.map((av, i) => (
+                                          <div key={i} className="border-l-2 border-zinc-700 pl-2 text-[11px]">
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                              <span className="text-zinc-300 font-mono">{av.tipo}</span>
+                                              <span className="text-zinc-500">
+                                                {new Date(av.em).toLocaleString("pt-BR")}
+                                              </span>
+                                              <span className="text-emerald-300">{av.enviados} enviados</span>
+                                              {av.falhas > 0 && (
+                                                <span className="text-red-300">{av.falhas} falhas</span>
+                                              )}
+                                              <span className="text-zinc-500">
+                                                · {av.destinatarios.length} destinatario(s)
+                                              </span>
+                                            </div>
+                                            {av.destinatarios.length > 0 && (
+                                              <div className="text-zinc-500 mt-0.5 break-all">
+                                                {av.destinatarios.join(", ")}
+                                              </div>
+                                            )}
+                                            {av.erro && (
+                                              <div className="text-red-400 mt-0.5">erro: {av.erro}</div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>

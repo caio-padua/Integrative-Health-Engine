@@ -9,6 +9,7 @@ import {
   enviarEmailReativacao,
 } from "../lib/email/clinicaSuspensao";
 import { z } from "zod";
+import { logger } from "../lib/logger.js";
 
 type AuthedRequest = Request & {
   user?: JwtPayload & { perfil?: string; perfilPlataforma?: string };
@@ -195,6 +196,62 @@ router.post(
   },
 );
 
+// Anexa um registro de tentativa de aviso ao metadata.avisos[] do EVENTO
+// MAIS RECENTE da acao indicada na unidade. Idempotente em estrutura: cada
+// chamada faz append ao array, nunca sobrescreve. Se nao achar o evento
+// (caso raro de race), apenas loga e segue — auditoria nunca bloqueia o
+// fluxo principal.
+type RegistroAviso = {
+  tipo: "SUSPENSAO" | "REATIVACAO" | "REENVIO_SUSPENSAO" | "REENVIO_REATIVACAO";
+  destinatarios: string[];
+  enviados: number;
+  falhas: number;
+  erro: string | null;
+  em: string;
+  executado_por_usuario_id: number;
+};
+
+async function anexarAvisoEmAuditoria(
+  unidadeId: number,
+  acao: AcaoKillSwitch,
+  aviso: RegistroAviso,
+  eventoIdEspecifico?: number,
+): Promise<void> {
+  try {
+    const avisoJson = JSON.stringify(aviso);
+    if (eventoIdEspecifico) {
+      await db.execute(sql`
+        UPDATE auditoria_kill_switch
+           SET metadata = jsonb_set(
+                 COALESCE(metadata, '{}'::jsonb),
+                 '{avisos}',
+                 COALESCE(metadata->'avisos', '[]'::jsonb) || ${avisoJson}::jsonb,
+                 true
+               )
+         WHERE id = ${eventoIdEspecifico}
+      `);
+      return;
+    }
+    await db.execute(sql`
+      UPDATE auditoria_kill_switch
+         SET metadata = jsonb_set(
+               COALESCE(metadata, '{}'::jsonb),
+               '{avisos}',
+               COALESCE(metadata->'avisos', '[]'::jsonb) || ${avisoJson}::jsonb,
+               true
+             )
+       WHERE id = (
+         SELECT id FROM auditoria_kill_switch
+          WHERE unidade_id = ${unidadeId} AND acao = ${acao}
+          ORDER BY criado_em DESC
+          LIMIT 1
+       )
+    `);
+  } catch (err) {
+    logger.warn({ err, unidadeId, acao }, "[plataforma] falha ao anexar aviso em auditoria");
+  }
+}
+
 // ───────────────────────────── CLINICAS ────────────────────────────────
 // GET /api/plataforma/clinicas — lista todas (status + suspensao)
 router.get("/plataforma/clinicas", ...guardas, async (_req, res): Promise<void> => {
@@ -247,7 +304,10 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
 
   // Aviso por email — fora da transacao (falha de email NAO desfaz suspensao,
   // ja que a auditoria ja foi gravada e o status no DB e a fonte da verdade).
+  // Persiste o resultado em metadata.avisos[] pra Task #134 (visibilidade
+  // pro CEO de quem foi avisado, quem falhou e quando).
   let emailRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+  let emailErro: string | null = null;
   try {
     emailRes = await enviarEmailSuspensao({
       unidadeId: id,
@@ -257,8 +317,18 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
     });
     req.log?.info({ unidadeId: id, ...emailRes }, "[plataforma] email suspensao enviado");
   } catch (err) {
+    emailErro = err instanceof Error ? err.message : String(err);
     req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar email de suspensao");
   }
+  await anexarAvisoEmAuditoria(id, "SUSPENDER", {
+    tipo: "SUSPENSAO",
+    destinatarios: emailRes.destinatarios,
+    enviados: emailRes.enviados,
+    falhas: emailRes.falhas,
+    erro: emailErro,
+    em: new Date().toISOString(),
+    executado_por_usuario_id: actor.userId,
+  });
 
   res.json({ ok: true, email: emailRes });
 });
@@ -293,6 +363,7 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
   req.log?.info({ unidadeId: id, motivo }, "[plataforma] clinica reativada");
 
   let emailRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+  let emailErro: string | null = null;
   try {
     emailRes = await enviarEmailReativacao({
       unidadeId: id,
@@ -302,8 +373,18 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
     });
     req.log?.info({ unidadeId: id, ...emailRes }, "[plataforma] email reativacao enviado");
   } catch (err) {
+    emailErro = err instanceof Error ? err.message : String(err);
     req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar email de reativacao");
   }
+  await anexarAvisoEmAuditoria(id, "REASSUMIR", {
+    tipo: "REATIVACAO",
+    destinatarios: emailRes.destinatarios,
+    enviados: emailRes.enviados,
+    falhas: emailRes.falhas,
+    erro: emailErro,
+    em: new Date().toISOString(),
+    executado_por_usuario_id: actor.userId,
+  });
 
   res.json({ ok: true, email: emailRes });
 });
@@ -600,6 +681,111 @@ router.post("/plataforma/admins/:userId/promover", ...guardas, (req, res) =>
 );
 router.post("/plataforma/admins/:userId/rebaixar", ...guardas, (req, res) =>
   alterarPerfilPlataforma(req, res, "tenant_user", "REBAIXAR_ADMIN"),
+);
+
+// ────────────────────────── AVISOS DE SUSPENSAO ────────────────────────
+// GET /api/plataforma/clinicas/:id/avisos — historico de envios de email
+// (Task #134) pra cada evento SUSPENDER/REASSUMIR de uma clinica.
+router.get(
+  "/plataforma/clinicas/:id/avisos",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "id invalido" }); return;
+    }
+    const result = await db.execute(sql`
+      SELECT
+        a.id, a.acao, a.criado_em, a.motivo,
+        ex.nome AS executor_nome,
+        COALESCE(a.metadata->'avisos', '[]'::jsonb) AS avisos
+      FROM auditoria_kill_switch a
+      LEFT JOIN usuarios ex ON ex.id = a.executado_por_usuario_id
+      WHERE a.unidade_id = ${id}
+        AND a.acao IN ('SUSPENDER', 'REASSUMIR')
+      ORDER BY a.criado_em DESC
+      LIMIT 100
+    `);
+    res.json(result.rows);
+  },
+);
+
+// POST /api/plataforma/auditoria/:eventoId/reenviar-avisos
+// Reenvia o email da suspensao/reativacao referenciada pelo evento de
+// auditoria. Append em metadata.avisos[] do MESMO evento (rastreabilidade).
+router.post(
+  "/plataforma/auditoria/:eventoId/reenviar-avisos",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const eventoId = Number(req.params.eventoId);
+    if (!Number.isInteger(eventoId) || eventoId <= 0) {
+      res.status(400).json({ error: "eventoId invalido" }); return;
+    }
+    const evRes = await db.execute(sql`
+      SELECT id, acao, unidade_id, motivo, criado_em
+        FROM auditoria_kill_switch
+       WHERE id = ${eventoId}
+       LIMIT 1
+    `);
+    const evento = evRes.rows[0] as
+      | { id: number; acao: string; unidade_id: number; motivo: string | null; criado_em: string }
+      | undefined;
+    if (!evento) { res.status(404).json({ error: "Evento nao encontrado" }); return; }
+    if (evento.acao !== "SUSPENDER" && evento.acao !== "REASSUMIR") {
+      res.status(400).json({
+        error: "Reenvio so suportado pra eventos SUSPENDER/REASSUMIR",
+        acao_evento: evento.acao,
+      });
+      return;
+    }
+    const [unidade] = await db.select().from(unidadesTable)
+      .where(eq(unidadesTable.id, evento.unidade_id));
+    if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+
+    const actor = getActor(req);
+    const motivoOriginal = evento.motivo ?? "(motivo nao registrado)";
+    let emailRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+    let emailErro: string | null = null;
+    try {
+      if (evento.acao === "SUSPENDER") {
+        emailRes = await enviarEmailSuspensao({
+          unidadeId: evento.unidade_id,
+          unidade,
+          motivo: motivoOriginal,
+          suspensoEm: new Date(evento.criado_em),
+        });
+      } else {
+        emailRes = await enviarEmailReativacao({
+          unidadeId: evento.unidade_id,
+          unidade,
+          motivo: motivoOriginal,
+          reativadoEm: new Date(evento.criado_em),
+        });
+      }
+      req.log?.info(
+        { eventoId, ...emailRes },
+        "[plataforma] reenvio de aviso executado",
+      );
+    } catch (err) {
+      emailErro = err instanceof Error ? err.message : String(err);
+      req.log?.warn({ err, eventoId }, "[plataforma] falha no reenvio de aviso");
+    }
+    await anexarAvisoEmAuditoria(
+      evento.unidade_id,
+      evento.acao as AcaoKillSwitch,
+      {
+        tipo: evento.acao === "SUSPENDER" ? "REENVIO_SUSPENSAO" : "REENVIO_REATIVACAO",
+        destinatarios: emailRes.destinatarios,
+        enviados: emailRes.enviados,
+        falhas: emailRes.falhas,
+        erro: emailErro,
+        em: new Date().toISOString(),
+        executado_por_usuario_id: actor.userId,
+      },
+      eventoId,
+    );
+    res.json({ ok: true, email: emailRes, erro: emailErro });
+  },
 );
 
 // ──────────────────────────── AUDITORIA ────────────────────────────────
