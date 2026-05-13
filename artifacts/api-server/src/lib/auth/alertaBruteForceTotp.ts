@@ -13,6 +13,22 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { getGmailClient } from "../google-gmail";
 import { logger } from "../logger";
+import { enviarWhatsapp } from "../../services/whatsappService";
+
+/**
+ * Task #162 — Canal WhatsApp espelhando o canal email.
+ *
+ * Por que env var: o cadastro estruturado de telefone do platform_owner
+ * (Task "Cadastrar WhatsApp do CEO pra receber alertas no celular") ainda
+ * nao existe. Ate la, mantemos a mesma convencao dos outros workers de
+ * alerta (alertaKillSwitchEmailsCEO Task #141, alertaAssinaturasCEO Wave
+ * 10.6) que ja leem CEO_WHATSAPP. Isso evita criar duas fontes-de-verdade
+ * pra "telefone do CEO" antes da migracao definitiva.
+ *
+ * Defensivo total: falha no WhatsApp NUNCA derruba email nem o fluxo de
+ * auth — try/catch interno + try/catch externo do dispararAlertaBruteForceTotp.
+ */
+const CEO_WHATSAPP = process.env["CEO_WHATSAPP"] || "";
 
 const FROM_LABEL = "PAWARDS - Seguranca";
 const FROM_ADDR =
@@ -131,10 +147,14 @@ export async function dispararAlertaBruteForceTotp(
     // 2) Resolve destinatarios: platform_owner ATIVO (1 unico por UNIQUE).
     //    Fallback compat: validador_mestre ATIVO (mesma policy do alerta de
     //    upload PDF esgotado em pdfRetryUpload.ts).
-    const ownerRows = await db.execute<{ email: string | null }>(sql`
-      SELECT email FROM usuarios
+    //    Task #162: na MESMA query ja trazemos `telefone` pra resolver os
+    //    destinatarios do canal WhatsApp em paralelo (sem 2a viagem ao DB).
+    const ownerRows = await db.execute<{
+      email: string | null;
+      telefone: string | null;
+    }>(sql`
+      SELECT email, telefone FROM usuarios
       WHERE ativo = true
-        AND email IS NOT NULL
         AND (perfil_plataforma = 'platform_owner' OR perfil = 'validador_mestre')
     `);
     const destinatarios = Array.from(
@@ -144,6 +164,21 @@ export async function dispararAlertaBruteForceTotp(
           .filter((e) => e.includes("@")),
       ),
     );
+    // Task #162 — telefones cadastrados do platform_owner. Normaliza removendo
+    // tudo que nao e digito; descarta vazios e duplicatas. CEO_WHATSAPP entra
+    // como fallback explicito quando nenhum owner tem telefone cadastrado
+    // (transicao ate a Task de cadastro estruturado completar).
+    const destinatariosWpp = Array.from(
+      new Set(
+        (ownerRows.rows ?? [])
+          .map((r) => (r.telefone ?? "").replace(/\D/g, ""))
+          .filter((t) => t.length >= 10),
+      ),
+    );
+    if (destinatariosWpp.length === 0 && CEO_WHATSAPP) {
+      const fallback = CEO_WHATSAPP.replace(/\D/g, "");
+      if (fallback.length >= 10) destinatariosWpp.push(fallback);
+    }
 
     // 3) Tenta inserir o alerta. ON CONFLICT DO NOTHING garante no-spam.
     //    `RETURNING id` so devolve linha quando a INSERT efetivamente entrou
@@ -166,65 +201,146 @@ export async function dispararAlertaBruteForceTotp(
     `);
     const alertaId = (insertRes.rows ?? [])[0]?.id;
     if (!alertaId) {
-      // Ja existia alerta pra esta janela — no-op (sem re-enviar email).
-      return;
-    }
-
-    // 4) Envia email pros destinatarios (sequencial, defensivo).
-    if (destinatarios.length === 0) {
-      logger.warn(
-        { alertaId, usuarioId: args.usuarioId },
-        "[alertaBruteForceTotp] sem destinatarios platform_owner/validador_mestre ativos",
-      );
-      return;
-    }
-
-    let gmail;
-    try {
-      gmail = await getGmailClient();
-    } catch (err) {
-      logger.error({ err, alertaId }, "[alertaBruteForceTotp] gmail client indisponivel");
-      await db.execute(sql`
-        UPDATE alertas_ceo_seguranca
-           SET notif_email_falhas = ${destinatarios.length}
-         WHERE id = ${alertaId}
-      `);
+      // Ja existia alerta pra esta janela — no-op (sem re-enviar email NEM wpp).
+      // A UNIQUE(tipo, usuario_id, janela_inicio_em) garante "1 envio por
+      // janela" em AMBOS os canais sem precisar checagem extra.
       return;
     }
 
     const linkAdmin = `${publicAppUrl()}/plataforma/admins?usuario_id=${args.usuarioId}`;
-    const subject = `[PAWARDS][SEGURANCA] Brute-force 2FA bloqueado · ${usuarioNome} (#${args.usuarioId})`;
-    const html = htmlAlerta({
-      usuarioNome,
-      usuarioEmail,
-      usuarioId: args.usuarioId,
-      ip: args.ip,
-      userAgent: args.userAgent,
-      contexto: args.contexto,
-      janelaInicioEm: args.janelaInicioEm,
-      tentativas: args.tentativas,
-      linkAdmin,
-    });
+    const ctxLabel =
+      args.contexto === "STEP_UP_PAINEL"
+        ? "Step-up 2FA do painel"
+        : "Login 2FA";
 
-    let enviados = 0;
-    let falhas = 0;
-    for (const to of destinatarios) {
+    // 4) Task #162 — Canal WhatsApp PRIMEIRO (e independente do email).
+    //    Por que primeiro: e o canal "real-time pro celular" — em ataques
+    //    fora de horario comercial, 1 push de WhatsApp chega em segundos.
+    //    Por que independente do email: se o Gmail estiver indisponivel ou
+    //    nao houver platform_owner com email cadastrado, o WhatsApp ainda
+    //    deve sair. Isolado em try/catch proprio — qualquer excecao aqui
+    //    NUNCA bloqueia o canal email nem o fluxo de auth.
+    {
+      let wppEnviados = 0;
+      let wppFalhas = 0;
+      if (destinatariosWpp.length === 0) {
+        logger.warn(
+          { alertaId, usuarioId: args.usuarioId },
+          "[alertaBruteForceTotp] sem telefones platform_owner/validador_mestre ativos (canal wpp pulado)",
+        );
+      } else {
+        const linhas = [
+          "[PAWARDS][SEGURANCA] Brute-force 2FA bloqueado",
+          "",
+          `Usuario: ${usuarioNome} (#${args.usuarioId})`,
+          `Email: ${usuarioEmail}`,
+          `Contexto: ${ctxLabel}`,
+          `Tentativas: ${args.tentativas}`,
+          `Janela: ${dataPtBr(args.janelaInicioEm)}`,
+          `IP: ${args.ip || "(nao registrado)"}`,
+          "",
+          `Painel: ${linkAdmin}`,
+        ];
+        const mensagem = linhas.join("\n");
+        for (const tel of destinatariosWpp) {
+          try {
+            const r = await enviarWhatsapp(tel, mensagem);
+            if (r.sucesso) {
+              wppEnviados++;
+            } else {
+              wppFalhas++;
+              logger.warn(
+                { alertaId, tel, erro: r.erro },
+                "[alertaBruteForceTotp] whatsapp falhou (provedor)",
+              );
+            }
+          } catch (err) {
+            wppFalhas++;
+            logger.warn(
+              { err, alertaId, tel },
+              "[alertaBruteForceTotp] whatsapp lancou excecao (silenciada)",
+            );
+          }
+        }
+      }
+
       try {
-        const raw = buildRaw(to, subject, html);
-        await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
-        enviados++;
+        await db.execute(sql`
+          UPDATE alertas_ceo_seguranca
+             SET notif_wpp_enviados = ${wppEnviados},
+                 notif_wpp_falhas   = ${wppFalhas}
+           WHERE id = ${alertaId}
+        `);
       } catch (err) {
-        falhas++;
-        logger.warn({ err, to, alertaId }, "[alertaBruteForceTotp] falha ao enviar email");
+        logger.warn(
+          { err, alertaId },
+          "[alertaBruteForceTotp] falha ao gravar contadores wpp (silenciada)",
+        );
       }
     }
 
-    await db.execute(sql`
-      UPDATE alertas_ceo_seguranca
-         SET notif_email_enviados = ${enviados},
-             notif_email_falhas = ${falhas}
-       WHERE id = ${alertaId}
-    `);
+    // 5) Envia email pros destinatarios (sequencial, defensivo).
+    //    Isolado em try/catch proprio — falha aqui NAO derruba o fluxo de
+    //    auth nem reverte o canal WhatsApp ja enviado acima.
+    try {
+      if (destinatarios.length === 0) {
+        logger.warn(
+          { alertaId, usuarioId: args.usuarioId },
+          "[alertaBruteForceTotp] sem destinatarios email platform_owner/validador_mestre ativos",
+        );
+      } else {
+        let gmail;
+        try {
+          gmail = await getGmailClient();
+        } catch (err) {
+          logger.error({ err, alertaId }, "[alertaBruteForceTotp] gmail client indisponivel");
+          await db.execute(sql`
+            UPDATE alertas_ceo_seguranca
+               SET notif_email_falhas = ${destinatarios.length}
+             WHERE id = ${alertaId}
+          `);
+          return;
+        }
+
+        const subject = `[PAWARDS][SEGURANCA] Brute-force 2FA bloqueado · ${usuarioNome} (#${args.usuarioId})`;
+        const html = htmlAlerta({
+          usuarioNome,
+          usuarioEmail,
+          usuarioId: args.usuarioId,
+          ip: args.ip,
+          userAgent: args.userAgent,
+          contexto: args.contexto,
+          janelaInicioEm: args.janelaInicioEm,
+          tentativas: args.tentativas,
+          linkAdmin,
+        });
+
+        let enviados = 0;
+        let falhas = 0;
+        for (const to of destinatarios) {
+          try {
+            const raw = buildRaw(to, subject, html);
+            await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+            enviados++;
+          } catch (err) {
+            falhas++;
+            logger.warn({ err, to, alertaId }, "[alertaBruteForceTotp] falha ao enviar email");
+          }
+        }
+
+        await db.execute(sql`
+          UPDATE alertas_ceo_seguranca
+             SET notif_email_enviados = ${enviados},
+                 notif_email_falhas = ${falhas}
+           WHERE id = ${alertaId}
+        `);
+      }
+    } catch (err) {
+      logger.warn(
+        { err, alertaId },
+        "[alertaBruteForceTotp] canal email lancou excecao (silenciada — wpp ja saiu)",
+      );
+    }
   } catch (err) {
     // Defensivo total: nunca derruba o fluxo de auth por causa do alerta.
     logger.error({ err, args }, "[alertaBruteForceTotp] falha inesperada (silenciada)");

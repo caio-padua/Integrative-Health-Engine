@@ -47,6 +47,28 @@ CREATE INDEX IF NOT EXISTS ix_alertas_ceo_seguranca_nao_vistos
   ON alertas_ceo_seguranca (criado_em DESC)
   WHERE visualizado_em IS NULL;
 
+-- ----------------------------------------------------------------------------
+-- Task #162 — Canal WhatsApp pro alerta de brute-force 2FA.
+-- Adicionado aditivamente: colunas pra contabilizar envios/falhas no canal
+-- WhatsApp (Gupshup/Twilio via services/whatsappService.ts), espelhando o
+-- modelo das colunas notif_email_*. Defaults 0 garantem compat com linhas
+-- existentes (Wave 13). UPDATE acontece sempre que houver pelo menos 1
+-- destinatario WhatsApp resolvido (telefone cadastrado em usuarios OU
+-- fallback CEO_WHATSAPP); contadores ficam em zero quando nao ha destinatario.
+-- ----------------------------------------------------------------------------
+ALTER TABLE alertas_ceo_seguranca
+  ADD COLUMN IF NOT EXISTS notif_wpp_enviados integer NOT NULL DEFAULT 0;
+ALTER TABLE alertas_ceo_seguranca
+  ADD COLUMN IF NOT EXISTS notif_wpp_falhas   integer NOT NULL DEFAULT 0;
+
+COMMENT ON COLUMN alertas_ceo_seguranca.notif_wpp_enviados IS
+  'Task #162 - Quantidade de mensagens WhatsApp entregues com sucesso pro '
+  'platform_owner (CEO_WHATSAPP). 0 quando o canal esta desligado.';
+COMMENT ON COLUMN alertas_ceo_seguranca.notif_wpp_falhas IS
+  'Task #162 - Quantidade de mensagens WhatsApp que falharam (provedor '
+  'rejeitou ou excecao). Falha no WPP NUNCA bloqueia email nem o fluxo '
+  'de auth — defensivo total como o resto do helper.';
+
 COMMENT ON TABLE alertas_ceo_seguranca IS
   'Task #143 - Fila de alertas de seguranca pro platform_owner. Alimentada pelo '
   'helper dispararAlertaBruteForceTotp quando estaBloqueadoTotp transita pra true.';
