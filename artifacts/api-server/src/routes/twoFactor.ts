@@ -31,6 +31,11 @@ import {
   verificarCodigoTotp,
 } from "../lib/auth/totp";
 import { requirePlataforma } from "../middlewares/requirePlataforma";
+import {
+  estaBloqueadoTotp,
+  registrarTentativaErradaTotp,
+  resetTentativasTotp,
+} from "../lib/auth/rateLimitTotp";
 
 const router = Router();
 
@@ -189,33 +194,6 @@ router.post(
  * Segunda etapa do login: troca o challenge curto (5min) + codigo TOTP
  * pelo JWT de sessao real. Sem 2FA valido, nao ha JWT.
  */
-/**
- * Rate-limit in-memory por usuario: max 5 tentativas erradas em 5min.
- * Mata brute force na 2a etapa. Se rodarmos multi-instancia no futuro,
- * trocar pra Redis (TODO Wave 13 F4).
- */
-const TENTATIVAS_MAX = 5;
-const JANELA_MS = 5 * 60 * 1000;
-const tentativas2fa = new Map<number, { count: number; reseteEm: number }>();
-function registrarTentativaErrada(usuarioId: number): void {
-  const agora = Date.now();
-  const atual = tentativas2fa.get(usuarioId);
-  if (!atual || atual.reseteEm < agora) {
-    tentativas2fa.set(usuarioId, { count: 1, reseteEm: agora + JANELA_MS });
-    return;
-  }
-  atual.count += 1;
-}
-function estaBloqueado(usuarioId: number): boolean {
-  const atual = tentativas2fa.get(usuarioId);
-  if (!atual) return false;
-  if (atual.reseteEm < Date.now()) {
-    tentativas2fa.delete(usuarioId);
-    return false;
-  }
-  return atual.count >= TENTATIVAS_MAX;
-}
-
 router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => {
   const parsed = VerificarLoginBody.safeParse(req.body);
   if (!parsed.success) {
@@ -233,7 +211,7 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     res.status(401).json({ error: "Challenge nao e de 2FA." });
     return;
   }
-  if (estaBloqueado(payload.sub)) {
+  if (estaBloqueadoTotp(payload.sub)) {
     res.status(429).json({
       error:
         "Muitas tentativas erradas. Aguarde 5 minutos e tente novamente.",
@@ -251,11 +229,11 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     return;
   }
   if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
-    registrarTentativaErrada(usuario.id);
+    registrarTentativaErradaTotp(usuario.id);
     res.status(401).json({ error: "Codigo invalido." });
     return;
   }
-  tentativas2fa.delete(usuario.id);
+  resetTentativasTotp(usuario.id);
 
   // Task #126 — bloqueia entrada se a clinica do usuario estiver SUSPENSA.
   // Mesmo apos validar 2FA o login nao prossegue. platform_owner passa.

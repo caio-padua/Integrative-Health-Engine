@@ -3,6 +3,11 @@ import { db, usuariosTable, unidadesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requirePlataforma } from "../middlewares/requirePlataforma";
 import { verificarCodigoTotp } from "../lib/auth/totp";
+import {
+  estaBloqueadoTotp,
+  registrarTentativaErradaTotp,
+  resetTentativasTotp,
+} from "../lib/auth/rateLimitTotp";
 import type { JwtPayload } from "../lib/auth/jwt";
 import {
   enviarEmailSuspensao,
@@ -182,10 +187,23 @@ router.post(
       });
       return;
     }
+    // Task #131 — rate-limit por usuario (5 tentativas erradas / 5min).
+    // Helper compartilhado com login 2FA. Devolve 429 antes de gastar
+    // CPU validando o codigo TOTP.
+    if (estaBloqueadoTotp(userId)) {
+      req.log?.warn({ userId }, "[plataforma] 2fa step-up bloqueado por excesso de tentativas");
+      res.status(429).json({
+        error: "Muitas tentativas erradas. Aguarde 5 minutos e tente novamente.",
+        codigo: "TOTP_RATE_LIMITED",
+      });
+      return;
+    }
     if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
+      registrarTentativaErradaTotp(userId);
       res.status(401).json({ error: "Codigo invalido.", codigo: "TOTP_INVALIDO" });
       return;
     }
+    resetTentativasTotp(userId);
     const agora = new Date();
     await db
       .update(usuariosTable)
