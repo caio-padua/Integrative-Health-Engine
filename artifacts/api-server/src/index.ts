@@ -13,6 +13,7 @@ import { iniciarWorkerAlertaKillSwitchEmailsCEO } from "./lib/recorrencia/alerta
 import { iniciarWorkerRelatorioDiarioCEO } from "./lib/recorrencia/relatorioDiarioCEO";
 import { iniciarWorkerCarenciaLgpd2fa } from "./lib/recorrencia/carenciaLgpd2fa";
 import { iniciarWorkerExclusaoCarencia } from "./lib/recorrencia/exclusaoCarenciaExecutor";
+import { iniciarWorkerLimpezaTotpRateLimit } from "./lib/recorrencia/limpezaTotpRateLimit";
 
 const rawPort = process.env["PORT"];
 
@@ -48,4 +49,5 @@ app.listen(port, (err) => {
   iniciarWorkerRelatorioDiarioCEO();
   iniciarWorkerCarenciaLgpd2fa();
   iniciarWorkerExclusaoCarencia();
+  iniciarWorkerLimpezaTotpRateLimit();
 });
