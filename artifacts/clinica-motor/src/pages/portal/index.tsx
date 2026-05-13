@@ -60,6 +60,18 @@ type Section = "menu" | "sinais" | "sintomas" | "formulas" | "alertas" | "upload
 // Wave 4 PACIENTE-TSUNAMI · WhatsApp Dr. Caio (configurável via env futura)
 const WHATSAPP_DR_CAIO = "554196050000";
 
+// Task #132 — payload retornado pelas rotas do portal quando a clinica
+// do paciente esta SUSPENSA. Mesmo formato do bloqueioLoginSuspenso usado
+// pelos funcionarios na Task #126.
+type ClinicaSuspensaPayload = {
+  codigo: "CLINICA_SUSPENSA";
+  error: string;
+  unidadeNome: string;
+  motivo: string;
+  suspensoEm: string | null;
+  contatoRecurso: string;
+};
+
 export default function PortalClientePage() {
   const [step, setStep] = useState<"identificacao" | "senha" | "definir_senha" | "portal" | "otp_codigo">("identificacao");
   const [section, setSection] = useState<Section>("menu");
@@ -75,7 +87,27 @@ export default function PortalClientePage() {
   const [otpDestinoMascarado, setOtpDestinoMascarado] = useState("");
   const [otpPacienteId, setOtpPacienteId] = useState<number | null>(null);
   const [otpEnviando, setOtpEnviando] = useState(false);
+  // Task #132 — banner persistente de clinica suspensa.
+  const [clinicaSuspensa, setClinicaSuspensa] = useState<ClinicaSuspensaPayload | null>(null);
   const { toast } = useToast();
+
+  // Trata respostas das rotas de identificacao/login/OTP. Retorna true se
+  // a clinica esta suspensa (e ja tratou exibindo o banner amigavel) —
+  // o caller deve abortar o fluxo.
+  const tratarRespostaSuspensa = (data: unknown): data is ClinicaSuspensaPayload => {
+    if (data && typeof data === "object" && (data as { codigo?: string }).codigo === "CLINICA_SUSPENSA") {
+      const payload = data as ClinicaSuspensaPayload;
+      setClinicaSuspensa(payload);
+      // limpa qualquer sessao em andamento — o paciente nao pode acessar
+      setPaciente(null);
+      setStep("identificacao");
+      setSenha("");
+      setOtpCodigo("");
+      setOtpPacienteId(null);
+      return true;
+    }
+    return false;
+  };
 
   const formatCPF = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -98,10 +130,12 @@ export default function PortalClientePage() {
       });
       if (!res.ok) {
         const err = await res.json();
+        if (tratarRespostaSuspensa(err)) return;
         toast({ title: err.error || "Erro ao identificar", variant: "destructive" });
         return;
       }
       const data = await res.json();
+      setClinicaSuspensa(null);
       if (data.temSenha) {
         setStep("senha");
       } else {
@@ -126,10 +160,12 @@ export default function PortalClientePage() {
       });
       if (!res.ok) {
         const err = await res.json();
+        if (tratarRespostaSuspensa(err)) return;
         toast({ title: err.error || "Senha incorreta", variant: "destructive" });
         return;
       }
       const data = await res.json();
+      setClinicaSuspensa(null);
       setPaciente({ id: data.id, nome: data.nome });
       setStep("portal");
       setSection("menu");
@@ -155,9 +191,11 @@ export default function PortalClientePage() {
       });
       if (!res.ok) {
         const err = await res.json();
+        if (tratarRespostaSuspensa(err)) return;
         toast({ title: err.error || "Erro ao definir senha", variant: "destructive" });
         return;
       }
+      setClinicaSuspensa(null);
       toast({ title: "Senha definida com sucesso!" });
       setStep("portal");
       setSection("menu");
@@ -181,10 +219,12 @@ export default function PortalClientePage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        if (tratarRespostaSuspensa(data)) { setOtpEnviando(false); return; }
         toast({ title: data.error || "Erro ao solicitar codigo", variant: "destructive" });
         setOtpEnviando(false);
         return;
       }
+      setClinicaSuspensa(null);
       setOtpPacienteId(data.paciente_id);
       setOtpDestinoMascarado(data.destino_mascarado || "");
       setPaciente({ id: data.paciente_id, nome: data.nome });
@@ -215,9 +255,11 @@ export default function PortalClientePage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        if (tratarRespostaSuspensa(data)) return;
         toast({ title: data.error || "Codigo invalido", variant: "destructive" });
         return;
       }
+      setClinicaSuspensa(null);
       setPaciente({ id: data.id, nome: data.nome });
       setStep("portal");
       setSection("menu");
@@ -238,6 +280,36 @@ export default function PortalClientePage() {
           <h1 className="text-lg font-bold text-white tracking-tight uppercase">Portal do Cliente</h1>
           <p className="text-xs text-muted-foreground mt-1">Pawards — Acompanhamento Clinico</p>
         </div>
+
+        {clinicaSuspensa && (
+          <Card className="mb-4 border-2" style={{ borderColor: "#7d1d2e", background: "rgba(125,29,46,0.08)" }}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2" style={{ color: "#e8c547" }}>
+                <AlertTriangle className="h-4 w-4" />
+                Clinica temporariamente indisponivel
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-white/90">
+              <p>
+                A clinica <strong>{clinicaSuspensa.unidadeNome}</strong> esta com o acesso ao portal
+                temporariamente suspenso. Por enquanto nao e possivel reagendar consultas, baixar
+                PDFs ou registrar evolucao.
+              </p>
+              {clinicaSuspensa.motivo && clinicaSuspensa.motivo !== "(motivo nao registrado)" && (
+                <p className="text-white/70"><strong>Motivo registrado:</strong> {clinicaSuspensa.motivo}</p>
+              )}
+              <p>
+                <strong>Para esclarecimentos ou suporte:</strong> fale com {clinicaSuspensa.contatoRecurso}.
+              </p>
+              <Button
+                variant="ghost" size="sm" className="text-muted-foreground mt-2"
+                onClick={() => setClinicaSuspensa(null)}
+              >
+                Fechar aviso
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {step === "identificacao" && (
           <Card>

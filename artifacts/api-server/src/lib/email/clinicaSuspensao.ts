@@ -189,6 +189,30 @@ export async function enviarEmailReativacao(opts: {
   return { destinatarios, enviados, falhas };
 }
 
+/**
+ * Task #132 — Helper reutilizavel pelas rotas do portal_paciente.
+ * Busca status da unidade do paciente; se SUSPENSO, retorna o payload
+ * amigavel (mesmo formato do bloqueioLoginSuspenso usado pelos
+ * funcionarios na Task #126). Retorna null se a clinica esta ativa
+ * ou o paciente nao tem unidadeId.
+ */
+export async function checarUnidadeSuspensaParaPortal(
+  unidadeId: number | null | undefined,
+): Promise<ReturnType<typeof bloqueioLoginSuspenso> | null> {
+  if (!unidadeId) return null;
+  const [unidade] = await db
+    .select({
+      nome: unidadesTable.nome,
+      status: unidadesTable.status,
+      suspensoEm: unidadesTable.suspensoEm,
+      suspensaoMotivo: unidadesTable.suspensaoMotivo,
+    })
+    .from(unidadesTable)
+    .where(eq(unidadesTable.id, unidadeId));
+  if (!unidade || unidade.status !== "SUSPENSO") return null;
+  return bloqueioLoginSuspenso(unidade);
+}
+
 export function bloqueioLoginSuspenso(unidade: {
   nome: string;
   status: string | null;

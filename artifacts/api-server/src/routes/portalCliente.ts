@@ -13,6 +13,7 @@ import {
 import { eq, and, gte, or, desc, inArray, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { solicitarOtp, validarOtp } from "../lib/portalPaciente/otpService";
+import { checarUnidadeSuspensaParaPortal } from "../lib/email/clinicaSuspensao";
 
 const router = Router();
 
@@ -61,6 +62,13 @@ router.post("/portal/identificar", async (req, res) => {
     }
   }
 
+  // Task #132 — bloqueia portal do paciente quando a clinica esta SUSPENSA.
+  const bloqueio = await checarUnidadeSuspensaParaPortal(paciente.unidadeId);
+  if (bloqueio) {
+    res.status(403).json(bloqueio);
+    return;
+  }
+
   res.json({
     id: paciente.id,
     nome: paciente.nome,
@@ -100,6 +108,13 @@ router.post("/portal/definir-senha", async (req, res) => {
     }
   }
 
+  // Task #132 — bloqueia definicao de senha quando a clinica esta SUSPENSA.
+  const bloqueioDef = await checarUnidadeSuspensaParaPortal(paciente.unidadeId);
+  if (bloqueioDef) {
+    res.status(403).json(bloqueioDef);
+    return;
+  }
+
   const hash = await bcrypt.hash(senha, 10);
   await db.update(pacientesTable).set({ senhaPortal: hash }).where(eq(pacientesTable.id, paciente.id));
 
@@ -131,6 +146,13 @@ router.post("/portal/login", async (req, res) => {
     return;
   }
 
+  // Task #132 — bloqueia login no portal do paciente se clinica SUSPENSA.
+  const bloqueioLogin = await checarUnidadeSuspensaParaPortal(paciente.unidadeId);
+  if (bloqueioLogin) {
+    res.status(403).json(bloqueioLogin);
+    return;
+  }
+
   res.json({
     id: paciente.id,
     nome: paciente.nome,
@@ -138,9 +160,28 @@ router.post("/portal/login", async (req, res) => {
   });
 });
 
+// Task #132 — helper local: dado um pacienteId, busca a unidadeId e
+// devolve 503 amigavel se a clinica esta SUSPENSA. Retorna true se ja
+// respondeu (caller deve abortar). Retorna false se pode prosseguir.
+async function bloquearSeClinicaSuspensa(pacienteId: number, res: any): Promise<boolean> {
+  if (!pacienteId) return false;
+  const [paciente] = await db
+    .select({ unidadeId: pacientesTable.unidadeId })
+    .from(pacientesTable)
+    .where(eq(pacientesTable.id, pacienteId));
+  if (!paciente) return false;
+  const bloqueio = await checarUnidadeSuspensaParaPortal(paciente.unidadeId);
+  if (bloqueio) {
+    res.status(503).json(bloqueio);
+    return true;
+  }
+  return false;
+}
+
 router.get("/portal/meus-agendamentos/:pacienteId", async (req, res) => {
   try {
     const pacienteId = Number(req.params.pacienteId);
+    if (await bloquearSeClinicaSuspensa(pacienteId, res)) return;
     const hoje = new Date().toISOString().split("T")[0];
 
     const agendamentos = await db
@@ -256,6 +297,7 @@ router.post("/portal/reagendar", async (req, res) => {
       res.status(400).json({ error: "appointmentId, novoSlotId e pacienteId obrigatorios" });
       return;
     }
+    if (await bloquearSeClinicaSuspensa(Number(pacienteId), res)) return;
 
     const [appointment] = await db
       .select()
@@ -354,6 +396,7 @@ router.post("/portal/upload/:pacienteId", async (req, res) => {
     res.status(400).json({ error: "Categoria, arquivo (base64) e nomeArquivo obrigatorios" });
     return;
   }
+  if (await bloquearSeClinicaSuspensa(pacienteId, res)) return;
 
   const subfolder = CATEGORIAS_UPLOAD[categoria] || "CADASTRO";
 
@@ -407,6 +450,13 @@ router.post("/portal/otp/solicitar", async (req, res) => {
       res.status(400).json({
         error: "Paciente nao tem email cadastrado. Use login com senha ou contate a clinica.",
       });
+      return;
+    }
+
+    // Task #132 — bloqueia envio de OTP quando a clinica esta SUSPENSA.
+    const bloqueioOtp = await checarUnidadeSuspensaParaPortal(paciente.unidadeId);
+    if (bloqueioOtp) {
+      res.status(403).json(bloqueioOtp);
       return;
     }
 
@@ -467,6 +517,12 @@ router.post("/portal/otp/validar", async (req, res) => {
       res.status(404).json({ error: "paciente_nao_encontrado" });
       return;
     }
+    // Task #132 — bloqueia validacao de OTP se clinica do paciente esta SUSPENSA.
+    const bloqueio = await checarUnidadeSuspensaParaPortal(paciente.unidadeId);
+    if (bloqueio) {
+      res.status(403).json(bloqueio);
+      return;
+    }
     res.json({
       id: paciente.id,
       nome: paciente.nome,
@@ -489,6 +545,7 @@ router.get("/portal/historico/:pacienteId", async (req, res) => {
       res.status(400).json({ error: "paciente_id invalido" });
       return;
     }
+    if (await bloquearSeClinicaSuspensa(pid, res)) return;
 
     // 1) Assinaturas digitais (PDFs assinados/pendentes)
     const assRes = await db.execute(sql`
@@ -578,6 +635,11 @@ router.get("/portal/drive-links/:pacienteId", async (req, res) => {
     const paciente = (await db.select().from(pacientesTable).where(eq(pacientesTable.id, pid)))[0];
     if (!paciente) {
       res.status(404).json({ error: "paciente_nao_encontrado" });
+      return;
+    }
+    const bloqueio = await checarUnidadeSuspensaParaPortal(paciente.unidadeId);
+    if (bloqueio) {
+      res.status(503).json(bloqueio);
       return;
     }
     const folderId = paciente.googleDriveFolderId;
