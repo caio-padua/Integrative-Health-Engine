@@ -28,7 +28,7 @@ export const CATEGORIAS = {
 } as const;
 
 export const SUBCATEGORIAS: Record<string, string[]> = {
-  "01 CADASTRO":    ["DOCUMENTOS PESSOAIS", "CADASTROS ANTIGOS"],
+  "01 CADASTRO":    ["DADOS PESSOAIS", "DOCUMENTOS PESSOAIS", "CADASTROS ANTIGOS"],
   "02 CLINICO":     ["PATOLOGIAS", "ANAMNESES", "SEGUIMENTO", "EXAMES/LABORATORIAIS", "EXAMES/IMAGEM", "AVALIACOES", "RAS", "GPS"],
   "03 PRESCRICOES": ["RECEITAS", "PROTOCOLOS", "ATESTADOS", "LAUDOS"],
   "04 FINANCEIRO":  ["NOTAS FISCAIS", "COBRANCAS", "COMPROVANTES"],
@@ -103,7 +103,8 @@ export const TIPOS_DOCUMENTO: Record<string, TipoDocumentoConfig> = {
   FOTO_PERFIL:          { categoria: "06 IMAGENS",     subcategoria: "FOTO PERFIL",          label: "FOTO PERFIL",                             extensaoPadrao: "jpg" },
   FOTO_CORPORAL:        { categoria: "06 IMAGENS",     subcategoria: "FOTOS CORPORAIS",      label: "FOTO CORPORAL",    requerIdentificador: true, extensaoPadrao: "jpg" },
 
-  // CADASTRO (documentos pessoais)
+  // CADASTRO (ficha + documentos pessoais)
+  FICHA_CADASTRAL:      { categoria: "01 CADASTRO",    subcategoria: "DADOS PESSOAIS",       label: "FICHA CADASTRAL",                         extensaoPadrao: "sheet" },
   RG:                   { categoria: "01 CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "RG",                                      extensaoPadrao: "jpg" },
   CPF_DOC:              { categoria: "01 CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "CPF",                                     extensaoPadrao: "jpg" },
   COMPROVANTE_ENDERECO: { categoria: "01 CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "COMP ENDERECO",                           extensaoPadrao: "jpg" },

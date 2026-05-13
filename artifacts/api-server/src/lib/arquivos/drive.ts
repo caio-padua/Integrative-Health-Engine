@@ -88,19 +88,39 @@ interface PacienteParaProvisionar {
   nome: string;
   codigoSemantico: string;
   unidadeId: number;
+  cpf?: string | null; // opcional; se vier, vai pro nome da pasta
+}
+
+/**
+ * Nome canônico da pasta-raiz do paciente.
+ * Decisão Caio (13/mai/2026 madrugada): "NOME COMPLETO + CPF",
+ * sem código semântico no nome visível (semântico fica só no DB pra busca).
+ *
+ * Ex: "ADAUTO DE LIMA FRAGA 23260399801" ou "ADAUTO DE LIMA FRAGA" (sem CPF).
+ */
+export function nomePastaPaciente(nome: string, cpf?: string | null): string {
+  const nomeLimpo = nome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const cpfDigits = (cpf ?? "").replace(/\D/g, "");
+  return cpfDigits ? `${nomeLimpo} ${cpfDigits}` : nomeLimpo;
 }
 
 /**
  * Devolve (criando se necessário) o ID da pasta-raiz do paciente dentro de
  * unidades.clientes_subfolder_id. Persiste em pacientes.google_drive_folder_id.
  *
- * Nome da pasta: "[CODIGO_SEMANTICO] [NOME PACIENTE LIMPO]"
+ * Nome da pasta: "[NOME COMPLETO] [CPF]" (CPF só dígitos; ausente se vazio).
  */
 export async function getOrCreatePacienteRootFolder(p: PacienteParaProvisionar): Promise<string> {
   // 1. já cacheado?
   const existing = (await db.execute(sql`
-    SELECT google_drive_folder_id FROM pacientes WHERE id = ${p.id}
-  `)) as unknown as { rows: Array<{ google_drive_folder_id: string | null }> };
+    SELECT google_drive_folder_id, cpf FROM pacientes WHERE id = ${p.id}
+  `)) as unknown as { rows: Array<{ google_drive_folder_id: string | null; cpf: string | null }> };
   const cachedId = existing.rows[0]?.google_drive_folder_id;
   if (cachedId) return cachedId;
 
@@ -116,15 +136,9 @@ export async function getOrCreatePacienteRootFolder(p: PacienteParaProvisionar):
     );
   }
 
-  // 3. cria pasta com nome canônico
-  const nomeLimpo = p.nome
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const folderName = `${p.codigoSemantico} ${nomeLimpo}`;
+  // 3. cria pasta com nome canônico (NOME + CPF)
+  const cpfFinal = p.cpf ?? existing.rows[0]?.cpf ?? null;
+  const folderName = nomePastaPaciente(p.nome, cpfFinal);
   const folderId = await findOrCreateFolder(clientesParent, folderName);
 
   // 4. persiste cache
@@ -133,6 +147,78 @@ export async function getOrCreatePacienteRootFolder(p: PacienteParaProvisionar):
   `);
 
   return folderId;
+}
+
+// ============================================================================
+// EAGER-CREATE — árvore completa de pastas (regra do sistema 13/mai/2026)
+// ============================================================================
+import { SUBCATEGORIAS } from "./catalogo";
+
+/**
+ * Cria EAGER toda a árvore de pastas do paciente (raiz + 7 categorias macro
+ * + ~17 subpastas + sub-subs como EXAMES/LABORATORIAIS).
+ *
+ * Idempotente: re-roda sem duplicar (findOrCreate em cada nó).
+ * Persiste TODOS os IDs em pacientes.drive_subpastas (cache jsonb) numa
+ * única escrita atômica no fim.
+ *
+ * Use sempre que quiser garantir estrutura visual completa pro paciente
+ * (ex: novo cadastro via POST /pacientes, demo manual, backfill).
+ *
+ * Custo: ~30 reqs Drive (1 root + 7 cat + ~22 subs/subsubs). ~12-18s.
+ */
+export async function criarArvoreCompletaPaciente(p: PacienteParaProvisionar): Promise<{
+  rootId: string;
+  pastasCriadas: number;
+  cache: Record<string, string>;
+}> {
+  // 1. raiz
+  const rootId = await getOrCreatePacienteRootFolder(p);
+
+  // 2. carrega cache atual
+  const row = (await db.execute(sql`
+    SELECT drive_subpastas FROM pacientes WHERE id = ${p.id}
+  `)) as unknown as { rows: Array<{ drive_subpastas: Record<string, string> | null }> };
+  const cache: Record<string, string> = row.rows[0]?.drive_subpastas ?? {};
+
+  let pastasCriadas = 0;
+
+  // 3. percorre catálogo: pra cada categoria, garante categoria-mãe + descida
+  //    completa de cada subcategoria (suporta "EXAMES/LABORATORIAIS").
+  for (const categoria of Object.keys(SUBCATEGORIAS)) {
+    let catId = cache[categoria];
+    if (!catId) {
+      catId = await findOrCreateFolder(rootId, categoria);
+      cache[categoria] = catId;
+      pastasCriadas++;
+    }
+
+    for (const sub of SUBCATEGORIAS[categoria]) {
+      const segmentos = sub.split("/");
+      let parentId = catId;
+      let chaveAcum = categoria;
+      for (const seg of segmentos) {
+        chaveAcum = `${chaveAcum}/${seg}`;
+        let segId = cache[chaveAcum];
+        if (!segId) {
+          segId = await findOrCreateFolder(parentId, seg);
+          cache[chaveAcum] = segId;
+          pastasCriadas++;
+        }
+        parentId = segId;
+      }
+    }
+  }
+
+  // 4. persiste cache + marca timestamp de provisionamento
+  await db.execute(sql`
+    UPDATE pacientes
+    SET drive_subpastas = COALESCE(drive_subpastas, '{}'::jsonb) || ${JSON.stringify(cache)}::jsonb,
+        arvore_drive_provisionada_em = now()
+    WHERE id = ${p.id}
+  `);
+
+  return { rootId, pastasCriadas, cache };
 }
 
 // ============================================================================
