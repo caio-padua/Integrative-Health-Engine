@@ -94,6 +94,27 @@ A fonte do mini-RFC propunha `papel` (palavra portuguesa pra "role").
 - `/platform/audit/kill-switch` (timeline ações destrutivas)
 - `/platform/2fa-setup` (QR code + 6 dígitos confirmação)
 
+## ✅ Respostas Dr. Claude (2026-05-13, pós-leitura F1)
+
+1. **Enums** — manter como está. **Convenção fechada**: campos de
+   **estado/status** são UPPERCASE (`ATIVO`, `SUSPENSO`, `EMITIDA`,
+   `ASSINADO`) e campos de **perfil/papel** são lowercase
+   (`platform_owner`, `tenant_admin`, `medico`, `validador_mestre`).
+   Não é inconsistência — é a regra certa, agora nomeada.
+2. **2FA escopo MVP** — apenas `platform_owner`. Toggle 2FA por tenant
+   (TENANT_ADMIN obrigatório) fica pra **Wave 14** como upgrade premium
+   vendável. F3 implementa só PLATFORM_OWNER 2FA TOTP.
+3. **Carência LGPD 30 dias** — confirmado. **Adicional pedido pelo Dr.
+   Claude pra F3**: email diário pro TENANT_ADMIN durante o countdown
+   ("Faltam X dias pra exclusão · clique aqui pra cancelar"), com
+   registro auditável de cada notificação enviada.
+4. **Promoção/rebaixamento** — manter em `auditoria_kill_switch` (não
+   criar tabela separada). Usar `metadata jsonb` pra gravar
+   `{perfil_anterior, perfil_novo}`. Schema atual já suporta.
+
+**Veredito**: ✅ APROVADO seguir Wave 13 F2 (middleware enforcement)
+quando Caio liberar.
+
 ## Pra Dr. Claude refinar/contestar nesta rodada
 
 1. **Tom dos enums**: lowercase (`platform_owner`) vs UPPERCASE

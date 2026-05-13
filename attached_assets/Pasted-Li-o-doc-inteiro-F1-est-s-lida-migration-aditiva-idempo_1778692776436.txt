@@ -1,0 +1,62 @@
+Li o doc inteiro. F1 está sólida — migration aditiva, idempotente, invariantes preservadas, naming respeitando regra ferro do Caio. Excelente trabalho do Dr. Replit.
+
+Aqui vão as respostas às 4 perguntas:
+
+---
+
+## Parecer Dr. Claude — Wave 13 F1: 4 decisões
+
+### Pergunta 1: Tom dos enums — lowercase vs UPPERCASE
+
+**Decisão: normalizar pra UPPERCASE nos novos campos de plataforma.**
+
+O argumento do Dr. Replit pra lowercase (harmonizar com `perfil` legado) faz sentido, mas cria um problema maior: o campo `unidades.status` já ficou UPPERCASE, e `perfil_plataforma` ficou lowercase. Isso é inconsistência dentro da mesma migration — pior que inconsistência com legado.
+
+A regra que proponho é simples: campos de **estado/status** são UPPERCASE (ATIVO, SUSPENSO, EMITIDA, ASSINADO — convenção que já existe). Campos de **perfil/papel** são lowercase (medico, enfermeira, validador_mestre — convenção que já existe). Como `perfil_plataforma` é perfil, **lowercase está correto** (`platform_owner`, `tenant_admin`, `tenant_user`).
+
+Resumo: **manter como está**. A "inconsistência" na verdade é a regra certa — status em UPPER, perfis em lower. O Dr. Replit acertou intuitivamente, só faltava nomear a regra. Registra como convenção no doc.
+
+### Pergunta 2: 2FA escopo — só PLATFORM_OWNER ou toggle por tenant?
+
+**Decisão: MVP = só PLATFORM_OWNER. Toggle por tenant fica Wave 14.**
+
+Nas 4 lentes:
+
+🩺 **Médico**: TENANT_ADMIN (dono da clínica) não precisa de 2FA no MVP porque ele não tem acesso a ações destrutivas cross-tenant. Ele só vê a própria unidade.
+
+💰 **CEO**: Forçar 2FA em TENANT_ADMIN no dia 1 cria atrito de onboarding. A primeira clínica parceira que tentar acessar vai ligar reclamando "o que é esse QR code?". Fricção mata adoção.
+
+📈 **Empresário**: A feature "tenant pode ligar 2FA pros seus médicos" é boa pra vender depois como upgrade premium. Não dá de graça no MVP.
+
+🛡️ **Investidor**: O risco real está no PLATFORM_OWNER — é quem pode suspender/excluir tenants. Proteger esse ponto é suficiente pro MVP. Se um TENANT_ADMIN for comprometido, o dano é isolado àquela unidade (tenant isolation garante isso no F2).
+
+### Pergunta 3: Carência LGPD — 30, 15 ou 90 dias?
+
+**Decisão: 30 dias. Está correto.**
+
+O art. 16 da LGPD fala em "eliminação" sem prazo fixo, mas a ANPD e a jurisprudência convergem pra "prazo razoável". 30 dias é o padrão de mercado (Google, Meta, Apple usam 30 dias). 15 é agressivo demais (o tenant pode se arrepender e perder tudo). 90 é excessivo (guarda dados desnecessariamente, o que contraria o princípio da necessidade do art. 6°, III da LGPD).
+
+Uma sugestão adicional: quando o countdown de 30 dias começar, disparar email diário pro TENANT_ADMIN com "Faltam X dias pra exclusão permanente. Clique aqui pra cancelar." Isso protege contra exclusão acidental e gera registro auditável de notificação.
+
+### Pergunta 4: Promoção/rebaixamento — mesma tabela ou separada?
+
+**Decisão: manter em `auditoria_kill_switch`. Não criar tabela separada.**
+
+PROMOVER_ADMIN e REBAIXAR_ADMIN são ações destrutivas de controle de acesso — semanticamente pertencem ao mesmo grupo que SUSPENDER e EXCLUIR. Criar tabela separada fragmenta a auditoria sem ganho. Um auditor (ou o Caio) quer ver "todas as ações destrutivas ordenadas por data" num único lugar, não em duas tabelas que precisa fazer JOIN.
+
+A tabela `auditoria_kill_switch` já tem `metadata jsonb` — use pra gravar `{perfil_anterior, perfil_novo}` nas ações de promoção/rebaixamento. Isso dá rastreabilidade completa sem schema novo.
+
+---
+
+## Resumo executivo pra colar pro Dr. Replit
+
+> **Respostas do Dr. Claude — Wave 13 F1:**
+>
+> 1. **Enums**: manter como está. Regra = status UPPER, perfis lower. Registrar convenção no doc.
+> 2. **2FA**: MVP só PLATFORM_OWNER. Toggle por tenant → Wave 14.
+> 3. **LGPD carência**: 30 dias correto. Adicionar email diário countdown pro tenant.
+> 4. **Promoção/rebaixamento**: manter em `auditoria_kill_switch` com `metadata jsonb {perfil_anterior, perfil_novo}`.
+>
+> **Aprovado pra seguir F2 (middleware enforcement).** Invariantes: 8.728 receitas + R$ 2.736.536,10 + 6 triggers.
+
+Quando o Dr. Replit confirmar recebimento, ele pode partir pro F2.
