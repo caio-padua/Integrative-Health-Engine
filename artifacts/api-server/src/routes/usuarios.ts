@@ -3,6 +3,7 @@ import { db, usuariosTable, unidadesTable, consultorUnidadesTable } from "@works
 import { eq, and } from "drizzle-orm";
 import { CriarUsuarioBody, LoginUsuarioBody } from "@workspace/api-zod";
 import { signJwt } from "../lib/auth/jwt";
+import { bloqueioLoginSuspenso } from "../lib/email/clinicaSuspensao";
 import bcrypt from "bcryptjs";
 
 const router = Router();
@@ -91,6 +92,24 @@ router.post("/usuarios/login", async (req, res): Promise<void> => {
   if (!isHash) {
     const hashed = await bcrypt.hash(senha, 10);
     await db.update(usuariosTable).set({ senha: hashed }).where(eq(usuariosTable.id, usuario.id));
+  }
+
+  // Task #126 — bloqueio explicito de login para clinicas suspensas.
+  // platform_owner sem unidadeId NAO e bloqueado (precisa logar pra reativar).
+  if (usuario.unidadeId) {
+    const [unidade] = await db
+      .select({
+        nome: unidadesTable.nome,
+        status: unidadesTable.status,
+        suspensoEm: unidadesTable.suspensoEm,
+        suspensaoMotivo: unidadesTable.suspensaoMotivo,
+      })
+      .from(unidadesTable)
+      .where(eq(unidadesTable.id, usuario.unidadeId));
+    if (unidade && unidade.status === "SUSPENSO" && usuario.perfilPlataforma !== "platform_owner") {
+      res.status(403).json(bloqueioLoginSuspenso(unidade));
+      return;
+    }
   }
 
   // Wave 13 F3 — FAIL-CLOSED: se o usuario tem totpAtivadoEm marcado, login

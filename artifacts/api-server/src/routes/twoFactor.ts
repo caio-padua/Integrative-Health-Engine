@@ -24,6 +24,7 @@ import { eq, and } from "drizzle-orm";
 import QRCode from "qrcode";
 import { z } from "zod";
 import { signJwt, verifyJwt, type JwtPayload } from "../lib/auth/jwt";
+import { bloqueioLoginSuspenso } from "../lib/email/clinicaSuspensao";
 import {
   encryptTotpSecret,
   gerarNovoSegredoTotp,
@@ -255,6 +256,24 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     return;
   }
   tentativas2fa.delete(usuario.id);
+
+  // Task #126 — bloqueia entrada se a clinica do usuario estiver SUSPENSA.
+  // Mesmo apos validar 2FA o login nao prossegue. platform_owner passa.
+  if (usuario.unidadeId) {
+    const [unidade] = await db
+      .select({
+        nome: unidadesTable.nome,
+        status: unidadesTable.status,
+        suspensoEm: unidadesTable.suspensoEm,
+        suspensaoMotivo: unidadesTable.suspensaoMotivo,
+      })
+      .from(unidadesTable)
+      .where(eq(unidadesTable.id, usuario.unidadeId));
+    if (unidade && unidade.status === "SUSPENSO" && usuario.perfilPlataforma !== "platform_owner") {
+      res.status(403).json(bloqueioLoginSuspenso(unidade));
+      return;
+    }
+  }
 
   const agora = new Date();
   await db

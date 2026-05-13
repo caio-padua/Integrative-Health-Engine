@@ -3,6 +3,10 @@ import { db, usuariosTable, unidadesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requirePlataforma } from "../middlewares/requirePlataforma";
 import type { JwtPayload } from "../lib/auth/jwt";
+import {
+  enviarEmailSuspensao,
+  enviarEmailReativacao,
+} from "../lib/email/clinicaSuspensao";
 
 type AuthedRequest = Request & {
   user?: JwtPayload & { perfil?: string; perfilPlataforma?: string };
@@ -184,7 +188,23 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
     });
   });
   req.log?.info({ unidadeId: id, motivo }, "[plataforma] clinica suspensa");
-  res.json({ ok: true });
+
+  // Aviso por email — fora da transacao (falha de email NAO desfaz suspensao,
+  // ja que a auditoria ja foi gravada e o status no DB e a fonte da verdade).
+  let emailRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+  try {
+    emailRes = await enviarEmailSuspensao({
+      unidadeId: id,
+      unidade: { ...unidade, status: "SUSPENSO", suspensaoMotivo: motivo, suspensoEm: new Date() },
+      motivo,
+      suspensoEm: new Date(),
+    });
+    req.log?.info({ unidadeId: id, ...emailRes }, "[plataforma] email suspensao enviado");
+  } catch (err) {
+    req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar email de suspensao");
+  }
+
+  res.json({ ok: true, email: emailRes });
 });
 
 // POST /api/plataforma/clinicas/:id/reativar { motivo }
@@ -215,7 +235,21 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
     });
   });
   req.log?.info({ unidadeId: id, motivo }, "[plataforma] clinica reativada");
-  res.json({ ok: true });
+
+  let emailRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
+  try {
+    emailRes = await enviarEmailReativacao({
+      unidadeId: id,
+      unidade: { ...unidade, status: "ATIVO", suspensaoMotivo: null, suspensoEm: null },
+      motivo,
+      reativadoEm: new Date(),
+    });
+    req.log?.info({ unidadeId: id, ...emailRes }, "[plataforma] email reativacao enviado");
+  } catch (err) {
+    req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao enviar email de reativacao");
+  }
+
+  res.json({ ok: true, email: emailRes });
 });
 
 // ─────────────────────── EXCLUSAO COM CARENCIA LGPD ──────────────────
