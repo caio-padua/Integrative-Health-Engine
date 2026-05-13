@@ -151,7 +151,7 @@ export async function getOrCreateSubpasta(opts: {
   unidadeId: number;
   pacienteNome: string;
   codigoSemantico: string;
-  categoria: string;          // ex: "02_CLINICO"
+  categoria: string;          // ex: "02 CLINICO"
   subcategoria?: string | null; // ex: "EXAMES/LABORATORIAIS"
 }): Promise<{ folderId: string; chave: string }> {
   const chave = opts.subcategoria

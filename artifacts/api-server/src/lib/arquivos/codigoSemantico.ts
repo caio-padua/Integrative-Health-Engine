@@ -126,5 +126,6 @@ export function gerarCodigoSemantico(p: GerarCodigoParams): string {
   const ano = extrairAnoNascimento(p.dataNascimento ?? null);
   const cpf4 = extrair4UltimosDigitosCPF(p.cpf ?? null);
 
-  return `${slug}-${sobr}-${nome}-${sexo}-${ano}-${cpf4}`;
+  // Separador = espaço (Caio 13/mai/2026 madrugada: medo de hífen/underline em filenames)
+  return `${slug} ${sobr} ${nome} ${sexo} ${ano} ${cpf4}`;
 }

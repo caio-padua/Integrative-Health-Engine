@@ -18,23 +18,23 @@ import { valorParaNomeArquivo } from "../format/canonico";
 // CATEGORIAS (7 macro-pastas) + SUBCATEGORIAS (TOC-friendly)
 // ============================================================================
 export const CATEGORIAS = {
-  CADASTRO:    { ordem: 1, nome: "01_CADASTRO" },
-  CLINICO:     { ordem: 2, nome: "02_CLINICO" },
-  PRESCRICOES: { ordem: 3, nome: "03_PRESCRICOES" },
-  FINANCEIRO:  { ordem: 4, nome: "04_FINANCEIRO" },
-  JURIDICO:    { ordem: 5, nome: "05_JURIDICO" },
-  IMAGENS:     { ordem: 6, nome: "06_IMAGENS" },
-  PESQUISA:    { ordem: 7, nome: "07_PESQUISA" },
+  CADASTRO:    { ordem: 1, nome: "01 CADASTRO" },
+  CLINICO:     { ordem: 2, nome: "02 CLINICO" },
+  PRESCRICOES: { ordem: 3, nome: "03 PRESCRICOES" },
+  FINANCEIRO:  { ordem: 4, nome: "04 FINANCEIRO" },
+  JURIDICO:    { ordem: 5, nome: "05 JURIDICO" },
+  IMAGENS:     { ordem: 6, nome: "06 IMAGENS" },
+  PESQUISA:    { ordem: 7, nome: "07 PESQUISA" },
 } as const;
 
 export const SUBCATEGORIAS: Record<string, string[]> = {
-  "01_CADASTRO":    ["DOCUMENTOS PESSOAIS", "CADASTROS ANTIGOS"],
-  "02_CLINICO":     ["PATOLOGIAS", "ANAMNESES", "SEGUIMENTO", "EXAMES/LABORATORIAIS", "EXAMES/IMAGEM", "AVALIACOES", "RAS", "GPS"],
-  "03_PRESCRICOES": ["RECEITAS", "PROTOCOLOS", "ATESTADOS", "LAUDOS"],
-  "04_FINANCEIRO":  ["NOTAS FISCAIS", "COBRANCAS", "COMPROVANTES"],
-  "05_JURIDICO":    ["CONTRATOS", "TERMOS", "ASSINATURAS_ZAPSIGN", "PROCESSOS", "OUVIDORIA"],
-  "06_IMAGENS":     ["FOTO PERFIL", "FOTOS CORPORAIS", "IMAGENS DIVERSAS"],
-  "07_PESQUISA":    [],
+  "01 CADASTRO":    ["DOCUMENTOS PESSOAIS", "CADASTROS ANTIGOS"],
+  "02 CLINICO":     ["PATOLOGIAS", "ANAMNESES", "SEGUIMENTO", "EXAMES/LABORATORIAIS", "EXAMES/IMAGEM", "AVALIACOES", "RAS", "GPS"],
+  "03 PRESCRICOES": ["RECEITAS", "PROTOCOLOS", "ATESTADOS", "LAUDOS"],
+  "04 FINANCEIRO":  ["NOTAS FISCAIS", "COBRANCAS", "COMPROVANTES"],
+  "05 JURIDICO":    ["CONTRATOS", "TERMOS", "ASSINATURAS ZAPSIGN", "PROCESSOS", "OUVIDORIA"],
+  "06 IMAGENS":     ["FOTO PERFIL", "FOTOS CORPORAIS", "IMAGENS DIVERSAS"],
+  "07 PESQUISA":    [],
 };
 
 /**
@@ -58,7 +58,7 @@ export function listarTodasSubpastas(): Array<{ categoria: string; subcategoria:
 // TIPOS DE DOCUMENTO — catálogo completo
 // ============================================================================
 export interface TipoDocumentoConfig {
-  categoria: string;        // ex: "02_CLINICO"
+  categoria: string;        // ex: "02 CLINICO"
   subcategoria: string;     // ex: "RAS" ou "EXAMES/LABORATORIAIS"
   label: string;            // texto que aparece no nome do arquivo (ex: "RAS")
   requerIdentificador?: boolean; // se true, gerarNomeArquivo exige `identificador`
@@ -68,45 +68,45 @@ export interface TipoDocumentoConfig {
 
 export const TIPOS_DOCUMENTO: Record<string, TipoDocumentoConfig> = {
   // CLINICO
-  RAS:                  { categoria: "02_CLINICO",     subcategoria: "RAS",                  label: "RAS",                                     extensaoPadrao: "pdf" },
-  ANAMNESE:             { categoria: "02_CLINICO",     subcategoria: "ANAMNESES",            label: "ANAMNESE",                                extensaoPadrao: "pdf" },
-  EXAME_LAB:            { categoria: "02_CLINICO",     subcategoria: "EXAMES/LABORATORIAIS", label: "EXAME LAB",        requerIdentificador: true, extensaoPadrao: "pdf" },
-  EXAME_IMG:            { categoria: "02_CLINICO",     subcategoria: "EXAMES/IMAGEM",        label: "EXAME IMG",        requerIdentificador: true, extensaoPadrao: "pdf" },
-  AVALIACAO:            { categoria: "02_CLINICO",     subcategoria: "AVALIACOES",           label: "AVALIACAO",        requerIdentificador: true, extensaoPadrao: "pdf" },
-  GPS_PLANILHA:         { categoria: "02_CLINICO",     subcategoria: "GPS",                  label: "GPS LINHA VIDA",                          extensaoPadrao: "sheet" },
-  PATOLOGIA:            { categoria: "02_CLINICO",     subcategoria: "PATOLOGIAS",           label: "PATOLOGIA",        requerIdentificador: true, extensaoPadrao: "pdf" },
-  SEGUIMENTO:           { categoria: "02_CLINICO",     subcategoria: "SEGUIMENTO",           label: "SEGUIMENTO",                              extensaoPadrao: "pdf" },
+  RAS:                  { categoria: "02 CLINICO",     subcategoria: "RAS",                  label: "RAS",                                     extensaoPadrao: "pdf" },
+  ANAMNESE:             { categoria: "02 CLINICO",     subcategoria: "ANAMNESES",            label: "ANAMNESE",                                extensaoPadrao: "pdf" },
+  EXAME_LAB:            { categoria: "02 CLINICO",     subcategoria: "EXAMES/LABORATORIAIS", label: "EXAME LAB",        requerIdentificador: true, extensaoPadrao: "pdf" },
+  EXAME_IMG:            { categoria: "02 CLINICO",     subcategoria: "EXAMES/IMAGEM",        label: "EXAME IMG",        requerIdentificador: true, extensaoPadrao: "pdf" },
+  AVALIACAO:            { categoria: "02 CLINICO",     subcategoria: "AVALIACOES",           label: "AVALIACAO",        requerIdentificador: true, extensaoPadrao: "pdf" },
+  GPS_PLANILHA:         { categoria: "02 CLINICO",     subcategoria: "GPS",                  label: "GPS LINHA VIDA",                          extensaoPadrao: "sheet" },
+  PATOLOGIA:            { categoria: "02 CLINICO",     subcategoria: "PATOLOGIAS",           label: "PATOLOGIA",        requerIdentificador: true, extensaoPadrao: "pdf" },
+  SEGUIMENTO:           { categoria: "02 CLINICO",     subcategoria: "SEGUIMENTO",           label: "SEGUIMENTO",                              extensaoPadrao: "pdf" },
 
   // PRESCRICOES
-  RECEITA_SIMPLES:      { categoria: "03_PRESCRICOES", subcategoria: "RECEITAS",             label: "RECEITA SIMPLES",                         extensaoPadrao: "pdf" },
-  RECEITA_CONTROLADA:   { categoria: "03_PRESCRICOES", subcategoria: "RECEITAS",             label: "RECEITA CONTROLADA",                      extensaoPadrao: "pdf" },
-  RECEITA_MANIPULADA:   { categoria: "03_PRESCRICOES", subcategoria: "RECEITAS",             label: "RECEITA MANIPULADA",                      extensaoPadrao: "pdf" },
-  PROTOCOLO:            { categoria: "03_PRESCRICOES", subcategoria: "PROTOCOLOS",           label: "PROTOCOLO",        requerIdentificador: true, extensaoPadrao: "pdf" },
-  ATESTADO:             { categoria: "03_PRESCRICOES", subcategoria: "ATESTADOS",            label: "ATESTADO",         requerIdentificador: true, extensaoPadrao: "pdf" },
-  LAUDO:                { categoria: "03_PRESCRICOES", subcategoria: "LAUDOS",               label: "LAUDO",            requerIdentificador: true, extensaoPadrao: "pdf" },
+  RECEITA_SIMPLES:      { categoria: "03 PRESCRICOES", subcategoria: "RECEITAS",             label: "RECEITA SIMPLES",                         extensaoPadrao: "pdf" },
+  RECEITA_CONTROLADA:   { categoria: "03 PRESCRICOES", subcategoria: "RECEITAS",             label: "RECEITA CONTROLADA",                      extensaoPadrao: "pdf" },
+  RECEITA_MANIPULADA:   { categoria: "03 PRESCRICOES", subcategoria: "RECEITAS",             label: "RECEITA MANIPULADA",                      extensaoPadrao: "pdf" },
+  PROTOCOLO:            { categoria: "03 PRESCRICOES", subcategoria: "PROTOCOLOS",           label: "PROTOCOLO",        requerIdentificador: true, extensaoPadrao: "pdf" },
+  ATESTADO:             { categoria: "03 PRESCRICOES", subcategoria: "ATESTADOS",            label: "ATESTADO",         requerIdentificador: true, extensaoPadrao: "pdf" },
+  LAUDO:                { categoria: "03 PRESCRICOES", subcategoria: "LAUDOS",               label: "LAUDO",            requerIdentificador: true, extensaoPadrao: "pdf" },
 
   // FINANCEIRO
-  NF:                   { categoria: "04_FINANCEIRO",  subcategoria: "NOTAS FISCAIS",        label: "NF",               requerValor: true,         extensaoPadrao: "pdf" },
-  COBRANCA:             { categoria: "04_FINANCEIRO",  subcategoria: "COBRANCAS",            label: "COBRANCA",         requerValor: true, requerIdentificador: true, extensaoPadrao: "pdf" },
-  COMPROVANTE:          { categoria: "04_FINANCEIRO",  subcategoria: "COMPROVANTES",         label: "COMPROVANTE",      requerValor: true, requerIdentificador: true, extensaoPadrao: "pdf" },
-  RECIBO:               { categoria: "04_FINANCEIRO",  subcategoria: "COMPROVANTES",         label: "RECIBO",           requerValor: true,         extensaoPadrao: "pdf" },
+  NF:                   { categoria: "04 FINANCEIRO",  subcategoria: "NOTAS FISCAIS",        label: "NF",               requerValor: true,         extensaoPadrao: "pdf" },
+  COBRANCA:             { categoria: "04 FINANCEIRO",  subcategoria: "COBRANCAS",            label: "COBRANCA",         requerValor: true, requerIdentificador: true, extensaoPadrao: "pdf" },
+  COMPROVANTE:          { categoria: "04 FINANCEIRO",  subcategoria: "COMPROVANTES",         label: "COMPROVANTE",      requerValor: true, requerIdentificador: true, extensaoPadrao: "pdf" },
+  RECIBO:               { categoria: "04 FINANCEIRO",  subcategoria: "COMPROVANTES",         label: "RECIBO",           requerValor: true,         extensaoPadrao: "pdf" },
 
   // JURIDICO
-  PARQ_ASSINADO:        { categoria: "05_JURIDICO",    subcategoria: "CONTRATOS",            label: "PARQ ASSINADO",                           extensaoPadrao: "pdf" },
-  CONTRATO_TERAPEUTICO: { categoria: "05_JURIDICO",    subcategoria: "CONTRATOS",            label: "CONTRATO",         requerValor: true,         extensaoPadrao: "pdf" },
-  ORCAMENTO_FARMA:      { categoria: "05_JURIDICO",    subcategoria: "CONTRATOS",            label: "ORCAMENTO",        requerValor: true,         extensaoPadrao: "pdf" },
-  TCLE:                 { categoria: "05_JURIDICO",    subcategoria: "TERMOS",               label: "TCLE",             requerIdentificador: true, extensaoPadrao: "pdf" },
-  LGPD:                 { categoria: "05_JURIDICO",    subcategoria: "TERMOS",               label: "LGPD CONSENTIMENTO",                       extensaoPadrao: "pdf" },
-  ENVELOPE_ZAPSIGN:     { categoria: "05_JURIDICO",    subcategoria: "ASSINATURAS_ZAPSIGN",  label: "ENVELOPE",         requerIdentificador: true, extensaoPadrao: "pdf" },
+  PARQ_ASSINADO:        { categoria: "05 JURIDICO",    subcategoria: "CONTRATOS",            label: "PARQ ASSINADO",                           extensaoPadrao: "pdf" },
+  CONTRATO_TERAPEUTICO: { categoria: "05 JURIDICO",    subcategoria: "CONTRATOS",            label: "CONTRATO",         requerValor: true,         extensaoPadrao: "pdf" },
+  ORCAMENTO_FARMA:      { categoria: "05 JURIDICO",    subcategoria: "CONTRATOS",            label: "ORCAMENTO",        requerValor: true,         extensaoPadrao: "pdf" },
+  TCLE:                 { categoria: "05 JURIDICO",    subcategoria: "TERMOS",               label: "TCLE",             requerIdentificador: true, extensaoPadrao: "pdf" },
+  LGPD:                 { categoria: "05 JURIDICO",    subcategoria: "TERMOS",               label: "LGPD CONSENTIMENTO",                       extensaoPadrao: "pdf" },
+  ENVELOPE_ZAPSIGN:     { categoria: "05 JURIDICO",    subcategoria: "ASSINATURAS ZAPSIGN",  label: "ENVELOPE",         requerIdentificador: true, extensaoPadrao: "pdf" },
 
   // IMAGENS
-  FOTO_PERFIL:          { categoria: "06_IMAGENS",     subcategoria: "FOTO PERFIL",          label: "FOTO PERFIL",                             extensaoPadrao: "jpg" },
-  FOTO_CORPORAL:        { categoria: "06_IMAGENS",     subcategoria: "FOTOS CORPORAIS",      label: "FOTO CORPORAL",    requerIdentificador: true, extensaoPadrao: "jpg" },
+  FOTO_PERFIL:          { categoria: "06 IMAGENS",     subcategoria: "FOTO PERFIL",          label: "FOTO PERFIL",                             extensaoPadrao: "jpg" },
+  FOTO_CORPORAL:        { categoria: "06 IMAGENS",     subcategoria: "FOTOS CORPORAIS",      label: "FOTO CORPORAL",    requerIdentificador: true, extensaoPadrao: "jpg" },
 
   // CADASTRO (documentos pessoais)
-  RG:                   { categoria: "01_CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "RG",                                      extensaoPadrao: "jpg" },
-  CPF_DOC:              { categoria: "01_CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "CPF",                                     extensaoPadrao: "jpg" },
-  COMPROVANTE_ENDERECO: { categoria: "01_CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "COMP ENDERECO",                           extensaoPadrao: "jpg" },
+  RG:                   { categoria: "01 CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "RG",                                      extensaoPadrao: "jpg" },
+  CPF_DOC:              { categoria: "01 CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "CPF",                                     extensaoPadrao: "jpg" },
+  COMPROVANTE_ENDERECO: { categoria: "01 CADASTRO",    subcategoria: "DOCUMENTOS PESSOAIS",  label: "COMP ENDERECO",                           extensaoPadrao: "jpg" },
 } as const;
 
 export type TipoDocumento = keyof typeof TIPOS_DOCUMENTO;
