@@ -4,6 +4,10 @@
 // o Platform2faExpiryBanner (Task #130) que so aparece quando faltam
 // <15min — aqui o Caio sempre sabe quanto tempo ainda tem.
 //
+// Task #156: estendido tambem pra perfil_plataforma === 'tenant_admin',
+// que tambem faz acoes sensiveis (suspender usuarios, validar pagamentos)
+// e merece o mesmo conforto de saber quanto tempo resta da janela 2FA.
+//
 // Mesma fonte de verdade do banner: AuthContext.user.ultimoLogin2faEm.
 import { useEffect, useState, type ReactElement } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,14 +41,17 @@ export function Platform2faFooterIndicator({
     return () => clearInterval(id);
   }, []);
 
-  // So aparece pra platform_owner. Aceita camelCase (gerado do OpenAPI)
-  // e snake_case (defensivo se o tipo nao tiver regenerado em algum
-  // momento) — mesmo padrao do Platform2faExpiryBanner.
+  // Task #156: aparece pra platform_owner E tenant_admin (ambos fazem
+  // acoes sensiveis cobertas pela janela 2FA recente). Aceita camelCase
+  // (gerado do OpenAPI) e snake_case (defensivo se o tipo nao tiver
+  // regenerado em algum momento) — mesmo padrao do Platform2faExpiryBanner.
   const perfilPlataforma =
     (user as unknown as { perfilPlataforma?: string | null })?.perfilPlataforma ??
     (user as unknown as { perfil_plataforma?: string | null })?.perfil_plataforma ??
     null;
-  if (perfilPlataforma !== "platform_owner") return null;
+  if (perfilPlataforma !== "platform_owner" && perfilPlataforma !== "tenant_admin") {
+    return null;
+  }
 
   const ultimoIso =
     (user as unknown as { ultimoLogin2faEm?: string | null })?.ultimoLogin2faEm ??
