@@ -109,6 +109,23 @@ export default function PortalClientePage() {
     return false;
   };
 
+  // Task #140 — quando uma secao logada (Historico, Agendamentos, Drive)
+  // recebe 503 CLINICA_SUSPENSA, ela ja tem o paciente identificado, entao
+  // nao limpamos a sessao (diferente do tratarRespostaSuspensa acima usado
+  // no fluxo de login). Apenas exibimos o banner global no topo do portal
+  // e voltamos pro menu, mantendo o paciente logado pra que ele possa
+  // tentar de novo quando a clinica voltar ao ar.
+  const reportarClinicaSuspensaLogado = (payload: ClinicaSuspensaPayload) => {
+    setClinicaSuspensa(payload);
+    setSection("menu");
+  };
+
+  // Task #140 — chamado pelas secoes quando uma requisicao retorna OK
+  // (clinica voltou ao ar). Limpa o banner automaticamente.
+  const reportarClinicaOk = () => {
+    setClinicaSuspensa(null);
+  };
+
   const formatCPF = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
     if (digits.length <= 3) return digits;
@@ -452,15 +469,15 @@ export default function PortalClientePage() {
               </Button>
             )}
 
-            {section === "menu" && <PortalMenu paciente={paciente} onSelect={setSection} onLogout={() => { setStep("identificacao"); setPaciente(null); setSenha(""); }} />}
-            {section === "agendamentos" && <AgendamentosSection pacienteId={paciente.id} pacienteNome={paciente.nome} />}
+            {section === "menu" && <PortalMenu paciente={paciente} onSelect={setSection} onLogout={() => { setStep("identificacao"); setPaciente(null); setSenha(""); }} clinicaSuspensa={!!clinicaSuspensa} />}
+            {section === "agendamentos" && <AgendamentosSection pacienteId={paciente.id} pacienteNome={paciente.nome} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
             {section === "sinais" && <SinaisVitaisForm pacienteId={paciente.id} />}
             {section === "sintomas" && <SintomasForm pacienteId={paciente.id} />}
             {section === "formulas" && <FormulasForm pacienteId={paciente.id} />}
             {section === "alertas" && <AlertasForm pacienteId={paciente.id} />}
             {section === "upload" && <UploadForm pacienteId={paciente.id} pacienteNome={paciente.nome} />}
-            {section === "historico" && <HistoricoSection pacienteId={paciente.id} />}
-            {section === "drive" && <DriveSection pacienteId={paciente.id} />}
+            {section === "historico" && <HistoricoSection pacienteId={paciente.id} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
+            {section === "drive" && <DriveSection pacienteId={paciente.id} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
           </>
         )}
       </div>
@@ -468,7 +485,7 @@ export default function PortalClientePage() {
   );
 }
 
-function PortalMenu({ paciente, onSelect, onLogout }: { paciente: { id: number; nome: string }; onSelect: (s: Section) => void; onLogout: () => void }) {
+function PortalMenu({ paciente, onSelect, onLogout, clinicaSuspensa }: { paciente: { id: number; nome: string }; onSelect: (s: Section) => void; onLogout: () => void; clinicaSuspensa: boolean }) {
   const menuItems = [
     { key: "agendamentos" as Section, icon: CalendarDays, label: "Meus Agendamentos", desc: "Consultas, reagendamentos", color: "text-cyan-400" },
     { key: "sinais" as Section, icon: Activity, label: "Mapa de Sinais Vitais", desc: "PA, glicemia, peso, cintura", color: "text-red-400" },
@@ -493,13 +510,23 @@ function PortalMenu({ paciente, onSelect, onLogout }: { paciente: { id: number; 
       </Card>
 
       {menuItems.map(item => (
-        <Card key={item.key} className="cursor-pointer hover:border-primary/40 transition-colors"
-          onClick={() => onSelect(item.key)}>
+        <Card
+          key={item.key}
+          className={`transition-colors ${
+            clinicaSuspensa
+              ? "opacity-50 cursor-not-allowed"
+              : "cursor-pointer hover:border-primary/40"
+          }`}
+          onClick={() => { if (!clinicaSuspensa) onSelect(item.key); }}
+          aria-disabled={clinicaSuspensa}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <item.icon className={`h-6 w-6 ${item.color}`} />
             <div className="flex-1">
               <p className="text-sm font-medium">{item.label}</p>
-              <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {clinicaSuspensa ? "Indisponivel enquanto a clinica esta suspensa" : item.desc}
+              </p>
             </div>
             <ChevronLeft className="h-4 w-4 text-muted-foreground rotate-180" />
           </CardContent>
@@ -521,7 +548,7 @@ function PortalMenu({ paciente, onSelect, onLogout }: { paciente: { id: number; 
 }
 
 // ===== Wave 4 PACIENTE-TSUNAMI · Historico =====
-function HistoricoSection({ pacienteId }: { pacienteId: number }) {
+function HistoricoSection({ pacienteId, onClinicaSuspensa, onClinicaOk }: { pacienteId: number; onClinicaSuspensa: (p: ClinicaSuspensaPayload) => void; onClinicaOk: () => void }) {
   const [itens, setItens] = useState<Array<{ tipo: string; id: number | string; descricao: string; status: string; data: string; link: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -531,9 +558,20 @@ function HistoricoSection({ pacienteId }: { pacienteId: number }) {
     (async () => {
       try {
         const res = await apiFetch(`/api/portal/historico/${pacienteId}`);
+        // Task #140 — 503 CLINICA_SUSPENSA propaga pro banner global.
+        if (res.status === 503) {
+          const data = await res.clone().json().catch(() => null);
+          if (data && data.codigo === "CLINICA_SUSPENSA") {
+            if (!cancelado) onClinicaSuspensa(data as ClinicaSuspensaPayload);
+            return;
+          }
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (!cancelado) setItens(data.itens || []);
+        if (!cancelado) {
+          setItens(data.itens || []);
+          onClinicaOk();
+        }
       } catch (e: any) {
         if (!cancelado) setErro(e.message || "Erro ao carregar");
       } finally {
@@ -541,7 +579,7 @@ function HistoricoSection({ pacienteId }: { pacienteId: number }) {
       }
     })();
     return () => { cancelado = true; };
-  }, [pacienteId]);
+  }, [pacienteId, onClinicaSuspensa, onClinicaOk]);
 
   const tipoIcon = (t: string) => t === "ASSINATURA" ? FileCheck : t === "SOLICITACAO" ? FileText : t === "COBRANCA" ? Pill : History;
   const tipoColor = (t: string) => t === "ASSINATURA" ? "text-green-400" : t === "SOLICITACAO" ? "text-amber-400" : t === "COBRANCA" ? "text-cyan-400" : "text-muted-foreground";
@@ -589,7 +627,7 @@ function HistoricoSection({ pacienteId }: { pacienteId: number }) {
 }
 
 // ===== Wave 4 PACIENTE-TSUNAMI · Drive =====
-function DriveSection({ pacienteId }: { pacienteId: number }) {
+function DriveSection({ pacienteId, onClinicaSuspensa, onClinicaOk }: { pacienteId: number; onClinicaSuspensa: (p: ClinicaSuspensaPayload) => void; onClinicaOk: () => void }) {
   const [info, setInfo] = useState<{ folder_id: string | null; folder_url: string | null; nome: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -599,9 +637,20 @@ function DriveSection({ pacienteId }: { pacienteId: number }) {
     (async () => {
       try {
         const res = await apiFetch(`/api/portal/drive-links/${pacienteId}`);
+        // Task #140 — 503 CLINICA_SUSPENSA propaga pro banner global.
+        if (res.status === 503) {
+          const data = await res.clone().json().catch(() => null);
+          if (data && data.codigo === "CLINICA_SUSPENSA") {
+            if (!cancelado) onClinicaSuspensa(data as ClinicaSuspensaPayload);
+            return;
+          }
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (!cancelado) setInfo(data);
+        if (!cancelado) {
+          setInfo(data);
+          onClinicaOk();
+        }
       } catch (e: any) {
         if (!cancelado) setErro(e.message || "Erro ao carregar");
       } finally {
@@ -609,7 +658,7 @@ function DriveSection({ pacienteId }: { pacienteId: number }) {
       }
     })();
     return () => { cancelado = true; };
-  }, [pacienteId]);
+  }, [pacienteId, onClinicaSuspensa, onClinicaOk]);
 
   return (
     <div className="space-y-3">
@@ -1165,7 +1214,7 @@ type SlotDisponivel = {
   profissionalNome: string | null;
 };
 
-function AgendamentosSection({ pacienteId, pacienteNome }: { pacienteId: number; pacienteNome: string }) {
+function AgendamentosSection({ pacienteId, pacienteNome, onClinicaSuspensa, onClinicaOk }: { pacienteId: number; pacienteNome: string; onClinicaSuspensa: (p: ClinicaSuspensaPayload) => void; onClinicaOk: () => void }) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [reagendando, setReagendando] = useState<Agendamento | null>(null);
@@ -1180,9 +1229,19 @@ function AgendamentosSection({ pacienteId, pacienteNome }: { pacienteId: number;
     setLoading(true);
     try {
       const res = await apiFetch(`/api/portal/meus-agendamentos/${pacienteId}`);
+      // Task #140 — 503 CLINICA_SUSPENSA propaga pro banner global.
+      if (res.status === 503) {
+        const data = await res.clone().json().catch(() => null);
+        if (data && data.codigo === "CLINICA_SUSPENSA") {
+          onClinicaSuspensa(data as ClinicaSuspensaPayload);
+          setLoading(false);
+          return;
+        }
+      }
       if (res.ok) {
         const data = await res.json();
         setAgendamentos(data);
+        onClinicaOk();
       }
     } catch {
       toast({ title: "Erro ao carregar agendamentos", variant: "destructive" });
