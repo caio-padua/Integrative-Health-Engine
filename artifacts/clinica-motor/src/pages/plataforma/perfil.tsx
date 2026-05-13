@@ -3,15 +3,17 @@ import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
-import { Bell, Mail, MessageCircle, Save, ShieldAlert, UserCog } from "lucide-react";
+import { Bell, Mail, MessageCircle, Save, Send, ShieldAlert, UserCog } from "lucide-react";
 
 // Task #159 — pagina de perfil do platform_owner pra escolher por quais
 // canais quer receber o aviso de expiracao do 2FA (worker da Task #146).
 // Default DB ['email','whatsapp']. Array vazio = mudo (so o banner in-app
 // da Task #130 avisa). Esta tela nao exige 2FA recente — e leitura/edit
 // da propria preferencia, nao acao destrutiva no kill-switch.
+// Task #172 — terceiro canal opt-in "telegram" (default OFF).
 
-type CanalAviso = "email" | "whatsapp";
+type CanalAviso = "email" | "whatsapp" | "telegram";
+const CANAIS_VALIDOS: CanalAviso[] = ["email", "whatsapp", "telegram"];
 
 interface PerfilAtual {
   id: number;
@@ -71,7 +73,7 @@ export default function PlataformaPerfil() {
       const data: PerfilAtual = await r.json();
       setPerfil(data);
       const atuais = Array.isArray(data.canaisAviso2fa) ? data.canaisAviso2fa : ["email", "whatsapp"];
-      setCanais(new Set(atuais.filter((c): c is CanalAviso => c === "email" || c === "whatsapp")));
+      setCanais(new Set(atuais.filter((c): c is CanalAviso => (CANAIS_VALIDOS as string[]).includes(c))));
     } catch (e: any) {
       setErro(e?.message ?? "Erro inesperado");
     }
@@ -107,7 +109,7 @@ export default function PlataformaPerfil() {
       }
       const data = await r.json().catch(() => ({}));
       if (Array.isArray(data?.canaisAviso2fa)) {
-        setCanais(new Set(data.canaisAviso2fa.filter((c: string) => c === "email" || c === "whatsapp")));
+        setCanais(new Set(data.canaisAviso2fa.filter((c: string): c is CanalAviso => (CANAIS_VALIDOS as string[]).includes(c))));
       }
       setMsgOk("Preferencias salvas. O proximo aviso ja respeita a sua escolha.");
     } catch (e: any) {
@@ -203,6 +205,24 @@ export default function PlataformaPerfil() {
                     <div className="text-zinc-100 text-sm font-semibold">WhatsApp</div>
                     <div className="text-xs text-zinc-500">
                       Enviado pro numero CEO_WHATSAPP cadastrado nas variaveis da plataforma.
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded border border-zinc-800 hover:border-zinc-700 cursor-pointer bg-zinc-950/50">
+                  <input
+                    type="checkbox"
+                    checked={canais.has("telegram")}
+                    onChange={() => toggleCanal("telegram")}
+                    className="h-4 w-4 accent-amber-500"
+                  />
+                  <Send size={18} className="text-zinc-400" />
+                  <div className="flex-1">
+                    <div className="text-zinc-100 text-sm font-semibold">Telegram</div>
+                    <div className="text-xs text-zinc-500">
+                      Enviado via bot oficial (TELEGRAM_BOT_TOKEN) pro chat
+                      pessoal CEO_TELEGRAM_CHAT_ID. Sem rate-limit, ideal
+                      como backup quando o WhatsApp falha.
                     </div>
                   </div>
                 </label>

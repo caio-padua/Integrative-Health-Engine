@@ -30,6 +30,7 @@ import { sql } from "drizzle-orm";
 import { getGmailClient } from "../google-gmail";
 import { logger } from "../logger";
 import { enviarWhatsapp } from "../../services/whatsappService";
+import { enviarTelegramCEO, temConfigTelegram } from "../../services/telegramService";
 
 const TICK_MS = 5 * 60 * 1000; // 5min
 // IDs ja em uso na familia 30303xxx: 30303030 (parqStatus), 30303031
@@ -201,6 +202,7 @@ async function tick(): Promise<void> {
       );
       let emailOk = false;
       let whatsappOk = false;
+      let telegramOk = false;
 
       // Task #159 — owner pode desligar canais individualmente.
       // Distincao critica:
@@ -208,11 +210,15 @@ async function tick(): Promise<void> {
       //     ['email','whatsapp'] pra preservar comportamento da Task #146.
       //   - [] (array vazio explicito) -> MUDO. Owner desligou ambos
       //     conscientemente; so o banner in-app da Task #130 avisa.
+      // Task #172 — terceiro canal "telegram" (opt-in, default OFF
+      // mesmo em row legada pra evitar disparar pra owner que nao
+      // configurou bot ainda).
       const canais = Array.isArray(c.canais_aviso_2fa)
         ? c.canais_aviso_2fa
         : ["email", "whatsapp"];
       const querEmail = canais.includes("email");
       const querWhatsapp = canais.includes("whatsapp");
+      const querTelegram = canais.includes("telegram");
 
       // Email — alvo principal (so se o owner ainda quiser receber por email).
       if (querEmail) try {
@@ -259,7 +265,23 @@ async function tick(): Promise<void> {
         }
       }
 
-      // Idempotencia: marca o owner mesmo se email/whatsapp falharam.
+      // Telegram — best-effort (so se TELEGRAM_BOT_TOKEN +
+      // CEO_TELEGRAM_CHAT_ID estiverem setados E o owner tiver marcado
+      // "telegram" em canais_aviso_2fa — Task #172).
+      if (querTelegram && temConfigTelegram()) {
+        const r = await enviarTelegramCEO(
+          montarTextoWhatsapp({ minutosRestantes, url }),
+        );
+        telegramOk = Boolean(r.sucesso);
+        if (!r.sucesso) {
+          logger.warn(
+            { usuarioId: c.id, erro: r.erro },
+            "[aviso-2fa-owner] telegram retornou falha",
+          );
+        }
+      }
+
+      // Idempotencia: marca o owner mesmo se email/whatsapp/telegram falharam.
       // Caso contrario o proximo tick re-tenta e gera spam. O banner
       // in-app permanece como fallback caso ele abra o painel.
       try {
@@ -285,10 +307,10 @@ async function tick(): Promise<void> {
         await db.execute(sql`
           INSERT INTO historico_avisos_2fa_owner
             (usuario_id, ultimo_login_2fa_em, aviso_em, expira_em,
-             canal_email_ok, canal_whatsapp_ok)
+             canal_email_ok, canal_whatsapp_ok, canal_telegram_ok)
           VALUES
             (${c.id}, ${ultimoIso}::timestamptz, now(),
-             ${expiraIso}::timestamptz, ${emailOk}, ${whatsappOk})
+             ${expiraIso}::timestamptz, ${emailOk}, ${whatsappOk}, ${telegramOk})
           ON CONFLICT (usuario_id, ultimo_login_2fa_em) DO NOTHING
         `);
       } catch (e: any) {

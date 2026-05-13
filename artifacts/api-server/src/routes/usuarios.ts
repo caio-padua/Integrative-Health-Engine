@@ -259,7 +259,8 @@ router.patch("/usuarios/me/canais-aviso-2fa", async (req, res): Promise<void> =>
     res.status(400).json({ error: "canaisAviso2fa deve ser array" });
     return;
   }
-  const VALIDOS = new Set(["email", "whatsapp"]);
+  // Task #172 — "telegram" aceito como terceiro canal opt-in.
+  const VALIDOS = new Set(["email", "whatsapp", "telegram"]);
   const canais = Array.from(
     new Set(
       body.canaisAviso2fa
