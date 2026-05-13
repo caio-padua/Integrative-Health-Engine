@@ -19,6 +19,33 @@ interface PerfilAtual {
   email: string;
   perfilPlataforma: "platform_owner" | "tenant_admin" | "tenant_user";
   canaisAviso2fa?: string[] | null;
+  // Task #173 — timestamp do ultimo aviso 2FA enviado pelo worker
+  // (Migration 047). NULL = "ainda nao houve aviso nesta sessao".
+  ultimoAviso2faEm?: string | null;
+}
+
+// Task #173 — formata o "Ultimo aviso enviado" como data/hora relativa
+// curta tipo "ha 12min" / "ha 3h" / "ontem 14:30" pra cabecalho TDAH-friendly.
+function formatarRelativo(iso: string): string {
+  const agora = Date.now();
+  const ts = new Date(iso).getTime();
+  if (Number.isNaN(ts)) return iso;
+  const diffMs = agora - ts;
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "agora mesmo";
+  if (min < 60) return `ha ${min}min`;
+  const horas = Math.floor(min / 60);
+  if (horas < 24) {
+    const restoMin = min % 60;
+    return restoMin > 0 ? `ha ${horas}h${restoMin}min` : `ha ${horas}h`;
+  }
+  const dias = Math.floor(horas / 24);
+  const data = new Date(iso);
+  const hh = String(data.getHours()).padStart(2, "0");
+  const mm = String(data.getMinutes()).padStart(2, "0");
+  if (dias === 1) return `ontem ${hh}:${mm}`;
+  if (dias < 7) return `ha ${dias}d (${hh}:${mm})`;
+  return data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
 export default function PlataformaPerfil() {
@@ -180,6 +207,38 @@ export default function PlataformaPerfil() {
                   </div>
                 </label>
               </div>
+
+              {/* Task #173 — feedback "Ultimo aviso enviado" pra owner
+                  confirmar que a preferencia salva esta funcionando e
+                  que o worker da Task #146 esta vivo. Amarelo quando ja
+                  passou de 7h45 (proximo de expirar a janela de 8h e
+                  esperando renovacao via banner). */}
+              {(() => {
+                const ts = perfil.ultimoAviso2faEm;
+                if (!ts) {
+                  return (
+                    <div className="mt-4 p-3 text-xs text-zinc-400 bg-zinc-950/50 border border-zinc-800 rounded">
+                      Ultimo aviso enviado: <span className="text-zinc-500 italic">Ainda nao houve aviso nesta sessao</span>
+                    </div>
+                  );
+                }
+                const idadeMs = Date.now() - new Date(ts).getTime();
+                const proximoExpirar = idadeMs >= 7 * 3600_000 + 45 * 60_000;
+                const cls = proximoExpirar
+                  ? "mt-4 p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/40 rounded"
+                  : "mt-4 p-3 text-xs text-zinc-300 bg-zinc-950/50 border border-zinc-800 rounded";
+                return (
+                  <div className={cls}>
+                    Ultimo aviso enviado:{" "}
+                    <span className="font-mono">{formatarRelativo(ts)}</span>
+                    {proximoExpirar && (
+                      <span className="block mt-1 text-amber-300/80">
+                        A janela de 8h esta perto do fim — fique de olho no banner pra renovar.
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
               {nenhumCanal && (
                 <div className="mt-3 p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded">

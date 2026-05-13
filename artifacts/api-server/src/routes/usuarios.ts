@@ -193,6 +193,11 @@ router.get("/usuarios/perfil-atual", async (req, res): Promise<void> => {
       // Task #130: usado pelo banner de aviso 2FA no painel /plataforma/*
       // pra mostrar countdown antes da janela de 8h expirar.
       ultimoLogin2faEm: usuariosTable.ultimoLogin2faEm,
+      // Task #173 — timestamp do ultimo aviso de expiracao 2FA enviado
+      // pelo worker (Migration 047). UI /plataforma/perfil mostra
+      // "Ultimo aviso enviado: <data/hora relativa>" pro owner confirmar
+      // que a preferencia de canais funciona e o worker esta vivo.
+      ultimoAviso2faEm: usuariosTable.ultimoAviso2faEm,
       // Task #159 — preferencia de canais pra aviso de expiracao 2FA
       // (usado pela tela /plataforma/perfil pra mostrar o estado atual).
       canaisAviso2fa: usuariosTable.canaisAviso2fa,

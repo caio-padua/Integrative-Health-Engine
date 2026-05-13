@@ -806,6 +806,12 @@ export interface Usuario {
 a janela de 8h está prestes a expirar e oferecer renovação.
  */
   ultimoLogin2faEm?: string | null;
+  /** Timestamp do último aviso de expiração 2FA disparado pelo
+worker (Task #146/Migration 047). Exibido na tela
+/plataforma/perfil (Task #173) pra confirmar que o worker
+está vivo e a preferência de canais está funcionando.
+ */
+  ultimoAviso2faEm?: string | null;
 }
 
 export type CriarUsuarioBodyPerfil =

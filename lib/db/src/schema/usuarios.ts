@@ -31,6 +31,10 @@ export const usuariosTable = pgTable("usuarios", {
   totpSecretCifrado: text("totp_secret_cifrado"),
   totpAtivadoEm: timestamp("totp_ativado_em", { withTimezone: true }),
   ultimoLogin2faEm: timestamp("ultimo_login_2fa_em", { withTimezone: true }),
+  // Task #146/Migration 047 — timestamp do ultimo aviso de expiracao 2FA
+  // disparado pelo worker. Exposto em /usuarios/perfil-atual (Task #173)
+  // pra UI mostrar "Ultimo aviso enviado: <data>" e amarelo perto do fim.
+  ultimoAviso2faEm: timestamp("ultimo_aviso_2fa_em", { withTimezone: true }),
   // Task #159 — preferencia de canais pra aviso de expiracao 2FA
   // (Migration 048). Default ['email','whatsapp'] preserva comportamento
   // legado do worker avisoExpiracao2faOwner (Task #146).

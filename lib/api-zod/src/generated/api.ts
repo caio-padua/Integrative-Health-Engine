@@ -1614,6 +1614,12 @@ export const ListarUsuariosResponseItem = zod.object({
     .describe(
       "Timestamp do último 2FA TOTP validado. Usado pelo painel\n\/plataforma\/\* (Task #130) pra avisar com antecedência quando\na janela de 8h está prestes a expirar e oferecer renovação.\n",
     ),
+  ultimoAviso2faEm: zod.coerce
+    .date()
+    .nullish()
+    .describe(
+      "Timestamp do último aviso de expiração 2FA disparado pelo\nworker (Task #146\/Migration 047). Exibido na tela\n\/plataforma\/perfil (Task #173) pra confirmar que o worker\nestá vivo e a preferência de canais está funcionando.\n",
+    ),
 });
 export const ListarUsuariosResponse = zod.array(ListarUsuariosResponseItem);
 
@@ -1663,6 +1669,12 @@ export const LoginUsuarioResponse = zod.object({
       .describe(
         "Timestamp do último 2FA TOTP validado. Usado pelo painel\n\/plataforma\/\* (Task #130) pra avisar com antecedência quando\na janela de 8h está prestes a expirar e oferecer renovação.\n",
       ),
+    ultimoAviso2faEm: zod.coerce
+      .date()
+      .nullish()
+      .describe(
+        "Timestamp do último aviso de expiração 2FA disparado pelo\nworker (Task #146\/Migration 047). Exibido na tela\n\/plataforma\/perfil (Task #173) pra confirmar que o worker\nestá vivo e a preferência de canais está funcionando.\n",
+      ),
   }),
 });
 
@@ -1688,6 +1700,12 @@ export const ObterPerfilAtualResponse = zod.object({
     .nullish()
     .describe(
       "Timestamp do último 2FA TOTP validado. Usado pelo painel\n\/plataforma\/\* (Task #130) pra avisar com antecedência quando\na janela de 8h está prestes a expirar e oferecer renovação.\n",
+    ),
+  ultimoAviso2faEm: zod.coerce
+    .date()
+    .nullish()
+    .describe(
+      "Timestamp do último aviso de expiração 2FA disparado pelo\nworker (Task #146\/Migration 047). Exibido na tela\n\/plataforma\/perfil (Task #173) pra confirmar que o worker\nestá vivo e a preferência de canais está funcionando.\n",
     ),
 });
 
