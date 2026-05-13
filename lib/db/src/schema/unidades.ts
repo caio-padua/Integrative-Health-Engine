@@ -32,6 +32,16 @@ export const unidadesTable = pgTable("unidades", {
   cor: text("cor").notNull().default("#3B82F6"),
   ativa: boolean("ativa").notNull().default(true),
   timezone: text("timezone").notNull().default("America/Sao_Paulo"),
+  // Wave 13 F1 (Migration 044) — kill-switch lifecycle
+  status: text("status", {
+    enum: ["ATIVO", "SUSPENSO", "EXCLUIDO_PENDENTE", "EXCLUIDO"],
+  }).notNull().default("ATIVO"),
+  suspensoEm: timestamp("suspenso_em", { withTimezone: true }),
+  suspensoPorUsuarioId: integer("suspenso_por_usuario_id"),
+  suspensaoMotivo: text("suspensao_motivo"),
+  exclusaoCarenciaAte: timestamp("exclusao_carencia_ate", { withTimezone: true }),
+  lgpdExportUrl: text("lgpd_export_url"),
+  lgpdExportEm: timestamp("lgpd_export_em", { withTimezone: true }),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

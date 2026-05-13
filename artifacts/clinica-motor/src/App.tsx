@@ -104,6 +104,10 @@ import GovernancaMatrixPage from "@/pages/governanca-matrix";
 import MonetizarPage from "@/pages/monetizar";
 import DashboardLocalPage from "@/pages/dashboard-local";
 import DemandasResolucaoPage from "@/pages/demandas-resolucao";
+// Wave 13 F4 — Painel platform_owner
+import PlataformaClinicas from "@/pages/plataforma/clinicas";
+import PlataformaAdmins from "@/pages/plataforma/admins";
+import PlataformaAuditoria from "@/pages/plataforma/auditoria";
 // EXAMES-2 — 5 zonas + nomes proprios Caio
 import ExamesDashboardMedico from "@/pages/atendimento/exames/[pacienteId]";
 import ExamesVitrinePaciente from "@/pages/atendimento/exames/[pacienteId]/vitrine";
@@ -223,6 +227,10 @@ function Router() {
       <Route path="/monetizar" component={MonetizarPage} />
       <Route path="/dashboard-local" component={DashboardLocalPage} />
       <Route path="/demandas-resolucao" component={DemandasResolucaoPage} />
+      {/* Wave 13 F4 — Painel platform_owner */}
+      <Route path="/plataforma/clinicas" component={PlataformaClinicas} />
+      <Route path="/plataforma/admins" component={PlataformaAdmins} />
+      <Route path="/plataforma/auditoria" component={PlataformaAuditoria} />
       <Route component={NotFound} />
     </Switch>
   );

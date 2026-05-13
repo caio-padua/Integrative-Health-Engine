@@ -216,4 +216,8 @@ router.use(adminAnalyticsRouter);
 router.use(relatoriosPdfRouter);
 router.use(notifAssinaturaRouter);
 
+// Wave 13 F4 — Painel platform_owner (suspender clinica, promover admin, auditoria)
+import plataformaRouter from "./plataforma";
+router.use(plataformaRouter);
+
 export default router;
