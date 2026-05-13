@@ -7,7 +7,7 @@ import {
   estoqueItensTable, insertEstoqueItemSchema,
   tratamentosTable, tratamentoItensTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, sql, type SQL } from "drizzle-orm";
+import { eq, and, desc, gte, lte, inArray, sql, type SQL } from "drizzle-orm";
 import { gerarPdfRAS } from "../pdf/gerarRAS";
 
 const router = Router();
@@ -67,10 +67,29 @@ function montarOrderByRas(tokens: string[]): SQL[] {
 }
 
 router.get("/ras", async (req, res) => {
-  const { pacienteId, protocoloId } = req.query;
+  const { pacienteId, protocoloId, unidadeId, dataInicio, dataFim } = req.query;
   const conditions: any[] = [];
   if (pacienteId) conditions.push(eq(rasTable.pacienteId, Number(pacienteId)));
   if (protocoloId) conditions.push(eq(rasTable.protocoloId, Number(protocoloId)));
+  // Task #104 — filtro server-side por unidade. `rasTable.unidade` armazena o
+  // nome da clinica (snapshot historico), nao o id, entao filtramos via
+  // `sessao_id` -> `sessoes.unidade_id` que e a fonte canonica do vinculo.
+  if (unidadeId && !Number.isNaN(Number(unidadeId))) {
+    const sessoesIds = db
+      .select({ id: sessoesTable.id })
+      .from(sessoesTable)
+      .where(eq(sessoesTable.unidadeId, Number(unidadeId)));
+    conditions.push(inArray(rasTable.sessaoId, sessoesIds));
+  }
+  // Task #104 — janela de data sobre `data_servico` (text ISO YYYY-MM-DD que
+  // ordena lexicalmente igual a date). Aceita inicio sem fim e vice-versa.
+  const dataRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (typeof dataInicio === "string" && dataRegex.test(dataInicio)) {
+    conditions.push(gte(rasTable.dataServico, dataInicio));
+  }
+  if (typeof dataFim === "string" && dataRegex.test(dataFim)) {
+    conditions.push(lte(rasTable.dataServico, dataFim));
+  }
 
   const ordenarPorRaw = typeof req.query["ordenarPor"] === "string"
     ? (req.query["ordenarPor"] as string).toLowerCase()

@@ -27,6 +27,7 @@ import {
   alternarOrdenacao,
 } from "@/lib/ordenacao-multi";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 
 import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -91,10 +92,48 @@ export default function RasPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { unidadesDisponiveis, unidadeSelecionada } = useClinic();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [sessaoIdInput, setSessaoIdInput] = useState("");
   const [obsInput, setObsInput] = useState("");
+
+  // Task #104 — filtros de unidade + janela de data persistidos em
+  // querystring (junto com ?ordenar_por=) pra link compartilhavel reproduzir
+  // exatamente a mesma visao. unidadeId hidrata do useClinic() quando a URL
+  // nao traz nada (consistencia com o seletor global).
+  const lerQuery = (k: string): string => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get(k) || "";
+  };
+  const [filtroUnidadeId, setFiltroUnidadeId] = useState<number | null>(() => {
+    const v = lerQuery("unidadeId");
+    if (v) {
+      const n = Number(v);
+      // Guard contra ?unidadeId=abc virar NaN no estado.
+      if (Number.isInteger(n) && n > 0) return n;
+    }
+    return unidadeSelecionada;
+  });
+  // Quando o seletor global de clinica muda, refletir no filtro local —
+  // mas SOMENTE se a URL nao traz unidadeId explicito (link compartilhavel
+  // tem prioridade, mesmo padrao da hidratacao de ordenacao).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (lerQuery("unidadeId")) return;
+    setFiltroUnidadeId(unidadeSelecionada);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unidadeSelecionada]);
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>(() => lerQuery("dataInicio"));
+  const [filtroDataFim, setFiltroDataFim] = useState<string>(() => lerQuery("dataFim"));
+
+  const atualizarQuery = useCallback((chave: string, valor: string) => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (valor) url.searchParams.set(chave, valor);
+    else url.searchParams.delete(chave);
+    window.history.replaceState({}, "", url.toString());
+  }, []);
 
   // Task #100 — estado de ordenacao multi-coluna. Hidratado de `?ordenar_por=`
   // (link compartilhavel tem prioridade) ou de localStorage por-usuario.
@@ -169,9 +208,14 @@ export default function RasPage() {
   };
 
   const { data: rasList = [], isLoading } = useQuery<Ras[]>({
-    queryKey: ["ras", ordenarPorString],
+    queryKey: ["ras", ordenarPorString, filtroUnidadeId, filtroDataInicio, filtroDataFim],
     queryFn: async () => {
-      const qs = ordenarPorString ? `?ordenarPor=${encodeURIComponent(ordenarPorString)}` : "";
+      const params = new URLSearchParams();
+      if (ordenarPorString) params.set("ordenarPor", ordenarPorString);
+      if (filtroUnidadeId !== null) params.set("unidadeId", String(filtroUnidadeId));
+      if (filtroDataInicio) params.set("dataInicio", filtroDataInicio);
+      if (filtroDataFim) params.set("dataFim", filtroDataFim);
+      const qs = params.toString() ? `?${params.toString()}` : "";
       const res = await apiFetch(`/api/ras${qs}`);
       if (!res.ok) throw new Error("Erro");
       return res.json();
@@ -237,6 +281,76 @@ export default function RasPage() {
         <div className="apenas-impressao text-sm font-mono mb-2" data-testid="ras-ordenacao-impressao">
           Ordenado por: {descricaoOrdenacaoImpressao}
         </div>
+
+        {/* Task #104 — barra de filtros server-side. Unidade vem do
+            useClinic() (mesma fonte do seletor global) e a janela de data
+            usa <input type="date">. Tudo persiste em querystring. */}
+        <Card>
+          <CardContent className="p-4 flex flex-wrap items-end gap-4">
+            <div className="flex flex-col gap-1 min-w-[200px]">
+              <Label className="text-xs text-muted-foreground">Unidade</Label>
+              <select
+                data-testid="filtro-ras-unidade"
+                className="h-9 border bg-background px-2 text-sm"
+                value={filtroUnidadeId === null ? "" : String(filtroUnidadeId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const novo = v === "" ? null : Number(v);
+                  setFiltroUnidadeId(novo);
+                  atualizarQuery("unidadeId", v);
+                }}
+              >
+                <option value="">Todas as Clínicas</option>
+                {unidadesDisponiveis.map((u) => (
+                  <option key={u.unidadeId} value={u.unidadeId}>{u.unidadeNome}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Data inicio</Label>
+              <Input
+                data-testid="filtro-ras-data-inicio"
+                type="date"
+                className="h-9 w-[170px]"
+                value={filtroDataInicio}
+                onChange={(e) => {
+                  setFiltroDataInicio(e.target.value);
+                  atualizarQuery("dataInicio", e.target.value);
+                }}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Data fim</Label>
+              <Input
+                data-testid="filtro-ras-data-fim"
+                type="date"
+                className="h-9 w-[170px]"
+                value={filtroDataFim}
+                onChange={(e) => {
+                  setFiltroDataFim(e.target.value);
+                  atualizarQuery("dataFim", e.target.value);
+                }}
+              />
+            </div>
+            {(filtroUnidadeId !== null || filtroDataInicio || filtroDataFim) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                data-testid="filtro-ras-limpar"
+                onClick={() => {
+                  setFiltroUnidadeId(null);
+                  setFiltroDataInicio("");
+                  setFiltroDataFim("");
+                  atualizarQuery("unidadeId", "");
+                  atualizarQuery("dataInicio", "");
+                  atualizarQuery("dataFim", "");
+                }}
+              >
+                Limpar filtros
+              </Button>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardContent className="p-0">
