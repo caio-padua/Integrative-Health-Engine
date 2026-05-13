@@ -133,6 +133,28 @@ async function tick(): Promise<void> {
     lockOk = Boolean(((lockResult.rows ?? lockResult)[0] || {}).got);
     if (!lockOk) return;
 
+    // Sweep: marca como renovado os avisos cujo owner relogou 2FA dentro
+    // da janela (ultimo_login_2fa_em do usuario > aviso_em e <= expira_em
+    // da linha do historico). Roda antes de enviar avisos novos pra
+    // manter o historico consistente sem worker dedicado. Task #158.
+    try {
+      await db.execute(sql`
+        UPDATE historico_avisos_2fa_owner h
+           SET renovado_em = u.ultimo_login_2fa_em
+          FROM usuarios u
+         WHERE h.usuario_id = u.id
+           AND h.renovado_em IS NULL
+           AND u.ultimo_login_2fa_em IS NOT NULL
+           AND u.ultimo_login_2fa_em > h.aviso_em
+           AND u.ultimo_login_2fa_em <= h.expira_em
+      `);
+    } catch (e: any) {
+      logger.warn(
+        { err: e?.message ?? String(e) },
+        "[aviso-2fa-owner] sweep renovacao falhou",
+      );
+    }
+
     // Janela: ultimo_login_2fa_em entre (now - 8h) e (now - 7h45min) —
     // exatamente os 15min de antecedencia pedidos pelo task. Cobre 3 ticks
     // consecutivos de 5min sem buraco. A idempotencia por sessao
@@ -174,6 +196,8 @@ async function tick(): Promise<void> {
         1,
         Math.round((expiraMs - Date.now()) / 60_000),
       );
+      let emailOk = false;
+      let whatsappOk = false;
 
       // Email — alvo principal (sempre tenta).
       try {
@@ -189,6 +213,7 @@ async function tick(): Promise<void> {
           userId: "me",
           requestBody: { raw },
         });
+        emailOk = true;
       } catch (e: any) {
         logger.warn(
           { usuarioId: c.id, err: e?.message ?? String(e) },
@@ -203,6 +228,7 @@ async function tick(): Promise<void> {
             CEO_WHATSAPP,
             montarTextoWhatsapp({ minutosRestantes, url }),
           );
+          whatsappOk = Boolean(r.sucesso);
           if (!r.sucesso) {
             logger.warn(
               { usuarioId: c.id, erro: r.erro },
@@ -230,6 +256,29 @@ async function tick(): Promise<void> {
         logger.error(
           { usuarioId: c.id, err: e?.message ?? String(e) },
           "[aviso-2fa-owner] falha ao gravar ultimo_aviso_2fa_em",
+        );
+      }
+
+      // Historico (Task #158): 1 linha por (usuario, ultimo_login_2fa_em).
+      // ON CONFLICT no-op garante idempotencia caso o sweep ja tenha entrado
+      // (nao deveria, mas defensivo). Renovado_em sera preenchido por sweep
+      // futuro quando o owner relogar dentro da janela.
+      try {
+        const expiraIso = new Date(expiraMs).toISOString();
+        const ultimoIso = new Date(ultimoMs).toISOString();
+        await db.execute(sql`
+          INSERT INTO historico_avisos_2fa_owner
+            (usuario_id, ultimo_login_2fa_em, aviso_em, expira_em,
+             canal_email_ok, canal_whatsapp_ok)
+          VALUES
+            (${c.id}, ${ultimoIso}::timestamptz, now(),
+             ${expiraIso}::timestamptz, ${emailOk}, ${whatsappOk})
+          ON CONFLICT (usuario_id, ultimo_login_2fa_em) DO NOTHING
+        `);
+      } catch (e: any) {
+        logger.warn(
+          { usuarioId: c.id, err: e?.message ?? String(e) },
+          "[aviso-2fa-owner] falha ao registrar historico",
         );
       }
     }

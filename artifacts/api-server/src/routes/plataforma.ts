@@ -894,6 +894,78 @@ router.post("/plataforma/alertas-seguranca/:id/visualizar", ...guardas, async (r
   res.json({ ok: true });
 });
 
+// ─────────────────── HISTORICO AVISOS 2FA OWNER (Task #158) ────────────
+// GET /api/plataforma/seguranca/avisos-2fa — historico das ultimas N
+// janelas de 2FA do platform_owner com timestamp do aviso enviado pelo
+// worker (Task #146), expiracao calculada (login + 8h) e renovacao
+// (proximo login 2FA dentro da janela). Permite ao owner auditar
+// "quantas vezes fui avisado essa semana? quantas deixei expirar?".
+router.get("/plataforma/seguranca/avisos-2fa", ...guardas, async (req, res): Promise<void> => {
+  const limite = Math.min(Number(req.query["limite"] ?? 100) || 100, 500);
+  const diasJanela = Math.min(Number(req.query["dias"] ?? 30) || 30, 180);
+  const result = await db.execute(sql`
+    SELECT
+      h.id,
+      h.usuario_id,
+      h.ultimo_login_2fa_em,
+      h.aviso_em,
+      h.aviso_em  AS ultimo_aviso_2fa_em,
+      h.expira_em,
+      h.expira_em AS expirou_em,
+      h.renovado_em,
+      h.canal_email_ok,
+      h.canal_whatsapp_ok,
+      h.criado_em,
+      u.nome  AS usuario_nome,
+      u.email AS usuario_email,
+      CASE
+        WHEN h.renovado_em IS NOT NULL
+          THEN EXTRACT(EPOCH FROM (h.renovado_em - h.aviso_em))::int
+        ELSE NULL
+      END AS renovado_em_segundos_apos_aviso,
+      CASE
+        WHEN h.renovado_em IS NOT NULL THEN 'renovado'
+        WHEN h.expira_em <= now()      THEN 'expirou'
+        ELSE 'em_andamento'
+      END AS status
+    FROM historico_avisos_2fa_owner h
+    LEFT JOIN usuarios u ON u.id = h.usuario_id
+    WHERE h.aviso_em >= now() - (${diasJanela}::int * INTERVAL '1 day')
+    ORDER BY h.aviso_em DESC
+    LIMIT ${limite}
+  `);
+
+  const linhas = (result.rows ?? []) as Array<{
+    renovado_em: string | null;
+    expira_em: string;
+    status: string;
+  }>;
+  const totalAvisos = linhas.length;
+  const totalRenovados = linhas.filter((l) => l.status === "renovado").length;
+  const totalExpirados = linhas.filter((l) => l.status === "expirou").length;
+  const totalEmAndamento = linhas.filter(
+    (l) => l.status === "em_andamento",
+  ).length;
+  // KPI principal: % de avisos que renderam renovacao. Considera apenas
+  // janelas ja resolvidas (renovado ou expirou) — em_andamento ainda nao
+  // tem desfecho. Retorna null se nada resolveu pra UI mostrar "—".
+  const resolvidos = totalRenovados + totalExpirados;
+  const percentualRenovacao =
+    resolvidos > 0 ? Math.round((totalRenovados / resolvidos) * 1000) / 10 : null;
+
+  res.json({
+    avisos: result.rows ?? [],
+    kpi: {
+      total_avisos: totalAvisos,
+      total_renovados: totalRenovados,
+      total_expirados: totalExpirados,
+      total_em_andamento: totalEmAndamento,
+      percentual_renovacao: percentualRenovacao,
+      dias_janela: diasJanela,
+    },
+  });
+});
+
 // ──────────────────────────── AUDITORIA ────────────────────────────────
 // GET /api/plataforma/auditoria — timeline cronologica das acoes sensiveis
 router.get("/plataforma/auditoria", ...guardas, async (req, res): Promise<void> => {
