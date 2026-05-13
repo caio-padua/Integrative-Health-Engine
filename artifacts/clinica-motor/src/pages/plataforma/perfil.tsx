@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
-import { Bell, Mail, MessageCircle, Save, Send, ShieldAlert, UserCog } from "lucide-react";
+import { Bell, Key, Mail, MessageCircle, RefreshCw, Save, Send, ShieldAlert, UserCog } from "lucide-react";
 
 // Task #159 — pagina de perfil do platform_owner pra escolher por quais
 // canais quer receber o aviso de expiracao do 2FA (worker da Task #146).
@@ -24,6 +24,11 @@ interface PerfilAtual {
   // Task #173 — timestamp do ultimo aviso 2FA enviado pelo worker
   // (Migration 047). NULL = "ainda nao houve aviso nesta sessao".
   ultimoAviso2faEm?: string | null;
+  // Task #123 — contagem de codigos de recuperacao 2FA ainda nao usados
+  // (e total gerados). UI mostra "X de N restantes" + botao regerar.
+  totpAtivadoEm?: string | null;
+  codigosRecuperacao2faRestantes?: number;
+  codigosRecuperacao2faTotal?: number;
 }
 
 // Task #173 — formata o "Ultimo aviso enviado" como data/hora relativa
@@ -121,6 +126,49 @@ export default function PlataformaPerfil() {
 
   const isOwner = perfil?.perfilPlataforma === "platform_owner";
   const nenhumCanal = canais.size === 0;
+
+  // Task #123 — gera codigos de recuperacao novos (invalida os antigos).
+  // Pede o codigo TOTP atual do app autenticador no prompt — backend exige
+  // pra evitar que session hijack roube codigos.
+  const [codigosNovos, setCodigosNovos] = useState<string[] | null>(null);
+  const [regerando, setRegerando] = useState(false);
+  const [erroRegerar, setErroRegerar] = useState<string | null>(null);
+
+  async function regerarCodigosRecuperacao() {
+    setErroRegerar(null);
+    const codigo = window.prompt(
+      "Digite o codigo de 6 digitos do seu app autenticador pra confirmar a regeracao dos codigos de recuperacao.\n\nATENCAO: os codigos antigos serao INVALIDADOS imediatamente.",
+    );
+    if (!codigo || codigo.trim().length < 6) {
+      if (codigo !== null) setErroRegerar("Codigo precisa ter 6 digitos.");
+      return;
+    }
+    setRegerando(true);
+    try {
+      const r = await apiFetch("/api/usuarios/2fa/regenerar-codigos-recuperacao", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo: codigo.trim() }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setErroRegerar(data.error ?? `Falha ao regerar (${r.status})`);
+        return;
+      }
+      setCodigosNovos(Array.isArray(data.codigosRecuperacao) ? data.codigosRecuperacao : []);
+      await carregar();
+    } catch (e: any) {
+      setErroRegerar(e?.message ?? "Sem conexao.");
+    } finally {
+      setRegerando(false);
+    }
+  }
+
+  function copiarCodigos() {
+    if (!codigosNovos) return;
+    void navigator.clipboard.writeText(codigosNovos.join("\n"));
+  }
 
   return (
     <Layout>
@@ -284,6 +332,103 @@ export default function PlataformaPerfil() {
                 </button>
               </div>
             </section>
+
+            {/* Task #123 — codigos de recuperacao 2FA. So aparece se o
+                usuario ja tem 2FA ativo (totpAtivadoEm != null). */}
+            {perfil.totpAtivadoEm && (
+              <section className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-5">
+                <div className="flex items-start gap-3 mb-4">
+                  <Key size={20} className="text-amber-400 mt-1" />
+                  <div className="flex-1">
+                    <h2 className="font-semibold text-zinc-100">
+                      Codigos de recuperacao 2FA
+                    </h2>
+                    <p className="text-sm text-zinc-400 mt-1">
+                      Caso voce perca o celular do app autenticador, use um destes
+                      codigos pra entrar. Cada codigo serve UMA UNICA VEZ.
+                    </p>
+                  </div>
+                  {(() => {
+                    const restantes = perfil.codigosRecuperacao2faRestantes ?? 0;
+                    const total = perfil.codigosRecuperacao2faTotal ?? 0;
+                    const baixo = total > 0 && restantes <= 2;
+                    const cls = baixo
+                      ? "text-xs font-mono px-3 py-1 rounded border border-red-500/40 bg-red-500/10 text-red-300"
+                      : "text-xs font-mono px-3 py-1 rounded border border-zinc-700 bg-zinc-950 text-zinc-200";
+                    return (
+                      <span className={cls}>
+                        {restantes} de {total} restantes
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {(perfil.codigosRecuperacao2faTotal ?? 0) === 0 && (
+                  <div className="mb-3 p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded">
+                    Voce nao tem codigos de recuperacao gerados. Sem eles, perder
+                    o celular = ficar trancado fora do painel. Gere agora.
+                  </div>
+                )}
+
+                {(perfil.codigosRecuperacao2faRestantes ?? 0) <= 2 &&
+                  (perfil.codigosRecuperacao2faTotal ?? 0) > 0 && (
+                    <div className="mb-3 p-3 text-xs text-red-200 bg-red-500/10 border border-red-500/40 rounded">
+                      Voce esta com poucos codigos. Recomendado regerar pra ter
+                      uma lista nova completa antes que acabe.
+                    </div>
+                  )}
+
+                {erroRegerar && (
+                  <div className="mb-3 p-3 text-xs text-red-200 bg-red-500/10 border border-red-500/40 rounded">
+                    {erroRegerar}
+                  </div>
+                )}
+
+                {codigosNovos && (
+                  <div className="mb-3 p-4 border border-emerald-500/40 bg-emerald-500/10 rounded">
+                    <div className="text-xs uppercase tracking-wide text-emerald-300 mb-2 font-semibold">
+                      Novos codigos · mostrados UMA UNICA VEZ
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 font-mono text-sm text-emerald-100 mb-3">
+                      {codigosNovos.map((c) => (
+                        <div key={c} className="px-3 py-2 bg-zinc-950 border border-emerald-500/30 rounded">
+                          {c}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={copiarCodigos}
+                        className="px-3 py-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 rounded"
+                      >
+                        Copiar todos
+                      </button>
+                      <button
+                        onClick={() => setCodigosNovos(null)}
+                        className="px-3 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 rounded"
+                      >
+                        Fechar (ja guardei)
+                      </button>
+                    </div>
+                    <div className="mt-2 text-xs text-emerald-300/80">
+                      Guarde em gerenciador de senhas ou papel num cofre. Nao
+                      serao mostrados de novo.
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => void regerarCodigosRecuperacao()}
+                    disabled={regerando}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 rounded text-sm disabled:opacity-50"
+                  >
+                    <RefreshCw size={16} />
+                    {regerando ? "Regerando..." : "Regerar codigos (invalida os antigos)"}
+                  </button>
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>

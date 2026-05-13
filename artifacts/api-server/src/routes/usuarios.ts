@@ -205,6 +205,12 @@ router.get("/usuarios/perfil-atual", async (req, res): Promise<void> => {
       // Task #159 — preferencia de canais pra aviso de expiracao 2FA
       // (usado pela tela /plataforma/perfil pra mostrar o estado atual).
       canaisAviso2fa: usuariosTable.canaisAviso2fa,
+      // Task #123 — codigos de recuperacao 2FA (lista de hashes bcrypt).
+      // A UI so usa a CONTAGEM de nao-usados (X de N restantes) — nunca
+      // os hashes em si. Mapeamos pra `codigosRecuperacao2faRestantes`
+      // logo abaixo antes de devolver pro cliente.
+      codigosRecuperacao2fa: usuariosTable.codigosRecuperacao2fa,
+      totpAtivadoEm: usuariosTable.totpAtivadoEm,
     })
     .from(usuariosTable)
     .leftJoin(unidadesTable, eq(usuariosTable.unidadeId, unidadesTable.id))
@@ -232,7 +238,24 @@ router.get("/usuarios/perfil-atual", async (req, res): Promise<void> => {
       .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
   }
 
-  res.json({ ...usuario, unidadesVinculadas });
+  // Task #123 — projeta a contagem de codigos restantes em vez de devolver
+  // os hashes bcrypt (nada util pro cliente e expoe estrutura interna).
+  const codigosRaw = (usuario as any).codigosRecuperacao2fa as
+    | Array<{ usadoEm: string | null }>
+    | null
+    | undefined;
+  const codigosRecuperacao2faRestantes = Array.isArray(codigosRaw)
+    ? codigosRaw.filter((c) => c && !c.usadoEm).length
+    : 0;
+  const codigosRecuperacao2faTotal = Array.isArray(codigosRaw) ? codigosRaw.length : 0;
+  const { codigosRecuperacao2fa: _omitir, ...sanitizado } = usuario as any;
+
+  res.json({
+    ...sanitizado,
+    unidadesVinculadas,
+    codigosRecuperacao2faRestantes,
+    codigosRecuperacao2faTotal,
+  });
 });
 
 const PERFIS_ADMIN = new Set(["validador_mestre", "consultoria_master"]);

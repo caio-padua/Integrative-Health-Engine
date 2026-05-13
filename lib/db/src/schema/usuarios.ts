@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { unidadesTable } from "./unidades";
@@ -39,6 +39,14 @@ export const usuariosTable = pgTable("usuarios", {
   // (Migration 048). Default ['email','whatsapp'] preserva comportamento
   // legado do worker avisoExpiracao2faOwner (Task #146).
   canaisAviso2fa: text("canais_aviso_2fa").array().notNull().default(["email", "whatsapp"]),
+  // Task #123/Migration 050 — codigos de recuperacao 2FA bcrypt-hashed
+  // gerados na ativacao e mostrados UMA UNICA VEZ. Array de objetos
+  // { hash: string, usadoEm: string|null (ISO8601) }. Aceitos como
+  // alternativa ao codigo TOTP em /usuarios/login/2fa-verificar.
+  codigosRecuperacao2fa: jsonb("codigos_recuperacao_2fa")
+    .$type<Array<{ hash: string; usadoEm: string | null }>>()
+    .notNull()
+    .default([]),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

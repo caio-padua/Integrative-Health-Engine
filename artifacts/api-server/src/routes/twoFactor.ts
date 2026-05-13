@@ -30,6 +30,14 @@ import {
   gerarNovoSegredoTotp,
   verificarCodigoTotp,
 } from "../lib/auth/totp";
+import {
+  CODIGOS_RECUPERACAO_TOTAL,
+  contarCodigosRestantes,
+  gerarCodigosRecuperacao,
+  pareceCodigoRecuperacao,
+  tentarConsumirCodigoRecuperacao,
+  type CodigoRecuperacaoArmazenado,
+} from "../lib/auth/recoveryCodes";
 import { requirePlataforma } from "../middlewares/requirePlataforma";
 import {
   estaBloqueadoTotp,
@@ -42,9 +50,12 @@ import { dispararAlertaBruteForceTotp } from "../lib/auth/alertaBruteForceTotp";
 const router = Router();
 
 const ConfirmarBody = z.object({ codigo: z.string().min(6).max(8) });
+// Task #123 — codigo pode ser TOTP de 6 digitos OU codigo de recuperacao
+// formato XXXX-XXXX (8 chars + 1 hifen = 9), com folga pra espacos/lowercase
+// que normalizamos antes de comparar.
 const VerificarLoginBody = z.object({
   challenge: z.string().min(10),
-  codigo: z.string().min(6).max(8),
+  codigo: z.string().min(6).max(20),
 });
 
 /**
@@ -83,9 +94,15 @@ router.post(
 
     const enroll = gerarNovoSegredoTotp(`PAWARDS:${usuario.email}`);
     const cifrado = encryptTotpSecret(enroll.secretBase32);
+    // Task #123 — gera N codigos de recuperacao novos junto com o secret.
+    // Mostrados UMA UNICA VEZ aqui — depois sao bcrypt-hashed no DB.
+    const recuperacao = await gerarCodigosRecuperacao();
     await db
       .update(usuariosTable)
-      .set({ totpSecretCifrado: cifrado })
+      .set({
+        totpSecretCifrado: cifrado,
+        codigosRecuperacao2fa: recuperacao.armazenaveis,
+      })
       .where(eq(usuariosTable.id, usuario.id));
 
     const qrCodeDataUrl = await QRCode.toDataURL(enroll.otpauthUrl, {
@@ -98,6 +115,9 @@ router.post(
       otpauthUrl: enroll.otpauthUrl,
       secretBase32: enroll.secretBase32,
       qrCodeDataUrl,
+      codigosRecuperacao: recuperacao.planos,
+      codigosRecuperacaoAviso:
+        "Guarde estes codigos em local seguro (gerenciador de senhas, papel num cofre). Cada codigo e de uso unico e serve pra entrar caso voce perca o celular do app autenticador. Eles NAO serao mostrados de novo — se perder, gere novos via POST /usuarios/2fa/regenerar-codigos-recuperacao.",
       instrucoes:
         "Escaneie o QR no Google Authenticator / Authy / 1Password / Bitwarden e depois confirme com 1 codigo de 6 digitos em POST /usuarios/2fa/confirmar.",
     });
@@ -260,9 +280,61 @@ router.post(
     }
     await db
       .update(usuariosTable)
-      .set({ totpSecretCifrado: null, totpAtivadoEm: null })
+      .set({
+        totpSecretCifrado: null,
+        totpAtivadoEm: null,
+        // Task #123 — desativar 2FA invalida tambem os codigos de recuperacao.
+        codigosRecuperacao2fa: [],
+      })
       .where(eq(usuariosTable.id, usuario.id));
     res.json({ ok: true });
+  },
+);
+
+/**
+ * POST /usuarios/2fa/regenerar-codigos-recuperacao { codigo }
+ * Task #123 — regera os N codigos de recuperacao 2FA. Invalida todos os
+ * anteriores (usados ou nao). Exige codigo TOTP valido pra evitar que um
+ * session hijack roube codigos novos. Mostra os novos UMA UNICA VEZ.
+ */
+router.post(
+  "/usuarios/2fa/regenerar-codigos-recuperacao",
+  requirePlataforma("tenant_admin"),
+  async (req, res): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ error: "Autenticacao necessaria" });
+      return;
+    }
+    const parsed = ConfirmarBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const [usuario] = await db
+      .select()
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, req.user.sub))
+      .limit(1);
+    if (!usuario || !usuario.totpSecretCifrado || !usuario.totpAtivadoEm) {
+      res.status(409).json({ error: "2FA nao esta ativo nessa conta." });
+      return;
+    }
+    if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
+      res.status(401).json({ error: "Codigo invalido." });
+      return;
+    }
+    const recuperacao = await gerarCodigosRecuperacao();
+    await db
+      .update(usuariosTable)
+      .set({ codigosRecuperacao2fa: recuperacao.armazenaveis })
+      .where(eq(usuariosTable.id, usuario.id));
+    res.json({
+      ok: true,
+      codigosRecuperacao: recuperacao.planos,
+      total: CODIGOS_RECUPERACAO_TOTAL,
+      aviso:
+        "Os codigos antigos foram invalidados. Guarde estes novos em local seguro — nao serao mostrados de novo.",
+    });
   },
 );
 
@@ -305,7 +377,37 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     res.status(401).json({ error: "Usuario nao tem 2FA ativo." });
     return;
   }
-  if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
+
+  // Task #123 — aceita TOTP de 6 digitos OU codigo de recuperacao XXXX-XXXX.
+  // Se o input parece codigo de recuperacao (>=8 chars com letras), tenta
+  // consumir um da lista. Se nao, valida como TOTP. Codigo de recuperacao
+  // consumido marca `usadoEm` na lista jsonb (UPDATE com lista nova).
+  let autenticou = false;
+  let usouCodigoRecuperacao = false;
+  let codigosRecuperacaoRestantesAposLogin =
+    contarCodigosRestantes(usuario.codigosRecuperacao2fa);
+
+  if (pareceCodigoRecuperacao(parsed.data.codigo)) {
+    const armazenados =
+      (usuario.codigosRecuperacao2fa as CodigoRecuperacaoArmazenado[] | null) ?? [];
+    const r = await tentarConsumirCodigoRecuperacao(
+      armazenados,
+      parsed.data.codigo,
+    );
+    if (r.consumido) {
+      await db
+        .update(usuariosTable)
+        .set({ codigosRecuperacao2fa: r.atualizados })
+        .where(eq(usuariosTable.id, usuario.id));
+      autenticou = true;
+      usouCodigoRecuperacao = true;
+      codigosRecuperacaoRestantesAposLogin = contarCodigosRestantes(r.atualizados);
+    }
+  } else if (verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
+    autenticou = true;
+  }
+
+  if (!autenticou) {
     const r = await registrarTentativaErradaTotp(usuario.id);
     if (r.transicaoParaBloqueio) {
       // Task #143 — fire-and-forget. Helper e defensivo (nunca lanca).
@@ -372,10 +474,19 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     perfilPlataforma: usuario.perfilPlataforma ?? "tenant_user",
   });
 
-  const { senha: _s, totpSecretCifrado: _ts, ...safe } = usuario;
+  const { senha: _s, totpSecretCifrado: _ts, codigosRecuperacao2fa: _cr, ...safe } = usuario;
   res.json({
     token,
-    usuario: { ...safe, unidadesVinculadas: vinculosConsultor },
+    usuario: {
+      ...safe,
+      unidadesVinculadas: vinculosConsultor,
+      // Task #123 — devolve a contagem de codigos restantes pra UI poder
+      // alertar quando o usuario consumiu um (ex: "Voce entrou com codigo
+      // de recuperacao. Restam X de N codigos. Considere regenerar.").
+      codigosRecuperacao2faRestantes: codigosRecuperacaoRestantesAposLogin,
+    },
+    usouCodigoRecuperacao,
+    codigosRecuperacao2faRestantes: codigosRecuperacaoRestantesAposLogin,
   });
 });
 
