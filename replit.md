@@ -105,6 +105,30 @@ PREOCUPANTE) + LDL alto (142, ALERTA) + HOMA-IR 3.2 (ALERTA) que
 (D1=01/2026, D2=04/2026, D3=05/2026), terminando com Vit D=58 (ÓTIMO),
 LDL=115 (ÓTIMO), HOMA-IR=1.8 (ÓTIMO). Demonstra valor clínico do motor.
 
+## Wave Backfill Posologia Estruturada — Task #40 (13/mai/2026)
+
+Backfill único da coluna `posologia_estruturada` (jsonb, migration 034) nos
+registros históricos de `itens_terapeuticos` e `revo_medicamentos`. A partir
+desta onda, TODOS os PDFs (RASX/REVO/Motor) renderizam a frase canônica
+padronizada — antes só novas inserções via `/sync-catalogo` ou UI populavam
+o campo, e os históricos caíam no texto bruto.
+
+### Script (`scripts/src/backfill-posologia-estruturada.ts`)
+- CLI: `pnpm --filter @workspace/scripts run backfill-posologia-estruturada`
+- Lê `posologia_estruturada IS NULL AND posologia IS NOT NULL` em chunks de 500.
+- Chama `parsePosologia` (lib pura `@workspace/posologia`) com contexto:
+  - `itens_terapeuticos` → `categoria` herdada da própria coluna
+  - `revo_medicamentos` → `revo_formula` (tipo_med=formula) ou `revo_medicamento`
+- `UPDATE` por id; não toca em `posologia` (texto bruto = fonte de verdade).
+- Idempotente: re-run = no-op (query já exclui linhas backfilled).
+
+### Resultado (snapshot 13/mai/2026)
+- **itens_terapeuticos: 167 processados | 167 interpretado (100,0%) | 0 fallback**
+- **revo_medicamentos: 92 processados | 92 interpretado (100,0%) | 0 fallback**
+- **Geral: 259/259 (100,0% interpretado, 0% fallback)**
+- Re-execução confirmada idempotente (0 linhas pendentes).
+- Migration 034 aplicada antes do backfill (era pré-requisito ausente no DB).
+
 ## User Preferences
 
 The user prefers that all names be complete and semantic, never abbreviated. For example, `auditoria_cascata` is correct, not `aud_cascata`. Names should be comprehensible without external context. The user explicitly states that the field for user profiles must always be named `perfil` and never `role`, as `role` can be visually confused with routing terms, which are common in the backend framework. The user also requires strict adherence to naming conventions across different layers of the application (database tables, schema files, Drizzle fields, API routes). The user mandates the use of semantic prefixes like `pode_` for boolean permissions, `nunca_` for permanent restrictions, and `requer_` for mandatory conditions. When renaming database tables or fields, the user requires that the old name be referenced in comments for security, and all existing routes must remain functional. Absolute prohibitions include never using `role` as a field, never abbreviating names, never replacing existing table schemas (only adding columns), and never dropping tables with data.
