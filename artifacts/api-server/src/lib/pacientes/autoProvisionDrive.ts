@@ -1,35 +1,43 @@
 /**
- * Hook fire-and-forget para provisionar pasta Drive + planilha GPS+RAS
- * automaticamente apos cadastro de paciente.
+ * Hook fire-and-forget para provisionar pasta Drive do paciente.
  *
- * Onda 6.4 - Caio: "criar a pasta NOTAS FISCAIS e colocar como padrao
- * toda vez que o paciente for gerado".
+ * Wave Cadastro Pádua — 13/mai/2026 (Caio madrugada autônoma)
  *
- * Chamado em background apos POST /pacientes - se Drive falhar, paciente
- * continua cadastrado e log de erro aparece nos logs do servidor (nao
- * bloqueia o fluxo de cadastro).
+ * Mudanças vs Onda 6.4 anterior:
+ *  - Hierarquia nova: PAWARDS > GESTAO CLINICA > EMPRESAS > [CLINICA] > CLIENTES [CLINICA] > [paciente]
+ *  - Lazy create: SÓ cria a pasta-raiz do paciente. As 7 categorias macro
+ *    + ~17 sub-subpastas são criadas on-demand quando o sistema vai gravar
+ *    o 1º arquivo daquela categoria (ver lib/arquivos/drive.ts).
+ *  - Pasta-raiz nomeada via código semântico: "PADU-VIEI-ACEL-FEMI-1945-8420 ACELI GOMES VIEIRA"
+ *  - Planilha GPS+RAS é provisionada SOB DEMANDA (não no cadastro), pra
+ *    importação dos 4.278 não estourar quota Drive.
+ *
+ * Se Drive falhar, paciente continua cadastrado (não bloqueia o fluxo).
  */
 
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
-import { getOrCreateClientFolder } from "../google-drive";
-import { criarPlanilhaGPS_RAS } from "../sheets/planilhaPacienteGPS";
+import { getOrCreatePacienteRootFolder } from "../arquivos/drive";
 
-export function autoProvisionDriveAsync(paciente: { id: number; nome: string; cpf: string | null; googleDriveFolderId?: string | null }): void {
-  // fire and forget
+export interface AutoProvisionParams {
+  id: number;
+  nome: string;
+  codigoSemantico: string;
+  unidadeId: number;
+  jaProvisionado?: boolean;
+}
+
+export function autoProvisionDriveAsync(p: AutoProvisionParams): void {
+  if (p.jaProvisionado) return;
   void (async () => {
     try {
-      if (paciente.googleDriveFolderId) return; // ja provisionado
-      const folder = await getOrCreateClientFolder(paciente.nome, paciente.cpf || "SEM-CPF");
-      await db.execute(sql`UPDATE pacientes SET google_drive_folder_id = ${folder.folderId} WHERE id = ${paciente.id}`);
-      try {
-        await criarPlanilhaGPS_RAS({ pacienteNome: paciente.nome, pacienteCpf: paciente.cpf || "SEM-CPF", clientFolderId: folder.folderId });
-      } catch (e) {
-        console.error(`[autoProvisionDrive] Falha ao criar planilha GPS para paciente ${paciente.id}:`, (e as Error).message);
-      }
-      console.log(`[autoProvisionDrive] Paciente ${paciente.id} provisionado: pasta + planilha GPS+RAS criadas`);
+      const folderId = await getOrCreatePacienteRootFolder({
+        id: p.id,
+        nome: p.nome,
+        codigoSemantico: p.codigoSemantico,
+        unidadeId: p.unidadeId,
+      });
+      console.log(`[autoProvisionDrive] Paciente ${p.id} pasta-raiz OK: ${folderId}`);
     } catch (e) {
-      console.error(`[autoProvisionDrive] Falha provisionamento paciente ${paciente.id}:`, (e as Error).message);
+      console.error(`[autoProvisionDrive] Falha provisionamento paciente ${p.id}:`, (e as Error).message);
     }
   })();
 }

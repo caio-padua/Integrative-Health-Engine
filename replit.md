@@ -34,6 +34,59 @@ ele atualiza `.local/session_plan.md` primeiro e em seguida espelha pra
 `docs/dr-claude/raws/04_session_plan_wave10_atual.md` no mesmo commit,
 pra Dr. Claude não orquestrar de cabeça vazia.
 
+## Wave Cadastro Pádua — 4.278 pacientes (13/mai/2026)
+
+Importação completa do Instituto Pádua (`unidade_id=15`) a partir da
+planilha Google Sheets (`SHEET_ID=1uR0jIx1rIQE3346EUQZhy52gDkrtslH91NGeIPF7QxY`,
+tab "Cadastro Mestre"). Estrutura nova de Drive hierárquica + código semântico
+interno + nomenclatura padrão de arquivos.
+
+### Resultado
+- **3.872 inseridos + 20 atualizados + 386 pulados sem telefone, 0 erros**
+- 3.847 pacientes Pádua com `codigo_semantico` (ex: `PADU-AGRA-ABHI-MASC-1979-9801`)
+- Coverage: 2.600 com CPF · 3.847 com tel · 3.792 com WhatsApp · 3.222 com data nascimento
+- Idempotência confirmada via `(unidade_id, codigo_externo)` → re-run = `UPDATE` no-op
+- Invariantes Wave 9 PRESERVADAS: 8.728 receitas (delta +2 vs baseline = receitas reais
+  entrando), R$ 2.736.536,10 comissão, 5 triggers ATIVOS
+
+### Migration 040 (`040_pacientes_codigo_semantico.sql`, psql aditivo)
+Adiciona em `pacientes`: `codigo_externo`, `codigo_semantico`,
+`drive_subpastas jsonb`, `telefone_fixo`, `whatsapp`. Cria tabelas
+`arquivos_paciente` (registry de arquivos no Drive) e `importacoes_lote`
+(rastreabilidade de batches). Versionada para reprodutibilidade.
+
+### Libs novas
+- `lib/format/canonico.ts` — canonicaliza CPF/tel/email/CEP (só dígitos no DB,
+  formatadores por gateway)
+- `lib/arquivos/codigoSemantico.ts` — gera `SLUGCLINICA-SOBR-NOME-SEXO-AAAA-DDDD`
+  (X p/ <4 letras ou dado faltante)
+- `lib/arquivos/catalogo.ts` — 7 categorias macro (CADASTRO, ANAMNESES, EXAMES,
+  PRESCRICOES, ASSINATURAS, FINANCEIRO, OUTROS)
+- `lib/arquivos/registry.ts` — persiste arquivo no DB + Drive
+- `lib/arquivos/drive.ts` — estrutura PAWARDS > GESTAO CLINICA > EMPRESAS >
+  [CLINICA] > CLIENTES [CLINICA] > [paciente] > [categoria] (lazy-create)
+
+### Refactors plugados
+- `autoProvisionDrive.ts` agora cria APENAS pasta-raiz no POST /pacientes
+  (subpastas lazy-create na 1ª escrita de arquivo)
+- `routes/pacientes.ts` POST canonicaliza CPF/tel/email/CEP + calcula
+  `codigo_semantico` automaticamente
+- `notaFiscalDrive.ts` migrado pra usar `uploadArquivoPaciente` novo
+
+### Importador
+`artifacts/api-server/src/scripts/importarPacientesPadua.ts` — idempotente
+por `codigo_externo→cpf`, suporta `PADUA_DRY_RUN=1`/`PADUA_LIMIT=N`/
+`PADUA_OFFSET=N`/`PADUA_FORCE_RECALC=1`. Persiste lista completa dos
+pulados sem telefone em `importacoes_lote.detalhes` para reprocessamento
+manual (`linha`, `nome`, `codigoExterno`, `cpf`).
+
+### Dívidas técnicas registradas
+- 4 callsites legados (rasxArqu.ts, rasDistribuir.ts, planilhaPacienteGPS.ts,
+  notifAssinatura.ts) ainda usam API antiga retrocompat — refatorar Wave Cadastro 1.5
+- Planilha origem tem ~5 pares de pacientes duplicados (mesmo nome+telefone,
+  códigos externos diferentes) — preservados, decisão Wave 1.5: deduplicar manual
+  ou aceitar como cadastros distintos
+
 ## Wave 10 ZapSign + ICP-Brasil — Migration 031 (Fase B Dia 1 · 01/mai/2026)
 
 Wave 10 destrava conversão de R$ 2.735.336,10 (comissão potencial Wave 9 PARQ)

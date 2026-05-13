@@ -3,6 +3,8 @@ import { db, pacientesTable, unidadesTable } from "@workspace/db";
 import { eq, ilike, like, or, and, sql, type SQL } from "drizzle-orm";
 import { CriarPacienteBody } from "@workspace/api-zod";
 import { autoProvisionDriveAsync } from "../lib/pacientes/autoProvisionDrive";
+import { gerarCodigoSemantico } from "../lib/arquivos/codigoSemantico";
+import { cpfCanonico, telefoneCanonico, emailCanonico, cepCanonico } from "../lib/format/canonico";
 
 const router = Router();
 
@@ -105,9 +107,49 @@ router.post("/pacientes", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [paciente] = await db.insert(pacientesTable).values(parsed.data).returning();
-  // Onda 6.4 - provisionamento Drive + planilha GPS+RAS automatico (fire-and-forget)
-  if (paciente) autoProvisionDriveAsync({ id: paciente.id, nome: paciente.nome, cpf: paciente.cpf, googleDriveFolderId: paciente.googleDriveFolderId });
+
+  // Wave Cadastro Pádua (13/mai/2026): canonicaliza CPF/tel/email/CEP antes
+  // do INSERT pra garantir consistência interna. UI/integrações formatam na
+  // hora de exibir/exportar (ver lib/format/canonico.ts).
+  const dados = { ...parsed.data } as Record<string, unknown>;
+  if (dados.cpf) dados.cpf = cpfCanonico(String(dados.cpf)) ?? dados.cpf;
+  if (dados.telefone) dados.telefone = telefoneCanonico(String(dados.telefone)) ?? dados.telefone;
+  if (dados.email) dados.email = emailCanonico(String(dados.email)) ?? dados.email;
+  if (dados.cep) dados.cep = cepCanonico(String(dados.cep)) ?? dados.cep;
+
+  const [paciente] = await db.insert(pacientesTable).values(dados as typeof parsed.data).returning();
+  if (!paciente) {
+    res.status(500).json({ error: "Falha ao criar paciente" });
+    return;
+  }
+
+  // Calcula código semântico interno (ex: PADU-VIEI-ACEL-FEMI-1945-8420)
+  // — depende do slug da clínica em unidades.slug_codigo_semantico.
+  try {
+    const r = await db.execute(sql`SELECT slug_codigo_semantico FROM unidades WHERE id = ${paciente.unidadeId}`);
+    const slug = ((r as unknown as { rows: Array<{ slug_codigo_semantico: string | null }> }).rows[0]?.slug_codigo_semantico) ?? "XXXX";
+    const codigoSemantico = gerarCodigoSemantico({
+      slugClinica: slug,
+      nomeCompleto: paciente.nome,
+      sexo: (paciente as unknown as { genero?: string }).genero ?? null,
+      dataNascimento: paciente.dataNascimento ?? null,
+      cpf: paciente.cpf,
+    });
+    await db.execute(sql`UPDATE pacientes SET codigo_semantico = ${codigoSemantico} WHERE id = ${paciente.id}`);
+    (paciente as unknown as { codigoSemantico?: string }).codigoSemantico = codigoSemantico;
+
+    // Provisiona pasta-raiz Drive (lazy: subpastas só on-demand)
+    autoProvisionDriveAsync({
+      id: paciente.id,
+      nome: paciente.nome,
+      codigoSemantico,
+      unidadeId: paciente.unidadeId,
+      jaProvisionado: !!paciente.googleDriveFolderId,
+    });
+  } catch (e) {
+    console.error(`[POST /pacientes] Falha código semântico/provision paciente ${paciente.id}:`, (e as Error).message);
+  }
+
   res.status(201).json(paciente);
 });
 

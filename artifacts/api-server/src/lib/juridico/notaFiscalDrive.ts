@@ -8,7 +8,7 @@
 
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { uploadToClientSubfolder, formatFileName, getOrCreateClientFolder } from "../google-drive";
+import { uploadArquivoPaciente, carregarContextoPaciente } from "../arquivos/drive";
 
 interface NFRecord { id: number; valor: string | number; descricao_blindada: string; hash_descricao: string; categoria_codigo: string | null; criado_em?: string; }
 interface PacienteRecord { id: number; nome: string; cpf: string | null; google_drive_folder_id: string | null; }
@@ -52,25 +52,25 @@ export async function uploadNFParaDrive(nfId: number): Promise<{ fileUrl: string
   const pac = ((r2 as unknown as { rows?: PacienteRecord[] }).rows || [])[0];
   if (!pac) throw new Error(`Paciente ${nf.paciente_id} nao encontrado`);
 
-  // Cria pasta se nao existir
-  let folderId = pac.google_drive_folder_id;
-  if (!folderId) {
-    const created = await getOrCreateClientFolder(pac.nome, pac.cpf || "SEM-CPF");
-    folderId = created.folderId;
-    await db.execute(sql`UPDATE pacientes SET google_drive_folder_id = ${folderId} WHERE id = ${pac.id}`);
-  }
-
+  // Wave Cadastro Pádua (13/mai/2026): usa porta única uploadArquivoPaciente
+  // que já cuida de hierarquia nova + lazy create + registro em arquivos_paciente.
+  const ctx = await carregarContextoPaciente(pac.id);
   const html = montarHtmlNF(nf, pac);
-  const fileName = formatFileName(new Date(), "NF", pac.nome, String(nf.id)) + ".html";
-  const result = await uploadToClientSubfolder({
-    clientFolderId: folderId!,
-    subfolder: "NOTAS FISCAIS",
-    fileName,
+  const result = await uploadArquivoPaciente({
+    pacienteId: ctx.id,
+    unidadeId: ctx.unidadeId,
+    pacienteNome: ctx.nome,
+    codigoSemantico: ctx.codigoSemantico,
+    tipo: "NF",
+    valor: typeof nf.valor === "number" ? nf.valor : Number(nf.valor),
     mimeType: "text/html",
-    content: html,
+    conteudo: html,
+    referenciaId: nf.id,
+    referenciaTabela: "notas_fiscais_emitidas",
+    metadataExtra: { hashDescricao: nf.hash_descricao, categoriaCodigo: nf.categoria_codigo },
   });
 
-  await db.execute(sql`UPDATE notas_fiscais_emitidas SET drive_file_id = ${result.fileId}, drive_file_url = ${result.fileUrl} WHERE id = ${nfId}`);
+  await db.execute(sql`UPDATE notas_fiscais_emitidas SET drive_file_id = ${result.driveFileId}, drive_file_url = ${result.driveUrl} WHERE id = ${nfId}`);
 
-  return { fileUrl: result.fileUrl, fileId: result.fileId };
+  return { fileUrl: result.driveUrl, fileId: result.driveFileId };
 }
