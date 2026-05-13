@@ -17,6 +17,7 @@ import { iniciarWorkerLimpezaTotpRateLimit } from "./lib/recorrencia/limpezaTotp
 import { iniciarWorkerAvisoExpiracao2faOwner } from "./lib/recorrencia/avisoExpiracao2faOwner";
 import { iniciarWorkerAlertaBruteForceRetryEnvio } from "./lib/recorrencia/alertaBruteForceRetryEnvio";
 import { iniciarWorkerAlertasDigestDiario } from "./lib/recorrencia/alertasDigestDiario";
+import { iniciarWorkerAvisoVencimentoCarenciaLgpd } from "./lib/recorrencia/avisoVencimentoCarenciaLgpd";
 
 const rawPort = process.env["PORT"];
 
@@ -56,4 +57,5 @@ app.listen(port, (err) => {
   iniciarWorkerAvisoExpiracao2faOwner();
   iniciarWorkerAlertaBruteForceRetryEnvio();
   iniciarWorkerAlertasDigestDiario();
+  iniciarWorkerAvisoVencimentoCarenciaLgpd();
 });
