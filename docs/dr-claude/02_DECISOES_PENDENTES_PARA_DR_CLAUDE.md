@@ -3,12 +3,16 @@
 > **Reescrito a cada rodada**. Quando uma pendência vira tomada, ela
 > migra pra `01_DECISOES_TOMADAS_WAVE10_F3C.md` (append-only).
 
-> **Atualizado em**: 2026-05-01 22:48 — pós-rodada Caio "sim sim sim"
-> (D5 email + D6 WEBHOOK_SECRET + D7 Wave 13 + D8 webhooks.pawards
-> + C1 smoke mockado hoje).
+> **Atualizado em**: 2026-05-13 — pós sessão A→B→C autonomia 3h Caio.
 >
-> **Estado**: 🟢 **TODAS as 9 decisões anteriores foram TOMADAS**
-> (D1-D4 Mapa Neuronal v1.1 + D5-D8 identidade ZapSign + C1 escopo dia).
+> **Estado**: 🟢 9 decisões anteriores TOMADAS + **Wave 13 F1 ENTREGUE
+> HOJE** (Migration 044 aplicada, Caio promovido a `platform_owner`,
+> nenhum middleware ativado ainda — F2/F3/F4 seguem 🟡 PENDENTE).
+> Detalhes em [`06_WAVE13_F1_FOUNDATION_RBAC_2FA.md`](./06_WAVE13_F1_FOUNDATION_RBAC_2FA.md).
+>
+> **Antes desta sessão (referência histórica)**: rodada Caio "sim sim sim"
+> 2026-05-01 22:48 (D5 email + D6 WEBHOOK_SECRET + D7 Wave 13 +
+> D8 webhooks.pawards + C1 smoke mockado).
 >
 > Mapa Neuronal v1.1 validado (7 sujeiras aceitas).
 
