@@ -11,6 +11,7 @@ const PUBLIC_EXACT = new Set<string>([
   "/healthz",
   "/health",
   "/usuarios/login",
+  "/usuarios/login/2fa-verificar",
   "/portal/categorias",
   "/portal/identificar",
   "/portal/definir-senha",
@@ -94,7 +95,19 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 
   try {
-    req.user = verifyJwt(token);
+    const payload = verifyJwt(token);
+    // Wave 13 F3 hardening: tokens com flag twoFactorChallenge sao
+    // intermediarios de login e NAO podem ser usados como Bearer em rotas
+    // protegidas — so servem pra POST /usuarios/login/2fa-verificar
+    // (rota publica que valida o challenge + codigo TOTP separadamente).
+    if (payload.twoFactorChallenge === true) {
+      res.status(401).json({
+        error:
+          "Token de challenge 2FA nao pode ser usado como sessao. Conclua o login em POST /usuarios/login/2fa-verificar.",
+      });
+      return;
+    }
+    req.user = payload;
     next();
   } catch (err: any) {
     res.status(401).json({ error: err?.message || "Token invalido" });

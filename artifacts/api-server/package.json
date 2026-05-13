@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/services/whatsappTemplates.test.ts src/services/prescricaoLembreteService.test.ts src/routes/assinaturas.parseTokensOrdenacao.test.ts src/middlewares/requirePlataforma.test.ts"
+    "test": "tsx --test src/services/whatsappTemplates.test.ts src/services/prescricaoLembreteService.test.ts src/routes/assinaturas.parseTokensOrdenacao.test.ts src/middlewares/requirePlataforma.test.ts src/middlewares/requireAuth.test.ts src/lib/auth/totp.test.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
@@ -25,6 +25,7 @@
     "exceljs": "^4.4.0",
     "express": "^5",
     "googleapis": "148.0.0",
+    "otpauth": "^9.5.1",
     "pdfkit": "^0.18.0",
     "pino": "^9",
     "pino-http": "^10",

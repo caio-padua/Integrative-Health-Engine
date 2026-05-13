@@ -10,6 +10,7 @@ import { iniciarWorkerPdfRetryUploadResumoDiario } from "./lib/recorrencia/pdfRe
 import { iniciarWorkerVerificarPdfsCofre } from "./lib/recorrencia/verificarPdfsCofre";
 import { iniciarWorkerAlertaAssinaturasCEO } from "./lib/recorrencia/alertaAssinaturasCEO";
 import { iniciarWorkerRelatorioDiarioCEO } from "./lib/recorrencia/relatorioDiarioCEO";
+import { iniciarWorkerCarenciaLgpd2fa } from "./lib/recorrencia/carenciaLgpd2fa";
 
 const rawPort = process.env["PORT"];
 
@@ -42,4 +43,5 @@ app.listen(port, (err) => {
   iniciarWorkerVerificarPdfsCofre();
   iniciarWorkerAlertaAssinaturasCEO();
   iniciarWorkerRelatorioDiarioCEO();
+  iniciarWorkerCarenciaLgpd2fa();
 });

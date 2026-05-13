@@ -8,6 +8,14 @@ export interface JwtPayload {
   unidadeId: number | null;
   consultoriaId: number | null;
   perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user";
+  /**
+   * Wave 13 F3: marca tokens emitidos como CHALLENGE de 2FA (etapa
+   * intermediária do login). Esses tokens NÃO são tokens de sessão — só
+   * podem ser trocados em POST /usuarios/login/2fa-verificar pelo JWT
+   * final. `requireAuth` rejeita explicitamente tokens com essa claim
+   * pra evitar reuso como Bearer em rotas protegidas (bypass de 2FA).
+   */
+  twoFactorChallenge?: boolean;
   iat: number;
   exp: number;
 }

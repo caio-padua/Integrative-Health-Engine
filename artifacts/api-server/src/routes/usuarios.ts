@@ -92,6 +92,43 @@ router.post("/usuarios/login", async (req, res): Promise<void> => {
     const hashed = await bcrypt.hash(senha, 10);
     await db.update(usuariosTable).set({ senha: hashed }).where(eq(usuariosTable.id, usuario.id));
   }
+
+  // Wave 13 F3 — FAIL-CLOSED: se o usuario tem totpAtivadoEm marcado, login
+  // SO pode prosseguir via fluxo 2FA. Estado inconsistente (ativado sem
+  // secret) bloqueia totalmente em vez de cair pro password-only — assim
+  // nenhum bug de admin/migration vira bypass silencioso de 2FA.
+  if (usuario.totpAtivadoEm && !usuario.totpSecretCifrado) {
+    res.status(500).json({
+      error:
+        "Conta com 2FA ativo mas sem segredo cadastrado. Procure o suporte pra reset manual — login bloqueado por seguranca.",
+    });
+    return;
+  }
+  // Se o usuario ja confirmou 2FA, NAO devolve JWT final aqui. Devolve um
+  // challenge curto (5min) que o cliente troca em
+  // POST /usuarios/login/2fa-verificar { challenge, codigo } pelo JWT real.
+  if (usuario.totpAtivadoEm && usuario.totpSecretCifrado) {
+    const challenge = signJwt(
+      {
+        sub: usuario.id,
+        email: usuario.email,
+        perfil: usuario.perfil,
+        escopo: usuario.escopo ?? null,
+        unidadeId: usuario.unidadeId ?? null,
+        consultoriaId: usuario.consultoriaId ?? null,
+        perfilPlataforma: usuario.perfilPlataforma ?? "tenant_user",
+        twoFactorChallenge: true,
+      },
+      5 * 60,
+    );
+    res.json({
+      requires2fa: true,
+      challenge,
+      proximoPasso: "POST /usuarios/login/2fa-verificar { challenge, codigo }",
+    });
+    return;
+  }
+
   const { senha: _senha, ...safeUsuario } = usuario;
 
   const vinculosConsultor = await db
