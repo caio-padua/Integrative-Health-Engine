@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
+import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { UserCheck, ArrowUpCircle, ArrowDownCircle, RefreshCw, ShieldAlert, Crown } from "lucide-react";
 
 type Admin = {
@@ -26,11 +27,14 @@ export default function PlataformaAdmins() {
   const [erro, setErro] = useState<string | null>(null);
   const [acaoId, setAcaoId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState("");
+  const { runWithStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
-    const r = await apiFetch("/api/plataforma/admins", { credentials: "include" });
+    const r = await runWithStepUp(() =>
+      apiFetch("/api/plataforma/admins", { credentials: "include" }),
+    );
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
       setErro(j.error ?? `Falha ao carregar (${r.status})`);
@@ -53,12 +57,14 @@ export default function PlataformaAdmins() {
       return;
     }
     setAcaoId(u.id);
-    const r = await apiFetch(`/api/plataforma/admins/${u.id}/${acao}`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ motivo: motivo.trim() }),
-    });
+    const r = await runWithStepUp(() =>
+      apiFetch(`/api/plataforma/admins/${u.id}/${acao}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: motivo.trim() }),
+      }),
+    );
     setAcaoId(null);
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
@@ -180,6 +186,7 @@ export default function PlataformaAdmins() {
           </table>
         </div>
       </div>
+      {stepUpModal}
     </Layout>
   );
 }

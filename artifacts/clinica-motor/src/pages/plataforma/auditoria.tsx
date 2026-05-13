@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
+import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Scale, RefreshCw, ShieldAlert } from "lucide-react";
 
 type Evento = {
@@ -34,11 +35,14 @@ export default function PlataformaAuditoria() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroAcao, setFiltroAcao] = useState<string>("");
+  const { runWithStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
-    const r = await apiFetch("/api/plataforma/auditoria?limite=500", { credentials: "include" });
+    const r = await runWithStepUp(() =>
+      apiFetch("/api/plataforma/auditoria?limite=500", { credentials: "include" }),
+    );
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
       setErro(j.error ?? `Falha ao carregar (${r.status})`);
@@ -151,6 +155,7 @@ export default function PlataformaAuditoria() {
           Mostrando {visiveis.length} de {eventos.length} eventos (limite servidor: 500).
         </div>
       </div>
+      {stepUpModal}
     </Layout>
   );
 }

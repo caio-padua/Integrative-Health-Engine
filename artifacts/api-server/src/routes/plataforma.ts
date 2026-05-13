@@ -2,11 +2,13 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { db, usuariosTable, unidadesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requirePlataforma } from "../middlewares/requirePlataforma";
+import { verificarCodigoTotp } from "../lib/auth/totp";
 import type { JwtPayload } from "../lib/auth/jwt";
 import {
   enviarEmailSuspensao,
   enviarEmailReativacao,
 } from "../lib/email/clinicaSuspensao";
+import { z } from "zod";
 
 type AuthedRequest = Request & {
   user?: JwtPayload & { perfil?: string; perfilPlataforma?: string };
@@ -138,6 +140,60 @@ async function registrarAuditoria(
        ${JSON.stringify(metadataCompleto)}::jsonb)
   `);
 }
+
+// ───────────────────────────── 2FA STEP-UP ─────────────────────────────
+// POST /api/plataforma/2fa/step-up { codigo }
+// Permite o platform_owner refazer o 2FA TOTP no proprio painel quando a
+// janela de 8h expira no meio do uso (Task #125), sem precisar deslogar.
+// NAO usa `require2faRecente` (seria circular). Usa as guards de perfil
+// estrito + valida o codigo TOTP do usuario logado e atualiza
+// `ultimo_login_2fa_em = now()`.
+// codigo: exatamente 6 digitos numericos (alinha com verificarCodigoTotp,
+// que rejeita qualquer coisa fora desse formato — evita erro confuso pra
+// o usuario de "validacao OK no zod mas invalido no TOTP").
+const StepUpBody = z.object({ codigo: z.string().regex(/^\d{6}$/, "codigo deve ter exatamente 6 digitos") });
+router.post(
+  "/plataforma/2fa/step-up",
+  requirePlataforma("platform_owner"),
+  requirePlatformOwnerEstrito,
+  async (req, res): Promise<void> => {
+    const u = (req as AuthedRequest).user;
+    if (!u) { res.status(401).json({ error: "Autenticacao necessaria" }); return; }
+    const parsed = StepUpBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "codigo invalido (6-8 digitos)" });
+      return;
+    }
+    const userId = Number(u.sub);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      res.status(401).json({ error: "Token sem identidade valida" });
+      return;
+    }
+    const [usuario] = await db
+      .select()
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, userId))
+      .limit(1);
+    if (!usuario || !usuario.totpSecretCifrado || !usuario.totpAtivadoEm) {
+      res.status(409).json({
+        error: "Usuario nao tem 2FA ativo. Faca o enrollment em /usuarios/2fa/iniciar.",
+        codigo: "2FA_NAO_ATIVO",
+      });
+      return;
+    }
+    if (!verificarCodigoTotp(usuario.totpSecretCifrado, parsed.data.codigo)) {
+      res.status(401).json({ error: "Codigo invalido.", codigo: "TOTP_INVALIDO" });
+      return;
+    }
+    const agora = new Date();
+    await db
+      .update(usuariosTable)
+      .set({ ultimoLogin2faEm: agora })
+      .where(eq(usuariosTable.id, usuario.id));
+    req.log?.info({ userId }, "[plataforma] 2fa step-up ok");
+    res.json({ ok: true, ultimo_2fa_em: agora.toISOString() });
+  },
+);
 
 // ───────────────────────────── CLINICAS ────────────────────────────────
 // GET /api/plataforma/clinicas — lista todas (status + suspensao)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
+import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import {
   Building2, Power, PowerOff, RefreshCw, ShieldAlert,
   Trash2, Undo2, Download, Clock,
@@ -41,11 +42,14 @@ export default function PlataformaClinicas() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [acaoId, setAcaoId] = useState<number | null>(null);
+  const { runWithStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
-    const r = await apiFetch("/api/plataforma/clinicas", { credentials: "include" });
+    const r = await runWithStepUp(() =>
+      apiFetch("/api/plataforma/clinicas", { credentials: "include" }),
+    );
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
       setErro(j.error ?? `Falha ao carregar (${r.status})`);
@@ -68,12 +72,14 @@ export default function PlataformaClinicas() {
       return;
     }
     setAcaoId(c.id);
-    const r = await apiFetch(`/api/plataforma/clinicas/${c.id}/${acao}`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ motivo: motivo.trim() }),
-    });
+    const r = await runWithStepUp(() =>
+      apiFetch(`/api/plataforma/clinicas/${c.id}/${acao}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: motivo.trim() }),
+      }),
+    );
     setAcaoId(null);
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
@@ -102,12 +108,14 @@ export default function PlataformaClinicas() {
       return;
     }
     setAcaoId(c.id);
-    const r = await apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/agendar`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ motivo: motivo.trim(), confirmacao }),
-    });
+    const r = await runWithStepUp(() =>
+      apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/agendar`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: motivo.trim(), confirmacao }),
+      }),
+    );
     setAcaoId(null);
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
@@ -132,12 +140,14 @@ export default function PlataformaClinicas() {
       return;
     }
     setAcaoId(c.id);
-    const r = await apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/cancelar`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ motivo: motivo.trim() }),
-    });
+    const r = await runWithStepUp(() =>
+      apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/cancelar`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: motivo.trim() }),
+      }),
+    );
     setAcaoId(null);
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
@@ -159,12 +169,14 @@ export default function PlataformaClinicas() {
       return;
     }
     setAcaoId(c.id);
-    const r = await apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/exportar-lgpd`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ motivo: motivo.trim() }),
-    });
+    const r = await runWithStepUp(() =>
+      apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/exportar-lgpd`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: motivo.trim() }),
+      }),
+    );
     setAcaoId(null);
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
@@ -341,6 +353,7 @@ export default function PlataformaClinicas() {
           </table>
         </div>
       </div>
+      {stepUpModal}
     </Layout>
   );
 }
