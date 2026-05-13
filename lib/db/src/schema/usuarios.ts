@@ -25,9 +25,6 @@ export const usuariosTable = pgTable("usuarios", {
   podeAssinar: boolean("pode_assinar").notNull().default(false),
   podeBypass: boolean("pode_bypass").notNull().default(false),
   nuncaOpera: boolean("nunca_opera").notNull().default(false),
-  // Wave 13 F1 (Migration 044) — RBAC hierarquico ortogonal ao `perfil` clinico legado.
-  // Valores: platform_owner | tenant_admin | tenant_user. Naming: regra ferro Caio
-  // (NUNCA `papel` ou `role`). Convencao Wave 13: status UPPERCASE, perfis lowercase.
   perfilPlataforma: text("perfil_plataforma", {
     enum: ["platform_owner", "tenant_admin", "tenant_user"],
   }).notNull().default("tenant_user"),

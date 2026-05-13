@@ -7,9 +7,6 @@ export interface JwtPayload {
   escopo: string | null;
   unidadeId: number | null;
   consultoriaId: number | null;
-  // Wave 13 F2 — RBAC hierarquico ortogonal. Opcional pra retro-compat com
-  // tokens emitidos antes de F2 (default 'tenant_user' aplicado no middleware).
-  // Valores: platform_owner | tenant_admin | tenant_user.
   perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user";
   iat: number;
   exp: number;
