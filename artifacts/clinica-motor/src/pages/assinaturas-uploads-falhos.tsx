@@ -14,6 +14,7 @@ import {
   CloudOff,
   ExternalLink,
   PlayCircle,
+  RotateCcw,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -34,6 +35,10 @@ type EventoFalho = {
   ultima_tentativa_em: string | null;
   recebido_em: string;
   erro_processamento: string | null;
+  resets_manuais_count: number | null;
+  ultimo_reset_em: string | null;
+  ultimo_reset_por: string | null;
+  ultimo_reset_motivo: string | null;
   sol_id: number | null;
   sol_status: string | null;
   paciente_id: number | null;
@@ -125,6 +130,7 @@ export default function AssinaturasUploadsFalhos() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [retentando, setRetentando] = useState(false);
+  const [resetandoId, setResetandoId] = useState<number | null>(null);
   const [ultimoRetry, setUltimoRetry] = useState<{
     tentados: number;
     sucesso: number;
@@ -152,6 +158,38 @@ export default function AssinaturasUploadsFalhos() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  async function resetarEvento(eventoId: number) {
+    const motivoRaw = window.prompt(
+      "Motivo do reset (opcional, max 500 chars). Deixe vazio pra pular:",
+      "",
+    );
+    if (motivoRaw === null) return; // cancelou
+    setResetandoId(eventoId);
+    setErro(null);
+    try {
+      const r = await apiFetch(
+        `/api/assinaturas/uploads-falhos/${eventoId}/resetar`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ motivo: motivoRaw.trim() || undefined }),
+        },
+      );
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      const j = await r.json();
+      if (j.stats) setUltimoRetry(j.stats);
+      await carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setResetandoId(null);
+    }
+  }
 
   async function retentarAgora() {
     setRetentando(true);
@@ -317,9 +355,15 @@ export default function AssinaturasUploadsFalhos() {
                   <th className="text-center px-3 py-2 font-semibold">Tentativas</th>
                   <th className="text-left px-3 py-2 font-semibold">Ultima tentativa</th>
                   <th className="text-center px-3 py-2 font-semibold">Status</th>
+                  <th
+                    className="text-center px-3 py-2 font-semibold"
+                    title="Quantas vezes este evento ja foi resetado manualmente. Valores >= 2 indicam que o reset nao resolve sozinho — precisa baixar do ZapSign na unha."
+                  >
+                    Resets
+                  </th>
                   <th className="text-left px-3 py-2 font-semibold">Ultimo erro</th>
                   <th className="text-center px-3 py-2 font-semibold nao-imprimir">
-                    Detalhe
+                    Acoes
                   </th>
                 </tr>
               </thead>
@@ -372,6 +416,38 @@ export default function AssinaturasUploadsFalhos() {
                     <td className="px-3 py-2 text-center">
                       <StatusBadge status={r.status_retry} />
                     </td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">
+                      {(() => {
+                        const n = r.resets_manuais_count ?? 0;
+                        const cor = n >= 2 ? RED : n >= 1 ? AMBER : ZINC;
+                        const tip =
+                          n === 0
+                            ? "Nunca foi resetado manualmente"
+                            : `Resetado ${n}x manualmente${
+                                r.ultimo_reset_em
+                                  ? ` · ultimo em ${formatarData(
+                                      r.ultimo_reset_em,
+                                    )}`
+                                  : ""
+                              }${
+                                r.ultimo_reset_por
+                                  ? ` por ${r.ultimo_reset_por}`
+                                  : ""
+                              }${
+                                r.ultimo_reset_motivo
+                                  ? ` — "${r.ultimo_reset_motivo}"`
+                                  : ""
+                              }`;
+                        return (
+                          <span
+                            style={{ color: cor, fontWeight: n >= 2 ? 700 : 500 }}
+                            title={tip}
+                          >
+                            {n}x
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-3 py-2 text-xs max-w-[280px]">
                       <div
                         className="break-words"
@@ -382,19 +458,45 @@ export default function AssinaturasUploadsFalhos() {
                       </div>
                     </td>
                     <td className="px-3 py-2 text-center nao-imprimir">
-                      {r.sol_id ? (
-                        <Link
-                          href={`/assinaturas/${r.sol_id}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold"
-                          style={{ color: BLUE }}
-                        >
-                          Abrir <ExternalLink size={10} />
-                        </Link>
-                      ) : (
-                        <span className="text-xs italic text-zinc-400">
-                          sem solicitacao
-                        </span>
-                      )}
+                      <div className="flex flex-col items-center gap-1">
+                        {r.sol_id ? (
+                          <Link
+                            href={`/assinaturas/${r.sol_id}`}
+                            className="inline-flex items-center gap-1 text-xs font-semibold"
+                            style={{ color: BLUE }}
+                          >
+                            Abrir <ExternalLink size={10} />
+                          </Link>
+                        ) : (
+                          <span className="text-xs italic text-zinc-400">
+                            sem solicitacao
+                          </span>
+                        )}
+                        {(r.status_retry === "esgotado" ||
+                          r.status_retry === "fora_janela") && (
+                          <button
+                            onClick={() => resetarEvento(r.id)}
+                            disabled={resetandoId === r.id || retentando}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold border transition disabled:opacity-50"
+                            style={{
+                              background: "#FEF9E7",
+                              color: NAVY,
+                              borderColor: GOLD,
+                            }}
+                            title="Zera tentativas e re-elege o evento pro worker. Use depois de corrigir a causa raiz (rede, bucket, credencial)."
+                          >
+                            <RotateCcw
+                              size={10}
+                              className={
+                                resetandoId === r.id ? "animate-spin" : ""
+                              }
+                            />
+                            {resetandoId === r.id
+                              ? "Resetando..."
+                              : "Tentar enviar de novo"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
