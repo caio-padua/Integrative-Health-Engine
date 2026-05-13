@@ -407,7 +407,7 @@ export class AssinaturaService {
     return { status: live.status, provedor: row.provedor_codigo, envelopeId: row.provedor_envelope_id, pdfAssinadoUrl: live.pdfAssinadoUrl };
   }
 
-  async receberWebhook(provedor: ProvedorCodigo, rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<{ ok: boolean; eventoId: number; duplicado: boolean; transient?: boolean }> {
+  async receberWebhook(provedor: ProvedorCodigo, rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<{ ok: boolean; eventoId: number; duplicado: boolean; transient?: boolean; unauthorized?: boolean }> {
     const adapter = getAdapter(provedor);
     const evento: EventoWebhook = await adapter.handleWebhook(rawBody, headers);
 
@@ -440,7 +440,10 @@ export class AssinaturaService {
 
     if (!evento.signatureValid) {
       await db.execute(sql`UPDATE assinatura_webhook_eventos SET processado = true, processado_em = now(), erro_processamento = 'signature_invalid' WHERE id = ${eventoId}`);
-      return { ok: false, eventoId, duplicado: false };
+      // Task #128 — devolver 401 (nao 400) pra signature_invalid: deixa
+      // explicito pra ZapSign + monitoring que o request foi rejeitado por
+      // autenticacao (header secreto ausente/errado), nao por payload malformado.
+      return { ok: false, eventoId, duplicado: false, unauthorized: true };
     }
 
     // Caminho A F4 (Dr. Claude 11/mai/2026): roteamento por tipo de evento.

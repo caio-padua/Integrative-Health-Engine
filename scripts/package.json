@@ -8,6 +8,7 @@
     "reificacao": "tsx ./src/reificacao.ts",
     "check-api-fetch": "tsx ./src/check-api-fetch.ts",
     "gerar-v25-luciano": "tsx ./src/gerar-v25-luciano.ts",
+    "zapsign-configurar-webhooks-prod": "tsx ./src/zapsign-configurar-webhooks-prod.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },

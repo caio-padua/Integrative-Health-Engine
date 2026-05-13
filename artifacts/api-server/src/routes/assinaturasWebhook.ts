@@ -19,9 +19,16 @@ async function handler(provedor: ProvedorCodigo, req: Request, res: Response) {
     //  - transient=true -> 502 (falha temporaria download/upload/storage:
     //    ZapSign trata 5xx como retriable e reentrega ate ack 200, garantindo
     //    a invariante "PDF persistido eh pre-condicao DURAVEL")
-    //  - ok=false sem transient -> 400 (falha permanente: signature_invalid,
-    //    payload malformado etc — reenvio nao resolve)
-    const status = result.ok ? 200 : (result.transient ? 502 : 400);
+    //  - unauthorized=true -> 401 (header secreto ausente/errado — task #128)
+    //  - ok=false sem transient -> 400 (falha permanente: payload malformado
+    //    etc — reenvio nao resolve)
+    const status = result.ok
+      ? 200
+      : result.transient
+        ? 502
+        : result.unauthorized
+          ? 401
+          : 400;
     res.status(status).json(result);
   } catch (err) {
     res.status(500).json({ ok: false, error: (err as Error).message });
