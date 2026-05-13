@@ -6,7 +6,9 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "reificacao": "tsx ./src/reificacao.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "check-api-fetch": "tsx ./src/check-api-fetch.ts",
+    "test": "tsx --test src/check-api-fetch.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts && tsx ./src/check-api-fetch.ts"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
