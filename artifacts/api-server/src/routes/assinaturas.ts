@@ -70,6 +70,37 @@ function montarOrderBy(tokens: string[]): ReturnType<typeof sql> {
   return sql`ORDER BY ${sql.join(fragments, sql`, `)}, s.id DESC`;
 }
 
+// Task #86 — descricao human-readable dos tokens de ordenacao pra ir no
+// cabecalho do CSV e na aba "Metadados" do XLSX. Quem abre o arquivo depois
+// (contador, advogado) precisa saber se aquele extrato foi ordenado por id,
+// valor crescente ou valor decrescente — fecha o ciclo de auditoria sem
+// precisar voltar pra tela. Default `s.id DESC` (sem token) vira "ID (mais
+// recente → mais antigo)".
+const ROTULO_ORDENACAO_TIMELINE: Record<string, string> = {
+  valor_desc:     "Valor (maior → menor)",
+  valor_asc:      "Valor (menor → maior)",
+  criado_desc:    "Criado em (mais recente → mais antigo)",
+  criado_asc:     "Criado em (mais antigo → mais recente)",
+  concluido_desc: "Concluído em (mais recente → mais antigo)",
+  concluido_asc:  "Concluído em (mais antigo → mais recente)",
+  status_desc:    "Status (Z → A)",
+  status_asc:     "Status (A → Z)",
+  paciente_desc:  "Paciente (Z → A)",
+  paciente_asc:   "Paciente (A → Z)",
+  medico_desc:    "Médico (Z → A)",
+  medico_asc:     "Médico (A → Z)",
+  farmacia_desc:  "Farmácia (Z → A)",
+  farmacia_asc:   "Farmácia (A → Z)",
+  clinica_desc:   "Clínica (Z → A)",
+  clinica_asc:    "Clínica (A → Z)",
+  template_desc:  "Template (Z → A)",
+  template_asc:   "Template (A → Z)",
+};
+export function descreverOrdenacaoTimeline(tokens: string[]): string {
+  if (tokens.length === 0) return "ID (mais recente → mais antigo) [padrão]";
+  return tokens.map((t) => ROTULO_ORDENACAO_TIMELINE[t] ?? t).join(" · ");
+}
+
 // Wave 10 F5 · gate alinhado ao padrao parq.ts (validador_mestre + master estrito).
 // Endpoints que retornam manifesto SHA-256, IP, geo e CPF integral DEVEM
 // passar por aqui — caso contrario abrem IDOR cross-tenant + vazamento PII.
@@ -1026,8 +1057,25 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
       row["medico_nome"] ?? "",
     ].map(esc).join(","));
 
+    // Task #86 — linha-resumo no topo do arquivo (antes do header) com filtros
+    // aplicados + ordenacao ativa + total de linhas + timestamp do export.
+    // Formato: linha unica iniciada com `#` (convencao de comentario aceita
+    // por contadores) envolta em aspas duplas pra Excel/LibreOffice nao
+    // tentarem dividir em colunas. Quem abre o arquivo depois (contador,
+    // advogado) ve imediatamente por qual coluna foi ordenado e quais
+    // filtros estavam ativos no momento do download — fecha o ciclo de
+    // auditoria sem precisar voltar pra tela.
+    const partesMeta: string[] = [];
+    partesMeta.push(`unidade=${unidadeIdFiltro !== null ? String(unidadeIdFiltro) : "todas"}`);
+    partesMeta.push(`status=${statusFiltro.length > 0 ? statusFiltro.join("|") : "todos"}`);
+    partesMeta.push(`desde=${desdeFiltroCsv ?? "—"}`);
+    partesMeta.push(`ate=${ateFiltroCsv ?? "—"}`);
+    partesMeta.push(`ordenado_por=${descreverOrdenacaoTimeline(tokensCsv)}`);
+    partesMeta.push(`total_linhas=${rows.length}`);
+    partesMeta.push(`exportado_em=${new Date().toISOString()}`);
+    const linhaMeta = esc(`# PAWARDS · timeline assinaturas · ${partesMeta.join(" · ")}`);
     // BOM UTF-8 (\uFEFF) faz o Excel reconhecer encoding e renderizar acentos.
-    const csv = "\uFEFF" + [header, ...linhas].join("\r\n") + "\r\n";
+    const csv = "\uFEFF" + [linhaMeta, header, ...linhas].join("\r\n") + "\r\n";
 
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const filename = `assinaturas-timeline-${stamp}.csv`;
@@ -1241,6 +1289,41 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
         farmacia: farmaciaNomeXlsx(row),
         medico: sanitizarTexto(row["medico_nome"]),
       });
+    }
+
+    // Task #86 — aba "Metadados" com unidade, status, datas, ordenar_por,
+    // total de linhas, timestamp do export. Quem abre o arquivo depois
+    // (contador, advogado) ve por qual coluna foi ordenado e quais filtros
+    // estavam ativos no momento do download — fecha o ciclo de auditoria
+    // sem precisar voltar pra tela. Aba separada (nao mistura com a planilha
+    // principal pra nao quebrar SUM/SUBTOTAL do contador na primeira linha).
+    const wsMeta = wb.addWorksheet("Metadados");
+    wsMeta.columns = [
+      { header: "Campo", key: "campo", width: 24 },
+      { header: "Valor", key: "valor", width: 80 },
+    ];
+    const metaHeaderRow = wsMeta.getRow(1);
+    metaHeaderRow.font = { bold: true, color: { argb: "FFC89B3C" } };
+    metaHeaderRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF020406" },
+    };
+    metaHeaderRow.alignment = { vertical: "middle", horizontal: "left" };
+    metaHeaderRow.height = 22;
+    const linhasMeta: Array<[string, string]> = [
+      ["Origem", "PAWARDS · timeline assinaturas"],
+      ["Unidade", unidadeIdFiltro !== null ? String(unidadeIdFiltro) : "todas"],
+      ["Status", statusFiltro.length > 0 ? statusFiltro.join(", ") : "todos"],
+      ["Desde", desdeFiltroXlsx ?? "—"],
+      ["Até", ateFiltroXlsx ?? "—"],
+      ["Ordenado por", descreverOrdenacaoTimeline(tokensXlsx)],
+      ["Total de linhas", String(rows.length)],
+      ["Limite aplicado", String(limiteXlsx)],
+      ["Exportado em", new Date().toISOString()],
+    ];
+    for (const [campo, valor] of linhasMeta) {
+      wsMeta.addRow({ campo: sanitizarTexto(campo), valor: sanitizarTexto(valor) });
     }
 
     const buf = await wb.xlsx.writeBuffer();
