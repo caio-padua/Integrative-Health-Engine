@@ -65,6 +65,8 @@ export default function PlataformaAuditoria() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroAcao, setFiltroAcao] = useState<string>("");
+  const [filtroClinica, setFiltroClinica] = useState<string>("");
+  const [filtroExecutor, setFiltroExecutor] = useState<string>("");
   const [expandidoEventoId, setExpandidoEventoId] = useState<number | null>(null);
   const [reenviandoEventoId, setReenviandoEventoId] = useState<number | null>(null);
   const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
@@ -117,7 +119,32 @@ export default function PlataformaAuditoria() {
   }
 
   const acoes = Array.from(new Set(eventos.map(e => e.acao))).sort();
-  const visiveis = filtroAcao ? eventos.filter(e => e.acao === filtroAcao) : eventos;
+  const clinicas = Array.from(
+    new Set(
+      eventos
+        .map(e => e.unidade_nome ?? (e.unidade_id != null ? `id ${e.unidade_id}` : null))
+        .filter((v): v is string => v !== null),
+    ),
+  ).sort();
+  const executores = Array.from(
+    new Set(
+      eventos
+        .map(e => e.executor_nome ?? (e.executado_por_usuario_id != null ? `usuario ${e.executado_por_usuario_id}` : null))
+        .filter((v): v is string => v !== null),
+    ),
+  ).sort();
+  const visiveis = eventos.filter(e => {
+    if (filtroAcao && e.acao !== filtroAcao) return false;
+    if (filtroClinica) {
+      const nome = e.unidade_nome ?? (e.unidade_id != null ? `id ${e.unidade_id}` : null);
+      if (nome !== filtroClinica) return false;
+    }
+    if (filtroExecutor) {
+      const nome = e.executor_nome ?? (e.executado_por_usuario_id != null ? `usuario ${e.executado_por_usuario_id}` : null);
+      if (nome !== filtroExecutor) return false;
+    }
+    return true;
+  });
 
   return (
     <Layout>
@@ -132,7 +159,7 @@ export default function PlataformaAuditoria() {
               Imutavel — defesa juridica LGPD/CFM (Wave 13 Migration 044).
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <select
               value={filtroAcao}
               onChange={e => setFiltroAcao(e.target.value)}
@@ -140,6 +167,22 @@ export default function PlataformaAuditoria() {
             >
               <option value="">Todas as acoes</option>
               {acoes.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <select
+              value={filtroClinica}
+              onChange={e => setFiltroClinica(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm"
+            >
+              <option value="">Todas as clinicas</option>
+              {clinicas.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select
+              value={filtroExecutor}
+              onChange={e => setFiltroExecutor(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm"
+            >
+              <option value="">Todos os executores</option>
+              {executores.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
             <button onClick={() => void carregar()} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-sm flex items-center gap-2">
               <RefreshCw size={16} /> Recarregar
