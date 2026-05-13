@@ -16,6 +16,8 @@ import {
   MessageSquare,
   ShieldCheck,
   Undo2,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 
 const UNDO_JANELA_MS = 8000;
@@ -29,11 +31,13 @@ const BLUE = "#2563eb";
 const ZINC = "#71717a";
 
 type Cor = "excelente" | "bom" | "atencao" | "critico" | null;
+type TipoTransicao = "piora" | "melhora";
 
 type Alerta = {
   id: number;
   dia_brt: string;
   metrica: string;
+  tipo_transicao: TipoTransicao;
   cor_anterior: Cor;
   cor_atual: Cor;
   variacao_pct: number | null;
@@ -95,11 +99,17 @@ function IconeMetrica({ metrica }: { metrica: string }) {
 }
 
 type Filtro = "todos" | "pendentes" | "vistos";
+type FiltroTipo = "todos" | "piora" | "melhora";
 
 const FILTRO_STORAGE_KEY = "pawards.alertas-ceo.filtro";
+const FILTRO_TIPO_STORAGE_KEY = "pawards.alertas-ceo.filtro-tipo";
 
 function ehFiltroValido(v: unknown): v is Filtro {
   return v === "todos" || v === "pendentes" || v === "vistos";
+}
+
+function ehFiltroTipoValido(v: unknown): v is FiltroTipo {
+  return v === "todos" || v === "piora" || v === "melhora";
 }
 
 function lerFiltroInicial(): Filtro {
@@ -117,6 +127,19 @@ function lerFiltroInicial(): Filtro {
   return "todos";
 }
 
+function lerFiltroTipoInicial(): FiltroTipo {
+  if (typeof window === "undefined") return "todos";
+  const qs = new URLSearchParams(window.location.search).get("tipo");
+  if (ehFiltroTipoValido(qs)) return qs;
+  try {
+    const salvo = window.localStorage.getItem(FILTRO_TIPO_STORAGE_KEY);
+    if (ehFiltroTipoValido(salvo)) return salvo;
+  } catch {
+    // localStorage indisponível — silencioso
+  }
+  return "todos";
+}
+
 export default function AssinaturasAlertasCEO() {
   const [rows, setRows] = useState<Alerta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +148,7 @@ export default function AssinaturasAlertasCEO() {
   const [marcandoTodos, setMarcandoTodos] = useState(false);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [filtro, setFiltro] = useState<Filtro>(lerFiltroInicial);
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>(lerFiltroTipoInicial);
   const [undoToast, setUndoToast] = useState<{ ids: number[]; expiraEm: number } | null>(null);
   const [desfazendo, setDesfazendo] = useState(false);
   const [undoRestanteMs, setUndoRestanteMs] = useState(0);
@@ -190,6 +214,26 @@ export default function AssinaturasAlertasCEO() {
       // localStorage indisponível — ignora silenciosamente
     }
   }, [filtro]);
+
+  // Task #63: mesma logica do filtro de status pra filtro por tipo_transicao.
+  // Mantido client-side: o fetch traz ambos (`?limit=200` sem `?tipo`) e o
+  // toggle apenas reduz a lista localmente, evitando re-fetch + preservando
+  // os contadores totais por status nas abas existentes.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (filtroTipo === "todos") {
+      url.searchParams.delete("tipo");
+    } else {
+      url.searchParams.set("tipo", filtroTipo);
+    }
+    window.history.replaceState({}, "", url.toString());
+    try {
+      window.localStorage.setItem(FILTRO_TIPO_STORAGE_KEY, filtroTipo);
+    } catch {
+      // localStorage indisponível — silencioso
+    }
+  }, [filtroTipo]);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -303,10 +347,13 @@ export default function AssinaturasAlertasCEO() {
   const totalVistos = rows.length - totalNaoVistos;
   const totalCriticos = rows.filter((a) => a.cor_atual === "critico").length;
   const totalAtencao = rows.filter((a) => a.cor_atual === "atencao").length;
+  const totalPiora = rows.filter((a) => a.tipo_transicao === "piora").length;
+  const totalMelhora = rows.filter((a) => a.tipo_transicao === "melhora").length;
 
   const rowsFiltradas = rows.filter((a) => {
-    if (filtro === "pendentes") return !a.visualizado_em;
-    if (filtro === "vistos") return !!a.visualizado_em;
+    if (filtro === "pendentes" && a.visualizado_em) return false;
+    if (filtro === "vistos" && !a.visualizado_em) return false;
+    if (filtroTipo !== "todos" && a.tipo_transicao !== filtroTipo) return false;
     return true;
   });
 
@@ -314,6 +361,12 @@ export default function AssinaturasAlertasCEO() {
     { id: "todos", label: "Todos", count: rows.length },
     { id: "pendentes", label: "Pendentes", count: totalNaoVistos },
     { id: "vistos", label: "Vistos", count: totalVistos },
+  ];
+
+  const ABAS_TIPO: { id: FiltroTipo; label: string; count: number; cor: string; Icone: typeof TrendingUp | typeof TrendingDown | typeof Bell }[] = [
+    { id: "todos", label: "Tudo", count: rows.length, cor: ZINC, Icone: Bell },
+    { id: "piora", label: "Piora", count: totalPiora, cor: RED, Icone: TrendingDown },
+    { id: "melhora", label: "Melhora", count: totalMelhora, cor: GREEN, Icone: TrendingUp },
   ];
 
   return (
@@ -471,6 +524,51 @@ export default function AssinaturasAlertasCEO() {
           </div>
         )}
 
+        {/* Task #63: toggle por tipo_transicao (piora vs melhora) */}
+        {rows.length > 0 && (
+          <div
+            className="nao-imprimir flex items-center gap-2 flex-wrap"
+            data-testid="abas-filtro-tipo"
+            role="tablist"
+            aria-label="Filtrar por tipo de transição"
+          >
+            <span className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: ZINC }}>
+              Tipo:
+            </span>
+            {ABAS_TIPO.map((aba) => {
+              const ativa = filtroTipo === aba.id;
+              const Icone = aba.Icone;
+              return (
+                <button
+                  key={aba.id}
+                  role="tab"
+                  aria-selected={ativa}
+                  onClick={() => setFiltroTipo(aba.id)}
+                  data-testid={`aba-filtro-tipo-${aba.id}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition border"
+                  style={{
+                    background: ativa ? aba.cor : "white",
+                    color: ativa ? "white" : aba.cor,
+                    borderColor: aba.cor,
+                  }}
+                >
+                  <Icone size={12} />
+                  {aba.label}
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                    style={{
+                      background: ativa ? "rgba(255,255,255,0.25)" : `${aba.cor}1A`,
+                      color: ativa ? "white" : aba.cor,
+                    }}
+                  >
+                    {aba.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Abas de filtro por status */}
         {rows.length > 0 && (
           <div
@@ -559,6 +657,26 @@ export default function AssinaturasAlertasCEO() {
                       <span className="text-xs font-mono" style={{ color: ZINC }}>
                         #{a.id}
                       </span>
+                      {/* Task #63: badge visual distinto por tipo_transicao */}
+                      {a.tipo_transicao === "piora" ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded"
+                          style={{ background: RED, color: "white" }}
+                          data-testid={`badge-tipo-piora-${a.id}`}
+                          title="Métrica piorou em relação ao patamar anterior"
+                        >
+                          <TrendingDown size={10} /> piora
+                        </span>
+                      ) : a.tipo_transicao === "melhora" ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded"
+                          style={{ background: GREEN, color: "white" }}
+                          data-testid={`badge-tipo-melhora-${a.id}`}
+                          title="Métrica recuperou em relação ao patamar anterior"
+                        >
+                          <TrendingUp size={10} /> melhora
+                        </span>
+                      ) : null}
                       {naoVisto && (
                         <span
                           className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded"

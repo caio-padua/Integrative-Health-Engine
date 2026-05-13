@@ -469,16 +469,22 @@ router.post("/assinaturas/:id/signatario/:signatarioId/reenviar", guardMaster, a
 router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Response) => {
   try {
     const limit = Math.min(Math.max(Number(req.query["limit"] ?? 50), 1), 200);
+    // Task #63: filtro opcional por tipo_transicao (piora|melhora). Sem filtro
+    // mantem o comportamento historico (retorna ambos), preservando compat retro
+    // com clientes Wave 10.6 que ainda nao conhecem o campo.
+    const tipoRaw = req.query["tipo"];
+    const tipo = tipoRaw === "piora" || tipoRaw === "melhora" ? tipoRaw : null;
     const r = await db.execute(sql`
       SELECT id, dia_brt, metrica, tipo_transicao, cor_anterior, cor_atual,
              variacao_pct, conversao_pp, totais_atual, totais_prev,
              notif_email_id, notif_wpp_id, visualizado_em, criado_em
       FROM alertas_ceo_assinaturas
+      WHERE ${tipo ? sql`tipo_transicao = ${tipo}` : sql`TRUE`}
       ORDER BY criado_em DESC
       LIMIT ${limit}
     `);
     const rows = (r as unknown as { rows?: unknown[] }).rows || [];
-    res.json({ alertas: rows, total: rows.length });
+    res.json({ alertas: rows, total: rows.length, tipo });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
