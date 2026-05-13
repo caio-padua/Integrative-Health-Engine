@@ -15,6 +15,7 @@ import { iniciarWorkerCarenciaLgpd2fa } from "./lib/recorrencia/carenciaLgpd2fa"
 import { iniciarWorkerExclusaoCarencia } from "./lib/recorrencia/exclusaoCarenciaExecutor";
 import { iniciarWorkerLimpezaTotpRateLimit } from "./lib/recorrencia/limpezaTotpRateLimit";
 import { iniciarWorkerAvisoExpiracao2faOwner } from "./lib/recorrencia/avisoExpiracao2faOwner";
+import { iniciarWorkerAlertaBruteForceRetryEnvio } from "./lib/recorrencia/alertaBruteForceRetryEnvio";
 
 const rawPort = process.env["PORT"];
 
@@ -52,4 +53,5 @@ app.listen(port, (err) => {
   iniciarWorkerExclusaoCarencia();
   iniciarWorkerLimpezaTotpRateLimit();
   iniciarWorkerAvisoExpiracao2faOwner();
+  iniciarWorkerAlertaBruteForceRetryEnvio();
 });
