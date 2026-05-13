@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
-import { Building2, Power, PowerOff, RefreshCw, ShieldAlert } from "lucide-react";
+import {
+  Building2, Power, PowerOff, RefreshCw, ShieldAlert,
+  Trash2, Undo2, Download, Clock,
+} from "lucide-react";
 
 type Clinica = {
   id: number;
@@ -16,7 +19,15 @@ type Clinica = {
   suspenso_por_usuario_id: number | null;
   suspensao_motivo: string | null;
   suspenso_por_nome: string | null;
+  exclusao_carencia_ate: string | null;
+  lgpd_export_url?: string | null;
 };
+
+function diasAteCarencia(iso: string | null): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
 
 const STATUS_COR: Record<string, string> = {
   ATIVO: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
@@ -72,6 +83,106 @@ export default function PlataformaClinicas() {
     await carregar();
   }
 
+  async function agendarExclusao(c: Clinica) {
+    const motivo = window.prompt(
+      `AGENDAR EXCLUSAO da clinica "${c.nome}" (id ${c.id}).\n\n` +
+      `Apos confirmar, comeca uma janela de carencia LGPD de 30 dias.\n` +
+      `Voce pode CANCELAR a qualquer momento dentro da janela.\n\n` +
+      `Motivo (minimo 8 caracteres):`,
+    );
+    if (!motivo || motivo.trim().length < 8) {
+      if (motivo !== null) alert("Motivo precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    const confirmacao = window.prompt(
+      `CONFIRMACAO DUPLA — digite EXATAMENTE o nome da clinica para prosseguir:\n\n${c.nome}`,
+    );
+    if (confirmacao !== c.nome) {
+      if (confirmacao !== null) alert("Confirmacao nao bateu. Operacao cancelada.");
+      return;
+    }
+    setAcaoId(c.id);
+    const r = await apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/agendar`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivo: motivo.trim(), confirmacao }),
+    });
+    setAcaoId(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Erro: ${j.error ?? r.statusText}`);
+      return;
+    }
+    const j = await r.json();
+    alert(
+      `Exclusao agendada.\n\nCarencia ate: ${
+        j.carencia_ate ? new Date(j.carencia_ate).toLocaleString("pt-BR") : "—"
+      }\n\nLEMBRE-SE de gerar o export LGPD antes do vencimento — sem ele o worker recusa executar.`,
+    );
+    await carregar();
+  }
+
+  async function cancelarExclusao(c: Clinica) {
+    const motivo = window.prompt(
+      `CANCELAR exclusao agendada de "${c.nome}".\nMotivo (>= 8 chars):`,
+    );
+    if (!motivo || motivo.trim().length < 8) {
+      if (motivo !== null) alert("Motivo precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    setAcaoId(c.id);
+    const r = await apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/cancelar`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivo: motivo.trim() }),
+    });
+    setAcaoId(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Erro: ${j.error ?? r.statusText}`);
+      return;
+    }
+    alert("Exclusao cancelada. A clinica voltou para SUSPENSO — use Reativar se quiser religar.");
+    await carregar();
+  }
+
+  async function exportarLgpd(c: Clinica) {
+    const motivo = window.prompt(
+      `EXPORTAR LGPD da clinica "${c.nome}".\n\n` +
+      `Vai gerar um snapshot JSON (data:URL) com dados da unidade + auditoria.\n` +
+      `Motivo (>= 8 chars):`,
+    );
+    if (!motivo || motivo.trim().length < 8) {
+      if (motivo !== null) alert("Motivo precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    setAcaoId(c.id);
+    const r = await apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/exportar-lgpd`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivo: motivo.trim() }),
+    });
+    setAcaoId(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Erro: ${j.error ?? r.statusText}`);
+      return;
+    }
+    const j = await r.json();
+    if (j.lgpd_export_url) {
+      const a = document.createElement("a");
+      a.href = j.lgpd_export_url;
+      a.download = `lgpd-export-clinica-${c.id}-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    await carregar();
+  }
+
   return (
     <Layout>
       <div className="p-6 max-w-7xl mx-auto">
@@ -121,7 +232,11 @@ export default function PlataformaClinicas() {
               {!loading && clinicas.map(c => {
                 const cor = STATUS_COR[c.status] ?? STATUS_COR.ATIVO;
                 const suspendido = c.status === "SUSPENSO";
+                const pendenteExclusao = c.status === "EXCLUIDO_PENDENTE";
+                const excluido = c.status === "EXCLUIDO";
                 const podeAlterar = c.tipo !== "genesis_seed";
+                const dias = diasAteCarencia(c.exclusao_carencia_ate);
+                const desabilitado = acaoId === c.id;
                 return (
                   <tr key={c.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
                     <td className="px-4 py-3">
@@ -134,35 +249,89 @@ export default function PlataformaClinicas() {
                       <span className={`inline-block px-2 py-1 rounded text-xs font-mono border ${cor}`}>
                         {c.status}
                       </span>
+                      {pendenteExclusao && dias !== null && (
+                        <div className="mt-1 text-xs text-amber-300 flex items-center gap-1">
+                          <Clock size={10} />
+                          {dias > 0 ? `faltam ${dias}d` : "vencido — aguardando worker"}
+                        </div>
+                      )}
+                      {pendenteExclusao && !c.lgpd_export_url && (
+                        <div className="mt-1 text-xs text-red-400">⚠ sem export LGPD</div>
+                      )}
+                      {pendenteExclusao && c.lgpd_export_url && (
+                        <div className="mt-1 text-xs text-emerald-400">✓ export LGPD pronto</div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-zinc-400">
-                      {suspendido ? (
+                      {(suspendido || pendenteExclusao) ? (
                         <>
                           <div>em {c.suspenso_em ? new Date(c.suspenso_em).toLocaleString("pt-BR") : "—"}</div>
                           <div>por {c.suspenso_por_nome ?? `usuario ${c.suspenso_por_usuario_id ?? "?"}`}</div>
                           <div className="italic mt-1">"{c.suspensao_motivo ?? "—"}"</div>
+                          {pendenteExclusao && c.exclusao_carencia_ate && (
+                            <div className="mt-1 text-amber-300">
+                              carencia ate {new Date(c.exclusao_carencia_ate).toLocaleString("pt-BR")}
+                            </div>
+                          )}
                         </>
                       ) : <span className="text-zinc-600">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3">
                       {!podeAlterar ? (
                         <span className="text-xs text-zinc-500 italic">Genesis (protegido)</span>
-                      ) : suspendido ? (
-                        <button
-                          disabled={acaoId === c.id}
-                          onClick={() => void executar(c, "reativar")}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50"
-                        >
-                          <Power size={12} /> Reativar
-                        </button>
+                      ) : excluido ? (
+                        <span className="text-xs text-zinc-500 italic">Excluida</span>
+                      ) : pendenteExclusao ? (
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <button
+                            disabled={desabilitado}
+                            onClick={() => void cancelarExclusao(c)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50"
+                          >
+                            <Undo2 size={12} /> Cancelar exclusao
+                          </button>
+                          <button
+                            disabled={desabilitado}
+                            onClick={() => void exportarLgpd(c)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50"
+                          >
+                            <Download size={12} /> Exportar LGPD
+                          </button>
+                        </div>
                       ) : (
-                        <button
-                          disabled={acaoId === c.id}
-                          onClick={() => void executar(c, "suspender")}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-50"
-                        >
-                          <PowerOff size={12} /> Suspender
-                        </button>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          {suspendido ? (
+                            <button
+                              disabled={desabilitado}
+                              onClick={() => void executar(c, "reativar")}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50"
+                            >
+                              <Power size={12} /> Reativar
+                            </button>
+                          ) : (
+                            <button
+                              disabled={desabilitado}
+                              onClick={() => void executar(c, "suspender")}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-50"
+                            >
+                              <PowerOff size={12} /> Suspender
+                            </button>
+                          )}
+                          <button
+                            disabled={desabilitado}
+                            onClick={() => void exportarLgpd(c)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50"
+                          >
+                            <Download size={12} /> Export LGPD
+                          </button>
+                          <button
+                            disabled={desabilitado}
+                            onClick={() => void agendarExclusao(c)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-red-700/30 text-red-200 hover:bg-red-700/50 disabled:opacity-50"
+                          >
+                            <Trash2 size={12} /> Agendar exclusao
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

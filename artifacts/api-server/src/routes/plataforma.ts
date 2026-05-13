@@ -142,7 +142,7 @@ router.get("/plataforma/clinicas", ...guardas, async (_req, res): Promise<void> 
     SELECT
       u.id, u.nome, u.cidade, u.estado, u.cnpj, u.tipo, u.ativa,
       u.status, u.suspenso_em, u.suspenso_por_usuario_id, u.suspensao_motivo,
-      u.exclusao_carencia_ate,
+      u.exclusao_carencia_ate, u.lgpd_export_url, u.lgpd_export_em,
       sup.nome AS suspenso_por_nome
     FROM unidades u
     LEFT JOIN usuarios sup ON sup.id = u.suspenso_por_usuario_id
@@ -217,6 +217,216 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
   req.log?.info({ unidadeId: id, motivo }, "[plataforma] clinica reativada");
   res.json({ ok: true });
 });
+
+// ─────────────────────── EXCLUSAO COM CARENCIA LGPD ──────────────────
+// Janela de carencia LGPD: 30 dias. Pode ser cancelada a qualquer momento
+// dentro da janela. Worker `exclusaoCarenciaExecutor` executa quando vence.
+const CARENCIA_LGPD_DIAS = 30;
+
+// POST /api/plataforma/clinicas/:id/exclusao/agendar { motivo, confirmacao }
+// `confirmacao` deve ser exatamente o nome da clinica (confirmacao dupla).
+router.post(
+  "/plataforma/clinicas/:id/exclusao/agendar",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+    const motivo = String(req.body?.motivo ?? "").trim();
+    const confirmacao = String(req.body?.confirmacao ?? "").trim();
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "id invalido" }); return;
+    }
+    if (motivo.length < 8) {
+      res.status(400).json({ error: "motivo obrigatorio (>= 8 chars)" }); return;
+    }
+
+    const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
+    if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+    if (unidade.tipo === "genesis_seed") {
+      res.status(403).json({ error: "Instituto Genesis nao pode ser excluido" }); return;
+    }
+    if (unidade.status === "EXCLUIDO") {
+      res.status(409).json({ error: "Unidade ja foi excluida definitivamente" }); return;
+    }
+    if (unidade.status === "EXCLUIDO_PENDENTE") {
+      res.status(409).json({
+        error: "Exclusao ja agendada — cancele antes de reagendar",
+        carencia_ate: unidade.exclusaoCarenciaAte,
+      }); return;
+    }
+    if (confirmacao !== unidade.nome) {
+      res.status(400).json({
+        error: "Confirmacao dupla falhou — digite o nome exato da clinica",
+        codigo: "CONFIRMACAO_INVALIDA",
+      }); return;
+    }
+
+    const actor = getActor(req);
+    const carenciaAte = new Date(Date.now() + CARENCIA_LGPD_DIAS * 24 * 60 * 60 * 1000);
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        UPDATE unidades
+           SET status = 'EXCLUIDO_PENDENTE',
+               exclusao_carencia_ate = ${carenciaAte.toISOString()},
+               suspenso_em = COALESCE(suspenso_em, now()),
+               suspenso_por_usuario_id = ${actor.userId},
+               suspensao_motivo = COALESCE(suspensao_motivo, ${motivo}),
+               ativa = false
+         WHERE id = ${id}
+      `);
+      await registrarAuditoria(tx, {
+        acao: "EXCLUIR_AGENDAR", unidadeId: id, executadoPorUsuarioId: actor.userId,
+        motivo, ip: actor.ip, ua: actor.ua,
+        metadata: {
+          status_anterior: unidade.status,
+          nome: unidade.nome,
+          carencia_dias: CARENCIA_LGPD_DIAS,
+          carencia_ate: carenciaAte.toISOString(),
+          confirmacao_dupla: true,
+        },
+      });
+    });
+    req.log?.info(
+      { unidadeId: id, carenciaAte: carenciaAte.toISOString() },
+      "[plataforma] exclusao agendada",
+    );
+    res.json({ ok: true, carencia_ate: carenciaAte.toISOString() });
+  },
+);
+
+// POST /api/plataforma/clinicas/:id/exclusao/cancelar { motivo }
+router.post(
+  "/plataforma/clinicas/:id/exclusao/cancelar",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+    const motivo = String(req.body?.motivo ?? "").trim();
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "id invalido" }); return;
+    }
+    if (motivo.length < 8) {
+      res.status(400).json({ error: "motivo obrigatorio (>= 8 chars)" }); return;
+    }
+
+    const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
+    if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+    if (unidade.status !== "EXCLUIDO_PENDENTE") {
+      res.status(409).json({
+        error: "Unidade nao esta em periodo de carencia",
+        status_atual: unidade.status,
+      }); return;
+    }
+
+    const actor = getActor(req);
+    await db.transaction(async (tx) => {
+      // Cancelar carencia volta pra SUSPENSO (nao pra ATIVO automaticamente —
+      // o owner decide se reativa em seguida via /reativar).
+      await tx.execute(sql`
+        UPDATE unidades
+           SET status = 'SUSPENSO',
+               exclusao_carencia_ate = NULL
+         WHERE id = ${id}
+      `);
+      await registrarAuditoria(tx, {
+        acao: "EXCLUIR_CANCELAR", unidadeId: id, executadoPorUsuarioId: actor.userId,
+        motivo, ip: actor.ip, ua: actor.ua,
+        metadata: {
+          nome: unidade.nome,
+          carencia_ate_cancelada: unidade.exclusaoCarenciaAte,
+        },
+      });
+    });
+    req.log?.info({ unidadeId: id }, "[plataforma] exclusao cancelada");
+    res.json({ ok: true });
+  },
+);
+
+// POST /api/plataforma/clinicas/:id/exclusao/exportar-lgpd { motivo }
+// Gera snapshot JSON LGPD da clinica, embute como data: URL em
+// `unidades.lgpd_export_url`. Necessario antes do worker executar a exclusao.
+router.post(
+  "/plataforma/clinicas/:id/exclusao/exportar-lgpd",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+    const motivo = String(req.body?.motivo ?? "").trim();
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "id invalido" }); return;
+    }
+    if (motivo.length < 8) {
+      res.status(400).json({ error: "motivo obrigatorio (>= 8 chars)" }); return;
+    }
+
+    const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
+    if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+
+    // Coleta resumo LGPD: dados da unidade + counts de tabelas relacionadas.
+    const counts = await db.execute(sql`
+      SELECT
+        (SELECT COUNT(*) FROM pacientes WHERE unidade_id = ${id})::int AS pacientes,
+        (SELECT COUNT(*) FROM usuarios WHERE unidade_id = ${id})::int AS usuarios,
+        (SELECT COUNT(*) FROM auditoria_kill_switch WHERE unidade_id = ${id})::int AS auditoria_eventos
+    `);
+    const auditoria = await db.execute(sql`
+      SELECT acao, motivo, criado_em, executado_por_usuario_id
+        FROM auditoria_kill_switch
+       WHERE unidade_id = ${id}
+       ORDER BY criado_em DESC
+       LIMIT 500
+    `);
+
+    const snapshot = {
+      tipo: "EXPORT_LGPD_PAWARDS_V1",
+      gerado_em: new Date().toISOString(),
+      unidade: {
+        id: unidade.id,
+        nome: unidade.nome,
+        cnpj: unidade.cnpj,
+        cidade: unidade.cidade,
+        estado: unidade.estado,
+        tipo: unidade.tipo,
+        status: unidade.status,
+        criado_em: unidade.criadoEm,
+        suspenso_em: unidade.suspensoEm,
+        suspensao_motivo: unidade.suspensaoMotivo,
+        exclusao_carencia_ate: unidade.exclusaoCarenciaAte,
+      },
+      contagens: counts.rows[0] ?? {},
+      auditoria_kill_switch: auditoria.rows,
+    };
+    const json = JSON.stringify(snapshot, null, 2);
+    const dataUrl =
+      "data:application/json;base64," + Buffer.from(json, "utf8").toString("base64");
+
+    const actor = getActor(req);
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        UPDATE unidades
+           SET lgpd_export_url = ${dataUrl},
+               lgpd_export_em = now()
+         WHERE id = ${id}
+      `);
+      await registrarAuditoria(tx, {
+        acao: "EXPORTAR_LGPD", unidadeId: id, executadoPorUsuarioId: actor.userId,
+        motivo, ip: actor.ip, ua: actor.ua,
+        metadata: {
+          nome: unidade.nome,
+          tamanho_bytes: Buffer.byteLength(json, "utf8"),
+          contagens: counts.rows[0] ?? {},
+        },
+      });
+    });
+    req.log?.info(
+      { unidadeId: id, bytes: Buffer.byteLength(json, "utf8") },
+      "[plataforma] export LGPD gerado",
+    );
+    res.json({
+      ok: true,
+      lgpd_export_url: dataUrl,
+      lgpd_export_em: new Date().toISOString(),
+      tamanho_bytes: Buffer.byteLength(json, "utf8"),
+    });
+  },
+);
 
 // ───────────────────────────── ADMINS ──────────────────────────────────
 // GET /api/plataforma/admins — lista usuarios com perfil_plataforma

@@ -11,6 +11,7 @@ import { iniciarWorkerVerificarPdfsCofre } from "./lib/recorrencia/verificarPdfs
 import { iniciarWorkerAlertaAssinaturasCEO } from "./lib/recorrencia/alertaAssinaturasCEO";
 import { iniciarWorkerRelatorioDiarioCEO } from "./lib/recorrencia/relatorioDiarioCEO";
 import { iniciarWorkerCarenciaLgpd2fa } from "./lib/recorrencia/carenciaLgpd2fa";
+import { iniciarWorkerExclusaoCarencia } from "./lib/recorrencia/exclusaoCarenciaExecutor";
 
 const rawPort = process.env["PORT"];
 
@@ -44,4 +45,5 @@ app.listen(port, (err) => {
   iniciarWorkerAlertaAssinaturasCEO();
   iniciarWorkerRelatorioDiarioCEO();
   iniciarWorkerCarenciaLgpd2fa();
+  iniciarWorkerExclusaoCarencia();
 });
