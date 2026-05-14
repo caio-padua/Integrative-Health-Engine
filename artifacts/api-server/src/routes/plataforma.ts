@@ -1938,6 +1938,148 @@ router.get(
   },
 );
 
+// POST /api/plataforma/alertas-killswitch-emails/:id/reenviar
+// Task #263 — Reenvia o email da unidade/acao referenciados pelo evento
+// original a partir da propria linha do alerta na tela /plataforma/
+// alertas-killswitch-emails (Task #149). Antes era preciso ir no painel
+// da clinica e refazer suspensao/reativacao manualmente. Apos um reenvio
+// bem-sucedido (sem erro e sem falhas de envio), atualiza notif_email_ok
+// e falhas no proprio row do alerta + marca como visualizado, fechando
+// o loop visual no painel.
+router.post(
+  "/plataforma/alertas-killswitch-emails/:id/reenviar",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "id invalido" });
+      return;
+    }
+    const alertaRes = await db.execute(sql`
+      SELECT id, evento_id, notif_email_ok, falhas
+        FROM alertas_ceo_killswitch_emails
+       WHERE id = ${id}
+       LIMIT 1
+    `);
+    const alerta = alertaRes.rows[0] as
+      | { id: number; evento_id: number; notif_email_ok: boolean; falhas: number }
+      | undefined;
+    if (!alerta) {
+      res.status(404).json({ error: "Alerta nao encontrado" });
+      return;
+    }
+    const evRes = await db.execute(sql`
+      SELECT id, acao, unidade_id, motivo, criado_em
+        FROM auditoria_kill_switch
+       WHERE id = ${alerta.evento_id}
+       LIMIT 1
+    `);
+    const evento = evRes.rows[0] as
+      | { id: number; acao: string; unidade_id: number; motivo: string | null; criado_em: string }
+      | undefined;
+    if (!evento) {
+      res.status(404).json({ error: "Evento original nao encontrado" });
+      return;
+    }
+    if (evento.acao !== "SUSPENDER" && evento.acao !== "REASSUMIR") {
+      res.status(400).json({
+        error: "Reenvio so suportado pra eventos SUSPENDER/REASSUMIR",
+        acao_evento: evento.acao,
+      });
+      return;
+    }
+    const [unidade] = await db.select().from(unidadesTable)
+      .where(eq(unidadesTable.id, evento.unidade_id));
+    if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+
+    const actor = getActor(req);
+    const motivoOriginal = evento.motivo ?? "(motivo nao registrado)";
+
+    let emailRes = {
+      destinatarios: [] as string[],
+      enviados: 0,
+      falhas: 0,
+      detalhes: [] as DetalheEnvioEmailAuditoria[],
+    };
+    let emailErro: string | null = null;
+    try {
+      if (evento.acao === "SUSPENDER") {
+        emailRes = await enviarEmailSuspensao({
+          unidadeId: evento.unidade_id,
+          unidade,
+          motivo: motivoOriginal,
+          suspensoEm: new Date(evento.criado_em),
+        });
+      } else {
+        emailRes = await enviarEmailReativacao({
+          unidadeId: evento.unidade_id,
+          unidade,
+          motivo: motivoOriginal,
+          reativadoEm: new Date(evento.criado_em),
+        });
+      }
+      req.log?.info(
+        { alertaId: id, eventoId: evento.id, ...emailRes },
+        "[plataforma] reenvio via alerta-killswitch-emails executado",
+      );
+    } catch (err) {
+      emailErro = err instanceof Error ? err.message : String(err);
+      req.log?.warn(
+        { err, alertaId: id, eventoId: evento.id },
+        "[plataforma] falha no reenvio via alerta-killswitch-emails",
+      );
+    }
+
+    await anexarAvisoEmAuditoria(
+      evento.unidade_id,
+      evento.acao as AcaoKillSwitch,
+      {
+        tipo: evento.acao === "SUSPENDER" ? "REENVIO_SUSPENSAO" : "REENVIO_REATIVACAO",
+        canal: "EMAIL",
+        destinatarios: emailRes.destinatarios,
+        enviados: emailRes.enviados,
+        falhas: emailRes.falhas,
+        erro: emailErro,
+        em: new Date().toISOString(),
+        executado_por_usuario_id: actor.userId,
+        detalhes_email: emailRes.detalhes,
+        detalhes: { origem: "alerta_killswitch_emails", alerta_id: id },
+      },
+      evento.id,
+    );
+
+    // Reenvio "bem-sucedido" pra fins de fechar o alerta = sem erro tecnico
+    // E todos os destinatarios tentados foram entregues. Falhas parciais
+    // mantem notif_email_ok no estado anterior (o CEO pode acionar
+    // "Reenviar so pros que falharam" via outra rota).
+    const reenvioOk =
+      emailErro === null && emailRes.falhas === 0 && emailRes.enviados > 0;
+    // Se houve erro tecnico (gmail caiu, etc.) emailRes.falhas e zero por
+    // default e nao reflete a realidade — preservamos o valor anterior
+    // pra nao mascarar o estado do alerta. So atualizamos contador de
+    // falhas e visualizado_em quando o reenvio realmente executou.
+    if (emailErro === null) {
+      await db.execute(sql`
+        UPDATE alertas_ceo_killswitch_emails
+           SET notif_email_ok = CASE WHEN ${reenvioOk} THEN TRUE ELSE notif_email_ok END,
+               falhas = ${emailRes.falhas},
+               visualizado_em = COALESCE(visualizado_em, NOW())
+         WHERE id = ${id}
+      `);
+    }
+
+    res.json({
+      ok: true,
+      alerta_id: id,
+      evento_id: evento.id,
+      acao: evento.acao,
+      email: emailRes,
+      erro: emailErro,
+      reenvio_ok: reenvioOk,
+    });
+  },
+);
+
 // ─────────── HISTORICO AVISOS CARENCIA LGPD CLINICA (Task #257) ────────
 // GET /api/plataforma/notif-carencia-lgpd-clinicas — lista os ultimos N
 // envios do worker `avisoVencimentoCarenciaLgpd` (Task #135) gravados em

@@ -19,6 +19,8 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Send,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart,
@@ -108,6 +110,10 @@ export default function PlataformaAlertasKillswitchEmails() {
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
   const [filtroMotivo, setFiltroMotivo] = useState<string>("todos");
   const [serie, setSerie] = useState<SerieResposta | null>(null);
+  const [reenviandoId, setReenviandoId] = useState<number | null>(null);
+  const [reenvioFeedback, setReenvioFeedback] = useState<
+    Record<number, { ok: boolean; mensagem: string }>
+  >({});
   const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
@@ -146,6 +152,53 @@ export default function PlataformaAlertasKillswitchEmails() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // Task #263 — Reenvia o email da unidade/acao referenciados pelo evento
+  // original direto da linha do alerta, sem precisar abrir o painel da
+  // clinica e refazer suspensao/reativacao na mao.
+  const reenviar = useCallback(
+    async (alertaId: number) => {
+      setReenviandoId(alertaId);
+      setReenvioFeedback((prev) => {
+        const proximo = { ...prev };
+        delete proximo[alertaId];
+        return proximo;
+      });
+      const url = `/api/plataforma/alertas-killswitch-emails/${alertaId}/reenviar`;
+      const r = await runWithStepUp(() =>
+        apiFetch(url, { method: "POST", credentials: "include" }),
+      );
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setReenvioFeedback((prev) => ({
+          ...prev,
+          [alertaId]: {
+            ok: false,
+            mensagem: j.error ?? `Falha ao reenviar (${r.status})`,
+          },
+        }));
+        setReenviandoId(null);
+        return;
+      }
+      const enviados = Number(j.email?.enviados ?? 0);
+      const falhas = Number(j.email?.falhas ?? 0);
+      const reenvioOk = Boolean(j.reenvio_ok);
+      const mensagem = j.erro
+        ? `Erro tecnico: ${j.erro}`
+        : reenvioOk
+          ? `Reenvio ok: ${enviados} entregue(s).`
+          : `Reenvio parcial: ${enviados} entregue(s), ${falhas} falha(s).`;
+      setReenvioFeedback((prev) => ({
+        ...prev,
+        [alertaId]: { ok: reenvioOk && !j.erro, mensagem },
+      }));
+      // Recarrega pra hidratar notif_email_ok / falhas / visualizado_em
+      // atualizados no banco (servidor ja persistiu via mesma rota).
+      await carregar();
+      setReenviandoId(null);
+    },
+    [carregar, runWithStepUp],
+  );
 
   // Agrega lista de unidades a partir dos alertas carregados (sem precisar
   // chamar /unidades). Se filtro de unidade ja esta aplicado a lista pode
@@ -348,19 +401,20 @@ export default function PlataformaAlertasKillswitchEmails() {
                 <th className="text-left px-4 py-3">% falha</th>
                 <th className="text-left px-4 py-3">Email</th>
                 <th className="text-left px-4 py-3">WhatsApp</th>
+                <th className="text-left px-4 py-3">Acao</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
                     Carregando...
                   </td>
                 </tr>
               )}
               {!loading && alertas.length === 0 && !erro && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
                     Nenhum alerta encontrado pros filtros atuais.
                   </td>
                 </tr>
@@ -444,6 +498,44 @@ export default function PlataformaAlertasKillswitchEmails() {
                           <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-700/40 text-zinc-400 border border-zinc-600">
                             <MessageSquare size={11} /> <XCircle size={11} /> —
                           </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {a.notif_email_ok ? (
+                          <span className="text-[10px] text-zinc-500">
+                            email ja ok
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => void reenviar(a.id)}
+                            disabled={reenviandoId === a.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded border border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                            data-testid={`button-reenviar-killswitch-${a.id}`}
+                            title="Reenvia o email da unidade/acao do evento original"
+                          >
+                            {reenviandoId === a.id ? (
+                              <>
+                                <Loader2 size={11} className="animate-spin" />{" "}
+                                Reenviando…
+                              </>
+                            ) : (
+                              <>
+                                <Send size={11} /> Reenviar
+                              </>
+                            )}
+                          </button>
+                        )}
+                        {reenvioFeedback[a.id] && (
+                          <div
+                            className={`text-[10px] mt-1 break-words ${
+                              reenvioFeedback[a.id]!.ok
+                                ? "text-emerald-300"
+                                : "text-red-300"
+                            }`}
+                            data-testid={`feedback-reenvio-killswitch-${a.id}`}
+                          >
+                            {reenvioFeedback[a.id]!.mensagem}
+                          </div>
                         )}
                       </td>
                     </tr>
