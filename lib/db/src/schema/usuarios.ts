@@ -31,6 +31,12 @@ export const usuariosTable = pgTable("usuarios", {
   totpSecretCifrado: text("totp_secret_cifrado"),
   totpAtivadoEm: timestamp("totp_ativado_em", { withTimezone: true }),
   ultimoLogin2faEm: timestamp("ultimo_login_2fa_em", { withTimezone: true }),
+  // Task #154/Migration 051 — kill-switch de sessoes JWT do usuario.
+  // Quando preenchido, requireAuth rejeita tokens cujo `iat` seja anterior
+  // a esse timestamp (efetivamente forca logout de TODAS as sessoes ativas).
+  // Bumpado por POST /api/plataforma/usuarios/:id/forcar-logout (platform_owner
+  // estrito + 2FA recente, registrado em auditoria_kill_switch como FORCAR_LOGOUT).
+  tokensInvalidosApos: timestamp("tokens_invalidos_apos", { withTimezone: true }),
   // Task #146/Migration 047 — timestamp do ultimo aviso de expiracao 2FA
   // disparado pelo worker. Exposto em /usuarios/perfil-atual (Task #173)
   // pra UI mostrar "Ultimo aviso enviado: <data>" e amarelo perto do fim.

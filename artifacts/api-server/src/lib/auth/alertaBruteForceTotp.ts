@@ -150,8 +150,8 @@ function htmlAlerta(opts: {
     <strong>IP:</strong> ${escapeHtml(opts.ip || "(nao registrado)")}<br/>
     <strong>User-Agent:</strong> ${escapeHtml(opts.userAgent || "(nao registrado)")}
   </p>
-  <p>Se voce nao reconhece essa atividade, abra o painel de admins e <strong>desative a conta</strong> ou rebaixe o perfil pra forcar logout do atacante antes que ele consiga adivinhar o codigo.</p>
-  <p><a href="${escapeHtml(opts.linkAdmin)}" style="display:inline-block; background:#7d1d2e; color:#fff; padding:10px 20px; text-decoration:none; border-radius:0;">Abrir painel de admins</a></p>
+  <p>Se voce nao reconhece essa atividade, clique no botao abaixo pra <strong>forcar logout imediato</strong> de TODAS as sessoes ativas do usuario (Task #154). Isso invalida tokens JWT ja emitidos sem precisar desativar a conta — o usuario legitimo pode logar de novo.</p>
+  <p><a href="${escapeHtml(opts.linkAdmin)}" style="display:inline-block; background:#7d1d2e; color:#fff; padding:10px 20px; text-decoration:none; border-radius:0;">Forcar logout agora</a></p>
   <p style="font-size:12px; color:#666; margin-top:32px; border-top:1px solid #ddd; padding-top:8px;">Mensagem automatica do motor PAWARDS. Idempotente: 1 alerta por bloqueio (nao 1 por tentativa errada). Detalhes auditaveis em alertas_ceo_seguranca.</p>
 </body></html>`;
 }
@@ -236,7 +236,12 @@ export async function dispararAlertaBruteForceTotp(
       return;
     }
 
-    const linkAdmin = `${publicAppUrl()}/plataforma/admins?usuario_id=${args.usuarioId}`;
+    // Task #154 — link aponta pra acao corretiva direta ("forcar logout"),
+    // nao mais pra pagina generica de admins. A UI abre o prompt de motivo
+    // e dispara POST /api/plataforma/usuarios/:id/forcar-logout assim que
+    // o platform_owner clica, fechando session-hijack em 1 clique em vez
+    // de obrigar a desativar a conta inteira.
+    const linkAdmin = `${publicAppUrl()}/plataforma/admins?usuario_id=${args.usuarioId}&acao=forcar-logout`;
     const ctxLabel =
       args.contexto === "STEP_UP_PAINEL"
         ? "Step-up 2FA do painel"

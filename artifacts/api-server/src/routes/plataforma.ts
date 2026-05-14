@@ -79,7 +79,9 @@ function getActor(req: Request): { userId: number; ip: string; ua: string } {
 type AcaoKillSwitch =
   | "SUSPENDER" | "REASSUMIR" | "EXPORTAR_LGPD"
   | "EXCLUIR_AGENDAR" | "EXCLUIR_EXECUTAR" | "EXCLUIR_CANCELAR"
-  | "PROMOVER_ADMIN" | "REBAIXAR_ADMIN";
+  | "PROMOVER_ADMIN" | "REBAIXAR_ADMIN"
+  // Task #154 — kill-switch de sessoes JWT (forca logout do usuario alvo).
+  | "FORCAR_LOGOUT";
 
 // Tipo do executor de SQL: aceita tanto `db` quanto a tx do `db.transaction`.
 // Usamos `Pick` pra nao acoplar com a API completa do drizzle.
@@ -936,6 +938,91 @@ router.post("/plataforma/admins/:userId/promover", ...guardas, (req, res) =>
 );
 router.post("/plataforma/admins/:userId/rebaixar", ...guardas, (req, res) =>
   alterarPerfilPlataforma(req, res, "tenant_user", "REBAIXAR_ADMIN"),
+);
+
+// ───────────────────────── FORCAR LOGOUT (Task #154) ───────────────────
+// POST /api/plataforma/usuarios/:userId/forcar-logout { motivo }
+// Bumpa `usuarios.tokens_invalidos_apos = now()`, invalidando TODAS as
+// sessoes JWT ativas do usuario alvo (requireAuth rejeita qualquer JWT
+// cujo iat seja anterior a esse timestamp). Usado pra resposta rapida a
+// session-hijack — link direto vem do email de alerta brute-force 2FA
+// (Task #143). Defesa em profundidade: requirePlataforma + estrito + 2FA
+// recente (mesmas guards de promover/rebaixar).
+//
+// Notas:
+//   - Nao desativa a conta nem mexe em senha/perfil. O usuario legitimo
+//     pode logar de novo (e recebera JWT novo, com iat > tokens_invalidos_apos).
+//   - platform_owner PODE ser alvo (Task #154 follow-up code-review):
+//     contencao de hijack do proprio owner e o cenario mais critico.
+//     Como a rota ja exige executor com platform_owner ESTRITO + 2FA
+//     recente (<8h), o owner so consegue se forcar logout (ou outro
+//     owner futuro). Owner deslogado faz login + 2FA pra voltar.
+//   - Idempotente em efeito: se ja existe um cutoff, o novo bump (now())
+//     e sempre maior, entao apenas estende a janela de invalidacao.
+router.post(
+  "/plataforma/usuarios/:userId/forcar-logout",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const userId = Number(req.params.userId);
+    const motivo = String(req.body?.motivo ?? "").trim();
+    if (!Number.isInteger(userId) || userId <= 0) {
+      res.status(400).json({ error: "userId invalido" }); return;
+    }
+    if (motivo.length < 8) {
+      res.status(400).json({ error: "motivo obrigatorio (>= 8 chars)" }); return;
+    }
+
+    const [alvo] = await db.select().from(usuariosTable).where(eq(usuariosTable.id, userId));
+    if (!alvo) { res.status(404).json({ error: "Usuario nao encontrado" }); return; }
+
+    // Mesma regra das outras kill-switch acoes: auditoria_kill_switch.unidade_id
+    // e NOT NULL e tem que apontar pra unidade real. Owner sem unidade vinculada
+    // cai pra unidade do executor (que SEMPRE tem por requirePlataforma) — sem
+    // isso, hijack do owner viraria buraco de auditoria.
+    const unidadeExecutor = (req as AuthedRequest).user?.unidadeId ?? null;
+    const unidadeAlvo = alvo.unidadeId ?? unidadeExecutor;
+    if (!unidadeAlvo) {
+      res.status(409).json({
+        error: "Nem alvo nem executor tem unidade vinculada — vincule antes de forcar logout.",
+        codigo: "UNIDADE_AUSENTE",
+      });
+      return;
+    }
+
+    const actor = getActor(req);
+    const agora = new Date();
+    await db.transaction(async (tx) => {
+      await tx.update(usuariosTable)
+        .set({ tokensInvalidosApos: agora })
+        .where(eq(usuariosTable.id, userId));
+
+      await registrarAuditoria(tx, {
+        acao: "FORCAR_LOGOUT",
+        unidadeId: Number(unidadeAlvo),
+        executadoPorUsuarioId: actor.userId,
+        motivo,
+        ip: actor.ip,
+        ua: actor.ua,
+        metadata: {
+          usuario_alvo_id: userId,
+          usuario_alvo_nome: alvo.nome,
+          usuario_alvo_email: alvo.email,
+          tokens_invalidos_apos: agora.toISOString(),
+          cutoff_anterior: alvo.tokensInvalidosApos
+            ? new Date(alvo.tokensInvalidosApos).toISOString()
+            : null,
+        },
+      });
+    });
+    req.log?.info(
+      { userId, motivo, cutoff: agora.toISOString() },
+      "[plataforma] forcar logout aplicado (todas as sessoes invalidadas)",
+    );
+    res.json({
+      ok: true,
+      tokens_invalidos_apos: agora.toISOString(),
+    });
+  },
 );
 
 // ────────────────────────── AVISOS DE SUSPENSAO ────────────────────────

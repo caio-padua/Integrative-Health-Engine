@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
-import { UserCheck, ArrowUpCircle, ArrowDownCircle, RefreshCw, ShieldAlert, Crown } from "lucide-react";
+import { UserCheck, ArrowUpCircle, ArrowDownCircle, RefreshCw, ShieldAlert, Crown, LogOut } from "lucide-react";
 
 type Admin = {
   id: number;
@@ -74,6 +74,60 @@ export default function PlataformaAdmins() {
     }
     await carregar();
   }
+
+  // Task #154 — forca logout imediato (invalida TODAS as sessoes JWT do
+  // alvo via bump em usuarios.tokens_invalidos_apos). Acao destrutiva mas
+  // nao desativa a conta — usuario legitimo pode logar de novo. Funciona
+  // pra QUALQUER alvo, inclusive platform_owner (cenario critico de hijack
+  // do proprio owner) — backend exige executor com platform_owner+2FA.
+  const forcarLogout = useCallback(async (u: Admin) => {
+    const aviso = u.perfil_plataforma === "platform_owner"
+      ? `\n\n⚠ ALVO E platform_owner. Voce sera deslogado e tera que refazer login + 2FA.`
+      : "";
+    const motivo = window.prompt(
+      `FORCAR LOGOUT de "${u.nome}" (${u.email}).\n\nIsso invalida TODAS as sessoes ativas (JWTs) do usuario imediatamente. A conta NAO e desativada — o usuario legitimo pode logar de novo.${aviso}\n\nMotivo (>= 8 chars, registrado em auditoria_kill_switch):`,
+    );
+    if (!motivo || motivo.trim().length < 8) {
+      if (motivo !== null) alert("Motivo precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    setAcaoId(u.id);
+    const r = await runWithStepUp(() =>
+      apiFetch(`/api/plataforma/usuarios/${u.id}/forcar-logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: motivo.trim() }),
+      }),
+    );
+    setAcaoId(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Erro: ${j.error ?? r.statusText}`);
+      return;
+    }
+    const j = await r.json().catch(() => ({}));
+    alert(`Sessoes invalidadas em ${j.tokens_invalidos_apos ?? "now"}.`);
+    await carregar();
+  }, [runWithStepUp, carregar]);
+
+  // Task #154 — deep-link do email de alerta brute-force 2FA (Task #143).
+  // URL: /plataforma/admins?usuario_id=X&acao=forcar-logout abre o prompt
+  // de motivo automaticamente assim que a lista carrega. Ref guard pra
+  // nao re-disparar em re-renders / re-fetches.
+  const deepLinkRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkRef.current) return;
+    if (loading || admins.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const usuarioId = Number(params.get("usuario_id"));
+    const acao = params.get("acao");
+    if (acao !== "forcar-logout" || !Number.isInteger(usuarioId) || usuarioId <= 0) return;
+    const alvo = admins.find(a => a.id === usuarioId);
+    if (!alvo) return;
+    deepLinkRef.current = true;
+    void forcarLogout(alvo);
+  }, [admins, loading, forcarLogout]);
 
   const filtroLower = filtro.trim().toLowerCase();
   const visiveis = filtroLower
@@ -160,25 +214,38 @@ export default function PlataformaAdmins() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {isOwner ? (
-                        <span className="text-xs text-amber-400 italic">platform_owner (protegido)</span>
-                      ) : isAdmin ? (
+                      <div className="inline-flex items-center gap-2 justify-center">
+                        {isOwner ? (
+                          <span className="text-xs text-amber-400 italic">promove/rebaixa: protegido</span>
+                        ) : isAdmin ? (
+                          <button
+                            disabled={acaoId === u.id}
+                            onClick={() => void executar(u, "rebaixar")}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-zinc-700/50 text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                          >
+                            <ArrowDownCircle size={12} /> Rebaixar
+                          </button>
+                        ) : (
+                          <button
+                            disabled={acaoId === u.id}
+                            onClick={() => void executar(u, "promover")}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 disabled:opacity-50"
+                          >
+                            <ArrowUpCircle size={12} /> Promover a admin
+                          </button>
+                        )}
+                        {/* Task #154: forcar-logout funciona pra qualquer alvo,
+                            inclusive platform_owner (cenario critico de hijack
+                            do proprio owner). */}
                         <button
                           disabled={acaoId === u.id}
-                          onClick={() => void executar(u, "rebaixar")}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-zinc-700/50 text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                          onClick={() => void forcarLogout(u)}
+                          title="Invalida TODAS as sessoes JWT ativas do usuario (kill-switch session-hijack)"
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 disabled:opacity-50"
                         >
-                          <ArrowDownCircle size={12} /> Rebaixar
+                          <LogOut size={12} /> Forcar logout
                         </button>
-                      ) : (
-                        <button
-                          disabled={acaoId === u.id}
-                          onClick={() => void executar(u, "promover")}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 disabled:opacity-50"
-                        >
-                          <ArrowUpCircle size={12} /> Promover a admin
-                        </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );

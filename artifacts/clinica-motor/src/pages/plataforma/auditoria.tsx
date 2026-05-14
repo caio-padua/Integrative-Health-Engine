@@ -64,6 +64,7 @@ const ACAO_COR: Record<string, string> = {
   EXCLUIR_AGENDAR: "bg-amber-500/20 text-amber-300 border-amber-500/40",
   EXCLUIR_EXECUTAR: "bg-red-700/40 text-red-200 border-red-700",
   EXCLUIR_CANCELAR: "bg-zinc-700/50 text-zinc-300 border-zinc-600",
+  FORCAR_LOGOUT: "bg-orange-500/20 text-orange-300 border-orange-500/40",
 };
 
 function metadataSemAvisos(metadata: Record<string, unknown>): Record<string, unknown> {

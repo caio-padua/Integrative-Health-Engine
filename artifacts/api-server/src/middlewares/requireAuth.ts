@@ -1,5 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
+import { eq } from "drizzle-orm";
+import { db, usuariosTable } from "@workspace/db";
 import { verifyJwt, type JwtPayload } from "../lib/auth/jwt";
+
+type RequestLogger = {
+  error?: (obj: Record<string, unknown>, msg?: string) => void;
+};
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -94,22 +100,68 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
+  let payload: JwtPayload;
   try {
-    const payload = verifyJwt(token);
-    // Wave 13 F3 hardening: tokens com flag twoFactorChallenge sao
-    // intermediarios de login e NAO podem ser usados como Bearer em rotas
-    // protegidas — so servem pra POST /usuarios/login/2fa-verificar
-    // (rota publica que valida o challenge + codigo TOTP separadamente).
-    if (payload.twoFactorChallenge === true) {
-      res.status(401).json({
-        error:
-          "Token de challenge 2FA nao pode ser usado como sessao. Conclua o login em POST /usuarios/login/2fa-verificar.",
-      });
-      return;
-    }
+    payload = verifyJwt(token);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Token invalido";
+    res.status(401).json({ error: message });
+    return;
+  }
+
+  // Wave 13 F3 hardening: tokens com flag twoFactorChallenge sao
+  // intermediarios de login e NAO podem ser usados como Bearer em rotas
+  // protegidas — so servem pra POST /usuarios/login/2fa-verificar
+  // (rota publica que valida o challenge + codigo TOTP separadamente).
+  if (payload.twoFactorChallenge === true) {
+    res.status(401).json({
+      error:
+        "Token de challenge 2FA nao pode ser usado como sessao. Conclua o login em POST /usuarios/login/2fa-verificar.",
+    });
+    return;
+  }
+
+  // Task #154 — kill-switch de sessoes. Se o platform_owner bumpou
+  // `tokens_invalidos_apos` via POST /api/plataforma/usuarios/:id/forcar-logout,
+  // qualquer JWT cujo `iat` seja anterior a esse timestamp deve ser rejeitado
+  // (logout em massa). Defensivo: falha de DB NAO derruba o middleware — log
+  // + 503 explicito pra o platform_owner notar (se silenciassemos, um attacker
+  // com session-hijack continuaria operando enquanto o DB estivesse fora).
+  const userId = Number(payload.sub);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    // Tokens sintetizados (ADMIN_TOKEN bypass acima) nao chegam aqui — esses
+    // sao filtrados antes. Aqui chegamos apenas com JWT verdadeiro.
     req.user = payload;
     next();
-  } catch (err: any) {
-    res.status(401).json({ error: err?.message || "Token invalido" });
+    return;
   }
+  void (async () => {
+    try {
+      const [row] = await db
+        .select({ tokensInvalidosApos: usuariosTable.tokensInvalidosApos })
+        .from(usuariosTable)
+        .where(eq(usuariosTable.id, userId));
+      const cutoff = row?.tokensInvalidosApos ? new Date(row.tokensInvalidosApos) : null;
+      if (cutoff && payload.iat * 1000 < cutoff.getTime()) {
+        res.status(401).json({
+          error:
+            "Sessao invalidada pelo platform_owner (forcar logout). Refaca o login.",
+          codigo: "SESSAO_INVALIDADA",
+          invalidada_em: cutoff.toISOString(),
+        });
+        return;
+      }
+      req.user = payload;
+      next();
+    } catch (err) {
+      // Falha defensiva: log + 503 explicito. NAO segue o request — se
+      // seguisse, um attacker com hijack passaria por baixo do kill-switch
+      // sempre que o DB tivesse blip.
+      const log = (req as Request & { log?: RequestLogger }).log;
+      log?.error?.({ err, userId }, "[requireAuth] falha checando tokens_invalidos_apos");
+      res.status(503).json({
+        error: "Indisponivel: nao foi possivel validar sessao. Tente novamente.",
+      });
+    }
+  })();
 }

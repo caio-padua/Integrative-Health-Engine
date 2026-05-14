@@ -178,8 +178,8 @@ function htmlRetry(opts: {
     <strong>IP:</strong> ${escapeHtml(opts.ip || "(nao registrado)")}<br/>
     <strong>User-Agent:</strong> ${escapeHtml(opts.userAgent || "(nao registrado)")}
   </p>
-  <p>Se voce nao reconhece essa atividade, abra o painel de admins e <strong>desative a conta</strong> ou rebaixe o perfil pra forcar logout do atacante antes que ele consiga adivinhar o codigo.</p>
-  <p><a href="${escapeHtml(opts.linkAdmin)}" style="display:inline-block; background:#7d1d2e; color:#fff; padding:10px 20px; text-decoration:none; border-radius:0;">Abrir painel de admins</a></p>
+  <p>Se voce nao reconhece essa atividade, clique no botao abaixo pra <strong>forcar logout imediato</strong> de TODAS as sessoes ativas do usuario (Task #154). Isso invalida tokens JWT ja emitidos sem precisar desativar a conta.</p>
+  <p><a href="${escapeHtml(opts.linkAdmin)}" style="display:inline-block; background:#7d1d2e; color:#fff; padding:10px 20px; text-decoration:none; border-radius:0;">Forcar logout agora</a></p>
   <p style="font-size:12px; color:#666; margin-top:32px; border-top:1px solid #ddd; padding-top:8px;">Re-envio automatico do worker alertaBruteForceRetryEnvio (Task #167). Cap de ${RETRY_TENTATIVAS_MAX} tentativas, backoff de ${RETRY_BACKOFF_MIN}min. Marque como visualizado em /plataforma/seguranca pra parar os retries.</p>
 </body></html>`;
 }
@@ -264,6 +264,9 @@ async function rodarLogica(): Promise<RetryEnvioResult> {
     return out;
   }
 
+  // Task #154 — link aponta pra acao corretiva direta (forcar-logout), igual
+  // ao email original (alertaBruteForceTotp). Mantem coerencia entre 1a
+  // tentativa e re-envios.
   const linkAdminBase = `${publicAppUrl()}/plataforma/admins`;
 
   for (const c of candidatos) {
@@ -291,7 +294,7 @@ async function rodarLogica(): Promise<RetryEnvioResult> {
         contexto: c.contexto ?? "LOGIN_2FA",
         janelaInicioEm: c.janela_inicio_em,
         tentativasBruteForce,
-        linkAdmin: `${linkAdminBase}?usuario_id=${c.usuario_id}`,
+        linkAdmin: `${linkAdminBase}?usuario_id=${c.usuario_id}&acao=forcar-logout`,
       });
 
       for (const to of destinatarios) {
