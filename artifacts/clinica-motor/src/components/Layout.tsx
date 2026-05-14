@@ -28,6 +28,18 @@ import { apiFetch } from "@/lib/api-fetch";
 function CampainhaAlertasSeguranca() {
   const API_BASE = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL || "/api";
   const [total, setTotal] = useState<number>(0);
+  const sound = useSound();
+  // Task #189 — snapshot anterior pra tocar "ding" suave SOMENTE em deltas
+  // reais (subiu vs ultima leitura). Snapshot inicial = null nao toca, mesmo
+  // padrao do toast em painel-comando.tsx (Task #164/#174). Respeita o toggle
+  // global de som (useSound().enabled) e o mute especifico de seguranca
+  // (localStorage "alertas_seguranca_som_mudo", Task #185).
+  const totalRef = useRef<number | null>(null);
+  // Ref pra manter o tap mais recente sem re-criar o interval quando o usuario
+  // alterna o toggle global de som (sound.tap muda de identidade quando
+  // sound.enabled muda; closure do interval ficaria stale sem este ref).
+  const soundRef = useRef(sound);
+  useEffect(() => { soundRef.current = sound; }, [sound]);
   useEffect(() => {
     let alive = true;
     const carregar = async () => {
@@ -36,10 +48,20 @@ function CampainhaAlertasSeguranca() {
           credentials: "include",
         });
         if (!alive) return;
-        if (!r.ok) { setTotal(0); return; }
+        // Reset pra null (nao 0) preserva semantica "primeiro carregamento
+        // nao toca" apos re-auth/step-up — mesmo padrao do painel-comando.
+        if (!r.ok) { setTotal(0); totalRef.current = null; return; }
         const d = await r.json();
         if (!alive) return;
-        setTotal(Number(d?.total ?? 0) || 0);
+        const novo = Number(d?.total ?? 0) || 0;
+        const prev = totalRef.current;
+        if (prev !== null && novo > prev) {
+          let muted = false;
+          try { muted = window.localStorage?.getItem("alertas_seguranca_som_mudo") === "1"; } catch { /* silencioso */ }
+          if (!muted) soundRef.current.tap();
+        }
+        totalRef.current = novo;
+        setTotal(novo);
       } catch { /* silencioso */ }
     };
     carregar();
