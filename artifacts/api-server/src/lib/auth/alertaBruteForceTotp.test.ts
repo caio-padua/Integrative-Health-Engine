@@ -30,7 +30,10 @@ import {
   dispararAlertaBruteForceTotp,
   _setGmailClientFactoryParaTestes,
   _resetGmailClientFactoryParaTestes,
+  _setEnviarWhatsappParaTestes,
+  _resetEnviarWhatsappParaTestes,
 } from "./alertaBruteForceTotp";
+import type { EnvioResult } from "../../services/whatsappService";
 
 interface SendCapture { to: string; subject: string }
 const enviosCapturados: SendCapture[] = [];
@@ -277,6 +280,174 @@ describe("dispararAlertaBruteForceTotp · idempotencia + payload (Task #143)", (
     } finally {
       _setGmailClientFactoryParaTestes(async () => buildGmailStub());
     }
+  });
+});
+
+describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)", () => {
+  // Por que validador dedicado: garante que so este destinatario tem
+  // telefone cadastrado (evita acoplar com o `validadorAtivoId` da suite
+  // pai e mantem a contagem `notif_wpp_*` deterministica). O telefone
+  // puro digito viabiliza o filtro `length >= 10` do helper.
+  let validadorComTelefoneId = 0;
+  const TELEFONE_VALIDADOR = "5511987654321";
+  const wppCalls: Array<{ telefone: string; mensagem: string }> = [];
+
+  before(async () => {
+    validadorComTelefoneId = await inserirUsuario({
+      nome: "Validador Mestre Com Telefone",
+      email: `${SUFIXO}-vmestre-tel@example.com`,
+      perfil: "validador_mestre",
+      ativo: true,
+    });
+    await db.execute(sql`
+      UPDATE usuarios SET telefone = ${TELEFONE_VALIDADOR}
+       WHERE id = ${validadorComTelefoneId}
+    `);
+  });
+
+  after(async () => {
+    await db.execute(sql`DELETE FROM alertas_ceo_seguranca WHERE usuario_id = ${alvoUsuarioId}`);
+    await db.execute(sql`DELETE FROM usuarios WHERE id = ${validadorComTelefoneId}`);
+    _resetEnviarWhatsappParaTestes();
+  });
+
+  beforeEach(async () => {
+    await limparAlertasDoAlvo();
+    wppCalls.length = 0;
+  });
+
+  it("(a) provedor WhatsApp lancando excecao NAO derruba o fluxo nem o canal email", async () => {
+    // Arrange: wpp explode em toda chamada. Email continua usando o stub
+    // padrao instalado no `before` global (gmailStub ok).
+    _setEnviarWhatsappParaTestes(async () => {
+      throw new Error("twilio crashed");
+    });
+
+    // Act: nunca deve rejeitar (helper e defensivo total).
+    await assert.doesNotReject(
+      dispararAlertaBruteForceTotp({
+        usuarioId: alvoUsuarioId,
+        ip: "5.5.5.5",
+        userAgent: "ua-wpp-throw",
+        janelaInicioEm: new Date("2026-05-13T13:00:00.000Z"),
+        contexto: "LOGIN_2FA",
+        tentativas: 5,
+      }),
+    );
+
+    // Assert: linha persistida; wpp falhas contabilizadas; email NAO afetado.
+    const r = await db.execute<{
+      n: number;
+      wpp_enviados: number;
+      wpp_falhas: number;
+      email_enviados: number;
+      email_falhas: number;
+    }>(sql`
+      SELECT count(*)::int AS n,
+             coalesce(notif_wpp_enviados, 0)::int   AS wpp_enviados,
+             coalesce(notif_wpp_falhas, 0)::int     AS wpp_falhas,
+             coalesce(notif_email_enviados, 0)::int AS email_enviados,
+             coalesce(notif_email_falhas, 0)::int   AS email_falhas
+        FROM alertas_ceo_seguranca
+       WHERE usuario_id = ${alvoUsuarioId}
+       GROUP BY notif_wpp_enviados, notif_wpp_falhas,
+                notif_email_enviados, notif_email_falhas
+    `);
+    const row = r.rows![0]!;
+    assert.equal(row.n, 1, "alerta persistido mesmo com wpp explodindo");
+    assert.equal(row.wpp_enviados, 0, "nada enviado por wpp");
+    assert.ok(row.wpp_falhas >= 1, "falha wpp contabilizada (>=1)");
+    // Critico: email continuou funcionando — e o ponto inteiro da Task.
+    assert.ok(row.email_enviados >= 1, "canal email nao foi afetado");
+    assert.equal(row.email_falhas, 0, "email sem falhas");
+    assert.ok(
+      enviosCapturados.length >= 1,
+      "stub do gmail recebeu pelo menos 1 send",
+    );
+  });
+
+  it("(b) provedor retornando sucesso=false incrementa notif_wpp_falhas SEM afetar email", async () => {
+    _setEnviarWhatsappParaTestes(async (telefone, mensagem): Promise<EnvioResult> => {
+      wppCalls.push({ telefone, mensagem });
+      return { sucesso: false, erro: "rate-limited pelo provedor" };
+    });
+
+    await dispararAlertaBruteForceTotp({
+      usuarioId: alvoUsuarioId,
+      ip: "6.6.6.6",
+      userAgent: "ua-wpp-falhou",
+      janelaInicioEm: new Date("2026-05-13T13:30:00.000Z"),
+      contexto: "LOGIN_2FA",
+      tentativas: 5,
+    });
+
+    // wpp foi chamado uma vez por destinatario com telefone.
+    assert.ok(wppCalls.length >= 1, "wpp foi chamado pelo menos 1x");
+    const r = await db.execute<{
+      wpp_enviados: number;
+      wpp_falhas: number;
+      email_enviados: number;
+      email_falhas: number;
+    }>(sql`
+      SELECT coalesce(notif_wpp_enviados, 0)::int   AS wpp_enviados,
+             coalesce(notif_wpp_falhas, 0)::int     AS wpp_falhas,
+             coalesce(notif_email_enviados, 0)::int AS email_enviados,
+             coalesce(notif_email_falhas, 0)::int   AS email_falhas
+        FROM alertas_ceo_seguranca
+       WHERE usuario_id = ${alvoUsuarioId}
+    `);
+    const row = r.rows![0]!;
+    assert.equal(row.wpp_enviados, 0, "sucesso=false nao conta como enviado");
+    assert.equal(
+      row.wpp_falhas, wppCalls.length,
+      "1 falha wpp por chamada (provedor retornou sucesso=false)",
+    );
+    // Email permanece intacto: o canal independente continua entregando.
+    assert.ok(row.email_enviados >= 1, "email continuou enviando");
+    assert.equal(row.email_falhas, 0, "email sem falhas");
+  });
+
+  it("(c) idempotencia: 2 chamadas na MESMA janela = 1 unico envio WhatsApp", async () => {
+    _setEnviarWhatsappParaTestes(async (telefone, mensagem): Promise<EnvioResult> => {
+      wppCalls.push({ telefone, mensagem });
+      return { sucesso: true, provedorMsgId: "stub-msg-id" };
+    });
+
+    const janela = new Date("2026-05-13T14:00:00.000Z");
+    const args = {
+      usuarioId: alvoUsuarioId,
+      ip: "7.7.7.7",
+      userAgent: "ua-idem-wpp",
+      janelaInicioEm: janela,
+      contexto: "LOGIN_2FA" as const,
+      tentativas: 5,
+    };
+
+    await dispararAlertaBruteForceTotp(args);
+    const enviosAposPrimeiro = wppCalls.length;
+    assert.ok(enviosAposPrimeiro >= 1, "1a chamada disparou pelo menos 1 wpp");
+
+    // 2a chamada com MESMA janela: ON CONFLICT DO NOTHING → no-op total
+    // (early-return ANTES de chamar enviarWhatsapp).
+    await dispararAlertaBruteForceTotp({ ...args, tentativas: 9 });
+    assert.equal(
+      wppCalls.length, enviosAposPrimeiro,
+      "ON CONFLICT no-op nao pode disparar wpp duplicado",
+    );
+
+    // E persistiu apenas 1 linha — UNIQUE garantiu.
+    const r = await db.execute<{ n: number; wpp_enviados: number }>(sql`
+      SELECT count(*)::int AS n,
+             coalesce(notif_wpp_enviados, 0)::int AS wpp_enviados
+        FROM alertas_ceo_seguranca
+       WHERE usuario_id = ${alvoUsuarioId}
+       GROUP BY notif_wpp_enviados
+    `);
+    assert.equal(r.rows![0]!.n, 1);
+    assert.equal(
+      r.rows![0]!.wpp_enviados, enviosAposPrimeiro,
+      "contadores preservam o estado da 1a chamada",
+    );
   });
 });
 

@@ -46,6 +46,19 @@ export function _resetGmailClientFactoryParaTestes(): void {
   gmailClientFactory = getGmailClient;
 }
 
+// Task #166 — seam de injecao pro canal WhatsApp. Mesmo motivo do gmail
+// factory acima: a suite de cobertura precisa simular cenarios de provedor
+// (throw, sucesso=false, sucesso=true) sem mock de modulo. Em producao
+// usa o `enviarWhatsapp` real do whatsappService.
+type EnviarWhatsappFn = typeof enviarWhatsapp;
+let enviarWhatsappImpl: EnviarWhatsappFn = enviarWhatsapp;
+export function _setEnviarWhatsappParaTestes(f: EnviarWhatsappFn): void {
+  enviarWhatsappImpl = f;
+}
+export function _resetEnviarWhatsappParaTestes(): void {
+  enviarWhatsappImpl = enviarWhatsapp;
+}
+
 const FROM_LABEL = "PAWARDS - Seguranca";
 const FROM_ADDR =
   process.env["PAWARDS_EMAIL_FROM"] || "clinica.padua.agenda@gmail.com";
@@ -260,7 +273,7 @@ export async function dispararAlertaBruteForceTotp(
         const mensagem = linhas.join("\n");
         for (const tel of destinatariosWpp) {
           try {
-            const r = await enviarWhatsapp(tel, mensagem);
+            const r = await enviarWhatsappImpl(tel, mensagem);
             if (r.sucesso) {
               wppEnviados++;
             } else {
