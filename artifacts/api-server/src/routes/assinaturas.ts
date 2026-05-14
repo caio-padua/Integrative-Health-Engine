@@ -1655,6 +1655,19 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
     const operador = ((req.user as any)?.email as string | undefined)
       || ((req.user as any)?.nome as string | undefined)
       || "(desconhecido)";
+    // task #196 — guarda tambem o id de usuario quando disponivel pra
+    // auditoria forense (e-mail pode mudar com o tempo).
+    // Aceita id numerico ou string-numerica (alguns provedores de auth
+    // serializam JWT sub como string) — preserva fidelidade do JOIN com
+    // usuarios na timeline.
+    const operadorIdRaw = (req.user as any)?.id;
+    let operadorId: number | null = null;
+    if (typeof operadorIdRaw === "number" && Number.isFinite(operadorIdRaw)) {
+      operadorId = operadorIdRaw;
+    } else if (typeof operadorIdRaw === "string" && /^\d+$/.test(operadorIdRaw)) {
+      const parsed = Number(operadorIdRaw);
+      if (Number.isFinite(parsed)) operadorId = parsed;
+    }
 
     // 1. Valida elegibilidade — so reseta evento com erro de upload
     const ev: any = await db.execute(sql`
@@ -1738,6 +1751,39 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
       return;
     }
 
+    // task #196 — append-only no historico de resets. As colunas
+    // ultimo_reset_* em assinatura_webhook_eventos viram cache do ultimo
+    // registro pra ordenacao + tooltip; este INSERT eh fonte-de-verdade
+    // pra timeline completa exibida no painel lateral da tela.
+    //
+    // Falhas de INSERT precisam quebrar a request — sem este registro o
+    // contador (resets_manuais_count) avanca mas a auditoria fica orfa,
+    // exatamente o cenario que esta task quer eliminar. UNICA excecao:
+    // SQLSTATE 42P01 (undefined_table) — ambiente onde migration 053
+    // ainda nao rodou; aceita rollout gradual sem quebrar reset.
+    try {
+      await db.execute(sql`
+        INSERT INTO assinatura_webhook_resets
+          (evento_id, operador, operador_id, motivo, tentativas_antes)
+        VALUES
+          (${eventoId}, ${operador}, ${operadorId}, ${motivo}, ${evRow.tentativas_retry})
+      `);
+    } catch (histErr) {
+      const code = (histErr as { code?: string }).code;
+      if (code === "42P01") {
+        console.warn(`[assinaturas/resetar] tabela assinatura_webhook_resets ausente (migration 053 pendente) — historico nao gravado, prosseguindo.`);
+      } else {
+        // Reset cache ja foi escrito; mas devolvemos 500 pra que o
+        // operador refaca a chamada apos o DBA investigar — auditoria
+        // eh requisito desta feature, nao opcional.
+        res.status(500).json({
+          error: "Reset gravado parcialmente: cache atualizado mas historico de auditoria falhou. Refaca a chamada apos investigar.",
+          detalhe: (histErr as Error).message,
+        });
+        return;
+      }
+    }
+
     // 4. Dispara worker imediatamente — sem esperar 5min
     let stats: { tentados: number; sucesso: number; falhou: number; bloqueados: number; alertaCeo: number; alertaCeoTeimoso: number } | null = null;
     try {
@@ -1755,6 +1801,52 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
       motivo,
       worker_executado: stats !== null,
       stats,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * GET /api/assinaturas/uploads-falhos/:eventoId/resets — task #196
+ *
+ * Retorna a timeline COMPLETA de resets manuais de um evento de webhook.
+ * Hoje a tela /assinaturas/uploads-falhos so mostra o ultimo reset (cache
+ * em assinatura_webhook_eventos.ultimo_reset_*). Este endpoint le da
+ * tabela append-only `assinatura_webhook_resets` (migration 053) pra
+ * exibir todos os resets em painel lateral.
+ *
+ * Mesmo gate master das outras rotas Wave 10.
+ */
+router.get("/assinaturas/uploads-falhos/:eventoId/resets", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const eventoId = Number(req.params["eventoId"]);
+    if (!Number.isFinite(eventoId)) {
+      res.status(400).json({ error: "eventoId invalido" });
+      return;
+    }
+    const r: any = await db.execute(sql`
+      SELECT
+        r.id,
+        r.evento_id,
+        r.resetado_em,
+        r.operador,
+        r.operador_id,
+        r.motivo,
+        r.tentativas_antes,
+        u.nome  AS operador_nome,
+        u.email AS operador_email
+      FROM assinatura_webhook_resets r
+      LEFT JOIN usuarios u ON u.id = r.operador_id
+      WHERE r.evento_id = ${eventoId}
+      ORDER BY r.resetado_em DESC
+    `);
+    const rows = ((r.rows ?? r) as Array<Record<string, unknown>>);
+    res.json({
+      gerado_em: new Date().toISOString(),
+      evento_id: eventoId,
+      total: rows.length,
+      resets: rows,
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

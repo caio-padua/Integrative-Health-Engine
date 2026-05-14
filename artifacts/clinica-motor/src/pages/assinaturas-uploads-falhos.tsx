@@ -15,6 +15,7 @@ import {
   ExternalLink,
   PlayCircle,
   RotateCcw,
+  X,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -125,6 +126,25 @@ function StatusBadge({ status }: { status: EventoFalho["status_retry"] }) {
   );
 }
 
+type ResetHistorico = {
+  id: number;
+  evento_id: number;
+  resetado_em: string;
+  operador: string;
+  operador_id: number | null;
+  motivo: string | null;
+  tentativas_antes: number;
+  operador_nome: string | null;
+  operador_email: string | null;
+};
+
+type TimelineResposta = {
+  gerado_em: string;
+  evento_id: number;
+  total: number;
+  resets: ResetHistorico[];
+};
+
 export default function AssinaturasUploadsFalhos() {
   const [data, setData] = useState<Resposta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,6 +157,37 @@ export default function AssinaturasUploadsFalhos() {
     falhou: number;
     bloqueados: number;
   } | null>(null);
+  // task #196 — painel lateral com timeline completa de resets manuais
+  const [timelineEventoId, setTimelineEventoId] = useState<number | null>(null);
+  const [timelineData, setTimelineData] = useState<TimelineResposta | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineErro, setTimelineErro] = useState<string | null>(null);
+
+  async function abrirTimeline(eventoId: number) {
+    setTimelineEventoId(eventoId);
+    setTimelineData(null);
+    setTimelineErro(null);
+    setTimelineLoading(true);
+    try {
+      const r = await apiFetch(
+        `/api/assinaturas/uploads-falhos/${eventoId}/resets`,
+        { credentials: "include" },
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = (await r.json()) as TimelineResposta;
+      setTimelineData(j);
+    } catch (e) {
+      setTimelineErro((e as Error).message);
+    } finally {
+      setTimelineLoading(false);
+    }
+  }
+
+  function fecharTimeline() {
+    setTimelineEventoId(null);
+    setTimelineData(null);
+    setTimelineErro(null);
+  }
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -357,9 +408,15 @@ export default function AssinaturasUploadsFalhos() {
                   <th className="text-center px-3 py-2 font-semibold">Status</th>
                   <th
                     className="text-center px-3 py-2 font-semibold"
-                    title="Quantas vezes este evento ja foi resetado manualmente. Valores >= 2 indicam que o reset nao resolve sozinho — precisa baixar do ZapSign na unha."
+                    title="Quantas vezes este evento ja foi resetado manualmente. Valores >= 2 indicam que o reset nao resolve sozinho — precisa baixar do ZapSign na unha. Clique no Nx pra abrir a timeline completa."
                   >
                     Resets
+                  </th>
+                  <th
+                    className="text-left px-3 py-2 font-semibold"
+                    title="Data + operador do ultimo reset manual (cache em assinatura_webhook_eventos.ultimo_reset_*). Clique no Nx pra ver a timeline completa de todos os resets."
+                  >
+                    Ultimo reset
                   </th>
                   <th className="text-left px-3 py-2 font-semibold">Ultimo erro</th>
                   <th className="text-center px-3 py-2 font-semibold nao-imprimir">
@@ -437,16 +494,49 @@ export default function AssinaturasUploadsFalhos() {
                                 r.ultimo_reset_motivo
                                   ? ` — "${r.ultimo_reset_motivo}"`
                                   : ""
-                              }`;
+                              } — clique pra ver timeline completa`;
+                        if (n === 0) {
+                          return (
+                            <span style={{ color: cor }} title={tip}>
+                              0x
+                            </span>
+                          );
+                        }
                         return (
-                          <span
-                            style={{ color: cor, fontWeight: n >= 2 ? 700 : 500 }}
+                          <button
+                            type="button"
+                            onClick={() => abrirTimeline(r.id)}
+                            className="underline decoration-dotted underline-offset-2 hover:no-underline nao-imprimir"
+                            style={{
+                              color: cor,
+                              fontWeight: n >= 2 ? 700 : 500,
+                              background: "transparent",
+                              border: 0,
+                              cursor: "pointer",
+                              padding: 0,
+                              fontFamily: "inherit",
+                              fontSize: "inherit",
+                            }}
                             title={tip}
                           >
                             {n}x
-                          </span>
+                          </button>
                         );
                       })()}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {r.ultimo_reset_em ? (
+                        <div>
+                          <div style={{ color: NAVY, fontWeight: 500 }}>
+                            {formatarData(r.ultimo_reset_em)}
+                          </div>
+                          <div style={{ color: ZINC }} className="break-all">
+                            por {r.ultimo_reset_por || "(desconhecido)"}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="italic text-zinc-400">— nunca —</span>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-xs max-w-[280px]">
                       <div
@@ -527,6 +617,145 @@ export default function AssinaturasUploadsFalhos() {
           </div>
         )}
       </div>
+
+      {/* task #196 — Painel lateral com timeline completa de resets */}
+      {timelineEventoId !== null && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end nao-imprimir"
+          style={{ background: "rgba(2,4,6,0.45)" }}
+          onClick={fecharTimeline}
+        >
+          <div
+            className="w-full max-w-md h-full bg-white shadow-xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="p-4 flex items-start justify-between"
+              style={{ background: NAVY, color: "#F9FAFB" }}
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <RotateCcw size={16} style={{ color: GOLD }} />
+                  <h2 className="text-base font-bold">
+                    Timeline de resets manuais
+                  </h2>
+                </div>
+                <div className="text-xs opacity-80">
+                  Evento #{timelineEventoId} ·{" "}
+                  {timelineData ? `${timelineData.total} reset(s)` : "carregando..."}
+                </div>
+              </div>
+              <button
+                onClick={fecharTimeline}
+                className="p-1 rounded hover:bg-white/10"
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4 space-y-3">
+              {timelineLoading && (
+                <div className="text-sm text-center py-6" style={{ color: ZINC }}>
+                  <RefreshCw
+                    size={16}
+                    className="animate-spin inline-block mr-2"
+                  />
+                  Carregando historico...
+                </div>
+              )}
+
+              {timelineErro && (
+                <div
+                  className="rounded p-3 text-sm"
+                  style={{ background: "#FEE2E2", color: RED }}
+                >
+                  <strong>Erro:</strong> {timelineErro}
+                </div>
+              )}
+
+              {!timelineLoading &&
+                !timelineErro &&
+                timelineData &&
+                timelineData.total === 0 && (
+                  <div
+                    className="rounded p-4 text-sm text-center"
+                    style={{ background: "#F9FAFB", color: ZINC }}
+                  >
+                    Nenhum reset registrado neste evento ainda. (Resets feitos
+                    antes da migration 053 ficam apenas no cache "Ultimo reset"
+                    da tabela.)
+                  </div>
+                )}
+
+              {!timelineLoading &&
+                !timelineErro &&
+                timelineData &&
+                timelineData.resets.map((reset, idx) => {
+                  const operadorDisplay =
+                    reset.operador_nome ||
+                    reset.operador_email ||
+                    reset.operador ||
+                    "(desconhecido)";
+                  const ehMaisRecente = idx === 0;
+                  return (
+                    <div
+                      key={reset.id}
+                      className="border rounded p-3"
+                      style={{
+                        borderColor: ehMaisRecente ? GOLD : "#E4E4E7",
+                        background: ehMaisRecente ? "#FEF9E7" : "#FFFFFF",
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div
+                          className="text-xs font-semibold"
+                          style={{ color: ehMaisRecente ? NAVY : ZINC }}
+                        >
+                          {ehMaisRecente ? "MAIS RECENTE" : `Reset #${reset.id}`}
+                        </div>
+                        <div className="text-xs font-mono" style={{ color: ZINC }}>
+                          {formatarData(reset.resetado_em)}
+                        </div>
+                      </div>
+                      <div className="text-sm" style={{ color: NAVY }}>
+                        <strong>Operador:</strong> {operadorDisplay}
+                        {reset.operador_email &&
+                          reset.operador_email !== operadorDisplay && (
+                            <span
+                              className="ml-1 text-xs"
+                              style={{ color: ZINC }}
+                            >
+                              ({reset.operador_email})
+                            </span>
+                          )}
+                      </div>
+                      <div className="text-xs mt-1" style={{ color: ZINC }}>
+                        Tentativas antes do reset: {reset.tentativas_antes} / 5
+                      </div>
+                      {reset.motivo && (
+                        <div
+                          className="mt-2 text-xs italic px-2 py-1 rounded"
+                          style={{ background: "#F4F4F5", color: NAVY }}
+                        >
+                          "{reset.motivo}"
+                        </div>
+                      )}
+                      {!reset.motivo && (
+                        <div
+                          className="mt-2 text-xs italic"
+                          style={{ color: ZINC }}
+                        >
+                          (sem motivo registrado)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
