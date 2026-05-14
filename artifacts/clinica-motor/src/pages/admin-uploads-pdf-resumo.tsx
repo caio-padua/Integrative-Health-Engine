@@ -23,6 +23,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Send,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -57,6 +58,37 @@ type Resposta = {
     total_esgotados_janela_24h: number;
   };
 };
+
+type DispararResultado = {
+  executou: boolean;
+  motivo_skip?:
+    | "fora_da_janela"
+    | "abaixo_do_limiar"
+    | "ja_disparado_hoje"
+    | "sem_texto_institucional"
+    | "sem_destinatarios";
+  total_esgotados: number;
+  notificacoes_email: number;
+  notificacoes_whatsapp: number;
+  dia_brt: string;
+};
+
+function descreverSkip(motivo: DispararResultado["motivo_skip"]): string {
+  switch (motivo) {
+    case "abaixo_do_limiar":
+      return "abaixo do limiar (<3 esgotados nas ultimas 24h) — nada a consolidar.";
+    case "ja_disparado_hoje":
+      return "ja foi disparado hoje (idempotente).";
+    case "sem_texto_institucional":
+      return "texto institucional UPLOAD_PDF_RESUMO_DIARIO ausente.";
+    case "sem_destinatarios":
+      return "nenhum validador_mestre ativo pra receber.";
+    case "fora_da_janela":
+      return "fora da janela horaria (nao deveria acontecer no disparo manual).";
+    default:
+      return "skip sem motivo declarado.";
+  }
+}
 
 function corDoTotal(total: number): { bg: string; fg: string; label: string } {
   if (total === 0) return { bg: "#ECFDF5", fg: GREEN, label: "Nenhum esgotado" };
@@ -107,6 +139,9 @@ export default function AdminUploadsPdfResumo() {
   const [data, setData] = useState<Resposta | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [disparando, setDisparando] = useState(false);
+  const [resultadoDisparo, setResultadoDisparo] = useState<DispararResultado | null>(null);
+  const [erroDisparo, setErroDisparo] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -127,6 +162,34 @@ export default function AdminUploadsPdfResumo() {
 
   useEffect(() => {
     carregar();
+  }, [carregar]);
+
+  const dispararAgora = useCallback(async () => {
+    const confirmado = window.confirm(
+      "Disparar o resumo diario AGORA?\n\n" +
+      "Vai consolidar os esgotados das ultimas 24h e enfileirar email/WhatsApp " +
+      "pros validador_mestre ativos. Idempotente: rodar de novo no mesmo dia nao " +
+      "duplica notificacao.",
+    );
+    if (!confirmado) return;
+    setDisparando(true);
+    setErroDisparo(null);
+    setResultadoDisparo(null);
+    try {
+      const r = await apiFetch("/api/admin/uploads-pdf-resumo-diario/disparar", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = (await r.json()) as DispararResultado;
+      setResultadoDisparo(j);
+      // Recarrega historico/previa pra refletir o novo dispatch.
+      await carregar();
+    } catch (e) {
+      setErroDisparo((e as Error).message);
+    } finally {
+      setDisparando(false);
+    }
   }, [carregar]);
 
   const previa = data?.previa_hoje;
@@ -207,6 +270,45 @@ export default function AdminUploadsPdfResumo() {
                       <span style={{ color: ZINC }}> Abaixo do limiar (&ge; {LIMIAR_DISPATCH}) — nao dispararia consolidado.</span>
                     ) : (
                       <span style={{ color: previaCor.fg, fontWeight: 600 }}> Atingiria o limiar — dispararia o resumo as 08:00 BRT.</span>
+                    )}
+                  </div>
+                )}
+                {/* Task #253: botao de disparo manual — visivel so quando ainda
+                    nao disparou hoje. Usa rodarResumoDiarioAgora() (forcar=true)
+                    com idempotencia garantida no server (segunda chamada =
+                    motivo_skip='ja_disparado_hoje'). */}
+                {!previa.ja_disparado && (
+                  <div className="mt-3 flex flex-wrap items-center gap-3 nao-imprimir">
+                    <button
+                      onClick={dispararAgora}
+                      disabled={disparando}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition disabled:opacity-50"
+                      style={{ background: NAVY, color: GOLD }}
+                      title="Forca o worker a rodar agora, sem esperar o tick das 08:00 BRT"
+                    >
+                      <Send size={14} className={disparando ? "animate-pulse" : ""} />
+                      {disparando ? "Disparando..." : "Disparar resumo agora"}
+                    </button>
+                    {resultadoDisparo && (
+                      <span className="text-xs" style={{ color: NAVY }}>
+                        {resultadoDisparo.executou ? (
+                          <>
+                            <CheckCircle2 size={12} className="inline mr-1" style={{ color: GREEN }} />
+                            Disparado: <strong>{resultadoDisparo.total_esgotados}</strong> esgotados ·{" "}
+                            {resultadoDisparo.notificacoes_email} email + {resultadoDisparo.notificacoes_whatsapp} WhatsApp enfileirados.
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle size={12} className="inline mr-1" style={{ color: AMBER }} />
+                            Nao executou: {descreverSkip(resultadoDisparo.motivo_skip)}
+                          </>
+                        )}
+                      </span>
+                    )}
+                    {erroDisparo && (
+                      <span className="text-xs" style={{ color: RED }}>
+                        Falha ao disparar: {erroDisparo}
+                      </span>
                     )}
                   </div>
                 )}

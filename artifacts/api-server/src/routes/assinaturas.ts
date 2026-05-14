@@ -19,6 +19,7 @@ import {
   corRejeicao,
 } from "../lib/assinaturas/calcularResumo.js";
 import { AGUARDANDO_WEBHOOK_LIMITE_HORAS } from "../lib/recorrencia/pdfRetryUpload.js";
+import { rodarResumoDiarioAgora } from "../lib/recorrencia/pdfRetryUploadResumoDiario.js";
 
 const router: IRouter = Router();
 
@@ -660,6 +661,35 @@ router.post("/assinaturas/alertas-ceo/:id/visualizar", guardMaster, async (req: 
     res.status(500).json({ error: (err as Error).message });
   }
 });
+
+/**
+ * POST /api/admin/uploads-pdf-resumo-diario/disparar — Task #253
+ *
+ * Disparo manual do worker `pdfRetryUploadResumoDiario` (task #58) — usado
+ * quando o Caio abre a tela /admin/uploads-pdf-resumo fora do horario do
+ * tick oficial (08:00 BRT) e quer ver o resumo agora. Encapsula
+ * `rodarResumoDiarioAgora()` (que ja existia, com `forcar=true`) — mesma
+ * idempotencia da execucao automatica via reservarEEnfileirarAtomico
+ * (segunda chamada no mesmo dia retorna `motivo_skip='ja_disparado_hoje'`).
+ *
+ * Mesma protecao guardMaster das demais telas Wave 10.
+ *
+ * Resposta: ResumoDiarioRunResult
+ *   { executou, motivo_skip?, total_esgotados, notificacoes_email,
+ *     notificacoes_whatsapp, dia_brt }
+ */
+router.post(
+  "/admin/uploads-pdf-resumo-diario/disparar",
+  guardMaster,
+  async (_req: Request, res: Response) => {
+    try {
+      const resultado = await rodarResumoDiarioAgora();
+      res.json(resultado);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  },
+);
 
 /**
  * GET /api/admin/uploads-pdf-resumo-diario — Task #70
