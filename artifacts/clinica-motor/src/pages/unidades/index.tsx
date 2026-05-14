@@ -757,6 +757,17 @@ export default function UnidadesPage() {
                               {u.tipo === "clinic" ? "Clinica" : u.tipo === "enfermagem" ? "Enfermagem" : u.tipo === "domiciliar" ? "Domiciliar" : u.tipo === "telemedicina" ? "Telemedicina" : u.tipo === "personal" ? "Pessoal" : u.tipo}
                             </Badge>
                           )}
+                          {/* Task #235 — visibilidade de unidades sem horarios padrao de lembrete */}
+                          {!isGenesis && (!u.lembreteHorariosPadrao || u.lembreteHorariosPadrao.length === 0) && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] mt-1 ml-0 border-amber-500 text-amber-700 bg-amber-50 gap-1"
+                              title="Sem horarios padrao de lembrete — prescricoes que herdarem desta unidade nao disparam lembretes."
+                            >
+                              <Bell className="h-2.5 w-2.5" />
+                              sem horarios padrao
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
