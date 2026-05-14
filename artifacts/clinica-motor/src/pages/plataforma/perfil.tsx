@@ -36,6 +36,27 @@ interface PerfilAtual {
   telefone?: string | null;
 }
 
+// Task #186 — historico das ultimas N janelas de aviso 2FA do proprio
+// owner. Cada linha = 1 aviso enviado pelo worker (Task #146) com
+// canais usados, expiracao calculada e renovacao subsequente (NULL =
+// usuario nao relogou dentro da janela de 8h).
+interface HistoricoAviso2fa {
+  id: number;
+  ultimo_login_2fa_em: string;
+  aviso_em: string;
+  expira_em: string;
+  renovado_em: string | null;
+  canal_email_ok: boolean;
+  canal_whatsapp_ok: boolean;
+  status: "renovado" | "expirou" | "ignorado";
+}
+
+function formatarDataHoraCurta(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
 // Task #173 — formata o "Ultimo aviso enviado" como data/hora relativa
 // curta tipo "ha 12min" / "ha 3h" / "ontem 14:30" pra cabecalho TDAH-friendly.
 function formatarRelativo(iso: string): string {
@@ -120,6 +141,26 @@ export default function PlataformaPerfil() {
   const [salvandoTel, setSalvandoTel] = useState(false);
   const [erroTel, setErroTel] = useState<string | null>(null);
   const [okTel, setOkTel] = useState<string | null>(null);
+  // Task #186 — historico das ultimas 10 janelas de aviso 2FA pra
+  // mini-tabela "Ultimos avisos" abaixo do banner do "Ultimo aviso enviado".
+  const [historicoAvisos, setHistoricoAvisos] = useState<HistoricoAviso2fa[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
+
+  const carregarHistoricoAvisos = useCallback(async () => {
+    setLoadingHistorico(true);
+    try {
+      const r = await apiFetch("/api/usuarios/me/historico-avisos-2fa?limite=10", { credentials: "include" });
+      if (r.ok) {
+        const data = await r.json();
+        setHistoricoAvisos(Array.isArray(data?.avisos) ? data.avisos : []);
+      } else {
+        setHistoricoAvisos([]);
+      }
+    } catch {
+      setHistoricoAvisos([]);
+    }
+    setLoadingHistorico(false);
+  }, []);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -146,6 +187,7 @@ export default function PlataformaPerfil() {
   }, []);
 
   useEffect(() => { void carregar(); }, [carregar]);
+  useEffect(() => { void carregarHistoricoAvisos(); }, [carregarHistoricoAvisos]);
 
   function toggleCanal(canal: CanalAviso) {
     setMsgOk(null);
@@ -466,6 +508,67 @@ export default function PlataformaPerfil() {
                   </div>
                 );
               })()}
+
+              {/* Task #186 — mini-tabela "Ultimos avisos" com as ultimas
+                  10 janelas de aviso 2FA enviadas pelo worker. Permite
+                  ao owner auditar comportamento (renovado / expirou /
+                  em andamento) e debugar canais (email vs whatsapp). */}
+              <div className="mt-4 p-3 text-xs bg-zinc-950/50 border border-zinc-800 rounded">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-zinc-300 font-semibold">Ultimos avisos enviados</span>
+                  <button
+                    type="button"
+                    onClick={() => void carregarHistoricoAvisos()}
+                    disabled={loadingHistorico}
+                    className="text-[10px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <RefreshCw size={10} /> {loadingHistorico ? "Atualizando..." : "Atualizar"}
+                  </button>
+                </div>
+                {historicoAvisos.length === 0 ? (
+                  <div className="text-zinc-500 italic">
+                    Nenhum aviso registrado ainda.
+                  </div>
+                ) : (
+                  <table className="w-full text-[11px]">
+                    <thead className="text-zinc-500 text-left">
+                      <tr>
+                        <th className="font-normal pb-1">Aviso</th>
+                        <th className="font-normal pb-1">Canais</th>
+                        <th className="font-normal pb-1">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono text-zinc-300">
+                      {historicoAvisos.map((h) => {
+                        const canais: string[] = [];
+                        if (h.canal_email_ok) canais.push("email");
+                        if (h.canal_whatsapp_ok) canais.push("whatsapp");
+                        const canaisLbl = canais.length === 0 ? "—" : canais.join(", ");
+                        let statusLbl: string;
+                        let statusCls: string;
+                        if (h.status === "renovado") {
+                          const quando = h.renovado_em ? ` (${formatarDataHoraCurta(h.renovado_em)})` : "";
+                          statusLbl = `\u2713 renovado${quando}`;
+                          statusCls = "text-emerald-300";
+                        } else if (h.status === "expirou") {
+                          statusLbl = "\u23F0 expirou";
+                          statusCls = "text-red-300";
+                        } else {
+                          statusLbl = "\u23F3 ignorado";
+                          statusCls = "text-amber-300";
+                        }
+                        return (
+                          <tr key={h.id} className="border-t border-zinc-800/60">
+                            <td className="py-1 pr-2">{formatarDataHoraCurta(h.aviso_em)}</td>
+                            <td className="py-1 pr-2">{canaisLbl}</td>
+                            <td className={`py-1 ${statusCls}`}>{statusLbl}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
 
               {nenhumCanal && (
                 <div className="mt-3 p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded">

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usuariosTable, unidadesTable, consultorUnidadesTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { CriarUsuarioBody, LoginUsuarioBody } from "@workspace/api-zod";
 import { signJwt } from "../lib/auth/jwt";
 import { bloqueioLoginSuspenso } from "../lib/email/clinicaSuspensao";
@@ -307,6 +307,39 @@ router.patch("/usuarios/me/canais-aviso-2fa", async (req, res): Promise<void> =>
   } catch (e: any) {
     res.status(500).json({ error: e.message || "Erro interno" });
   }
+});
+
+// Task #186 — historico dos ultimos avisos 2FA enviados ao proprio usuario
+// (versao self-service da rota /plataforma/seguranca/avisos-2fa, que e
+// global e exige guardas de seguranca). Devolve as ultimas N janelas
+// (default 10) com canais usados, expiracao e renovacao, pra UI
+// /plataforma/perfil exibir uma mini-tabela "Ultimos avisos" abaixo do
+// banner "Ultimo aviso enviado" (Task #173) — visao historica do
+// comportamento do worker e debug por canal.
+router.get("/usuarios/me/historico-avisos-2fa", async (req, res): Promise<void> => {
+  if (!req.user) { res.status(401).json({ error: "Nao autenticado" }); return; }
+  const limiteRaw = Number(req.query["limite"] ?? 10);
+  const limite = Math.min(Math.max(Number.isFinite(limiteRaw) ? limiteRaw : 10, 1), 50);
+  const result = await db.execute(sql`
+    SELECT
+      h.id,
+      h.ultimo_login_2fa_em,
+      h.aviso_em,
+      h.expira_em,
+      h.renovado_em,
+      h.canal_email_ok,
+      h.canal_whatsapp_ok,
+      CASE
+        WHEN h.renovado_em IS NOT NULL THEN 'renovado'
+        WHEN h.expira_em <= now()      THEN 'expirou'
+        ELSE 'ignorado'
+      END AS status
+    FROM historico_avisos_2fa_owner h
+    WHERE h.usuario_id = ${req.user.sub}
+    ORDER BY h.aviso_em DESC
+    LIMIT ${limite}
+  `);
+  res.json({ avisos: result.rows ?? [] });
 });
 
 router.put("/usuarios/:id", async (req, res): Promise<void> => {
