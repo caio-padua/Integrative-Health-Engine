@@ -44,7 +44,8 @@ export default function Login() {
   };
 
   // Task #122 — segunda etapa do login: usuario digitou o codigo do app
-  // autenticador. Troca challenge+codigo pelo JWT real via AuthContext.
+  // autenticador OU um codigo de recuperacao (Task #203 — XXXX-XXXX).
+  // Troca challenge+codigo pelo JWT real via AuthContext.
   const onSubmit2fa = async () => {
     const codigo = codigo2fa.trim();
     if (codigo.length < 6) {
@@ -114,9 +115,11 @@ export default function Login() {
                   Verificacao em duas etapas
                 </div>
                 <div className="text-xs text-[var(--pw-cinza-bruma)]">
-                  Sua conta tem 2FA ativo. Digite o codigo atual de 6 digitos do
-                  seu app autenticador (Google Authenticator / Authy / 1Password)
-                  pra concluir o login.
+                  Sua conta tem 2FA ativo. Digite o codigo atual de 6 digitos
+                  do seu app autenticador (Google Authenticator / Authy /
+                  1Password) pra concluir o login. Sem o celular? Use um dos
+                  seus codigos de recuperacao no formato{" "}
+                  <span className="font-mono">XXXX-XXXX</span>.
                 </div>
                 {pendingTwoFactor.email && (
                   <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--pw-cinza-bruma)]">
@@ -124,19 +127,29 @@ export default function Login() {
                   </div>
                 )}
               </div>
+              {/* Task #203 — aceita TOTP (6 digitos) OU codigo de
+                  recuperacao (XXXX-XXXX, charset alfanumerico sem 0/O/1/I/L).
+                  Permitimos digitos, letras A-Z e hifen. Limite 9 chars
+                  cobre o formato XXXX-XXXX; o backend normaliza e decide. */}
               <Input
                 autoFocus
                 value={codigo2fa}
-                onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                maxLength={6}
+                onChange={(e) =>
+                  setCodigo2fa(
+                    e.target.value
+                      .toUpperCase()
+                      .replace(/[^0-9A-Z-]/g, "")
+                      .slice(0, 9),
+                  )
+                }
+                maxLength={9}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void onSubmit2fa();
                 }}
-                inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="000000"
+                placeholder="000000 ou XXXX-XXXX"
                 disabled={verificando2fa}
-                className="bg-white border-[var(--pw-marfim)] rounded-none h-14 focus:border-[var(--pw-petroleo)] text-[var(--pw-grafite)] text-center text-2xl tracking-[0.5em] font-mono"
+                className="bg-white border-[var(--pw-marfim)] rounded-none h-14 focus:border-[var(--pw-petroleo)] text-[var(--pw-grafite)] text-center text-xl tracking-[0.3em] font-mono"
                 data-testid="input-codigo-2fa"
               />
               <Button

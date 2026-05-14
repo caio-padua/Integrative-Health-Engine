@@ -32,6 +32,9 @@ import {
   Smartphone,
   Monitor,
   LogOut,
+  Key,
+  RefreshCw,
+  Printer,
 } from "lucide-react";
 
 interface PerfilAtual {
@@ -41,6 +44,9 @@ interface PerfilAtual {
   perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user" | null;
   totpAtivadoEm?: string | null;
   ultimoLogin2faEm?: string | null;
+  // Codigos de recuperacao 2FA: restantes nao usados / total gerados.
+  codigosRecuperacao2faRestantes?: number;
+  codigosRecuperacao2faTotal?: number;
 }
 
 interface EnrollResposta {
@@ -48,6 +54,16 @@ interface EnrollResposta {
   secretBase32: string;
   qrCodeDataUrl: string;
   instrucoes?: string;
+  // Codigos de recuperacao 2FA mostrados uma unica vez no enrollment.
+  codigosRecuperacao?: string[];
+  codigosRecuperacaoAviso?: string;
+}
+
+interface RegenerarResposta {
+  ok: boolean;
+  codigosRecuperacao?: string[];
+  total?: number;
+  aviso?: string;
 }
 
 interface ErroJson {
@@ -126,6 +142,20 @@ export default function PerfilSeguranca2faPage() {
   const [carregandoSessoes, setCarregandoSessoes] = useState(false);
   const [erroSessoes, setErroSessoes] = useState<string | null>(null);
   const [revogandoId, setRevogandoId] = useState<number | null>(null);
+
+  // Task #203 — codigos de recuperacao (mostrados uma unica vez):
+  // - codigosRegerados: vem de /regenerar-codigos-recuperacao
+  // - codigosPosConfirmacao: copia dos codigos do enrollment que sobrevivem
+  //   a confirmacao do TOTP, pra que o usuario consiga salvar/imprimir
+  //   APOS confirmar (requisito da task: "Ao confirmar o cadastro do 2FA,
+  //   a tela mostra 8-10 codigos de uso unico pra imprimir/salvar").
+  // Ambos sao limpos ao fechar a caixa "Ja guardei".
+  const [codigosRegerados, setCodigosRegerados] = useState<string[] | null>(null);
+  const [codigosPosConfirmacao, setCodigosPosConfirmacao] = useState<string[] | null>(null);
+  const [regerando, setRegerando] = useState(false);
+  const [erroRegerar, setErroRegerar] = useState<string | null>(null);
+  const [pedindoRegerar, setPedindoRegerar] = useState(false);
+  const [codigoRegerar, setCodigoRegerar] = useState("");
 
   const carregarSessoes = useCallback(async () => {
     setCarregandoSessoes(true);
@@ -269,6 +299,13 @@ export default function PerfilSeguranca2faPage() {
         description:
           "A partir do proximo login o sistema vai pedir o codigo do app autenticador.",
       });
+      // Preserva os codigos de recuperacao do enrollment pra que o usuario
+      // possa salvar/imprimir AINDA depois de confirmar o 2FA — sao
+      // mostrados uma unica vez (a UI seguinte mostra a caixa verde com
+      // Copiar / Imprimir / Ja guardei).
+      if (Array.isArray(enroll?.codigosRecuperacao) && enroll.codigosRecuperacao.length > 0) {
+        setCodigosPosConfirmacao(enroll.codigosRecuperacao);
+      }
       setEnroll(null);
       setCodigoConfirmar("");
       await carregar();
@@ -333,6 +370,121 @@ export default function PerfilSeguranca2faPage() {
       .catch(() =>
         toast({ title: "Nao foi possivel copiar", variant: "destructive" }),
       );
+  }
+
+  // Copia/imprime a lista de codigos de recuperacao mostrada uma unica vez.
+  function copiarCodigosLista(codigos: string[]) {
+    if (!codigos.length) return;
+    void navigator.clipboard
+      .writeText(codigos.join("\n"))
+      .then(() => toast({ title: "Codigos copiados" }))
+      .catch(() =>
+        toast({ title: "Nao foi possivel copiar", variant: "destructive" }),
+      );
+  }
+
+  function imprimirCodigosLista(codigos: string[]) {
+    if (!codigos.length) return;
+    const w = window.open("", "_blank", "width=520,height=640");
+    if (!w) {
+      toast({
+        title: "Bloqueador de pop-up impediu a impressao",
+        description: "Libere pop-ups pra esta pagina e tente de novo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const dataAgora = new Date().toLocaleString("pt-BR", {
+      dateStyle: "long",
+      timeStyle: "short",
+    });
+    const escHtml = (s: string) =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    const linhas = codigos
+      .map((c) => `<li style="margin:6px 0;">${escHtml(c)}</li>`)
+      .join("");
+    w.document.write(
+      `<!doctype html><html><head><meta charset="utf-8"><title>Codigos de recuperacao 2FA · PAWARDS</title>
+<style>
+  body { font-family: 'JetBrains Mono', monospace; padding:32px; color:#111; }
+  h1 { font-size:18px; margin:0 0 4px 0; }
+  .sub { font-size:12px; color:#444; margin-bottom:24px; }
+  ol { font-size:20px; letter-spacing:0.1em; padding-left:24px; }
+  .aviso { font-size:11px; color:#7d1d2e; border:1px solid #7d1d2e; padding:12px; margin-top:24px; }
+</style></head><body>
+<h1>PAWARDS · Codigos de recuperacao 2FA</h1>
+<div class="sub">Conta: ${escHtml(perfil?.email ?? "")} · Gerados em ${escHtml(dataAgora)}</div>
+<ol>${linhas}</ol>
+<div class="aviso">Cada codigo e de uso unico. Use apenas se voce perder o celular do app autenticador. Guarde este papel em local seguro (cofre, pasta trancada). Nao compartilhe.</div>
+</body></html>`,
+    );
+    w.document.close();
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch {
+        /* noop */
+      }
+    }, 250);
+  }
+
+  // Regera codigos de recuperacao. Exige TOTP atual (anti session hijack).
+  async function regerarCodigos() {
+    const codigo = codigoRegerar.trim();
+    if (codigo.length !== 6) {
+      toast({
+        title: "Digite exatamente 6 digitos do app autenticador",
+        variant: "destructive",
+      });
+      return;
+    }
+    setErroRegerar(null);
+    setRegerando(true);
+    try {
+      const r = await apiFetch(
+        "/api/usuarios/2fa/regenerar-codigos-recuperacao",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ codigo }),
+        },
+      );
+      const data = (await r.json().catch(() => ({}) as RegenerarResposta)) as
+        | RegenerarResposta
+        | ErroJson;
+      if (!r.ok) {
+        const msg = (data as ErroJson).error ?? `Falha (${r.status})`;
+        setErroRegerar(msg);
+        toast({
+          title: "Nao foi possivel regerar",
+          description: msg,
+          variant: "destructive",
+        });
+        return;
+      }
+      const novos = Array.isArray((data as RegenerarResposta).codigosRecuperacao)
+        ? ((data as RegenerarResposta).codigosRecuperacao as string[])
+        : [];
+      setCodigosRegerados(novos);
+      setPedindoRegerar(false);
+      setCodigoRegerar("");
+      toast({
+        title: "Codigos novos gerados",
+        description:
+          "Os antigos foram invalidados. Guarde os novos agora — nao serao mostrados de novo.",
+      });
+      await carregar();
+    } catch {
+      setErroRegerar("Sem conexao com o servidor.");
+    } finally {
+      setRegerando(false);
+    }
   }
 
   return (
@@ -412,6 +564,236 @@ export default function PerfilSeguranca2faPage() {
                   </div>
                 </div>
               )}
+
+              {/* Codigos de recuperacao do enrollment recem-confirmado:
+                  permite ao usuario salvar/imprimir agora que o 2FA ja
+                  esta ativo (sao mostrados uma unica vez). */}
+              {codigosPosConfirmacao && (
+                <div className="border border-emerald-500/40 bg-emerald-500/10 p-3 space-y-2" data-testid="bloco-codigos-pos-confirmacao">
+                  <div className="flex items-start gap-2">
+                    <Key className="w-4 h-4 mt-0.5 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                    <div className="flex-1 text-xs uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">
+                      Codigos de recuperacao · 2FA ativado · mostrados UMA UNICA VEZ
+                    </div>
+                  </div>
+                  <div className="text-xs text-emerald-800 dark:text-emerald-200">
+                    Cada codigo serve uma unica vez pra entrar caso voce
+                    perca o celular do app autenticador. Salve agora —
+                    nao serao mostrados de novo.
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+                    {codigosPosConfirmacao.map((c) => (
+                      <div
+                        key={c}
+                        className="px-2 py-1.5 bg-background border border-emerald-500/30 text-center"
+                        data-testid={`codigo-recuperacao-pos-${c}`}
+                      >
+                        {c}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => copiarCodigosLista(codigosPosConfirmacao)}
+                      data-testid="button-copiar-codigos-pos"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> Copiar todos
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => imprimirCodigosLista(codigosPosConfirmacao)}
+                      data-testid="button-imprimir-codigos-pos"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Imprimir
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setCodigosPosConfirmacao(null)}
+                      data-testid="button-fechar-codigos-pos"
+                    >
+                      Ja guardei
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Codigos de recuperacao 2FA: contagem + regerar. */}
+              <div className="border border-border p-4 rounded-none space-y-3" data-testid="bloco-codigos-recuperacao">
+                <div className="flex items-start gap-2">
+                  <Key className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold">
+                      Codigos de recuperacao
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Cada codigo e de uso unico. Use pra entrar caso voce
+                      perca o celular do app autenticador.
+                    </div>
+                  </div>
+                  {(() => {
+                    const restantes = perfil.codigosRecuperacao2faRestantes ?? 0;
+                    const total = perfil.codigosRecuperacao2faTotal ?? 0;
+                    const baixo = total > 0 && restantes <= 2;
+                    return (
+                      <Badge
+                        variant={baixo ? "destructive" : "outline"}
+                        className="font-mono"
+                        data-testid="badge-codigos-restantes"
+                      >
+                        {restantes} de {total} restantes
+                      </Badge>
+                    );
+                  })()}
+                </div>
+
+                {(perfil.codigosRecuperacao2faTotal ?? 0) === 0 && (
+                  <div className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-500/10 border border-amber-500/40 p-2">
+                    Voce nao tem codigos de recuperacao gerados. Sem eles,
+                    perder o celular = ficar trancado fora do sistema. Gere
+                    agora.
+                  </div>
+                )}
+                {(perfil.codigosRecuperacao2faRestantes ?? 0) <= 2 &&
+                  (perfil.codigosRecuperacao2faTotal ?? 0) > 0 && (
+                    <div className="text-xs text-destructive bg-destructive/10 border border-destructive/40 p-2">
+                      Voce esta com poucos codigos. Gere uma lista nova antes
+                      que acabe.
+                    </div>
+                  )}
+
+                {codigosRegerados && (
+                  <div className="border border-emerald-500/40 bg-emerald-500/10 p-3 space-y-2" data-testid="bloco-codigos-novos">
+                    <div className="text-xs uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">
+                      Novos codigos · mostrados UMA UNICA VEZ
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+                      {codigosRegerados.map((c) => (
+                        <div
+                          key={c}
+                          className="px-2 py-1.5 bg-background border border-emerald-500/30 text-center"
+                          data-testid={`codigo-recuperacao-${c}`}
+                        >
+                          {c}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => copiarCodigosLista(codigosRegerados)}
+                        data-testid="button-copiar-codigos-novos"
+                      >
+                        <Copy className="w-3.5 h-3.5" /> Copiar todos
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => imprimirCodigosLista(codigosRegerados)}
+                        data-testid="button-imprimir-codigos-novos"
+                      >
+                        <Printer className="w-3.5 h-3.5" /> Imprimir
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setCodigosRegerados(null)}
+                        data-testid="button-fechar-codigos-novos"
+                      >
+                        Ja guardei
+                      </Button>
+                    </div>
+                    <div className="text-[11px] text-emerald-700 dark:text-emerald-300/80">
+                      Guarde em gerenciador de senhas ou em papel num cofre.
+                      Nao serao mostrados de novo.
+                    </div>
+                  </div>
+                )}
+
+                {!pedindoRegerar ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      setPedindoRegerar(true);
+                      setErroRegerar(null);
+                    }}
+                    data-testid="button-pedir-regerar"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Gerar novos codigos
+                  </Button>
+                ) : (
+                  <div className="border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+                    <div className="text-xs flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <span>
+                        Os codigos antigos serao INVALIDADOS imediatamente.
+                        Digite o codigo de 6 digitos do app autenticador pra
+                        confirmar.
+                      </span>
+                    </div>
+                    <Input
+                      autoFocus
+                      value={codigoRegerar}
+                      onChange={(e) =>
+                        setCodigoRegerar(
+                          e.target.value.replace(/\D/g, "").slice(0, 6),
+                        )
+                      }
+                      maxLength={6}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void regerarCodigos();
+                      }}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="000000"
+                      disabled={regerando}
+                      className="text-center text-lg tracking-[0.4em] font-mono h-11"
+                      data-testid="input-codigo-regerar"
+                    />
+                    {erroRegerar && (
+                      <div className="text-xs text-destructive">{erroRegerar}</div>
+                    )}
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setPedindoRegerar(false);
+                          setCodigoRegerar("");
+                          setErroRegerar(null);
+                        }}
+                        disabled={regerando}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => void regerarCodigos()}
+                        disabled={regerando || codigoRegerar.trim().length < 6}
+                        data-testid="button-confirmar-regerar"
+                        className="gap-2"
+                      >
+                        {regerando ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        )}
+                        Gerar e invalidar antigos
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {!pedindoDesativar ? (
                 <Button
@@ -517,6 +899,58 @@ export default function PerfilSeguranca2faPage() {
 
               {enroll && (
                 <div className="space-y-4">
+                  {/* Codigos de recuperacao mostrados uma unica vez no enrollment. */}
+                  {Array.isArray(enroll.codigosRecuperacao) &&
+                    enroll.codigosRecuperacao.length > 0 && (
+                      <div className="border border-emerald-500/40 bg-emerald-500/10 p-3 space-y-2" data-testid="bloco-codigos-recuperacao-enroll">
+                        <div className="flex items-start gap-2">
+                          <Key className="w-4 h-4 mt-0.5 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                          <div className="flex-1 text-xs uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">
+                            Codigos de recuperacao · mostrados UMA UNICA VEZ
+                          </div>
+                        </div>
+                        <div className="text-xs text-emerald-800 dark:text-emerald-200">
+                          {enroll.codigosRecuperacaoAviso ??
+                            "Cada codigo e de uso unico e serve pra entrar caso voce perca o celular do app autenticador. Guarde agora — nao serao mostrados de novo."}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+                          {enroll.codigosRecuperacao.map((c) => (
+                            <div
+                              key={c}
+                              className="px-2 py-1.5 bg-background border border-emerald-500/30 text-center"
+                              data-testid={`codigo-recuperacao-enroll-${c}`}
+                            >
+                              {c}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1"
+                            onClick={() =>
+                              copiarCodigosLista(enroll.codigosRecuperacao ?? [])
+                            }
+                            data-testid="button-copiar-codigos-enroll"
+                          >
+                            <Copy className="w-3.5 h-3.5" /> Copiar todos
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1"
+                            onClick={() =>
+                              imprimirCodigosLista(enroll.codigosRecuperacao ?? [])
+                            }
+                            data-testid="button-imprimir-codigos-enroll"
+                          >
+                            <Printer className="w-3.5 h-3.5" /> Imprimir
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                   <div className="text-sm">
                     <div className="font-semibold mb-1">
                       1. Escaneie o QR code no seu app autenticador
