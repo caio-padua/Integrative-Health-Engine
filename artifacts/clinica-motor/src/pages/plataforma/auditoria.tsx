@@ -92,6 +92,11 @@ export default function PlataformaAuditoria() {
   const [filtroAcao, setFiltroAcao] = useState<string>("");
   const [filtroClinica, setFiltroClinica] = useState<string>("");
   const [filtroExecutor, setFiltroExecutor] = useState<string>("");
+  // Task #254 — filtro de intervalo de datas (formato yyyy-mm-dd vindo do
+  // <input type="date">). Comparamos contra o dia local do criado_em pra
+  // bater com o que o usuario ve na coluna "Quando". Vazio = sem filtro.
+  const [filtroDataDe, setFiltroDataDe] = useState<string>("");
+  const [filtroDataAte, setFiltroDataAte] = useState<string>("");
   const [expandidoEventoId, setExpandidoEventoId] = useState<number | null>(null);
   const [reenviandoEventoId, setReenviandoEventoId] = useState<number | null>(null);
   const [reenviandoApenasFalhas, setReenviandoApenasFalhas] = useState(false);
@@ -178,6 +183,19 @@ export default function PlataformaAuditoria() {
       const nome = e.executor_nome ?? (e.executado_por_usuario_id != null ? `usuario ${e.executado_por_usuario_id}` : null);
       if (nome !== filtroExecutor) return false;
     }
+    // Task #254 — janela [de 00:00, ate 23:59:59.999] interpretada no fuso
+    // local do navegador, batendo com a coluna "Quando" (toLocaleString).
+    if (filtroDataDe || filtroDataAte) {
+      const quando = new Date(e.criado_em).getTime();
+      if (filtroDataDe) {
+        const de = new Date(`${filtroDataDe}T00:00:00`).getTime();
+        if (Number.isFinite(de) && quando < de) return false;
+      }
+      if (filtroDataAte) {
+        const ate = new Date(`${filtroDataAte}T23:59:59.999`).getTime();
+        if (Number.isFinite(ate) && quando > ate) return false;
+      }
+    }
     return true;
   });
 
@@ -219,6 +237,36 @@ export default function PlataformaAuditoria() {
               <option value="">Todos os executores</option>
               {executores.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
+            {/* Task #254 — intervalo de datas (de/ate). Vazios = sem filtro. */}
+            <label className="flex items-center gap-1 text-xs text-zinc-400">
+              de
+              <input
+                type="date"
+                value={filtroDataDe}
+                max={filtroDataAte || undefined}
+                onChange={e => setFiltroDataDe(e.target.value)}
+                className="bg-zinc-800 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-200"
+              />
+            </label>
+            <label className="flex items-center gap-1 text-xs text-zinc-400">
+              ate
+              <input
+                type="date"
+                value={filtroDataAte}
+                min={filtroDataDe || undefined}
+                onChange={e => setFiltroDataAte(e.target.value)}
+                className="bg-zinc-800 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-200"
+              />
+            </label>
+            {(filtroDataDe || filtroDataAte) && (
+              <button
+                onClick={() => { setFiltroDataDe(""); setFiltroDataAte(""); }}
+                className="px-2 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-xs text-zinc-300"
+                title="Limpar filtro de datas"
+              >
+                limpar datas
+              </button>
+            )}
             <button onClick={() => void carregar()} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-sm flex items-center gap-2">
               <RefreshCw size={16} /> Recarregar
             </button>
