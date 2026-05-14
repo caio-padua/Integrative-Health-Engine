@@ -46,6 +46,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { getGmailClient } from "../google-gmail";
 import { logger } from "../logger";
+import { enviarWhatsapp } from "../../services/whatsappService";
 
 const TICK_MS = 10 * 60 * 1000; // 10min
 const ADVISORY_LOCK_ID = 30303035;
@@ -69,6 +70,16 @@ const FROM_LABEL = "PAWARDS - Seguranca";
 const FROM_ADDR =
   process.env["PAWARDS_EMAIL_FROM"] || "clinica.padua.agenda@gmail.com";
 
+// Task #194 — telefone fallback do CEO pro escalonamento WhatsApp quando o
+// cap de retry estoura sem sucesso. Mesmo padrao usado em alertaBruteForceTotp,
+// alertaKillSwitchEmailsCEO, avisoExpiracao2faOwner, alertaAssinaturasCEO.
+// Lemos a env var em call time (nao em import time) pra simplificar testes
+// que precisam injetar o telefone via process.env apos o modulo ja ter sido
+// importado pela suite anterior.
+function ceoWhatsappEnv(): string {
+  return process.env["CEO_WHATSAPP"] || "";
+}
+
 let executandoAgora = false;
 let workerStarted = false;
 
@@ -84,6 +95,17 @@ export function _resetGmailClientFactoryParaTestes(): void {
   gmailClientFactory = getGmailClient;
 }
 
+// Task #194 — Seam pra mockar o canal WhatsApp nos testes sem tocar
+// Twilio/Gupshup. Mesma estrategia do gmailClientFactory.
+type EnviarWhatsappFn = typeof enviarWhatsapp;
+let enviarWhatsappImpl: EnviarWhatsappFn = enviarWhatsapp;
+export function _setEnviarWhatsappParaTestes(f: EnviarWhatsappFn): void {
+  enviarWhatsappImpl = f;
+}
+export function _resetEnviarWhatsappParaTestes(): void {
+  enviarWhatsappImpl = enviarWhatsapp;
+}
+
 interface AlertaParaRetry {
   id: number;
   usuario_id: number;
@@ -94,6 +116,8 @@ interface AlertaParaRetry {
   janela_inicio_em: string;
   notif_destinatarios: string[] | null;
   notif_retry_tentativas: number;
+  notif_wpp_enviados: number;
+  escalonado_whatsapp_em: string | null;
   usuario_nome: string | null;
   usuario_email: string | null;
 }
@@ -185,7 +209,7 @@ function htmlRetry(opts: {
 }
 
 async function buscarCandidatos(): Promise<AlertaParaRetry[]> {
-  const r = await db.execute<AlertaParaRetry>(sql`
+  const r = await db.execute<AlertaParaRetry & Record<string, unknown>>(sql`
     SELECT
       a.id,
       a.usuario_id,
@@ -196,6 +220,8 @@ async function buscarCandidatos(): Promise<AlertaParaRetry[]> {
       a.janela_inicio_em,
       a.notif_destinatarios,
       a.notif_retry_tentativas,
+      a.notif_wpp_enviados,
+      a.escalonado_whatsapp_em,
       u.nome  AS usuario_nome,
       u.email AS usuario_email
     FROM alertas_ceo_seguranca a
@@ -254,6 +280,35 @@ async function rodarLogica(): Promise<RetryEnvioResult> {
         `);
         out.retries_executados += 1;
         out.envios_falha += (c.notif_destinatarios?.length ?? 0);
+
+        // Task #194 — mesmo no caminho "Gmail factory caido", se este
+        // incremento atingiu o cap, escala pro WhatsApp do CEO. Sem isso,
+        // o alerta vira "perdido em definitivo" no exato cenario em que
+        // o ataque de seguranca aconteceu junto com o Gmail fora — pior
+        // momento possivel pra ficar em silencio.
+        try {
+          const novasTentativas = (c.notif_retry_tentativas ?? 0) + 1;
+          if (
+            novasTentativas >= RETRY_TENTATIVAS_MAX &&
+            (c.notif_wpp_enviados ?? 0) === 0 &&
+            c.escalonado_whatsapp_em == null
+          ) {
+            await escalonarWhatsappCEO({
+              alertaId: c.id,
+              usuarioNome: c.usuario_nome ?? "(usuario desconhecido)",
+              usuarioId: c.usuario_id,
+              contexto: c.contexto ?? "LOGIN_2FA",
+              ip: c.ip ?? "",
+              tentativasBruteForce: Number(c.payload?.tentativas ?? 0),
+              janelaInicioEm: c.janela_inicio_em,
+            });
+          }
+        } catch (escErr) {
+          logger.warn(
+            { err: (escErr as Error)?.message ?? String(escErr), alertaId: c.id },
+            "[bf-retry] escalonamento whatsapp lancou (factory caido, silenciado)",
+          );
+        }
       } catch (e) {
         logger.warn(
           { err: (e as Error)?.message ?? String(e), alertaId: c.id },
@@ -359,9 +414,163 @@ async function rodarLogica(): Promise<RetryEnvioResult> {
     out.retries_executados += 1;
     out.envios_ok += sucesso;
     out.envios_falha += falha;
+
+    // Task #194 — Escalonamento WhatsApp quando o cap estoura sem sucesso.
+    // Disparamos UMA UNICA vez (idempotencia via `escalonado_whatsapp_em`)
+    // pro CEO quando:
+    //   - Esta tentativa atingiu o cap (notif_retry_tentativas + 1 >= cap)
+    //   - O canal email continua falhando (falha > 0 OU nao havia destinatarios)
+    //   - O canal WhatsApp original tambem nao saiu (notif_wpp_enviados == 0)
+    //   - Ainda nao escalou (escalonado_whatsapp_em IS NULL)
+    // Por que aqui: e a ultima chance do worker pre-cap; depois disso, a linha
+    // some do filtro (cap atinge RETRY_TENTATIVAS_MAX) e o alerta vira
+    // "perdido em definitivo" pelo canal email. WhatsApp e o ultimo recurso
+    // pra o CEO descobrir o ataque sem entrar na fila por conta propria.
+    try {
+      const novasTentativas = (c.notif_retry_tentativas ?? 0) + 1;
+      const emailContinuaFalho =
+        (destinatarios.length === 0) || falha > 0;
+      const wppOriginalNaoSaiu = (c.notif_wpp_enviados ?? 0) === 0;
+      const aindaNaoEscalou = c.escalonado_whatsapp_em == null;
+      const atingiuCap = novasTentativas >= RETRY_TENTATIVAS_MAX;
+
+      if (
+        atingiuCap &&
+        emailContinuaFalho &&
+        wppOriginalNaoSaiu &&
+        aindaNaoEscalou
+      ) {
+        await escalonarWhatsappCEO({
+          alertaId: c.id,
+          usuarioNome: c.usuario_nome ?? "(usuario desconhecido)",
+          usuarioId: c.usuario_id,
+          contexto: c.contexto ?? "LOGIN_2FA",
+          ip: c.ip ?? "",
+          tentativasBruteForce: Number(c.payload?.tentativas ?? 0),
+          janelaInicioEm: c.janela_inicio_em,
+        });
+      }
+    } catch (err) {
+      // Defesa profunda: erro no escalonamento NUNCA propaga pro tick.
+      // Logamos pra triagem e seguimos pro proximo candidato.
+      logger.warn(
+        { err: (err as Error)?.message ?? String(err), alertaId: c.id },
+        "[bf-retry] escalonamento whatsapp lancou (silenciado)",
+      );
+    }
   }
 
   return out;
+}
+
+/**
+ * Task #194 — Resolve o telefone do CEO (validador_mestre / platform_owner
+ * com `usuarios.telefone` cadastrado, ou fallback CEO_WHATSAPP env var) e
+ * dispara WhatsApp com link pra acao corretiva. Marca
+ * `escalonado_whatsapp_em` ANTES do envio efetivo pra garantir idempotencia
+ * mesmo se o provedor demorar / o tick re-executar (worst case: 1 envio
+ * fantasma se o provedor falhar e a marca ja gravou — preferivel a re-enviar
+ * em loop).
+ */
+async function escalonarWhatsappCEO(opts: {
+  alertaId: number;
+  usuarioNome: string;
+  usuarioId: number;
+  contexto: string;
+  ip: string;
+  tentativasBruteForce: number;
+  janelaInicioEm: string;
+}): Promise<void> {
+  // 1) Resolve telefone(s) — mesma logica de alertaBruteForceTotp.
+  const ownerRows = await db.execute<{ telefone: string | null }>(sql`
+    SELECT telefone FROM usuarios
+    WHERE ativo = true
+      AND (perfil_plataforma = 'platform_owner' OR perfil = 'validador_mestre')
+  `);
+  const destinatariosWpp = Array.from(
+    new Set(
+      (ownerRows.rows ?? [])
+        .map((r) => (r.telefone ?? "").replace(/\D/g, ""))
+        .filter((t) => t.length >= 10),
+    ),
+  );
+  const ceoWpp = ceoWhatsappEnv();
+  if (destinatariosWpp.length === 0 && ceoWpp) {
+    const fallback = ceoWpp.replace(/\D/g, "");
+    if (fallback.length >= 10) destinatariosWpp.push(fallback);
+  }
+
+  if (destinatariosWpp.length === 0) {
+    logger.warn(
+      { alertaId: opts.alertaId },
+      "[bf-retry] sem telefone CEO pra escalonamento whatsapp; nada a enviar",
+    );
+    return;
+  }
+
+  // 2) Marca o escalonamento ANTES do envio (idempotencia forte).
+  //    O WHERE inclui `escalonado_whatsapp_em IS NULL` pra atomicamente
+  //    "ganhar" o direito de enviar — em corrida (ex: dois ticks paralelos
+  //    via endpoint manual + worker), so a UPDATE que retornar rowCount=1
+  //    segue pro envio. As demais veem rowCount=0 e abortam silenciosamente.
+  const claimRes = await db.execute(sql`
+    UPDATE alertas_ceo_seguranca
+       SET escalonado_whatsapp_em = now()
+     WHERE id = ${opts.alertaId}
+       AND escalonado_whatsapp_em IS NULL
+  `);
+  const claimRowCount = (claimRes as { rowCount?: number | null }).rowCount ?? 0;
+  if (claimRowCount === 0) {
+    logger.info(
+      { alertaId: opts.alertaId },
+      "[bf-retry] escalonamento ja reivindicado por outra execucao; aborta envio",
+    );
+    return;
+  }
+
+  // 3) Mensagem inclui id do alerta + link pra acao corretiva (Task #154).
+  const ctxLabel =
+    opts.contexto === "STEP_UP_PAINEL"
+      ? "Step-up 2FA do painel"
+      : "Login 2FA";
+  const linkAdmin =
+    `${publicAppUrl()}/plataforma/admins?usuario_id=${opts.usuarioId}&acao=forcar-logout`;
+  const linhas = [
+    "[PAWARDS][SEGURANCA] Alerta de brute-force 2FA NAO entregue por email",
+    "",
+    `Alerta #${opts.alertaId} esgotou ${RETRY_TENTATIVAS_MAX} tentativas de email sem sucesso.`,
+    "",
+    `Usuario: ${opts.usuarioNome} (#${opts.usuarioId})`,
+    `Contexto: ${ctxLabel}`,
+    `Tentativas: ${opts.tentativasBruteForce}`,
+    `Janela: ${dataPtBr(opts.janelaInicioEm)}`,
+    `IP: ${opts.ip || "(nao registrado)"}`,
+    "",
+    `Acao corretiva: ${linkAdmin}`,
+  ];
+  const mensagem = linhas.join("\n");
+
+  for (const tel of destinatariosWpp) {
+    try {
+      const r = await enviarWhatsappImpl(tel, mensagem);
+      if (!r.sucesso) {
+        logger.warn(
+          { alertaId: opts.alertaId, tel, erro: r.erro },
+          "[bf-retry] escalonamento whatsapp falhou (provedor)",
+        );
+      } else {
+        logger.info(
+          { alertaId: opts.alertaId, tel },
+          "[bf-retry] escalonamento whatsapp enviado",
+        );
+      }
+    } catch (err) {
+      logger.warn(
+        { err: (err as Error)?.message ?? String(err), alertaId: opts.alertaId, tel },
+        "[bf-retry] escalonamento whatsapp lancou excecao",
+      );
+    }
+  }
 }
 
 async function tickComLock(): Promise<void> {

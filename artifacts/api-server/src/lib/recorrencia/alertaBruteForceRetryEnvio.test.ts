@@ -27,6 +27,8 @@ import {
   rodarRetryAlertaBruteForceAgora,
   _setGmailClientFactoryParaTestes,
   _resetGmailClientFactoryParaTestes,
+  _setEnviarWhatsappParaTestes,
+  _resetEnviarWhatsappParaTestes,
 } from "./alertaBruteForceRetryEnvio";
 
 interface SendCapture { to: string; subject: string }
@@ -70,6 +72,8 @@ async function inserirAlerta(args: {
   notifEmailEnviados?: number;
   notifRetryTentativas?: number;
   notifUltimoRetryEm?: Date | null;
+  notifWppEnviados?: number;
+  escalonadoWhatsappEm?: Date | null;
   visualizadoEm?: Date | null;
   destinatarios?: string[];
   criadoEm?: Date;
@@ -79,7 +83,8 @@ async function inserirAlerta(args: {
     INSERT INTO alertas_ceo_seguranca
       (tipo, usuario_id, janela_inicio_em, ip, user_agent, contexto,
        payload, notif_destinatarios, notif_email_enviados, notif_email_falhas,
-       notif_retry_tentativas, notif_ultimo_retry_em, visualizado_em, criado_em)
+       notif_retry_tentativas, notif_ultimo_retry_em, notif_wpp_enviados,
+       escalonado_whatsapp_em, visualizado_em, criado_em)
     VALUES
       ('2FA_BRUTE_FORCE', ${usuarioAlvoId},
        ${args.janelaInicioEm.toISOString()}::timestamptz,
@@ -90,6 +95,8 @@ async function inserirAlerta(args: {
        ${args.notifEmailFalhas},
        ${args.notifRetryTentativas ?? 0},
        ${args.notifUltimoRetryEm ? args.notifUltimoRetryEm.toISOString() : null}::timestamptz,
+       ${args.notifWppEnviados ?? 0},
+       ${args.escalonadoWhatsappEm ? args.escalonadoWhatsappEm.toISOString() : null}::timestamptz,
        ${args.visualizadoEm ? args.visualizadoEm.toISOString() : null}::timestamptz,
        ${(args.criadoEm ?? new Date()).toISOString()}::timestamptz)
     RETURNING id
@@ -99,14 +106,25 @@ async function inserirAlerta(args: {
   return id;
 }
 
+// Task #194 — captura dos envios WhatsApp do escalonamento.
+interface WppCapture { telefone: string; mensagem: string }
+const wppCapturados: WppCapture[] = [];
+let wppRetorno: { sucesso: boolean; erro?: string } = { sucesso: true };
+
 async function limparAlertas(): Promise<void> {
   await db.execute(sql`DELETE FROM alertas_ceo_seguranca WHERE usuario_id = ${usuarioAlvoId}`);
   enviosCapturados.length = 0;
+  wppCapturados.length = 0;
+  wppRetorno = { sucesso: true };
   factorySends = () => true;
 }
 
 before(async () => {
   _setGmailClientFactoryParaTestes(async () => buildGmailStub());
+  _setEnviarWhatsappParaTestes(async (telefone: string, mensagem: string) => {
+    wppCapturados.push({ telefone, mensagem });
+    return { sucesso: wppRetorno.sucesso, erro: wppRetorno.erro };
+  });
   const r = await db.execute<{ id: number }>(sql`
     INSERT INTO usuarios (nome, email, senha, perfil, escopo, ativo, perfil_plataforma)
     VALUES (${`Alvo BF Retry ${SUFIXO}`}, ${`${SUFIXO}-alvo@example.com`}, 'x',
@@ -120,6 +138,7 @@ after(async () => {
   await limparAlertas();
   await db.execute(sql`DELETE FROM usuarios WHERE id = ${usuarioAlvoId}`);
   _resetGmailClientFactoryParaTestes();
+  _resetEnviarWhatsappParaTestes();
 });
 
 describe("alertaBruteForceRetryEnvio · worker (Task #167)", () => {
@@ -236,5 +255,176 @@ describe("alertaBruteForceRetryEnvio · worker (Task #167)", () => {
     assert.equal(row.enviados, 0);
     assert.equal(row.falhas, 1, "falha continua > 0 → linha permanece elegivel");
     assert.equal(row.tentativas, 1, "tentativas incrementou");
+  });
+
+  // ==========================================================================
+  // Task #194 — Escalonamento WhatsApp quando o cap estoura sem sucesso.
+  // ==========================================================================
+  describe("Task #194 — escalonamento WhatsApp pro CEO ao estourar o cap", () => {
+    let originalCeoWpp: string | undefined;
+    before(() => {
+      originalCeoWpp = process.env["CEO_WHATSAPP"];
+      process.env["CEO_WHATSAPP"] = "+5511999990000";
+    });
+    after(() => {
+      if (originalCeoWpp === undefined) delete process.env["CEO_WHATSAPP"];
+      else process.env["CEO_WHATSAPP"] = originalCeoWpp;
+    });
+
+    it("(194-a) cap atingido + email continua falhando + wpp original=0 → escala via WhatsApp e marca timestamp", async () => {
+      factorySends = () => false; // gmail.send sempre lanca
+      // Ja em tentativa 2; este tick vira a 3a (cap=3).
+      const id = await inserirAlerta({
+        janelaInicioEm: new Date("2026-05-13T14:00:00.000Z"),
+        notifEmailFalhas: 1,
+        notifRetryTentativas: 2,
+        notifUltimoRetryEm: new Date(Date.now() - 60 * 60 * 1000),
+        notifWppEnviados: 0,
+        destinatarios: [EMAIL_OWNER],
+      });
+
+      await rodarRetryAlertaBruteForceAgora();
+
+      const r = await db.execute<{ tentativas: number; escalonado: string | null }>(sql`
+        SELECT notif_retry_tentativas AS tentativas,
+               escalonado_whatsapp_em AS escalonado
+          FROM alertas_ceo_seguranca WHERE id = ${id}
+      `);
+      assert.equal(r.rows![0]!.tentativas, 3, "tentativas atingiu o cap");
+      assert.ok(r.rows![0]!.escalonado, "escalonado_whatsapp_em foi marcado");
+      assert.equal(wppCapturados.length, 1, "1 envio WhatsApp pro CEO");
+      assert.ok(
+        wppCapturados[0]!.mensagem.includes(`#${id}`),
+        "mensagem inclui o id do alerta",
+      );
+      assert.ok(
+        wppCapturados[0]!.mensagem.includes("forcar-logout"),
+        "mensagem inclui link pra acao corretiva",
+      );
+    });
+
+    it("(194-b) idempotencia: ja escalonado nao escala de novo mesmo se a logica for revisitada", async () => {
+      factorySends = () => false;
+      const id = await inserirAlerta({
+        janelaInicioEm: new Date("2026-05-13T15:00:00.000Z"),
+        notifEmailFalhas: 1,
+        notifRetryTentativas: 2,
+        notifUltimoRetryEm: new Date(Date.now() - 60 * 60 * 1000),
+        notifWppEnviados: 0,
+        escalonadoWhatsappEm: new Date("2026-05-13T13:00:00.000Z"),
+        destinatarios: [EMAIL_OWNER],
+      });
+
+      await rodarRetryAlertaBruteForceAgora();
+      assert.equal(wppCapturados.length, 0, "nao escala de novo");
+
+      const r = await db.execute<{ escalonado: string }>(sql`
+        SELECT escalonado_whatsapp_em AS escalonado
+          FROM alertas_ceo_seguranca WHERE id = ${id}
+      `);
+      assert.ok(r.rows![0]!.escalonado, "timestamp original preservado");
+    });
+
+    it("(194-c) WhatsApp original ja saiu (notif_wpp_enviados>0) → NAO escala", async () => {
+      factorySends = () => false;
+      await inserirAlerta({
+        janelaInicioEm: new Date("2026-05-13T16:00:00.000Z"),
+        notifEmailFalhas: 1,
+        notifRetryTentativas: 2,
+        notifUltimoRetryEm: new Date(Date.now() - 60 * 60 * 1000),
+        notifWppEnviados: 1, // canal wpp original ja entregou
+        destinatarios: [EMAIL_OWNER],
+      });
+
+      await rodarRetryAlertaBruteForceAgora();
+      assert.equal(wppCapturados.length, 0, "wpp original ja entregou; nao escala");
+    });
+
+    it("(194-d) cap NAO atingido (vira 2/3) → NAO escala", async () => {
+      factorySends = () => false;
+      await inserirAlerta({
+        janelaInicioEm: new Date("2026-05-13T17:00:00.000Z"),
+        notifEmailFalhas: 1,
+        notifRetryTentativas: 1, // este tick vira 2 (< cap=3)
+        notifUltimoRetryEm: new Date(Date.now() - 60 * 60 * 1000),
+        notifWppEnviados: 0,
+        destinatarios: [EMAIL_OWNER],
+      });
+
+      await rodarRetryAlertaBruteForceAgora();
+      assert.equal(wppCapturados.length, 0, "ainda ha tentativa de email; nao escala");
+    });
+
+    it("(194-f) factory Gmail caido + cap atingido → escala via WhatsApp mesmo sem email enviado", async () => {
+      const id = await inserirAlerta({
+        janelaInicioEm: new Date("2026-05-13T19:00:00.000Z"),
+        notifEmailFalhas: 1,
+        notifRetryTentativas: 2,
+        notifUltimoRetryEm: new Date(Date.now() - 60 * 60 * 1000),
+        notifWppEnviados: 0,
+        destinatarios: [EMAIL_OWNER],
+      });
+
+      _setGmailClientFactoryParaTestes(async () => {
+        throw new Error("gmail factory down stub");
+      });
+      try {
+        await rodarRetryAlertaBruteForceAgora();
+      } finally {
+        _setGmailClientFactoryParaTestes(async () => buildGmailStub());
+      }
+
+      assert.equal(wppCapturados.length, 1, "escala mesmo sem o tick conseguir abrir Gmail");
+      const r = await db.execute<{ tentativas: number; escalonado: string | null }>(sql`
+        SELECT notif_retry_tentativas AS tentativas,
+               escalonado_whatsapp_em AS escalonado
+          FROM alertas_ceo_seguranca WHERE id = ${id}
+      `);
+      assert.equal(r.rows![0]!.tentativas, 3);
+      assert.ok(r.rows![0]!.escalonado, "escalonado_whatsapp_em marcado");
+    });
+
+    it("(194-g) idempotencia forte: 2 chamadas paralelas gravam timestamp 1x e enviam 1x", async () => {
+      factorySends = () => false;
+      await inserirAlerta({
+        janelaInicioEm: new Date("2026-05-13T20:00:00.000Z"),
+        notifEmailFalhas: 1,
+        notifRetryTentativas: 2,
+        notifUltimoRetryEm: new Date(Date.now() - 60 * 60 * 1000),
+        notifWppEnviados: 0,
+        destinatarios: [EMAIL_OWNER],
+      });
+
+      // Disparos paralelos simulam o cenario "endpoint manual + worker
+      // periodico tickando ao mesmo tempo". A claim atomica via UPDATE ...
+      // WHERE escalonado_whatsapp_em IS NULL garante que so UMA das
+      // execucoes envia WhatsApp pro CEO.
+      await Promise.all([
+        rodarRetryAlertaBruteForceAgora(),
+        rodarRetryAlertaBruteForceAgora(),
+      ]);
+
+      assert.equal(wppCapturados.length, 1, "claim atomica garante 1 envio so");
+    });
+
+    it("(194-e) cap atingido mas email passou nesta tentativa (falha=0) → NAO escala", async () => {
+      factorySends = () => true; // emails passam
+      const id = await inserirAlerta({
+        janelaInicioEm: new Date("2026-05-13T18:00:00.000Z"),
+        notifEmailFalhas: 1,
+        notifRetryTentativas: 2,
+        notifUltimoRetryEm: new Date(Date.now() - 60 * 60 * 1000),
+        notifWppEnviados: 0,
+        destinatarios: [EMAIL_OWNER],
+      });
+
+      await rodarRetryAlertaBruteForceAgora();
+      assert.equal(wppCapturados.length, 0, "email entregou; nao precisa escalar");
+      const r = await db.execute<{ escalonado: string | null }>(sql`
+        SELECT escalonado_whatsapp_em AS escalonado
+          FROM alertas_ceo_seguranca WHERE id = ${id}
+      `);
+      assert.equal(r.rows![0]!.escalonado, null, "escalonado_whatsapp_em fica NULL");
+    });
   });
 });
