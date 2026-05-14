@@ -30,6 +30,8 @@ import {
   Loader2,
   AlertTriangle,
   Smartphone,
+  Monitor,
+  LogOut,
 } from "lucide-react";
 
 interface PerfilAtual {
@@ -55,6 +57,40 @@ interface ErroJson {
 interface ConfirmarResposta {
   ok: boolean;
   totpAtivadoEm?: string;
+}
+
+// Task #202 — sessoes JWT ativas do proprio usuario.
+interface SessaoAtiva {
+  id: number;
+  jti: string;
+  userAgent: string | null;
+  ip: string | null;
+  criadaEm: string;
+  ultimoUsoEm: string;
+  expiraEm: string;
+  revogadaEm: string | null;
+  atual: boolean;
+}
+
+interface SessoesAtivasResposta {
+  sessoes: SessaoAtiva[];
+}
+
+function resumirUserAgent(ua: string | null): string {
+  if (!ua) return "Aparelho desconhecido";
+  const lower = ua.toLowerCase();
+  let so = "Sistema desconhecido";
+  if (lower.includes("windows")) so = "Windows";
+  else if (lower.includes("iphone") || lower.includes("ipad")) so = "iOS";
+  else if (lower.includes("android")) so = "Android";
+  else if (lower.includes("mac os") || lower.includes("macintosh")) so = "macOS";
+  else if (lower.includes("linux")) so = "Linux";
+  let nav = "Navegador";
+  if (lower.includes("edg/")) nav = "Edge";
+  else if (lower.includes("chrome/") && !lower.includes("edg/")) nav = "Chrome";
+  else if (lower.includes("firefox/")) nav = "Firefox";
+  else if (lower.includes("safari/") && !lower.includes("chrome/")) nav = "Safari";
+  return `${nav} em ${so}`;
 }
 
 function formatarData(iso: string | null | undefined): string {
@@ -85,6 +121,66 @@ export default function PerfilSeguranca2faPage() {
   const [desativando, setDesativando] = useState(false);
   const [pedindoDesativar, setPedindoDesativar] = useState(false);
 
+  // Task #202 — sessoes ativas do proprio usuario.
+  const [sessoes, setSessoes] = useState<SessaoAtiva[] | null>(null);
+  const [carregandoSessoes, setCarregandoSessoes] = useState(false);
+  const [erroSessoes, setErroSessoes] = useState<string | null>(null);
+  const [revogandoId, setRevogandoId] = useState<number | null>(null);
+
+  const carregarSessoes = useCallback(async () => {
+    setCarregandoSessoes(true);
+    setErroSessoes(null);
+    try {
+      const r = await apiFetch("/api/usuarios/sessoes-ativas");
+      if (!r.ok) {
+        const erro = (await r.json().catch(() => ({}) as ErroJson)) as ErroJson;
+        setErroSessoes(erro.error ?? `Falha ao carregar sessoes (${r.status})`);
+        return;
+      }
+      const data = (await r.json()) as SessoesAtivasResposta;
+      setSessoes(data.sessoes ?? []);
+    } catch (e) {
+      setErroSessoes(e instanceof Error ? e.message : "Sem conexao com o servidor.");
+    } finally {
+      setCarregandoSessoes(false);
+    }
+  }, []);
+
+  async function revogarSessao(s: SessaoAtiva) {
+    if (s.atual) {
+      toast({
+        title: "Nao da pra encerrar a sessao atual por aqui",
+        description: "Use o botao Sair no menu superior pra encerrar a propria sessao.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setRevogandoId(s.id);
+    try {
+      const r = await apiFetch(`/api/usuarios/sessoes-ativas/${s.id}`, {
+        method: "DELETE",
+      });
+      if (!r.ok) {
+        const erro = (await r.json().catch(() => ({}) as ErroJson)) as ErroJson;
+        toast({
+          title: "Nao foi possivel encerrar a sessao",
+          description: erro.error ?? `Erro ${r.status}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Sessao encerrada",
+        description: "O outro aparelho vai precisar fazer login de novo.",
+      });
+      await carregarSessoes();
+    } catch {
+      toast({ title: "Sem conexao com o servidor", variant: "destructive" });
+    } finally {
+      setRevogandoId(null);
+    }
+  }
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErroCarregar(null);
@@ -107,7 +203,8 @@ export default function PerfilSeguranca2faPage() {
 
   useEffect(() => {
     void carregar();
-  }, [carregar]);
+    void carregarSessoes();
+  }, [carregar, carregarSessoes]);
 
   const podeUsar2fa =
     perfil?.perfilPlataforma === "platform_owner" ||
@@ -516,6 +613,117 @@ export default function PerfilSeguranca2faPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Task #202 — Sessoes ativas (lista de aparelhos logados na conta) */}
+        <Card data-testid="card-sessoes-ativas">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Monitor className="w-5 h-5" /> Aparelhos com sessao ativa
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Cada login (senha + 2FA) abre uma sessao independente. Se voce
+              perdeu o celular, trocou de aparelho ou suspeita que alguem ficou
+              logado num computador publico, encerre a sessao por aqui — o
+              outro aparelho vai precisar refazer o login.
+            </p>
+
+            {erroSessoes && (
+              <div className="border border-destructive/50 bg-destructive/10 text-destructive p-3 rounded-none flex items-start gap-2 text-sm">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{erroSessoes}</span>
+              </div>
+            )}
+
+            {carregandoSessoes && !sessoes && (
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Carregando sessoes...
+              </div>
+            )}
+
+            {sessoes && sessoes.length === 0 && (
+              <div className="text-sm text-muted-foreground italic">
+                Nenhuma sessao ativa encontrada (logins anteriores ao registro
+                de sessoes nao aparecem aqui — sao tokens antigos que expiram
+                naturalmente).
+              </div>
+            )}
+
+            {sessoes && sessoes.length > 0 && (
+              <ul className="divide-y divide-border border border-border">
+                {sessoes.map((s) => (
+                  <li
+                    key={s.id}
+                    className="p-3 flex items-start gap-3 justify-between"
+                    data-testid={`row-sessao-${s.id}`}
+                  >
+                    <div className="space-y-1 text-sm flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">
+                          {resumirUserAgent(s.userAgent)}
+                        </span>
+                        {s.atual && (
+                          <Badge variant="outline" className="text-emerald-700 border-emerald-700">
+                            Sessao atual
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        IP: <span className="font-mono">{s.ip ?? "-"}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Ultimo acesso: {formatarData(s.ultimoUsoEm)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Iniciada em: {formatarData(s.criadaEm)} · Expira em{" "}
+                        {formatarData(s.expiraEm)}
+                      </div>
+                      {s.userAgent && (
+                        <div
+                          className="text-[10px] text-muted-foreground/70 font-mono break-all"
+                          title={s.userAgent}
+                        >
+                          {s.userAgent}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 shrink-0"
+                      onClick={() => void revogarSessao(s)}
+                      disabled={s.atual || revogandoId === s.id}
+                      data-testid={`button-encerrar-sessao-${s.id}`}
+                    >
+                      {revogandoId === s.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <LogOut className="w-3.5 h-3.5" />
+                      )}
+                      Encerrar
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void carregarSessoes()}
+                disabled={carregandoSessoes}
+                data-testid="button-recarregar-sessoes"
+              >
+                {carregandoSessoes ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                ) : null}
+                Recarregar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

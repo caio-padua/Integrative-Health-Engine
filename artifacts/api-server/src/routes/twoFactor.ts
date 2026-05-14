@@ -23,7 +23,8 @@ import { db, usuariosTable, unidadesTable, consultorUnidadesTable } from "@works
 import { eq, and } from "drizzle-orm";
 import QRCode from "qrcode";
 import { z } from "zod";
-import { signJwt, verifyJwt, type JwtPayload } from "../lib/auth/jwt";
+import { signJwt, verifyJwt, novoJti, type JwtPayload } from "../lib/auth/jwt";
+import { extrairUserAgent, extrairIp, registrarSessao } from "../lib/auth/sessoesJwt";
 import { bloqueioLoginSuspenso } from "../lib/email/clinicaSuspensao";
 import {
   encryptTotpSecret,
@@ -464,6 +465,14 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
       ),
     );
 
+  // Task #202 — registra sessao com jti antes de emitir o JWT final.
+  const jti = novoJti();
+  await registrarSessao({
+    usuarioId: usuario.id,
+    jti,
+    userAgent: extrairUserAgent(req),
+    ip: extrairIp(req),
+  });
   const token = signJwt({
     sub: usuario.id,
     email: usuario.email,
@@ -472,6 +481,7 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     unidadeId: usuario.unidadeId ?? null,
     consultoriaId: usuario.consultoriaId ?? null,
     perfilPlataforma: usuario.perfilPlataforma ?? "tenant_user",
+    jti,
   });
 
   const { senha: _s, totpSecretCifrado: _ts, codigosRecuperacao2fa: _cr, ...safe } = usuario;

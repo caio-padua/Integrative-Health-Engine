@@ -2,7 +2,8 @@ import { Router } from "express";
 import { db, usuariosTable, unidadesTable, consultorUnidadesTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { CriarUsuarioBody, LoginUsuarioBody } from "@workspace/api-zod";
-import { signJwt } from "../lib/auth/jwt";
+import { signJwt, novoJti } from "../lib/auth/jwt";
+import { extrairUserAgent, extrairIp, registrarSessao } from "../lib/auth/sessoesJwt";
 import { bloqueioLoginSuspenso } from "../lib/email/clinicaSuspensao";
 import bcrypt from "bcryptjs";
 
@@ -156,6 +157,15 @@ router.post("/usuarios/login", async (req, res): Promise<void> => {
     .leftJoin(unidadesTable, eq(consultorUnidadesTable.unidadeId, unidadesTable.id))
     .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
 
+  // Task #202 — gera jti + grava sessao antes de assinar o token, pra
+  // que requireAuth consiga checar revogacao logo no primeiro request.
+  const jti = novoJti();
+  await registrarSessao({
+    usuarioId: usuario.id,
+    jti,
+    userAgent: extrairUserAgent(req),
+    ip: extrairIp(req),
+  });
   const token = signJwt({
     sub: usuario.id,
     email: usuario.email,
@@ -164,6 +174,7 @@ router.post("/usuarios/login", async (req, res): Promise<void> => {
     unidadeId: usuario.unidadeId ?? null,
     consultoriaId: usuario.consultoriaId ?? null,
     perfilPlataforma: usuario.perfilPlataforma ?? "tenant_user",
+    jti,
   });
 
   res.json({

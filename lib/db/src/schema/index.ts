@@ -1,6 +1,7 @@
 export * from "./consultorias";
 export * from "./unidades";
 export * from "./usuarios";
+export * from "./sessoesJwt";
 export * from "./delegacao";
 export * from "./pacientes";
 export * from "./periodosDia";

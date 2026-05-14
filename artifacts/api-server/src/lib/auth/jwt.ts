@@ -1,4 +1,8 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
+
+export function novoJti(): string {
+  return randomUUID();
+}
 
 export interface JwtPayload {
   sub: number;
@@ -16,6 +20,14 @@ export interface JwtPayload {
    * pra evitar reuso como Bearer em rotas protegidas (bypass de 2FA).
    */
   twoFactorChallenge?: boolean;
+  /**
+   * Task #202 — JWT ID (UUID v4). Gravado em `sessoes_jwt.jti` na emissao
+   * pra permitir revogar uma sessao individual ("encerrar sessao") sem
+   * precisar bumpar o kill-switch global tokens_invalidos_apos. Tokens
+   * antigos sem jti continuam validos (compat) — o middleware so checa
+   * revogacao quando jti esta presente.
+   */
+  jti?: string;
   iat: number;
   exp: number;
 }

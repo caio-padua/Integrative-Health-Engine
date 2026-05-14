@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { db, usuariosTable } from "@workspace/db";
+import { sessoesJwtTable } from "@workspace/db/schema";
 import { verifyJwt, type JwtPayload } from "../lib/auth/jwt";
 
 type RequestLogger = {
@@ -150,6 +151,38 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
           invalidada_em: cutoff.toISOString(),
         });
         return;
+      }
+
+      // Task #202 — checa se a sessao individual foi revogada via
+      // DELETE /usuarios/sessoes-ativas/:id ("encerrar sessao"). So aplica
+      // pra tokens que ja foram emitidos com `jti` (compat: tokens antigos
+      // sem jti continuam validos ate expirarem naturalmente).
+      if (payload.jti) {
+        const [sessao] = await db
+          .select({
+            id: sessoesJwtTable.id,
+            revogadaEm: sessoesJwtTable.revogadaEm,
+          })
+          .from(sessoesJwtTable)
+          .where(eq(sessoesJwtTable.jti, payload.jti))
+          .limit(1);
+        if (sessao?.revogadaEm) {
+          res.status(401).json({
+            error:
+              "Sessao encerrada pelo proprio usuario em outro aparelho. Refaca o login.",
+            codigo: "SESSAO_REVOGADA",
+            revogada_em: sessao.revogadaEm.toISOString(),
+          });
+          return;
+        }
+        if (sessao) {
+          // Best-effort: atualiza ultimoUsoEm pra UI mostrar atividade real.
+          // Erros aqui nao derrubam o request (a sessao ja passou validacao).
+          db.update(sessoesJwtTable)
+            .set({ ultimoUsoEm: new Date() })
+            .where(eq(sessoesJwtTable.id, sessao.id))
+            .catch(() => {});
+        }
       }
       req.user = payload;
       next();
