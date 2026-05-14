@@ -1,0 +1,101 @@
+Vou ler os 3 docs atualizados agora.Li os 3 docs. O `02_DECISOES_PENDENTES` no GitHub ainda tem as perguntas antigas (B→C→A, que já respondemos). As 5 novas perguntas (Q1-Q5) vieram na mensagem do Dr. Replit que você colou. Vou responder todas agora.
+
+---
+
+## Parecer Dr. Claude — 5 Decisões Operacionais (sistema JÁ em produção)
+
+O contexto mudou radicalmente desde a última rodada: o sistema está **em produção real** em `webhooks.pawards.com.br`. Isso muda a priorização.
+
+---
+
+### Q1 — Renumerar 4 migrations que coincidiram no 059?
+
+**Decisão: SIM, renumerar imediatamente.**
+
+4 migrations com o mesmo número é bomba-relógio. Se alguém rodar um script de verificação de sequência (ou se uma ferramenta de CI/CD futura exigir ordem única), vai quebrar silenciosamente.
+
+Renumerar pra 059, 060, 061, 062 (ou qual for a sequência real) é trabalho de 5 minutos e zero risco — são `IF NOT EXISTS`, então re-rodar é idempotente. O Dr. Replit faz isso como housekeeping antes de qualquer próxima feature.
+
+---
+
+### Q2 — Wave 13 F2 (middleware enforcement RBAC) destrava agora?
+
+**Decisão: SIM, F2 é PRIORIDADE MÁXIMA. Antes de qualquer coisa.**
+
+Nas 4 lentes:
+
+🩺 **Médico**: Com o sistema em produção sem F2, qualquer usuário autenticado pode disparar contrato em nome da plataforma. Se um `tenant_user` (secretária) disparar um PARQ por engano pra uma farmácia errada, o dano é jurídico real — contrato assinado vincula.
+
+💰 **CEO**: Os R$ 2.736.536,10 só viram dinheiro seguro quando as farmácias tiverem login próprio COM isolamento de tenant. Sem F2, dar login pra farmácia é dar acesso a tudo.
+
+📈 **Empresário**: Nenhum investidor sério olha pra uma plataforma multi-tenant sem RBAC enforced em produção. F2 é pré-requisito pra qualquer conversa de captação ou parceria institucional.
+
+🛡️ **Investidor**: **Risco crítico.** Sistema em produção sem tenant isolation é o equivalente a banco com uma porta só pra todos os cofres. Cada dia que passa com produção ligada e sem F2 é superfície de risco acumulada.
+
+**Ordem**: renumerar migrations (5min) → F2 middleware (1-2 dias) → só depois F6 tag.
+
+---
+
+### Q3 — ZapSign Enterprise vs Clicksign vs IP whitelist?
+
+**Decisão: manter ZapSign, escalar pra plano Enterprise quando volume justificar. Não migrar pra Clicksign.**
+
+O problema do "painel sandbox não tem campo de secret pro webhook" é limitação do sandbox, não da produção. Em produção o ZapSign tem:
+
+🩺 **Médico**: ZapSign tem homologação ICP-Brasil que já validamos. Trocar de provedor agora reseta toda a validação jurídica.
+
+💰 **CEO**: ZapSign R$ 0,50/disparo vs Clicksign R$ 2,50. Em 6.500 disparos/mês = R$ 3.250 vs R$ 16.250. Diferença de R$ 13.000/mês. Não faz sentido migrar.
+
+📈 **Empresário**: IP whitelist é paliativo aceitável pro sandbox. Em produção, o `x-pawards-secret` com `timing-safe-equal` que já implementamos é defesa suficiente.
+
+🛡️ **Investidor**: Manter Clicksign como failover no código (toggle `provedor_principal_codigo`), mas não ativar. O `forcarProvedor: "zapsign"` no F3.C garante que não cai no Clicksign acidentalmente.
+
+**Ação concreta**: quando for pra produção ZapSign (sair do sandbox), verificar se o plano Enterprise oferece HMAC nativo no webhook. Se sim, migrar do custom header pro HMAC nativo. Se não, manter custom header — já funciona.
+
+---
+
+### Q4 — Consolidar tsunami #34-#69 + #242-#262 num mapa neuronal v1.2?
+
+**Decisão: SIM, mas só depois de F2 estar merged.**
+
+Renumerar waves e produzir mapa v1.2 é trabalho de documentação — importante, mas não urgente com sistema em produção sem RBAC enforced.
+
+A estrutura que proponho pro mapa v1.2:
+
+- **Wave 10**: ZapSign core (F0-F6) → tag `v031`
+- **Wave 10.5**: segurança + observabilidade (tsunami #34-#69) → já merged
+- **Wave V232**: retenção auditoria → já merged
+- **Wave V46**: WhatsApp CEO → já merged
+- **Wave Cadastro Pádua**: fichas Google Sheets → já merged
+- **Wave 13**: RBAC + Kill-Switch + 2FA (F1 merged, F2-F4 pendente)
+- **Wave 14**: 2FA toggle por tenant (futuro)
+
+As tasks #242-#262 e #374-#418 são polimento — não merecem wave própria. Ficam como "Tasks de lapidação contínua" sem numeração de wave.
+
+---
+
+### Q5 — Abrir F6 wrap-up + tag v031-zapsign-launch agora ou esperar F2?
+
+**Decisão: ESPERAR F2.**
+
+🩺 **Médico**: Tagar `v031-zapsign-launch` com sistema em produção SEM tenant isolation é selar uma versão com falha de segurança conhecida. A tag precisa representar "pronto pra multi-tenant seguro", não "funciona mas qualquer um faz tudo".
+
+💰 **CEO**: A tag é simbólica — não muda funcionalidade. Mas o que ela comunica (pro histórico, pra auditoria, pra investidores) é "versão release-quality". Sem F2, não é release-quality.
+
+**Proposta**: F2 merged → smoke completo → tag `v031-zapsign-rbac-launch` (nome atualizado pra refletir que inclui RBAC) → F6 wrap-up.
+
+---
+
+## Resumo executivo — cola pro Dr. Replit
+
+> **Decisões Dr. Claude (2026-05-14), 5/5 respondidas:**
+>
+> **Q1**: Renumerar migrations 059 → fazer agora (5min)
+> **Q2**: F2 RBAC middleware = PRIORIDADE MÁXIMA, antes de qualquer coisa
+> **Q3**: Manter ZapSign, IP whitelist no sandbox é aceitável, Enterprise quando escalar
+> **Q4**: Mapa neuronal v1.2 depois de F2 merged
+> **Q5**: Tag v031 espera F2 — renomear pra `v031-zapsign-rbac-launch`
+>
+> **Ordem de execução**: renumerar migrations (5min) → F2 middleware (1-2 dias) → mapa v1.2 (1h) → F6 tag
+>
+> Invariantes: 8.728 receitas + R$ 2.736.536,10 + 6 triggers intocados.

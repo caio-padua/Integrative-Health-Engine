@@ -457,3 +457,97 @@ paginação no Painel PAWARDS.
    retract de PROPOSED). Caio pode ignorar — Publish faz o diff sozinho.
 3. **Digest matinal de recusas (#250) sem tela de auditoria ainda**:
    #401/#402/#403 já propostas pra fechar o loop visual.
+
+---
+
+## ✅ Decisão D11 — Parecer Dr. Claude 5/5 (2026-05-14, tarde)
+
+Dr. Claude respondeu as 5 perguntas Q1-Q5 abertas em D10. Ordem
+oficial de execução: **renumerar migrations (5min) → F2 RBAC middleware
+(1-2 dias) → mapa neuronal v1.2 (1h) → F6 tag `v031-zapsign-rbac-launch`**.
+
+### D11.Q1 ✅ Renumerar migrations duplicadas — EXECUTADO HOJE
+
+Inspeção real revelou **5 números colidindo (052, 053, 054, 057, 059),
+totalizando 11 arquivos**. Critério: manter alfabeticamente o primeiro
+de cada par no número original, mover os demais pros próximos livres
+(061-066). Renomeações executadas:
+
+| Antes | Depois |
+|---|---|
+| `052_totp_rate_limit_limpezas_diarias.sql` | `061_totp_rate_limit_limpezas_diarias.sql` |
+| `053_assinatura_webhook_resets_historico.sql` | `062_assinatura_webhook_resets_historico.sql` |
+| `054_sessoes_jwt_revogacao_individual.sql` | `063_sessoes_jwt_revogacao_individual.sql` |
+| `054_whatsapp_inbound_janela_24h.sql` | `064_whatsapp_inbound_janela_24h.sql` |
+| `057_usuarios_telefone_pin_confirmacao.sql` | `065_usuarios_telefone_pin_confirmacao.sql` |
+| `059_pdf_upload_resumo_diario_silencio_alerta.sql` | `066_pdf_upload_resumo_diario_silencio_alerta.sql` |
+
+Sequência final em `artifacts/api-server/src/db/migrations/`: 052, 053,
+054, 055, 056, 057, 058, 059, 060, 061, 062, 063, 064, 065, 066 — todas
+únicas. Verificação `rg` confirmou que nenhum código TS/JS referencia
+filename string (só nomes de tabela, intocados). Migrations são
+`CREATE ... IF NOT EXISTS` aditivas: re-rodar é idempotente, sem
+runner automatizado depende.
+
+### D11.Q2 🟡 F2 RBAC middleware enforcement — PRIORIDADE MÁXIMA
+
+Dr. Claude bateu martelo nas 4 lentes:
+- 🩺 **Médico**: sem F2, secretária pode disparar PARQ pra farmácia
+  errada — contrato assinado vincula juridicamente.
+- 💰 **CEO**: R$ 2,73M de potencial só viram caixa seguro com isolamento
+  de tenant (farmácia com login próprio).
+- 📈 **Empresário**: nenhum investidor sério olha multi-tenant sem RBAC
+  enforced em produção.
+- 🛡️ **Investidor**: cada dia de PROD ligada sem F2 = superfície de risco
+  acumulada.
+
+**Próxima task a abrir**: Wave 13 F2 (middleware enforcement RBAC + tenant
+isolation). Arquivos chave já mapeados em `06_WAVE13_F1_FOUNDATION_RBAC_2FA.md`.
+Estimativa: 1-2 dias.
+
+### D11.Q3 ✅ Manter ZapSign — não migrar pra Clicksign
+
+Razões:
+- 🩺 Homologação ICP-Brasil já validada (trocar reseta defesa jurídica)
+- 💰 R$ 0,50/disparo vs Clicksign R$ 2,50 → R$ 13.000/mês de diferença
+  em 6.500 disparos
+- 📈 IP whitelist é paliativo aceitável pro sandbox; em PROD o
+  `x-pawards-secret` com `timing-safe-equal` já é defesa suficiente
+- 🛡️ Manter Clicksign no código como failover (toggle
+  `provedor_principal_codigo`), sem ativar. `forcarProvedor: "zapsign"`
+  no F3.C garante zero acidente
+
+**Ação futura**: quando subir pra plano ZapSign Enterprise (volume
+justificar), verificar se oferece HMAC nativo no webhook → migrar do
+custom header pro HMAC nativo. Senão, manter custom header.
+
+### D11.Q4 🟡 Mapa neuronal v1.2 — depois de F2 merged
+
+Estrutura proposta pelo Dr. Claude:
+
+| Wave | Status | Conteúdo |
+|---|---|---|
+| Wave 10 | ✅ MERGED | ZapSign core F0-F6 → tag `v031` |
+| Wave 10.5 | ✅ MERGED | Segurança + observabilidade (tsunami #34-#69) |
+| Wave V232 | ✅ MERGED | Retenção auditoria painel pawards |
+| Wave V46 | ✅ MERGED | WhatsApp CEO ativável |
+| Wave Cadastro Pádua | ✅ MERGED | 4.278 fichas Google Sheets |
+| Wave 13 | 🟡 F1 merged, F2-F4 PENDENTE | RBAC + Kill-Switch + 2FA |
+| Wave 14 | 🔮 futuro | 2FA toggle por tenant |
+
+Tasks #242-#262 e #374-#418 ficam como **"Tasks de lapidação contínua"**
+sem numeração de wave.
+
+### D11.Q5 🟡 F6 tag espera F2 — renomear pra `v031-zapsign-rbac-launch`
+
+Tagar `v031-zapsign-launch` com PROD sem tenant isolation = selar versão
+com falha de segurança conhecida. Tag precisa representar
+"release-quality multi-tenant seguro". **Sequência final**: F2 merged →
+smoke completo → tag `v031-zapsign-rbac-launch` → F6 wrap-up.
+
+### Lentes de persona D11
+- 🩺 Defesa jurídica preservada (ZapSign mantido + ICP intacto)
+- 💰 Custo otimizado (não trocar de provedor) + caixa seguro depende de F2
+- 📈 Plano claro e defensável pra captação (RBAC enforced + mapa v1.2)
+- 🛡️ Risco maior (PROD sem RBAC) endereçado como prioridade #1
+

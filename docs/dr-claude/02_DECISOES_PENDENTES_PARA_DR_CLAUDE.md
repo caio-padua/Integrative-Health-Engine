@@ -3,13 +3,13 @@
 > **Reescrito a cada rodada**. Quando uma pendência vira tomada, ela
 > migra pra `01_DECISOES_TOMADAS_WAVE10_F3C.md` (append-only).
 
-> **Atualizado em**: 2026-05-14 — pós Wave OPERAR EM PARALELO (D10).
+> **Atualizado em**: 2026-05-14 (tarde) — pós parecer Dr. Claude D11
+> 5/5 + Q1 já executado (renumeração 11 migrations).
 >
 > **Estado**: 🟢 sistema **JÁ EM PRODUÇÃO** em
-> `https://webhooks.pawards.com.br` (autoscale, build verde). Caio
-> decidiu **operar de verdade SEM parar a lapidação**. Task agents
-> continuam drenando #374-#418 em paralelo (atualmente blocked por
-> `CONCURRENCY_LIMIT`, vão liberando).
+> `https://webhooks.pawards.com.br`. Dr. Claude bateu martelo: ordem
+> oficial = **F2 RBAC middleware AGORA** (PRIORIDADE MÁXIMA, 1-2 dias)
+> → mapa v1.2 → tag `v031-zapsign-rbac-launch` (renomeada).
 
 ---
 
