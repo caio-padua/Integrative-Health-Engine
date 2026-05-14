@@ -1304,10 +1304,14 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     const filtroStatusWhere = filtrosWhereXlsx.length > 0
       ? sql`WHERE ${sql.join(filtrosWhereXlsx, sql` AND `)}`
       : sql``;
-    // Task #76 — mesma logica do CSV: com filtro de data libera ate 5000,
-    // sem filtro mantem 50 (mesmo cap da tela).
-    const temFiltroDataXlsx = desdeFiltroXlsx !== null || ateFiltroXlsx !== null;
-    const limiteXlsx = temFiltroDataXlsx ? 5000 : 50;
+    // Task #199 — cap unificado em 5000 linhas (mesma regra do CSV pos
+    // Task #75), INDEPENDENTE de filtro de datas. Antes o limite caia pra
+    // 50 sem desde/ate, mas o objetivo do export e levar o conjunto
+    // filtrado COMPLETO pra contador/auditor — amarrar a 50 transformava
+    // o XLSX em paginacao visivel. 5000 cobre extrato anual sem explodir
+    // memoria/timeout; truncamento sinalizado via LIMIT+1 + linha de
+    // aviso na planilha + aba Metadados + header X-Truncated.
+    const limiteXlsx = 5000;
     // Task #83 — mesma whitelist de ordenacao do JSON/CSV pra que o XLSX
     // exportado bata com a ordem visivel na tela. Default `s.id DESC`.
     // Task #93 — expandido pra whitelist completa (status/criado/concluido/
@@ -1355,9 +1359,14 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       ${filtroUnidadeJoin}
       ${filtroStatusWhere}
       ${orderByClauseXlsx}
-      LIMIT ${limiteXlsx}
+      LIMIT ${limiteXlsx + 1}
     `);
-    const rows = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+    const rowsBrutas = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+    // Task #199 — pede LIMIT+1 (mesma tecnica do CSV/Task #75) pra detectar
+    // truncamento sem COUNT extra. Se voltou limite+1, descarta a sobra e
+    // marca pra emitir aviso na planilha + aba Metadados + header X-Truncated.
+    const truncadoXlsx = rowsBrutas.length > limiteXlsx;
+    const rows = truncadoXlsx ? rowsBrutas.slice(0, limiteXlsx) : rowsBrutas;
 
     // Mesmas defesas do CSV: mascarar nome de paciente (anexo de e-mail
     // vaza facil) e neutralizar formula injection em celulas de texto.
@@ -1395,6 +1404,9 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       { header: "ID",                key: "id",            width: 8 },
       { header: "Template",          key: "template",      width: 20 },
       { header: "Paciente",          key: "paciente",      width: 32 },
+      // Task #199 — coluna `unidade` na MESMA posicao do CSV (entre
+      // paciente e status) pra paridade visual com o export CSV.
+      { header: "Unidade",           key: "unidade",       width: 24 },
       { header: "Status",            key: "status",        width: 14 },
       { header: "Signatários",       key: "signatarios",   width: 14 },
       { header: "Criado em",         key: "criado_em",     width: 18, style: { numFmt: "dd/mm/yyyy hh:mm" } },
@@ -1430,6 +1442,7 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
         id: Number(row["id"]),
         template: sanitizarTexto(row["template_codigo"]),
         paciente: mascararNome(row["paciente_nome"]),
+        unidade: sanitizarTexto(row["paciente_unidade_nome"] ?? ""),
         status: sanitizarTexto(row["status"]),
         signatarios: `${row["signatarios_assinados"] ?? 0}/${row["signatarios_total"] ?? 0}`,
         criado_em: dataOuNull(row["criado_em"]),
@@ -1469,10 +1482,37 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
       ["Ordenado por", descreverOrdenacaoTimeline(tokensXlsx)],
       ["Total de linhas", String(rows.length)],
       ["Limite aplicado", String(limiteXlsx)],
+      // Task #199 — flag explicita de truncamento na aba Metadados
+      // (paridade com a linha `truncado=` do CSV/Task #75). Quem abre o
+      // arquivo ve imediatamente se o cap de 5000 cortou registros.
+      ["Truncado", truncadoXlsx ? `sim (cap ${limiteXlsx})` : "nao"],
       ["Exportado em", new Date().toISOString()],
     ];
     for (const [campo, valor] of linhasMeta) {
       wsMeta.addRow({ campo: sanitizarTexto(campo), valor: sanitizarTexto(valor) });
+    }
+
+    // Task #199 — quando o filtro casa com mais que `limiteXlsx` registros,
+    // anexa uma linha-aviso amarela (paridade com a linha de aviso do CSV)
+    // no rodape da planilha principal, deixando claro pro contador/auditor
+    // que o arquivo NAO contem o conjunto completo. A aba Metadados ja
+    // marca `Truncado=sim`, mas a linha visivel garante que ninguem
+    // ignore o aviso ao abrir direto a planilha principal.
+    if (truncadoXlsx) {
+      const avisoRow = ws.addRow({
+        id: "",
+        template: "",
+        paciente: `AVISO: export truncado em ${limiteXlsx} linhas — refine o filtro de datas para obter o restante.`,
+      });
+      ws.mergeCells(avisoRow.number, 3, avisoRow.number, ws.columnCount);
+      avisoRow.font = { bold: true, color: { argb: "FF7d1d2e" } };
+      avisoRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFE8C547" },
+      };
+      avisoRow.alignment = { vertical: "middle", horizontal: "left" };
+      avisoRow.height = 22;
     }
 
     const buf = await wb.xlsx.writeBuffer();
@@ -1484,6 +1524,10 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     );
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Cache-Control", "no-store");
+    // Task #199 — paridade com o CSV: clientes programaticos detectam
+    // truncamento sem precisar abrir o XLSX e parsear a aba Metadados.
+    res.setHeader("X-Truncated", truncadoXlsx ? "1" : "0");
+    res.setHeader("X-Truncated-Limit", String(limiteXlsx));
     res.send(Buffer.from(buf));
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
