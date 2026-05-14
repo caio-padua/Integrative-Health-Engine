@@ -33,7 +33,12 @@ type EventoUnificado = {
   detalhe: string | null;
   link: { href: string; label: string };
   destaque: boolean;
+  // Task #277 — campos pra filtro client-side por usuario alvo. Auditoria
+  // nao tem usuario_id direto (e' executor + unidade), entao usuarioId
+  // fica null e o filtro numerico de alvo necessariamente oculta linhas
+  // de auditoria; o filtro textual usa executor_email quando disponivel.
   usuarioId: number | null;
+  usuarioEmail: string | null;
   correlacao: { motivo: string; cor: string } | null;
 };
 
@@ -122,6 +127,12 @@ export default function PlataformaTimeline() {
     alerta: true,
     "aviso-2fa": true,
   });
+  // Task #277 — filtros adicionais (client-side, sem mexer nos endpoints).
+  // Datas em formato `YYYY-MM-DDTHH:MM` (input datetime-local). Alvo aceita
+  // numero (usuario_id) ou substring de email.
+  const [dataInicial, setDataInicial] = useState<string>("");
+  const [dataFinal, setDataFinal] = useState<string>("");
+  const [alvo, setAlvo] = useState<string>("");
   const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
@@ -195,6 +206,7 @@ export default function PlataformaTimeline() {
         },
         destaque: false,
         usuarioId: null,
+        usuarioEmail: a.executor_email,
         correlacao: null,
       });
     }
@@ -222,6 +234,7 @@ export default function PlataformaTimeline() {
         },
         destaque: !a.visualizado_em,
         usuarioId: a.usuario_id,
+        usuarioEmail: a.usuario_email,
         correlacao: null,
       });
     }
@@ -243,6 +256,7 @@ export default function PlataformaTimeline() {
         },
         destaque: a.status === "expirou",
         usuarioId: a.usuario_id,
+        usuarioEmail: a.usuario_email,
         correlacao: null,
       });
     }
@@ -293,12 +307,64 @@ export default function PlataformaTimeline() {
     return lista;
   }, [auditorias, alertas, avisos]);
 
-  const visiveis = eventos.filter((e) => filtros[e.tipo]);
+  // Task #277 — filtros client-side compostos: tipo + janela temporal + alvo.
+  // Janela usa Date.parse no formato `YYYY-MM-DDTHH:MM` (datetime-local
+  // entrega no fuso local). Alvo numerico casa por usuario_id exato; alvo
+  // textual casa por substring case-insensitive em email. Auditoria nao
+  // tem usuario_id, entao filtro numerico de alvo oculta auditoria — o
+  // alvo textual usa o email do executor quando disponivel.
+  const visiveis = useMemo(() => {
+    const tsInicial = dataInicial ? Date.parse(dataInicial) : null;
+    const tsFinal = dataFinal ? Date.parse(dataFinal) : null;
+    const alvoTrim = alvo.trim();
+    const alvoNumerico = alvoTrim !== "" && /^\d+$/.test(alvoTrim)
+      ? Number(alvoTrim)
+      : null;
+    const alvoTexto = alvoTrim !== "" && alvoNumerico === null
+      ? alvoTrim.toLowerCase()
+      : null;
+    return eventos.filter((e) => {
+      if (!filtros[e.tipo]) return false;
+      const ts = Date.parse(e.em);
+      if (tsInicial != null && !Number.isNaN(tsInicial) && ts < tsInicial)
+        return false;
+      if (tsFinal != null && !Number.isNaN(tsFinal) && ts > tsFinal)
+        return false;
+      if (alvoNumerico != null) {
+        if (e.usuarioId !== alvoNumerico) return false;
+      } else if (alvoTexto != null) {
+        const email = (e.usuarioEmail ?? "").toLowerCase();
+        if (!email.includes(alvoTexto)) return false;
+      }
+      return true;
+    });
+  }, [eventos, filtros, dataInicial, dataFinal, alvo]);
+
+  // Mantido do HEAD (correlacoes brute-force x aviso 2FA expirado): conta
+  // apenas o que sobrou apos os filtros da Task #277.
   const correlacoesVisiveis = visiveis.filter((e) => e.correlacao !== null).length;
   const paresCorrelacionados = Math.floor(correlacoesVisiveis / 2);
 
+  // Task #277 — "Limpar filtros" deve ficar habilitado sempre que o estado
+  // dos filtros divergir do default (todos os tipos ON, datas/alvo vazios),
+  // inclusive quando so' o toggle de tipo foi alterado.
+  const filtrosAtivos =
+    dataInicial !== "" ||
+    dataFinal !== "" ||
+    alvo.trim() !== "" ||
+    !filtros.auditoria ||
+    !filtros.alerta ||
+    !filtros["aviso-2fa"];
+
   function alternarFiltro(t: TipoEvento) {
     setFiltros((prev) => ({ ...prev, [t]: !prev[t] }));
+  }
+
+  function limparFiltros() {
+    setDataInicial("");
+    setDataFinal("");
+    setAlvo("");
+    setFiltros({ auditoria: true, alerta: true, "aviso-2fa": true });
   }
 
   return (
@@ -346,6 +412,52 @@ export default function PlataformaTimeline() {
             </button>
           </div>
         </header>
+
+        {/* Task #277 — filtros temporais e de alvo (client-side). */}
+        <div className="mb-4 p-3 bg-zinc-900/50 border border-zinc-800 rounded grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <label className="flex flex-col gap-1">
+            <span className="text-zinc-400 uppercase">De</span>
+            <input
+              type="datetime-local"
+              value={dataInicial}
+              onChange={(ev) => setDataInicial(ev.target.value)}
+              className="px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-zinc-200"
+              data-testid="input-data-inicial"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-zinc-400 uppercase">Ate</span>
+            <input
+              type="datetime-local"
+              value={dataFinal}
+              onChange={(ev) => setDataFinal(ev.target.value)}
+              className="px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-zinc-200"
+              data-testid="input-data-final"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-zinc-400 uppercase">Alvo (id ou email)</span>
+            <input
+              type="text"
+              value={alvo}
+              onChange={(ev) => setAlvo(ev.target.value)}
+              placeholder="ex: 42 ou caio@"
+              className="px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-zinc-200"
+              data-testid="input-alvo"
+            />
+          </label>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={limparFiltros}
+              disabled={!filtrosAtivos}
+              className="w-full px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed rounded text-zinc-200 border border-zinc-700"
+              data-testid="button-limpar-filtros"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        </div>
 
         {erro && (
           <div className="mb-4 p-4 bg-red-500/10 border border-red-500/40 rounded text-red-300 flex items-start gap-2">
