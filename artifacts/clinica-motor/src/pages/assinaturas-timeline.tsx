@@ -1,7 +1,7 @@
 // PAWARDS MEDCORE · Wave 10 F5 · /assinaturas/timeline
 // Lista as últimas 50 solicitações de assinatura digital (PARQ + TCLE + Orçamento).
 // Master-only no router; backend filtra via cookie pawards.auth.token.
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -137,6 +137,102 @@ const LIMITE_EXPORT_CSV = 5000;
 // Task #84/#96/#98 — `ColunaOrdenavel` extraido pra lib compartilhada
 // (`@/lib/ordenacao-multi`). Mantido aqui apenas o re-export local pra nao
 // quebrar referencias se algum teste importar deste modulo.
+
+// Task #208 — Layout (ordem + largura) das colunas da tabela, persistido
+// por usuario em localStorage. Mesma estrategia da Task #88 (ordenacao):
+// chave `pawards.timeline.colunas_layout.${uid}`. Sem URL — preferencia
+// puramente local, nao e link compartilhavel (Caio usa recorte financeiro,
+// Contador usa recorte clinico; cada conta reabre no proprio layout).
+type ColunaId =
+  | "ID" | "TEMPLATE" | "PACIENTE" | "CLINICA" | "STATUS" | "VALOR"
+  | "FARMACIA" | "MEDICO" | "SIGNATARIOS" | "AUDITORIA"
+  | "CRIADO" | "CONCLUIDO" | "DETALHE";
+
+const ORDEM_PADRAO_COLUNAS: ColunaId[] = [
+  "ID", "TEMPLATE", "PACIENTE", "CLINICA", "STATUS", "VALOR",
+  "FARMACIA", "MEDICO", "SIGNATARIOS", "AUDITORIA",
+  "CRIADO", "CONCLUIDO", "DETALHE",
+];
+
+const LARGURAS_PADRAO_COLUNAS: Record<ColunaId, number> = {
+  ID: 60, TEMPLATE: 200, PACIENTE: 220, CLINICA: 160, STATUS: 130,
+  VALOR: 120, FARMACIA: 150, MEDICO: 170, SIGNATARIOS: 110,
+  AUDITORIA: 110, CRIADO: 140, CONCLUIDO: 140, DETALHE: 90,
+};
+
+const COLUNA_IDS_VALIDOS = new Set<ColunaId>(ORDEM_PADRAO_COLUNAS);
+const LARGURA_MIN_COLUNA = 60;
+const LARGURA_MAX_COLUNA = 800;
+
+type LayoutColunas = { ordem: ColunaId[]; larguras: Record<ColunaId, number> };
+
+function chaveStorageLayoutColunas(uid: number | string | undefined): string | null {
+  if (uid === undefined || uid === null) return null;
+  return `pawards.timeline.colunas_layout.${uid}`;
+}
+
+function lerLayoutColunasSalvo(uid: number | string | undefined): LayoutColunas | null {
+  if (typeof window === "undefined") return null;
+  const k = chaveStorageLayoutColunas(uid);
+  if (!k) return null;
+  try {
+    const raw = window.localStorage.getItem(k);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const ordemBruta: unknown = parsed?.ordem;
+    const largurasBrutas: unknown = parsed?.larguras;
+    if (!Array.isArray(ordemBruta)) return null;
+    // Sanitiza: mantem so IDs validos preservando ordem do usuario, e
+    // appendiza qualquer coluna nova introduzida pelo app entre uma sessao
+    // e outra (cobre upgrade sem perder a customizacao).
+    const ordemFiltrada: ColunaId[] = [];
+    const vistos = new Set<ColunaId>();
+    for (const id of ordemBruta) {
+      if (typeof id === "string" && COLUNA_IDS_VALIDOS.has(id as ColunaId) && !vistos.has(id as ColunaId)) {
+        ordemFiltrada.push(id as ColunaId);
+        vistos.add(id as ColunaId);
+      }
+    }
+    for (const id of ORDEM_PADRAO_COLUNAS) {
+      if (!vistos.has(id)) ordemFiltrada.push(id);
+    }
+    const larguras: Record<ColunaId, number> = { ...LARGURAS_PADRAO_COLUNAS };
+    if (largurasBrutas && typeof largurasBrutas === "object") {
+      for (const id of ORDEM_PADRAO_COLUNAS) {
+        const v = (largurasBrutas as Record<string, unknown>)[id];
+        if (typeof v === "number" && Number.isFinite(v)) {
+          larguras[id] = Math.min(LARGURA_MAX_COLUNA, Math.max(LARGURA_MIN_COLUNA, Math.round(v)));
+        }
+      }
+    }
+    return { ordem: ordemFiltrada, larguras };
+  } catch { return null; }
+}
+
+function salvarLayoutColunas(uid: number | string | undefined, layout: LayoutColunas) {
+  if (typeof window === "undefined") return;
+  const k = chaveStorageLayoutColunas(uid);
+  if (!k) return;
+  try { window.localStorage.setItem(k, JSON.stringify(layout)); } catch { /* ignore */ }
+}
+
+function limparLayoutColunasSalvo(uid: number | string | undefined) {
+  if (typeof window === "undefined") return;
+  const k = chaveStorageLayoutColunas(uid);
+  if (!k) return;
+  try { window.localStorage.removeItem(k); } catch { /* ignore */ }
+}
+
+function layoutColunasIgualAoPadrao(ordem: ColunaId[], larguras: Record<ColunaId, number>): boolean {
+  if (ordem.length !== ORDEM_PADRAO_COLUNAS.length) return false;
+  for (let i = 0; i < ordem.length; i += 1) {
+    if (ordem[i] !== ORDEM_PADRAO_COLUNAS[i]) return false;
+  }
+  for (const id of ORDEM_PADRAO_COLUNAS) {
+    if (larguras[id] !== LARGURAS_PADRAO_COLUNAS[id]) return false;
+  }
+  return true;
+}
 
 export default function AssinaturasTimeline() {
   const { user } = useAuth();
@@ -675,6 +771,305 @@ export default function AssinaturasTimeline() {
     rejeitado: rows.filter((r) => r.status === "REJEITADO" || r.status === "EXPIRADO").length,
   };
 
+  // Task #208 — estado de ordem + largura das colunas, hidratado de
+  // localStorage por-usuario. Default = ORDEM_PADRAO_COLUNAS / LARGURAS_PADRAO_COLUNAS.
+  const [ordemColunas, setOrdemColunas] = useState<ColunaId[]>(ORDEM_PADRAO_COLUNAS);
+  const [largurasColunas, setLargurasColunas] = useState<Record<ColunaId, number>>(LARGURAS_PADRAO_COLUNAS);
+  const [colunaArrastando, setColunaArrastando] = useState<ColunaId | null>(null);
+  const [colunaAlvoArrasto, setColunaAlvoArrasto] = useState<ColunaId | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const salvo = lerLayoutColunasSalvo(user.id);
+    if (salvo) {
+      setOrdemColunas(salvo.ordem);
+      setLargurasColunas(salvo.larguras);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const persistirLayoutColunas = useCallback((ordem: ColunaId[], larguras: Record<ColunaId, number>) => {
+    salvarLayoutColunas(user?.id, { ordem, larguras });
+  }, [user?.id]);
+
+  const moverColuna = useCallback((origem: ColunaId, destino: ColunaId) => {
+    if (origem === destino) return;
+    setOrdemColunas((prev) => {
+      const idxOrig = prev.indexOf(origem);
+      const idxDest = prev.indexOf(destino);
+      if (idxOrig === -1 || idxDest === -1) return prev;
+      const nova = [...prev];
+      nova.splice(idxOrig, 1);
+      nova.splice(idxDest, 0, origem);
+      persistirLayoutColunas(nova, largurasColunas);
+      return nova;
+    });
+  }, [largurasColunas, persistirLayoutColunas]);
+
+  // Resize: durante mousemove atualiza visualmente; persiste ao mouseup
+  // pra evitar gravacoes excessivas no localStorage. Usa listeners no
+  // window pra continuar funcionando se o cursor sair do thumb.
+  const iniciarRedimensionamento = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>, id: ColunaId) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startWidth = largurasColunas[id] ?? LARGURAS_PADRAO_COLUNAS[id];
+      let larguraFinal = startWidth;
+      const onMove = (ev: MouseEvent) => {
+        larguraFinal = Math.max(
+          LARGURA_MIN_COLUNA,
+          Math.min(LARGURA_MAX_COLUNA, Math.round(startWidth + (ev.clientX - startX))),
+        );
+        setLargurasColunas((prev) => ({ ...prev, [id]: larguraFinal }));
+      };
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        setLargurasColunas((prev) => {
+          const novas = { ...prev, [id]: larguraFinal };
+          persistirLayoutColunas(ordemColunas, novas);
+          return novas;
+        });
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [largurasColunas, ordemColunas, persistirLayoutColunas],
+  );
+
+  const restaurarLayoutColunasPadrao = useCallback(() => {
+    setOrdemColunas(ORDEM_PADRAO_COLUNAS);
+    setLargurasColunas(LARGURAS_PADRAO_COLUNAS);
+    limparLayoutColunasSalvo(user?.id);
+  }, [user?.id]);
+
+  const layoutColunasNoPadrao = layoutColunasIgualAoPadrao(ordemColunas, largurasColunas);
+
+  // Config de cada coluna: header (com botao de ordenacao quando aplicavel),
+  // celula, alinhamento e visibilidade condicional. Mantido dentro do
+  // componente porque o header usa callbacks/estado de ordenacao.
+  const LABEL_COLUNA_PT: Record<ColunaId, string> = {
+    ID: "#", TEMPLATE: "Template", PACIENTE: "Paciente", CLINICA: "Clínica",
+    STATUS: "Status", VALOR: "Valor", FARMACIA: "Farmácia", MEDICO: "Médico",
+    SIGNATARIOS: "Signatários", AUDITORIA: "Auditoria", CRIADO: "Criado",
+    CONCLUIDO: "Concluído", DETALHE: "Detalhe",
+  };
+  const colunasConfig: Record<ColunaId, {
+    header: ReactNode;
+    cell: (r: Solicitacao) => ReactNode;
+    align: "left" | "center" | "right";
+    naoImprimir?: boolean;
+    visivel?: () => boolean;
+  }> = {
+    ID: {
+      align: "left",
+      header: <span>#</span>,
+      cell: (r) => <span className="font-mono text-xs">{r.id}</span>,
+    },
+    TEMPLATE: {
+      align: "left",
+      header: (
+        <ColunaOrdenavel
+          label="Template"
+          ativaDesc={colunaAtivaDesc("TEMPLATE")}
+          ativaAsc={colunaAtivaAsc("TEMPLATE")}
+          posicao={posicaoOrdenacao("TEMPLATE")}
+          onClick={(shift) => alternarOrdenacao("TEMPLATE", shift)}
+          testId="ordenar-por-template"
+        />
+      ),
+      cell: (r) => (
+        <>
+          <div className="font-semibold" style={{ color: NAVY }}>{r.template_codigo}</div>
+          <div className="text-xs" style={{ color: ZINC }}>{r.template_nome}</div>
+        </>
+      ),
+    },
+    PACIENTE: {
+      align: "left",
+      header: (
+        <ColunaOrdenavel
+          label="Paciente"
+          ativaDesc={colunaAtivaDesc("PACIENTE")}
+          ativaAsc={colunaAtivaAsc("PACIENTE")}
+          posicao={posicaoOrdenacao("PACIENTE")}
+          onClick={(shift) => alternarOrdenacao("PACIENTE", shift)}
+          testId="ordenar-por-paciente"
+        />
+      ),
+      cell: (r) => r.paciente_nome
+        ? <span>{r.paciente_nome}</span>
+        : <span className="italic text-zinc-400">— sem vínculo —</span>,
+    },
+    CLINICA: {
+      align: "left",
+      visivel: () => filtroUnidadeId === null,
+      header: (
+        <ColunaOrdenavel
+          label="Clínica"
+          ativaDesc={colunaAtivaDesc("CLINICA")}
+          ativaAsc={colunaAtivaAsc("CLINICA")}
+          posicao={posicaoOrdenacao("CLINICA")}
+          onClick={(shift) => alternarOrdenacao("CLINICA", shift)}
+          testId="ordenar-por-clinica"
+        />
+      ),
+      cell: (r) => (
+        <span className="text-xs" style={{ color: NAVY }}>
+          {r.paciente_unidade_nome
+            ? <span>{r.paciente_unidade_nome}</span>
+            : <span className="italic text-zinc-400">—</span>}
+        </span>
+      ),
+    },
+    STATUS: {
+      align: "center",
+      header: (
+        <ColunaOrdenavel
+          label="Status" align="center"
+          ativaDesc={colunaAtivaDesc("STATUS")}
+          ativaAsc={colunaAtivaAsc("STATUS")}
+          posicao={posicaoOrdenacao("STATUS")}
+          onClick={(shift) => alternarOrdenacao("STATUS", shift)}
+          testId="ordenar-por-status"
+        />
+      ),
+      cell: (r) => <StatusBadge status={r.status} />,
+    },
+    VALOR: {
+      align: "right",
+      header: (
+        <ColunaOrdenavel
+          label="Valor" align="right"
+          ativaDesc={colunaAtivaDesc("VALOR")}
+          ativaAsc={colunaAtivaAsc("VALOR")}
+          posicao={posicaoOrdenacao("VALOR")}
+          onClick={(shift) => alternarOrdenacao("VALOR", shift)}
+          testId="ordenar-por-valor"
+        />
+      ),
+      cell: (r) => (
+        <span className="font-mono text-xs" style={{ color: NAVY }}>
+          {r.valor_brl !== null
+            ? formatarBRL(r.valor_brl)
+            : <span className="italic text-zinc-400">—</span>}
+        </span>
+      ),
+    },
+    FARMACIA: {
+      align: "left",
+      header: (
+        <ColunaOrdenavel
+          label="Farmácia"
+          ativaDesc={colunaAtivaDesc("FARMACIA")}
+          ativaAsc={colunaAtivaAsc("FARMACIA")}
+          posicao={posicaoOrdenacao("FARMACIA")}
+          onClick={(shift) => alternarOrdenacao("FARMACIA", shift)}
+          testId="ordenar-por-farmacia"
+        />
+      ),
+      cell: (r) => (
+        <span className="text-xs" style={{ color: NAVY }}>
+          {r.farmacia
+            ? <span>{r.farmacia}</span>
+            : <span className="italic text-zinc-400">—</span>}
+        </span>
+      ),
+    },
+    MEDICO: {
+      align: "left",
+      header: (
+        <ColunaOrdenavel
+          label="Médico"
+          ativaDesc={colunaAtivaDesc("MEDICO")}
+          ativaAsc={colunaAtivaAsc("MEDICO")}
+          posicao={posicaoOrdenacao("MEDICO")}
+          onClick={(shift) => alternarOrdenacao("MEDICO", shift)}
+          testId="ordenar-por-medico"
+        />
+      ),
+      cell: (r) => (
+        <span className="text-xs" style={{ color: NAVY }}>
+          {r.medico
+            ? <span>{r.medico}</span>
+            : <span className="italic text-zinc-400">—</span>}
+        </span>
+      ),
+    },
+    SIGNATARIOS: {
+      align: "center",
+      header: <span>Signatários</span>,
+      cell: (r) => (
+        <span className="font-mono text-xs">
+          <span style={{ color: GREEN, fontWeight: 700 }}>{r.signatarios_assinados}</span>
+          <span style={{ color: ZINC }}> / {r.signatarios_total}</span>
+        </span>
+      ),
+    },
+    AUDITORIA: {
+      align: "center",
+      header: <span>Auditoria</span>,
+      cell: (r) => r.auditoria_eventos > 0 ? (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-xs"
+          style={{ background: "#FEF3E8", color: GOLD }}
+          title="Manifesto SHA-256 gravado"
+        >
+          <ShieldCheck size={10} />
+          {r.auditoria_eventos}
+        </span>
+      ) : <span className="font-mono text-xs" style={{ color: ZINC }}>—</span>,
+    },
+    CRIADO: {
+      align: "left",
+      header: (
+        <ColunaOrdenavel
+          label="Criado"
+          ativaDesc={colunaAtivaDesc("CRIADO")}
+          ativaAsc={colunaAtivaAsc("CRIADO")}
+          posicao={posicaoOrdenacao("CRIADO")}
+          onClick={(shift) => alternarOrdenacao("CRIADO", shift)}
+          testId="ordenar-por-criado"
+        />
+      ),
+      cell: (r) => <span className="text-xs" style={{ color: ZINC }}>{formatarData(r.criado_em)}</span>,
+    },
+    CONCLUIDO: {
+      align: "left",
+      header: (
+        <ColunaOrdenavel
+          label="Concluído"
+          ativaDesc={colunaAtivaDesc("CONCLUIDO")}
+          ativaAsc={colunaAtivaAsc("CONCLUIDO")}
+          posicao={posicaoOrdenacao("CONCLUIDO")}
+          onClick={(shift) => alternarOrdenacao("CONCLUIDO", shift)}
+          testId="ordenar-por-concluido"
+        />
+      ),
+      cell: (r) => <span className="text-xs" style={{ color: ZINC }}>{formatarData(r.concluido_em)}</span>,
+    },
+    DETALHE: {
+      align: "center",
+      naoImprimir: true,
+      header: <span>Detalhe</span>,
+      cell: (r) => (
+        <Link
+          href={`/assinaturas/${r.id}`}
+          className="inline-flex items-center gap-1 text-xs font-semibold"
+          style={{ color: BLUE }}
+        >
+          Abrir <ExternalLink size={10} />
+        </Link>
+      ),
+    },
+  };
+
+  const colunasVisiveis: ColunaId[] = ordemColunas.filter((id) => {
+    const cfg = colunasConfig[id];
+    return cfg.visivel ? cfg.visivel() : true;
+  });
+
   return (
     <Layout>
       <div
@@ -760,6 +1155,24 @@ export default function AssinaturasTimeline() {
                     >
                       <X size={14} />
                       Limpar ordenação
+                    </button>
+                  )}
+                  {/* Task #208 — botao "Voltar pro padrao" do layout de
+                      colunas (ordem + largura). So aparece quando o usuario
+                      ja personalizou algo (arrastou ou redimensionou); senao
+                      polui a barra de acoes pra quem nunca mexeu. Reseta
+                      estado e apaga a chave de localStorage da conta atual. */}
+                  {!layoutColunasNoPadrao && (
+                    <button
+                      type="button"
+                      onClick={restaurarLayoutColunasPadrao}
+                      data-testid="botao-restaurar-layout-colunas"
+                      title="Voltar largura e ordem das colunas ao padrão"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition border"
+                      style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
+                    >
+                      <X size={14} />
+                      Voltar pro padrão
                     </button>
                   )}
                   {/* Task #198 — aviso de truncamento ANTES do clique. O backend
@@ -1084,198 +1497,115 @@ export default function AssinaturasTimeline() {
         {/* Tabela */}
         {rows.length > 0 && (
           <div className="bg-white border rounded overflow-hidden">
-            <table className="w-full text-sm">
+            {/* Task #208 — tabela renderizada a partir de `colunasVisiveis`
+                (lista de IDs ordenada conforme estado persistido). Cada th
+                expoe um drag handle (⋮⋮) pra reordenar via HTML5 drag &
+                drop, e um separador de 4px na borda direita pra
+                redimensionar via mousedown. Largura aplicada via inline
+                `width` + `minWidth` (table-layout fixed pra browser
+                respeitar exatamente). Body mapeia `colunasVisiveis` na
+                mesma ordem; tfoot recalcula colSpan dinamicamente em torno
+                da posicao atual de VALOR. */}
+            <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
               <thead style={{ background: "#F9FAFB", color: NAVY }}>
                 <tr>
-                  <th className="text-left px-3 py-2 font-semibold">#</th>
-                  <th className="text-left px-3 py-2 font-semibold">
-                    <ColunaOrdenavel
-                      label="Template"
-                      ativaDesc={colunaAtivaDesc("TEMPLATE")}
-                      ativaAsc={colunaAtivaAsc("TEMPLATE")}
-                      posicao={posicaoOrdenacao("TEMPLATE")}
-                      onClick={(shift) => alternarOrdenacao("TEMPLATE", shift)}
-                      testId="ordenar-por-template"
-                    />
-                  </th>
-                  <th className="text-left px-3 py-2 font-semibold">
-                    <ColunaOrdenavel
-                      label="Paciente"
-                      ativaDesc={colunaAtivaDesc("PACIENTE")}
-                      ativaAsc={colunaAtivaAsc("PACIENTE")}
-                      posicao={posicaoOrdenacao("PACIENTE")}
-                      onClick={(shift) => alternarOrdenacao("PACIENTE", shift)}
-                      testId="ordenar-por-paciente"
-                    />
-                  </th>
-                  {filtroUnidadeId === null && (
-                    <th className="text-left px-3 py-2 font-semibold">
-                      <ColunaOrdenavel
-                        label="Clínica"
-                        ativaDesc={colunaAtivaDesc("CLINICA")}
-                        ativaAsc={colunaAtivaAsc("CLINICA")}
-                        posicao={posicaoOrdenacao("CLINICA")}
-                        onClick={(shift) => alternarOrdenacao("CLINICA", shift)}
-                        testId="ordenar-por-clinica"
-                      />
-                    </th>
-                  )}
-                  <th className="text-center px-3 py-2 font-semibold">
-                    <ColunaOrdenavel
-                      label="Status"
-                      align="center"
-                      ativaDesc={colunaAtivaDesc("STATUS")}
-                      ativaAsc={colunaAtivaAsc("STATUS")}
-                      posicao={posicaoOrdenacao("STATUS")}
-                      onClick={(shift) => alternarOrdenacao("STATUS", shift)}
-                      testId="ordenar-por-status"
-                    />
-                  </th>
-                  <th className="text-right px-3 py-2 font-semibold">
-                    <ColunaOrdenavel
-                      label="Valor"
-                      align="right"
-                      ativaDesc={colunaAtivaDesc("VALOR")}
-                      ativaAsc={colunaAtivaAsc("VALOR")}
-                      posicao={posicaoOrdenacao("VALOR")}
-                      onClick={(shift) => alternarOrdenacao("VALOR", shift)}
-                      testId="ordenar-por-valor"
-                    />
-                  </th>
-                  <th className="text-left px-3 py-2 font-semibold">
-                    <ColunaOrdenavel
-                      label="Farmácia"
-                      ativaDesc={colunaAtivaDesc("FARMACIA")}
-                      ativaAsc={colunaAtivaAsc("FARMACIA")}
-                      posicao={posicaoOrdenacao("FARMACIA")}
-                      onClick={(shift) => alternarOrdenacao("FARMACIA", shift)}
-                      testId="ordenar-por-farmacia"
-                    />
-                  </th>
-                  <th className="text-left px-3 py-2 font-semibold">
-                    <ColunaOrdenavel
-                      label="Médico"
-                      ativaDesc={colunaAtivaDesc("MEDICO")}
-                      ativaAsc={colunaAtivaAsc("MEDICO")}
-                      posicao={posicaoOrdenacao("MEDICO")}
-                      onClick={(shift) => alternarOrdenacao("MEDICO", shift)}
-                      testId="ordenar-por-medico"
-                    />
-                  </th>
-                  <th className="text-center px-3 py-2 font-semibold">Signatários</th>
-                  <th className="text-center px-3 py-2 font-semibold">Auditoria</th>
-                  <th className="text-left px-3 py-2 font-semibold">
-                    <ColunaOrdenavel
-                      label="Criado"
-                      ativaDesc={colunaAtivaDesc("CRIADO")}
-                      ativaAsc={colunaAtivaAsc("CRIADO")}
-                      posicao={posicaoOrdenacao("CRIADO")}
-                      onClick={(shift) => alternarOrdenacao("CRIADO", shift)}
-                      testId="ordenar-por-criado"
-                    />
-                  </th>
-                  <th className="text-left px-3 py-2 font-semibold">
-                    <ColunaOrdenavel
-                      label="Concluído"
-                      ativaDesc={colunaAtivaDesc("CONCLUIDO")}
-                      ativaAsc={colunaAtivaAsc("CONCLUIDO")}
-                      posicao={posicaoOrdenacao("CONCLUIDO")}
-                      onClick={(shift) => alternarOrdenacao("CONCLUIDO", shift)}
-                      testId="ordenar-por-concluido"
-                    />
-                  </th>
-                  <th className="text-center px-3 py-2 font-semibold nao-imprimir">
-                    Detalhe
-                  </th>
+                  {colunasVisiveis.map((id) => {
+                    const cfg = colunasConfig[id];
+                    const sendoArrastada = colunaArrastando === id;
+                    const alvoArrasto = colunaAlvoArrasto === id && colunaArrastando !== null && colunaArrastando !== id;
+                    const alignClass =
+                      cfg.align === "right" ? "text-right" :
+                      cfg.align === "center" ? "text-center" : "text-left";
+                    const justifyClass =
+                      cfg.align === "right" ? "justify-end" :
+                      cfg.align === "center" ? "justify-center" : "justify-start";
+                    return (
+                      <th
+                        key={id}
+                        data-coluna-id={id}
+                        data-testid={`coluna-cabecalho-${id.toLowerCase()}`}
+                        className={`px-3 py-2 font-semibold ${alignClass} ${cfg.naoImprimir ? "nao-imprimir" : ""}`}
+                        style={{
+                          width: `${largurasColunas[id]}px`,
+                          minWidth: `${largurasColunas[id]}px`,
+                          position: "relative",
+                          opacity: sendoArrastada ? 0.4 : 1,
+                          background: alvoArrasto ? "#FEF3C7" : undefined,
+                          transition: "background 120ms",
+                        }}
+                        onDragOver={(e) => {
+                          if (!colunaArrastando || colunaArrastando === id) return;
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (colunaAlvoArrasto !== id) setColunaAlvoArrasto(id);
+                        }}
+                        onDragLeave={() => {
+                          if (colunaAlvoArrasto === id) setColunaAlvoArrasto(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (colunaArrastando && colunaArrastando !== id) {
+                            moverColuna(colunaArrastando, id);
+                          }
+                          setColunaArrastando(null);
+                          setColunaAlvoArrasto(null);
+                        }}
+                      >
+                        <div className={`flex items-center gap-1 ${justifyClass}`}>
+                          <span
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.effectAllowed = "move";
+                              e.dataTransfer.setData("text/plain", id);
+                              setColunaArrastando(id);
+                            }}
+                            onDragEnd={() => {
+                              setColunaArrastando(null);
+                              setColunaAlvoArrasto(null);
+                            }}
+                            title={`Arraste para reordenar a coluna "${LABEL_COLUNA_PT[id]}"`}
+                            aria-label={`Arrastar coluna ${LABEL_COLUNA_PT[id]}`}
+                            data-testid={`arrastar-coluna-${id.toLowerCase()}`}
+                            className="cursor-grab select-none text-zinc-400 hover:text-zinc-700 px-0.5 leading-none"
+                            style={{ fontSize: "11px" }}
+                          >
+                            ⋮⋮
+                          </span>
+                          <span className="flex-1 min-w-0 truncate">{cfg.header}</span>
+                        </div>
+                        <div
+                          onMouseDown={(e) => iniciarRedimensionamento(e, id)}
+                          role="separator"
+                          aria-orientation="vertical"
+                          aria-label={`Redimensionar coluna ${LABEL_COLUNA_PT[id]}`}
+                          title={`Arraste para redimensionar a coluna "${LABEL_COLUNA_PT[id]}"`}
+                          data-testid={`redimensionar-coluna-${id.toLowerCase()}`}
+                          className="absolute top-0 right-0 h-full cursor-col-resize hover:bg-zinc-400"
+                          style={{ width: "4px", userSelect: "none" }}
+                        />
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t hover:bg-zinc-50">
-                    <td className="px-3 py-2 font-mono text-xs">{r.id}</td>
-                    <td className="px-3 py-2">
-                      <div className="font-semibold" style={{ color: NAVY }}>
-                        {r.template_codigo}
-                      </div>
-                      <div className="text-xs" style={{ color: ZINC }}>
-                        {r.template_nome}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      {r.paciente_nome ? (
-                        <span>{r.paciente_nome}</span>
-                      ) : (
-                        <span className="italic text-zinc-400">— sem vínculo —</span>
-                      )}
-                    </td>
-                    {filtroUnidadeId === null && (
-                      <td className="px-3 py-2 text-xs" style={{ color: NAVY }}>
-                        {r.paciente_unidade_nome ? (
-                          <span>{r.paciente_unidade_nome}</span>
-                        ) : (
-                          <span className="italic text-zinc-400">—</span>
-                        )}
-                      </td>
-                    )}
-                    <td className="px-3 py-2 text-center">
-                      <StatusBadge status={r.status} />
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs" style={{ color: NAVY }}>
-                      {r.valor_brl !== null ? (
-                        <span>{formatarBRL(r.valor_brl)}</span>
-                      ) : (
-                        <span className="italic text-zinc-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs" style={{ color: NAVY }}>
-                      {r.farmacia ? (
-                        <span>{r.farmacia}</span>
-                      ) : (
-                        <span className="italic text-zinc-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs" style={{ color: NAVY }}>
-                      {r.medico ? (
-                        <span>{r.medico}</span>
-                      ) : (
-                        <span className="italic text-zinc-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-center font-mono text-xs">
-                      <span style={{ color: GREEN, fontWeight: 700 }}>
-                        {r.signatarios_assinados}
-                      </span>
-                      <span style={{ color: ZINC }}> / {r.signatarios_total}</span>
-                    </td>
-                    <td className="px-3 py-2 text-center font-mono text-xs">
-                      {r.auditoria_eventos > 0 ? (
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
-                          style={{ background: "#FEF3E8", color: GOLD }}
-                          title="Manifesto SHA-256 gravado"
+                    {colunasVisiveis.map((id) => {
+                      const cfg = colunasConfig[id];
+                      const alignClass =
+                        cfg.align === "right" ? "text-right" :
+                        cfg.align === "center" ? "text-center" : "";
+                      return (
+                        <td
+                          key={id}
+                          className={`px-3 py-2 ${alignClass} ${cfg.naoImprimir ? "nao-imprimir" : ""}`}
+                          style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
                         >
-                          <ShieldCheck size={10} />
-                          {r.auditoria_eventos}
-                        </span>
-                      ) : (
-                        <span style={{ color: ZINC }}>—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs" style={{ color: ZINC }}>
-                      {formatarData(r.criado_em)}
-                    </td>
-                    <td className="px-3 py-2 text-xs" style={{ color: ZINC }}>
-                      {formatarData(r.concluido_em)}
-                    </td>
-                    <td className="px-3 py-2 text-center nao-imprimir">
-                      <Link
-                        href={`/assinaturas/${r.id}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold"
-                        style={{ color: BLUE }}
-                      >
-                        Abrir <ExternalLink size={10} />
-                      </Link>
-                    </td>
+                          {cfg.cell(r)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -1284,25 +1614,31 @@ export default function AssinaturasTimeline() {
                   numerica embaixo da coluna Valor, deixando as outras vazias.
                   Mostra contagem de quantas linhas entraram na soma vs total
                   visivel pra o contador conferir (TCLE nao tem valor, fica de
-                  fora). */}
+                  fora). Task #208 — colSpan agora derivado da posicao atual
+                  de VALOR em `colunasVisiveis` (reordenacao + ocultacao da
+                  Clinica continuam funcionando). */}
               {(() => {
                 const linhasComValor = rows.filter((r) => r.valor_brl !== null);
                 const somaValor = linhasComValor.reduce(
                   (acc, r) => acc + (r.valor_brl || 0),
                   0,
                 );
-                const colsAntesValor = filtroUnidadeId === null ? 5 : 4;
-                const colsDepoisValor = 7;
+                const idxValor = colunasVisiveis.indexOf("VALOR");
+                if (idxValor === -1) return null;
+                const colsAntesValor = idxValor;
+                const colsDepoisValor = colunasVisiveis.length - idxValor - 1;
                 return (
                   <tfoot style={{ background: "#F9FAFB", color: NAVY }}>
                     <tr className="border-t-2" style={{ borderColor: GOLD }}>
-                      <td
-                        colSpan={colsAntesValor}
-                        className="px-3 py-2 text-right text-xs font-semibold"
-                      >
-                        Soma do valor visível ({linhasComValor.length} de{" "}
-                        {rows.length} linhas):
-                      </td>
+                      {colsAntesValor > 0 && (
+                        <td
+                          colSpan={colsAntesValor}
+                          className="px-3 py-2 text-right text-xs font-semibold"
+                        >
+                          Soma do valor visível ({linhasComValor.length} de{" "}
+                          {rows.length} linhas):
+                        </td>
+                      )}
                       <td
                         className="px-3 py-2 text-right font-mono text-sm font-bold"
                         style={{ color: GOLD }}
@@ -1310,7 +1646,7 @@ export default function AssinaturasTimeline() {
                       >
                         {formatarBRL(somaValor)}
                       </td>
-                      <td colSpan={colsDepoisValor} />
+                      {colsDepoisValor > 0 && <td colSpan={colsDepoisValor} />}
                     </tr>
                   </tfoot>
                 );
