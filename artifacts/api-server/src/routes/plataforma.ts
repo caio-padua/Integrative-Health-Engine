@@ -1827,6 +1827,93 @@ router.get(
   },
 );
 
+// ─────────── HISTORICO AVISOS CARENCIA LGPD CLINICA (Task #257) ────────
+// GET /api/plataforma/notif-carencia-lgpd-clinicas — lista os ultimos N
+// envios do worker `avisoVencimentoCarenciaLgpd` (Task #135) gravados em
+// `notif_carencia_lgpd_clinica_envios` (migration 051). Permite ao CEO ver
+// quais clinicas ja receberam aviso de vencimento da carencia LGPD, em que
+// dia BRT, com quantos destinatarios, status (OK/PARCIAL/ERRO) e erro
+// resumido. Tambem devolve a lista das clinicas EXCLUIDO_PENDENTE que
+// AINDA NAO receberam nenhum aviso (gap de visibilidade) pra fechar o loop.
+//
+// Filtros opcionais:
+//   - unidade_id (int): so envios desta unidade
+//   - status     (str): OK | ERRO | PARCIAL
+//   - tipo_aviso (str): AVISO_7D | AVISO_3D | AVISO_1D | VENCIDO_SEM_EXPORT
+//   - limite     (int 1..500, default 200)
+router.get(
+  "/plataforma/notif-carencia-lgpd-clinicas",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const limite = Math.max(
+      1,
+      Math.min(Number(req.query["limite"] ?? 200) || 200, 500),
+    );
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeId =
+      unidadeIdRaw !== undefined && unidadeIdRaw !== ""
+        ? Number(unidadeIdRaw)
+        : null;
+    const STATUS_VALIDOS = new Set(["OK", "ERRO", "PARCIAL"]);
+    const statusRaw = String(req.query["status"] ?? "");
+    const status = STATUS_VALIDOS.has(statusRaw) ? statusRaw : null;
+    const TIPOS_VALIDOS = new Set([
+      "AVISO_7D",
+      "AVISO_3D",
+      "AVISO_1D",
+      "VENCIDO_SEM_EXPORT",
+    ]);
+    const tipoRaw = String(req.query["tipo_aviso"] ?? "");
+    const tipoAviso = TIPOS_VALIDOS.has(tipoRaw) ? tipoRaw : null;
+
+    const filtroUnidade =
+      unidadeId && Number.isInteger(unidadeId)
+        ? sql`n.unidade_id = ${unidadeId}`
+        : sql`true`;
+    const filtroStatus = status ? sql`n.status = ${status}` : sql`true`;
+    const filtroTipo = tipoAviso
+      ? sql`n.tipo_aviso = ${tipoAviso}`
+      : sql`true`;
+
+    const result = await db.execute(sql`
+      SELECT
+        n.id, n.unidade_id, n.dia_brt, n.tipo_aviso, n.dias_restantes,
+        n.destinatarios, n.total_destinatarios, n.enviados, n.falhas,
+        n.status, n.erro, n.enviado_em,
+        un.nome AS unidade_nome
+      FROM notif_carencia_lgpd_clinica_envios n
+      LEFT JOIN unidades un ON un.id = n.unidade_id
+      WHERE ${filtroUnidade} AND ${filtroStatus} AND ${filtroTipo}
+      ORDER BY n.enviado_em DESC
+      LIMIT ${limite}
+    `);
+
+    // Clinicas EXCLUIDO_PENDENTE que ainda nao receberam NENHUM aviso —
+    // gap de visibilidade (worker nao disparou ainda OU destinatarios
+    // resolveram vazio antes da janela critica). LEFT JOIN + IS NULL.
+    const semAviso = await db.execute(sql`
+      SELECT
+        u.id, u.nome, u.exclusao_carencia_ate, u.lgpd_export_url,
+        CEIL(EXTRACT(EPOCH FROM (u.exclusao_carencia_ate - now())) / 86400)::int
+          AS dias_restantes
+      FROM unidades u
+      LEFT JOIN notif_carencia_lgpd_clinica_envios n
+        ON n.unidade_id = u.id
+      WHERE u.status = 'EXCLUIDO_PENDENTE'
+        AND u.exclusao_carencia_ate IS NOT NULL
+        AND n.id IS NULL
+      ORDER BY u.exclusao_carencia_ate ASC
+    `);
+
+    res.json({
+      envios: result.rows ?? [],
+      total: result.rows?.length ?? 0,
+      pendentes_sem_aviso: semAviso.rows ?? [],
+      filtro: { unidade_id: unidadeId, status, tipo_aviso: tipoAviso },
+    });
+  },
+);
+
 // GET /api/plataforma/seguranca/avisos-2fa.csv (Task #169) — mesmo dataset
 // da rota acima exportado como CSV pra correlacao externa (LGPD, planilhas
 // de auditoria, sistemas de incidentes). Usa os mesmos filtros (dias,
