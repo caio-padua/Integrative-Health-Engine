@@ -54,6 +54,11 @@ const CONTEXTO_LABEL: Record<string, string> = {
 
 const TIPO_LABEL: Record<string, string> = {
   "2FA_BRUTE_FORCE": "Brute-force 2FA",
+  "2FA_LOGIN_RECUPERACAO": "Login com codigo de recuperacao",
+  // Task #267 — destinatario (email/telefone) que falhou >=N vezes
+  // consecutivas no mesmo evento de kill-switch (sinal de cadastro
+  // obsoleto). Worker: avisoDestinatarioQuebrado.
+  "DESTINATARIO_AVISO_QUEBRADO": "Destinatario quebrado",
 };
 
 function formatarData(iso: string | null): string {
@@ -285,6 +290,33 @@ export default function PlataformaAlertasSeguranca() {
                         {tentativas !== null && (
                           <div className="text-zinc-500">
                             {tentativas} tentativas
+                          </div>
+                        )}
+                        {a.tipo === "DESTINATARIO_AVISO_QUEBRADO" && a.payload && (
+                          <div className="mt-2 space-y-0.5 text-zinc-400">
+                            <div className="text-[10px] uppercase tracking-wider text-zinc-500">
+                              clinica
+                            </div>
+                            <div className="font-mono text-zinc-300">
+                              {String(a.payload["unidade_nome"] ?? "—")}{" "}
+                              <span className="text-zinc-600">
+                                #{String(a.payload["unidade_id"] ?? "—")}
+                              </span>
+                            </div>
+                            <div className="text-[10px] uppercase tracking-wider text-zinc-500 mt-1">
+                              {String(a.payload["canal"] ?? "—")} ·{" "}
+                              {String(a.payload["acao"] ?? "—")}
+                            </div>
+                            <div
+                              className="font-mono text-zinc-300 break-all"
+                              data-testid={`alerta-destinatario-${a.id}`}
+                            >
+                              {String(a.payload["destinatario"] ?? "—")}
+                            </div>
+                            <div className="text-red-300 text-[11px]">
+                              {String(a.payload["falhas_consecutivas"] ?? "?")}{" "}
+                              falhas consecutivas
+                            </div>
                           </div>
                         )}
                       </td>
