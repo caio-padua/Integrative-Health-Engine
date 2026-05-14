@@ -171,29 +171,48 @@ export default function PlataformaAuditoria() {
   }
 
   const acoes = Array.from(new Set(eventos.map(e => e.acao))).sort();
-  const clinicas = Array.from(
-    new Set(
-      eventos
-        .map(e => e.unidade_nome ?? (e.unidade_id != null ? `id ${e.unidade_id}` : null))
-        .filter((v): v is string => v !== null),
-    ),
-  ).sort();
-  const executores = Array.from(
-    new Set(
-      eventos
-        .map(e => e.executor_nome ?? (e.executado_por_usuario_id != null ? `usuario ${e.executado_por_usuario_id}` : null))
-        .filter((v): v is string => v !== null),
-    ),
-  ).sort();
+  // Task #275 — filtros de clinica e executor agora armazenam o ID estavel
+  // (string), nao o rotulo. Evita ambiguidade quando duas clinicas/executores
+  // tem o mesmo nome (caso real: filiais homonimas, usuarios com nome igual)
+  // — antes a UI agrupava todos sob o mesmo rotulo, mas o CSV exportava so
+  // os de UM dos IDs. As opcoes do <select> exibem "nome (id)" pra deixar
+  // visivel quando ha colisao de nome.
+  const clinicasOpcoes = (() => {
+    const map = new Map<string, string>();
+    for (const e of eventos) {
+      if (e.unidade_id == null) continue;
+      const id = String(e.unidade_id);
+      if (!map.has(id)) {
+        map.set(id, e.unidade_nome ?? `id ${e.unidade_id}`);
+      }
+    }
+    return Array.from(map, ([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  })();
+  const executoresOpcoes = (() => {
+    const map = new Map<string, string>();
+    for (const e of eventos) {
+      if (e.executado_por_usuario_id == null) continue;
+      const id = String(e.executado_por_usuario_id);
+      if (!map.has(id)) {
+        map.set(id, e.executor_nome ?? `usuario ${e.executado_por_usuario_id}`);
+      }
+    }
+    return Array.from(map, ([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  })();
   const visiveis = eventos.filter(e => {
     if (filtroAcao && e.acao !== filtroAcao) return false;
     if (filtroClinica) {
-      const nome = e.unidade_nome ?? (e.unidade_id != null ? `id ${e.unidade_id}` : null);
-      if (nome !== filtroClinica) return false;
+      if (e.unidade_id == null || String(e.unidade_id) !== filtroClinica) return false;
     }
     if (filtroExecutor) {
-      const nome = e.executor_nome ?? (e.executado_por_usuario_id != null ? `usuario ${e.executado_por_usuario_id}` : null);
-      if (nome !== filtroExecutor) return false;
+      if (
+        e.executado_por_usuario_id == null
+        || String(e.executado_por_usuario_id) !== filtroExecutor
+      ) {
+        return false;
+      }
     }
     // Task #254 — janela [de 00:00, ate 23:59:59.999] interpretada no fuso
     // local do navegador, batendo com a coluna "Quando" (toLocaleString).
@@ -211,34 +230,42 @@ export default function PlataformaAuditoria() {
     return true;
   });
 
-  function exportarCsv() {
-    // Task #255 — exporta exatamente a lista filtrada (mesma `visiveis` que
-    // o usuario ve). Colunas: data/hora, acao, clinica, executor, email do
-    // executor, IP, motivo. Nome do arquivo inclui timestamp local.
-    const colunas = ["data_hora", "acao", "clinica", "executor", "executor_email", "ip", "motivo"];
-    const escapar = (v: unknown): string => {
-      if (v === null || v === undefined) return "";
-      const s = String(v);
-      if (/[",\n\r;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-      return s;
-    };
-    const linhas = visiveis.map(e => [
-      new Date(e.criado_em).toLocaleString("pt-BR"),
-      e.acao,
-      e.unidade_nome ?? (e.unidade_id != null ? `id ${e.unidade_id}` : ""),
-      e.executor_nome ?? (e.executado_por_usuario_id != null ? `usuario ${e.executado_por_usuario_id}` : ""),
-      e.executor_email ?? "",
-      e.ip ?? "",
-      e.motivo ?? "",
-    ].map(escapar).join(","));
-    // BOM UTF-8 pra Excel reconhecer acentos.
-    const csv = "\uFEFF" + [colunas.join(","), ...linhas].join("\n");
+  // Task #275 — agora delega pro endpoint server-side
+  // GET /api/plataforma/auditoria.csv. Repassa limite + intervalo de datas
+  // (mesmos filtros suportados pela rota). Os filtros client-side de acao,
+  // clinica e executor continuam afetando so o que aparece na tela; o CSV
+  // traz todos os eventos da janela pra fechar o ciclo de evidencia LGPD.
+  async function exportarCsv() {
+    const params = new URLSearchParams();
+    params.set("limite", "500");
+    if (filtroDataDe) params.set("dataDe", filtroDataDe);
+    if (filtroDataAte) params.set("dataAte", filtroDataAte);
+    if (filtroAcao) params.set("acao", filtroAcao);
+    // filtroClinica e filtroExecutor agora ja sao IDs estaveis (string)
+    // — selecionados diretamente no <select>. Manda 1:1 pro server, sem
+    // intermediar por rotulo (que poderia colidir entre registros).
+    if (filtroClinica) params.set("unidadeId", filtroClinica);
+    if (filtroExecutor) params.set("executorId", filtroExecutor);
+    const r = await runWithStepUp(() =>
+      apiFetch(`/api/plataforma/auditoria.csv?${params.toString()}`, {
+        credentials: "include",
+      }),
+    );
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Falha ao exportar CSV: ${j.error ?? r.statusText}`);
+      return;
+    }
+    const blob = await r.blob();
+    // Tenta extrair o filename do Content-Disposition; cai num default
+    // local se o header nao vier (proxy/intermediario filtrou, etc).
+    const cd = r.headers.get("Content-Disposition") ?? "";
+    const m = /filename="?([^";]+)"?/i.exec(cd);
     const agora = new Date();
     const yyyy = agora.getFullYear();
     const mm = String(agora.getMonth() + 1).padStart(2, "0");
     const dd = String(agora.getDate()).padStart(2, "0");
-    const nome = `auditoria-${yyyy}-${mm}-${dd}.csv`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const nome = m?.[1] ?? `auditoria-${yyyy}-${mm}-${dd}.csv`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -277,7 +304,11 @@ export default function PlataformaAuditoria() {
               className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm"
             >
               <option value="">Todas as clinicas</option>
-              {clinicas.map(c => <option key={c} value={c}>{c}</option>)}
+              {clinicasOpcoes.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.label} (id {c.id})
+                </option>
+              ))}
             </select>
             <select
               value={filtroExecutor}
@@ -285,7 +316,11 @@ export default function PlataformaAuditoria() {
               className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm"
             >
               <option value="">Todos os executores</option>
-              {executores.map(x => <option key={x} value={x}>{x}</option>)}
+              {executoresOpcoes.map(x => (
+                <option key={x.id} value={x.id}>
+                  {x.label} (id {x.id})
+                </option>
+              ))}
             </select>
             {/* Task #254 — intervalo de datas (de/ate). Vazios = sem filtro. */}
             <label className="flex items-center gap-1 text-xs text-zinc-400">

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { db, usuariosTable, unidadesTable, whatsappMensagensLogTable } from "@workspace/db";
-import { eq, sql, inArray, desc } from "drizzle-orm";
+import { eq, sql, inArray, desc, type SQL } from "drizzle-orm";
 import { requirePlataforma } from "../middlewares/requirePlataforma";
 import { require2faRecente, JANELA_2FA_HORAS as JANELA_2FA_HORAS_SHARED } from "../middlewares/require2faRecente";
 import { verificarCodigoTotp } from "../lib/auth/totp";
@@ -2502,6 +2502,142 @@ router.get("/plataforma/seguranca/avisos-2fa.csv", ...guardas, async (req, res):
 });
 
 // ──────────────────────────── AUDITORIA ────────────────────────────────
+// GET /api/plataforma/auditoria.csv (Task #275) — exporta a timeline da
+// auditoria geral (kill-switch, suspensoes, reativacoes, promocoes de admin
+// etc.) em CSV pra evidencia LGPD/auditoria externa. Mesmos guardas da rota
+// JSON (platform_owner + 2FA recente). Aceita limite + intervalo de datas
+// (dataDe/dataAte em yyyy-mm-dd, interpretado no fuso America/Sao_Paulo
+// pra bater com a coluna "Quando" da tela). Aceita tambem `acao`,
+// `unidadeId` e `executorId` pra refletir os filtros visiveis na UI.
+// Colunas conforme task: criado_em, acao, unidade, executor (nome <email>),
+// motivo, ip, user_agent, metadata.
+router.get("/plataforma/auditoria.csv", ...guardas, async (req, res): Promise<void> => {
+  const limite = Math.min(Number(req.query["limite"] ?? 500) || 500, 5000);
+  const dataDeRaw = typeof req.query["dataDe"] === "string" ? req.query["dataDe"] : "";
+  const dataAteRaw = typeof req.query["dataAte"] === "string" ? req.query["dataAte"] : "";
+  const dataDeOk = /^\d{4}-\d{2}-\d{2}$/.test(dataDeRaw) ? dataDeRaw : null;
+  const dataAteOk = /^\d{4}-\d{2}-\d{2}$/.test(dataAteRaw) ? dataAteRaw : null;
+  // Demais filtros que a tela tem (acao, unidade, executor) — batem
+  // exatamente com os <select> da UI pra que o CSV reflita o que o
+  // usuario ve. Strings vazias = sem filtro.
+  const acaoFiltro = typeof req.query["acao"] === "string" && req.query["acao"]
+    ? req.query["acao"] : null;
+  const unidadeIdFiltro = req.query["unidadeId"] != null && req.query["unidadeId"] !== ""
+    ? Number(req.query["unidadeId"]) : null;
+  const executorIdFiltro = req.query["executorId"] != null && req.query["executorId"] !== ""
+    ? Number(req.query["executorId"]) : null;
+
+  const condicoes: SQL[] = [];
+  if (dataDeOk) {
+    // Wave V275 — datas vem do <input type="date"> do navegador, que
+    // representa o dia LOCAL do usuario. Pra bater com a coluna "Quando"
+    // (renderizada com toLocaleString), interpretamos no fuso de Sao Paulo
+    // (timezone institucional Pawards) — `AT TIME ZONE` resolve o offset
+    // de DST sem precisar hardcodar.
+    condicoes.push(sql`a.criado_em >= (${`${dataDeOk} 00:00:00`}::timestamp AT TIME ZONE 'America/Sao_Paulo')`);
+  }
+  if (dataAteOk) {
+    condicoes.push(sql`a.criado_em <= (${`${dataAteOk} 23:59:59.999`}::timestamp AT TIME ZONE 'America/Sao_Paulo')`);
+  }
+  if (acaoFiltro) {
+    condicoes.push(sql`a.acao = ${acaoFiltro}`);
+  }
+  if (unidadeIdFiltro != null && Number.isFinite(unidadeIdFiltro)) {
+    condicoes.push(sql`a.unidade_id = ${unidadeIdFiltro}`);
+  }
+  if (executorIdFiltro != null && Number.isFinite(executorIdFiltro)) {
+    condicoes.push(sql`a.executado_por_usuario_id = ${executorIdFiltro}`);
+  }
+  const where = condicoes.length > 0
+    ? sql`WHERE ${sql.join(condicoes, sql` AND `)}`
+    : sql``;
+
+  const result = await db.execute(sql`
+    SELECT
+      a.criado_em, a.acao, a.unidade_id, a.motivo, a.ip, a.user_agent, a.metadata,
+      un.nome AS unidade_nome,
+      ex.nome AS executor_nome,
+      ex.email AS executor_email,
+      a.executado_por_usuario_id
+    FROM auditoria_kill_switch a
+    LEFT JOIN unidades un ON un.id = a.unidade_id
+    LEFT JOIN usuarios ex ON ex.id = a.executado_por_usuario_id
+    ${where}
+    ORDER BY a.criado_em DESC
+    LIMIT ${limite}
+  `);
+
+  const linhas = (result.rows ?? []) as Array<{
+    criado_em: string;
+    acao: string;
+    unidade_id: number | null;
+    motivo: string | null;
+    ip: string | null;
+    user_agent: string | null;
+    metadata: unknown;
+    unidade_nome: string | null;
+    executor_nome: string | null;
+    executor_email: string | null;
+    executado_por_usuario_id: number | null;
+  }>;
+
+  // RFC 4180: campos com aspas, virgula ou quebra de linha precisam ser
+  // envolvidos em aspas duplas e ter aspas internas duplicadas.
+  const escapar = (v: unknown): string => {
+    if (v == null) return "";
+    const s = typeof v === "string" ? v : String(v);
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const unidadeRotulo = (l: (typeof linhas)[number]): string =>
+    l.unidade_nome ?? (l.unidade_id != null ? `id ${l.unidade_id}` : "");
+  const executorRotulo = (l: (typeof linhas)[number]): string => {
+    const nome = l.executor_nome
+      ?? (l.executado_por_usuario_id != null ? `usuario ${l.executado_por_usuario_id}` : "");
+    if (!nome) return l.executor_email ?? "";
+    return l.executor_email ? `${nome} <${l.executor_email}>` : nome;
+  };
+
+  const cabecalho = [
+    "criado_em",
+    "acao",
+    "unidade",
+    "executor",
+    "motivo",
+    "ip",
+    "user_agent",
+    "metadata",
+  ];
+  const corpo = linhas.map((l) =>
+    [
+      l.criado_em instanceof Date ? l.criado_em.toISOString() : l.criado_em,
+      l.acao,
+      unidadeRotulo(l),
+      executorRotulo(l),
+      l.motivo ?? "",
+      l.ip ?? "",
+      l.user_agent ?? "",
+      l.metadata == null ? "" : JSON.stringify(l.metadata),
+    ]
+      .map(escapar)
+      .join(","),
+  );
+  // BOM UTF-8 pra Excel reconhecer acentos. CRLF por compatibilidade RFC 4180.
+  const csv = "\uFEFF" + [cabecalho.join(","), ...corpo].join("\r\n") + "\r\n";
+
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const sufixoJanela = dataDeOk || dataAteOk
+    ? `-${dataDeOk ?? "inicio"}_a_${dataAteOk ?? "hoje"}`
+    : "";
+  const nomeArquivo = `auditoria${sufixoJanela}-${stamp}.csv`;
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${nomeArquivo}"`,
+  );
+  res.send(csv);
+});
+
 // GET /api/plataforma/auditoria — timeline cronologica das acoes sensiveis
 router.get("/plataforma/auditoria", ...guardas, async (req, res): Promise<void> => {
   const limite = Math.min(Number(req.query.limite ?? 200) || 200, 1000);
