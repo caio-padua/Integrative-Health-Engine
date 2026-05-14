@@ -8,6 +8,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { pool } from "@workspace/db";
 import type { JwtPayload } from "../lib/auth/jwt";
+import { dispararDigestAlertas } from "../services/alertasDigestService";
 
 const router = Router();
 
@@ -1524,6 +1525,113 @@ router.patch("/appointments/:id/status", async (req: AuthedRequest, res) => {
     res.json({ ok: true, id, status: upd.rows[0].status, anterior: statusAtual });
   } catch (e: any) {
     console.error("[painel-pawards/appointments/status]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
+// 13) DIGEST DIARIO DE ALERTAS — historico + reenvio manual (Task #238)
+// Lê alertas_digest_envios (migration 050, Task #26) pro Caio ver quais
+// dias o digest saiu, pra quem foi e se algum envio falhou — sem precisar
+// abrir o banco. Reenvio chama dispararDigestAlertas com forcar:true.
+// ===========================================================================
+router.get("/digest/historico", async (req: AuthedRequest, res) => {
+  try {
+    if (!isMaster(req)) {
+      res.status(403).json({ error: "Acesso restrito ao perfil master" });
+      return;
+    }
+    const dias = Math.min(Math.max(Number(req.query.dias ?? 30) || 30, 1), 90);
+    interface AlertasDigestEnvioRow {
+      id: number;
+      dia_brt: Date | string;
+      destinatario_email: string;
+      enviado_em: Date | string;
+      status: string;
+      gmail_message_id: string | null;
+      total_alertas: number;
+      clinicas_abaixo_min: number;
+      kpis_fora_faixa: number;
+      pendencias: number;
+      erro: string | null;
+      origem: string;
+    }
+
+    const { rows } = await pool.query<AlertasDigestEnvioRow>(
+      `
+      SELECT
+        id,
+        dia_brt,
+        destinatario_email,
+        enviado_em,
+        status,
+        gmail_message_id,
+        total_alertas,
+        clinicas_abaixo_min,
+        kpis_fora_faixa,
+        pendencias,
+        erro,
+        origem
+      FROM alertas_digest_envios
+      WHERE dia_brt >= CURRENT_DATE - ($1 || ' days')::interval
+      ORDER BY dia_brt DESC, enviado_em DESC
+      `,
+      [dias],
+    );
+
+    // Agrupa por dia pra UI montar acordeon. Mantem lista crua tambem
+    // pra quem quiser tabela flat (CSV futuro, debug, etc).
+    const porDia = new Map<string, AlertasDigestEnvioRow[]>();
+    for (const r of rows) {
+      const dia = r.dia_brt instanceof Date
+        ? r.dia_brt.toISOString().slice(0, 10)
+        : String(r.dia_brt).slice(0, 10);
+      if (!porDia.has(dia)) porDia.set(dia, []);
+      porDia.get(dia)!.push(r);
+    }
+    const dias_agrupados = Array.from(porDia.entries()).map(([dia, envios]) => ({
+      dia_brt: dia,
+      envios,
+      total_envios: envios.length,
+      total_enviados: envios.filter((e) => e.status === "ENVIADO").length,
+      total_erros: envios.filter((e) => e.status === "ERRO").length,
+      total_alertas_no_dia: envios[0]?.total_alertas ?? 0,
+    }));
+
+    res.json({
+      dias,
+      total_envios: rows.length,
+      total_dias: dias_agrupados.length,
+      dias_agrupados,
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/digest/historico]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/digest/reenviar", async (req: AuthedRequest, res) => {
+  try {
+    if (!isMaster(req)) {
+      res.status(403).json({ error: "Acesso restrito ao perfil master" });
+      return;
+    }
+    const destinatariosBody = Array.isArray(req.body?.destinatarios)
+      ? (req.body.destinatarios as unknown[])
+          .map((s) => String(s).trim().toLowerCase())
+          .filter((s) => s.includes("@"))
+      : undefined;
+
+    const resultado = await dispararDigestAlertas({
+      forcar: true,
+      origem: "MANUAL",
+      destinatarios: destinatariosBody && destinatariosBody.length > 0
+        ? destinatariosBody
+        : undefined,
+    });
+    res.json(resultado);
+  } catch (e: any) {
+    console.error("[painel-pawards/digest/reenviar]", e);
     res.status(500).json({ error: e.message });
   }
 });
