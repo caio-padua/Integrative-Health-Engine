@@ -173,6 +173,36 @@ export default function PortalClientePage() {
     setClinicaSuspensa(null);
   };
 
+  // Task #181 — enquanto o banner de clinica suspensa esta visivel e o
+  // paciente esta logado, faz polling em background numa rota leve do
+  // portal a cada 30s. Quando volta 200 (clinica voltou ao ar), o banner
+  // some e mostramos um toast pro paciente saber sem precisar clicar em
+  // outro menu. Polling para automaticamente quando o paciente sai do
+  // portal (logout/unmount) ou quando o banner deixa de estar visivel.
+  useEffect(() => {
+    if (!clinicaSuspensa) return;
+    if (!paciente) return; // so polla quando ja temos id do paciente
+    if (step !== "portal") return;
+    let cancelado = false;
+    const checar = async () => {
+      try {
+        const res = await apiFetch(`/api/portal/ping/${paciente.id}`);
+        if (cancelado) return;
+        if (res.ok) {
+          setClinicaSuspensa(null);
+          toast({ title: "Clinica voltou — voce ja pode usar o portal" });
+        }
+      } catch {
+        /* ignore — proximo tick tenta de novo */
+      }
+    };
+    const intervalo = window.setInterval(checar, 30_000);
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalo);
+    };
+  }, [clinicaSuspensa, paciente, step, toast]);
+
   const formatCPF = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
     if (digits.length <= 3) return digits;

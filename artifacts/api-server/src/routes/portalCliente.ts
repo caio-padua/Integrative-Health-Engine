@@ -178,6 +178,22 @@ async function bloquearSeClinicaSuspensa(pacienteId: number, res: any): Promise<
   return false;
 }
 
+// Task #181 — endpoint leve de polling para o banner "clinica suspensa"
+// no portal do paciente. O frontend chama isso a cada 30s enquanto o
+// banner esta visivel; quando volta 200 a UI esconde o banner e mostra
+// um toast "Clinica voltou — voce ja pode usar o portal". Mesma forma
+// que as demais rotas autenticadas: 503 com payload CLINICA_SUSPENSA
+// quando ainda esta bloqueada.
+router.get("/portal/ping/:pacienteId", async (req, res) => {
+  const pacienteId = Number(req.params.pacienteId);
+  if (!Number.isFinite(pacienteId) || pacienteId <= 0) {
+    res.status(400).json({ error: "pacienteId invalido" });
+    return;
+  }
+  if (await bloquearSeClinicaSuspensa(pacienteId, res)) return;
+  res.json({ ok: true });
+});
+
 router.get("/portal/meus-agendamentos/:pacienteId", async (req, res) => {
   try {
     const pacienteId = Number(req.params.pacienteId);
