@@ -16,6 +16,8 @@ import {
   Mail,
   ExternalLink,
   Lock,
+  Repeat,
+  AlertOctagon,
 } from "lucide-react";
 
 type Alerta = {
@@ -30,6 +32,9 @@ type Alerta = {
   notif_email_enviados: number;
   notif_email_falhas: number;
   notif_destinatarios: string[] | null;
+  // Task #167 / #193 — re-tentativas do worker alertaBruteForceRetryEnvio.
+  notif_retry_tentativas: number | null;
+  notif_ultimo_retry_em: string | null;
   visualizado_em: string | null;
   visualizado_por_usuario_id: number | null;
   criado_em: string;
@@ -37,7 +42,10 @@ type Alerta = {
   usuario_email: string | null;
 };
 
-type Filtro = "todos" | "pendentes" | "vistos";
+// Task #193 — `falha_persistente` filtra retry estourou cap (>= 3) AND
+// ainda tem falha de envio: precisa acao manual do CEO (rever Gmail,
+// destinatarios, etc).
+type Filtro = "todos" | "pendentes" | "vistos" | "falha_persistente";
 
 const CONTEXTO_LABEL: Record<string, string> = {
   LOGIN_2FA: "Login 2FA",
@@ -65,6 +73,9 @@ export default function PlataformaAlertasSeguranca() {
   const [erro, setErro] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("pendentes");
   const [marcandoId, setMarcandoId] = useState<number | null>(null);
+  // Task #193 — cap de retries vem do servidor (env do worker). Default 3
+  // pra renderizar enquanto a primeira resposta nao chega.
+  const [retryCap, setRetryCap] = useState<number>(3);
   const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
@@ -73,7 +84,9 @@ export default function PlataformaAlertasSeguranca() {
     const url =
       filtro === "pendentes"
         ? "/api/plataforma/alertas-seguranca?apenas_nao_vistos=true&limite=200"
-        : "/api/plataforma/alertas-seguranca?limite=200";
+        : filtro === "falha_persistente"
+          ? "/api/plataforma/alertas-seguranca?apenas_falha_persistente=true&limite=200"
+          : "/api/plataforma/alertas-seguranca?limite=200";
     const r = await runWithStepUp(() =>
       apiFetch(url, { credentials: "include" }),
     );
@@ -85,6 +98,9 @@ export default function PlataformaAlertasSeguranca() {
     }
     const j = await r.json();
     setAlertas(Array.isArray(j.alertas) ? j.alertas : []);
+    if (typeof j.retry_tentativas_cap === "number" && j.retry_tentativas_cap > 0) {
+      setRetryCap(j.retry_tentativas_cap);
+    }
     setLoading(false);
   }, [filtro, runWithStepUp]);
 
@@ -121,9 +137,21 @@ export default function PlataformaAlertasSeguranca() {
       ? alertas.filter((a) => a.visualizado_em)
       : filtro === "pendentes"
         ? alertas.filter((a) => !a.visualizado_em)
-        : alertas;
+        : filtro === "falha_persistente"
+          ? alertas.filter(
+              (a) =>
+                (a.notif_retry_tentativas ?? 0) >= retryCap &&
+                a.notif_email_falhas > 0,
+            )
+          : alertas;
 
   const totalPendentes = alertas.filter((a) => !a.visualizado_em).length;
+  // Task #193 — contagem usada no dropdown pra triagem rapida sem precisar
+  // trocar de filtro. Calculada sobre a lista atualmente carregada.
+  const totalFalhaPersistente = alertas.filter(
+    (a) =>
+      (a.notif_retry_tentativas ?? 0) >= retryCap && a.notif_email_falhas > 0,
+  ).length;
 
   return (
     <Layout>
@@ -148,6 +176,9 @@ export default function PlataformaAlertasSeguranca() {
               <option value="pendentes">Pendentes ({totalPendentes})</option>
               <option value="todos">Todos</option>
               <option value="vistos">Ja vistos</option>
+              <option value="falha_persistente">
+                So com falha de envio persistente ({totalFalhaPersistente})
+              </option>
             </select>
             <button
               onClick={() => void carregar()}
@@ -182,6 +213,7 @@ export default function PlataformaAlertasSeguranca() {
                 <th className="text-left px-4 py-3">Contexto</th>
                 <th className="text-left px-4 py-3">Origem</th>
                 <th className="text-left px-4 py-3">Notificacao</th>
+                <th className="text-left px-4 py-3">Re-envio</th>
                 <th className="text-left px-4 py-3">Status</th>
                 <th className="text-right px-4 py-3">Acoes</th>
               </tr>
@@ -190,7 +222,7 @@ export default function PlataformaAlertasSeguranca() {
               {loading && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     Carregando...
@@ -200,7 +232,7 @@ export default function PlataformaAlertasSeguranca() {
               {!loading && visiveis.length === 0 && !erro && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     Nenhum alerta {filtro === "pendentes" ? "pendente" : ""} no
@@ -285,6 +317,48 @@ export default function PlataformaAlertasSeguranca() {
                               {a.notif_destinatarios.join(", ")}
                             </div>
                           )}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {(() => {
+                          const retries = a.notif_retry_tentativas ?? 0;
+                          const falhouPersistente =
+                            retries >= retryCap && a.notif_email_falhas > 0;
+                          if (retries === 0) {
+                            return (
+                              <span className="text-zinc-600">
+                                sem re-envio
+                              </span>
+                            );
+                          }
+                          return (
+                            <div className="space-y-1">
+                              <div
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border font-mono ${
+                                  falhouPersistente
+                                    ? "bg-red-500/15 text-red-300 border-red-500/40"
+                                    : "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                                }`}
+                                data-testid={`badge-retry-${a.id}`}
+                              >
+                                <Repeat size={11} /> {retries}/{retryCap}
+                              </div>
+                              {a.notif_ultimo_retry_em && (
+                                <div className="text-[10px] text-zinc-500">
+                                  ultimo: {formatarData(a.notif_ultimo_retry_em)}
+                                </div>
+                              )}
+                              {falhouPersistente && (
+                                <div
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-200 border border-red-500/50 text-[10px] font-semibold"
+                                  data-testid={`badge-falha-persistente-${a.id}`}
+                                  title="Worker estourou o cap de re-tentativas e ainda registra falha. Acao manual necessaria (rever Gmail/destinatarios)."
+                                >
+                                  <AlertOctagon size={11} /> Falha permanente
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-xs">
                         {naoVisto ? (

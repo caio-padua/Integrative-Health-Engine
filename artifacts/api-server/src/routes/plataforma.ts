@@ -1478,6 +1478,12 @@ router.post(
 router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promise<void> => {
   const limite = Math.min(Number(req.query["limite"] ?? 100) || 100, 500);
   const apenasNaoVistos = String(req.query["apenas_nao_vistos"] ?? "") === "true";
+  // Task #193 — filtro "so com falha de envio persistente": linhas onde o
+  // worker `alertaBruteForceRetryEnvio` (Task #167) ja estourou o cap de
+  // retries (notif_retry_tentativas >= 3) E ainda tem falhas registradas
+  // (notif_email_falhas > 0). Sao alertas que precisam acao manual.
+  const apenasFalhaPersistente =
+    String(req.query["apenas_falha_persistente"] ?? "") === "true";
   // Task #175 — filtro de janela temporal (horas). Quando informado:
   //   - Filtra rows da fila por criado_em >= now() - janela
   //   - Retorna agregados `total_janela` / `total_janela_anterior` /
@@ -1493,6 +1499,18 @@ router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promis
     ? sql`a.criado_em >= now() - (${janelaHoras}::int * INTERVAL '1 hour')`
     : sql`true`;
   const filtroNaoVistos = apenasNaoVistos ? sql`a.visualizado_em IS NULL` : sql`true`;
+  // Task #193 — cap de retries vem do worker (env BRUTEFORCE_RETRY_TENTATIVAS_MAX,
+  // default 3). Saneado pra inteiro positivo: se o env vier invalido (string
+  // nao-numerica, NaN, <=0), cai no default 3 pra nao quebrar SQL/UI. Exposto
+  // na resposta pra UI renderizar "X/cap" sem hardcodar do lado do cliente.
+  const retryCapRaw = Number(process.env["BRUTEFORCE_RETRY_TENTATIVAS_MAX"]);
+  const retryTentativasCap =
+    Number.isFinite(retryCapRaw) && retryCapRaw > 0
+      ? Math.floor(retryCapRaw)
+      : 3;
+  const filtroFalhaPersistente = apenasFalhaPersistente
+    ? sql`a.notif_retry_tentativas >= ${retryTentativasCap} AND a.notif_email_falhas > 0`
+    : sql`true`;
 
   const result = await db.execute(sql`
     SELECT
@@ -1500,11 +1518,12 @@ router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promis
       a.contexto, a.payload, a.notif_email_enviados, a.notif_email_falhas,
       a.notif_destinatarios, a.visualizado_em, a.visualizado_por_usuario_id,
       a.criado_em,
+      a.notif_retry_tentativas, a.notif_ultimo_retry_em,
       us.nome AS usuario_nome,
       us.email AS usuario_email
     FROM alertas_ceo_seguranca a
     LEFT JOIN usuarios us ON us.id = a.usuario_id
-    WHERE ${filtroJanela} AND ${filtroNaoVistos}
+    WHERE ${filtroJanela} AND ${filtroNaoVistos} AND ${filtroFalhaPersistente}
     ORDER BY a.criado_em DESC
     LIMIT ${limite}
   `);
@@ -1512,6 +1531,9 @@ router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promis
   const resposta: Record<string, unknown> = {
     alertas: result.rows,
     total: result.rows?.length ?? 0,
+    // Task #193 — cap exposto pra UI renderizar "X / cap" + decidir badge
+    // de falha permanente sem hardcodar do lado do cliente.
+    retry_tentativas_cap: retryTentativasCap,
   };
 
   if (janelaHoras) {
