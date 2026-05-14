@@ -243,7 +243,16 @@ export class ZapsignAdapter extends BaseMockableAdapter {
   protected get token() {
     return process.env["ZAPSIGN_API_TOKEN"] || process.env["ZAPSIGN_TOKEN"];
   }
-  protected get webhookSecret() { return process.env["ZAPSIGN_WEBHOOK_SECRET"]; }
+  /**
+   * Aceita ZAPSIGN_WEBHOOK_SECRET (atual) OU ZAPSIGN_WEBHOOK_SECRET_NEXT
+   * (proximo, durante janela de rotacao). O getter so precisa devolver
+   * truthy pra desbloquear o branch de validacao no Base — a checagem
+   * real de qual valor bate eh feita em validateWebhookSignature, que
+   * compara o header recebido contra OS DOIS segredos via timingSafeEqual.
+   */
+  protected get webhookSecret() {
+    return process.env["ZAPSIGN_WEBHOOK_SECRET"] || process.env["ZAPSIGN_WEBHOOK_SECRET_NEXT"];
+  }
 
   /**
    * Sandbox ZapSign automatico em ambientes nao-producao (sandbox.api.zapsign.com.br).
@@ -389,14 +398,37 @@ export class ZapsignAdapter extends BaseMockableAdapter {
    */
   protected signatureHeaderName(): string { return "x-pawards-secret"; }
 
-  protected validateWebhookSignature(_rawBody: Buffer, sigStr: string, secret: string): boolean {
-    try {
-      const a = Buffer.from(sigStr, "utf8");
-      const b = Buffer.from(secret, "utf8");
-      return a.length === b.length && timingSafeEqual(a, b);
-    } catch {
-      return false;
+  /**
+   * Compara o header `x-pawards-secret` contra ZAPSIGN_WEBHOOK_SECRET (atual)
+   * E ZAPSIGN_WEBHOOK_SECRET_NEXT (proximo) — qualquer match valida.
+   *
+   * Suporte a dois segredos simultaneos destrava rotacao sem downtime:
+   * durante a janela de troca, o painel ZapSign pode estar enviando o
+   * NEXT enquanto o ATUAL ainda eh aceito (ou vice-versa). Sem isso,
+   * qualquer descompasso de timing entre `pnpm rotate` no painel +
+   * troca do Replit Secret derrubaria os 3 webhooks.
+   *
+   * O parametro `secret` recebido do Base eh ignorado aqui — checamos
+   * direto as duas envs porque o Base so passa um valor (truthy resolvido
+   * pelo getter `webhookSecret`).
+   */
+  protected validateWebhookSignature(_rawBody: Buffer, sigStr: string, _secret: string): boolean {
+    const candidates = [
+      process.env["ZAPSIGN_WEBHOOK_SECRET"],
+      process.env["ZAPSIGN_WEBHOOK_SECRET_NEXT"],
+    ].filter((s): s is string => typeof s === "string" && s.length > 0);
+    if (candidates.length === 0) return false;
+    let matched = false;
+    for (const candidate of candidates) {
+      try {
+        const a = Buffer.from(sigStr, "utf8");
+        const b = Buffer.from(candidate, "utf8");
+        if (a.length === b.length && timingSafeEqual(a, b)) matched = true;
+      } catch {
+        // segue tentando o proximo candidato
+      }
     }
+    return matched;
   }
 
   protected extractEventId(p: Record<string, unknown>): string | undefined {

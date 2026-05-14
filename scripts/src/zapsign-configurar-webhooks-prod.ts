@@ -1,5 +1,6 @@
 /**
  * Task #128 — Endurecer webhook ZapSign pra producao.
+ * Task #220 — Suportar rotacao do segredo sem downtime (--rotate).
  *
  * Configura o header secreto `x-pawards-secret: <ZAPSIGN_WEBHOOK_SECRET>`
  * em todos os webhooks cadastrados no painel ZapSign, via API:
@@ -11,7 +12,7 @@
  * customizado, entao a unica forma de blindar contra POST forjado em
  * `/api/webhooks/assinatura/zapsign` eh setar o header via API.
  *
- * Uso:
+ * Uso (modo padrao — sincroniza painel com ZAPSIGN_WEBHOOK_SECRET):
  *   ZAPSIGN_API_TOKEN=<token>            # token de PRODUCAO
  *   ZAPSIGN_WEBHOOK_SECRET=<secret>      # ja existe no Replit Secrets
  *   ZAPSIGN_BASE_URL=https://api.zapsign.com.br   # opcional, default producao
@@ -19,6 +20,34 @@
  *   pnpm --filter @workspace/scripts run zapsign-configurar-webhooks-prod
  *
  * Idempotente: re-rodar com mesmo secret eh no-op no painel ZapSign.
+ *
+ * ===========================================================================
+ * PLAYBOOK DE ROTACAO ANUAL (3 PASSOS, ZERO DOWNTIME) — Task #220
+ * ===========================================================================
+ *
+ * O adapter (`artifacts/api-server/src/lib/assinatura/adapters.ts`) aceita
+ * DOIS segredos validos simultaneamente: ZAPSIGN_WEBHOOK_SECRET (atual)
+ * e ZAPSIGN_WEBHOOK_SECRET_NEXT (proximo). Isso destrava a rotacao em
+ * janela larga sem precisar atualizar painel + Replit Secret no mesmo
+ * milissegundo.
+ *
+ * 1) Gere o novo segredo e salve como ZAPSIGN_WEBHOOK_SECRET_NEXT no
+ *    Replit Secrets (NAO mexa no atual). Reinicie o api-server. A partir
+ *    daqui o servidor aceita os 2 segredos.
+ *
+ * 2) Rode com --rotate. O script escreve o NEXT no painel ZapSign,
+ *    SEM mexer no segredo atual do Replit:
+ *
+ *      pnpm --filter @workspace/scripts run zapsign-configurar-webhooks-prod -- --rotate
+ *
+ *    Pode haver alguns segundos onde alguns POSTs do ZapSign chegam com
+ *    o segredo antigo e outros com o novo — os dois sao aceitos.
+ *
+ * 3) Promova o NEXT pra atual: copie ZAPSIGN_WEBHOOK_SECRET_NEXT pra
+ *    ZAPSIGN_WEBHOOK_SECRET, REMOVA ZAPSIGN_WEBHOOK_SECRET_NEXT do
+ *    Replit Secrets, reinicie. Rode o script no modo padrao (sem flag)
+ *    pra confirmar que painel e Replit batem novamente.
+ * ===========================================================================
  */
 
 interface ZapsignWebhook {
@@ -33,20 +62,42 @@ const HEADER_KEY = "x-pawards-secret";
 
 async function main() {
   const token = process.env["ZAPSIGN_API_TOKEN"] || process.env["ZAPSIGN_TOKEN"];
-  const secret = process.env["ZAPSIGN_WEBHOOK_SECRET"];
   const baseUrl = process.env["ZAPSIGN_BASE_URL"] || "https://api.zapsign.com.br";
   const dryRun = process.env["DRY_RUN"] === "true";
+  // Modo rotacao: escreve ZAPSIGN_WEBHOOK_SECRET_NEXT no painel SEM mexer
+  // no segredo atual do Replit. Veja playbook no cabecalho do arquivo.
+  const rotateMode = process.argv.includes("--rotate");
+
+  const secretAtual = process.env["ZAPSIGN_WEBHOOK_SECRET"];
+  const secretNext = process.env["ZAPSIGN_WEBHOOK_SECRET_NEXT"];
+  const secret = rotateMode ? secretNext : secretAtual;
 
   if (!token) {
     console.error("[zapsign-configurar-webhooks] ERRO: ZAPSIGN_API_TOKEN ausente.");
     process.exit(1);
   }
+  if (rotateMode && !secretNext) {
+    console.error(
+      "[zapsign-configurar-webhooks] ERRO: --rotate requer ZAPSIGN_WEBHOOK_SECRET_NEXT no Replit Secrets.",
+    );
+    process.exit(1);
+  }
   if (!secret) {
-    console.error("[zapsign-configurar-webhooks] ERRO: ZAPSIGN_WEBHOOK_SECRET ausente.");
+    console.error(
+      `[zapsign-configurar-webhooks] ERRO: ${rotateMode ? "ZAPSIGN_WEBHOOK_SECRET_NEXT" : "ZAPSIGN_WEBHOOK_SECRET"} ausente.`,
+    );
     process.exit(1);
   }
 
-  console.log(`[zapsign-configurar-webhooks] base=${baseUrl} dryRun=${dryRun}`);
+  console.log(
+    `[zapsign-configurar-webhooks] base=${baseUrl} dryRun=${dryRun} mode=${rotateMode ? "ROTATE (escrevendo SECRET_NEXT)" : "padrao (SECRET atual)"}`,
+  );
+  if (rotateMode) {
+    console.log(
+      "[zapsign-configurar-webhooks] LEMBRE: o adapter aceita ATUAL + NEXT em paralelo. " +
+        "Apos rodar, promova SECRET_NEXT -> SECRET no Replit e re-rode SEM --rotate pra confirmar.",
+    );
+  }
 
   const listResp = await fetch(`${baseUrl}/api/v1/user/company/webhooks/`, {
     headers: { Authorization: `Bearer ${token}` },
