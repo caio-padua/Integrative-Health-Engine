@@ -20,6 +20,7 @@ import { iniciarWorkerAlertasDigestDiario } from "./lib/recorrencia/alertasDiges
 import { iniciarWorkerAvisoVencimentoCarenciaLgpd } from "./lib/recorrencia/avisoVencimentoCarenciaLgpd";
 import { iniciarWorkerLimpezaAuditoriaPainelPawards } from "./lib/recorrencia/limpezaAuditoriaPainelPawards";
 import { iniciarWorkerDigestRecusasCEO } from "./lib/recorrencia/digestRecusasCEO";
+import { iniciarWorkerWebhookAssinaturaSilencio } from "./lib/recorrencia/webhookAssinaturaSilencio";
 
 const rawPort = process.env["PORT"];
 
@@ -61,5 +62,9 @@ app.listen(port, (err) => {
   iniciarWorkerAlertasDigestDiario();
   iniciarWorkerAvisoVencimentoCarenciaLgpd();
   iniciarWorkerLimpezaAuditoriaPainelPawards();
+<<<<<<< HEAD
   iniciarWorkerDigestRecusasCEO();
+=======
+  iniciarWorkerWebhookAssinaturaSilencio();
+>>>>>>> 53f0356 (Task #256 — Cao-de-guarda do webhook ZapSign silenciosamente quebrado)
 });

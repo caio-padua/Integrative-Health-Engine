@@ -151,6 +151,38 @@ execucao do worker. NAO mexe na tabela auditada (so adiciona historico).
 - Defensivo: nunca lanca; tick falha = log + segue.
 - Wired em `index.ts` via `iniciarWorkerLimpezaAuditoriaPainelPawards()`.
 
+## Wave V256 — Cao-de-guarda do webhook ZapSign silenciosamente quebrado (14/mai/2026)
+
+Task #256 fechada: a Task #129 ja documentou que quando o dominio Replit
+muda, a URL configurada no painel ZapSign aponta pra um endpoint que nao
+existe mais e o webhook para de chegar SILENCIOSAMENTE — `auditoria_assinaturas`
+fica vazia mas a fila de pendentes infla. Hoje so descobriamos quando alguem
+abria o painel e reparava.
+
+### Migration 060 (`060_webhook_assinatura_silencio_alerta.sql`)
+Cria `webhook_assinatura_silencio_alertas` (PK dia_brt, idempotencia diaria)
++ amplia CHECK de `assinatura_notificacoes.momento` pra aceitar
+`WEBHOOK_ASSINATURA_SILENCIO` + texto institucional novo (placeholders
+`{HORAS}`, `{PENDENTES}`, `{ULTIMA_AUDITORIA}`).
+
+### Worker (`lib/recorrencia/webhookAssinaturaSilencio.ts`)
+- Tick 60min, lock distribuido `pg_try_advisory_lock(30303033)`.
+- Pega `MAX(criado_em)` de `auditoria_assinaturas` + conta solicitacoes
+  PENDENTE/ENVIADO/PROCESSANDO criadas DENTRO da janela.
+- Funcao pura `decidirSilencioWebhook()` regra AND: dispara so quando ha
+  pendentes na janela E (webhook nunca recebeu OU gap >= horasJanela).
+- Janela default 24h, configuravel via env
+  `WEBHOOK_ASSINATURA_SILENCIO_HORAS`.
+- Reserva atomica + enfileiramento via `assinatura_notificacoes`
+  (`is_sistema_ceo=true`, bypass opt-out/quiet hours) — falha rola back
+  reserva tambem, evitando falso positivo permanente.
+- Defensivo: nunca lanca; tick falha = log + segue.
+- Wired em `index.ts` via `iniciarWorkerWebhookAssinaturaSilencio()`.
+
+Diferente da Task #251 (upload-INDIVIDUAL preso) e da Task #252 (silencio
+do PROPRIO worker do resumo diario) — esta vigia o silencio AGREGADO da
+chegada externa do webhook.
+
 ## Wave V46 — WhatsApp do CEO ativado (13/mai/2026)
 
 Task #46 fechada: tela `/plataforma/perfil` agora permite cadastrar o
