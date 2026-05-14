@@ -118,7 +118,7 @@ type CEOPref = {
 
 let _ceoPrefsCache: { at: number; map: Map<string, CEOPref> } | null = null;
 
-async function getCEOPref(destinatario: string, canal: string): Promise<CEOPref | null> {
+export async function getCEOPref(destinatario: string, canal: string): Promise<CEOPref | null> {
   const key = `${canal}::${destinatario.trim().toLowerCase()}`;
   if (_ceoPrefsCache && Date.now() - _ceoPrefsCache.at < 60_000) {
     return _ceoPrefsCache.map.get(key) ?? null;
@@ -165,8 +165,9 @@ export function invalidarCacheCEOPrefs(): void {
   _ceoPrefsCache = null;
 }
 
-/** Calcula proximo quiet_fim a partir das prefs do CEO (paralelo a calcProximoQuietFim global). */
-function calcProximoQuietFimCEO(pref: CEOPref, base: Date = new Date()): Date {
+/** Calcula proximo quiet_fim a partir das prefs do CEO (paralelo a calcProximoQuietFim global).
+ *  Exportado pra Task #251 (testes unitarios do wrap de meia-noite). */
+export function calcProximoQuietFimCEO(pref: CEOPref, base: Date = new Date()): Date {
   const fim = parseHHMMSS(pref.quiet_fim);
   const agora = horaLocal(pref.tz, base);
   const segAgora = agora.h * 3600 + agora.m * 60 + agora.s;
@@ -175,8 +176,9 @@ function calcProximoQuietFimCEO(pref: CEOPref, base: Date = new Date()): Date {
   return new Date(base.getTime() + deltaSeg * 1000 + 60_000);
 }
 
-/** Hora local em America/Sao_Paulo (ou tz da config) — formato HH:MM:SS. */
-function horaLocal(tz: string, base: Date = new Date()): { h: number; m: number; s: number; iso: string } {
+/** Hora local em America/Sao_Paulo (ou tz da config) — formato HH:MM:SS.
+ *  Exportado pra Task #251 (testes unitarios). */
+export function horaLocal(tz: string, base: Date = new Date()): { h: number; m: number; s: number; iso: string } {
   // Intl gives us hh:mm:ss in target tz reliably.
   const fmt = new Intl.DateTimeFormat("en-GB", {
     timeZone: tz,
@@ -192,13 +194,15 @@ function horaLocal(tz: string, base: Date = new Date()): { h: number; m: number;
   return { h, m, s, iso: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` };
 }
 
-function parseHHMMSS(s: string): { h: number; m: number; s: number } {
+/** Exportado pra Task #251 (testes unitarios). */
+export function parseHHMMSS(s: string): { h: number; m: number; s: number } {
   const [hh = "0", mm = "0", ss = "0"] = String(s ?? "").split(":");
   return { h: Number(hh), m: Number(mm), s: Number(ss) };
 }
 
-/** Retorna true se `agora` está dentro do intervalo [inicio, fim). Considera wrap (22→07). */
-function dentroDoQuiet(agora: { h: number; m: number; s: number }, inicio: { h: number; m: number; s: number }, fim: { h: number; m: number; s: number }): boolean {
+/** Retorna true se `agora` está dentro do intervalo [inicio, fim). Considera wrap (22→07).
+ *  Exportado pra Task #251 (testes unitarios). */
+export function dentroDoQuiet(agora: { h: number; m: number; s: number }, inicio: { h: number; m: number; s: number }, fim: { h: number; m: number; s: number }): boolean {
   const a = agora.h * 3600 + agora.m * 60 + agora.s;
   const i = inicio.h * 3600 + inicio.m * 60 + inicio.s;
   const f = fim.h * 3600 + fim.m * 60 + fim.s;
