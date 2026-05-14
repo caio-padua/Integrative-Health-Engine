@@ -542,6 +542,44 @@ router.get("/assinaturas/alertas-ceo", guardMaster, async (req: Request, res: Re
 });
 
 /**
+ * GET /api/assinaturas/alertas-ceo/resumo-7d — Task #246
+ *
+ * Cartao sintetico pro painel-comando do CEO: conta quantos alertas de piora
+ * e melhora rolaram nos ultimos 7 dias. Pensado pra ser consumido por badge
+ * no painel sem precisar baixar a fila inteira (`/alertas-ceo?limit=200`)
+ * e contar client-side. Mesmo guardMaster da fila — quem ve o banner ve o
+ * resumo.
+ *
+ * Resposta: { piora: N, melhora: M, total: N+M, desde: ISO }
+ *   - `desde` = corte exato (now() - 7 days) em ISO pra debug / tooltip.
+ *   - Counts SEMPRE numero (zero quando nao houve nenhum); frontend pode
+ *     bater o olho sem precisar tratar null.
+ */
+router.get("/assinaturas/alertas-ceo/resumo-7d", guardMaster, async (_req: Request, res: Response) => {
+  try {
+    const r = await db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE tipo_transicao = 'piora')::int   AS piora,
+        COUNT(*) FILTER (WHERE tipo_transicao = 'melhora')::int AS melhora,
+        (NOW() - INTERVAL '7 days')                              AS desde
+      FROM alertas_ceo_assinaturas
+      WHERE criado_em >= NOW() - INTERVAL '7 days'
+    `);
+    const row = ((r as unknown as { rows?: { piora: number; melhora: number; desde: string }[] }).rows || [])[0];
+    const piora = Number(row?.piora ?? 0) || 0;
+    const melhora = Number(row?.melhora ?? 0) || 0;
+    res.json({
+      piora,
+      melhora,
+      total: piora + melhora,
+      desde: row?.desde ?? null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * POST /api/assinaturas/alertas-ceo/marcar-todos-vistos — Task #61
  *
  * Marca em lote TODOS os alertas pendentes (visualizado_em IS NULL) como

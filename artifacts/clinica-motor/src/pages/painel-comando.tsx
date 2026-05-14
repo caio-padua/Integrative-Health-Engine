@@ -318,6 +318,17 @@ export default function PainelComando() {
   // Task #52 — contagem de alertas CEO nao-visualizados (Wave 10.6).
   // Exibido como badge dentro do banner de assinaturas + link pra fila dedicada.
   const [alertasCeoNaoVistos, setAlertasCeoNaoVistos] = useState<number>(0);
+  // Task #246 — resumo dos ultimos 7d de alertas CEO (piora vs melhora).
+  // Cartao sintetico no painel-comando: o CEO bate o olho e ja sabe quanto
+  // de cada lado rolou na semana, sem precisar abrir a fila inteira. Cada
+  // numero e link pra fila ja filtrada (`?tipo=piora|melhora`), reaproveitando
+  // o filtro Task #63. Endpoint dedicado /resumo-7d (count agregado) pra
+  // nao depender de baixar 200 linhas client-side.
+  const [resumoSemanaAlertasCeo, setResumoSemanaAlertasCeo] = useState<{
+    piora: number;
+    melhora: number;
+    total: number;
+  } | null>(null);
   // Task #161 — contagem de bloqueios de 2FA pendentes (alertas de seguranca).
   // Mesmo padrao de polling/badge do alertasCeoNaoVistos, mas link pra
   // /plataforma/alertas-seguranca. Endpoint exige step-up; quando faltar,
@@ -556,6 +567,44 @@ export default function PainelComando() {
       clearInterval(id);
       window.removeEventListener("alertas_ceo_marcados", onMarcados);
       window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  // Task #246 — polling do resumo 7d de alertas CEO (piora/melhora).
+  // Cadencia 60s (mesma do badge de nao-vistos). Endpoint dedicado faz
+  // COUNT(*) FILTER no banco (sem trafego inutil de payload). Silencioso
+  // em 401/403/erro — limpa o card pra nao mostrar dado stale.
+  useEffect(() => {
+    if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await apiFetch(`${API_BASE}/assinaturas/alertas-ceo/resumo-7d`, { credentials: "include" });
+        if (!alive) return;
+        if (!r.ok) {
+          setResumoSemanaAlertasCeo(null);
+          return;
+        }
+        const d = await r.json();
+        if (!alive) return;
+        setResumoSemanaAlertasCeo({
+          piora: Number(d?.piora ?? 0) || 0,
+          melhora: Number(d?.melhora ?? 0) || 0,
+          total: Number(d?.total ?? 0) || 0,
+        });
+      } catch {
+        // erro de rede: limpa pra evitar stale (mesmo padrao do !r.ok)
+        if (alive) setResumoSemanaAlertasCeo(null);
+      }
+    };
+    carregar();
+    const id = setInterval(carregar, 60_000);
+    // Quando a fila marca todos como vistos nao muda o resumo (counts
+    // sao por janela temporal, nao por status), entao nao precisa hookar
+    // nos eventos `alertas_ceo_marcados`.
+    return () => {
+      alive = false;
+      clearInterval(id);
     };
   }, []);
 
@@ -1014,6 +1063,68 @@ export default function PainelComando() {
                     </div>
                   </div>
                 </div>
+
+                {/* Task #246 — cartao sintetico "esta semana" de alertas CEO.
+                    So renderiza quando houve pelo menos 1 alerta nos 7d (sem
+                    poluir o painel em semana sem evento). Cada numero e link
+                    pra fila ja filtrada (`?tipo=piora|melhora`, Task #63). */}
+                {resumoSemanaAlertasCeo && resumoSemanaAlertasCeo.total > 0 && (
+                  <div
+                    className="mt-3 pt-3 border-t border-[var(--pw-petroleo)]/15"
+                    data-testid="banner-ceo-alertas-resumo-7d"
+                  >
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--pw-dourado)] font-semibold mb-1.5">
+                      Alertas CEO · esta semana (ultimos 7d)
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--pw-tinta)]">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.location.href = "/assinaturas/alertas-ceo?tipo=piora";
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.location.href = "/assinaturas/alertas-ceo?tipo=piora";
+                          }
+                        }}
+                        className="cursor-pointer hover:underline leading-tight"
+                        title="Abrir fila filtrada por pioras"
+                        data-testid="resumo-7d-piora"
+                      >
+                        <strong className="text-red-600 text-lg align-middle">{resumoSemanaAlertasCeo.piora}</strong>{" "}
+                        <span className="text-[11px]">piora{resumoSemanaAlertasCeo.piora === 1 ? "" : "s"}</span>
+                      </span>
+                      <span className="text-zinc-400">·</span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.location.href = "/assinaturas/alertas-ceo?tipo=melhora";
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.location.href = "/assinaturas/alertas-ceo?tipo=melhora";
+                          }
+                        }}
+                        className="cursor-pointer hover:underline leading-tight"
+                        title="Abrir fila filtrada por melhoras"
+                        data-testid="resumo-7d-melhora"
+                      >
+                        <strong className="text-emerald-600 text-lg align-middle">{resumoSemanaAlertasCeo.melhora}</strong>{" "}
+                        <span className="text-[11px]">melhora{resumoSemanaAlertasCeo.melhora === 1 ? "" : "s"}</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Task #43 — quebra por unidade clinica (top 10 por enviadas_7d) */}
                 {assinaturasResumo.por_unidade && assinaturasResumo.por_unidade.length > 0 && (
