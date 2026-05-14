@@ -196,10 +196,21 @@ Key architectural decisions and features include:
 -   **ZapSign:** Digital signature provider (ICP-Brasil) — Wave 10 production.
 -   **Asaas / Mercado Pago / Stripe / InfinitPay:** Payment gateways (adapter pattern).
 
+## ⚠️ AVISO IMPORTANTE — números "8.728 receitas" e "R$ 2.736.536,10"
+
+Caio (CEO) explicitou em 13/mai/2026: esses números **NÃO** são receitas
+emitidas nem caixa real. São **projeção de potencial** calculada a partir
+das fichas históricas migradas de planilhas (Wave 9 PARQ + Wave Cadastro
+Pádua). Caio NÃO emitiu nenhuma receita pelo sistema ainda.
+
+**Regra pra todo agente:** NUNCA citar "8.728 receitas" ou "R$ 2.736.536,10"
+como se fossem dado real ou metas atingidas. Sempre que precisar referenciar,
+usar "potencial estimado a partir de fichas históricas". Os triggers do banco
+continuam válidos como invariantes técnicas (não devem ser dropados).
+
 ## Histórico Arquivado
 
 > Conteúdo movido pra reduzir contexto (replit.md ~1031 → ~150 linhas).
-> Invariantes Wave 9 (8.728 receitas + R$ 2.736.536,10 + 5 triggers) PRESERVADAS.
 
 - [`docs/historico-waves-5-a-8.md`](./docs/historico-waves-5-a-8.md) —
   PARMAVAULT-TSUNAMI / Wave 5/6/7/8 / Wave 3 FATURAMENTO
