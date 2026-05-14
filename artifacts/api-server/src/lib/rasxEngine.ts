@@ -202,7 +202,7 @@ export interface PayloadRAS {
   subgrupos: string[];
   classeProcedimento?: ClasseProcedimento;
   consentimentoEspecifico?: ConsentimentoEspecifico;
-  medicamentos: { nome: string; apresentacao?: string; posologia?: string; dataInicio?: string; evento?: string; substituicao?: string }[];
+  medicamentos: { nome: string; apresentacao?: string; posologia?: string; posologiaEstruturada?: import("@workspace/posologia").PosologiaEstruturada | null; dataInicio?: string; evento?: string; substituicao?: string }[];
   patologias: { nome: string; tipo: string; cid?: string }[];
   orgaos?: { nome: string; status: string }[];
   curvas?: { tipo: string; data: string; valor: number }[];
@@ -352,6 +352,7 @@ export function montarPayloadRAS(params: {
       nome: m.medicamentoDoseInline || m.nome || m,
       apresentacao: m.apresentacao,
       posologia: m.posologia,
+      posologiaEstruturada: m.posologiaEstruturada ?? null,
       dataInicio: m.dataInicio,
       evento: m.evento,
       substituicao: m.substituicao,

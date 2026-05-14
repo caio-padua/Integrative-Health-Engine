@@ -376,3 +376,24 @@ test("linhas: quantidadeRange vira linha de faixa", () => {
   assert.ok(linhas.quantidadeRange);
   assert.match(linhas.quantidadeRange!, /2–3 gotas por tomada/);
 });
+
+/**
+ * Snapshot Task #233 — antes/depois do render de PDF histórico.
+ *
+ * O backfill da Task #40 populou `posologia_estruturada` em 100% das linhas
+ * históricas. Os PDFs (rasxPdf, rasxMotorPdf) agora preferem essa estrutura
+ * em vez de re-parsear o texto bruto. Este teste fixa o contrato: dada a
+ * estrutura persistida, a frase canônica é determinística e estável.
+ */
+test("snapshot Task #233: receita histórica → frase canônica estável", () => {
+  const rawHistorico = "1 cap 2x/dia com refeições por 30 dias";
+  const estrutura = parsePosologia(rawHistorico);
+  // Antes: PDF caía no texto bruto "1 cap 2x/dia com refeições por 30 dias".
+  // Depois: PDF usa a frase canônica padronizada de formatarPosologiaEstruturada.
+  const frase = formatarPosologiaEstruturada(estrutura);
+  assert.equal(estrutura.interpretado, true);
+  assert.equal(
+    frase,
+    "1 cápsula, 2x ao dia, com as refeições, por 30 dias",
+  );
+});

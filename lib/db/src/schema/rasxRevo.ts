@@ -1,6 +1,7 @@
 import { pgTable, serial, integer, text, timestamp, jsonb, real, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import type { PosologiaEstruturada } from "@workspace/posologia";
 import { pacientesTable } from "./pacientes";
 import { tratamentosTable } from "./tratamentos";
 
@@ -122,7 +123,7 @@ export const revoMedicamentosTable = pgTable("revo_medicamentos", {
   posologia: text("posologia"),
   // Estrutura normalizada produzida por @workspace/posologia parsePosologia().
   // Aditiva (migration 034). Sempre devolve raw + interpretado=false como fallback.
-  posologiaEstruturada: jsonb("posologia_estruturada"),
+  posologiaEstruturada: jsonb("posologia_estruturada").$type<PosologiaEstruturada | null>(),
   // Origem da posologiaEstruturada: 'parser' (parsePosologia automático) ou
   // 'manual' (médico confirmou/corrigiu via RevoPanel — task #41 confirma-ou-corrige).
   // Aditivo (migration 050). Default 'parser' preserva semântica histórica.

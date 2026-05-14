@@ -967,6 +967,7 @@ router.post("/rasx/:pacienteId/motor", async (req, res): Promise<void> => {
         medicamentos: collected.medicamentos.map(m => ({
           nome: m.medicamentoDoseInline || m.nome,
           posologia: m.posologia,
+          posologiaEstruturada: m.posologiaEstruturada ?? null,
           dataInicio: m.dataInicioUso?.toISOString?.(),
           evento: m.statusAtual,
           substituicao: m.substituicaoNatural,
@@ -1168,6 +1169,7 @@ router.get("/rasx/:pacienteId/motor/pdf/:bloco", async (req, res): Promise<void>
       medicamentos: collected.medicamentos.map(m => ({
         nome: m.medicamentoDoseInline || m.nome,
         posologia: m.posologia,
+        posologiaEstruturada: m.posologiaEstruturada ?? null,
         dataInicio: m.dataInicioUso?.toISOString?.(),
         evento: m.statusAtual,
         substituicao: m.substituicaoNatural,

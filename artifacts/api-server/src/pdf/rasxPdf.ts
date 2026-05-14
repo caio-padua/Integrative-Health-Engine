@@ -1,17 +1,24 @@
 import PDFDocument from "pdfkit";
 import { PassThrough } from "stream";
-import { parsePosologia, formatarPosologiaEstruturada } from "@workspace/posologia";
+import { parsePosologia, formatarPosologiaEstruturada, type PosologiaEstruturada } from "@workspace/posologia";
 import { desenharPosologiaBlocos } from "./posologiaBlocos.js";
 
 /**
- * Devolve a frase canônica produzida por parsePosologia + formatarPosologiaEstruturada
- * quando a string casa alguma regra; caso contrário devolve o texto cru.
+ * Devolve a frase canônica padronizada da posologia. Preferência por ordem:
+ *   1) `estrutura` já persistida (coluna `posologia_estruturada` jsonb) com
+ *      `interpretado=true` — fonte de verdade após o backfill da Task #40.
+ *   2) `parsePosologia(texto)` em runtime quando o texto casa alguma regra.
+ *   3) Texto bruto (fallback) quando nada interpreta.
  * Pure-function chamada no momento do render — espelha o helper de rasxMotorPdf.ts.
  */
-function posologiaCanonica(texto: string | null | undefined): string {
+function posologiaCanonica(
+  texto: string | null | undefined,
+  estrutura?: PosologiaEstruturada | null,
+): string {
+  if (estrutura && estrutura.interpretado) return formatarPosologiaEstruturada(estrutura);
   if (!texto) return "—";
-  const estrutura = parsePosologia(texto);
-  return estrutura.interpretado ? formatarPosologiaEstruturada(estrutura) : texto;
+  const parsed = parsePosologia(texto);
+  return parsed.interpretado ? formatarPosologiaEstruturada(parsed) : texto;
 }
 
 const CORES = {
@@ -236,7 +243,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
     y = drawTableHeader(doc, medCols, y);
     data.medicamentos.forEach((m: any, i: number) => {
       const inline = m.medicamentoDoseInline || `${m.nome}${m.dose ? " " + m.dose : ""}`;
-      y = drawTableRow(doc, medCols, [inline, posologiaCanonica(m.posologia), m.motivoUso || "—", m.statusAtual || "em_uso", m.tempoUso || "—"], y, i % 2 === 0);
+      y = drawTableRow(doc, medCols, [inline, posologiaCanonica(m.posologia, m.posologiaEstruturada), m.motivoUso || "—", m.statusAtual || "em_uso", m.tempoUso || "—"], y, i % 2 === 0);
     });
   }
   drawFooter(doc, false);
@@ -312,7 +319,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
       y = drawTableHeader(doc, hmedCols, y);
     }
     const inline = m.medicamentoDoseInline || `${m.nome}${m.dose ? " " + m.dose : ""}`;
-    y = drawTableRow(doc, hmedCols, [inline, posologiaCanonica(m.posologia), m.indicacaoClinica || m.motivoUso || "—", m.statusAtual, m.substituicaoNatural || "—", m.evidenciaMelhora || "—"], y, i % 2 === 0);
+    y = drawTableRow(doc, hmedCols, [inline, posologiaCanonica(m.posologia, m.posologiaEstruturada), m.indicacaoClinica || m.motivoUso || "—", m.statusAtual, m.substituicaoNatural || "—", m.evidenciaMelhora || "—"], y, i % 2 === 0);
   });
   drawFooter(doc, true);
   }
@@ -328,12 +335,13 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
       y = drawPacienteBlock(doc, data, y, 595);
 
       y = drawSectionTitle(doc, f.nome || `Formula ${fIdx + 1}`, y);
-      if (f.posologia) {
-        // Task #240 — frase base + blocos (fases/ciclo/tomadas/range) em
-        // linhas indentadas. Fallback para raw quando interpretado=false.
+      if (f.posologia || f.posologiaEstruturada) {
+        // Task #240 + Task #233 — frase base + blocos (fases/ciclo/tomadas/range)
+        // em linhas indentadas, preferindo `posologia_estruturada` persistida
+        // (backfill Task #40); fallback p/ raw quando interpretado=false.
         doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text("Posologia:", 50, y);
         doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto);
-        y = desenharPosologiaBlocos(doc, f.posologia, 100, y, 455);
+        y = desenharPosologiaBlocos(doc, f.posologiaEstruturada ?? f.posologia, 100, y, 455);
         y += 4;
       }
       if (f.motivoUso) {
@@ -396,7 +404,7 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
     y = drawTableHeader(doc, hlinCols, y);
     data.eventosMedicacao.forEach((e: any, i: number) => {
       const dt = e.data ? new Date(e.data).toLocaleDateString("pt-BR") : "—";
-      y = drawTableRow(doc, hlinCols, [dt, e.apresentacao, posologiaCanonica(e.posologia), e.status, e.substituicaoNatural || "—", e.leituraClinica || "—"], y, i % 2 === 0);
+      y = drawTableRow(doc, hlinCols, [dt, e.apresentacao, posologiaCanonica(e.posologia, e.posologiaEstruturada), e.status, e.substituicaoNatural || "—", e.leituraClinica || "—"], y, i % 2 === 0);
       if (y > 530) {
         drawFooter(doc, true);
         addPagePaisagem(doc);
