@@ -2,8 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bell, ExternalLink } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Bell, ExternalLink, RotateCcw } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "wouter";
 import { apiFetch } from "@/lib/api-fetch";
@@ -31,6 +31,7 @@ interface Unidade {
   id: number;
   nome: string;
   lembreteHorariosPadrao: string[] | null;
+  lembreteToleranciaMinutos: number | null;
 }
 
 const PAGE_SIZE = 10;
@@ -42,6 +43,7 @@ const PAGE_SIZE = 10;
  */
 export default function LembretePrescricaoPanel({ pacienteId, unidadeId }: { pacienteId: number; unidadeId: number | null }) {
   const [pagina, setPagina] = useState(0);
+  const queryClient = useQueryClient();
 
   const { data: todasPrescricoes = [], isLoading } = useQuery<PrescricaoLembrete[]>({
     queryKey: ["prescricoes-lembrete"],
@@ -100,6 +102,32 @@ export default function LembretePrescricaoPanel({ pacienteId, unidadeId }: { pac
         ? prescricao.horariosEnvio
         : (unidade?.lembreteHorariosPadrao ?? []))
     : [];
+  // Tarefa #228 — tolerancia em minutos vem sempre da unidade (nao ha
+  // override por prescricao no schema atual). Fallback 5 min replica o
+  // default do worker quando a unidade nao tem o campo configurado.
+  const toleranciaEfetiva = unidade?.lembreteToleranciaMinutos ?? 5;
+
+  // Tarefa #228 — botao "voltar pro padrao da unidade" reseta
+  // horariosEnvio = [] na prescricao, fazendo o worker herdar
+  // novamente a janela configurada na unidade.
+  const voltarParaPadraoMutation = useMutation({
+    mutationFn: async () => {
+      if (!prescricao) throw new Error("sem prescricao");
+      const r = await apiFetch(`/api/prescricoes-lembrete/${prescricao.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ horariosEnvio: [] }),
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => "");
+        throw new Error(txt || "Erro ao voltar pro padrao");
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prescricoes-lembrete"] });
+    },
+  });
 
   const totalPaginas = Math.max(1, Math.ceil(envios.length / PAGE_SIZE));
   const enviosPagina = envios.slice(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE);
@@ -124,19 +152,56 @@ export default function LembretePrescricaoPanel({ pacienteId, unidadeId }: { pac
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 text-sm">
-              <Badge variant={prescricao.ativo ? "default" : "outline"} className="text-[10px]">
-                {prescricao.ativo ? "Ativa" : "Inativa"}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                Horarios:{" "}
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-3">
+                <Badge variant={prescricao.ativo ? "default" : "outline"} className="text-[10px]">
+                  {prescricao.ativo ? "Ativa" : "Inativa"}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>Horarios efetivos:</span>
                 {horariosEfetivos.length === 0 ? (
                   <span className="text-amber-500 italic">nenhum (sem proprio nem padrao da unidade)</span>
                 ) : (
-                  <span className="font-mono">{horariosEfetivos.join(", ")}</span>
+                  <span className="font-mono text-foreground">{horariosEfetivos.join(", ")}</span>
                 )}
-                {usaPadrao && <span className="ml-1 text-[10px]">(herdado da unidade)</span>}
-              </span>
+                {horariosEfetivos.length > 0 && (
+                  usaPadrao ? (
+                    <Badge variant="outline" className="text-[10px]" title="Herdado da unidade">
+                      padrao da unidade
+                    </Badge>
+                  ) : (
+                    <Badge variant="default" className="text-[10px]" title="Sobrescrito nesta prescricao">
+                      personalizado
+                    </Badge>
+                  )
+                )}
+                {!usaPadrao && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[10px] gap-1"
+                    disabled={voltarParaPadraoMutation.isPending}
+                    onClick={() => voltarParaPadraoMutation.mutate()}
+                    title="Limpa os horarios proprios e volta a herdar os padroes da unidade"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    {voltarParaPadraoMutation.isPending ? "Salvando..." : "Voltar pro padrao da unidade"}
+                  </Button>
+                )}
+              </div>
+              {voltarParaPadraoMutation.isError && (
+                <div className="text-[10px] text-red-400">
+                  Erro ao voltar pro padrao: {(voltarParaPadraoMutation.error as Error).message}
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Tolerancia:</span>
+                <span className="font-mono text-foreground">{toleranciaEfetiva} min</span>
+                <Badge variant="outline" className="text-[10px]" title="Configurada na unidade">
+                  padrao da unidade
+                </Badge>
+              </div>
             </div>
 
             <div>
