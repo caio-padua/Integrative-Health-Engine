@@ -115,6 +115,7 @@ import PlataformaAuditoria from "@/pages/plataforma/auditoria";
 import PlataformaAlertasSeguranca from "@/pages/plataforma/alertas-seguranca";
 import PlataformaAlertasKillswitchEmails from "@/pages/plataforma/alertas-killswitch-emails";
 import PlataformaAvisos2fa from "@/pages/plataforma/avisos-2fa";
+import PlataformaTimeline from "@/pages/plataforma/timeline";
 import PlataformaPerfil from "@/pages/plataforma/perfil";
 // EXAMES-2 — 5 zonas + nomes proprios Caio
 import ExamesDashboardMedico from "@/pages/atendimento/exames/[pacienteId]";
@@ -246,6 +247,7 @@ function Router() {
       <Route path="/plataforma/alertas-seguranca" component={PlataformaAlertasSeguranca} />
       <Route path="/plataforma/alertas-killswitch-emails" component={PlataformaAlertasKillswitchEmails} />
       <Route path="/plataforma/avisos-2fa" component={PlataformaAvisos2fa} />
+      <Route path="/plataforma/timeline" component={PlataformaTimeline} />
       <Route path="/plataforma/perfil" component={PlataformaPerfil} />
       <Route component={NotFound} />
     </Switch>
