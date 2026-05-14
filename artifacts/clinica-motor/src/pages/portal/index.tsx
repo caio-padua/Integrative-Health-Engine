@@ -57,6 +57,53 @@ const INDICADORES_KEYS = [
 
 type Section = "menu" | "sinais" | "sintomas" | "formulas" | "alertas" | "upload" | "agendamentos" | "historico" | "drive";
 
+// Task #180 — quando o paciente esta preenchendo um formulario de envio
+// (Sinais Vitais, Sintomas, Formulas, Alertas, Upload) e a clinica fica
+// suspensa, o portal volta pro menu. Como cada form e desmontado, sem
+// persistencia o paciente perde tudo o que digitou. Esses helpers
+// salvam/recuperam o rascunho em sessionStorage por (paciente, form),
+// e limpam quando o envio for bem-sucedido.
+const draftKey = (pacienteId: number, form: string) => `portal-draft:${pacienteId}:${form}`;
+
+function usePersistedState<T>(key: string, initial: T | (() => T)): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [state, setState] = useState<T>(() => {
+    if (typeof window === "undefined") {
+      return typeof initial === "function" ? (initial as () => T)() : initial;
+    }
+    try {
+      const raw = window.sessionStorage.getItem(key);
+      if (raw !== null) return JSON.parse(raw) as T;
+    } catch {
+      /* ignore quota / parse errors — cai no initial */
+    }
+    return typeof initial === "function" ? (initial as () => T)() : initial;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(key, JSON.stringify(state));
+    } catch {
+      /* ignore */
+    }
+  }, [key, state]);
+  return [state, setState];
+}
+
+function clearDraft(prefix: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const ss = window.sessionStorage;
+    const toRemove: string[] = [];
+    for (let i = 0; i < ss.length; i++) {
+      const k = ss.key(i);
+      if (k && (k === prefix || k.startsWith(prefix + ":"))) toRemove.push(k);
+    }
+    toRemove.forEach(k => ss.removeItem(k));
+  } catch {
+    /* ignore */
+  }
+}
+
 // Wave 4 PACIENTE-TSUNAMI · WhatsApp Dr. Caio (configurável via env futura)
 const WHATSAPP_DR_CAIO = "554196050000";
 
@@ -471,11 +518,11 @@ export default function PortalClientePage() {
 
             {section === "menu" && <PortalMenu paciente={paciente} onSelect={setSection} onLogout={() => { setStep("identificacao"); setPaciente(null); setSenha(""); }} clinicaSuspensa={!!clinicaSuspensa} />}
             {section === "agendamentos" && <AgendamentosSection pacienteId={paciente.id} pacienteNome={paciente.nome} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
-            {section === "sinais" && <SinaisVitaisForm pacienteId={paciente.id} />}
-            {section === "sintomas" && <SintomasForm pacienteId={paciente.id} />}
-            {section === "formulas" && <FormulasForm pacienteId={paciente.id} />}
-            {section === "alertas" && <AlertasForm pacienteId={paciente.id} />}
-            {section === "upload" && <UploadForm pacienteId={paciente.id} pacienteNome={paciente.nome} />}
+            {section === "sinais" && <SinaisVitaisForm pacienteId={paciente.id} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
+            {section === "sintomas" && <SintomasForm pacienteId={paciente.id} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
+            {section === "formulas" && <FormulasForm pacienteId={paciente.id} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
+            {section === "alertas" && <AlertasForm pacienteId={paciente.id} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
+            {section === "upload" && <UploadForm pacienteId={paciente.id} pacienteNome={paciente.nome} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
             {section === "historico" && <HistoricoSection pacienteId={paciente.id} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
             {section === "drive" && <DriveSection pacienteId={paciente.id} onClinicaSuspensa={reportarClinicaSuspensaLogado} onClinicaOk={reportarClinicaOk} />}
           </>
@@ -697,9 +744,11 @@ function DriveSection({ pacienteId, onClinicaSuspensa, onClinicaOk }: { paciente
   );
 }
 
-function SinaisVitaisForm({ pacienteId }: { pacienteId: number }) {
-  const [dataRegistro, setDataRegistro] = useState(new Date().toISOString().split("T")[0]);
-  const [valores, setValores] = useState<Record<string, { valor: string; horario: string }[]>>(() => {
+function SinaisVitaisForm({ pacienteId, onClinicaSuspensa, onClinicaOk }: { pacienteId: number; onClinicaSuspensa: (p: ClinicaSuspensaPayload) => void; onClinicaOk: () => void }) {
+  // Task #180 — rascunho persistido pra sobreviver a CLINICA_SUSPENSA -> menu
+  const draftPrefix = draftKey(pacienteId, "sinais");
+  const [dataRegistro, setDataRegistro] = usePersistedState(`${draftPrefix}:dataRegistro`, () => new Date().toISOString().split("T")[0]);
+  const [valores, setValores] = usePersistedState<Record<string, { valor: string; horario: string }[]>>(`${draftPrefix}:valores`, () => {
     const init: Record<string, { valor: string; horario: string }[]> = {};
     INDICADORES_SINAIS.forEach(ind => {
       init[ind.key] = Array.from({ length: 4 }, () => ({ valor: "", horario: "" }));
@@ -740,8 +789,20 @@ function SinaisVitaisForm({ pacienteId }: { pacienteId: number }) {
         body: JSON.stringify({ pacienteId, dataRegistro, indicadores }),
       });
 
+      // Task #180 — 503 CLINICA_SUSPENSA propaga pro banner global e
+      // preserva o que o paciente digitou pra tentar de novo depois.
+      if (res.status === 503) {
+        const data = await res.clone().json().catch(() => null);
+        if (data && data.codigo === "CLINICA_SUSPENSA") {
+          onClinicaSuspensa(data as ClinicaSuspensaPayload);
+          setSaving(false);
+          return;
+        }
+      }
       if (!res.ok) throw new Error("Erro ao salvar");
       toast({ title: "Sinais vitais registrados!" });
+      onClinicaOk();
+      clearDraft(draftPrefix);
     } catch {
       toast({ title: "Erro ao salvar", variant: "destructive" });
     }
@@ -807,9 +868,11 @@ function SinaisVitaisForm({ pacienteId }: { pacienteId: number }) {
   );
 }
 
-function SintomasForm({ pacienteId }: { pacienteId: number }) {
-  const [dataSemana, setDataSemana] = useState(new Date().toISOString().split("T")[0]);
-  const [valores, setValores] = useState<Record<string, number>>(() => {
+function SintomasForm({ pacienteId, onClinicaSuspensa, onClinicaOk }: { pacienteId: number; onClinicaSuspensa: (p: ClinicaSuspensaPayload) => void; onClinicaOk: () => void }) {
+  // Task #180 — rascunho persistido pra sobreviver a CLINICA_SUSPENSA -> menu
+  const draftPrefix = draftKey(pacienteId, "sintomas");
+  const [dataSemana, setDataSemana] = usePersistedState(`${draftPrefix}:dataSemana`, () => new Date().toISOString().split("T")[0]);
+  const [valores, setValores] = usePersistedState<Record<string, number>>(`${draftPrefix}:valores`, () => {
     const init: Record<string, number> = {};
     INDICADORES_KEYS.forEach(k => { init[k] = 5; });
     return init;
@@ -839,8 +902,20 @@ function SintomasForm({ pacienteId }: { pacienteId: number }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pacienteId, dataSemana, ...valores, origem: "PACIENTE" }),
       });
+      // Task #180 — 503 CLINICA_SUSPENSA propaga pro banner global e
+      // preserva o que o paciente digitou pra tentar de novo depois.
+      if (res.status === 503) {
+        const data = await res.clone().json().catch(() => null);
+        if (data && data.codigo === "CLINICA_SUSPENSA") {
+          onClinicaSuspensa(data as ClinicaSuspensaPayload);
+          setSaving(false);
+          return;
+        }
+      }
       if (!res.ok) throw new Error("Erro ao salvar");
       toast({ title: "Sintomas registrados!" });
+      onClinicaOk();
+      clearDraft(draftPrefix);
     } catch {
       toast({ title: "Erro ao salvar", variant: "destructive" });
     }
@@ -885,14 +960,16 @@ function SintomasForm({ pacienteId }: { pacienteId: number }) {
   );
 }
 
-function FormulasForm({ pacienteId }: { pacienteId: number }) {
-  const [nomeBlend, setNomeBlend] = useState("");
-  const [aderencia, setAderencia] = useState("ALTA");
-  const [bemEstar, setBemEstar] = useState(true);
-  const [senteResultado, setSenteResultado] = useState("SIM");
-  const [efeitoColateral1, setEfeitoColateral1] = useState("NENHUM");
-  const [efeitoColateral2, setEfeitoColateral2] = useState("NENHUM");
-  const [observacao, setObservacao] = useState("");
+function FormulasForm({ pacienteId, onClinicaSuspensa, onClinicaOk }: { pacienteId: number; onClinicaSuspensa: (p: ClinicaSuspensaPayload) => void; onClinicaOk: () => void }) {
+  // Task #180 — rascunho persistido pra sobreviver a CLINICA_SUSPENSA -> menu
+  const draftPrefix = draftKey(pacienteId, "formulas");
+  const [nomeBlend, setNomeBlend] = usePersistedState(`${draftPrefix}:nomeBlend`, "");
+  const [aderencia, setAderencia] = usePersistedState(`${draftPrefix}:aderencia`, "ALTA");
+  const [bemEstar, setBemEstar] = usePersistedState(`${draftPrefix}:bemEstar`, true);
+  const [senteResultado, setSenteResultado] = usePersistedState(`${draftPrefix}:senteResultado`, "SIM");
+  const [efeitoColateral1, setEfeitoColateral1] = usePersistedState(`${draftPrefix}:efeitoColateral1`, "NENHUM");
+  const [efeitoColateral2, setEfeitoColateral2] = usePersistedState(`${draftPrefix}:efeitoColateral2`, "NENHUM");
+  const [observacao, setObservacao] = usePersistedState(`${draftPrefix}:observacao`, "");
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -911,8 +988,20 @@ function FormulasForm({ pacienteId }: { pacienteId: number }) {
           efeitoColateral1, efeitoColateral2, observacao, origem: "PACIENTE",
         }),
       });
+      // Task #180 — 503 CLINICA_SUSPENSA propaga pro banner global e
+      // preserva o que o paciente digitou pra tentar de novo depois.
+      if (res.status === 503) {
+        const data = await res.clone().json().catch(() => null);
+        if (data && data.codigo === "CLINICA_SUSPENSA") {
+          onClinicaSuspensa(data as ClinicaSuspensaPayload);
+          setSaving(false);
+          return;
+        }
+      }
       if (!res.ok) throw new Error("Erro ao salvar");
       toast({ title: "Feedback registrado!" });
+      onClinicaOk();
+      clearDraft(draftPrefix);
       setNomeBlend(""); setObservacao("");
     } catch {
       toast({ title: "Erro ao salvar", variant: "destructive" });
@@ -989,10 +1078,12 @@ function FormulasForm({ pacienteId }: { pacienteId: number }) {
   );
 }
 
-function AlertasForm({ pacienteId }: { pacienteId: number }) {
-  const [tipoAlerta, setTipoAlerta] = useState("");
-  const [gravidade, setGravidade] = useState("LEVE");
-  const [descricao, setDescricao] = useState("");
+function AlertasForm({ pacienteId, onClinicaSuspensa, onClinicaOk }: { pacienteId: number; onClinicaSuspensa: (p: ClinicaSuspensaPayload) => void; onClinicaOk: () => void }) {
+  // Task #180 — rascunho persistido pra sobreviver a CLINICA_SUSPENSA -> menu
+  const draftPrefix = draftKey(pacienteId, "alertas");
+  const [tipoAlerta, setTipoAlerta] = usePersistedState(`${draftPrefix}:tipoAlerta`, "");
+  const [gravidade, setGravidade] = usePersistedState(`${draftPrefix}:gravidade`, "LEVE");
+  const [descricao, setDescricao] = usePersistedState(`${draftPrefix}:descricao`, "");
   const [saving, setSaving] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const { toast } = useToast();
@@ -1009,7 +1100,19 @@ function AlertasForm({ pacienteId }: { pacienteId: number }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pacienteId, tipoAlerta, gravidade, descricao }),
       });
+      // Task #180 — 503 CLINICA_SUSPENSA propaga pro banner global e
+      // preserva o que o paciente digitou pra tentar de novo depois.
+      if (res.status === 503) {
+        const data = await res.clone().json().catch(() => null);
+        if (data && data.codigo === "CLINICA_SUSPENSA") {
+          onClinicaSuspensa(data as ClinicaSuspensaPayload);
+          setSaving(false);
+          return;
+        }
+      }
       if (!res.ok) throw new Error("Erro ao enviar");
+      onClinicaOk();
+      clearDraft(draftPrefix);
       setEnviado(true);
     } catch {
       toast({ title: "Erro ao enviar alerta", variant: "destructive" });
@@ -1082,8 +1185,12 @@ function AlertasForm({ pacienteId }: { pacienteId: number }) {
   );
 }
 
-function UploadForm({ pacienteId, pacienteNome }: { pacienteId: number; pacienteNome: string }) {
-  const [categoria, setCategoria] = useState("");
+function UploadForm({ pacienteId, pacienteNome, onClinicaSuspensa, onClinicaOk }: { pacienteId: number; pacienteNome: string; onClinicaSuspensa: (p: ClinicaSuspensaPayload) => void; onClinicaOk: () => void }) {
+  // Task #180 — categoria fica persistida pra sobreviver a CLINICA_SUSPENSA
+  // -> menu. O File em si nao e serializavel pro sessionStorage, entao o
+  // paciente precisa reanexar — mas a categoria escolhida ja volta pronta.
+  const draftPrefix = draftKey(pacienteId, "upload");
+  const [categoria, setCategoria] = usePersistedState(`${draftPrefix}:categoria`, "");
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -1105,11 +1212,24 @@ function UploadForm({ pacienteId, pacienteNome }: { pacienteId: number; paciente
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ categoria, arquivo: base64, nomeArquivo: arquivo.name, mimeType: arquivo.type }),
         });
+        // Task #180 — 503 CLINICA_SUSPENSA propaga pro banner global. A
+        // categoria fica persistida em sessionStorage; o arquivo precisa
+        // ser reanexado quando a clinica voltar (File nao e serializavel).
+        if (res.status === 503) {
+          const data = await res.clone().json().catch(() => null);
+          if (data && data.codigo === "CLINICA_SUSPENSA") {
+            onClinicaSuspensa(data as ClinicaSuspensaPayload);
+            setUploading(false);
+            return;
+          }
+        }
         if (!res.ok) {
           toast({ title: "Erro ao enviar arquivo", variant: "destructive" });
           setUploading(false);
           return;
         }
+        onClinicaOk();
+        clearDraft(draftPrefix);
         setSucesso(true);
         setUploading(false);
       };
