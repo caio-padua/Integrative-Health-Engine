@@ -399,6 +399,83 @@ router.get("/usuarios/me/telefone/pendencia-pin", async (req, res): Promise<void
   res.json(status);
 });
 
+// Task #245 — Status do ultimo WhatsApp disparado pro CEO (validador_mestre).
+//
+// O worker `notifAssinatura` chama `enviarWhatsapp(dest, corpo)` em
+// doc_signed/doc_refused (Task #36) e gera 1 linha em
+// `whatsapp_mensagens_log` com status inicial ENVIADO/FALHOU. O webhook
+// do provedor (Twilio/Gupshup) depois sobe pra ENTREGUE/LIDO/FALHOU via
+// `atualizarStatusWebhook`. Sem essa rota, o CEO cadastra o numero (Task
+// #46) e fica no escuro: nao sabe se Twilio/Gupshup recusou silenciosamente
+// (rate-limit, opt-out, numero bloqueado).
+//
+// Matching: `usuarios.telefone` esta em E.164 (+5511...) — `telefone_destino`
+// no log esta em digitos puros sem o '+' (formatarTelefone). Comparamos
+// strip do '+'. Defensivo: se o usuario nao tiver telefone cadastrado,
+// devolve `{ status: "sem_telefone" }` pra UI mostrar mensagem amigavel.
+router.get("/usuarios/me/ultimo-whatsapp-ceo", async (req, res): Promise<void> => {
+  if (!req.user) { res.status(401).json({ error: "Nao autenticado" }); return; }
+  const [usuario] = await db
+    .select({ telefone: usuariosTable.telefone, perfil: usuariosTable.perfil, ativo: usuariosTable.ativo })
+    .from(usuariosTable)
+    .where(eq(usuariosTable.id, req.user.sub))
+    .limit(1);
+  if (!usuario) { res.status(404).json({ error: "Usuario nao encontrado" }); return; }
+  // Hardening pos-code-review: a rota so faz sentido pro CEO
+  // (validador_mestre) — restringir evita que outro usuario consiga ler
+  // logs alheios setando o proprio telefone igual ao do CEO via
+  // PUT /usuarios/:id (campo "telefone" e SELF_FIELD).
+  if (usuario.perfil !== "validador_mestre" || usuario.ativo !== true) {
+    res.status(403).json({
+      error: "Esta consulta e exclusiva do perfil validador_mestre.",
+      perfil_minimo: "validador_mestre",
+    });
+    return;
+  }
+  if (!usuario.telefone || usuario.telefone.trim() === "") {
+    res.json({ status: "sem_telefone" });
+    return;
+  }
+  const telDigitos = usuario.telefone.replace(/\D/g, "");
+  // Filtra deterministicamente por template_nome='CEO_ASSINATURA' —
+  // marcador gravado pelo worker notifAssinatura quando is_sistema_ceo=true
+  // (Task #245). Sem matching textual fragil no corpo. Garante que nunca
+  // vamos confundir com mensagens clinicas pro mesmo numero (caso o CEO
+  // tambem esteja cadastrado como paciente).
+  const result = await db.execute(sql`
+    SELECT id, status, enviado_em, entregue_em, lido_em, erro_detalhes,
+           provedor, criado_em, mensagem
+    FROM whatsapp_mensagens_log
+    WHERE telefone_destino = ${telDigitos}
+      AND template_nome = 'CEO_ASSINATURA'
+    ORDER BY criado_em DESC
+    LIMIT 1
+  `);
+  const row = ((result as unknown as { rows?: Array<{
+    id: number;
+    status: string;
+    enviado_em: string | null;
+    entregue_em: string | null;
+    lido_em: string | null;
+    erro_detalhes: string | null;
+    provedor: string;
+    criado_em: string;
+  }> }).rows ?? [])[0];
+  if (!row) {
+    res.json({ status: "sem_tentativa" });
+    return;
+  }
+  res.json({
+    status: row.status,
+    provedor: row.provedor,
+    enviadoEm: row.enviado_em,
+    entregueEm: row.entregue_em,
+    lidoEm: row.lido_em,
+    erroDetalhes: row.erro_detalhes,
+    criadoEm: row.criado_em,
+  });
+});
+
 router.put("/usuarios/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID invalido" }); return; }

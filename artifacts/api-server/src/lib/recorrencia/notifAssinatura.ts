@@ -283,7 +283,14 @@ export async function processarNotificacao(row: NotifRow): Promise<ProcResult> {
       const corpo = row.corpo || row.assunto || "";
       if (!corpo) return { status: "FALHA", erro: "whatsapp_corpo_vazio" };
 
-      const r = await enviarWhatsapp(dest, corpo);
+      // Task #245 — passa templateNome=CEO_ASSINATURA pra envios do
+      // canal CEO (is_sistema_ceo=true). Vira marcador deterministico em
+      // whatsapp_mensagens_log.template_nome usado pela rota
+      // /api/usuarios/me/ultimo-whatsapp-ceo pra filtrar logs do CEO sem
+      // depender de matching textual no corpo.
+      const r = await enviarWhatsapp(dest, corpo, {
+        templateNome: row.is_sistema_ceo === true ? "CEO_ASSINATURA" : undefined,
+      });
       if (r.sucesso) {
         return {
           status: "ENVIADO",

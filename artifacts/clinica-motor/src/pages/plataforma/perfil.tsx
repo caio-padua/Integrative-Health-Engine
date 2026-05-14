@@ -40,6 +40,30 @@ interface PerfilAtual {
 // owner. Cada linha = 1 aviso enviado pelo worker (Task #146) com
 // canais usados, expiracao calculada e renovacao subsequente (NULL =
 // usuario nao relogou dentro da janela de 8h).
+// Task #245 — payload da rota GET /api/usuarios/me/ultimo-whatsapp-ceo.
+// `status="sem_telefone"` quando o CEO ainda nao cadastrou o numero;
+// `status="sem_tentativa"` quando ainda nao houve nenhum disparo pra ele.
+// Demais valores espelham `whatsapp_mensagens_log.status` (PENDENTE,
+// ENVIADO, ENTREGUE, LIDO, FALHOU) — ENTREGUE/LIDO = chegou no celular,
+// FALHOU = Twilio/Gupshup recusou (rate-limit, opt-out, numero bloqueado),
+// ENVIADO = provedor aceitou mas webhook ainda nao confirmou entrega.
+interface UltimoWhatsappCeo {
+  status:
+    | "sem_telefone"
+    | "sem_tentativa"
+    | "PENDENTE"
+    | "ENVIADO"
+    | "ENTREGUE"
+    | "LIDO"
+    | "FALHOU";
+  provedor?: "TWILIO" | "GUPSHUP";
+  enviadoEm?: string | null;
+  entregueEm?: string | null;
+  lidoEm?: string | null;
+  erroDetalhes?: string | null;
+  criadoEm?: string;
+}
+
 interface HistoricoAviso2fa {
   id: number;
   ultimo_login_2fa_em: string;
@@ -155,10 +179,31 @@ export default function PlataformaPerfil() {
   const [confirmandoPin, setConfirmandoPin] = useState(false);
   const [cancelandoPin, setCancelandoPin] = useState(false);
   const [tentativasRestantes, setTentativasRestantes] = useState<number | null>(null);
+  // Task #245 — status do ultimo WhatsApp disparado pelo worker pro CEO
+  // (doc_signed/doc_refused). Sem isso o CEO cadastra o numero e fica no
+  // escuro: nao sabe se Twilio/Gupshup recusou silenciosamente.
+  const [ultimoWa, setUltimoWa] = useState<UltimoWhatsappCeo | null>(null);
+  const [loadingUltimoWa, setLoadingUltimoWa] = useState(false);
   // Task #186 — historico das ultimas 10 janelas de aviso 2FA pra
   // mini-tabela "Ultimos avisos" abaixo do banner do "Ultimo aviso enviado".
   const [historicoAvisos, setHistoricoAvisos] = useState<HistoricoAviso2fa[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+
+  const carregarUltimoWa = useCallback(async () => {
+    setLoadingUltimoWa(true);
+    try {
+      const r = await apiFetch("/api/usuarios/me/ultimo-whatsapp-ceo", { credentials: "include" });
+      if (r.ok) {
+        const data = (await r.json()) as UltimoWhatsappCeo;
+        setUltimoWa(data);
+      } else {
+        setUltimoWa(null);
+      }
+    } catch {
+      setUltimoWa(null);
+    }
+    setLoadingUltimoWa(false);
+  }, []);
 
   const carregarHistoricoAvisos = useCallback(async () => {
     setLoadingHistorico(true);
@@ -202,6 +247,7 @@ export default function PlataformaPerfil() {
 
   useEffect(() => { void carregar(); }, [carregar]);
   useEffect(() => { void carregarHistoricoAvisos(); }, [carregarHistoricoAvisos]);
+  useEffect(() => { void carregarUltimoWa(); }, [carregarUltimoWa]);
 
   function toggleCanal(canal: CanalAviso) {
     setMsgOk(null);
@@ -276,6 +322,9 @@ export default function PlataformaPerfil() {
       setTelefone(novo);
       setTelefoneInicial(novo);
       setOkTel("WhatsApp cadastrado. O proximo aviso de contrato assinado/recusado ja sai por aqui.");
+      // Refetch o status do ultimo WhatsApp pra atualizar o card sem
+      // exigir clique manual em "Atualizar".
+      void carregarUltimoWa();
     } catch (e: any) {
       setErroTel(e?.message ?? "Sem conexao com o servidor.");
     } finally {
@@ -528,7 +577,7 @@ export default function PlataformaPerfil() {
                     Mandamos um codigo de 6 digitos pra{" "}
                     <span className="font-mono">{pinPendente.telefoneE164}</span>.
                     Digite o PIN abaixo pra confirmar que o numero e seu.
-                    Se o codigo nao chegar em alguns minutos, cancele e
+                    Se o codigo nao chegar em alguns minutes, cancele e
                     digite o numero de novo. O PIN expira em 10min.
                   </p>
                   <div className="flex items-center gap-2">
@@ -566,6 +615,137 @@ export default function PlataformaPerfil() {
                   )}
                 </div>
               )}
+
+              {/* Task #245 — feedback do ultimo WhatsApp disparado pelo
+                  worker (doc_signed/doc_refused). Sem isso o CEO nao
+                  sabe se Twilio/Gupshup recusou silenciosamente
+                  (rate-limit, opt-out, numero bloqueado). Verde =
+                  entregue, vermelho = falhou (com dica), amarelo =
+                  aceito pelo provedor mas sem confirmacao de entrega
+                  ainda. */}
+              {(() => {
+                if (loadingUltimoWa && !ultimoWa) {
+                  return (
+                    <div className="mt-4 p-3 text-xs text-zinc-500 bg-zinc-950/50 border border-zinc-800 rounded">
+                      Verificando status do ultimo WhatsApp...
+                    </div>
+                  );
+                }
+                if (!ultimoWa) return null;
+                const headerLine = (
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-zinc-200">
+                      Ultimo alerta WhatsApp
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void carregarUltimoWa()}
+                      disabled={loadingUltimoWa}
+                      className="text-[10px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <RefreshCw size={10} /> {loadingUltimoWa ? "Atualizando..." : "Atualizar"}
+                    </button>
+                  </div>
+                );
+
+                if (ultimoWa.status === "sem_telefone") {
+                  return (
+                    <div className="mt-4 p-3 text-xs text-zinc-400 bg-zinc-950/50 border border-zinc-800 rounded">
+                      {headerLine}
+                      <span className="italic">
+                        Cadastre o numero acima pra ativar o canal.
+                      </span>
+                    </div>
+                  );
+                }
+                if (ultimoWa.status === "sem_tentativa") {
+                  return (
+                    <div className="mt-4 p-3 text-xs text-zinc-400 bg-zinc-950/50 border border-zinc-800 rounded">
+                      {headerLine}
+                      <span className="italic">
+                        Nenhum alerta foi disparado ainda. O proximo
+                        contrato assinado/recusado aparece aqui.
+                      </span>
+                    </div>
+                  );
+                }
+                // Timestamp mais informativo: pra LIDO prefere quando o
+                // CEO leu (mais recente que entrega); demais casos pega o
+                // evento mais avancado que houver, caindo pra criadoEm.
+                const ts =
+                  (ultimoWa.status === "LIDO" ? ultimoWa.lidoEm : null) ||
+                  ultimoWa.entregueEm ||
+                  ultimoWa.lidoEm ||
+                  ultimoWa.enviadoEm ||
+                  ultimoWa.criadoEm ||
+                  null;
+                const quando = ts ? formatarRelativo(ts) : "agora";
+
+                if (ultimoWa.status === "ENTREGUE" || ultimoWa.status === "LIDO") {
+                  const verbo = ultimoWa.status === "LIDO" ? "lido" : "entregue";
+                  return (
+                    <div className="mt-4 p-3 text-xs text-emerald-200 bg-emerald-500/10 border border-emerald-500/30 rounded">
+                      {headerLine}
+                      <div>
+                        <span className="text-emerald-300">[OK]</span>{" "}
+                        {verbo}{" "}
+                        <span className="font-mono">{quando}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                if (ultimoWa.status === "FALHOU") {
+                  // Dica curta baseada no padrao do erro do provedor.
+                  // Twilio devolve mensagens contendo "opt-out", "blocked",
+                  // "21610" (rate-limit), etc.
+                  const erro = (ultimoWa.erroDetalhes || "").toLowerCase();
+                  let dica =
+                    "verifique se o numero esta certo e se voce nao bloqueou o remetente.";
+                  if (erro.includes("opt-out") || erro.includes("opted out")) {
+                    dica =
+                      "voce optou por nao receber. Mande qualquer mensagem pro remetente pra reativar.";
+                  } else if (erro.includes("blocked") || erro.includes("bloque")) {
+                    dica =
+                      "o numero parece ter bloqueado o remetente. Desbloqueie no app do WhatsApp.";
+                  } else if (erro.includes("rate") || erro.includes("21610")) {
+                    dica =
+                      "o provedor limitou a taxa de envio (rate-limit). Tente de novo daqui a pouco.";
+                  } else if (erro.includes("nao configura") || erro.includes("config")) {
+                    dica =
+                      "nao ha configuracao de WhatsApp ativa na plataforma. Avise o admin.";
+                  }
+                  return (
+                    <div className="mt-4 p-3 text-xs text-red-200 bg-red-500/10 border border-red-500/40 rounded">
+                      {headerLine}
+                      <div>
+                        <span className="text-red-300">[FALHOU]</span>{" "}
+                        <span className="font-mono">{quando}</span>
+                      </div>
+                      <div className="mt-1 text-red-300/80">
+                        Dica: {dica}
+                      </div>
+                      {ultimoWa.erroDetalhes && (
+                        <div className="mt-1 text-[10px] text-red-300/60 font-mono break-all">
+                          {ultimoWa.erroDetalhes}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                // PENDENTE / ENVIADO — provedor aceitou, mas nao chegou
+                // a confirmacao de entrega via webhook ainda.
+                return (
+                  <div className="mt-4 p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/40 rounded">
+                    {headerLine}
+                    <div>
+                      <span className="text-amber-300">[...]</span>{" "}
+                      enviado{" "}
+                      <span className="font-mono">{quando}</span>, aguardando
+                      confirmacao de entrega.
+                    </div>
+                  </div>
+                );
+              })()}
             </section>
 
             <section className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-5">
