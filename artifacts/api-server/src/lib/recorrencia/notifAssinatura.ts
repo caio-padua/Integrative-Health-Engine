@@ -111,6 +111,9 @@ type CEOPref = {
   tz: string;
   habilitar_quiet_hours: boolean;
   nunca_silenciar_recusa: boolean;
+  // Task #250 — quando true, recusas que cairem na janela ficam em
+  // AGRUPADO_DIGEST pra serem consolidadas pelo worker digestRecusasCEO.
+  agrupar_recusas: boolean;
 };
 
 let _ceoPrefsCache: { at: number; map: Map<string, CEOPref> } | null = null;
@@ -124,7 +127,8 @@ async function getCEOPref(destinatario: string, canal: string): Promise<CEOPref 
     SELECT u.email, u.telefone, p.canal,
            p.quiet_inicio::text AS quiet_inicio,
            p.quiet_fim::text    AS quiet_fim,
-           p.tz, p.habilitar_quiet_hours, p.nunca_silenciar_recusa
+           p.tz, p.habilitar_quiet_hours, p.nunca_silenciar_recusa,
+           p.agrupar_recusas
     FROM ceo_notif_preferencias p
     JOIN usuarios u ON u.id = p.usuario_id
     WHERE u.perfil = 'validador_mestre' AND u.ativo = true
@@ -138,6 +142,7 @@ async function getCEOPref(destinatario: string, canal: string): Promise<CEOPref 
     tz: string;
     habilitar_quiet_hours: boolean;
     nunca_silenciar_recusa: boolean;
+    agrupar_recusas: boolean;
   }> = (r.rows ?? r) ?? [];
   const map = new Map<string, CEOPref>();
   for (const row of rows) {
@@ -149,6 +154,7 @@ async function getCEOPref(destinatario: string, canal: string): Promise<CEOPref 
       tz: row.tz,
       habilitar_quiet_hours: row.habilitar_quiet_hours,
       nunca_silenciar_recusa: row.nunca_silenciar_recusa,
+      agrupar_recusas: Boolean(row.agrupar_recusas),
     });
   }
   _ceoPrefsCache = { at: Date.now(), map };
@@ -535,16 +541,16 @@ export async function tickNotifAssinatura(): Promise<{
       continue;
     }
 
-    // --- Pre-check 2b (Task #45): quiet hours proprias do CEO ---
+    // --- Pre-check 2b (Task #45 / #250): quiet hours proprias do CEO ---
     // Aplica APENAS quando is_sistema_ceo=true e canal eh EMAIL/WHATSAPP.
-    // INVARIANTE: recusas (evento_ceo='REJEITADO') SEMPRE passam, sem
-    // condicional — eh requisito da Task #45 ("recusas sempre passam,
-    // independente do horario"). Hard-locked no worker, nao configuravel.
-    // Sem prefs cadastradas, o alerta CEO continua passando 24/7
-    // (preserva Wave 10).
+    // INVARIANTE Task #45: recusas (evento_ceo='REJEITADO') SEMPRE passam
+    // imediato, exceto quando o CEO ligou Task #250 `agrupar_recusas` no
+    // canal — nesse caso a recusa cai em AGRUPADO_DIGEST e o worker
+    // `digestRecusasCEO` consolida ao fim da janela. Sem prefs cadastradas,
+    // o alerta CEO continua passando 24/7 (preserva Wave 10).
     const eventoCeo = (row.evento_ceo || "").toUpperCase();
     const ehRecusa = eventoCeo === "REJEITADO";
-    if (isSistemaCEO && !ehRecusa && (canal === "EMAIL" || canal === "WHATSAPP")) {
+    if (isSistemaCEO && (canal === "EMAIL" || canal === "WHATSAPP")) {
       try {
         const pref = await getCEOPref(row.destinatario, canal);
         if (pref && pref.habilitar_quiet_hours) {
@@ -554,16 +560,35 @@ export async function tickNotifAssinatura(): Promise<{
             parseHHMMSS(pref.quiet_fim),
           );
           if (inQuietCEO) {
-            const reagendar = calcProximoQuietFimCEO(pref, agora);
-            await db.execute(sql`
-              UPDATE assinatura_notificacoes
-              SET status = 'PULADO_QUIET',
-                  proxima_tentativa_em = ${reagendar.toISOString()}::timestamptz,
-                  erro = ${`ceo_quiet_hours:${pref.quiet_inicio}-${pref.quiet_fim} ${pref.tz} (evento=${eventoCeo || "?"})`}
-              WHERE id = ${row.id}
-            `);
-            pulado_quiet++;
-            continue;
+            // Recusa: respeita Task #45 (passa imediato) a menos que
+            // agrupar_recusas esteja ligado pra esse canal (Task #250).
+            if (ehRecusa && !pref.agrupar_recusas) {
+              // Hard-locked: passa imediato. Nao reagenda.
+            } else if (ehRecusa && pref.agrupar_recusas) {
+              // Task #250: parquea pro digest matinal. Status nao-terminal
+              // mas IGNORADO pelo SELECT do tick principal — soh o worker
+              // digestRecusasCEO reivindica.
+              await db.execute(sql`
+                UPDATE assinatura_notificacoes
+                SET status = 'AGRUPADO_DIGEST',
+                    erro = ${`ceo_digest_recusa:${pref.quiet_inicio}-${pref.quiet_fim} ${pref.tz}`}
+                WHERE id = ${row.id}
+              `);
+              pulado_quiet++;
+              continue;
+            } else {
+              // Caso classico Task #45: assinado dentro da janela → reagenda.
+              const reagendar = calcProximoQuietFimCEO(pref, agora);
+              await db.execute(sql`
+                UPDATE assinatura_notificacoes
+                SET status = 'PULADO_QUIET',
+                    proxima_tentativa_em = ${reagendar.toISOString()}::timestamptz,
+                    erro = ${`ceo_quiet_hours:${pref.quiet_inicio}-${pref.quiet_fim} ${pref.tz} (evento=${eventoCeo || "?"})`}
+                WHERE id = ${row.id}
+              `);
+              pulado_quiet++;
+              continue;
+            }
           }
         }
       } catch (e) {

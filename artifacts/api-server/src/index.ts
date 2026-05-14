@@ -19,6 +19,7 @@ import { iniciarWorkerAlertaBruteForceRetryEnvio } from "./lib/recorrencia/alert
 import { iniciarWorkerAlertasDigestDiario } from "./lib/recorrencia/alertasDigestDiario";
 import { iniciarWorkerAvisoVencimentoCarenciaLgpd } from "./lib/recorrencia/avisoVencimentoCarenciaLgpd";
 import { iniciarWorkerLimpezaAuditoriaPainelPawards } from "./lib/recorrencia/limpezaAuditoriaPainelPawards";
+import { iniciarWorkerDigestRecusasCEO } from "./lib/recorrencia/digestRecusasCEO";
 
 const rawPort = process.env["PORT"];
 
@@ -60,4 +61,5 @@ app.listen(port, (err) => {
   iniciarWorkerAlertasDigestDiario();
   iniciarWorkerAvisoVencimentoCarenciaLgpd();
   iniciarWorkerLimpezaAuditoriaPainelPawards();
+  iniciarWorkerDigestRecusasCEO();
 });

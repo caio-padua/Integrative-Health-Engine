@@ -264,6 +264,7 @@ router.get(
         SELECT canal, quiet_inicio::text AS quiet_inicio,
                quiet_fim::text AS quiet_fim,
                tz, habilitar_quiet_hours, nunca_silenciar_recusa,
+               agrupar_recusas,
                atualizado_em
         FROM ceo_notif_preferencias
         WHERE usuario_id = ${usuarioId}
@@ -281,6 +282,7 @@ router.get(
           tz: "America/Sao_Paulo",
           habilitar_quiet_hours: false,
           nunca_silenciar_recusa: true,
+          agrupar_recusas: false,
           atualizado_em: null,
         },
       );
@@ -309,6 +311,8 @@ router.put(
         quiet_fim?: string;
         tz?: string;
         habilitar_quiet_hours?: boolean;
+        // Task #250 — opt-in por canal pra agrupar recusas em digest matinal.
+        agrupar_recusas?: boolean;
       };
       const canal = String(body.canal || "").toUpperCase();
       if (canal !== "EMAIL" && canal !== "WHATSAPP") {
@@ -331,30 +335,37 @@ router.put(
         return;
       }
       const habilitar = body.habilitar_quiet_hours === true;
+      // Task #250: agrupar_recusas eh opt-in puro. Default false preserva
+      // Task #45 (recusa imediata 24/7).
+      const agrupar = body.agrupar_recusas === true;
       // INVARIANTE Task #45: recusa sempre passa, hard-locked no worker.
       // Coluna `nunca_silenciar_recusa` permanece pra compat de schema mas
       // eh forcada como true aqui — nao expomos como configuravel pra nao
-      // permitir um futuro "silenciar recusa" via API.
+      // permitir um futuro "silenciar recusa" via API. (Task #250 NAO
+      // viola essa regra: agrupa em digest, nao silencia.)
 
       await db.execute(sql`
         INSERT INTO ceo_notif_preferencias
           (usuario_id, canal, quiet_inicio, quiet_fim, tz,
-           habilitar_quiet_hours, nunca_silenciar_recusa, atualizado_em)
+           habilitar_quiet_hours, nunca_silenciar_recusa,
+           agrupar_recusas, atualizado_em)
         VALUES (${usuarioId}, ${canal}, ${quiet_inicio}::time, ${quiet_fim}::time,
-                ${tz}, ${habilitar}, true, NOW())
+                ${tz}, ${habilitar}, true, ${agrupar}, NOW())
         ON CONFLICT (usuario_id, canal) DO UPDATE SET
           quiet_inicio = EXCLUDED.quiet_inicio,
           quiet_fim    = EXCLUDED.quiet_fim,
           tz           = EXCLUDED.tz,
           habilitar_quiet_hours  = EXCLUDED.habilitar_quiet_hours,
           nunca_silenciar_recusa = true,
+          agrupar_recusas        = EXCLUDED.agrupar_recusas,
           atualizado_em = NOW()
       `);
       invalidarCacheCEOPrefs();
       const r: any = await db.execute(sql`
         SELECT canal, quiet_inicio::text AS quiet_inicio,
                quiet_fim::text AS quiet_fim,
-               tz, habilitar_quiet_hours, nunca_silenciar_recusa, atualizado_em
+               tz, habilitar_quiet_hours, nunca_silenciar_recusa,
+               agrupar_recusas, atualizado_em
         FROM ceo_notif_preferencias
         WHERE usuario_id = ${usuarioId} AND canal = ${canal}
       `);

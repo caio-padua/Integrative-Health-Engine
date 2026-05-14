@@ -11,7 +11,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
-import { Clock, Save, ShieldAlert, Mail, MessageSquare, CheckCircle2, BellOff, Zap, RefreshCw } from "lucide-react";
+import { Clock, Save, ShieldAlert, Mail, MessageSquare, CheckCircle2, BellOff, Zap, RefreshCw, Inbox } from "lucide-react";
 
 const NAVY = "#020406";
 const GOLD = "#C89B3C";
@@ -24,6 +24,9 @@ type Pref = {
   tz: string;
   habilitar_quiet_hours: boolean;
   nunca_silenciar_recusa: boolean; // hard-locked true no backend; nao editavel.
+  // Task #250 — opt-in por canal: agrupa recusas que cairem dentro da
+  // janela num unico digest matinal disparado ao fim da janela.
+  agrupar_recusas: boolean;
   atualizado_em: string | null;
 };
 
@@ -183,6 +186,7 @@ export default function CeoJanelasDescanso() {
           quiet_fim: pref.quiet_fim.length === 5 ? `${pref.quiet_fim}:00` : pref.quiet_fim,
           tz: pref.tz,
           habilitar_quiet_hours: pref.habilitar_quiet_hours,
+          agrupar_recusas: pref.agrupar_recusas,
         }),
       });
       const j = await r.json();
@@ -303,6 +307,34 @@ export default function CeoJanelasDescanso() {
               <ShieldAlert size={12} className="inline mr-1" />
               Recusas (doc_refused) sempre passam, independente do horario.
               Esta regra eh fixa por design e nao pode ser desligada.
+            </div>
+
+            <div
+              className="border rounded p-3 space-y-2"
+              style={{ borderColor: GOLD, background: pref.habilitar_quiet_hours ? "white" : "#f4f4f5" }}
+            >
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={pref.agrupar_recusas}
+                  onChange={(e) => atualizarLocal(pref.canal, { agrupar_recusas: e.target.checked })}
+                  disabled={!pref.habilitar_quiet_hours}
+                  className="mt-0.5"
+                  data-testid={`agrupar-recusas-${pref.canal.toLowerCase()}`}
+                />
+                <span className="flex-1">
+                  <span className="font-medium flex items-center gap-1.5" style={{ color: NAVY }}>
+                    <Inbox size={14} style={{ color: GOLD }} />
+                    Agrupar recusas em digest matinal (quando dentro da janela)
+                  </span>
+                  <span className="block mt-1 text-xs" style={{ color: ZINC }}>
+                    Quando ligado, recusas que chegarem dentro da janela de descanso
+                    NAO pingam imediato — sao consolidadas num unico aviso disparado
+                    assim que a janela fecha. Recusas FORA da janela continuam imediatas.
+                    Pode ligar so no e-mail e manter WhatsApp imediato (urgencia clinica).
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div className="flex justify-end">
