@@ -365,4 +365,124 @@ router.put(
   },
 );
 
+/**
+ * Task #249 — Tela pro CEO ver alertas silenciados pela janela de descanso.
+ *
+ * GET /admin/ceo-notif-preferencias/silenciados
+ *   Lista notificacoes do CEO logado que foram pulado pela janela propria
+ *   de descanso (erro LIKE 'ceo_quiet_hours:%'). Filtra por destinatario
+ *   = email do usuario logado pra evitar vazamento entre validador_mestres.
+ *
+ * POST /admin/ceo-notif-preferencias/silenciados/:id/liberar
+ *   Forca reprocessamento imediato: zera proxima_tentativa_em e marca
+ *   PENDENTE. Restrito a notificacoes silenciadas por ceo_quiet_hours
+ *   pertencentes ao CEO logado (defesa contra liberar alerta de outro).
+ */
+router.get(
+  "/admin/ceo-notif-preferencias/silenciados",
+  requireAuth,
+  requireRole("validador_mestre"),
+  requireMasterEstrito,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const usuarioId = (req as any).user?.id;
+      if (!usuarioId || usuarioId < 0) {
+        res.status(400).json({ ok: false, error: "usuario_id_indisponivel" });
+        return;
+      }
+      const limit = Math.min(200, Math.max(10, Number(req.query.limit || 100)));
+      // Busca notifs onde:
+      //  - is_sistema_ceo = true (alerta operacional pro CEO)
+      //  - status = 'PULADO_QUIET' (nao-terminal, sera reprocessado)
+      //  - erro comeca em 'ceo_quiet_hours:' (foi a janela do CEO, nao a global)
+      //  - destinatario casa POR CANAL com o usuario logado:
+      //      EMAIL    → lower(usuarios.email) = lower(destinatario)
+      //      WHATSAPP → usuarios.telefone     = destinatario
+      //    (defesa contra vazamento entre validador_mestres)
+      const r: any = await db.execute(sql`
+        SELECT n.id, n.canal, n.momento, n.destinatario,
+               n.evento_ceo, n.criado_em, n.proxima_tentativa_em,
+               n.erro, n.tentativas, n.assunto,
+               s.paciente_id, p.nome AS paciente_nome,
+               un.nick AS unidade_nick
+        FROM assinatura_notificacoes n
+        JOIN usuarios usr ON usr.id = ${usuarioId}
+        LEFT JOIN assinatura_solicitacoes s ON s.id = n.solicitacao_id
+        LEFT JOIN pacientes p ON p.id = s.paciente_id
+        LEFT JOIN unidades un ON un.id = p.unidade_id
+        WHERE n.is_sistema_ceo = true
+          AND n.status = 'PULADO_QUIET'
+          AND n.erro LIKE 'ceo_quiet_hours:%'
+          AND (
+            (n.canal = 'EMAIL'    AND usr.email IS NOT NULL
+              AND lower(n.destinatario) = lower(usr.email))
+            OR
+            (n.canal = 'WHATSAPP' AND usr.telefone IS NOT NULL
+              AND n.destinatario = usr.telefone)
+          )
+        ORDER BY n.proxima_tentativa_em ASC NULLS LAST, n.id DESC
+        LIMIT ${limit}
+      `);
+      res.json({ ok: true, rows: r.rows ?? r ?? [] });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: (e as Error).message });
+    }
+  },
+);
+
+router.post(
+  "/admin/ceo-notif-preferencias/silenciados/:id/liberar",
+  requireAuth,
+  requireRole("validador_mestre"),
+  requireMasterEstrito,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id) || id <= 0) {
+        res.status(400).json({ ok: false, error: "id_invalido" });
+        return;
+      }
+      const usuarioId = (req as any).user?.id;
+      if (!usuarioId || usuarioId < 0) {
+        res.status(400).json({ ok: false, error: "usuario_id_indisponivel" });
+        return;
+      }
+      // Restringe a notificacoes do proprio CEO silenciadas pela janela
+      // propria — match POR CANAL contra usuarios.email/usuarios.telefone:
+      //   EMAIL    → lower(email) = lower(destinatario)
+      //   WHATSAPP → telefone     = destinatario
+      // Assim um validador_mestre nao consegue liberar alerta que
+      // pertence a outro CEO ou que foi pulado por outro motivo.
+      const r: any = await db.execute(sql`
+        UPDATE assinatura_notificacoes n
+        SET status = 'PENDENTE',
+            proxima_tentativa_em = NULL,
+            erro = NULL
+        FROM usuarios usr
+        WHERE n.id = ${id}
+          AND usr.id = ${usuarioId}
+          AND n.is_sistema_ceo = true
+          AND n.status = 'PULADO_QUIET'
+          AND n.erro LIKE 'ceo_quiet_hours:%'
+          AND (
+            (n.canal = 'EMAIL'    AND usr.email IS NOT NULL
+              AND lower(n.destinatario) = lower(usr.email))
+            OR
+            (n.canal = 'WHATSAPP' AND usr.telefone IS NOT NULL
+              AND n.destinatario = usr.telefone)
+          )
+        RETURNING n.id, n.canal, n.status
+      `);
+      const updated = (r.rows ?? r)[0];
+      if (!updated) {
+        res.status(404).json({ ok: false, error: "notificacao_nao_silenciada_ou_nao_pertence" });
+        return;
+      }
+      res.json({ ok: true, liberada: updated });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: (e as Error).message });
+    }
+  },
+);
+
 export default router;

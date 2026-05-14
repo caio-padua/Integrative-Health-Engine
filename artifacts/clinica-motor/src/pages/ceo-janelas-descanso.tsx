@@ -11,7 +11,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
-import { Clock, Save, ShieldAlert, Mail, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Clock, Save, ShieldAlert, Mail, MessageSquare, CheckCircle2, BellOff, Zap, RefreshCw } from "lucide-react";
 
 const NAVY = "#020406";
 const GOLD = "#C89B3C";
@@ -59,11 +59,48 @@ function recortarHHMM(s: string): string {
   return (s ?? "").slice(0, 5);
 }
 
+// Task #249 — alertas silenciados pela janela do CEO.
+type Silenciado = {
+  id: number;
+  canal: "EMAIL" | "WHATSAPP";
+  momento: string | null;
+  destinatario: string;
+  evento_ceo: string | null;
+  criado_em: string;
+  proxima_tentativa_em: string | null;
+  erro: string | null;
+  tentativas: number | null;
+  assunto: string | null;
+  paciente_id: number | null;
+  paciente_nome: string | null;
+  unidade_nick: string | null;
+};
+
+function formatarDataHora(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("pt-BR");
+  } catch {
+    return iso;
+  }
+}
+
+function rotuloEvento(evento: string | null): string {
+  const e = (evento || "").toUpperCase();
+  if (e === "ASSINADO") return "Assinado";
+  if (e === "REJEITADO") return "Recusado";
+  return evento || "—";
+}
+
 export default function CeoJanelasDescanso() {
   const [prefs, setPrefs] = useState<Pref[] | null>(null);
   const [salvandoCanal, setSalvandoCanal] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
+
+  const [silenciados, setSilenciados] = useState<Silenciado[] | null>(null);
+  const [silenciadosCarregando, setSilenciadosCarregando] = useState(false);
+  const [liberandoId, setLiberandoId] = useState<number | null>(null);
 
   const carregar = useCallback(async () => {
     setErro(null);
@@ -80,9 +117,50 @@ export default function CeoJanelasDescanso() {
     }
   }, []);
 
+  const carregarSilenciados = useCallback(async () => {
+    setSilenciadosCarregando(true);
+    try {
+      const r = await apiFetch("/api/admin/ceo-notif-preferencias/silenciados", { credentials: "include" });
+      if (!r.ok) {
+        setErro(`Falha ao carregar silenciados (HTTP ${r.status})`);
+        return;
+      }
+      const j = await r.json();
+      setSilenciados(j.rows ?? []);
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setSilenciadosCarregando(false);
+    }
+  }, []);
+
   useEffect(() => {
     carregar();
-  }, [carregar]);
+    carregarSilenciados();
+  }, [carregar, carregarSilenciados]);
+
+  const liberarAgora = async (id: number) => {
+    setLiberandoId(id);
+    setErro(null);
+    setOkMsg(null);
+    try {
+      const r = await apiFetch(`/api/admin/ceo-notif-preferencias/silenciados/${id}/liberar`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) {
+        setErro(j.error || `HTTP ${r.status}`);
+        return;
+      }
+      setOkMsg(`Alerta #${id} liberado — sera reenviado no proximo tick.`);
+      await carregarSilenciados();
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setLiberandoId(null);
+    }
+  };
 
   const atualizarLocal = (canal: Pref["canal"], patch: Partial<Pref>) => {
     setPrefs((cur) =>
@@ -241,6 +319,106 @@ export default function CeoJanelasDescanso() {
             </div>
           </section>
         ))}
+
+        <section
+          className="border rounded-lg p-5 space-y-4"
+          style={{ borderColor: GOLD, background: "white" }}
+          data-testid="ceo-silenciados-section"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: NAVY }}>
+              <BellOff size={18} style={{ color: GOLD }} />
+              Alertas silenciados pela janela de descanso
+            </h2>
+            <button
+              onClick={() => carregarSilenciados()}
+              disabled={silenciadosCarregando}
+              className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded border disabled:opacity-60"
+              style={{ borderColor: GOLD, color: NAVY, background: "white" }}
+              data-testid="ceo-silenciados-refresh"
+            >
+              <RefreshCw size={12} />
+              {silenciadosCarregando ? "Atualizando..." : "Atualizar"}
+            </button>
+          </div>
+
+          <p className="text-sm" style={{ color: ZINC }}>
+            Avisos de assinatura que cairam dentro da janela de descanso configurada
+            acima. Eles serao reenviados automaticamente quando a janela terminar.
+            Use &quot;Liberar agora&quot; pra forcar reenvio imediato.
+          </p>
+
+          {silenciados === null && (
+            <div style={{ color: ZINC }}>Carregando alertas silenciados...</div>
+          )}
+
+          {silenciados !== null && silenciados.length === 0 && (
+            <div
+              className="text-sm px-3 py-4 rounded border text-center"
+              style={{ borderColor: GOLD, background: "#fffbea", color: NAVY }}
+              data-testid="ceo-silenciados-vazio"
+            >
+              Nenhum alerta foi silenciado pela sua janela de descanso ate agora.
+            </div>
+          )}
+
+          {silenciados !== null && silenciados.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" data-testid="ceo-silenciados-tabela">
+                <thead>
+                  <tr style={{ background: "#f5f5f4", color: NAVY }}>
+                    <th className="text-left px-2 py-2 font-semibold">Canal</th>
+                    <th className="text-left px-2 py-2 font-semibold">Evento</th>
+                    <th className="text-left px-2 py-2 font-semibold">Paciente / Unidade</th>
+                    <th className="text-left px-2 py-2 font-semibold">Destinatario</th>
+                    <th className="text-left px-2 py-2 font-semibold">Silenciado em</th>
+                    <th className="text-left px-2 py-2 font-semibold">Volta a tocar em</th>
+                    <th className="text-right px-2 py-2 font-semibold">Acao</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {silenciados.map((s) => (
+                    <tr
+                      key={s.id}
+                      className="border-t"
+                      style={{ borderColor: "#e7e5e4" }}
+                      data-testid={`ceo-silenciado-${s.id}`}
+                    >
+                      <td className="px-2 py-2">
+                        <span className="inline-flex items-center gap-1">
+                          <CanalIcone canal={s.canal} />
+                          {CANAL_LABEL[s.canal]}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2">{rotuloEvento(s.evento_ceo)}</td>
+                      <td className="px-2 py-2">
+                        <div style={{ color: NAVY }}>{s.paciente_nome || "—"}</div>
+                        {s.unidade_nick && (
+                          <div className="text-xs" style={{ color: ZINC }}>{s.unidade_nick}</div>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 break-all">{s.destinatario}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{formatarDataHora(s.criado_em)}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{formatarDataHora(s.proxima_tentativa_em)}</td>
+                      <td className="px-2 py-2 text-right">
+                        <button
+                          onClick={() => liberarAgora(s.id)}
+                          disabled={liberandoId === s.id}
+                          className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded transition disabled:opacity-60"
+                          style={{ background: NAVY, color: "white", border: `1px solid ${GOLD}` }}
+                          data-testid={`liberar-${s.id}`}
+                        >
+                          <Zap size={12} />
+                          {liberandoId === s.id ? "Liberando..." : "Liberar agora"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
     </Layout>
   );
