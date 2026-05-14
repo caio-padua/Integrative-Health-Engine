@@ -89,7 +89,11 @@ type AcaoKillSwitch =
   | "EXCLUIR_AGENDAR" | "EXCLUIR_EXECUTAR" | "EXCLUIR_CANCELAR"
   | "PROMOVER_ADMIN" | "REBAIXAR_ADMIN"
   // Task #154 — kill-switch de sessoes JWT (forca logout do usuario alvo).
-  | "FORCAR_LOGOUT";
+  | "FORCAR_LOGOUT"
+  // Task #276 — download do CSV de avisos 2FA (Task #169). Carrega emails
+  // dos owners + timestamps de login + status dos canais; LGPD pede
+  // "quem viu o que e quando".
+  | "EXPORT_CSV_AVISOS_2FA";
 
 // Tipo do executor de SQL: aceita tanto `db` quanto a tx do `db.transaction`.
 // Usamos `Pick` pra nao acoplar com a API completa do drizzle.
@@ -2357,6 +2361,20 @@ router.get(
 router.get("/plataforma/seguranca/avisos-2fa.csv", ...guardas, async (req, res): Promise<void> => {
   const limite = Math.min(Number(req.query["limite"] ?? 100) || 100, 500);
   const diasJanela = Math.min(Number(req.query["dias"] ?? 30) || 30, 180);
+  // Task #276 — registra o download em auditoria_kill_switch antes do
+  // res.send. `auditoria_kill_switch.unidade_id` e NOT NULL e a acao e
+  // global (nao pertence a uma clinica), entao usa a unidade do executor
+  // (platform_owner SEMPRE tem unidade vinculada por requirePlataforma —
+  // mesma regra do FORCAR_LOGOUT). Sem fallback de unidade, hijack do
+  // owner viraria buraco de auditoria.
+  const unidadeExecutor = (req as AuthedRequest).user?.unidadeId ?? null;
+  if (!unidadeExecutor) {
+    res.status(409).json({
+      error: "Executor sem unidade vinculada — vincule antes de exportar CSV.",
+      codigo: "UNIDADE_AUSENTE",
+    });
+    return;
+  }
   const result = await db.execute(sql`
     SELECT
       h.aviso_em,
@@ -2441,6 +2459,40 @@ router.get("/plataforma/seguranca/avisos-2fa.csv", ...guardas, async (req, res):
 
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
   const nomeArquivo = `avisos-2fa-${diasJanela}d-${stamp}.csv`;
+
+  // Task #276 — registra na auditoria ANTES de mandar o CSV. Se a query
+  // ja rodou e estamos a uma chamada do res.send, queremos a trilha
+  // gravada de qualquer jeito. Se o INSERT falhar, devolve 500 em vez de
+  // entregar o CSV silenciosamente sem deixar rastro (LGPD pede "quem
+  // viu o que e quando" — sem rastro, melhor falhar a entrega).
+  const actor = getActor(req);
+  try {
+    await registrarAuditoria(db, {
+      acao: "EXPORT_CSV_AVISOS_2FA",
+      unidadeId: Number(unidadeExecutor),
+      executadoPorUsuarioId: actor.userId,
+      motivo: `Download CSV avisos 2FA (${diasJanela}d, limite ${limite})`,
+      ip: actor.ip,
+      ua: actor.ua,
+      metadata: {
+        dias: diasJanela,
+        limite,
+        total_linhas: linhas.length,
+        nome_arquivo: nomeArquivo,
+      },
+    });
+  } catch (err) {
+    req.log?.error(
+      { err },
+      "[plataforma] falha ao registrar auditoria do export CSV avisos 2FA — abortando entrega",
+    );
+    res.status(500).json({
+      error: "Falha ao registrar auditoria do download. Tente novamente.",
+      codigo: "AUDITORIA_FALHOU",
+    });
+    return;
+  }
+
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader(
     "Content-Disposition",
