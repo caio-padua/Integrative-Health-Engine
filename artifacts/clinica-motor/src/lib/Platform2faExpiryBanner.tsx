@@ -6,10 +6,11 @@
 // extendido nessa task), calcula tempo restante por tick de 30s e mostra
 // o aviso com botao "Renovar agora" que abre o mesmo modal TOTP da
 // Task #125 via `usePlatformStepUp.openStepUp()`.
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert, X } from "lucide-react";
+import { useSound } from "@/hooks/useSound";
 
 const JANELA_2FA_MS = 8 * 60 * 60 * 1000;
 const AVISO_ANTECEDENCIA_MS = 15 * 60 * 1000;
@@ -31,8 +32,13 @@ export function Platform2faExpiryBanner({
 }): ReactElement | null {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const sound = useSound();
   const [agora, setAgora] = useState<number>(() => Date.now());
   const [dispensadoAte, setDispensadoAte] = useState<number | null>(null);
+  // Marca o `ultimoLogin2faEm` pra qual ja tocamos o aviso sonoro — assim
+  // tocamos exatamente uma vez por janela 2FA. Quando o CEO renova, o
+  // valor muda e a ref reseta naturalmente.
+  const ultimoAvisadoRef = useRef<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setAgora(Date.now()), TICK_MS);
@@ -46,17 +52,31 @@ export function Platform2faExpiryBanner({
     (user as unknown as { ultimoLogin2faEm?: string | null })?.ultimoLogin2faEm ??
     (user as unknown as { ultimo_login_2fa_em?: string | null })?.ultimo_login_2fa_em ??
     null;
-  if (!ultimoIso) return null;
 
-  const ultimoMs = new Date(ultimoIso).getTime();
-  if (!Number.isFinite(ultimoMs)) return null;
+  const ultimoMs = ultimoIso ? new Date(ultimoIso).getTime() : NaN;
+  const temUltimo = ultimoIso !== null && Number.isFinite(ultimoMs);
+  const expiraEm = temUltimo ? ultimoMs + JANELA_2FA_MS : 0;
+  const restante = temUltimo ? expiraEm - agora : Number.POSITIVE_INFINITY;
+  const dentroDaJanelaAviso =
+    temUltimo && restante > 0 && restante <= AVISO_ANTECEDENCIA_MS;
 
-  const expiraEm = ultimoMs + JANELA_2FA_MS;
-  const restante = expiraEm - agora;
+  // Toca um `sound.tap()` discreto UMA unica vez por janela 2FA assim
+  // que o restante cruza pra dentro de <15min — respeita o toggle
+  // "Som silenciado" via useSound (sound.tap ja checa enabled internamente).
+  // A ref guarda o ultimoIso pra qual ja avisamos, entao renovar o 2FA
+  // (que muda ultimoLogin2faEm) reseta naturalmente.
+  useEffect(() => {
+    if (!dentroDaJanelaAviso || !ultimoIso) return;
+    if (ultimoAvisadoRef.current === ultimoIso) return;
+    ultimoAvisadoRef.current = ultimoIso;
+    sound.tap();
+  }, [dentroDaJanelaAviso, ultimoIso, sound]);
+
+  if (!temUltimo) return null;
 
   // Mostra so quando faltam <15min e ainda nao expirou (>0). Apos
   // expirar, o fluxo reativo (usePlatformStepUp) ja toma conta via 403.
-  if (restante <= 0 || restante > AVISO_ANTECEDENCIA_MS) return null;
+  if (!dentroDaJanelaAviso) return null;
   if (dispensadoAte && dispensadoAte > agora) return null;
 
   return (
