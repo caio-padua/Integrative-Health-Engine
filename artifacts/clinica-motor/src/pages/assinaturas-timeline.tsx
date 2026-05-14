@@ -467,7 +467,18 @@ export default function AssinaturasTimeline() {
 
   const { toast } = useToast();
   const avisoOrdenacaoMostradoRef = useRef(false);
+  const avisoStatusMostradoRef = useRef(false);
   const ultimoUserIdAvisoRef = useRef<number | string | null>(null);
+
+  // Task #212 — labels humanos pra montar o aviso "Filtrando por X — sua
+  // ultima escolha" quando o chip de status salvo e aplicado automaticamente.
+  // Mesmo padrao da Task #91 (aviso de ordenacao).
+  const LABEL_STATUS: Record<FiltroStatus, string> = {
+    TODOS: "Todos",
+    EM_ANDAMENTO: "Em andamento",
+    CONCLUIDO: "Concluídas",
+    REJEITADO: "Rejeitadas/Expiradas",
+  };
 
   // Task #88 + Task #96 — hidrata a lista salva quando o usuario fica
   // disponivel, SOMENTE se a URL atual nao traz `?ordenar_por=` (link
@@ -483,6 +494,7 @@ export default function AssinaturasTimeline() {
     if (ultimoUserIdAvisoRef.current !== user.id) {
       ultimoUserIdAvisoRef.current = user.id;
       avisoOrdenacaoMostradoRef.current = false;
+      avisoStatusMostradoRef.current = false;
     }
     const urlTem = new URLSearchParams(window.location.search).get("ordenar_por");
     if (urlTem) return;
@@ -544,6 +556,11 @@ export default function AssinaturasTimeline() {
     }
 
     // Status
+    // Task #212 — alem de restaurar o chip salvo, dispara um toast discreto
+    // de 3s avisando "Filtrando por <chip> — sua ultima escolha", com acao
+    // "ver tudo" que reseta pra TODOS e remove a chave salva (proxima visita
+    // re-mostra o aviso se o usuario configurar um novo chip). Mesmo padrao
+    // da Task #91 (aviso de ordenacao).
     if (!sp.get("status")) {
       const salvo = lerStorageFiltro("filtro_status", user.id);
       if (salvo !== null && salvo !== "") {
@@ -551,7 +568,32 @@ export default function AssinaturasTimeline() {
           salvo === "em_andamento" ? "EM_ANDAMENTO" :
           salvo === "concluido"    ? "CONCLUIDO"    :
           salvo === "rejeitado"    ? "REJEITADO"    : null;
-        if (proximo && proximo !== filtroStatus) setFiltroStatus(proximo);
+        if (proximo && proximo !== filtroStatus) {
+          setFiltroStatus(proximo);
+          if (!avisoStatusMostradoRef.current) {
+            avisoStatusMostradoRef.current = true;
+            const t = toast({
+              title: `Filtrando por ${LABEL_STATUS[proximo]}`,
+              description: "Aplicamos sua última escolha de status.",
+              duration: 3000,
+              action: (
+                <ToastAction
+                  altText="Ver todos os status"
+                  onClick={() => {
+                    setFiltroStatus("TODOS");
+                    const k = chaveStorageFiltro("filtro_status", user?.id);
+                    if (k && typeof window !== "undefined") {
+                      try { window.localStorage.removeItem(k); } catch { /* ignore */ }
+                    }
+                    t.dismiss();
+                  }}
+                >
+                  ver tudo
+                </ToastAction>
+              ),
+            });
+          }
+        }
       }
     }
 
