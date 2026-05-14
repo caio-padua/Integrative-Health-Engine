@@ -636,6 +636,39 @@ export default function AssinaturasTimeline() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtroUnidadeId, filtroStatus, desdeInput, ateInput, ordenacoesKey]);
 
+  // Task #209 — concentracao por medico do conjunto FILTRADO COMPLETO.
+  // Calculado server-side (`/timeline/concentracao-medico`) pra refletir
+  // o universo inteiro (paginado), nao so as linhas carregadas. So dispara
+  // a chamada quando o primeiro criterio de ordenacao e MEDICO — fora
+  // disso o card nao e renderizado, entao nao paga o custo da query.
+  type ConcentracaoMedicoItem = { medico: string | null; n: number; soma_brl: number; pct: number };
+  type ConcentracaoMedico = { total_receitas: number; total_medicos: number; top: ConcentracaoMedicoItem[] };
+  const [concentracaoMedico, setConcentracaoMedico] = useState<ConcentracaoMedico | null>(null);
+  const ordenarPorMedico = ordenacoes.length > 0 && chaveDeOrdenacao(ordenacoes[0]!) === "MEDICO";
+  useEffect(() => {
+    if (!ordenarPorMedico) { setConcentracaoMedico(null); return; }
+    const params = new URLSearchParams();
+    if (filtroUnidadeId !== null) params.set("unidade_id", String(filtroUnidadeId));
+    const statusList = STATUS_QUERY[filtroStatus];
+    if (statusList.length > 0) params.set("status", statusList.join(","));
+    if (desdeInput) params.set("desde", desdeInput);
+    if (ateInput) params.set("ate", ateInput);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    let cancelado = false;
+    (async () => {
+      try {
+        const r = await apiFetch(`/api/assinaturas/timeline/concentracao-medico${qs}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json() as ConcentracaoMedico;
+        if (!cancelado) setConcentracaoMedico(data);
+      } catch {
+        if (!cancelado) setConcentracaoMedico(null);
+      }
+    })();
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordenarPorMedico, filtroUnidadeId, filtroStatus, desdeInput, ateInput]);
+
   const totais = {
     enviado: rows.filter((r) => r.status === "ENVIADO" || r.status === "PARCIAL").length,
     concluido: rows.filter((r) => r.status === "CONCLUIDO").length,
@@ -966,6 +999,85 @@ export default function AssinaturasTimeline() {
           >
             Nenhuma solicitação registrada ainda. Aguardando primeiro disparo
             ZapSign.
+          </div>
+        )}
+
+        {/* Task #209 — card "Concentração por médico" no TOPO da tabela.
+            Aparece quando o primeiro criterio de ordenacao e MEDICO (asc ou
+            desc). Dados vem do endpoint server-side
+            `/timeline/concentracao-medico` (mesmos filtros do GET timeline),
+            entao ranking e % refletem o conjunto FILTRADO COMPLETO — nao so
+            a pagina carregada. Sem isso, com paginacao ativa o top 5 ficaria
+            errado. */}
+        {ordenarPorMedico && concentracaoMedico !== null && concentracaoMedico.total_receitas > 0 && (
+          <div
+            className="bg-white border rounded p-3"
+            style={{ borderColor: GOLD }}
+            data-testid="concentracao-por-medico"
+          >
+            <div
+              className="text-xs uppercase tracking-wide mb-2 font-semibold flex items-center justify-between"
+              style={{ color: NAVY }}
+            >
+              <span>Concentração por médico — top 5 (todos os filtros)</span>
+              <span style={{ color: ZINC }}>
+                {concentracaoMedico.total_medicos} médico
+                {concentracaoMedico.total_medicos === 1 ? "" : "s"} ·{" "}
+                {concentracaoMedico.total_receitas} receita
+                {concentracaoMedico.total_receitas === 1 ? "" : "s"} no total
+              </span>
+            </div>
+            <table className="w-full text-xs">
+              <thead style={{ color: ZINC }}>
+                <tr>
+                  <th className="text-left px-2 py-1 font-semibold">#</th>
+                  <th className="text-left px-2 py-1 font-semibold">Médico</th>
+                  <th className="text-right px-2 py-1 font-semibold">Receitas</th>
+                  <th className="text-right px-2 py-1 font-semibold">Soma (BRL)</th>
+                  <th className="text-right px-2 py-1 font-semibold">% do total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {concentracaoMedico.top.map((it, idx) => {
+                  const nome = it.medico ?? "— sem médico —";
+                  const sem = it.medico === null;
+                  const slug = sem ? "sem-medico" : nome;
+                  return (
+                    <tr
+                      key={`${idx}-${slug}`}
+                      className="border-t"
+                      data-testid={`concentracao-medico-linha-${slug}`}
+                    >
+                      <td className="px-2 py-1 font-mono" style={{ color: ZINC }}>
+                        {idx + 1}
+                      </td>
+                      <td
+                        className="px-2 py-1"
+                        style={{
+                          color: sem ? ZINC : NAVY,
+                          fontStyle: sem ? "italic" : "normal",
+                        }}
+                      >
+                        {nome}
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono" style={{ color: NAVY }}>
+                        {it.n}
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono font-bold" style={{ color: GOLD }}>
+                        {formatarBRL(it.soma_brl)}
+                      </td>
+                      <td
+                        className="px-2 py-1 text-right font-mono"
+                        style={{ color: NAVY }}
+                        data-testid={`concentracao-medico-pct-${slug}`}
+                      >
+                        {it.pct.toFixed(1).replace(".", ",")}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 

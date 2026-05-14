@@ -978,6 +978,122 @@ router.get("/assinaturas/timeline", guardMaster, async (req: Request, res: Respo
 });
 
 /**
+ * GET /api/assinaturas/timeline/concentracao-medico — Task #209
+ *
+ * Resumo "top 5 médicos" do conjunto FILTRADO COMPLETO (não da página
+ * carregada). Aceita os mesmos filtros do GET /assinaturas/timeline
+ * (unidade_id, status, desde, ate) pra garantir que ranking e percentuais
+ * batem com o que o usuário vê na tela. Mesmo gate guardMaster.
+ *
+ * Resposta: { total_receitas, total_medicos, top: [{ medico, n, soma_brl, pct }] }
+ *   - `medico` = nome ou null pra "sem médico"
+ *   - `n` = nº de receitas (inclui linhas sem valor)
+ *   - `soma_brl` = soma de valor_brl (NULL conta como 0)
+ *   - `pct` = n / total_receitas (0..100)
+ *   - `top` ordenado por n DESC, tiebreak soma_brl DESC, limitado a 5
+ */
+router.get("/assinaturas/timeline/concentracao-medico", guardMaster, async (req: Request, res: Response) => {
+  try {
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
+      ? Number(unidadeIdRaw)
+      : null;
+    const filtroUnidadeJoin = unidadeIdFiltro !== null
+      ? sql`JOIN pacientes p_filt ON p_filt.id = s.paciente_id AND p_filt.unidade_id = ${unidadeIdFiltro}`
+      : sql``;
+    const STATUS_VALIDOS = new Set([
+      "RASCUNHO", "ENVIADO", "PARCIAL", "CONCLUIDO", "REJEITADO", "EXPIRADO",
+    ]);
+    const statusRaw = req.query["status"];
+    const statusFiltro: string[] = typeof statusRaw === "string" && statusRaw.length > 0
+      ? statusRaw.split(",").map(s => s.trim().toUpperCase()).filter(s => STATUS_VALIDOS.has(s))
+      : [];
+    const DATA_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
+    function parseDataOuNull(raw: unknown): string | null {
+      if (typeof raw !== "string") return null;
+      const m = DATA_REGEX.exec(raw);
+      if (!m) return null;
+      const ano = Number(m[1]); const mes = Number(m[2]); const dia = Number(m[3]);
+      if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+      const d = new Date(Date.UTC(ano, mes - 1, dia));
+      if (d.getUTCFullYear() !== ano || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) return null;
+      return raw;
+    }
+    const desdeFiltro = parseDataOuNull(req.query["desde"]);
+    const ateFiltro = parseDataOuNull(req.query["ate"]);
+    const filtrosWhere: ReturnType<typeof sql>[] = [];
+    if (statusFiltro.length > 0) {
+      filtrosWhere.push(sql`s.status IN (${sql.join(statusFiltro.map(s => sql`${s}`), sql`, `)})`);
+    }
+    if (desdeFiltro !== null) filtrosWhere.push(sql`s.criado_em >= ${desdeFiltro}::date`);
+    if (ateFiltro !== null) filtrosWhere.push(sql`s.criado_em < (${ateFiltro}::date + INTERVAL '1 day')`);
+    const filtroStatusWhere = filtrosWhere.length > 0
+      ? sql`WHERE ${sql.join(filtrosWhere, sql` AND `)}`
+      : sql``;
+
+    const r = await db.execute(sql`
+      WITH base AS (
+        SELECT med.nome AS medico_nome,
+               COALESCE(rec.valor_formula_estimado, 0)::numeric AS valor
+        FROM assinatura_solicitacoes s
+        JOIN assinatura_templates t   ON t.id = s.template_id
+        LEFT JOIN pacientes p         ON p.id = s.paciente_id
+        LEFT JOIN unidades u          ON u.id = p.unidade_id
+        LEFT JOIN parmavault_receitas rec
+          ON (s.metadata->>'receitaId') ~ '^[0-9]+$'
+         AND rec.id = (s.metadata->>'receitaId')::bigint
+        LEFT JOIN usuarios med ON med.id = rec.medico_id
+        ${filtroUnidadeJoin}
+        ${filtroStatusWhere}
+      ), agg AS (
+        SELECT medico_nome,
+               COUNT(*)::int AS n,
+               COALESCE(SUM(valor), 0)::numeric AS soma
+        FROM base
+        GROUP BY medico_nome
+      )
+      SELECT
+        (SELECT COUNT(*)::int FROM base)         AS total_receitas,
+        (SELECT COUNT(*)::int FROM agg)          AS total_medicos,
+        COALESCE(json_agg(json_build_object(
+          'medico', medico_nome,
+          'n', n,
+          'soma_brl', soma
+        ) ORDER BY n DESC, soma DESC) FILTER (WHERE TRUE), '[]'::json) AS top_full
+      FROM (
+        SELECT * FROM agg ORDER BY n DESC, soma DESC LIMIT 5
+      ) AS t(medico_nome, n, soma)
+    `);
+    const row = (((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [])[0] || {};
+    const totalReceitas = Number(row["total_receitas"] || 0);
+    const totalMedicos = Number(row["total_medicos"] || 0);
+    const topRaw = (row["top_full"] as Array<Record<string, unknown>> | null) || [];
+    const top = topRaw.map((it) => {
+      const n = Number(it["n"] || 0);
+      const somaBrl = Number(it["soma_brl"] || 0);
+      const pct = totalReceitas > 0 ? (n / totalReceitas) * 100 : 0;
+      return {
+        medico: it["medico"] === null || it["medico"] === undefined ? null : String(it["medico"]),
+        n,
+        soma_brl: Number.isFinite(somaBrl) ? somaBrl : 0,
+        pct,
+      };
+    });
+    res.json({
+      total_receitas: totalReceitas,
+      total_medicos: totalMedicos,
+      top,
+      filtro_unidade_id: unidadeIdFiltro,
+      filtro_status: statusFiltro,
+      filtro_desde: desdeFiltro,
+      filtro_ate: ateFiltro,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /api/assinaturas/timeline.csv — Task #60 · export CSV da timeline filtrada
  *
  * Mesmo gate (guardMaster) e mesmos filtros (`unidade_id`, `status`) do endpoint
