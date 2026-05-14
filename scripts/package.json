@@ -12,6 +12,7 @@
     "backfill-posologia-estruturada": "tsx ./src/backfill-posologia-estruturada.ts",
     "cobertura-posologia": "tsx ./src/cobertura-posologia.ts",
     "backfill-lembrete-horarios-unidades": "tsx ./src/backfill-lembrete-horarios-unidades.ts",
+    "backfill-totp-limpezas-diarias": "tsx ./src/backfill-totp-limpezas-diarias.ts",
     "migrar-lgpd-exports-data-url": "tsx ./src/migrar-lgpd-exports-data-url.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
