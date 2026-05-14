@@ -14,6 +14,13 @@ type PreviaDestinatarios = {
   unidadeNome: string;
   emails: string[];
   telefones: string[];
+  // Task #268 — versao enriquecida: cada destinatario carrega
+  // `ultimas_falhas` (quantas das ultimas `tentativasJanelaFalhas`
+  // tentativas de aviso por canal acabaram em falha pra ele).
+  // Opcionais pra retrocompat com payloads antigos.
+  emailsDetalhe?: Array<{ valor: string; ultimas_falhas: number }>;
+  telefonesDetalhe?: Array<{ valor: string; ultimas_falhas: number }>;
+  tentativasJanelaFalhas?: number;
   whatsappVazio: boolean;
   // Task #178: quando emailVazio === true, NENHUM responsavel da clinica
   // tem email cadastrado — combinado com whatsappVazio significa que
@@ -1114,9 +1121,29 @@ function PreviaSuspensaoModalImpl({
                 </div>
               ) : (
                 <ul className="text-xs text-zinc-300 space-y-1 break-all">
-                  {previa.emails.map((e) => (
-                    <li key={e}>· {e}</li>
-                  ))}
+                  {(previa.emailsDetalhe ?? previa.emails.map((valor) => ({ valor, ultimas_falhas: 0 }))).map((d) => {
+                    // Task #268 — `ultimas_falhas` ja vem enriquecido por
+                    // destinatario direto do backend. Quando > 0 mostra
+                    // icone amarelo + tooltip explicativo. Fallback 3 evita
+                    // tooltip "x/0" se o payload vier sem o campo (pre-Task #268).
+                    const falhas = d.ultimas_falhas;
+                    const janela = previa.tentativasJanelaFalhas ?? 3;
+                    return (
+                      <li key={d.valor} className="flex items-start gap-1">
+                        <span>·</span>
+                        <span className="flex-1">{d.valor}</span>
+                        {falhas > 0 && (
+                          <span
+                            title={`Este email falhou em ${falhas} das ultimas ${janela} tentativas de aviso desta clinica. Pode estar quebrado — confirme antes de suspender.`}
+                            className="inline-flex items-center gap-0.5 text-amber-300 shrink-0"
+                          >
+                            <AlertTriangle size={12} />
+                            <span className="tabular-nums">{falhas}/{janela}</span>
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -1132,9 +1159,27 @@ function PreviaSuspensaoModalImpl({
                 </div>
               ) : (
                 <ul className="text-xs text-zinc-300 space-y-1 break-all">
-                  {previa.telefones.map((t) => (
-                    <li key={t}>· {t}</li>
-                  ))}
+                  {(previa.telefonesDetalhe ?? previa.telefones.map((valor) => ({ valor, ultimas_falhas: 0 }))).map((d) => {
+                    // Task #268 — `ultimas_falhas` ja vem enriquecido por
+                    // destinatario direto do backend.
+                    const falhas = d.ultimas_falhas;
+                    const janela = previa.tentativasJanelaFalhas ?? 3;
+                    return (
+                      <li key={d.valor} className="flex items-start gap-1">
+                        <span>·</span>
+                        <span className="flex-1">{d.valor}</span>
+                        {falhas > 0 && (
+                          <span
+                            title={`Este WhatsApp falhou em ${falhas} das ultimas ${janela} tentativas de aviso desta clinica. Pode estar quebrado — confirme antes de suspender.`}
+                            className="inline-flex items-center gap-0.5 text-amber-300 shrink-0"
+                          >
+                            <AlertTriangle size={12} />
+                            <span className="tabular-nums">{falhas}/{janela}</span>
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

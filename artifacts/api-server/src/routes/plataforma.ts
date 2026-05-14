@@ -322,6 +322,82 @@ async function anexarAvisoEmAuditoria(
   }
 }
 
+// Task #268 — janela de tentativas recentes consideradas pra contar falhas
+// por destinatario (por canal). 3 = ja pega "falhou nas ultimas 3 tentativas",
+// suficiente pra detectar email/whatsapp quebrado ha semanas sem ruido de
+// uma falha pontual antiga.
+const FALHAS_RECENTES_TENTATIVAS_JANELA = 3;
+
+// Task #268 — varre auditoria_kill_switch.metadata.avisos[] e conta, por
+// destinatario, em quantas das ultimas N tentativas (por canal) o envio
+// falhou. Usa detalhes_email (Task #148) e detalhes_whatsapp (Task #176).
+// Registros antigos sem detalhes nao sao contabilizados (sem dado granular).
+async function coletarFalhasRecentesPorDestinatario(
+  unidadeId: number,
+): Promise<{ emails: Record<string, number>; telefones: Record<string, number> }> {
+  const emails: Record<string, number> = {};
+  const telefones: Record<string, number> = {};
+  try {
+    const res = await db.execute(sql`
+      SELECT COALESCE(metadata->'avisos', '[]'::jsonb) AS avisos
+        FROM auditoria_kill_switch
+       WHERE unidade_id = ${unidadeId}
+         AND acao IN ('SUSPENDER', 'REASSUMIR')
+       ORDER BY criado_em DESC
+       LIMIT 20
+    `);
+    // Achata todas as tentativas (avisos) de todos os eventos em ordem
+    // cronologica reversa (mais recente primeiro). Em seguida pega so as
+    // N ultimas POR CANAL.
+    type AvisoMin = {
+      canal?: "EMAIL" | "WHATSAPP";
+      em?: string;
+      detalhes_email?: Array<{ destinatario: string; sucesso: boolean }>;
+      detalhes_whatsapp?: Array<{ destinatario: string; sucesso: boolean }>;
+    };
+    const todas: AvisoMin[] = [];
+    for (const row of res.rows as Array<{ avisos?: AvisoMin[] }>) {
+      const avs = row.avisos ?? [];
+      // metadata.avisos[] esta em ordem de gravacao (cronologica). Reverte
+      // pra ter mais recente primeiro dentro do mesmo evento.
+      for (let i = avs.length - 1; i >= 0; i--) todas.push(avs[i]!);
+    }
+    const tentativasEmail: AvisoMin[] = [];
+    const tentativasWhats: AvisoMin[] = [];
+    for (const a of todas) {
+      const canal = a.canal ?? "EMAIL";
+      if (canal === "EMAIL" && tentativasEmail.length < FALHAS_RECENTES_TENTATIVAS_JANELA) {
+        tentativasEmail.push(a);
+      } else if (canal === "WHATSAPP" && tentativasWhats.length < FALHAS_RECENTES_TENTATIVAS_JANELA) {
+        tentativasWhats.push(a);
+      }
+      if (
+        tentativasEmail.length >= FALHAS_RECENTES_TENTATIVAS_JANELA &&
+        tentativasWhats.length >= FALHAS_RECENTES_TENTATIVAS_JANELA
+      ) break;
+    }
+    for (const t of tentativasEmail) {
+      for (const d of t.detalhes_email ?? []) {
+        if (!d.sucesso && d.destinatario) {
+          const k = d.destinatario.trim().toLowerCase();
+          emails[k] = (emails[k] ?? 0) + 1;
+        }
+      }
+    }
+    for (const t of tentativasWhats) {
+      for (const d of t.detalhes_whatsapp ?? []) {
+        if (!d.sucesso && d.destinatario) {
+          const k = d.destinatario.replace(/\D/g, "");
+          if (k.length >= 10) telefones[k] = (telefones[k] ?? 0) + 1;
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn({ err, unidadeId }, "[plataforma] falha ao coletar falhas recentes por destinatario");
+  }
+  return { emails, telefones };
+}
+
 // ───────────────────────────── CLINICAS ────────────────────────────────
 // GET /api/plataforma/clinicas — lista todas (status + suspensao)
 router.get("/plataforma/clinicas", ...guardas, async (_req, res): Promise<void> => {
@@ -364,10 +440,15 @@ router.get(
     const janelaDias = req.query.janelaDias !== undefined
       ? normalizarJanelaDias(req.query.janelaDias)
       : JANELA_DIAS_DEFAULT;
-    const [emails, telefones, consultasProximas] = await Promise.all([
+    const [emails, telefones, consultasProximas, falhasRecentes] = await Promise.all([
       coletarDestinatarios(id, unidade),
       coletarTelefonesResponsaveis(id, unidade),
       buscarPacientesComConsultaProxima(id, janelaDias),
+      // Task #268 — cruza a previa com o historico de avisos pra destacar
+      // destinatarios cujo email/whatsapp falhou nas ultimas tentativas.
+      // Sem isso, o platform_owner suspende achando que avisou todo mundo,
+      // mas o email principal podia estar quebrado ha semanas.
+      coletarFalhasRecentesPorDestinatario(id),
     ]);
     let pacientesAvisados = 0;
     let pacientesSemContato = 0;
@@ -377,11 +458,32 @@ router.get(
       if (temEmail || temTel) pacientesAvisados++;
       else pacientesSemContato++;
     }
+    // Task #268 — enriquece cada destinatario com `ultimas_falhas`: quantas
+    // das ultimas FALHAS_RECENTES_TENTATIVAS_JANELA tentativas de aviso
+    // (por canal) o envio falhou. Chave normalizada (email lowercase /
+    // telefone so digitos) bate com o que `coletarFalhasRecentesPorDestinatario`
+    // grava. Os arrays `emails` / `telefones` (string[]) sao mantidos como
+    // alias retrocompativel pra consumidores que so leem o valor.
+    const emailsDetalhe = emails.map((valor) => ({
+      valor,
+      ultimas_falhas: falhasRecentes.emails[valor.trim().toLowerCase()] ?? 0,
+    }));
+    const telefonesDetalhe = telefones.map((valor) => ({
+      valor,
+      ultimas_falhas: falhasRecentes.telefones[valor.replace(/\D/g, "")] ?? 0,
+    }));
     res.json({
       unidadeId: id,
       unidadeNome: unidade.nome,
+      // Retrocompat: arrays planos de strings (consumidores antigos).
       emails,
       telefones,
+      // Task #268 — destinatarios enriquecidos com `ultimas_falhas`.
+      // Janela considerada exposta separadamente pra UI montar o tooltip
+      // ("falhou em N das ultimas X tentativas").
+      emailsDetalhe,
+      telefonesDetalhe,
+      tentativasJanelaFalhas: FALHAS_RECENTES_TENTATIVAS_JANELA,
       whatsappVazio: telefones.length === 0,
       // Task #178: sem email cadastrado pros responsaveis o aviso por
       // email tambem nao chega — quando WhatsApp tambem esta vazio a
