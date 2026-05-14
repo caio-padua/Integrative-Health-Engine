@@ -137,11 +137,24 @@ export default function PlataformaPerfil() {
   // gravado em usuarios.telefone via PUT /api/usuarios/:id (rota ja
   // aceita "telefone" em SELF_FIELDS). Worker da Task #36 le essa
   // coluna pra disparar WhatsApp em doc_signed/doc_refused.
+  // Task #244 — gravacao agora exige confirmacao por PIN enviado pelo
+  // proprio canal WhatsApp antes de persistir o numero.
   const [telefone, setTelefone] = useState<string>("");
   const [telefoneInicial, setTelefoneInicial] = useState<string>("");
   const [salvandoTel, setSalvandoTel] = useState(false);
   const [erroTel, setErroTel] = useState<string | null>(null);
   const [okTel, setOkTel] = useState<string | null>(null);
+  // Task #244 — pendencia de PIN (numero novo aguardando confirmacao
+  // pelo WhatsApp). Quando ativo, mostramos input de PIN + botoes
+  // Confirmar / Cancelar. Cancelar volta pro telefone anterior.
+  const [pinPendente, setPinPendente] = useState<{
+    telefoneE164: string;
+    expiraEm: string;
+  } | null>(null);
+  const [pinDigitado, setPinDigitado] = useState<string>("");
+  const [confirmandoPin, setConfirmandoPin] = useState(false);
+  const [cancelandoPin, setCancelandoPin] = useState(false);
+  const [tentativasRestantes, setTentativasRestantes] = useState<number | null>(null);
   // Task #186 — historico das ultimas 10 janelas de aviso 2FA pra
   // mini-tabela "Ultimos avisos" abaixo do banner do "Ultimo aviso enviado".
   const [historicoAvisos, setHistoricoAvisos] = useState<HistoricoAviso2fa[]>([]);
@@ -230,6 +243,7 @@ export default function PlataformaPerfil() {
   async function salvarTelefone() {
     setErroTel(null);
     setOkTel(null);
+    setTentativasRestantes(null);
     if (!perfil) return;
     const erroVal = validarTelefoneCelularBr(telefone);
     if (erroVal) { setErroTel(erroVal); return; }
@@ -241,12 +255,23 @@ export default function PlataformaPerfil() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ telefone: paraE164Br(telefone) }),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        setErroTel(j.error ?? `Falha ao salvar (${r.status})`);
+      const data = await r.json().catch(() => ({}));
+      // Task #244 — backend agora responde 202 com requerConfirmacaoPin
+      // quando o numero e novo. So persistimos depois que o usuario digita
+      // o PIN recebido pelo WhatsApp em /usuarios/me/telefone/confirmar.
+      if (r.status === 202 && data?.requerConfirmacaoPin) {
+        setPinPendente({ telefoneE164: data.telefoneE164, expiraEm: data.expiraEm });
+        setPinDigitado("");
+        setOkTel(
+          data.mensagem ??
+            "PIN enviado pelo WhatsApp pra esse numero. Digite-o pra confirmar.",
+        );
         return;
       }
-      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setErroTel(data.error ?? `Falha ao salvar (${r.status})`);
+        return;
+      }
       const novo = deE164ParaMascaraBr(data?.telefone ?? null);
       setTelefone(novo);
       setTelefoneInicial(novo);
@@ -255,6 +280,72 @@ export default function PlataformaPerfil() {
       setErroTel(e?.message ?? "Sem conexao com o servidor.");
     } finally {
       setSalvandoTel(false);
+    }
+  }
+
+  // Task #244 — confirma o PIN recebido pelo WhatsApp. So aqui o
+  // backend efetivamente grava o numero novo em usuarios.telefone.
+  async function confirmarPin() {
+    if (!pinPendente) return;
+    setErroTel(null);
+    setOkTel(null);
+    setTentativasRestantes(null);
+    setConfirmandoPin(true);
+    try {
+      const r = await apiFetch("/api/usuarios/me/telefone/confirmar", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinDigitado.trim() }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (typeof data?.tentativasRestantes === "number") {
+          setTentativasRestantes(data.tentativasRestantes);
+        }
+        if (data?.expirado || data?.excedeuTentativas) {
+          // Pendencia morta — o backend ja descartou. Limpa a UI pro
+          // CEO digitar o numero de novo e pedir um PIN novo.
+          setPinPendente(null);
+          setPinDigitado("");
+          // Volta o campo pro numero antigo.
+          setTelefone(telefoneInicial);
+        }
+        setErroTel(data.error ?? `Falha ao confirmar (${r.status})`);
+        return;
+      }
+      const novo = deE164ParaMascaraBr(data?.telefone ?? null);
+      setTelefone(novo);
+      setTelefoneInicial(novo);
+      setPinPendente(null);
+      setPinDigitado("");
+      setOkTel("WhatsApp confirmado. O proximo aviso de contrato assinado/recusado ja sai por aqui.");
+    } catch (e: any) {
+      setErroTel(e?.message ?? "Sem conexao com o servidor.");
+    } finally {
+      setConfirmandoPin(false);
+    }
+  }
+
+  // Task #244 — cancela a pendencia. Volta o campo pro numero antigo.
+  async function cancelarPin() {
+    setErroTel(null);
+    setOkTel(null);
+    setTentativasRestantes(null);
+    setCancelandoPin(true);
+    try {
+      await apiFetch("/api/usuarios/me/telefone/cancelar", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // segue — limpamos o estado local mesmo se a chamada falhar.
+    } finally {
+      setPinPendente(null);
+      setPinDigitado("");
+      setTelefone(telefoneInicial);
+      setCancelandoPin(false);
+      setOkTel("Confirmacao cancelada. Continuamos com o numero anterior.");
     }
   }
 
@@ -417,12 +508,64 @@ export default function PlataformaPerfil() {
               <div className="mt-4 flex justify-end">
                 <button
                   onClick={() => void salvarTelefone()}
-                  disabled={salvandoTel || !telefoneSujo}
+                  disabled={salvandoTel || !telefoneSujo || !!pinPendente}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 rounded text-sm disabled:opacity-50"
                 >
-                  <Save size={16} /> {salvandoTel ? "Salvando..." : "Salvar WhatsApp"}
+                  <Save size={16} /> {salvandoTel ? "Enviando PIN..." : "Salvar WhatsApp"}
                 </button>
               </div>
+
+              {/* Task #244 — confirmacao por PIN. Aparece DEPOIS do
+                  primeiro POST quando o backend responde 202 com
+                  requerConfirmacaoPin. So aqui o telefone e gravado
+                  em usuarios.telefone (no /confirmar). */}
+              {pinPendente && (
+                <div className="mt-4 p-4 border border-amber-500/40 bg-amber-500/10 rounded">
+                  <div className="text-xs uppercase tracking-wide text-amber-300 font-semibold mb-2">
+                    Confirme o PIN recebido pelo WhatsApp
+                  </div>
+                  <p className="text-xs text-amber-100/90 mb-3">
+                    Mandamos um codigo de 6 digitos pra{" "}
+                    <span className="font-mono">{pinPendente.telefoneE164}</span>.
+                    Digite o PIN abaixo pra confirmar que o numero e seu.
+                    Se o codigo nao chegar em alguns minutos, cancele e
+                    digite o numero de novo. O PIN expira em 10min.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="000000"
+                      maxLength={6}
+                      value={pinDigitado}
+                      onChange={(e) =>
+                        setPinDigitado(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      className="w-32 px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-zinc-100 font-mono text-lg tracking-widest text-center focus:outline-none focus:border-amber-500/50"
+                    />
+                    <button
+                      onClick={() => void confirmarPin()}
+                      disabled={confirmandoPin || pinDigitado.length !== 6}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 rounded text-sm disabled:opacity-50"
+                    >
+                      {confirmandoPin ? "Confirmando..." : "Confirmar PIN"}
+                    </button>
+                    <button
+                      onClick={() => void cancelarPin()}
+                      disabled={cancelandoPin}
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 rounded text-sm disabled:opacity-50"
+                    >
+                      {cancelandoPin ? "Cancelando..." : "Cancelar"}
+                    </button>
+                  </div>
+                  {tentativasRestantes !== null && tentativasRestantes > 0 && (
+                    <div className="mt-2 text-[11px] text-amber-300/80">
+                      Tentativas restantes: {tentativasRestantes}
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-5">

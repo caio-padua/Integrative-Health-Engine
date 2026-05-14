@@ -5,6 +5,12 @@ import { CriarUsuarioBody, LoginUsuarioBody } from "@workspace/api-zod";
 import { signJwt, novoJti } from "../lib/auth/jwt";
 import { extrairUserAgent, extrairIp, registrarSessao } from "../lib/auth/sessoesJwt";
 import { bloqueioLoginSuspenso } from "../lib/email/clinicaSuspensao";
+import {
+  iniciarConfirmacaoTelefonePin,
+  confirmarTelefonePin,
+  cancelarConfirmacaoTelefonePin,
+  obterStatusPendenciaPin,
+} from "../lib/usuarios/telefonePinConfirmacao";
 import bcrypt from "bcryptjs";
 
 const router = Router();
@@ -354,6 +360,45 @@ router.get("/usuarios/me/historico-avisos-2fa", async (req, res): Promise<void> 
   res.json({ avisos: result.rows ?? [] });
 });
 
+// Task #244 — confirma o PIN enviado pelo WhatsApp pra gravar o telefone.
+// Sem essa rota, o PUT /usuarios/:id retorna 202 com `requerConfirmacaoPin`
+// e nada e persistido em `usuarios.telefone` ate o usuario digitar o PIN.
+router.post("/usuarios/me/telefone/confirmar", async (req, res): Promise<void> => {
+  if (!req.user) { res.status(401).json({ error: "Nao autenticado" }); return; }
+  const pin = req.body?.pin;
+  if (typeof pin !== "string") { res.status(400).json({ error: "Campo 'pin' obrigatorio" }); return; }
+  const r = await confirmarTelefonePin(req.user.sub, pin);
+  if (!r.ok) {
+    let status = 400;
+    if (r.expirado) status = 410;
+    if (r.excedeuTentativas) status = 429;
+    res.status(status).json({
+      error: r.erro,
+      ...(r.expirado ? { expirado: true } : {}),
+      ...(r.excedeuTentativas ? { excedeuTentativas: true } : {}),
+      ...(typeof r.tentativasRestantes === "number" ? { tentativasRestantes: r.tentativasRestantes } : {}),
+    });
+    return;
+  }
+  res.json({ ok: true, telefone: r.telefoneE164 });
+});
+
+// Task #244 — cancela a pendencia ativa (CEO desistiu do numero novo).
+// Nao mexe em `usuarios.telefone` — o numero antigo continua valendo.
+router.post("/usuarios/me/telefone/cancelar", async (req, res): Promise<void> => {
+  if (!req.user) { res.status(401).json({ error: "Nao autenticado" }); return; }
+  await cancelarConfirmacaoTelefonePin(req.user.sub);
+  res.json({ ok: true });
+});
+
+// Task #244 — status da pendencia ativa (pra UI re-hidratar quando o
+// usuario recarrega a pagina no meio do fluxo de confirmacao).
+router.get("/usuarios/me/telefone/pendencia-pin", async (req, res): Promise<void> => {
+  if (!req.user) { res.status(401).json({ error: "Nao autenticado" }); return; }
+  const status = await obterStatusPendenciaPin(req.user.sub);
+  res.json(status);
+});
+
 router.put("/usuarios/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID invalido" }); return; }
@@ -361,6 +406,53 @@ router.put("/usuarios/:id", async (req, res): Promise<void> => {
   const isSelf = req.user.sub === id;
   const admin = isAdmin(req);
   if (!isSelf && !admin) { res.status(403).json({ error: "Sem permissao para alterar este usuario" }); return; }
+
+  // Task #244 — bifurcacao do fluxo de telefone para SELF: nao gravamos
+  // direto. Se o numero novo for diferente do atual, geramos um PIN e
+  // mandamos pelo proprio canal WhatsApp; o cliente confirma via
+  // POST /usuarios/me/telefone/confirmar { pin } e SO ENTAO o telefone
+  // entra em `usuarios.telefone`. Admin alterando outra conta segue o
+  // fluxo direto (admin op, ja tem privilegio). Admin alterando a si
+  // mesmo cai aqui via isSelf — passa pela confirmacao tambem.
+  const telefoneSolicitado = req.body?.telefone;
+  if (
+    isSelf &&
+    typeof telefoneSolicitado === "string" &&
+    telefoneSolicitado.trim().length > 0
+  ) {
+    const [atual] = await db
+      .select({ telefone: usuariosTable.telefone, unidadeId: usuariosTable.unidadeId })
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, id))
+      .limit(1);
+    if (!atual) { res.status(404).json({ error: "Usuario nao encontrado" }); return; }
+    if (telefoneSolicitado.trim() !== (atual.telefone ?? "")) {
+      const r = await iniciarConfirmacaoTelefonePin(
+        id,
+        telefoneSolicitado.trim(),
+        atual.unidadeId ?? undefined,
+      );
+      if (!r.ok) {
+        res.status(r.rateLimit ? 429 : 400).json({
+          error: r.erro,
+          ...(r.rateLimit ? { rateLimit: true } : {}),
+          ...("proximoEnvioEm" in r && r.proximoEnvioEm ? { proximoEnvioEm: r.proximoEnvioEm } : {}),
+        });
+        return;
+      }
+      res.status(202).json({
+        requerConfirmacaoPin: true,
+        telefoneE164: r.telefoneE164,
+        expiraEm: r.expiraEm,
+        proximoPasso: "POST /usuarios/me/telefone/confirmar { pin }",
+        mensagem:
+          "Enviamos um PIN de 6 digitos pelo WhatsApp pra esse numero. Digite o PIN pra concluir.",
+      });
+      return;
+    }
+    // numero igual ao atual -> deixa cair no fluxo normal (no-op no campo
+    // telefone, mas pode ter outros campos do SELF_FIELDS pra atualizar).
+  }
 
   // Campos seguros para o proprio usuario alterar (sem escalada de privilegio)
   const SELF_FIELDS = ["nome", "telefone", "crm", "cpf", "cns", "especialidade"];
