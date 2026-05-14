@@ -47,6 +47,7 @@ import {
   TOTP_TENTATIVAS_MAX,
 } from "../lib/auth/rateLimitTotp";
 import { dispararAlertaBruteForceTotp } from "../lib/auth/alertaBruteForceTotp";
+import { dispararAlertaLoginRecuperacao } from "../lib/auth/alertaLoginRecuperacao";
 
 const router = Router();
 
@@ -450,6 +451,21 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     .set({ ultimoLogin2faEm: agora })
     .where(eq(usuariosTable.id, usuario.id));
 
+  // Task #222 — login com codigo de recuperacao 2FA dispara alerta de
+  // seguranca pro proprio dono da conta (email + WhatsApp) e registra em
+  // alertas_ceo_seguranca pra auditoria. Fire-and-forget: helper e
+  // defensivo (nunca lanca), nao pode derrubar o login.
+  if (usouCodigoRecuperacao) {
+    void dispararAlertaLoginRecuperacao({
+      usuarioId: usuario.id,
+      ip: (req.ip || req.header("x-forwarded-for") || "").toString().slice(0, 200),
+      userAgent: (req.header("user-agent") || "").slice(0, 500),
+      codigosRestantes: codigosRecuperacaoRestantesAposLogin,
+      codigosTotal: CODIGOS_RECUPERACAO_TOTAL,
+      ocorridoEm: agora,
+    });
+  }
+
   const vinculosConsultor = await db
     .select({
       unidadeId: consultorUnidadesTable.unidadeId,
@@ -497,6 +513,9 @@ router.post("/usuarios/login/2fa-verificar", async (req, res): Promise<void> => 
     },
     usouCodigoRecuperacao,
     codigosRecuperacao2faRestantes: codigosRecuperacaoRestantesAposLogin,
+    // Task #222 — total da cota original (CODIGOS_RECUPERACAO_TOTAL) pra
+    // UI mostrar "Restam X de N" no banner de aviso.
+    codigosRecuperacao2faTotal: CODIGOS_RECUPERACAO_TOTAL,
   });
 });
 

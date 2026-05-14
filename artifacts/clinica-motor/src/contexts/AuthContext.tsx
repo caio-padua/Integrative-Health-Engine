@@ -38,7 +38,13 @@ interface AuthContextType {
   logout: () => void;
   pendingTwoFactor: PendingTwoFactor | null;
   cancelTwoFactor: () => void;
-  verifyTwoFactor: (codigo: string) => Promise<{ ok: boolean; error?: string }>;
+  verifyTwoFactor: (codigo: string) => Promise<{
+    ok: boolean;
+    error?: string;
+    usouCodigoRecuperacao?: boolean;
+    codigosRecuperacao2faRestantes?: number;
+    codigosRecuperacao2faTotal?: number;
+  }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,6 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token: string;
     usuario: Usuario;
     requires2fa?: false;
+    // Task #222 — quando o login aceitou um codigo de recuperacao 2FA
+    // (em vez do TOTP do app autenticador), o backend devolve esses
+    // campos pra UI mostrar banner de aviso + a contagem restante.
+    usouCodigoRecuperacao?: boolean;
+    codigosRecuperacao2faRestantes?: number;
+    codigosRecuperacao2faTotal?: number;
   };
   type LoginRespostaPedindoSegundaEtapa = {
     requires2fa: true;
@@ -129,7 +141,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Task #122 — segunda etapa do login: troca challenge+codigo pelo JWT
   // chamando POST /api/usuarios/login/2fa-verificar (rota publica, nao
   // exige Authorization). Sucesso: persiste token, dispara perfil-atual.
-  const verifyTwoFactor = async (codigo: string): Promise<{ ok: boolean; error?: string }> => {
+  const verifyTwoFactor = async (codigo: string): Promise<{
+    ok: boolean;
+    error?: string;
+    usouCodigoRecuperacao?: boolean;
+    codigosRecuperacao2faRestantes?: number;
+    codigosRecuperacao2faTotal?: number;
+  }> => {
     if (!pendingTwoFactor) return { ok: false, error: "Sem login pendente" };
     try {
       const r = await fetch("/api/usuarios/login/2fa-verificar", {
@@ -150,8 +168,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (j.usuario) setUser(j.usuario);
       setPendingTwoFactor(null);
       queryClient.invalidateQueries({ queryKey: ["/usuarios/perfil-atual"] });
-      toast({ title: "Login realizado com sucesso." });
-      return { ok: true };
+      // Task #222 — quando o login passou por codigo de recuperacao, NAO
+      // mostramos o toast generico de "login com sucesso" pra nao competir
+      // com o banner amarelo que a tela de login renderiza em seguida.
+      if (!j.usouCodigoRecuperacao) {
+        toast({ title: "Login realizado com sucesso." });
+      }
+      return {
+        ok: true,
+        usouCodigoRecuperacao: j.usouCodigoRecuperacao === true,
+        codigosRecuperacao2faRestantes:
+          typeof j.codigosRecuperacao2faRestantes === "number"
+            ? j.codigosRecuperacao2faRestantes
+            : undefined,
+        codigosRecuperacao2faTotal:
+          typeof j.codigosRecuperacao2faTotal === "number"
+            ? j.codigosRecuperacao2faTotal
+            : undefined,
+      };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Sem conexao com o servidor";
       return { ok: false, error: msg };

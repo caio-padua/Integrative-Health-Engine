@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Activity, Sparkles, ShieldCheck, Loader2 } from "lucide-react";
+import { Activity, Sparkles, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "E-mail inválido" }),
@@ -24,6 +24,13 @@ export default function Login() {
   const { toast } = useToast();
   const [codigo2fa, setCodigo2fa] = useState("");
   const [verificando2fa, setVerificando2fa] = useState(false);
+  // Task #222 — quando o login aceita codigo de recuperacao, segura o
+  // redirecionamento e mostra banner amarelo na propria tela de login.
+  // O dono so prossegue depois de clicar "Entendi, continuar".
+  const [avisoRecuperacao, setAvisoRecuperacao] = useState<{
+    restantes: number;
+    total: number;
+  } | null>(null);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -34,10 +41,13 @@ export default function Login() {
   });
 
   useEffect(() => {
-    if (user) {
+    // Task #222 — segura o redirect enquanto o banner de codigo de
+    // recuperacao estiver visivel; navega so quando o dono clicar
+    // "Entendi, continuar" (que zera `avisoRecuperacao`).
+    if (user && !avisoRecuperacao) {
       setLocation("/dashboard");
     }
-  }, [user, setLocation]);
+  }, [user, avisoRecuperacao, setLocation]);
 
   const onSubmit = (data: LoginFormValues) => {
     login(data);
@@ -62,6 +72,22 @@ export default function Login() {
         variant: "destructive",
       });
       setCodigo2fa("");
+      return;
+    }
+    // Task #222 — login aceitou codigo de recuperacao: ativa o banner
+    // amarelo na tela de login. O useEffect acima nao redireciona
+    // enquanto `avisoRecuperacao` for != null.
+    if (r.usouCodigoRecuperacao) {
+      setAvisoRecuperacao({
+        restantes:
+          typeof r.codigosRecuperacao2faRestantes === "number"
+            ? r.codigosRecuperacao2faRestantes
+            : 0,
+        total:
+          typeof r.codigosRecuperacao2faTotal === "number"
+            ? r.codigosRecuperacao2faTotal
+            : 0,
+      });
     }
   };
 
@@ -107,7 +133,61 @@ export default function Login() {
         </CardHeader>
 
         <CardContent className="pt-6 pb-8 px-8">
-          {pendingTwoFactor ? (
+          {avisoRecuperacao ? (
+            <div className="space-y-5" data-testid="banner-recuperacao-2fa">
+              <div
+                className="border-2 border-[#d97a3c] bg-[#fff7e6] p-5 space-y-3"
+                role="alert"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-6 h-6 text-[#d97a3c] flex-shrink-0 mt-0.5" />
+                  <div className="space-y-2">
+                    <div className="font-semibold text-[var(--pw-tinta)] uppercase tracking-[0.15em] text-sm">
+                      Voce entrou com codigo de recuperacao
+                    </div>
+                    <div className="text-xs text-[var(--pw-tinta)] leading-relaxed">
+                      Restam{" "}
+                      <span className="font-mono font-bold">
+                        {avisoRecuperacao.restantes}
+                      </span>
+                      {avisoRecuperacao.total > 0 ? (
+                        <>
+                          {" de "}
+                          <span className="font-mono font-bold">
+                            {avisoRecuperacao.total}
+                          </span>
+                        </>
+                      ) : null}{" "}
+                      codigos de recuperacao na sua conta. Recupere acesso ao
+                      app autenticador (Google Authenticator / Authy /
+                      1Password) o quanto antes — codigos sao um atalho de
+                      emergencia, nao a forma normal de entrar.
+                    </div>
+                    <div className="text-xs text-[var(--pw-tinta)] leading-relaxed">
+                      Enviamos um aviso por email e WhatsApp pra voce
+                      confirmar que o login foi seu. Se nao foi, troque a
+                      senha + regere os codigos imediatamente.
+                    </div>
+                    {avisoRecuperacao.restantes <= 2 && (
+                      <div className="text-xs text-[#7d1d2e] font-semibold border-t border-[#d97a3c] pt-2 mt-2">
+                        Atencao: restam apenas {avisoRecuperacao.restantes}{" "}
+                        codigos. Considere regerar agora pra nao ficar sem
+                        acesso de emergencia.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <Button
+                type="button"
+                onClick={() => setAvisoRecuperacao(null)}
+                className="w-full h-12 font-semibold uppercase tracking-[0.2em] rounded-none bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white text-sm transition-all"
+                data-testid="button-prosseguir-recuperacao"
+              >
+                Entendi, continuar
+              </Button>
+            </div>
+          ) : pendingTwoFactor ? (
             <div className="space-y-5" data-testid="form-2fa">
               <div className="text-center space-y-2">
                 <ShieldCheck className="w-10 h-10 mx-auto text-[var(--pw-petroleo)]" />
