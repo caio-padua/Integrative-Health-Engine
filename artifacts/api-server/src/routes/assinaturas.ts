@@ -101,6 +101,56 @@ export function descreverOrdenacaoTimeline(tokens: string[]): string {
   return tokens.map((t) => ROTULO_ORDENACAO_TIMELINE[t] ?? t).join(" · ");
 }
 
+// Task #206 — auditoria server-side de cada download do extrato da timeline.
+// Grava 1 linha em `assinaturas_timeline_exports` por chamada bem-sucedida
+// a /assinaturas/timeline.csv ou /assinaturas/timeline.xlsx. A tela do CEO
+// lê os últimos 50 registros via GET /assinaturas/timeline/exports.
+//
+// Tolerante a falhas: se a migration 054 ainda não rodou (SQLSTATE 42P01)
+// ou se o INSERT explodir por outro motivo, NÃO quebra o download — só
+// loga warning. O arquivo já contém timestamp + filtros no cabeçalho
+// (Task #86), então a auditoria server-side é defesa em profundidade.
+async function registrarDownloadTimeline(opts: {
+  req: Request;
+  filtros: Record<string, unknown>;
+  ordenacao: string;
+  totalLinhas: number;
+  formato: "csv" | "xlsx";
+  truncado: boolean;
+}): Promise<void> {
+  const { req, filtros, ordenacao, totalLinhas, formato, truncado } = opts;
+  try {
+    const operador = ((req.user as any)?.email as string | undefined)
+      || ((req.user as any)?.nome as string | undefined)
+      || "(desconhecido)";
+    const operadorEmail = (req.user as any)?.email as string | undefined ?? null;
+    const operadorIdRaw = (req.user as any)?.id;
+    let operadorId: number | null = null;
+    if (typeof operadorIdRaw === "number" && Number.isFinite(operadorIdRaw)) {
+      operadorId = operadorIdRaw;
+    } else if (typeof operadorIdRaw === "string" && /^\d+$/.test(operadorIdRaw)) {
+      const parsed = Number(operadorIdRaw);
+      if (Number.isFinite(parsed)) operadorId = parsed;
+    }
+    await db.execute(sql`
+      INSERT INTO assinaturas_timeline_exports
+        (usuario_id, operador, operador_email, filtros, ordenacao,
+         total_linhas, formato, truncado)
+      VALUES
+        (${operadorId}, ${operador}, ${operadorEmail},
+         ${JSON.stringify(filtros)}::jsonb, ${ordenacao},
+         ${totalLinhas}, ${formato}, ${truncado})
+    `);
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "42P01") {
+      console.warn(`[assinaturas/export] tabela assinaturas_timeline_exports ausente (migration 054 pendente) — download nao auditado.`);
+    } else {
+      console.warn(`[assinaturas/export] falha ao auditar download (${formato}): ${(err as Error).message}`);
+    }
+  }
+}
+
 // Wave 10 F5 · gate alinhado ao padrao parq.ts (validador_mestre + master estrito).
 // Endpoints que retornam manifesto SHA-256, IP, geo e CPF integral DEVEM
 // passar por aqui — caso contrario abrem IDOR cross-tenant + vazamento PII.
@@ -1348,6 +1398,21 @@ router.get("/assinaturas/timeline.csv", guardMaster, async (req: Request, res: R
     res.setHeader("X-Truncated", truncadoCsv ? "1" : "0");
     res.setHeader("X-Truncated-Limit", String(limiteCsv));
     res.send(csv);
+    // Task #206 — auditoria server-side do download (após o send pra não
+    // bloquear o response em caso de lentidão do INSERT).
+    void registrarDownloadTimeline({
+      req,
+      filtros: {
+        unidade_id: unidadeIdFiltro,
+        status: statusFiltro,
+        desde: desdeFiltroCsv,
+        ate: ateFiltroCsv,
+      },
+      ordenacao: ordenarPorRawCsv,
+      totalLinhas: rows.length,
+      formato: "csv",
+      truncado: truncadoCsv,
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -1645,7 +1710,71 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
     res.setHeader("X-Truncated", truncadoXlsx ? "1" : "0");
     res.setHeader("X-Truncated-Limit", String(limiteXlsx));
     res.send(Buffer.from(buf));
+    // Task #206 — auditoria server-side do download (mesma chamada do CSV).
+    void registrarDownloadTimeline({
+      req,
+      filtros: {
+        unidade_id: unidadeIdFiltro,
+        status: statusFiltro,
+        desde: desdeFiltroXlsx,
+        ate: ateFiltroXlsx,
+      },
+      ordenacao: ordenarPorRawXlsx,
+      totalLinhas: rows.length,
+      formato: "xlsx",
+      truncado: truncadoXlsx,
+    });
   } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * GET /api/assinaturas/timeline/exports — Task #206
+ *
+ * Lista os ultimos 50 downloads do extrato da timeline (CSV/XLSX) gravados
+ * em `assinaturas_timeline_exports` (migration 054). A tela do CEO usa esta
+ * lista pra ver quem da equipe baixou qual extrato, com quais filtros e
+ * quando — fecha a auditoria server-side ja que o arquivo gerado vira
+ * anexo de e-mail e pode chegar em contador/advogado externo.
+ *
+ * Mesmo guardMaster das outras rotas Wave 10. JOIN com usuarios pra
+ * preencher nome/email atual quando o usuario_id ainda existe (operador
+ * gravado na linha tambem fica como snapshot caso o usuario seja deletado).
+ *
+ * IMPORTANTE: declarado ANTES de `/assinaturas/:id` (mesmo motivo do
+ * /timeline e /timeline.csv — match em ordem do express).
+ */
+router.get("/assinaturas/timeline/exports", guardMaster, async (_req: Request, res: Response) => {
+  try {
+    const r: any = await db.execute(sql`
+      SELECT
+        e.id,
+        e.usuario_id,
+        e.operador,
+        e.operador_email,
+        e.filtros,
+        e.ordenacao,
+        e.total_linhas,
+        e.formato,
+        e.truncado,
+        e.criado_em,
+        u.nome  AS usuario_nome_atual,
+        u.email AS usuario_email_atual
+      FROM assinaturas_timeline_exports e
+      LEFT JOIN usuarios u ON u.id = e.usuario_id
+      ORDER BY e.criado_em DESC
+      LIMIT 50
+    `);
+    const rows = ((r.rows ?? r) as Array<Record<string, unknown>>);
+    res.json({ exports: rows });
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "42P01") {
+      // Tolerante a rollout gradual: migration 054 ainda nao rodou.
+      res.json({ exports: [], aviso: "migration_pendente" });
+      return;
+    }
     res.status(500).json({ error: (err as Error).message });
   }
 });

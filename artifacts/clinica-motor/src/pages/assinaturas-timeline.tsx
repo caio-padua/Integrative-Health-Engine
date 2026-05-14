@@ -1935,7 +1935,207 @@ export default function AssinaturasTimeline() {
             Atualizado em {ultimaAtualizacao.toLocaleTimeString("pt-BR")}
           </div>
         )}
+
+        {/* Task #206 — auditoria server-side dos downloads do extrato.
+            Lista os ultimos 50 downloads de CSV/XLSX com quem baixou,
+            quando, filtros aplicados e formato. Fecha o ciclo de
+            rastreabilidade quando o anexo chega em contador/advogado
+            externo: o cabecalho do arquivo (Task #86) ja diz "ordenado
+            por X com filtros Y", mas nao diz QUEM da equipe gerou. */}
+        <DownloadsExtratoPanel />
       </div>
     </Layout>
+  );
+}
+
+// Task #206 — painel separado pra nao re-renderizar com cada filtro/scroll
+// da timeline principal. Carrega 1 vez ao montar + botao "Atualizar".
+type DownloadExport = {
+  id: number;
+  usuario_id: number | null;
+  operador: string;
+  operador_email: string | null;
+  filtros: Record<string, unknown> | null;
+  ordenacao: string;
+  total_linhas: number;
+  formato: "csv" | "xlsx";
+  truncado: boolean;
+  criado_em: string;
+  usuario_nome_atual: string | null;
+  usuario_email_atual: string | null;
+};
+
+function DownloadsExtratoPanel() {
+  const [exports, setExports] = useState<DownloadExport[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<boolean>(false);
+
+  const carregar = useCallback(async () => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const r = await apiFetch("/api/assinaturas/timeline/exports");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      setExports(Array.isArray(j.exports) ? j.exports : []);
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (aberto && exports.length === 0 && !loading && !erro) {
+      void carregar();
+    }
+  }, [aberto, exports.length, loading, erro, carregar]);
+
+  function descreverFiltros(f: Record<string, unknown> | null): string {
+    if (!f) return "—";
+    const partes: string[] = [];
+    const u = f["unidade_id"];
+    partes.push(`unidade=${u !== null && u !== undefined && u !== "" ? String(u) : "todas"}`);
+    const s = f["status"];
+    if (Array.isArray(s) && s.length > 0) {
+      partes.push(`status=${s.join("|")}`);
+    } else {
+      partes.push("status=todos");
+    }
+    const desde = f["desde"];
+    const ate = f["ate"];
+    if (desde || ate) {
+      partes.push(`${desde ?? "—"}→${ate ?? "—"}`);
+    }
+    return partes.join(" · ");
+  }
+
+  return (
+    <div
+      className="nao-imprimir bg-white border rounded"
+      style={{ borderColor: NAVY }}
+      data-testid="painel-downloads-extrato"
+    >
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+        style={{ background: aberto ? "#FFFDF5" : "#FFFFFF" }}
+        data-testid="botao-toggle-downloads-extrato"
+      >
+        <div className="flex items-center gap-2">
+          <Download size={14} style={{ color: NAVY }} />
+          <span className="text-sm font-semibold" style={{ color: NAVY }}>
+            Auditoria de downloads do extrato
+          </span>
+          <span className="text-xs" style={{ color: ZINC }}>
+            (últimos 50 — quem baixou, quando, filtros)
+          </span>
+        </div>
+        <span className="text-xs" style={{ color: ZINC }}>
+          {aberto ? "fechar ▴" : "abrir ▾"}
+        </span>
+      </button>
+      {aberto && (
+        <div className="border-t" style={{ borderColor: NAVY }}>
+          <div className="flex items-center justify-between px-4 py-2 text-xs"
+               style={{ background: "#FAFAFA", color: ZINC }}>
+            <span>
+              {loading
+                ? "Carregando..."
+                : erro
+                ? `Erro: ${erro}`
+                : `${exports.length} download(s) registrado(s)`}
+            </span>
+            <button
+              type="button"
+              onClick={() => void carregar()}
+              disabled={loading}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold border disabled:opacity-60"
+              style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
+              data-testid="botao-atualizar-downloads-extrato"
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+              Atualizar
+            </button>
+          </div>
+          {!loading && !erro && exports.length === 0 && (
+            <div className="px-4 py-6 text-center text-xs" style={{ color: ZINC }}>
+              Nenhum download registrado ainda. Baixe um CSV ou XLSX acima
+              pra ver a auditoria aqui.
+            </div>
+          )}
+          {!loading && exports.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead style={{ background: NAVY, color: GOLD }}>
+                  <tr>
+                    <th className="text-left px-3 py-2 font-semibold">Quando</th>
+                    <th className="text-left px-3 py-2 font-semibold">Quem</th>
+                    <th className="text-left px-3 py-2 font-semibold">Formato</th>
+                    <th className="text-right px-3 py-2 font-semibold">Linhas</th>
+                    <th className="text-left px-3 py-2 font-semibold">Filtros</th>
+                    <th className="text-left px-3 py-2 font-semibold">Ordenação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exports.map((e) => (
+                    <tr
+                      key={e.id}
+                      className="border-t"
+                      data-testid={`download-extrato-linha-${e.id}`}
+                    >
+                      <td className="px-3 py-2 font-mono" style={{ color: NAVY }}>
+                        {formatarData(e.criado_em)}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: NAVY }}>
+                        <div className="font-semibold">
+                          {e.usuario_nome_atual || e.operador}
+                        </div>
+                        {(e.usuario_email_atual || e.operador_email) && (
+                          <div className="text-[10px]" style={{ color: ZINC }}>
+                            {e.usuario_email_atual || e.operador_email}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                          style={{
+                            background: e.formato === "xlsx" ? "#DCFCE7" : "#DBEAFE",
+                            color: e.formato === "xlsx" ? GREEN : BLUE,
+                          }}
+                        >
+                          {e.formato}
+                        </span>
+                        {e.truncado && (
+                          <span
+                            className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
+                            style={{ background: "#FEF9E7", color: AMBER }}
+                            title="Export truncado em 5000 linhas"
+                          >
+                            truncado
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono" style={{ color: NAVY }}>
+                        {e.total_linhas.toLocaleString("pt-BR")}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-[11px]" style={{ color: ZINC }}>
+                        {descreverFiltros(e.filtros)}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-[11px]" style={{ color: ZINC }}>
+                        {e.ordenacao || "padrão (id desc)"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
