@@ -464,7 +464,15 @@ export function Layout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="px-4 py-3 border-t border-border space-y-1">
-          {location.startsWith("/plataforma") && (
+          {(location.startsWith("/plataforma") ||
+            // Task #264: validador_mestre / medico_validador tambem precisam
+            // do indicador permanente quando navegando nas telas onde 2FA
+            // recente eh exigido (assinatura de prescricoes, validacao de
+            // exames, libera RASX). O proprio indicador faz o gate de perfil
+            // — aqui so abrimos o portao de location pra essas rotas extras.
+            location.startsWith("/assinaturas") ||
+            location.startsWith("/validacao") ||
+            location.startsWith("/laboratorio/validacao")) && (
             <Platform2faFooterIndicator
               onRenovar={() =>
                 openStepUp2fa(() => {

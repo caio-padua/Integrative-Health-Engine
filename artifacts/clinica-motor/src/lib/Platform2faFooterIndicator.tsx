@@ -8,6 +8,11 @@
 // que tambem faz acoes sensiveis (suspender usuarios, validar pagamentos)
 // e merece o mesmo conforto de saber quanto tempo resta da janela 2FA.
 //
+// Task #264: estendido tambem pro perfil clinico validador_mestre /
+// medico_validador (assina prescricoes, libera RASX) — mesmo conforto
+// visual de saber quanto resta antes de revalidar TOTP, mesmo quando o
+// usuario nao tem perfilPlataforma (ex: medico_validador de clinica).
+//
 // Mesma fonte de verdade do banner: AuthContext.user.ultimoLogin2faEm.
 import { useEffect, useState, type ReactElement } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,11 +50,21 @@ export function Platform2faFooterIndicator({
   // acoes sensiveis cobertas pela janela 2FA recente). Aceita camelCase
   // (gerado do OpenAPI) e snake_case (defensivo se o tipo nao tiver
   // regenerado em algum momento) — mesmo padrao do Platform2faExpiryBanner.
+  //
+  // Task #264: tambem aparece pro perfil clinico validador_mestre /
+  // medico_validador, que assina prescricoes e libera RASX (acoes
+  // protegidas pela mesma janela 2FA recente). Gate de location continua
+  // sendo responsabilidade do Layout — aqui so checamos perfil.
   const perfilPlataforma =
     (user as unknown as { perfilPlataforma?: string | null })?.perfilPlataforma ??
     (user as unknown as { perfil_plataforma?: string | null })?.perfil_plataforma ??
     null;
-  if (perfilPlataforma !== "platform_owner" && perfilPlataforma !== "tenant_admin") {
+  const perfil = (user as unknown as { perfil?: string | null })?.perfil ?? null;
+  const elegivelPlataforma =
+    perfilPlataforma === "platform_owner" || perfilPlataforma === "tenant_admin";
+  const elegivelValidador =
+    perfil === "validador_mestre" || perfil === "medico_validador";
+  if (!elegivelPlataforma && !elegivelValidador) {
     return null;
   }
 
