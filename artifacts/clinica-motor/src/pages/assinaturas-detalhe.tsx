@@ -127,6 +127,9 @@ export default function AssinaturasDetalhe() {
   const [reenvioMsg, setReenvioMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [resetandoId, setResetandoId] = useState<number | null>(null);
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  // Task #201 — checkbox "estou ciente que ja resetei 3x" por evento
+  // pra liberar bypass do gate 423 modo teimoso.
+  const [forcarTeimoso, setForcarTeimoso] = useState<Record<number, boolean>>({});
 
   const reenviarLembrete = useCallback(async (signatarioId: number) => {
     setReenviandoId(signatarioId);
@@ -155,7 +158,7 @@ export default function AssinaturasDetalhe() {
     }
   }, [id]);
 
-  const resetarRetryUpload = useCallback(async (eventoId: number) => {
+  const resetarRetryUpload = useCallback(async (eventoId: number, forcar: boolean) => {
     const motivo = window.prompt(
       "Motivo do reset (opcional, max 500 chars). Ex.: bucket liberado, credencial reativada.",
       "",
@@ -165,10 +168,11 @@ export default function AssinaturasDetalhe() {
     setResetMsg(null);
     try {
       // Task #105 — apiFetch injeta Authorization Bearer automaticamente.
+      // Task #201 — `forcar` libera bypass do gate 423 modo teimoso (>=3 resets).
       const r = await apiFetch(`/api/assinaturas/uploads-falhos/${eventoId}/resetar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ motivo }),
+        body: JSON.stringify({ motivo, forcar }),
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -635,31 +639,93 @@ export default function AssinaturasDetalhe() {
                           : ""}
                       </div>
                     )}
-                    <div className="flex items-center justify-end pt-1">
-                      <button
-                        onClick={() => resetarRetryUpload(ev.id)}
-                        disabled={resetandoId === ev.id || aguardandoWebhook}
-                        title={
-                          aguardandoWebhook
-                            ? "Esperando o ZapSign reentregar o webhook — não é possível resetar manualmente."
-                            : "Zera tentativas, limpa erro e dispara o worker imediatamente"
-                        }
-                        className="nao-imprimir inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-semibold border disabled:opacity-50"
+                    {(ev.resets_manuais_count ?? 0) >= 3 && (
+                      <div
+                        className="flex items-start gap-2 p-2 rounded border text-xs"
                         style={{
-                          borderColor: GOLD,
-                          color: NAVY,
-                          background: "#FFFBEB",
+                          borderColor: RED,
+                          background: "#FEE2E2",
+                          color: RED,
                         }}
-                        data-testid={`btn-resetar-upload-${ev.id}`}
                       >
-                        <RefreshCw
-                          size={11}
-                          className={resetandoId === ev.id ? "animate-spin" : ""}
-                        />
-                        {resetandoId === ev.id
-                          ? "Resetando…"
-                          : "Tentar enviar de novo"}
-                      </button>
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                        <div className="space-y-1">
+                          <div className="font-bold">
+                            Modo teimoso · {ev.resets_manuais_count} resets sem
+                            sucesso
+                          </div>
+                          <div style={{ color: NAVY }}>
+                            Resetar de novo sem corrigir a causa raiz (bucket,
+                            credencial, rede) só reforça o problema. Confirme que
+                            mexeu na infra antes de forçar.
+                          </div>
+                          <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!forcarTeimoso[ev.id]}
+                              onChange={(e) =>
+                                setForcarTeimoso((prev) => ({
+                                  ...prev,
+                                  [ev.id]: e.target.checked,
+                                }))
+                              }
+                              data-testid={`chk-forcar-teimoso-${ev.id}`}
+                            />
+                            <span style={{ color: NAVY }}>
+                              Estou ciente que ja resetei{" "}
+                              {ev.resets_manuais_count}x e a causa raiz foi
+                              corrigida
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-end pt-1">
+                      {(() => {
+                        const teimoso = (ev.resets_manuais_count ?? 0) >= 3;
+                        const liberado = !teimoso || !!forcarTeimoso[ev.id];
+                        const desabilitado =
+                          resetandoId === ev.id ||
+                          aguardandoWebhook ||
+                          !liberado;
+                        return (
+                          <button
+                            onClick={() =>
+                              resetarRetryUpload(
+                                ev.id,
+                                !!forcarTeimoso[ev.id],
+                              )
+                            }
+                            disabled={desabilitado}
+                            title={
+                              aguardandoWebhook
+                                ? "Esperando o ZapSign reentregar o webhook — não é possível resetar manualmente."
+                                : teimoso && !forcarTeimoso[ev.id]
+                                  ? "Marque o checkbox de ciência pra liberar (modo teimoso, ja resetou 3x+)."
+                                  : "Zera tentativas, limpa erro e dispara o worker imediatamente"
+                            }
+                            className="nao-imprimir inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-semibold border disabled:opacity-50"
+                            style={{
+                              borderColor: teimoso ? RED : GOLD,
+                              color: NAVY,
+                              background: teimoso ? "#FEE2E2" : "#FFFBEB",
+                            }}
+                            data-testid={`btn-resetar-upload-${ev.id}`}
+                          >
+                            <RefreshCw
+                              size={11}
+                              className={
+                                resetandoId === ev.id ? "animate-spin" : ""
+                              }
+                            />
+                            {resetandoId === ev.id
+                              ? "Resetando…"
+                              : teimoso
+                                ? "Forçar reset (teimoso)"
+                                : "Tentar enviar de novo"}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 );

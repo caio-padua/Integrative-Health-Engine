@@ -1607,18 +1607,19 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
     }
     const motivoRaw = typeof req.body?.motivo === "string" ? req.body.motivo.trim() : "";
     const motivo = motivoRaw.slice(0, 500) || null;
+    const forcar = req.body?.forcar === true;
     const operador = ((req.user as any)?.email as string | undefined)
       || ((req.user as any)?.nome as string | undefined)
       || "(desconhecido)";
 
     // 1. Valida elegibilidade — so reseta evento com erro de upload
     const ev: any = await db.execute(sql`
-      SELECT id, erro_processamento, tentativas_retry, solicitacao_id, envelope_id
+      SELECT id, erro_processamento, tentativas_retry, solicitacao_id, envelope_id, resets_manuais_count
       FROM assinatura_webhook_eventos
       WHERE id = ${eventoId}
       LIMIT 1
     `);
-    const evRow = ((ev.rows ?? ev) as Array<{ id: number; erro_processamento: string | null; tentativas_retry: number; solicitacao_id: number | null; envelope_id: string | null }>)[0];
+    const evRow = ((ev.rows ?? ev) as Array<{ id: number; erro_processamento: string | null; tentativas_retry: number; solicitacao_id: number | null; envelope_id: string | null; resets_manuais_count: number | null }>)[0];
     if (!evRow) {
       res.status(404).json({ error: "Evento nao encontrado" });
       return;
@@ -1627,6 +1628,24 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
       res.status(409).json({
         error: "Evento nao esta em estado de falha de upload de PDF",
         erro_atual: evRow.erro_processamento,
+      });
+      return;
+    }
+
+    // Task #201 — gate "modo teimoso": se ja resetou >=3 vezes e o upload
+    // continua falhando (erro_processamento ainda comeca com `pdf_upload_falhou`,
+    // ou seja, o ultimo ciclo do worker nao deu sucesso), apertar "tentar de
+    // novo" sem mudar nada da infra so reforca o problema (alerta
+    // UPLOAD_PDF_RESET_TEIMOSO ja foi emitido — task #72). Bloqueia com 423
+    // Locked exigindo `forcar: true` (operador checa "estou ciente que ja
+    // resetei 3x" na UI) pra liberar bypass auditavel.
+    const resetsAtual = evRow.resets_manuais_count ?? 0;
+    if (resetsAtual >= 3 && !forcar) {
+      res.status(423).json({
+        error: `Este upload ja foi resetado ${resetsAtual} vezes sem sucesso (modo teimoso). Resetar de novo sem mudar a causa raiz (bucket, credencial, rede) so reforca o problema. Confirme com forcar=true depois de corrigir a infra.`,
+        codigo: "UPLOAD_RESET_TEIMOSO",
+        resets_manuais_count: resetsAtual,
+        requer_forcar: true,
       });
       return;
     }
@@ -1647,6 +1666,11 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
     // "Tentar enviar de novo" simultaneamente — o segundo recebe rowCount=0
     // e respondemos 409 sem incrementar contador duplicado.
     const novoMarcador = `pdf_upload_falhou: reset manual em ${new Date().toISOString()} por ${operador}`;
+    // Task #201 — quando bypass `forcar=true` (modo teimoso), prepende marcador
+    // no `ultimo_reset_motivo` pra deixar rastro claro do override.
+    const motivoFinal = forcar
+      ? `[BYPASS_TEIMOSO resets=${resetsAtual}] ${motivo ?? "(sem motivo)"}`.slice(0, 500)
+      : motivo;
     const updRes: any = await db.execute(sql`
       UPDATE assinatura_webhook_eventos
       SET tentativas_retry = 0,
@@ -1657,7 +1681,7 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
           resets_manuais_count = resets_manuais_count + 1,
           ultimo_reset_em = NOW(),
           ultimo_reset_por = ${operador},
-          ultimo_reset_motivo = ${motivo}
+          ultimo_reset_motivo = ${motivoFinal}
       WHERE id = ${eventoId}
         AND erro_processamento LIKE 'pdf_upload_falhou%'
       RETURNING id
