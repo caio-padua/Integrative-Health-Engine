@@ -16,6 +16,7 @@ import { Button } from "./ui/button";
 import { CommandPalette } from "./CommandPalette";
 import { useSound } from "@/hooks/useSound";
 import { Platform2faFooterIndicator } from "@/lib/Platform2faFooterIndicator";
+import { Platform2faHeaderIndicator } from "@/lib/Platform2faHeaderIndicator";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-fetch";
@@ -525,6 +526,28 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {(() => {
+          // Task #269: header bar so renderiza pra platform_owner em /plataforma/*.
+          // Mesmo gating que o componente faz internamente — duplicado aqui pra
+          // evitar deixar uma faixa vazia no topo pra perfis nao-elegiveis.
+          const perfilPlataforma = (user as Usuario & {
+            perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user" | null;
+          } | null)?.perfilPlataforma;
+          if (!location.startsWith("/plataforma") || perfilPlataforma !== "platform_owner") return null;
+          return (
+            <div className="h-10 flex items-center justify-end gap-2 px-4 border-b border-border bg-background/60">
+              <Platform2faHeaderIndicator
+                onRenovar={() =>
+                  openStepUp2fa(() => {
+                    void queryClient.invalidateQueries({
+                      queryKey: ["/usuarios/perfil-atual"],
+                    });
+                  })
+                }
+              />
+            </div>
+          );
+        })()}
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
           <div className="max-w-7xl mx-auto">{children}</div>
         </div>
