@@ -141,6 +141,36 @@ export default function PlataformaClinicas() {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
+  // Task #259 — deeplink ?gerar_export=<id> vindo do email VENCIDO_SEM_EXPORT
+  // do worker avisoVencimentoCarenciaLgpd. Apos a lista carregar, rola ate
+  // a linha da clinica e abre direto o prompt de export LGPD, economizando
+  // cliques no momento critico em que o exclusaoCarenciaExecutor esta
+  // bloqueado esperando o lgpd_export_url ser populado.
+  const [autoExportConsumido, setAutoExportConsumido] = useState(false);
+  useEffect(() => {
+    if (loading || autoExportConsumido) return;
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("gerar_export");
+    if (!raw) return;
+    const id = Number(raw);
+    if (!Number.isInteger(id) || id <= 0) return;
+    const alvo = clinicas.find(c => c.id === id);
+    if (!alvo) return;
+    setAutoExportConsumido(true);
+    // Limpa o param da URL pra nao re-disparar em recargas.
+    params.delete("gerar_export");
+    const novaQuery = params.toString();
+    const novaUrl = window.location.pathname + (novaQuery ? `?${novaQuery}` : "");
+    window.history.replaceState({}, "", novaUrl);
+    // Rola ate a linha (se existir) e abre o prompt de export.
+    setTimeout(() => {
+      const linha = document.getElementById(`clinica-${id}`);
+      if (linha) linha.scrollIntoView({ behavior: "smooth", block: "center" });
+      void exportarLgpd(alvo);
+    }, 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, clinicas, autoExportConsumido]);
+
   async function executar(c: Clinica, acao: "suspender" | "reativar" | "agendar_exclusao") {
     // SUSPENDER, REATIVAR e AGENDAR EXCLUSAO abrem modal com previa de
     // destinatarios antes de pedir motivo. Task #138 cobriu suspensao;
@@ -433,7 +463,7 @@ export default function PlataformaClinicas() {
                   : null;
                 return (
                   <Fragment key={c.id}>
-                  <tr className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                  <tr id={`clinica-${c.id}`} className="border-t border-zinc-800 hover:bg-zinc-800/30">
                     <td className="px-2 py-3 text-center align-top">
                       <button
                         onClick={() => void alternarExpansao(c)}
@@ -513,13 +543,30 @@ export default function PlataformaClinicas() {
                           >
                             <Undo2 size={12} /> Cancelar exclusao
                           </button>
-                          <button
-                            disabled={desabilitado}
-                            onClick={() => void exportarLgpd(c)}
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50"
-                          >
-                            <Download size={12} /> Exportar LGPD
-                          </button>
+                          {/* Task #259 — quando a clinica esta EXCLUIDO_PENDENTE
+                              SEM lgpd_export_url, destaca o botao em vermelho
+                              porque o exclusaoCarenciaExecutor esta bloqueado
+                              esperando o export ser gerado. Eh tambem o alvo
+                              do deeplink ?gerar_export=<id> que vem do email
+                              VENCIDO_SEM_EXPORT. */}
+                          {!c.lgpd_export_url ? (
+                            <button
+                              disabled={desabilitado}
+                              onClick={() => void exportarLgpd(c)}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-red-500/30 text-red-200 border border-red-500/60 hover:bg-red-500/50 disabled:opacity-50 font-semibold animate-pulse"
+                              title="Gerar export LGPD agora — necessario antes do worker executar a exclusao"
+                            >
+                              <Download size={12} /> Gerar export LGPD agora
+                            </button>
+                          ) : (
+                            <button
+                              disabled={desabilitado}
+                              onClick={() => void exportarLgpd(c)}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50"
+                            >
+                              <Download size={12} /> Re-exportar LGPD
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="flex flex-wrap items-center justify-center gap-2">

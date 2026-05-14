@@ -112,13 +112,20 @@ function dataPtBr(d: Date | null | undefined): string {
   }
 }
 
-function urlPlataformaClinicas(): string {
+function urlPlataformaClinicas(opts?: { gerarExportUnidadeId?: number }): string {
   const base =
     process.env["PUBLIC_APP_URL"] ||
     (process.env["REPLIT_DOMAINS"]
       ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim() ?? ""}`
       : "");
-  return `${base}/plataforma/clinicas`;
+  // Task #259 — quando o aviso eh VENCIDO_SEM_EXPORT, anexamos
+  // ?gerar_export=<id> pra que a tela /plataforma/clinicas role ate a
+  // linha da unidade e abra direto o prompt de export LGPD, economizando
+  // cliques no momento critico em que o exclusaoCarenciaExecutor esta
+  // bloqueado esperando o lgpd_export_url ser populado.
+  const id = opts?.gerarExportUnidadeId;
+  const qs = id ? `?gerar_export=${encodeURIComponent(String(id))}` : "";
+  return `${base}/plataforma/clinicas${qs}`;
 }
 
 function calcularDiasRestantes(carenciaAte: Date): number {
@@ -248,14 +255,17 @@ async function tick(): Promise<void> {
     const pendentes: UnidadePendente[] = result.rows ?? result;
     if (pendentes.length === 0) return;
 
-    const url = urlPlataformaClinicas();
-
     for (const u of pendentes) {
       const carenciaAte = new Date(u.exclusao_carencia_ate);
       const diasRestantes = calcularDiasRestantes(carenciaAte);
       const temExport = Boolean(u.lgpd_export_url);
       const tipo = classificarAviso({ diasRestantes, temExport });
       if (!tipo) continue;
+      // Task #259 — pra VENCIDO_SEM_EXPORT, link do email leva direto pra
+      // tela com deeplink que abre o prompt de export LGPD da clinica.
+      const url = urlPlataformaClinicas(
+        tipo === "VENCIDO_SEM_EXPORT" ? { gerarExportUnidadeId: u.id } : undefined,
+      );
 
       // Idempotencia: pula se ja enviou esse tipo_aviso pra essa unidade
       // hoje BRT. UNIQUE (unidade_id, tipo_aviso, dia_brt) garante isso no
