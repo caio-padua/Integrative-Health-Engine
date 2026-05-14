@@ -944,4 +944,94 @@ router.get("/auditoria/acessos", async (req, res) => {
   }
 });
 
+// ===========================================================================
+// 11C) APPOINTMENTS — mudar status direto pela agenda (Task #225)
+// Permite que o badge de status na linha da AgendaHoje seja clicável e
+// transicione entre estados válidos sem sair do dashboard.
+// ===========================================================================
+const STATUS_VALIDOS = new Set([
+  "agendado",
+  "aguardando",
+  "em_atendimento",
+  "concluido",
+  "cancelado",
+]);
+
+// Transições permitidas a partir de cada estado. Estados terminais
+// (concluido, cancelado) não permitem mudança — para reabrir use o
+// fluxo completo /agenda-motor/reschedule.
+const TRANSICOES_VALIDAS: Record<string, string[]> = {
+  agendado:       ["aguardando", "em_atendimento", "concluido", "cancelado"],
+  aguardando:     ["agendado", "em_atendimento", "concluido", "cancelado"],
+  em_atendimento: ["aguardando", "concluido", "cancelado"],
+  concluido:      [],
+  cancelado:      [],
+};
+
+router.patch("/appointments/:id/status", async (req: AuthedRequest, res) => {
+  try {
+    if (!isMaster(req)) {
+      res.status(403).json({ error: "Acesso restrito ao perfil master" });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ error: "id inválido" });
+      return;
+    }
+    const novoStatus = String(req.body?.status ?? "").trim();
+    if (!STATUS_VALIDOS.has(novoStatus)) {
+      res.status(400).json({ error: `status inválido (use: ${[...STATUS_VALIDOS].join(", ")})` });
+      return;
+    }
+
+    const atual = await pool.query(
+      `SELECT id, status FROM appointments WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    if (atual.rows.length === 0) {
+      res.status(404).json({ error: "Agendamento não encontrado" });
+      return;
+    }
+    const statusAtual = String(atual.rows[0].status);
+    if (statusAtual === novoStatus) {
+      res.json({ ok: true, id, status: novoStatus, inalterado: true });
+      return;
+    }
+    const permitidas = TRANSICOES_VALIDAS[statusAtual] ?? [];
+    if (!permitidas.includes(novoStatus)) {
+      res.status(409).json({
+        error: `Transição inválida: ${statusAtual} → ${novoStatus}`,
+        de: statusAtual,
+        permitidas,
+      });
+      return;
+    }
+
+    const upd = await pool.query(
+      `UPDATE appointments
+          SET status = $1, atualizado_em = NOW()
+        WHERE id = $2
+        RETURNING id, status`,
+      [novoStatus, id],
+    );
+
+    // Trilha em agenda_audit_events (mesma tabela usada por /agenda-motor)
+    pool.query(
+      `INSERT INTO agenda_audit_events (entidade_tipo, entidade_id, acao, detalhes, usuario_id)
+       VALUES ('APPOINTMENT', $1, 'STATUS_ALTERADO', $2::jsonb, $3)`,
+      [
+        id,
+        JSON.stringify({ de: statusAtual, para: novoStatus, origem: "agenda-hoje" }),
+        req.user?.sub ? Number(req.user.sub) : null,
+      ],
+    ).catch((err) => console.error("[painel-pawards/appointments/status] audit", err));
+
+    res.json({ ok: true, id, status: upd.rows[0].status, anterior: statusAtual });
+  } catch (e: any) {
+    console.error("[painel-pawards/appointments/status]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

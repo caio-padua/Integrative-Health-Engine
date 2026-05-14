@@ -100,7 +100,7 @@ export default function DashboardGlobal() {
   const { data: trend } = useRealtimeDashboard<TrendPoint[]>(
     "/painel-pawards/global/trend?dias=30", 5 * 60_000, { enabled: hasToken }
   );
-  const { data: agenda } = useRealtimeDashboard<{ origem: "real" | "sintetico"; consultas: AgendaItem[] }>(
+  const { data: agenda, refresh: refreshAgenda } = useRealtimeDashboard<{ origem: "real" | "sintetico"; consultas: AgendaItem[] }>(
     "/painel-pawards/agenda-hoje", 60_000, { enabled: hasToken }
   );
   const { data: alertas } = useRealtimeDashboard<AlertasData>(
@@ -385,7 +385,11 @@ export default function DashboardGlobal() {
             marginBottom: 18,
           }}
         >
-          <AgendaHoje consultas={agenda?.consultas ?? []} origem={agenda?.origem} />
+          <AgendaHoje
+            consultas={agenda?.consultas ?? []}
+            origem={agenda?.origem}
+            onStatusChange={refreshAgenda}
+          />
           <AlertasPanel data={alertas ?? null} />
           <CaixaPanel data={caixa ?? null} />
         </div>
