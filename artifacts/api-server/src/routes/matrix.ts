@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, tratamentosTable, tratamentoItensTable, sessoesTable, aplicacoesSubstanciasTable, substanciasTable, pacientesTable, unidadesTable } from "@workspace/db";
 import { eq, and, sql, or, desc, gte, lte, inArray } from "drizzle-orm";
+import { gerarLinhaResumoCsv } from "@workspace/exports/cabecalhoAuditoria";
 
 const router = Router();
 
@@ -220,7 +221,28 @@ router.get("/matrix/export", async (req, res) => {
       `"${(r.substanciasCombo || []).join(", ")}"`,
     ].join(","));
 
-    const csv = [headers.join(","), ...csvRows].join("\n");
+    // Task #207 — linha-resumo de auditoria no topo (mesmo padrão da
+    // timeline de assinaturas / Task #86). Quem abre o CSV depois vê os
+    // filtros aplicados, total de linhas e timestamp do export sem
+    // precisar voltar pra tela.
+    const q = req.query as Record<string, string | undefined>;
+    const linhaMeta = gerarLinhaResumoCsv({
+      origem: "matriz analítica",
+      itens: [
+        { campo: "Unidade", valor: q["unidadeId"] ?? "todas" },
+        { campo: "Status tratamento", valor: q["statusTratamento"] ?? "todos" },
+        { campo: "Substância", valor: q["substanciaNome"] ?? q["substanciaId"] ?? "todas" },
+        { campo: "Via", valor: q["via"] ?? "todas" },
+        { campo: "Data início (de)", valor: q["dataInicio"] ?? "—" },
+        { campo: "Data início (até)", valor: q["dataFim"] ?? "—" },
+        { campo: "Sem retorno (dias min)", valor: q["semRetornoDiasMin"] ?? "—" },
+        { campo: "Sem retorno (dias max)", valor: q["semRetornoDiasMax"] ?? "—" },
+        { campo: "Faltas (min)", valor: q["faltasMin"] ?? "—" },
+        { campo: "Total de linhas", valor: String(result.allRows.length) },
+      ],
+    });
+
+    const csv = [linhaMeta, headers.join(","), ...csvRows].join("\n");
 
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="matriz_analitica_${new Date().toISOString().slice(0, 10)}.csv"`);

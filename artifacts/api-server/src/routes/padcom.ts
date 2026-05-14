@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import * as XLSX from "xlsx";
+import { gerarLinhasMetadadosXlsx } from "@workspace/exports/cabecalhoAuditoria";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import {
@@ -976,6 +977,23 @@ router.get("/padcom-export-xlsx", async (req: Request, res: Response): Promise<v
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(agendamentos), "Agendamentos");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cascatas), "Cascatas");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(notificacoes), "Notificacoes");
+
+  // Task #207 — aba "Metadados" com clinica/contagens/timestamp do export.
+  // Mesmo padrão da timeline de assinaturas (Task #86) — quem abre o
+  // arquivo depois sabe de qual clínica saiu, quantos registros por aba
+  // e quando foi gerado, sem precisar voltar pra tela.
+  const linhasMeta = gerarLinhasMetadadosXlsx({
+    origem: "padcom export multi-aba",
+    itens: [
+      { campo: "Clínica", valor: tenantStr },
+      { campo: "Sessões", valor: String(sessoes.length) },
+      { campo: "Agendamentos", valor: String(agendamentos.length) },
+      { campo: "Cascatas", valor: String(cascatas.length) },
+      { campo: "Notificações", valor: String(notificacoes.length) },
+    ],
+  });
+  const metaAoa: string[][] = [["Campo", "Valor"], ...linhasMeta.map(([c, v]) => [c, v])];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(metaAoa), "Metadados");
 
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
   const filename = `padcom-export-${new Date().toISOString().slice(0, 10)}.xlsx`;

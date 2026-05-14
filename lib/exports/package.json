@@ -1,0 +1,19 @@
+{
+  "name": "@workspace/exports",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./cabecalhoAuditoria": "./src/cabecalhoAuditoria.ts"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  },
+  "peerDependencies": {
+    "exceljs": "^4.4.0"
+  },
+  "peerDependenciesMeta": {
+    "exceljs": { "optional": true }
+  }
+}
