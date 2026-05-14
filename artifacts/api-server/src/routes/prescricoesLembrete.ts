@@ -84,6 +84,95 @@ router.get("/prescricoes-lembrete/:id/envios", async (req, res): Promise<void> =
   res.json(rows);
 });
 
+router.get("/prescricoes-lembrete/metricas", async (req, res): Promise<void> => {
+  const { unidadeId, desde } = req.query;
+
+  const ctxUnidade = req.tenantContext?.unidadeId ?? null;
+  let unidadeFiltro: number | null = null;
+
+  if (ctxUnidade != null) {
+    unidadeFiltro = ctxUnidade;
+    if (unidadeId !== undefined && unidadeId !== "") {
+      const u = Number(unidadeId);
+      if (!Number.isFinite(u)) {
+        res.status(400).json({ erro: "unidadeId deve ser numero" });
+        return;
+      }
+      if (u !== ctxUnidade) {
+        res.status(403).json({ erro: "unidade fora do escopo do chamador" });
+        return;
+      }
+    }
+  } else {
+    if (unidadeId === undefined || unidadeId === "") {
+      res.status(400).json({ erro: "unidadeId e obrigatorio" });
+      return;
+    }
+    const u = Number(unidadeId);
+    if (!Number.isFinite(u)) {
+      res.status(400).json({ erro: "unidadeId deve ser numero" });
+      return;
+    }
+    unidadeFiltro = u;
+  }
+
+  const agora = new Date();
+  let desde24h = new Date(agora.getTime() - 24 * 60 * 60 * 1000);
+  const desde7d = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  if (desde !== undefined && desde !== "") {
+    const d = new Date(String(desde));
+    if (Number.isNaN(d.getTime())) {
+      res.status(400).json({ erro: "desde deve ser data ISO valida" });
+      return;
+    }
+    desde24h = d;
+  }
+
+  const baseUnidade = eq(prescricaoLembreteEnviosTable.unidadeId, unidadeFiltro);
+
+  const [agg24h, agg7d] = await Promise.all([
+    db
+      .select({
+        status: prescricaoLembreteEnviosTable.status,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(prescricaoLembreteEnviosTable)
+      .where(and(baseUnidade, gte(prescricaoLembreteEnviosTable.enviadoEm, desde24h)))
+      .groupBy(prescricaoLembreteEnviosTable.status),
+    db
+      .select({
+        status: prescricaoLembreteEnviosTable.status,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(prescricaoLembreteEnviosTable)
+      .where(and(baseUnidade, gte(prescricaoLembreteEnviosTable.enviadoEm, desde7d)))
+      .groupBy(prescricaoLembreteEnviosTable.status),
+  ]);
+
+  const zerar = () => ({ ENVIADO: 0, FALHOU: 0, PENDENTE: 0, total: 0 });
+  const acumular = (rows: { status: string; total: number }[]) => {
+    const acc = zerar();
+    for (const r of rows) {
+      const t = Number(r.total ?? 0);
+      if (r.status === "ENVIADO") acc.ENVIADO = t;
+      else if (r.status === "FALHOU") acc.FALHOU = t;
+      else if (r.status === "PENDENTE") acc.PENDENTE = t;
+      acc.total += t;
+    }
+    return acc;
+  };
+
+  res.json({
+    unidadeId: unidadeFiltro,
+    geradoEm: agora.toISOString(),
+    janelas: {
+      ultimas24h: { desde: desde24h.toISOString(), ...acumular(agg24h) },
+      ultimos7d: { desde: desde7d.toISOString(), ...acumular(agg7d) },
+    },
+  });
+});
+
 router.get("/prescricoes-lembrete/falhas/contagem", async (req, res): Promise<void> => {
   const { unidadeId, janelaHoras } = req.query;
 

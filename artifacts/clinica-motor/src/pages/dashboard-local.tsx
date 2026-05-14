@@ -4,9 +4,24 @@ import { useClinic } from "@/contexts/ClinicContext";
 import {
   AlertTriangle, Activity, Syringe, MessageSquareWarning,
   CalendarClock, FileText, DollarSign, Mountain, ShieldAlert,
+  Bell,
 } from "lucide-react";
+import { Link } from "wouter";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import { apiFetch } from "@/lib/api-fetch";
+
+interface MetricasJanela {
+  desde: string;
+  ENVIADO: number;
+  FALHOU: number;
+  PENDENTE: number;
+  total: number;
+}
+interface LembreteMetricas {
+  unidadeId: number | null;
+  geradoEm: string;
+  janelas: { ultimas24h: MetricasJanela; ultimos7d: MetricasJanela };
+}
 
 const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
@@ -29,6 +44,13 @@ export default function DashboardLocalPage() {
     queryKey: ["dashboard-local", unidadeSelecionada],
     queryFn: () => authedFetch(`/api/dashboard/local?unidadeId=${unidadeSelecionada}`),
     refetchInterval: 30000,
+    enabled: !isTodasClinicas && !!unidadeSelecionada,
+  });
+
+  const { data: lembreteMetricas, isLoading: loadingLembretes } = useQuery<LembreteMetricas>({
+    queryKey: ["lembrete-metricas", unidadeSelecionada],
+    queryFn: () => authedFetch(`/api/prescricoes-lembrete/metricas?unidadeId=${unidadeSelecionada}`),
+    refetchInterval: 60000,
     enabled: !isTodasClinicas && !!unidadeSelecionada,
   });
 
@@ -96,6 +118,42 @@ export default function DashboardLocalPage() {
           ⚠️ Falha ao sincronizar dados locais — tentando novamente em 30s.
         </Card>
       )}
+
+      <Card className="p-4" data-testid="card-lembretes-metricas">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1">
+            <Bell className="w-6 h-6 text-[#2980B9] mt-0.5" />
+            <div className="flex-1">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                Lembretes de prescrição · saúde do motor
+              </div>
+              {loadingLembretes || !lembreteMetricas ? (
+                <div className="text-sm text-muted-foreground mt-1">Carregando...</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  {([
+                    { label: "Últimas 24h", j: lembreteMetricas.janelas.ultimas24h },
+                    { label: "Últimos 7 dias", j: lembreteMetricas.janelas.ultimos7d },
+                  ] as const).map(({ label, j }) => (
+                    <div key={label}>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{label}</div>
+                      <div className="flex gap-3 text-xs font-mono">
+                        <span className="text-[#27AE60]" title="Entregues">✓ {j.ENVIADO}</span>
+                        <span className="text-[#C0392B]" title="Falharam">✗ {j.FALHOU}</span>
+                        <span className="text-[#E67E22]" title="Pendentes">⏳ {j.PENDENTE}</span>
+                        <span className="text-muted-foreground">total {j.total}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <Link href="/prescricoes-lembrete" className="text-xs text-[#2980B9] hover:underline whitespace-nowrap">
+            Ver lembretes →
+          </Link>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {cards.map((c, i) => {
