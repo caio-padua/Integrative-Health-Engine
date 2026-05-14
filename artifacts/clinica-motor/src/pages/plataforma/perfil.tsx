@@ -48,6 +48,7 @@ interface HistoricoAviso2fa {
   renovado_em: string | null;
   canal_email_ok: boolean;
   canal_whatsapp_ok: boolean;
+  canal_telegram_ok: boolean;
   status: "renovado" | "expirou" | "ignorado";
 }
 
@@ -543,6 +544,7 @@ export default function PlataformaPerfil() {
                         const canais: string[] = [];
                         if (h.canal_email_ok) canais.push("email");
                         if (h.canal_whatsapp_ok) canais.push("whatsapp");
+                        if (h.canal_telegram_ok) canais.push("telegram");
                         const canaisLbl = canais.length === 0 ? "—" : canais.join(", ");
                         let statusLbl: string;
                         let statusCls: string;

@@ -17,6 +17,7 @@ import {
   Clock,
   Mail,
   MessageSquare,
+  Send,
   Download,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ type Aviso = {
   renovado_em: string | null;
   canal_email_ok: boolean;
   canal_whatsapp_ok: boolean;
+  canal_telegram_ok: boolean;
   criado_em: string;
   usuario_nome: string | null;
   usuario_email: string | null;
@@ -339,6 +341,17 @@ export default function PlataformaAvisos2fa() {
                             }
                           >
                             <MessageSquare size={14} />
+                          </span>
+                          <span
+                            title="Telegram"
+                            data-testid={`badge-telegram-${a.id}`}
+                            className={
+                              a.canal_telegram_ok
+                                ? "text-emerald-400"
+                                : "text-zinc-600"
+                            }
+                          >
+                            <Send size={14} />
                           </span>
                         </div>
                       </td>

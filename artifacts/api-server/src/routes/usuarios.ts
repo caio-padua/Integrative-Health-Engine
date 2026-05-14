@@ -340,6 +340,7 @@ router.get("/usuarios/me/historico-avisos-2fa", async (req, res): Promise<void> 
       h.renovado_em,
       h.canal_email_ok,
       h.canal_whatsapp_ok,
+      h.canal_telegram_ok,
       CASE
         WHEN h.renovado_em IS NOT NULL THEN 'renovado'
         WHEN h.expira_em <= now()      THEN 'expirou'

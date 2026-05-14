@@ -1718,6 +1718,7 @@ router.get("/plataforma/seguranca/avisos-2fa", ...guardas, async (req, res): Pro
       h.renovado_em,
       h.canal_email_ok,
       h.canal_whatsapp_ok,
+      h.canal_telegram_ok,
       h.criado_em,
       u.nome  AS usuario_nome,
       u.email AS usuario_email,
@@ -1843,6 +1844,7 @@ router.get("/plataforma/seguranca/avisos-2fa.csv", ...guardas, async (req, res):
       h.renovado_em,
       h.canal_email_ok,
       h.canal_whatsapp_ok,
+      h.canal_telegram_ok,
       CASE
         WHEN h.renovado_em IS NOT NULL
           THEN EXTRACT(EPOCH FROM (h.renovado_em - h.aviso_em))::int
@@ -1869,6 +1871,7 @@ router.get("/plataforma/seguranca/avisos-2fa.csv", ...guardas, async (req, res):
     renovado_em: string | null;
     canal_email_ok: boolean;
     canal_whatsapp_ok: boolean;
+    canal_telegram_ok: boolean;
     renovado_em_segundos_apos_aviso: number | null;
     status: string;
   }>;
@@ -1893,6 +1896,7 @@ router.get("/plataforma/seguranca/avisos-2fa.csv", ...guardas, async (req, res):
     "renovado_em_segundos_apos_aviso",
     "canal_email_ok",
     "canal_whatsapp_ok",
+    "canal_telegram_ok",
   ];
   const corpo = linhas.map((l) =>
     [
@@ -1904,6 +1908,7 @@ router.get("/plataforma/seguranca/avisos-2fa.csv", ...guardas, async (req, res):
       l.renovado_em_segundos_apos_aviso ?? "",
       l.canal_email_ok ? "true" : "false",
       l.canal_whatsapp_ok ? "true" : "false",
+      l.canal_telegram_ok ? "true" : "false",
     ]
       .map(escapar)
       .join(","),
