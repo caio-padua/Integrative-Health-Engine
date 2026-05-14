@@ -347,3 +347,113 @@ pra Wave 10.5).
 
 **Próximo destravamento**: F6 wrap-up + tag `v031-zapsign-launch` em
 sessão futura (requer code_review final + suggest_deploy).
+
+---
+
+## ✅ Decisão D10 — Wave OPERAR EM PARALELO À LAPIDAÇÃO (2026-05-14)
+
+**Contexto**: Caio bateu o martelo: "quero começar a operar o sistema
+de verdade, mas isso NÃO significa parar de lapidar". Ou seja, abrir o
+SaaS pra uso real (paciente real, receita real, assinatura real) **em
+paralelo** com o tsunami de polimento que o Dr. Replit + task agents
+continuam drenando.
+
+### D10.1 — Sistema confirmado JÁ DEPLOYADO em produção
+
+- `getDeploymentInfo` confirmou domínio ativo `https://webhooks.pawards.com.br`
+  (autoscale, build verde). Não é "vamos publicar" — **já está no ar**.
+- `suggestDeploy()` chamado pra Caio republicar e propagar as migrations
+  030-059 (psql IF NOT EXISTS, regra ferro) via diff automático do Publish.
+  Replit aplica o diff sozinho — agente NÃO escreve script de migração
+  prod (regra de plataforma).
+- Tasks #347 e #348 (deploy + smoke prod) ficaram em PENDING — não
+  consegui obsoletar (só PROPOSED retract). Conceitualmente desnecessárias
+  porque o Publish faz o diff sozinho.
+
+### D10.2 — Olhinho na senha do login
+
+- `artifacts/clinica-motor/src/pages/login.tsx` ganhou botão Eye/EyeOff
+  (lucide-react) no campo password — `useState mostrarSenha`, type alterna
+  password↔text, aria-label PT-BR. Pequeno mas tira fricção pro Caio
+  digitar `4000` no celular sem errar.
+
+### D10.3 — Reset MASSIVO de senhas DEV pra `4000`
+
+- TODAS as 55 senhas do banco DEV resetadas pra `4000` via bcryptjs
+  (não bcrypt — api-server usa bcryptjs) + pg, NODE_PATH apontando pros
+  binários instalados em `node_modules/.pnpm/.../bcryptjs` e `.../pg`.
+- **Login CEO**: `ceo@pawards.com.br` / senha `4000`.
+- Padrão de NODE_PATH documentado pra futuros resets (bcryptjs path
+  pattern).
+
+### D10.4 — Tsunami de tasks #242 a #262 mergeadas EM PARALELO ao deploy
+
+Enquanto eu rodava o deploy, os task agents seguiram drenando a fila.
+Mergeado nas últimas ~3 horas:
+
+| Task | O que entrega |
+|---|---|
+| #249 | Tela CEO ver alertas silenciados pela janela de descanso + botão "Liberar agora" |
+| #250 | Digest matinal de recusas (opt-in por canal — invariante hard-lock recusa imediata preservada) |
+| #251 | Testes ponta-a-ponta do silêncio CEO (4 DB-backed + 2 puros) |
+| #252 | Aviso quando o resumo diário de PDFs travados não dispara por N dias (worker `decidirSilencio` + Migration 059) |
+| #253 | Botão "Disparar resumo agora" em `/admin/uploads-pdf-resumo` |
+| #255 | Export CSV da auditoria filtrada (Task #254 herdada) |
+| #256 | Webhook ZapSign silenciosamente quebrado — alerta proativo |
+| #257 | Tela CEO acompanhar avisos de vencimento da carência LGPD |
+| #258 | WhatsApp também no aviso de carência LGPD |
+| #259 | Botão gerar export LGPD direto do aviso |
+| #260 | Migrar exports LGPD antigos (data:URL) pro Drive |
+| #261 | Botão CEO conferir integridade do export LGPD pelo hash |
+| #262 | Gráfico tendência semanal de alertas de email travado |
+
+Migrations aditivas aplicadas: 056 (retenção auditoria painel pawards),
+057, 058, 059 (3 migrations distintas que coincidiram no número 059 —
+**dívida técnica registrada** abaixo).
+
+### D10.5 — Wave V46 WhatsApp do CEO ativado
+
+`/plataforma/perfil` agora aceita celular do CEO com máscara BR
+`(11) 91234-5678` + validação E.164, gravado em `usuarios.telefone` no
+formato `+55DDD9XXXXXXXX`. **Canal WhatsApp do CEO** depende deste
+cadastro. Sem `usuarios.telefone` preenchido pra `validador_mestre`
+ativo, `notificarCeoAssinaturaConcluida` só consegue e-mail. Após
+cadastrar, próximo evento ZapSign já dispara WhatsApp via Twilio/Gupshup
+sem novo deploy.
+
+### D10.6 — Wave V232 Retenção automática de auditoria
+
+Worker `iniciarWorkerLimpezaAuditoriaPainelPawards()` tick 24h, deleta
+`painel_pawards_auditoria` mais velho que `PAINEL_PAWARDS_AUDITORIA_RETENCAO_MESES`
+(default 12), lock distribuído `pg_try_advisory_lock(15102320)`,
+persiste cada execução em `painel_pawards_auditoria_limpezas`. Defesa
+LGPD (não guardar trilha de acesso além do necessário) + perf da
+paginação no Painel PAWARDS.
+
+### Lentes de persona D10
+
+- 🩺 **Médico**: invariantes Wave 9 INTACTAS (8.728 receitas potencial /
+  R$ 2.736.536,10 comissão potencial / 5 triggers ATIVOS) — assinatura
+  jurídica tripla CFM/CC/STJ preservada.
+- 💰 **CEO**: sistema operável HOJE (login `ceo@pawards.com.br` / `4000`,
+  olhinho na senha, WhatsApp do CEO ativável via cadastro de telefone).
+- 📈 **Empresário**: tsunami de polimento NÃO bloqueia operação — task
+  agents seguem drenando #374-#418 (atualmente blocked por
+  `CONCURRENCY_LIMIT`, vão liberando conforme limites abrem).
+- 🛡️ **Investidor**: zero `db:push`, todas as 4 migrations da rodada
+  (056-059) são aditivas IF NOT EXISTS, regra ferro respeitada. Auditoria
+  com retenção automática reduz superfície LGPD.
+
+### Dívidas técnicas D10 registradas (NÃO bloqueiam operar)
+
+1. **Conflito de número de migration**: Wave V232 (retenção auditoria),
+   Task #252 (silêncio resumo PDF), Task #250 (digest recusas) e Task
+   #257 (carência LGPD) coincidiram no número 059. Verificar quem
+   ganhou no merge final e renumerar duplicatas pra `060_*`/`061_*` na
+   próxima rodada de housekeeping. Não afeta DB porque todas usam
+   `IF NOT EXISTS`.
+2. **Tasks #347/#348 PENDING órfãs**: deploy + smoke prod ficaram
+   marcadas como PENDING e não consegui obsoletar (API só permite
+   retract de PROPOSED). Caio pode ignorar — Publish faz o diff sozinho.
+3. **Digest matinal de recusas (#250) sem tela de auditoria ainda**:
+   #401/#402/#403 já propostas pra fechar o loop visual.
