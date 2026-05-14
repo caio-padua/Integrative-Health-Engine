@@ -19,6 +19,12 @@ type PreviaDestinatarios = {
   // tem email cadastrado — combinado com whatsappVazio significa que
   // ninguem vai receber o aviso de suspensao.
   emailVazio: boolean;
+  // Task #182 — pacientes com consulta na janela que receberao aviso
+  pacientesAvisados: number;
+  pacientesSemContato: number;
+  janelaDias: number;
+  janelaDiasMin: number;
+  janelaDiasMax: number;
 };
 
 type RegistroAviso = {
@@ -141,17 +147,22 @@ export default function PlataformaClinicas() {
     }
   }
 
-  async function confirmarAcaoComPrevia(motivo: string) {
+  async function confirmarAcaoComPrevia(motivo: string, janelaDias?: number) {
     if (!previaSuspensao) return;
     const c = previaSuspensao.clinica;
     const acao = previaSuspensao.acao;
     setAcaoId(c.id);
+    // Task #182 — propaga janelaDias overridada pra suspender (reativar nao usa)
+    const body: Record<string, unknown> = { motivo: motivo.trim() };
+    if (acao === "suspender" && janelaDias !== undefined) {
+      body.janelaDias = janelaDias;
+    }
     const r = await runWithStepUp(() =>
       apiFetch(`/api/plataforma/clinicas/${c.id}/${acao}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ motivo: motivo.trim() }),
+        body: JSON.stringify(body),
       }),
     );
     setAcaoId(null);
@@ -673,7 +684,19 @@ export default function PlataformaClinicas() {
           acao={previaSuspensao.acao}
           desabilitado={acaoId === previaSuspensao.clinica.id}
           onCancelar={() => setPreviaSuspensao(null)}
-          onConfirmar={(motivo) => void confirmarAcaoComPrevia(motivo)}
+          onConfirmar={(motivo, janelaDias) => void confirmarAcaoComPrevia(motivo, janelaDias)}
+          onRecarregarPrevia={async (janelaDias) => {
+            const c = previaSuspensao.clinica;
+            const r = await runWithStepUp(() =>
+              apiFetch(
+                `/api/plataforma/clinicas/${c.id}/destinatarios-aviso?janelaDias=${janelaDias}`,
+                { credentials: "include" },
+              ),
+            );
+            if (!r.ok) return;
+            const previa = (await r.json()) as PreviaDestinatarios;
+            setPreviaSuspensao((prev) => (prev ? { ...prev, previa } : prev));
+          }}
         />
       )}
     </Layout>
@@ -687,16 +710,26 @@ function PreviaSuspensaoModalImpl({
   desabilitado,
   onCancelar,
   onConfirmar,
+  onRecarregarPrevia,
 }: {
   clinica: Clinica;
   previa: PreviaDestinatarios;
   acao: "suspender" | "reativar";
   desabilitado: boolean;
   onCancelar: () => void;
-  onConfirmar: (motivo: string) => void;
+  onConfirmar: (motivo: string, janelaDias?: number) => void;
+  onRecarregarPrevia: (janelaDias: number) => Promise<void>;
 }) {
   const [motivo, setMotivo] = useState("");
   const [confirmacaoExtra, setConfirmacaoExtra] = useState("");
+  // Task #182 — janela editavel pra suspender. Guardamos local pra
+  // permitir digitar antes de "Aplicar"; so re-fetcha quando o usuario
+  // confirma (debounce manual evita overload em digitacao lenta).
+  const [janelaDiasInput, setJanelaDiasInput] = useState<string>(String(previa.janelaDias));
+  const [recarregandoJanela, setRecarregandoJanela] = useState(false);
+  useEffect(() => {
+    setJanelaDiasInput(String(previa.janelaDias));
+  }, [previa.janelaDias]);
   const motivoOk = motivo.trim().length >= 8;
   const ehSuspender = acao === "suspender";
   // Confirmacao dupla obrigatoria APENAS pra SUSPENDER quando nenhum
@@ -830,6 +863,69 @@ function PreviaSuspensaoModalImpl({
             </div>
           ) : null}
 
+          {ehSuspender && (
+            <div className="border border-zinc-800 rounded p-3 bg-zinc-950/40 space-y-2">
+              <div className="flex items-center gap-2 text-zinc-200 font-semibold">
+                <Clock size={14} /> Pacientes com consulta nos proximos {previa.janelaDias} dia(s)
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <div className="text-zinc-500">Receberao aviso</div>
+                  <div className="text-emerald-300 text-lg font-semibold tabular-nums">
+                    {previa.pacientesAvisados}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-zinc-500">Sem contato (email/telefone)</div>
+                  <div className={`text-lg font-semibold tabular-nums ${previa.pacientesSemContato > 0 ? "text-amber-300" : "text-zinc-400"}`}>
+                    {previa.pacientesSemContato}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-end gap-2 pt-1">
+                <div className="flex-1">
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    Janela (dias) — entre {previa.janelaDiasMin} e {previa.janelaDiasMax}
+                  </label>
+                  <input
+                    type="number"
+                    min={previa.janelaDiasMin}
+                    max={previa.janelaDiasMax}
+                    value={janelaDiasInput}
+                    onChange={(e) => setJanelaDiasInput(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-sm text-zinc-100 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={recarregandoJanela || Number(janelaDiasInput) === previa.janelaDias || !Number.isFinite(Number(janelaDiasInput))}
+                  onClick={async () => {
+                    const n = Math.floor(Number(janelaDiasInput));
+                    if (!Number.isFinite(n)) return;
+                    const clamped = Math.min(previa.janelaDiasMax, Math.max(previa.janelaDiasMin, n));
+                    setRecarregandoJanela(true);
+                    try {
+                      await onRecarregarPrevia(clamped);
+                    } finally {
+                      setRecarregandoJanela(false);
+                    }
+                  }}
+                  className="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 rounded text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                >
+                  <RefreshCw size={12} className={recarregandoJanela ? "animate-spin" : ""} />
+                  {recarregandoJanela ? "Recalculando..." : "Aplicar janela"}
+                </button>
+              </div>
+              {previa.pacientesSemContato > 0 && (
+                <div className="text-xs text-amber-300 italic">
+                  {previa.pacientesSemContato} paciente(s) tem consulta marcada mas nao tem email
+                  nem telefone — vao descobrir a suspensao apenas pelo portal ou ao chegar na
+                  clinica.
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="block text-xs text-zinc-400 mb-1">
               Motivo (minimo 8 caracteres — registrado em <code>auditoria_kill_switch</code>)
@@ -869,7 +965,7 @@ function PreviaSuspensaoModalImpl({
           </button>
           <button
             disabled={!podeConfirmar}
-            onClick={() => onConfirmar(motivo)}
+            onClick={() => onConfirmar(motivo, ehSuspender ? previa.janelaDias : undefined)}
             className={`inline-flex items-center gap-1 px-3 py-2 text-sm rounded disabled:opacity-40 disabled:cursor-not-allowed ${
               ehSuspender
                 ? "bg-red-500/20 text-red-300 hover:bg-red-500/30"

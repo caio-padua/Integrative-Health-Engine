@@ -24,7 +24,14 @@ import {
   enviarWhatsappReativacao,
   coletarTelefonesResponsaveis,
 } from "../lib/whatsapp/clinicaSuspensaoWhatsapp";
-import { avisarPacientesSuspensao } from "../lib/notificacoes/avisarPacientesSuspensao";
+import {
+  avisarPacientesSuspensao,
+  buscarPacientesComConsultaProxima,
+  normalizarJanelaDias,
+  JANELA_DIAS_DEFAULT,
+  JANELA_DIAS_MIN,
+  JANELA_DIAS_MAX,
+} from "../lib/notificacoes/avisarPacientesSuspensao";
 import { uploadExportLgpdUnidade } from "../lib/arquivos/drive";
 
 type AuthedRequest = Request & {
@@ -321,10 +328,26 @@ router.get(
     }
     const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
     if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
-    const [emails, telefones] = await Promise.all([
+    // Task #182 — janela de dias pra contar pacientes que receberao aviso
+    // de suspensao. Default 14d (mesma janela que avisarPacientesSuspensao
+    // usa). platform_owner pode overridar via ?janelaDias= antes de
+    // confirmar pra ver impacto de janelas mais curtas/longas.
+    const janelaDias = req.query.janelaDias !== undefined
+      ? normalizarJanelaDias(req.query.janelaDias)
+      : JANELA_DIAS_DEFAULT;
+    const [emails, telefones, consultasProximas] = await Promise.all([
       coletarDestinatarios(id, unidade),
       coletarTelefonesResponsaveis(id, unidade),
+      buscarPacientesComConsultaProxima(id, janelaDias),
     ]);
+    let pacientesAvisados = 0;
+    let pacientesSemContato = 0;
+    for (const c of consultasProximas) {
+      const temEmail = !!(c.email && c.email.includes("@"));
+      const temTel = !!((c.whatsapp || c.telefone) && (c.whatsapp || c.telefone)!.replace(/\D/g, "").length >= 10);
+      if (temEmail || temTel) pacientesAvisados++;
+      else pacientesSemContato++;
+    }
     res.json({
       unidadeId: id,
       unidadeNome: unidade.nome,
@@ -337,6 +360,11 @@ router.get(
       // sinal pra exigir confirmacao dupla e mostrar alerta vermelho
       // mais forte.
       emailVazio: emails.length === 0,
+      pacientesAvisados,
+      pacientesSemContato,
+      janelaDias,
+      janelaDiasMin: JANELA_DIAS_MIN,
+      janelaDiasMax: JANELA_DIAS_MAX,
     });
   },
 );
@@ -347,6 +375,12 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
   const motivo = String(req.body?.motivo ?? "").trim();
   if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "id invalido" }); return; }
   if (motivo.length < 8) { res.status(400).json({ error: "motivo obrigatorio (>= 8 chars)" }); return; }
+  // Task #182 — janela override (opcional). Se nao vier, avisarPacientesSuspensao
+  // usa JANELA_DIAS_DEFAULT. Quando vem do body, normaliza pros limites
+  // antes de propagar (mesma logica do GET destinatarios-aviso).
+  const janelaDiasOverride = req.body?.janelaDias !== undefined
+    ? normalizarJanelaDias(req.body.janelaDias)
+    : undefined;
 
   const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
   if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
@@ -481,6 +515,7 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
         unidadeId: id,
         unidade,
         suspensoEm: new Date(),
+        janelaDias: janelaDiasOverride,
       });
       req.log?.info({ unidadeId: id, ...pacientesRes }, "[plataforma] aviso pacientes suspensao enviado");
     } catch (err) {

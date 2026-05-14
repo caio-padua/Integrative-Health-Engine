@@ -17,7 +17,21 @@ const CONTATO_RECURSO_PADRAO =
 // alem desse horizonte vao saber pelo proprio portal (Task #132 ja cobre)
 // — aqui o foco e o paciente que esperaria a consulta sem entender o
 // silencio da clinica.
-const JANELA_DIAS_DEFAULT = Number(process.env.PAWARDS_AVISO_PACIENTES_DIAS || "14");
+export const JANELA_DIAS_DEFAULT = Number(process.env.PAWARDS_AVISO_PACIENTES_DIAS || "14");
+// Limites pra override manual da janela (Task #182). Acima de 90 dias o
+// custo de WhatsApp/email explode sem ganho clinico real (paciente com
+// consulta a 3 meses ja recebe aviso pelo portal — Task #132).
+export const JANELA_DIAS_MIN = 1;
+export const JANELA_DIAS_MAX = 90;
+
+export function normalizarJanelaDias(input: unknown): number {
+  const n = Number(input);
+  if (!Number.isFinite(n)) return JANELA_DIAS_DEFAULT;
+  const inteiro = Math.floor(n);
+  if (inteiro < JANELA_DIAS_MIN) return JANELA_DIAS_MIN;
+  if (inteiro > JANELA_DIAS_MAX) return JANELA_DIAS_MAX;
+  return inteiro;
+}
 
 function sanitizeHeader(value: string): string {
   return value.replace(/[\r\n]/g, "").trim();
@@ -131,7 +145,7 @@ type ConsultaProxima = {
  * (DISTINCT ON paciente_id) — se o paciente tem 3 consultas marcadas
  * durante a janela, ele recebe UM aviso, citando a primeira.
  */
-async function buscarPacientesComConsultaProxima(
+export async function buscarPacientesComConsultaProxima(
   unidadeId: number,
   dias: number,
 ): Promise<ConsultaProxima[]> {
@@ -198,7 +212,7 @@ export async function avisarPacientesSuspensao(opts: {
   suspensoEm: Date;
   janelaDias?: number;
 }): Promise<ResultadoAvisoPacientes> {
-  const dias = Math.max(1, Math.floor(opts.janelaDias ?? JANELA_DIAS_DEFAULT));
+  const dias = normalizarJanelaDias(opts.janelaDias ?? JANELA_DIAS_DEFAULT);
   const consultas = await buscarPacientesComConsultaProxima(opts.unidadeId, dias);
   const subject = `[PAWARDS] Sua consulta na ${opts.unidade.nome} precisara ser remarcada`;
 
