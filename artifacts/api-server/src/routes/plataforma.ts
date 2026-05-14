@@ -1441,6 +1441,101 @@ router.get(
   },
 );
 
+// GET /api/plataforma/seguranca/avisos-2fa.csv (Task #169) — mesmo dataset
+// da rota acima exportado como CSV pra correlacao externa (LGPD, planilhas
+// de auditoria, sistemas de incidentes). Usa os mesmos filtros (dias,
+// limite) e os mesmos guardas (platform_owner + 2FA recente).
+router.get("/plataforma/seguranca/avisos-2fa.csv", ...guardas, async (req, res): Promise<void> => {
+  const limite = Math.min(Number(req.query["limite"] ?? 100) || 100, 500);
+  const diasJanela = Math.min(Number(req.query["dias"] ?? 30) || 30, 180);
+  const result = await db.execute(sql`
+    SELECT
+      h.aviso_em,
+      COALESCE(u.nome, '#' || h.usuario_id::text) AS owner_nome,
+      u.email AS owner_email,
+      h.ultimo_login_2fa_em,
+      h.expira_em,
+      h.renovado_em,
+      h.canal_email_ok,
+      h.canal_whatsapp_ok,
+      CASE
+        WHEN h.renovado_em IS NOT NULL
+          THEN EXTRACT(EPOCH FROM (h.renovado_em - h.aviso_em))::int
+        ELSE NULL
+      END AS renovado_em_segundos_apos_aviso,
+      CASE
+        WHEN h.renovado_em IS NOT NULL THEN 'renovado'
+        WHEN h.expira_em <= now()      THEN 'expirou'
+        ELSE 'em_andamento'
+      END AS status
+    FROM historico_avisos_2fa_owner h
+    LEFT JOIN usuarios u ON u.id = h.usuario_id
+    WHERE h.aviso_em >= now() - (${diasJanela}::int * INTERVAL '1 day')
+    ORDER BY h.aviso_em DESC
+    LIMIT ${limite}
+  `);
+
+  const linhas = (result.rows ?? []) as Array<{
+    aviso_em: string;
+    owner_nome: string;
+    owner_email: string | null;
+    ultimo_login_2fa_em: string;
+    expira_em: string;
+    renovado_em: string | null;
+    canal_email_ok: boolean;
+    canal_whatsapp_ok: boolean;
+    renovado_em_segundos_apos_aviso: number | null;
+    status: string;
+  }>;
+
+  // RFC 4180: campos com aspas, virgula ou quebra de linha precisam ser
+  // envolvidos em aspas duplas e ter aspas internas duplicadas.
+  const escapar = (v: unknown): string => {
+    if (v == null) return "";
+    const s = String(v);
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const owner = (l: (typeof linhas)[number]): string =>
+    l.owner_email ? `${l.owner_nome} <${l.owner_email}>` : l.owner_nome;
+
+  const cabecalho = [
+    "aviso_em",
+    "owner",
+    "ultimo_login_2fa_em",
+    "expira_em",
+    "status",
+    "renovado_em_segundos_apos_aviso",
+    "canal_email_ok",
+    "canal_whatsapp_ok",
+  ];
+  const corpo = linhas.map((l) =>
+    [
+      l.aviso_em,
+      owner(l),
+      l.ultimo_login_2fa_em,
+      l.expira_em,
+      l.status,
+      l.renovado_em_segundos_apos_aviso ?? "",
+      l.canal_email_ok ? "true" : "false",
+      l.canal_whatsapp_ok ? "true" : "false",
+    ]
+      .map(escapar)
+      .join(","),
+  );
+  // BOM UTF-8 pra Excel reconhecer acentos. CRLF por compatibilidade RFC 4180.
+  const csv = "\uFEFF" + [cabecalho.join(","), ...corpo].join("\r\n") + "\r\n";
+
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const nomeArquivo = `avisos-2fa-${diasJanela}d-${stamp}.csv`;
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${nomeArquivo}"`,
+  );
+  res.send(csv);
+});
+
 // ──────────────────────────── AUDITORIA ────────────────────────────────
 // GET /api/plataforma/auditoria — timeline cronologica das acoes sensiveis
 router.get("/plataforma/auditoria", ...guardas, async (req, res): Promise<void> => {

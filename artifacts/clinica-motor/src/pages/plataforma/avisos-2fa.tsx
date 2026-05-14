@@ -17,6 +17,7 @@ import {
   Clock,
   Mail,
   MessageSquare,
+  Download,
 } from "lucide-react";
 
 type Aviso = {
@@ -93,6 +94,8 @@ export default function PlataformaAvisos2fa() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [dias, setDias] = useState(30);
+  const [exportando, setExportando] = useState(false);
+  const [erroExport, setErroExport] = useState<string | null>(null);
   const { runWithStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
@@ -119,6 +122,39 @@ export default function PlataformaAvisos2fa() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // Task #169 — exporta CSV com mesmos filtros (dias) da tela. Limite 500
+  // (igual ao cap do endpoint) pra trazer mais que os 200 da UI quando
+  // necessario pra correlacao externa (LGPD, auditoria, planilha).
+  const exportarCsv = useCallback(async () => {
+    setExportando(true);
+    setErroExport(null);
+    const r = await runWithStepUp(() =>
+      apiFetch(
+        `/api/plataforma/seguranca/avisos-2fa.csv?dias=${dias}&limite=500`,
+        { credentials: "include" },
+      ),
+    );
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      setErroExport(j.error ?? `Falha ao exportar (${r.status})`);
+      setExportando(false);
+      return;
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const cd = r.headers.get("content-disposition") ?? "";
+    const m = /filename="([^"]+)"/.exec(cd);
+    const nome = m?.[1] ?? `avisos-2fa-${dias}d.csv`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setExportando(false);
+  }, [dias, runWithStepUp]);
 
   return (
     <Layout>
@@ -153,8 +189,24 @@ export default function PlataformaAvisos2fa() {
             >
               <RefreshCw size={16} /> Recarregar
             </button>
+            <button
+              onClick={() => void exportarCsv()}
+              disabled={exportando}
+              className="px-3 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm flex items-center gap-2"
+              data-testid="button-exportar-csv-avisos-2fa"
+              title={`Exportar CSV (ultimos ${dias} dias)`}
+            >
+              <Download size={16} />
+              {exportando ? "Exportando..." : "Exportar CSV"}
+            </button>
           </div>
         </header>
+
+        {erroExport && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/40 rounded text-red-300 text-sm">
+            Falha ao exportar CSV: {erroExport}
+          </div>
+        )}
 
         {erro && (
           <div className="mb-4 p-4 bg-red-500/10 border border-red-500/40 rounded text-red-300">
