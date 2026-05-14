@@ -6,6 +6,16 @@ import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Building2, MapPin, Pencil, Calendar, Trash2, Mail, ExternalLink, Link2, HardDrive, Users, Bell, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -275,6 +285,62 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
       toast({ title: "Erro ao salvar unidade", description: err.message, variant: "destructive" });
     },
   });
+
+  // Task #229 — antes de salvar, se o usuario alterou os horarios padrao
+  // ou aumentou a tolerancia, mostramos um dialogo com a contagem real
+  // de prescricoes que herdam esses defaults (e por isso podem receber
+  // lembretes duplicados / fora de hora se a janela mudar agora).
+  const [confirmAberto, setConfirmAberto] = useState(false);
+  const [confirmDados, setConfirmDados] = useState<{
+    horariosMudaram: boolean;
+    toleranciaAumentou: boolean;
+    horariosAntes: string[];
+    horariosDepois: string[];
+    toleranciaAntes: number;
+    toleranciaDepois: number;
+    prescricoesQueHerdamPadrao: number | null;
+    carregando: boolean;
+  } | null>(null);
+
+  const tentarSalvar = async () => {
+    // Sem unidade existente (criacao) ou sem mudanca relevante: salva direto.
+    if (!isEdit || !unidade) {
+      saveMutation.mutate();
+      return;
+    }
+    const horariosAntes = Array.isArray(unidade.lembreteHorariosPadrao) ? unidade.lembreteHorariosPadrao : [];
+    const horariosDepois = form.lembreteHorariosPadrao;
+    const toleranciaAntes = typeof unidade.lembreteToleranciaMinutos === "number" ? unidade.lembreteToleranciaMinutos : 5;
+    const toleranciaDepois = Number(form.lembreteToleranciaMinutos);
+    const horariosMudaram = JSON.stringify([...horariosAntes].sort()) !== JSON.stringify([...horariosDepois].sort());
+    const toleranciaAumentou = toleranciaDepois > toleranciaAntes;
+    if (!horariosMudaram && !toleranciaAumentou) {
+      saveMutation.mutate();
+      return;
+    }
+    setConfirmDados({
+      horariosMudaram,
+      toleranciaAumentou,
+      horariosAntes,
+      horariosDepois,
+      toleranciaAntes,
+      toleranciaDepois,
+      prescricoesQueHerdamPadrao: null,
+      carregando: true,
+    });
+    setConfirmAberto(true);
+    try {
+      const res = await apiFetch(`/api/unidades/${unidade.id}/lembrete-impacto`);
+      if (res.ok) {
+        const data = await res.json();
+        setConfirmDados(prev => prev ? { ...prev, prescricoesQueHerdamPadrao: Number(data.prescricoesQueHerdamPadrao ?? 0), carregando: false } : prev);
+      } else {
+        setConfirmDados(prev => prev ? { ...prev, prescricoesQueHerdamPadrao: 0, carregando: false } : prev);
+      }
+    } catch {
+      setConfirmDados(prev => prev ? { ...prev, prescricoesQueHerdamPadrao: 0, carregando: false } : prev);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -608,11 +674,71 @@ function UnidadeFormDialog({ unidade, open, onOpenChange, onSaved }: {
             </div>
           </div>
 
-          <Button onClick={() => saveMutation.mutate()} className="w-full" disabled={saveMutation.isPending || !form.nome}>
+          <Button onClick={() => tentarSalvar()} className="w-full" disabled={saveMutation.isPending || !form.nome}>
             {saveMutation.isPending ? "Salvando..." : (isEdit ? "Salvar Alteracoes" : "Criar Unidade")}
           </Button>
         </div>
       </DialogContent>
+
+      {/* Task #229 — confirmacao antes de aplicar mudanca de janela padrao */}
+      <AlertDialog open={confirmAberto} onOpenChange={setConfirmAberto}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar mudança nos lembretes desta unidade</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                {confirmDados?.horariosMudaram && (
+                  <div>
+                    <div className="font-semibold">Horários padrão</div>
+                    <div className="font-mono text-xs">
+                      Antes: {confirmDados.horariosAntes.length === 0 ? "(vazio)" : confirmDados.horariosAntes.join(", ")}
+                    </div>
+                    <div className="font-mono text-xs">
+                      Depois: {confirmDados.horariosDepois.length === 0 ? "(vazio)" : confirmDados.horariosDepois.join(", ")}
+                    </div>
+                  </div>
+                )}
+                {confirmDados?.toleranciaAumentou && (
+                  <div>
+                    <div className="font-semibold">Tolerância aumentou</div>
+                    <div className="font-mono text-xs">
+                      {confirmDados.toleranciaAntes} min → {confirmDados.toleranciaDepois} min
+                    </div>
+                    <div className="text-xs text-amber-700 mt-1">
+                      Tolerância maior pode liberar lembretes "atrasados" — janelas que já tinham passado podem disparar agora se entrarem na nova faixa.
+                    </div>
+                  </div>
+                )}
+                <div className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-900">
+                  <div className="font-semibold">
+                    {confirmDados?.carregando
+                      ? "Calculando prescrições afetadas…"
+                      : `${confirmDados?.prescricoesQueHerdamPadrao ?? 0} prescrição(ões) ativa(s) usam estes horários padrão.`}
+                  </div>
+                  <div className="text-xs mt-1">
+                    A mudança vale só para os <strong>próximos lembretes</strong>. Se o worker já enviou na janela antiga hoje, mudar agora pode disparar de novo nos novos horários (a tolerância de {confirmDados?.toleranciaDepois ?? 5} min vai bater outra vez).
+                  </div>
+                  <div className="text-xs mt-1">
+                    Recomendação: aplicar fora do horário de envio (ex.: à noite, após o último horário do dia).
+                  </div>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmAberto(false);
+                saveMutation.mutate();
+              }}
+              disabled={confirmDados?.carregando}
+            >
+              Aplicar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

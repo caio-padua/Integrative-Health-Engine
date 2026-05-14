@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, unidadesTable } from "@workspace/db";
+import { db, unidadesTable, prescricoesLembreteTable } from "@workspace/db";
 import { eq, and, gt, sql } from "drizzle-orm";
 import { CriarUnidadeBody } from "@workspace/api-zod";
 import { z } from "zod";
@@ -64,6 +64,40 @@ router.get("/unidades/:id", async (req, res): Promise<void> => {
   res.json(unidade);
 });
 
+// Task #229 — antes de mudar os horarios padrao da unidade, a UI consulta
+// quantas prescricoes ATIVAS herdam esses defaults (ou seja, nao definem
+// horariosEnvio proprios). Eh esse o universo que pode receber lembretes
+// duplicados / fora de hora se a janela mudar no meio do dia.
+router.get("/unidades/:id/lembrete-impacto", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "id invalido" }); return; }
+  const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
+  if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+
+  // Prescricoes ativas da unidade cujo horariosEnvio esta vazio (= herdam
+  // o default da unidade). jsonb_array_length cobre tanto "[]" quanto NULL
+  // (NULL nunca acontece pois a coluna tem default '[]', mas defendemos).
+  const [row] = await db
+    .select({
+      total: sql<number>`COUNT(*)::int`,
+      herdamPadrao: sql<number>`COUNT(*) FILTER (WHERE COALESCE(jsonb_array_length(${prescricoesLembreteTable.horariosEnvio}), 0) = 0)::int`,
+    })
+    .from(prescricoesLembreteTable)
+    .where(and(
+      eq(prescricoesLembreteTable.unidadeId, id),
+      eq(prescricoesLembreteTable.ativo, true),
+    ));
+
+  res.json({
+    unidadeId: id,
+    horariosPadrao: unidade.lembreteHorariosPadrao ?? [],
+    toleranciaMinutos: unidade.lembreteToleranciaMinutos ?? 5,
+    prescricoesAtivasNaUnidade: row?.total ?? 0,
+    prescricoesQueHerdamPadrao: row?.herdamPadrao ?? 0,
+  });
+});
+
 router.put("/unidades/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -111,6 +145,31 @@ router.put("/unidades/:id", async (req, res): Promise<void> => {
   }
   const [updated] = await db.update(unidadesTable).set(updates).where(eq(unidadesTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Unidade não encontrada" }); return; }
+
+  // Task #229 — auditoria estruturada quando os defaults de lembrete mudam.
+  // O worker de lembretes usa essas janelas pra TODAS as prescricoes que
+  // nao definirem horario proprio; mudar no meio do dia pode disparar
+  // duplicados / fora de hora. Registrar quem mudou + valores antes/depois.
+  const horariosAntes = JSON.stringify(existente.lembreteHorariosPadrao ?? []);
+  const horariosDepois = JSON.stringify(updated.lembreteHorariosPadrao ?? []);
+  const toleranciaAntes = existente.lembreteToleranciaMinutos ?? 5;
+  const toleranciaDepois = updated.lembreteToleranciaMinutos ?? 5;
+  if (horariosAntes !== horariosDepois || toleranciaAntes !== toleranciaDepois) {
+    req.log?.info(
+      {
+        unidadeId: id,
+        unidadeNome: updated.nome,
+        horariosAntes: existente.lembreteHorariosPadrao ?? [],
+        horariosDepois: updated.lembreteHorariosPadrao ?? [],
+        toleranciaAntes,
+        toleranciaDepois,
+        toleranciaAumentou: toleranciaDepois > toleranciaAntes,
+        usuarioHeader: req.header("X-User-Id") || null,
+      },
+      "[unidades] defaults de lembrete alterados",
+    );
+  }
+
   res.json(updated);
 });
 
