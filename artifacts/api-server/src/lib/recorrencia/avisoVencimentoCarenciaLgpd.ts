@@ -37,6 +37,7 @@ import { sql, eq } from "drizzle-orm";
 import { getGmailClient } from "../google-gmail";
 import { logger } from "../logger";
 import { coletarDestinatarios } from "../email/clinicaSuspensao";
+import { enviarWhatsapp } from "../../services/whatsappService";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
 // Familia 130302xx ja usada por Wave 13 F3/F4: 13030245 (carenciaLgpd2fa)
@@ -47,6 +48,13 @@ const HORA_MAX_BRT = 22;
 const FROM_LABEL = "PAWARDS - Plataforma";
 const FROM_ADDR =
   process.env["PAWARDS_EMAIL_FROM"] || "clinica.padua.agenda@gmail.com";
+
+// Task #258 — fallback igual aos workers Task #146 (avisoExpiracao2faOwner)
+// e Task #194 (alertaBruteForceRetryEnvio) quando o platform_owner ainda
+// nao tem `usuarios.telefone` cadastrado.
+function ceoWhatsappEnv(): string {
+  return process.env["CEO_WHATSAPP"] || "";
+}
 
 let executandoAgora = false;
 let workerStarted = false;
@@ -215,6 +223,74 @@ function htmlAvisoCarencia(opts: {
 </body></html>`;
 }
 
+function textoWhatsapp(opts: {
+  unidadeNome: string;
+  tipo: TipoAviso;
+  diasRestantes: number;
+  carenciaAte: Date;
+  url: string;
+}): string {
+  const cabec =
+    opts.tipo === "VENCIDO_SEM_EXPORT"
+      ? `[PAWARDS] Carencia LGPD VENCIDA sem export — clinica ${opts.unidadeNome}`
+      : `[PAWARDS] Carencia LGPD da clinica ${opts.unidadeNome} vence em ${opts.diasRestantes}d`;
+  const corpo =
+    opts.tipo === "VENCIDO_SEM_EXPORT"
+      ? `Carencia venceu em ${dataPtBr(opts.carenciaAte)} sem export LGPD gerado — exclusao automatica BLOQUEADA. Gere o export ou cancele a exclusao.`
+      : `Exclusao definitiva agendada pra ${dataPtBr(opts.carenciaAte)} (faltam ${opts.diasRestantes} dia(s)).`;
+  return [cabec, "", corpo, "", `Painel: ${opts.url}`].join("\n");
+}
+
+/**
+ * Task #258 — Resolve telefones do CEO (platform_owner / validador_mestre
+ * com `usuarios.telefone` cadastrado), respeitando a preferencia de canal
+ * `canais_aviso_carencia_lgpd` (Migration 061): so retorna telefone de
+ * owner que mantem 'whatsapp' nessa coluna. Default DB
+ * '{email,whatsapp}' garante comportamento opt-in pra owners legados.
+ * Array vazio (owner desligou WhatsApp explicitamente) = MUDO pra esse
+ * owner — mesmo padrao da Task #146/#159 (canais_aviso_2fa).
+ *
+ * Fallback CEO_WHATSAPP env var so dispara quando NENHUM owner com
+ * preferencia ativa pra WhatsApp foi resolvido (ex: ambiente recem-bootado
+ * sem usuarios cadastrados ainda). A env var em si eh tratada como
+ * "opt-in operacional" (quem setou sabe o que esta fazendo).
+ *
+ * Mesma estrutura de `escalonarWhatsappCEO` em alertaBruteForceRetryEnvio
+ * (Task #194), mas com gating de preferencia adicionado.
+ */
+async function resolverTelefonesCeo(): Promise<string[]> {
+  const ownerRows: any = await db.execute(sql`
+    SELECT telefone, canais_aviso_carencia_lgpd
+      FROM usuarios
+     WHERE ativo = true
+       AND (perfil_plataforma = 'platform_owner' OR perfil = 'validador_mestre')
+  `);
+  const linhas: {
+    telefone: string | null;
+    canais_aviso_carencia_lgpd: string[] | null;
+  }[] = ownerRows.rows ?? ownerRows;
+  const set = new Set<string>();
+  for (const r of linhas) {
+    // Distincao critica (mesma da Task #146):
+    //   - NULL/undefined (row de DB pre-Migration 061, improvavel ja que
+    //     a coluna eh NOT NULL DEFAULT, mas defensivo) -> default
+    //     ['email','whatsapp'] pra preservar a intencao da Task #258.
+    //   - [] (array vazio explicito) -> MUDO; owner desligou WhatsApp
+    //     pra este dominio conscientemente.
+    const canais = Array.isArray(r.canais_aviso_carencia_lgpd)
+      ? r.canais_aviso_carencia_lgpd
+      : ["email", "whatsapp"];
+    if (!canais.includes("whatsapp")) continue;
+    const t = (r.telefone ?? "").replace(/\D/g, "");
+    if (t.length >= 10) set.add(t);
+  }
+  if (set.size === 0) {
+    const fallback = ceoWhatsappEnv().replace(/\D/g, "");
+    if (fallback.length >= 10) set.add(fallback);
+  }
+  return Array.from(set);
+}
+
 function assuntoEmail(opts: {
   unidadeNome: string;
   tipo: TipoAviso;
@@ -254,6 +330,26 @@ async function tick(): Promise<void> {
     `);
     const pendentes: UnidadePendente[] = result.rows ?? result;
     if (pendentes.length === 0) return;
+
+    // Task #258 — Resolve telefones do CEO uma unica vez por tick (em vez
+    // de N vezes por unidade pendente). Defensivo: erro na resolucao NAO
+    // bloqueia o INSERT do email; cai no caminho "sem telefone resolvido"
+    // (canal_whatsapp_ok=false + whatsapp_erro registrando o motivo).
+    // Nota rebase Task #259: a chamada de `urlPlataformaClinicas()` saiu
+    // daqui pra dentro do loop (precisa do unidadeId pro deeplink de
+    // VENCIDO_SEM_EXPORT). O texto do WhatsApp usa o `url` per-unidade
+    // calculado abaixo.
+    let telefonesCeoTick: string[] = [];
+    let erroResolucaoTelefones: string | null = null;
+    try {
+      telefonesCeoTick = await resolverTelefonesCeo();
+    } catch (e: any) {
+      erroResolucaoTelefones = (e?.message ?? String(e)).slice(0, 500);
+      logger.warn(
+        { err: erroResolucaoTelefones },
+        "[aviso-vencimento-carencia-lgpd] falha ao resolver telefones do CEO; whatsapp pulado",
+      );
+    }
 
     for (const u of pendentes) {
       const carenciaAte = new Date(u.exclusao_carencia_ate);
@@ -367,16 +463,74 @@ async function tick(): Promise<void> {
               ? "ERRO"
               : "PARCIAL";
 
+      // Task #258 — WhatsApp best-effort pro telefone do platform_owner
+      // (mesmo padrao das Tasks #146 e #194). NUNCA bloqueia idempotencia
+      // do email: a falha de WhatsApp so vira coluna de auditoria
+      // (canal_whatsapp_ok / whatsapp_*). O UNIQUE
+      // (unidade_id, tipo_aviso, dia_brt) continua valendo independente
+      // do resultado WhatsApp.
+      const telefonesCeo = telefonesCeoTick;
+      let whatsappEnviados = 0;
+      let whatsappFalhas = 0;
+      let whatsappErroResumo: string | null = null;
+      if (telefonesCeo.length === 0) {
+        whatsappErroResumo =
+          erroResolucaoTelefones !== null
+            ? `falha ao resolver telefones do CEO: ${erroResolucaoTelefones}`
+            : "sem telefone do CEO resolvido (usuarios.telefone vazio ou whatsapp desligado em canais_aviso_carencia_lgpd; CEO_WHATSAPP env nao setado)";
+      } else {
+        const texto = textoWhatsapp({
+          unidadeNome: unidade.nome,
+          tipo,
+          diasRestantes,
+          carenciaAte,
+          url,
+        });
+        for (const tel of telefonesCeo) {
+          try {
+            const r = await enviarWhatsapp(tel, texto);
+            if (r.sucesso) {
+              whatsappEnviados++;
+            } else {
+              whatsappFalhas++;
+              if (!whatsappErroResumo && r.erro) {
+                whatsappErroResumo = String(r.erro).slice(0, 500);
+              }
+              logger.warn(
+                { unidadeId: u.id, tel, erro: r.erro },
+                "[aviso-vencimento-carencia-lgpd] whatsapp retornou falha",
+              );
+            }
+          } catch (e: any) {
+            whatsappFalhas++;
+            const msg = e?.message ?? String(e);
+            if (!whatsappErroResumo) whatsappErroResumo = msg.slice(0, 500);
+            logger.warn(
+              { unidadeId: u.id, tel, err: msg },
+              "[aviso-vencimento-carencia-lgpd] excecao ao enviar whatsapp",
+            );
+          }
+        }
+      }
+      const canalWhatsappOk =
+        telefonesCeo.length > 0 && whatsappEnviados > 0;
+
       try {
         await db.execute(sql`
           INSERT INTO notif_carencia_lgpd_clinica_envios
             (unidade_id, dia_brt, tipo_aviso, dias_restantes,
              destinatarios, total_destinatarios, enviados, falhas,
-             status, erro)
+             status, erro,
+             whatsapp_destinatarios, whatsapp_total_destinatarios,
+             whatsapp_enviados, whatsapp_falhas, whatsapp_erro,
+             canal_whatsapp_ok)
           VALUES
             (${u.id}, ${dia}::date, ${tipo}, ${diasRestantes},
              ${destinatarios}::text[], ${destinatarios.length},
-             ${enviados}, ${falhas}, ${status}, ${erroResumo})
+             ${enviados}, ${falhas}, ${status}, ${erroResumo},
+             ${telefonesCeo}::text[], ${telefonesCeo.length},
+             ${whatsappEnviados}, ${whatsappFalhas}, ${whatsappErroResumo},
+             ${canalWhatsappOk})
           ON CONFLICT (unidade_id, tipo_aviso, dia_brt) DO NOTHING
         `);
       } catch (e: any) {
@@ -395,6 +549,10 @@ async function tick(): Promise<void> {
           enviados,
           falhas,
           status,
+          whatsappTotal: telefonesCeo.length,
+          whatsappEnviados,
+          whatsappFalhas,
+          canalWhatsappOk,
         },
         "[aviso-vencimento-carencia-lgpd] aviso processado",
       );
