@@ -59,6 +59,33 @@ export async function rodarLimpezaTotpAgora(): Promise<LimpezaTotpResult> {
       // debug pra observabilidade do scheduler sem poluir info.
       logger.debug({ removidas: 0 }, "[limpeza-totp] tick sem linhas expiradas");
     }
+
+    // Task #160 — agrega no contador diario BRT pra dar visibilidade pro CEO
+    // (tabela `totp_rate_limit_limpezas_diarias`, Migration 052). UPSERT
+    // idempotente por dia_brt: cada tick soma `removidas` e incrementa
+    // `ticks_executados`. Defensivo: falha = log + segue, nao quebra o tick
+    // (ambientes sem migration aplicada continuam funcionais).
+    try {
+      await db.execute(sql`
+        INSERT INTO totp_rate_limit_limpezas_diarias
+          (dia_brt, total_removidas, ticks_executados, primeira_em, ultima_em)
+        VALUES
+          ((now() AT TIME ZONE 'America/Sao_Paulo')::date,
+           ${removidas}, 1, now(), now())
+        ON CONFLICT (dia_brt) DO UPDATE
+          SET total_removidas  = totp_rate_limit_limpezas_diarias.total_removidas
+                                 + EXCLUDED.total_removidas,
+              ticks_executados = totp_rate_limit_limpezas_diarias.ticks_executados + 1,
+              ultima_em        = now()
+      `);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(
+        { err: msg },
+        "[limpeza-totp] falha agregar contador diario (Task #160) — segue",
+      );
+    }
+
     return { removidas, pulado_por_lock: false };
   } finally {
     await db.execute(sql`SELECT pg_advisory_unlock(${ADVISORY_LOCK_ID})`);

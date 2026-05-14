@@ -220,4 +220,8 @@ router.use(notifAssinaturaRouter);
 import plataformaRouter from "./plataforma";
 router.use(plataformaRouter);
 
+// Task #160 — Painel CEO · contador diario de bloqueios 2FA expirados
+import segurancaTotpExpiradosRouter from "./segurancaTotpExpirados";
+router.use(segurancaTotpExpiradosRouter);
+
 export default router;
