@@ -27,6 +27,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
+import { classificarAnomaliaTotp } from "../lib/seguranca/anomaliaTotp";
 
 const router = Router();
 
@@ -81,45 +82,24 @@ router.get(
       const hoje = serie.find((l) => l.dia === hojeStr) ?? null;
 
       const historico = serie.filter((l) => l.dia !== hojeStr);
-      const media =
-        historico.length > 0
-          ? historico.reduce((acc, l) => acc + l.totalRemovidas, 0) /
-            historico.length
-          : 0;
-      const variancia =
-        historico.length > 0
-          ? historico.reduce(
-              (acc, l) => acc + (l.totalRemovidas - media) ** 2,
-              0,
-            ) / historico.length
-          : 0;
-      const desvio = Math.sqrt(variancia);
-
       const hojeTotal = hoje?.totalRemovidas ?? 0;
-      const razaoVsMedia = media > 0 ? hojeTotal / media : 0;
-      const zScoreHoje = desvio > 0 ? (hojeTotal - media) / desvio : 0;
 
-      // Heuristica conservadora pra flag — evita falso-positivo em volume
-      // baixo (hoje so vira ANOMALIA se passou de 10 remocoes E ficou >= 3
-      // sigmas acima da media OU pelo menos 3x a media).
-      let flag: "NORMAL" | "ATENCAO" | "ANOMALIA" = "NORMAL";
-      if (hojeTotal >= 10 && (zScoreHoje >= 3 || razaoVsMedia >= 3)) {
-        flag = "ANOMALIA";
-      } else if (hojeTotal >= 5 && (zScoreHoje >= 2 || razaoVsMedia >= 2)) {
-        flag = "ATENCAO";
-      }
+      // Task #272 — heuristica extraida pra `lib/seguranca/anomaliaTotp.ts`
+      // pra ser reutilizada pelo worker `alertaAnomaliaTotp2faDiario` sem
+      // duplicar a regra. Endpoint mantem mesmo contrato (campos abaixo).
+      const an = classificarAnomaliaTotp(hojeTotal, historico);
 
       res.json({
         dias,
         serie,
         hoje,
-        mediaHistorica: Number(media.toFixed(2)),
-        desvioPadrao: Number(desvio.toFixed(2)),
+        mediaHistorica: an.mediaHistorica,
+        desvioPadrao: an.desvioPadrao,
         anomalia: {
-          hojeAcimaDaMedia: hojeTotal > media,
-          razaoVsMedia: Number(razaoVsMedia.toFixed(2)),
-          zScoreHoje: Number(zScoreHoje.toFixed(2)),
-          flag,
+          hojeAcimaDaMedia: hojeTotal > an.mediaHistorica,
+          razaoVsMedia: an.razaoVsMedia,
+          zScoreHoje: an.zScoreHoje,
+          flag: an.flag,
         },
       });
     } catch (e) {

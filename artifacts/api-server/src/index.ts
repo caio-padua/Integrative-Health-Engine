@@ -22,6 +22,7 @@ import { iniciarWorkerLimpezaAuditoriaPainelPawards } from "./lib/recorrencia/li
 import { iniciarWorkerDigestRecusasCEO } from "./lib/recorrencia/digestRecusasCEO";
 import { iniciarWorkerWebhookAssinaturaSilencio } from "./lib/recorrencia/webhookAssinaturaSilencio";
 import { iniciarWorkerAvisoDestinatarioQuebrado } from "./lib/recorrencia/avisoDestinatarioQuebrado";
+import { iniciarWorkerAlertaAnomaliaTotp2faDiario } from "./lib/recorrencia/alertaAnomaliaTotp2faDiario";
 
 const rawPort = process.env["PORT"];
 
@@ -66,4 +67,5 @@ app.listen(port, (err) => {
   iniciarWorkerDigestRecusasCEO();
   iniciarWorkerWebhookAssinaturaSilencio();
   iniciarWorkerAvisoDestinatarioQuebrado();
+  iniciarWorkerAlertaAnomaliaTotp2faDiario();
 });
