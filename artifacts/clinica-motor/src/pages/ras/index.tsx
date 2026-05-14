@@ -87,6 +87,19 @@ function chaveStorageRas(uid: number | string | undefined): string | null {
   if (uid === undefined || uid === null) return null;
   return `pawards.ras.ordenar_por.${uid}`;
 }
+// Task #213 — chave de localStorage por-usuario pra persistir filtros de
+// unidade + janela de data entre visitas (mesmo padrao usado em
+// `chaveStorageRas` pra ordenacao multi-coluna). URL tem prioridade quando
+// presente — link compartilhavel reproduz visao exata.
+function chaveStorageFiltrosRas(uid: number | string | undefined): string | null {
+  if (uid === undefined || uid === null) return null;
+  return `pawards.ras.filtros.${uid}`;
+}
+interface FiltrosRasSalvos {
+  unidadeId: number | null;
+  dataInicio: string;
+  dataFim: string;
+}
 
 export default function RasPage() {
   const { toast } = useToast();
@@ -134,6 +147,54 @@ export default function RasPage() {
     else url.searchParams.delete(chave);
     window.history.replaceState({}, "", url.toString());
   }, []);
+
+  // Task #213 — persistencia dos filtros (unidade + janela) em localStorage
+  // por-usuario. Salva o snapshot completo a cada mudanca; limpa a chave
+  // quando todos os filtros voltam ao default (nada selecionado).
+  const salvarFiltrosStorage = useCallback((proximo: FiltrosRasSalvos) => {
+    if (typeof window === "undefined") return;
+    const k = chaveStorageFiltrosRas(user?.id);
+    if (!k) return;
+    try {
+      const vazio = proximo.unidadeId === null && !proximo.dataInicio && !proximo.dataFim;
+      if (vazio) window.localStorage.removeItem(k);
+      else window.localStorage.setItem(k, JSON.stringify(proximo));
+    } catch { /* ignore */ }
+  }, [user?.id]);
+  // Hidrata filtros salvos quando user fica disponivel, SOMENTE se nenhum
+  // dos parametros relevantes esta na URL (link compartilhavel manda, mesmo
+  // padrao da hidratacao de ordenacao). Espelha tambem na URL pra manter
+  // a query consistente com o estado restaurado.
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("unidadeId") || params.get("dataInicio") || params.get("dataFim")) return;
+    const k = chaveStorageFiltrosRas(user.id);
+    if (!k) return;
+    try {
+      const raw = window.localStorage.getItem(k);
+      if (!raw) return;
+      const salvo = JSON.parse(raw) as Partial<FiltrosRasSalvos>;
+      const uid = typeof salvo.unidadeId === "number" && Number.isInteger(salvo.unidadeId) && salvo.unidadeId > 0
+        ? salvo.unidadeId
+        : null;
+      const di = typeof salvo.dataInicio === "string" ? salvo.dataInicio : "";
+      const df = typeof salvo.dataFim === "string" ? salvo.dataFim : "";
+      if (uid !== null) {
+        setFiltroUnidadeId(uid);
+        atualizarQuery("unidadeId", String(uid));
+      }
+      if (di) {
+        setFiltroDataInicio(di);
+        atualizarQuery("dataInicio", di);
+      }
+      if (df) {
+        setFiltroDataFim(df);
+        atualizarQuery("dataFim", df);
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Task #100 — estado de ordenacao multi-coluna. Hidratado de `?ordenar_por=`
   // (link compartilhavel tem prioridade) ou de localStorage por-usuario.
@@ -298,6 +359,7 @@ export default function RasPage() {
                   const novo = v === "" ? null : Number(v);
                   setFiltroUnidadeId(novo);
                   atualizarQuery("unidadeId", v);
+                  salvarFiltrosStorage({ unidadeId: novo, dataInicio: filtroDataInicio, dataFim: filtroDataFim });
                 }}
               >
                 <option value="">Todas as Clínicas</option>
@@ -316,6 +378,7 @@ export default function RasPage() {
                 onChange={(e) => {
                   setFiltroDataInicio(e.target.value);
                   atualizarQuery("dataInicio", e.target.value);
+                  salvarFiltrosStorage({ unidadeId: filtroUnidadeId, dataInicio: e.target.value, dataFim: filtroDataFim });
                 }}
               />
             </div>
@@ -329,6 +392,7 @@ export default function RasPage() {
                 onChange={(e) => {
                   setFiltroDataFim(e.target.value);
                   atualizarQuery("dataFim", e.target.value);
+                  salvarFiltrosStorage({ unidadeId: filtroUnidadeId, dataInicio: filtroDataInicio, dataFim: e.target.value });
                 }}
               />
             </div>
@@ -344,6 +408,10 @@ export default function RasPage() {
                   atualizarQuery("unidadeId", "");
                   atualizarQuery("dataInicio", "");
                   atualizarQuery("dataFim", "");
+                  // Task #213 — limpar tambem o snapshot persistido pra
+                  // proxima visita comecar zerada (sem o "fantasma" do
+                  // ultimo filtro voltando do localStorage).
+                  salvarFiltrosStorage({ unidadeId: null, dataInicio: "", dataFim: "" });
                 }}
               >
                 Limpar filtros
