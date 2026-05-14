@@ -226,4 +226,9 @@ router.use(plataformaRouter);
 import segurancaTotpExpiradosRouter from "./segurancaTotpExpirados";
 router.use(segurancaTotpExpiradosRouter);
 
+// Task #226 — CRUD de contas a pagar (folha, magistral, operacional)
+// alimenta o card "Fluxo de Caixa 30d" no dashboard global.
+import contasAPagarRouter from "./contasAPagar";
+router.use(contasAPagarRouter);
+
 export default router;

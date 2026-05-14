@@ -22,6 +22,7 @@ import ItensTerapeuticos from "@/pages/itens-terapeuticos";
 import Protocolos from "@/pages/protocolos";
 import Followup from "@/pages/followup";
 import Financeiro from "@/pages/financeiro";
+import ContasAPagar from "@/pages/financeiro/contas-a-pagar";
 import PainelNfe from "@/pages/painel-nfe";
 import GatewaysPagamento from "@/pages/gateways-pagamento";
 import CredenciaisNfe from "@/pages/credenciais-nfe";
@@ -179,6 +180,7 @@ function Router() {
       <Route path="/protocolos" component={Protocolos} />
       <Route path="/followup" component={Followup} />
       <Route path="/financeiro" component={Financeiro} />
+      <Route path="/financeiro/contas-a-pagar" component={ContasAPagar} />
       <Route path="/painel-nfe" component={PainelNfe} />
       <Route path="/gateways-pagamento" component={GatewaysPagamento} />
       <Route path="/credenciais-nfe" component={CredenciaisNfe} />
