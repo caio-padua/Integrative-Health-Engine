@@ -6,6 +6,7 @@ import {
   SubgrupoCLIN, SubgrupoJURI, SubgrupoFINA, SubgrupoACOM, Subgrupo4100,
 } from "../lib/rasxEngine";
 import { parsePosologia, formatarPosologiaEstruturada } from "@workspace/posologia";
+import { desenharPosologiaBlocos } from "./posologiaBlocos.js";
 
 /**
  * Devolve a frase canônica produzida por parsePosologia + formatarPosologiaEstruturada
@@ -351,8 +352,14 @@ function renderJURI(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
       y += 4;
       y = drawSection(doc, "Medicamentos / Formulas Prescritos", y);
       p.medicamentos.forEach(m => {
-        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + posologiaCanonica(m.posologia) : ""}`, 60, y, { width: 480 });
-        y += 14;
+        // Task #240 — nome em negrito + posologia em blocos (fases/ciclo/tomadas).
+        doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.cinzaTexto).text(`• ${m.nome}`, 60, y, { width: 480 });
+        y += 12;
+        if (m.posologia) {
+          doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto);
+          y = desenharPosologiaBlocos(doc, m.posologia, 72, y, 468);
+          y += 2;
+        }
       });
     }
 
@@ -472,8 +479,14 @@ function renderFINA(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     y = drawParagraph(doc, `Declaramos que o(a) paciente ${p.nomePaciente} realizou os seguintes procedimentos/tratamentos em nossa unidade:`, y);
     if (p.medicamentos.length > 0) {
       p.medicamentos.forEach(m => {
-        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + posologiaCanonica(m.posologia) : ""}`, 60, y, { width: 480 });
-        y += 14;
+        // Task #240 — blocos de escalonamento/ciclo/tomadas no reembolso.
+        doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.cinzaTexto).text(`• ${m.nome}`, 60, y, { width: 480 });
+        y += 12;
+        if (m.posologia) {
+          doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto);
+          y = desenharPosologiaBlocos(doc, m.posologia, 72, y, 468);
+          y += 2;
+        }
       });
     }
     y += 8;
@@ -527,8 +540,14 @@ function renderACOM(doc: PDFKit.PDFDocument, p: PayloadRAS): void {
     y += 12;
     y = drawSection(doc, "Medicamentos Atuais", y);
     p.medicamentos.forEach(m => {
-      doc.fontSize(7).font("Helvetica").fillColor(CORES.cinzaTexto).text(`• ${m.nome}${m.posologia ? " — " + posologiaCanonica(m.posologia) : ""}`, 50, y, { width: 750 });
-      y += 12;
+      // Task #240 — REVO (paisagem): nome em negrito + blocos da posologia.
+      doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.cinzaTexto).text(`• ${m.nome}`, 50, y, { width: 750 });
+      y += 10;
+      if (m.posologia) {
+        doc.fontSize(7).font("Helvetica").fillColor(CORES.cinzaTexto);
+        y = desenharPosologiaBlocos(doc, m.posologia, 62, y, 738);
+        y += 2;
+      }
     });
     drawFooterMotor(doc, true, p);
   }

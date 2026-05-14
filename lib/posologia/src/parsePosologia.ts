@@ -470,3 +470,118 @@ export function formatarPosologiaEstruturada(p: PosologiaEstruturada): string {
 
   return partes.length > 0 ? partes.join(", ") : p.raw;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Renderização em blocos (multi-linha) — usada pelos PDFs                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Resultado da renderização em blocos visualmente distintos.
+ *
+ * - `fraseBase` é a frase canônica enxuta (forma + dose + via + frequência +
+ *   momento + duração), SEM `tomadas`/`fases`/`ciclo`/`quantidadeRange` —
+ *   esses vêm em campos separados, prontos pra serem desenhados em linhas
+ *   próprias no PDF (tabela de escalonamento, linha de ciclo, bloco de
+ *   tomadas, faixa de range).
+ * - Quando `interpretado=false`, `fraseBase` recebe o texto bruto e os
+ *   demais campos ficam vazios (fallback raw — Task #240).
+ */
+export interface PosologiaLinhas {
+  fraseBase: string;
+  /** Linhas tipo "1ª semana → 1 cápsula", "2ª semana → 2 cápsulas". */
+  fases?: string[];
+  /** Linha tipo "Ciclo: 21 dias em uso / 7 dias de pausa". */
+  ciclo?: string;
+  /** Linhas tipo "Manhã: 1 cápsula", "Noite: 2 cápsulas". */
+  tomadas?: string[];
+  /** Linha tipo "Faixa: 1–2 cápsulas por tomada". */
+  quantidadeRange?: string;
+}
+
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function rotuloUnidade(unidade: UnidadeForma | undefined, qtd: number): string {
+  if (!unidade) return "";
+  const [sing, plural] = FORMA_LABEL[unidade];
+  return ` ${qtd === 1 ? sing : plural}`;
+}
+
+/**
+ * Devolve a posologia separada em blocos (frase base + extras estruturados).
+ *
+ * Usada pelos PDFs (rasxPdf, rasxMotorPdf, docsPdf) para renderizar
+ * `fases`, `ciclo`, `tomadas` e `quantidadeRange` em blocos visualmente
+ * distintos — em vez de empilhar tudo numa única linha como faz
+ * `formatarPosologiaEstruturada`.
+ *
+ * Quando `interpretado=false`, devolve apenas `fraseBase = raw` (fallback).
+ */
+export function formatarPosologiaLinhas(p: PosologiaEstruturada): PosologiaLinhas {
+  if (!p.interpretado) return { fraseBase: p.raw };
+
+  const temTomadas = !!(p.tomadas && p.tomadas.length > 0);
+  const temFases = !!(p.fases && p.fases.length > 0);
+  const temRange = !!p.quantidadeRange;
+
+  const partes: string[] = [];
+
+  // Quantidade + unidade na frase base só quando não há tomadas/fases/range
+  // (esses casos colocam a quantidade nos blocos próprios). Quando há,
+  // mantemos a unidade no plural pra dar contexto à frase base.
+  if (!temTomadas && !temFases && !temRange) {
+    if (p.quantidade !== undefined && p.unidadeForma) {
+      const [s, pl] = FORMA_LABEL[p.unidadeForma];
+      partes.push(`${p.quantidade} ${p.quantidade === 1 ? s : pl}`);
+    } else if (p.unidadeForma) {
+      partes.push(FORMA_LABEL[p.unidadeForma][0]);
+    } else if (p.quantidade !== undefined) {
+      partes.push(String(p.quantidade));
+    }
+  } else if (p.unidadeForma) {
+    partes.push(FORMA_LABEL[p.unidadeForma][1]);
+  }
+
+  if (p.doseMg !== undefined && p.volumeMl !== undefined) {
+    partes.push(`${p.doseMg} mg / ${p.volumeMl} mL`);
+  } else if (p.doseMg !== undefined) {
+    partes.push(`${p.doseMg} mg`);
+  } else if (p.volumeMl !== undefined) {
+    partes.push(`${p.volumeMl} mL`);
+  }
+
+  if (p.via) partes.push(VIA_LABEL[p.via]);
+  // Quando há tomadas, a frequência foi inferida a partir delas (vezes =
+  // tomadas.length) — fica redundante na frase base, então pulamos.
+  if (p.frequencia && !temTomadas) partes.push(fraseFrequencia(p.frequencia));
+  if (!temTomadas && p.momento && p.momento.length > 0) {
+    partes.push(p.momento.map((m) => MOMENTO_LABEL[m]).join(", "));
+  }
+  if (p.duracaoDias !== undefined) partes.push(`por ${p.duracaoDias} dias`);
+
+  const fraseBase = partes.length > 0 ? partes.join(", ") : p.raw;
+  const out: PosologiaLinhas = { fraseBase };
+
+  if (p.quantidadeRange) {
+    out.quantidadeRange = `Faixa: ${p.quantidadeRange.min}–${p.quantidadeRange.max}${rotuloUnidade(p.unidadeForma, p.quantidadeRange.max)} por tomada`;
+  }
+
+  if (p.tomadas && p.tomadas.length > 0) {
+    out.tomadas = p.tomadas.map(
+      (tm) => `${capitalize(MOMENTO_LABEL[tm.momento])}: ${tm.quantidade}${rotuloUnidade(p.unidadeForma, tm.quantidade)}`,
+    );
+  }
+
+  if (p.ciclo) {
+    out.ciclo = `Ciclo: ${p.ciclo.diasOn} dias em uso / ${p.ciclo.diasOff} dias de pausa`;
+  }
+
+  if (p.fases && p.fases.length > 0) {
+    out.fases = p.fases.map(
+      (f) => `${f.semana}ª semana → ${f.quantidade}${rotuloUnidade(p.unidadeForma, f.quantidade)}`,
+    );
+  }
+
+  return out;
+}

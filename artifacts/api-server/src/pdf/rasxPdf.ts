@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import { PassThrough } from "stream";
 import { parsePosologia, formatarPosologiaEstruturada } from "@workspace/posologia";
+import { desenharPosologiaBlocos } from "./posologiaBlocos.js";
 
 /**
  * Devolve a frase canônica produzida por parsePosologia + formatarPosologiaEstruturada
@@ -328,9 +329,12 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
 
       y = drawSectionTitle(doc, f.nome || `Formula ${fIdx + 1}`, y);
       if (f.posologia) {
-        doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text("Posologia: ", 50, y, { continued: true });
-        doc.font("Helvetica").fillColor(CORES.cinzaTexto).text(posologiaCanonica(f.posologia));
-        y += 16;
+        // Task #240 — frase base + blocos (fases/ciclo/tomadas/range) em
+        // linhas indentadas. Fallback para raw quando interpretado=false.
+        doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text("Posologia:", 50, y);
+        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto);
+        y = desenharPosologiaBlocos(doc, f.posologia, 100, y, 455);
+        y += 4;
       }
       if (f.motivoUso) {
         doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaClaro).text(`Indicacao: ${f.motivoUso}`, 50, y);

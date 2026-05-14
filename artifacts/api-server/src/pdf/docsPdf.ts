@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import { PassThrough } from "stream";
-import { formatarPosologiaEstruturada, type PosologiaEstruturada } from "@workspace/posologia";
+import { type PosologiaEstruturada } from "@workspace/posologia";
+import { desenharPosologiaBlocos } from "./posologiaBlocos.js";
 
 const CORES = {
   azulPetroleo: "#1B4F6C",
@@ -130,11 +131,12 @@ export function gerarFichaCadastroPdf(data: DocBase & { telefone?: string; email
 
 export function gerarReceitaPdf(data: DocBase & { medicamentos: { nome: string; posologia: string; uso: string; posologiaEstruturada?: PosologiaEstruturada | null }[] }): PassThrough {
   // Quando posologiaEstruturada vem populada (vide migration 034 + sync-catalogo),
-  // renderiza a frase canônica produzida por formatarPosologiaEstruturada.
-  // Caso contrário cai no texto bruto m.posologia (compat retroativa total).
-  function fraseCanonica(m: { posologia: string; posologiaEstruturada?: PosologiaEstruturada | null }): string {
+  // usa direto a estrutura cacheada; senão o renderer parseia o texto bruto.
+  // Task #240: fases/ciclo/tomadas/quantidadeRange viram blocos visualmente
+  // distintos; quando interpretado=false mantém fallback raw.
+  function entradaPosologia(m: { posologia: string; posologiaEstruturada?: PosologiaEstruturada | null }): string | PosologiaEstruturada {
     if (m.posologiaEstruturada && m.posologiaEstruturada.interpretado) {
-      return formatarPosologiaEstruturada(m.posologiaEstruturada);
+      return m.posologiaEstruturada;
     }
     return m.posologia;
   }
@@ -160,8 +162,9 @@ export function gerarReceitaPdf(data: DocBase & { medicamentos: { nome: string; 
     y += 6;
     doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text(`${i + 1}. ${m.nome}`, 50, y);
     y += 16;
-    doc.fontSize(9).font("Helvetica").fillColor(CORES.cinzaTexto).text(`Posologia: ${fraseCanonica(m)}`, 60, y);
-    y += 14;
+    doc.fontSize(9).font("Helvetica").fillColor(CORES.cinzaTexto);
+    y = desenharPosologiaBlocos(doc, entradaPosologia(m), 60, y, 480, { prefixoBase: "Posologia: " });
+    y += 4;
     doc.fontSize(9).font("Helvetica").fillColor(CORES.cinzaClaro).text(`Uso: ${m.uso}`, 60, y);
     y += 20;
   });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parsePosologia, formatarPosologiaEstruturada } from "./parsePosologia.js";
+import { parsePosologia, formatarPosologiaEstruturada, formatarPosologiaLinhas } from "./parsePosologia.js";
 
 test("formula: '1 CAPSULA 1 HORA ANTES DE DORMIR'", () => {
   const p = parsePosologia("1 CAPSULA 1 HORA ANTES DE DORMIR");
@@ -319,4 +319,60 @@ test("não cria fases falsas em texto sem semana", () => {
   assert.equal(p.tomadas, undefined);
   assert.equal(p.quantidadeRange, undefined);
   assert.equal(p.ciclo, undefined);
+});
+
+/* -------------------------------------------------------------------------- */
+/* formatarPosologiaLinhas — Task #240 (blocos visualmente distintos no PDF)  */
+/* -------------------------------------------------------------------------- */
+
+test("linhas: fallback raw quando interpretado=false", () => {
+  const p = parsePosologia("xpto-zlqr");
+  const linhas = formatarPosologiaLinhas(p);
+  assert.equal(linhas.fraseBase, "xpto-zlqr");
+  assert.equal(linhas.fases, undefined);
+  assert.equal(linhas.ciclo, undefined);
+  assert.equal(linhas.tomadas, undefined);
+  assert.equal(linhas.quantidadeRange, undefined);
+});
+
+test("linhas: posologia simples sem extras", () => {
+  const p = parsePosologia("1 capsula 1 hora antes de dormir");
+  const linhas = formatarPosologiaLinhas(p);
+  assert.match(linhas.fraseBase, /1 cápsula/);
+  assert.match(linhas.fraseBase, /antes de dormir/);
+  assert.equal(linhas.fases, undefined);
+  assert.equal(linhas.ciclo, undefined);
+  assert.equal(linhas.tomadas, undefined);
+});
+
+test("linhas: escalonamento por semanas vira bloco fases", () => {
+  const p = parsePosologia("1 cap na 1ª semana, 2 caps na 2ª semana, 3 caps na 3ª semana");
+  const linhas = formatarPosologiaLinhas(p);
+  assert.ok(linhas.fases && linhas.fases.length === 3);
+  assert.equal(linhas.fases![0], "1ª semana → 1 cápsula");
+  assert.equal(linhas.fases![1], "2ª semana → 2 cápsulas");
+  assert.equal(linhas.fases![2], "3ª semana → 3 cápsulas");
+});
+
+test("linhas: ciclo on/off vira linha própria", () => {
+  const p = parsePosologia("1 capsula ao dia, 21 dias on / 7 dias off");
+  const linhas = formatarPosologiaLinhas(p);
+  assert.equal(linhas.ciclo, "Ciclo: 21 dias em uso / 7 dias de pausa");
+});
+
+test("linhas: tomadas múltiplas viram bloco com momentos separados", () => {
+  const p = parsePosologia("1 comp pela manhã + 2 comp à noite");
+  const linhas = formatarPosologiaLinhas(p);
+  assert.ok(linhas.tomadas && linhas.tomadas.length === 2);
+  assert.equal(linhas.tomadas![0], "Pela manhã: 1 comprimido");
+  assert.equal(linhas.tomadas![1], "À noite: 2 comprimidos");
+  // frequência redundante (vezes=tomadas.length) não deve poluir base
+  assert.doesNotMatch(linhas.fraseBase, /2x ao dia/);
+});
+
+test("linhas: quantidadeRange vira linha de faixa", () => {
+  const p = parsePosologia("2 a 3 gotas ao dia");
+  const linhas = formatarPosologiaLinhas(p);
+  assert.ok(linhas.quantidadeRange);
+  assert.match(linhas.quantidadeRange!, /2–3 gotas por tomada/);
 });
