@@ -79,6 +79,7 @@ import AdminCobrancasAdicionais from "@/pages/admin-cobrancas-adicionais";
 import AdminInadimplencia from "@/pages/admin-inadimplencia";
 import AdminContratosFarmacia from "@/pages/admin-contratos-farmacia";
 import AdminParmavaultReconciliacao from "@/pages/admin-parmavault-reconciliacao";
+import AdminConciliacaoMagistral from "@/pages/admin-conciliacao-magistral";
 import AdminParq from "@/pages/admin-parq";
 import AdminParqChecklist from "@/pages/admin-parq-checklist";
 // Wave 10 F5 — ZapSign + ICP-Brasil
@@ -148,6 +149,7 @@ function Router() {
       <Route path="/admin/inadimplencia" component={AdminInadimplencia} />
       <Route path="/admin/contratos-farmacia" component={AdminContratosFarmacia} />
       <Route path="/admin/parmavault-reconciliacao" component={AdminParmavaultReconciliacao} />
+      <Route path="/admin/conciliacao-magistral" component={AdminConciliacaoMagistral} />
       {/* Wave 9 PARQ — Parceria de Qualidade Tecnica */}
       <Route path="/admin/parq/visita/:id" component={AdminParqChecklist} />
       <Route path="/admin/parq" component={AdminParq} />

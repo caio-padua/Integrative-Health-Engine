@@ -984,6 +984,307 @@ router.get("/caixa-30d", async (req, res) => {
 });
 
 // ===========================================================================
+// 11D) CONCILIACAO MAGISTRAL — Task #227
+// Lista por unidade e periodo o custo magistral ESTIMADO (vindo de
+// faturamento_diario.comissao_magistral_estimada) versus o que ja foi
+// REGISTRADO como pago em contas_a_pagar (categoria='magistral',
+// status='pago'). Permite confirmar a nota da manipuladora gerando
+// uma linha real em contas_a_pagar (POST /confirmar) — assim o card
+// "Fluxo de Caixa 30d" passa a refletir o custo real, nao mais a
+// estimativa antiga 0.58 nem zero.
+//
+// Periodos sao mensais (date_trunc('month', data)) por padrao, que e a
+// granularidade de fechamento usual com a manipuladora.
+// ===========================================================================
+router.get("/conciliacao-magistral", async (req, res) => {
+  try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+
+    // Janela: padrao = ultimos 6 meses fechados + mes corrente.
+    const inicio = req.query.inicio
+      ? String(req.query.inicio)
+      : null;
+    const fim = req.query.fim ? String(req.query.fim) : null;
+    const unidadeId = unidadeIdParam(req);
+
+    const params: any[] = [];
+    const whereFat: string[] = [];
+    if (inicio) { params.push(inicio); whereFat.push(`data >= $${params.length}::date`); }
+    if (fim)    { params.push(fim);    whereFat.push(`data <= $${params.length}::date`); }
+    if (!inicio && !fim) {
+      whereFat.push(`data >= (date_trunc('month', CURRENT_DATE) - INTERVAL '6 months')::date`);
+    }
+    if (unidadeId !== null) { params.push(unidadeId); whereFat.push(`unidade_id = $${params.length}`); }
+
+    // 1) Estimado por (unidade, mes) a partir de faturamento_diario.
+    const estimQ = await pool.query(`
+      SELECT
+        fd.unidade_id,
+        u.nome AS unidade_nome,
+        date_trunc('month', fd.data)::date AS periodo_inicio,
+        (date_trunc('month', fd.data) + INTERVAL '1 month - 1 day')::date AS periodo_fim,
+        SUM(fd.comissao_magistral_estimada)::numeric AS estimado,
+        SUM(fd.receitas_fama_count)::int AS receitas_count
+      FROM faturamento_diario fd
+      LEFT JOIN unidades u ON u.id = fd.unidade_id
+      ${whereFat.length ? `WHERE ${whereFat.join(' AND ')}` : ''}
+      GROUP BY fd.unidade_id, u.nome, date_trunc('month', fd.data)
+      ORDER BY periodo_inicio DESC, u.nome ASC
+    `, params);
+
+    // 2) Pago real por (unidade, COMPETENCIA) em contas_a_pagar.
+    // IMPORTANTE: agregamos por mes da COMPETENCIA (data_vencimento), nao
+    // pela data_pagamento. Razao: uma nota da competencia abril paga em
+    // maio precisa abater o estimado de abril (e nao virar excedente em
+    // maio). O POST /confirmar grava data_vencimento = periodo_fim, entao
+    // date_trunc('month', data_vencimento) reconstroi a competencia.
+    // O caixa-30d continua usando data_pagamento (timing real do caixa),
+    // que e a chave correta pra fluxo de caixa — sao usos distintos.
+    // Fallback gracioso se a tabela ainda nao existir.
+    let pagosRows: { unidade_id: number | null; periodo_inicio: string; pago: string; lancamentos: number }[] = [];
+    try {
+      const paramsP: any[] = [];
+      const wherePag: string[] = [
+        `categoria = 'magistral'`,
+        `status = 'pago'`,
+        `arquivado_em IS NULL`,
+        `data_vencimento IS NOT NULL`,
+      ];
+      if (inicio) { paramsP.push(inicio); wherePag.push(`data_vencimento >= $${paramsP.length}::date`); }
+      if (fim)    { paramsP.push(fim);    wherePag.push(`data_vencimento <= $${paramsP.length}::date`); }
+      if (!inicio && !fim) {
+        wherePag.push(`data_vencimento >= (date_trunc('month', CURRENT_DATE) - INTERVAL '6 months')::date`);
+      }
+      if (unidadeId !== null) { paramsP.push(unidadeId); wherePag.push(`unidade_id = $${paramsP.length}`); }
+
+      const pagosQ = await pool.query(`
+        SELECT
+          unidade_id,
+          date_trunc('month', data_vencimento)::date AS periodo_inicio,
+          SUM(valor_brl)::numeric AS pago,
+          COUNT(*)::int AS lancamentos
+        FROM contas_a_pagar
+        WHERE ${wherePag.join(' AND ')}
+        GROUP BY unidade_id, date_trunc('month', data_vencimento)
+      `, paramsP);
+      pagosRows = pagosQ.rows;
+    } catch (err: any) {
+      if (err?.code === "42P01") {
+        console.warn("[conciliacao-magistral] contas_a_pagar nao existe (migration 050 pendente)");
+      } else {
+        throw err;
+      }
+    }
+
+    // 3) Merge — chave (unidade_id, periodo_inicio). Inclui linhas
+    // SOMENTE pagas (sem estimado correspondente) pra surfar anomalias
+    // (pagamentos sem registro de receita estimada na competencia).
+    const chave = (uid: any, d: any) => `${uid ?? 'null'}::${d instanceof Date ? d.toISOString().slice(0,10) : String(d).slice(0,10)}`;
+    const isoDate = (d: any) => d instanceof Date ? d.toISOString().slice(0,10) : String(d).slice(0,10);
+    const fimDoMes = (iniIso: string) => {
+      // iniIso = YYYY-MM-01
+      const [y, m] = iniIso.split('-').map((x) => Number(x));
+      const ult = new Date(Date.UTC(y, m, 0));
+      return ult.toISOString().slice(0,10);
+    };
+
+    type LinhaAgg = {
+      unidade_id: number | null;
+      unidade_nome: string | null;
+      periodo_inicio: string;
+      periodo_fim: string;
+      receitas_count: number;
+      estimado: number;
+      pago: number;
+      lancamentos: number;
+    };
+    const agg = new Map<string, LinhaAgg>();
+    for (const r of estimQ.rows as any[]) {
+      const ini = isoDate(r.periodo_inicio);
+      const k = chave(r.unidade_id, ini);
+      agg.set(k, {
+        unidade_id: r.unidade_id ?? null,
+        unidade_nome: r.unidade_nome ?? null,
+        periodo_inicio: ini,
+        periodo_fim: isoDate(r.periodo_fim),
+        receitas_count: Number(r.receitas_count) || 0,
+        estimado: Number(r.estimado),
+        pago: 0,
+        lancamentos: 0,
+      });
+    }
+
+    // Resolve nomes das unidades que aparecem so no lado pago, em batch.
+    const unidadesPagasSemEstim = new Set<number>();
+    for (const r of pagosRows) {
+      const ini = isoDate(r.periodo_inicio);
+      const k = chave(r.unidade_id, ini);
+      if (!agg.has(k) && r.unidade_id !== null) unidadesPagasSemEstim.add(Number(r.unidade_id));
+    }
+    let nomesUnidade = new Map<number, string>();
+    if (unidadesPagasSemEstim.size > 0) {
+      const ids = Array.from(unidadesPagasSemEstim);
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+      const nomeQ = await pool.query(
+        `SELECT id, nome FROM unidades WHERE id IN (${placeholders})`,
+        ids,
+      );
+      for (const u of nomeQ.rows) nomesUnidade.set(Number(u.id), u.nome);
+    }
+
+    for (const r of pagosRows) {
+      const ini = isoDate(r.periodo_inicio);
+      const k = chave(r.unidade_id, ini);
+      const existente = agg.get(k);
+      if (existente) {
+        existente.pago = Number(r.pago);
+        existente.lancamentos = Number(r.lancamentos);
+      } else {
+        agg.set(k, {
+          unidade_id: r.unidade_id,
+          unidade_nome: r.unidade_id !== null ? (nomesUnidade.get(Number(r.unidade_id)) ?? null) : null,
+          periodo_inicio: ini,
+          periodo_fim: fimDoMes(ini),
+          receitas_count: 0,
+          estimado: 0,
+          pago: Number(r.pago),
+          lancamentos: Number(r.lancamentos),
+        });
+      }
+    }
+
+    const linhas = Array.from(agg.values())
+      .map((l) => {
+        const pendente = Number((l.estimado - l.pago).toFixed(2));
+        let status_conciliacao: 'pendente' | 'parcial' | 'conciliado' | 'excedido';
+        if (l.pago === 0 && l.estimado > 0) status_conciliacao = 'pendente';
+        else if (Math.abs(pendente) < 0.01) status_conciliacao = 'conciliado';
+        else if (pendente > 0)              status_conciliacao = 'parcial';
+        else                                 status_conciliacao = 'excedido';
+        return {
+          unidade_id: l.unidade_id,
+          unidade_nome: l.unidade_nome,
+          periodo_inicio: l.periodo_inicio,
+          periodo_fim: l.periodo_fim,
+          receitas_count: l.receitas_count,
+          estimado: Number(l.estimado.toFixed(2)),
+          pago: Number(l.pago.toFixed(2)),
+          pendente,
+          lancamentos: l.lancamentos,
+          status_conciliacao,
+        };
+      })
+      .sort((a, b) => {
+        if (a.periodo_inicio !== b.periodo_inicio) return a.periodo_inicio < b.periodo_inicio ? 1 : -1;
+        return (a.unidade_nome ?? '').localeCompare(b.unidade_nome ?? '');
+      });
+
+    res.json({
+      linhas,
+      total_estimado: Number(linhas.reduce((a, l) => a + l.estimado, 0).toFixed(2)),
+      total_pago:     Number(linhas.reduce((a, l) => a + l.pago, 0).toFixed(2)),
+      total_pendente: Number(linhas.reduce((a, l) => a + l.pendente, 0).toFixed(2)),
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/conciliacao-magistral]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /conciliacao-magistral/confirmar
+// Body: { unidade_id, periodo_inicio (YYYY-MM-DD), periodo_fim (YYYY-MM-DD),
+//         valor_real, fornecedor?, descricao?, data_pagamento? (default hoje),
+//         observacao? }
+// Cria 1 linha em contas_a_pagar (categoria='magistral', status='pago').
+// Idempotencia leve: rejeita se ja existir lancamento magistral pago no
+// mesmo (unidade_id, mes da data_pagamento) com a mesma descricao — pra
+// o usuario nao confirmar a mesma nota duas vezes por engano. Pode ser
+// forcado via { permitir_duplicado: true }.
+router.post("/conciliacao-magistral/confirmar", async (req: AuthedRequest, res) => {
+  try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+
+    const {
+      unidade_id,
+      periodo_inicio,
+      periodo_fim,
+      valor_real,
+      fornecedor,
+      descricao,
+      data_pagamento,
+      observacao,
+      permitir_duplicado,
+    } = req.body ?? {};
+
+    const uid = unidade_id !== undefined && unidade_id !== null ? Number(unidade_id) : null;
+    const valor = Number(valor_real);
+    if (!Number.isFinite(valor) || valor < 0) {
+      res.status(400).json({ error: "valor_real obrigatorio e deve ser >= 0" });
+      return;
+    }
+    if (!periodo_inicio || !periodo_fim) {
+      res.status(400).json({ error: "periodo_inicio e periodo_fim obrigatorios (YYYY-MM-DD)" });
+      return;
+    }
+
+    const dataPag = data_pagamento ? String(data_pagamento) : new Date().toISOString().slice(0, 10);
+    const desc = descricao && String(descricao).trim().length > 0
+      ? String(descricao).trim()
+      : `Custo magistral pago — competencia ${periodo_inicio} a ${periodo_fim}`;
+    const forn = fornecedor ? String(fornecedor).trim() : null;
+    const obs  = observacao ? String(observacao).trim() : null;
+
+    if (!permitir_duplicado) {
+      // Idempotencia por COMPETENCIA: usa data_vencimento (que o POST
+      // grava = periodo_fim) pra detectar duplicata na mesma competencia,
+      // independente de quando o pagamento foi feito. Combina com
+      // descricao OU fornecedor pra discriminar notas distintas da mesma
+      // manipuladora num mesmo mes.
+      const dup = await pool.query(
+        `SELECT id FROM contas_a_pagar
+         WHERE categoria = 'magistral'
+           AND status = 'pago'
+           AND arquivado_em IS NULL
+           AND ((unidade_id IS NULL AND $1::int IS NULL) OR unidade_id = $1::int)
+           AND date_trunc('month', data_vencimento) = date_trunc('month', $2::date)
+           AND (descricao = $3 OR (fornecedor IS NOT NULL AND fornecedor = $4))
+         LIMIT 1`,
+        [uid, periodo_fim, desc, forn],
+      );
+      if (dup.rows.length > 0) {
+        res.status(409).json({
+          error: "Lancamento magistral ja registrado pra essa competencia/descricao/fornecedor",
+          existente_id: dup.rows[0].id,
+          dica: "Envie permitir_duplicado: true pra forcar",
+        });
+        return;
+      }
+    }
+
+    const ins = await pool.query(
+      `INSERT INTO contas_a_pagar
+         (unidade_id, categoria, descricao, valor_brl, data_vencimento,
+          data_pagamento, status, fornecedor, observacao, origem, versao_schema)
+       VALUES ($1, 'magistral', $2, $3, $4::date, $5::date, 'pago', $6, $7,
+               'conciliacao_magistral', 'v1')
+       RETURNING id, unidade_id, categoria, descricao, valor_brl::numeric AS valor_brl,
+                 data_vencimento, data_pagamento, status, fornecedor, observacao,
+                 origem, created_at`,
+      [uid, desc, valor.toFixed(2), periodo_fim, dataPag, forn, obs],
+    );
+
+    res.status(201).json({ ok: true, lancamento: ins.rows[0] });
+  } catch (e: any) {
+    if (e?.code === "42P01") {
+      res.status(503).json({ error: "Tabela contas_a_pagar ausente — migration 050 pendente" });
+      return;
+    }
+    console.error("[painel-pawards/conciliacao-magistral/confirmar]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
 // 11) BLENDS com valor — preview pra prescritor
 // ===========================================================================
 router.get("/blends/precificados", async (req, res) => {
