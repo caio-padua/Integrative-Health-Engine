@@ -306,6 +306,22 @@ export default function PlataformaPerfil() {
     void navigator.clipboard.writeText(codigosNovos.join("\n"));
   }
 
+  // Task #223 — download dos codigos em TXT/PDF pra impressao/cofre fisico.
+  // Padrao Google/GitHub: codigos de recuperacao tem que ter caminho
+  // off-line caso o gerenciador de senhas tambem caia.
+  function baixarTxt() {
+    if (!codigosNovos || !perfil) return;
+    void import("@/lib/codigos-recuperacao-export").then((m) =>
+      m.baixarCodigosTxt(codigosNovos, perfil.nome, perfil.email),
+    );
+  }
+  function baixarPdf() {
+    if (!codigosNovos || !perfil) return;
+    void import("@/lib/codigos-recuperacao-export").then((m) =>
+      m.baixarCodigosPdf(codigosNovos, perfil.nome, perfil.email),
+    );
+  }
+
   return (
     <Layout>
       <div className="p-6 max-w-3xl mx-auto">
@@ -666,6 +682,18 @@ export default function PlataformaPerfil() {
                         className="px-3 py-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 rounded"
                       >
                         Copiar todos
+                      </button>
+                      <button
+                        onClick={baixarTxt}
+                        className="px-3 py-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 rounded"
+                      >
+                        Baixar TXT
+                      </button>
+                      <button
+                        onClick={baixarPdf}
+                        className="px-3 py-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 rounded"
+                      >
+                        Baixar PDF
                       </button>
                       <button
                         onClick={() => setCodigosNovos(null)}
