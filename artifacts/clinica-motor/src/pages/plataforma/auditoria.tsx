@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
-import { Scale, RefreshCw, ShieldAlert, Mail, MessageCircle, Send, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Scale, RefreshCw, ShieldAlert, Mail, MessageCircle, Send, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, XCircle, Download } from "lucide-react";
 
 type DetalheEnvioWhatsapp = {
   destinatario: string;
@@ -199,6 +199,44 @@ export default function PlataformaAuditoria() {
     return true;
   });
 
+  function exportarCsv() {
+    // Task #255 — exporta exatamente a lista filtrada (mesma `visiveis` que
+    // o usuario ve). Colunas: data/hora, acao, clinica, executor, email do
+    // executor, IP, motivo. Nome do arquivo inclui timestamp local.
+    const colunas = ["data_hora", "acao", "clinica", "executor", "executor_email", "ip", "motivo"];
+    const escapar = (v: unknown): string => {
+      if (v === null || v === undefined) return "";
+      const s = String(v);
+      if (/[",\n\r;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const linhas = visiveis.map(e => [
+      new Date(e.criado_em).toLocaleString("pt-BR"),
+      e.acao,
+      e.unidade_nome ?? (e.unidade_id != null ? `id ${e.unidade_id}` : ""),
+      e.executor_nome ?? (e.executado_por_usuario_id != null ? `usuario ${e.executado_por_usuario_id}` : ""),
+      e.executor_email ?? "",
+      e.ip ?? "",
+      e.motivo ?? "",
+    ].map(escapar).join(","));
+    // BOM UTF-8 pra Excel reconhecer acentos.
+    const csv = "\uFEFF" + [colunas.join(","), ...linhas].join("\n");
+    const agora = new Date();
+    const yyyy = agora.getFullYear();
+    const mm = String(agora.getMonth() + 1).padStart(2, "0");
+    const dd = String(agora.getDate()).padStart(2, "0");
+    const nome = `auditoria-${yyyy}-${mm}-${dd}.csv`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <Layout>
       <div className="p-6 max-w-7xl mx-auto">
@@ -269,6 +307,15 @@ export default function PlataformaAuditoria() {
             )}
             <button onClick={() => void carregar()} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-sm flex items-center gap-2">
               <RefreshCw size={16} /> Recarregar
+            </button>
+            {/* Task #255 — exporta a lista filtrada (mesma `visiveis`) como CSV. */}
+            <button
+              onClick={exportarCsv}
+              disabled={visiveis.length === 0}
+              className="px-3 py-2 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm flex items-center gap-2 border border-amber-500/40"
+              title={visiveis.length === 0 ? "Nada pra exportar com os filtros atuais" : `Exportar ${visiveis.length} evento(s) filtrado(s) como CSV`}
+            >
+              <Download size={16} /> Exportar CSV
             </button>
           </div>
         </header>
