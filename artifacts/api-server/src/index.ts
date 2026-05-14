@@ -23,6 +23,7 @@ import { iniciarWorkerDigestRecusasCEO } from "./lib/recorrencia/digestRecusasCE
 import { iniciarWorkerWebhookAssinaturaSilencio } from "./lib/recorrencia/webhookAssinaturaSilencio";
 import { iniciarWorkerAvisoDestinatarioQuebrado } from "./lib/recorrencia/avisoDestinatarioQuebrado";
 import { iniciarWorkerAlertaAnomaliaTotp2faDiario } from "./lib/recorrencia/alertaAnomaliaTotp2faDiario";
+import { iniciarWorkerWhatsappCeoInstavel } from "./lib/recorrencia/whatsappCeoInstavel";
 
 const rawPort = process.env["PORT"];
 
@@ -68,4 +69,5 @@ app.listen(port, (err) => {
   iniciarWorkerWebhookAssinaturaSilencio();
   iniciarWorkerAvisoDestinatarioQuebrado();
   iniciarWorkerAlertaAnomaliaTotp2faDiario();
+  iniciarWorkerWhatsappCeoInstavel();
 });
