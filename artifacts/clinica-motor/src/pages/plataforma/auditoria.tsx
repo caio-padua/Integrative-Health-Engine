@@ -11,6 +11,14 @@ type DetalheEnvioWhatsapp = {
   viaHsm: boolean;
   viaTextoLivre: boolean;
   erro: string | null;
+  // Task #204 — id da mensagem no provedor (Twilio SID / Gupshup messageId).
+  provedorMsgId?: string | null;
+  // Task #204 — status real de entrega vindo do webhook do provedor
+  // (ENVIADO -> ENTREGUE -> LIDO ou FALHOU). Quando ausente, o webhook
+  // ainda nao chegou (ou o envio falhou antes de receber id).
+  statusEntrega?: "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU" | null;
+  entregueEm?: string | null;
+  lidoEm?: string | null;
 };
 
 // Task #148 — analogo a DetalheEnvioWhatsapp, mas pro canal EMAIL. So
@@ -351,17 +359,35 @@ export default function PlataformaAuditoria() {
                                 const detalhes = av.detalhes_whatsapp ?? [];
                                 const viaHsm = av.via_hsm ?? 0;
                                 const viaTextoLivre = av.via_texto_livre ?? 0;
-                                // Task #176: alerta amarelo quando 100% dos
-                                // envios sairam por texto livre. Sem HSM, a
-                                // mensagem so e entregue dentro da janela de
-                                // 24h apos o destinatario falar com a clinica
-                                // — fora dela, o provedor (Twilio/Gupshup)
+                                // Task #176 + Task #204: alerta amarelo quando
+                                // 100% dos envios sairam por texto livre E o
+                                // webhook do provedor NAO confirmou entrega
+                                // pra ninguem. Sem HSM, a mensagem so chega
+                                // dentro da janela de 24h apos o destinatario
+                                // falar com a clinica — fora dela, o provedor
                                 // pode bloquear silenciosamente.
+                                const algumEntreguOuLido = isWhatsapp &&
+                                  detalhes.some(
+                                    (d) =>
+                                      d.statusEntrega === "ENTREGUE" ||
+                                      d.statusEntrega === "LIDO",
+                                  );
                                 const tudoTextoLivre =
                                   isWhatsapp &&
                                   av.enviados > 0 &&
                                   viaHsm === 0 &&
-                                  viaTextoLivre === av.enviados;
+                                  viaTextoLivre === av.enviados &&
+                                  !algumEntreguOuLido;
+                                // Task #204: alerta vermelho quando o webhook
+                                // do provedor confirmou FALHOU (bloqueio /
+                                // numero invalido / spam) em pelo menos um
+                                // destinatario — mais forte que o amarelo
+                                // "pode ter sido bloqueado".
+                                const algumWebhookFalhou = isWhatsapp &&
+                                  detalhes.some((d) => d.statusEntrega === "FALHOU");
+                                const totalWebhookFalhou = detalhes.filter(
+                                  (d) => d.statusEntrega === "FALHOU",
+                                ).length;
                                 return (
                                 <div key={i} className="border-l-2 border-zinc-700 pl-2 text-[11px]">
                                   <div className="flex flex-wrap gap-2 items-center">
@@ -405,7 +431,22 @@ export default function PlataformaAuditoria() {
                                       </>
                                     )}
                                   </div>
-                                  {tudoTextoLivre && (
+                                  {algumWebhookFalhou && (
+                                    <div className="mt-1 px-2 py-1.5 bg-red-500/10 border border-red-500/40 rounded text-red-200 flex items-start gap-1.5">
+                                      <XCircle size={12} className="shrink-0 mt-0.5" />
+                                      <div>
+                                        <div className="font-semibold">
+                                          provedor confirmou bloqueio/falha em {totalWebhookFalhou} destinatario(s)
+                                        </div>
+                                        <div className="text-red-300/80 text-[10px]">
+                                          Webhook do Twilio/Gupshup retornou status FALHOU
+                                          (bloqueio, numero invalido, fora da janela de 24h
+                                          ou marcado como spam). Confirme por outro canal.
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {tudoTextoLivre && !algumWebhookFalhou && (
                                     <div className="mt-1 px-2 py-1.5 bg-amber-500/10 border border-amber-500/40 rounded text-amber-200 flex items-start gap-1.5">
                                       <AlertTriangle size={12} className="shrink-0 mt-0.5" />
                                       <div>
@@ -413,9 +454,10 @@ export default function PlataformaAuditoria() {
                                           aviso pode ter sido bloqueado pelo provedor
                                         </div>
                                         <div className="text-amber-300/80 text-[10px]">
-                                          100% dos envios sairam por texto livre (fallback). Se o
-                                          destinatario nao falou com a clinica nas ultimas 24h, o
-                                          Twilio/Gupshup pode ter bloqueado a entrega
+                                          100% dos envios sairam por texto livre (fallback) e
+                                          o webhook ainda nao confirmou entrega. Se o
+                                          destinatario nao falou com a clinica nas ultimas 24h,
+                                          o Twilio/Gupshup pode ter bloqueado a entrega
                                           silenciosamente. Confirme por outro canal.
                                         </div>
                                       </div>
@@ -454,6 +496,50 @@ export default function PlataformaAuditoria() {
                                             <span className="px-1 py-0 rounded text-[9px] bg-red-500/15 text-red-300 border border-red-500/40">
                                               falhou
                                             </span>
+                                          )}
+                                          {/* Task #204 — status real de entrega vindo
+                                              do webhook do provedor (Twilio/Gupshup).
+                                              So aparece quando o envio teve sucesso e
+                                              o webhook ja retornou pelo menos um
+                                              status posterior a ENVIADO. */}
+                                          {d.sucesso && d.statusEntrega && (
+                                            d.statusEntrega === "LIDO" ? (
+                                              <span
+                                                className="px-1 py-0 rounded text-[9px] bg-emerald-500/25 text-emerald-200 border border-emerald-400"
+                                                title={
+                                                  d.lidoEm
+                                                    ? `Lido em ${new Date(d.lidoEm).toLocaleString("pt-BR")}`
+                                                    : "Webhook do provedor confirmou leitura"
+                                                }
+                                              >
+                                                ✓✓✓ lido
+                                              </span>
+                                            ) : d.statusEntrega === "ENTREGUE" ? (
+                                              <span
+                                                className="px-1 py-0 rounded text-[9px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/40"
+                                                title={
+                                                  d.entregueEm
+                                                    ? `Entregue em ${new Date(d.entregueEm).toLocaleString("pt-BR")}`
+                                                    : "Webhook do provedor confirmou entrega"
+                                                }
+                                              >
+                                                ✓✓ entregue
+                                              </span>
+                                            ) : d.statusEntrega === "FALHOU" ? (
+                                              <span
+                                                className="px-1 py-0 rounded text-[9px] bg-red-500/25 text-red-200 border border-red-400"
+                                                title="Webhook do provedor confirmou bloqueio/falha de entrega"
+                                              >
+                                                ✗ provedor falhou
+                                              </span>
+                                            ) : d.statusEntrega === "ENVIADO" ? (
+                                              <span
+                                                className="px-1 py-0 rounded text-[9px] bg-zinc-700/40 text-zinc-400 border border-zinc-600"
+                                                title="Saiu pra rede, mas o webhook ainda nao confirmou entrega"
+                                              >
+                                                ✓ aguardando entrega
+                                              </span>
+                                            ) : null
                                           )}
                                           {d.erro && (
                                             <span className="text-red-400/80 text-[10px]">

@@ -108,6 +108,11 @@ export type DetalheEnvioWhatsapp = {
   viaHsm: boolean;
   viaTextoLivre: boolean;
   erro: string | null;
+  // Task #204 — id da mensagem no provedor (Twilio SID / Gupshup messageId).
+  // Permite a auditoria reconciliar o status real de entrega via
+  // `whatsapp_mensagens_log` (atualizado pelo webhook em routes/whatsapp.ts).
+  // Null quando o envio falhou antes de receber id do provedor.
+  provedorMsgId: string | null;
 };
 
 async function enviarParaTodos(
@@ -147,6 +152,7 @@ async function enviarParaTodos(
           viaHsm: !!r.viaHsm,
           viaTextoLivre: !!r.usouFallback,
           erro: null,
+          provedorMsgId: r.provedorMsgId ?? null,
         });
       } else {
         falhas++;
@@ -160,6 +166,7 @@ async function enviarParaTodos(
           viaHsm: false,
           viaTextoLivre: false,
           erro: r.erro ?? "envio retornou falha",
+          provedorMsgId: r.provedorMsgId ?? null,
         });
       }
     } catch (err) {
@@ -174,6 +181,7 @@ async function enviarParaTodos(
         viaHsm: false,
         viaTextoLivre: false,
         erro: err instanceof Error ? err.message : String(err),
+        provedorMsgId: null,
       });
     }
   }

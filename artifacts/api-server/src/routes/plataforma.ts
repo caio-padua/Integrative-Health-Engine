@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { db, usuariosTable, unidadesTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { db, usuariosTable, unidadesTable, whatsappMensagensLogTable } from "@workspace/db";
+import { eq, sql, inArray, desc } from "drizzle-orm";
 import { requirePlataforma } from "../middlewares/requirePlataforma";
 import { require2faRecente, JANELA_2FA_HORAS as JANELA_2FA_HORAS_SHARED } from "../middlewares/require2faRecente";
 import { verificarCodigoTotp } from "../lib/auth/totp";
@@ -212,6 +212,16 @@ type DetalheEnvioWhatsappAuditoria = {
   viaHsm: boolean;
   viaTextoLivre: boolean;
   erro: string | null;
+  // Task #204 — id do provedor (Twilio SID / Gupshup messageId), gravado
+  // no envio. Permite ao GET /plataforma/auditoria reconciliar o status
+  // real de entrega via `whatsapp_mensagens_log` (atualizado pelo webhook).
+  provedorMsgId?: string | null;
+  // Task #204 — preenchido somente na resposta do GET /plataforma/auditoria
+  // (nunca persistido no jsonb metadata). Reflete o ultimo status do
+  // webhook do provedor por destinatario: PENDENTE/ENVIADO/ENTREGUE/LIDO/FALHOU.
+  statusEntrega?: "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU" | null;
+  entregueEm?: string | null;
+  lidoEm?: string | null;
 };
 
 // Task #148 — detalhe por destinatario de email (analogo ao detalhes_whatsapp
@@ -1926,7 +1936,59 @@ router.get("/plataforma/auditoria", ...guardas, async (req, res): Promise<void> 
     ORDER BY a.criado_em DESC
     LIMIT ${limite}
   `);
-  res.json(result.rows);
+
+  // Task #204 — enriquecer detalhes_whatsapp[] com o status real de
+  // entrega vindo do webhook do provedor (Twilio/Gupshup). Junta tudo
+  // numa unica query in-list por provedor_msg_id pra evitar N+1.
+  type EventoRow = {
+    metadata: { avisos?: RegistroAviso[] } | null;
+    [k: string]: unknown;
+  };
+  const eventos = result.rows as EventoRow[];
+  const msgIds = new Set<string>();
+  for (const ev of eventos) {
+    const avisos = ev.metadata?.avisos ?? [];
+    for (const av of avisos) {
+      for (const d of av.detalhes_whatsapp ?? []) {
+        if (d.provedorMsgId) msgIds.add(d.provedorMsgId);
+      }
+    }
+  }
+  if (msgIds.size > 0) {
+    const logs = await db
+      .select({
+        provedorMsgId: whatsappMensagensLogTable.provedorMsgId,
+        status: whatsappMensagensLogTable.status,
+        entregueEm: whatsappMensagensLogTable.entregueEm,
+        lidoEm: whatsappMensagensLogTable.lidoEm,
+      })
+      .from(whatsappMensagensLogTable)
+      .where(inArray(whatsappMensagensLogTable.provedorMsgId, Array.from(msgIds)))
+      .orderBy(desc(whatsappMensagensLogTable.criadoEm));
+    const porMsgId = new Map<string, typeof logs[number]>();
+    // Como ordenamos DESC, o primeiro encontrado e o mais recente — mas
+    // provedor_msg_id e funcionalmente unico por envio, entao na pratica
+    // ha 1 linha por id. O Map garante idempotencia mesmo se houver duplicata.
+    for (const l of logs) {
+      if (l.provedorMsgId && !porMsgId.has(l.provedorMsgId)) {
+        porMsgId.set(l.provedorMsgId, l);
+      }
+    }
+    for (const ev of eventos) {
+      const avisos = ev.metadata?.avisos ?? [];
+      for (const av of avisos) {
+        for (const d of av.detalhes_whatsapp ?? []) {
+          if (!d.provedorMsgId) continue;
+          const log = porMsgId.get(d.provedorMsgId);
+          if (!log) continue;
+          d.statusEntrega = log.status as DetalheEnvioWhatsappAuditoria["statusEntrega"];
+          d.entregueEm = log.entregueEm ? log.entregueEm.toISOString() : null;
+          d.lidoEm = log.lidoEm ? log.lidoEm.toISOString() : null;
+        }
+      }
+    }
+  }
+  res.json(eventos);
 });
 
 export default router;
