@@ -126,6 +126,14 @@ function StatusBadge({ status }: { status: string }) {
 // adicionais sem perder filtros (paciente nao perde scroll).
 const LIMITE_PAGINA = 50;
 
+// Task #198 — espelha o cap server-side do CSV (`limiteCsv = 5000` em
+// `artifacts/api-server/src/routes/assinaturas.ts`). Usado pra avisar na
+// propria tela, ANTES do clique, quando o filtro atual vai ser truncado:
+// "Baixar CSV (5000 de 7.300)" + cor de alerta + tooltip explicando como
+// refinar. Sem esse aviso, o Caio so descobria o truncamento depois de
+// abrir o CSV no Excel (linha de rodape).
+const LIMITE_EXPORT_CSV = 5000;
+
 // Task #84/#96/#98 — `ColunaOrdenavel` extraido pra lib compartilhada
 // (`@/lib/ordenacao-multi`). Mantido aqui apenas o re-export local pra nao
 // quebrar referencias se algum teste importar deste modulo.
@@ -721,15 +729,44 @@ export default function AssinaturasTimeline() {
                       Limpar ordenação
                     </button>
                   )}
-                  <a
-                    href={`/api/assinaturas/timeline.csv${qs}`}
-                    data-testid="botao-baixar-csv"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition border"
-                    style={{ background: "#FFFFFF", color: NAVY, borderColor: NAVY }}
-                  >
-                    <Download size={14} />
-                    Baixar CSV
-                  </a>
+                  {/* Task #198 — aviso de truncamento ANTES do clique. O backend
+                      ja envia `total` (COUNT real) na resposta do /timeline JSON,
+                      entao da pra calcular sem request extra. Quando o filtro
+                      atual casa com mais que `LIMITE_EXPORT_CSV` (5000), pinta
+                      em laranja, mostra "(5000 de N)" e a tooltip sugere refinar.
+                      Caso contrario, mostra so a contagem ("(N)") em estilo
+                      neutro pra confirmar o tamanho do recorte. Quando ainda
+                      esta carregando (`totalReal=0` durante 1o fetch), nao
+                      enfeita o botao. */}
+                  {(() => {
+                    const vaiTruncar = totalReal > LIMITE_EXPORT_CSV;
+                    const exportados = vaiTruncar ? LIMITE_EXPORT_CSV : totalReal;
+                    const sufixo = totalReal > 0
+                      ? vaiTruncar
+                        ? ` (${exportados.toLocaleString("pt-BR")} de ${totalReal.toLocaleString("pt-BR")})`
+                        : ` (${totalReal.toLocaleString("pt-BR")})`
+                      : "";
+                    const tituloTooltip = vaiTruncar
+                      ? `Seu filtro casa com ${totalReal.toLocaleString("pt-BR")} registros, mas o CSV exporta no maximo ${LIMITE_EXPORT_CSV.toLocaleString("pt-BR")} (mais recentes primeiro). Refine o periodo (ex: meses menores) ou aplique status/unidade pra trazer o restante.`
+                      : `Exporta ${totalReal.toLocaleString("pt-BR")} registros do recorte atual.`;
+                    return (
+                      <a
+                        href={`/api/assinaturas/timeline.csv${qs}`}
+                        data-testid="botao-baixar-csv"
+                        data-truncado={vaiTruncar ? "1" : "0"}
+                        title={tituloTooltip}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition border"
+                        style={{
+                          background: vaiTruncar ? "#FFF7ED" : "#FFFFFF",
+                          color: vaiTruncar ? AMBER : NAVY,
+                          borderColor: vaiTruncar ? AMBER : NAVY,
+                        }}
+                      >
+                        {vaiTruncar ? <AlertTriangle size={14} /> : <Download size={14} />}
+                        Baixar CSV{sufixo}
+                      </a>
+                    );
+                  })()}
                   <a
                     href={`/api/assinaturas/timeline.xlsx${qs}`}
                     data-testid="botao-baixar-xlsx"
