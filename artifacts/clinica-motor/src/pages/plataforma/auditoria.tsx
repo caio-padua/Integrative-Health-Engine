@@ -100,6 +100,9 @@ export default function PlataformaAuditoria() {
   const [expandidoEventoId, setExpandidoEventoId] = useState<number | null>(null);
   const [reenviandoEventoId, setReenviandoEventoId] = useState<number | null>(null);
   const [reenviandoApenasFalhas, setReenviandoApenasFalhas] = useState(false);
+  // Task #266 — controla qual canal esta no meio do reenvio pra desabilitar
+  // o botao certo (email vs whatsapp) durante o request.
+  const [reenviandoCanal, setReenviandoCanal] = useState<"EMAIL" | "WHATSAPP">("EMAIL");
   const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
@@ -120,15 +123,23 @@ export default function PlataformaAuditoria() {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
-  async function reenviarAvisos(eventoId: number, apenasFalhas: boolean) {
+  async function reenviarAvisos(
+    eventoId: number,
+    apenasFalhas: boolean,
+    canal: "EMAIL" | "WHATSAPP" = "EMAIL",
+  ) {
+    // Task #266 — texto do confirm muda por canal pro CEO entender o que
+    // vai sair (email vs whatsapp). Mantem o aviso de auditoria igual.
+    const canalLabel = canal === "WHATSAPP" ? "mensagens de WhatsApp" : "emails";
     const msg = apenasFalhas
-      ? "Reenviar emails de aviso APENAS pros destinatarios que falharam na ultima tentativa?\n" +
+      ? `Reenviar ${canalLabel} de aviso APENAS pros destinatarios que falharam na ultima tentativa?\n` +
         "O resultado ficara registrado no historico (auditoria_kill_switch)."
-      : "Reenviar emails de aviso pra todos os destinatarios deste evento?\n" +
+      : `Reenviar ${canalLabel} de aviso pra todos os destinatarios deste evento?\n` +
         "O resultado ficara registrado no historico (auditoria_kill_switch).";
     if (!window.confirm(msg)) return;
     setReenviandoEventoId(eventoId);
     setReenviandoApenasFalhas(apenasFalhas);
+    setReenviandoCanal(canal);
     const r = await runWithStepUp(() =>
       apiFetch(
         `/api/plataforma/auditoria/${eventoId}/reenviar-avisos`,
@@ -136,7 +147,7 @@ export default function PlataformaAuditoria() {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apenasFalhas }),
+          body: JSON.stringify({ apenasFalhas, canal }),
         },
       ),
     );
@@ -148,11 +159,12 @@ export default function PlataformaAuditoria() {
       return;
     }
     const j = await r.json();
+    const bloco = canal === "WHATSAPP" ? j.whatsapp : j.email;
     alert(
-      `Reenvio concluido${apenasFalhas ? " (apenas falhas)" : ""}.\n\n` +
-      `Destinatarios: ${j.email?.destinatarios?.length ?? 0}\n` +
-      `Enviados: ${j.email?.enviados ?? 0}\n` +
-      `Falhas: ${j.email?.falhas ?? 0}` +
+      `Reenvio concluido (${canal})${apenasFalhas ? " (apenas falhas)" : ""}.\n\n` +
+      `Destinatarios: ${bloco?.destinatarios?.length ?? 0}\n` +
+      `Enviados: ${bloco?.enviados ?? 0}\n` +
+      `Falhas: ${bloco?.falhas ?? 0}` +
       (j.erro ? `\n\nErro geral: ${j.erro}` : ""),
     );
     await carregar();
@@ -414,14 +426,14 @@ export default function PlataformaAuditoria() {
                               <div className="flex flex-wrap items-center gap-1">
                                 <button
                                   disabled={reenviandoEventoId === e.id}
-                                  onClick={() => void reenviarAvisos(e.id, false)}
+                                  onClick={() => void reenviarAvisos(e.id, false, "EMAIL")}
                                   className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
                                   title="Reenviar emails de aviso pra todos os destinatarios"
                                 >
-                                  <Send size={11} />
-                                  {reenviandoEventoId === e.id && !reenviandoApenasFalhas
+                                  <Mail size={11} />
+                                  {reenviandoEventoId === e.id && !reenviandoApenasFalhas && reenviandoCanal === "EMAIL"
                                     ? "reenviando..."
-                                    : "Reenviar avisos"}
+                                    : "Reenviar avisos (email)"}
                                 </button>
                                 {/* Task #148 — botao extra so aparece quando ha
                                     pelo menos uma tentativa anterior de EMAIL com
@@ -437,14 +449,52 @@ export default function PlataformaAuditoria() {
                                   return (
                                     <button
                                       disabled={reenviandoEventoId === e.id}
-                                      onClick={() => void reenviarAvisos(e.id, true)}
+                                      onClick={() => void reenviarAvisos(e.id, true, "EMAIL")}
                                       className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-50"
-                                      title={`Reenviar so pros ${falhadosEmail.length} destinatario(s) que falharam na ultima tentativa de email`}
+                                      title={`Reenviar so pros ${falhadosEmail.length} destinatario(s) de email que falharam na ultima tentativa`}
                                     >
-                                      <Send size={11} />
-                                      {reenviandoEventoId === e.id && reenviandoApenasFalhas
+                                      <Mail size={11} />
+                                      {reenviandoEventoId === e.id && reenviandoApenasFalhas && reenviandoCanal === "EMAIL"
                                         ? "reenviando..."
-                                        : `Reenviar so pros que falharam (${falhadosEmail.length})`}
+                                        : `Reenviar so pros que falharam — email (${falhadosEmail.length})`}
+                                    </button>
+                                  );
+                                })()}
+                                {/* Task #266 — reenvio total por WhatsApp. Aparece sempre
+                                    que o evento e SUSPENDER/REASSUMIR. A camada de envio
+                                    coleta os telefones dos responsaveis na hora do POST. */}
+                                <button
+                                  disabled={reenviandoEventoId === e.id}
+                                  onClick={() => void reenviarAvisos(e.id, false, "WHATSAPP")}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50"
+                                  title="Reenviar mensagens de WhatsApp de aviso pra todos os destinatarios"
+                                >
+                                  <MessageCircle size={11} />
+                                  {reenviandoEventoId === e.id && !reenviandoApenasFalhas && reenviandoCanal === "WHATSAPP"
+                                    ? "reenviando..."
+                                    : "Reenviar avisos (WhatsApp)"}
+                                </button>
+                                {/* Task #266 — analogo ao botao de EMAIL parcial: so aparece
+                                    quando ha pelo menos um detalhes_whatsapp[] com
+                                    sucesso=false na ultima tentativa de WhatsApp. */}
+                                {(() => {
+                                  const ultimoWhatsapp = [...avisos]
+                                    .reverse()
+                                    .find((a) => a.canal === "WHATSAPP");
+                                  const falhadosWhatsapp = (ultimoWhatsapp?.detalhes_whatsapp ?? [])
+                                    .filter((d) => !d.sucesso);
+                                  if (falhadosWhatsapp.length === 0) return null;
+                                  return (
+                                    <button
+                                      disabled={reenviandoEventoId === e.id}
+                                      onClick={() => void reenviarAvisos(e.id, true, "WHATSAPP")}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-50"
+                                      title={`Reenviar so pros ${falhadosWhatsapp.length} numero(s) de WhatsApp que falharam na ultima tentativa`}
+                                    >
+                                      <MessageCircle size={11} />
+                                      {reenviandoEventoId === e.id && reenviandoApenasFalhas && reenviandoCanal === "WHATSAPP"
+                                        ? "reenviando..."
+                                        : `Reenviar so pros que falharam — WhatsApp (${falhadosWhatsapp.length})`}
                                     </button>
                                   );
                                 })()}

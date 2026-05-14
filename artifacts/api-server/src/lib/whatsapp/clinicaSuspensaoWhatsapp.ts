@@ -213,11 +213,29 @@ async function enviarParaTodos(
   return { enviados, falhas, viaHsm, viaTextoLivre, detalhes };
 }
 
+// Task #266 — analogo ao destinatariosOverride do email (Task #148): quando
+// o painel quer reenviar so pros telefones que falharam na ultima tentativa
+// de WhatsApp, passa a lista aqui. Mantemos a normalizacao identica ao
+// envio normal (mesma `coletarTelefonesResponsaveis` + filtro por igualdade
+// de string trim) pra evitar discrepancia entre o que esta na auditoria e o
+// que efetivamente sai. Telefones que nao constam mais na lista atual de
+// responsaveis (ex.: usuario inativado depois) sao silenciosamente
+// ignorados — coerente com o comportamento do email.
+function aplicarOverride(
+  destinatarios: string[],
+  override: string[] | undefined,
+): string[] {
+  if (!override) return destinatarios;
+  const set = new Set(override.map((t) => t.trim()));
+  return destinatarios.filter((d) => set.has(d.trim()));
+}
+
 export async function enviarWhatsappSuspensao(opts: {
   unidadeId: number;
   unidade: Unidade;
   motivo: string;
   suspensoEm: Date;
+  destinatariosOverride?: string[];
 }): Promise<{
   destinatarios: string[];
   enviados: number;
@@ -226,7 +244,8 @@ export async function enviarWhatsappSuspensao(opts: {
   viaTextoLivre: number;
   detalhes: DetalheEnvioWhatsapp[];
 }> {
-  const destinatarios = await coletarTelefonesResponsaveis(opts.unidadeId, opts.unidade);
+  const todos = await coletarTelefonesResponsaveis(opts.unidadeId, opts.unidade);
+  const destinatarios = aplicarOverride(todos, opts.destinatariosOverride);
   const mensagem = mensagemSuspensao({
     unidadeNome: opts.unidade.nome,
     motivo: opts.motivo,
@@ -258,6 +277,7 @@ export async function enviarWhatsappReativacao(opts: {
   unidade: Unidade;
   motivo: string;
   reativadoEm: Date;
+  destinatariosOverride?: string[];
 }): Promise<{
   destinatarios: string[];
   enviados: number;
@@ -266,7 +286,8 @@ export async function enviarWhatsappReativacao(opts: {
   viaTextoLivre: number;
   detalhes: DetalheEnvioWhatsapp[];
 }> {
-  const destinatarios = await coletarTelefonesResponsaveis(opts.unidadeId, opts.unidade);
+  const todos = await coletarTelefonesResponsaveis(opts.unidadeId, opts.unidade);
+  const destinatarios = aplicarOverride(todos, opts.destinatariosOverride);
   const mensagem = mensagemReativacao({
     unidadeNome: opts.unidade.nome,
     motivo: opts.motivo,

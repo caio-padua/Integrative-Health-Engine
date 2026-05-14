@@ -1319,11 +1319,13 @@ router.post(
     const motivoOriginal = evento.motivo ?? "(motivo nao registrado)";
 
     // Task #148 — quando apenasFalhas=true, restringe o reenvio aos
-    // destinatarios EMAIL que falharam na tentativa registrada mais recente
-    // do mesmo evento (canal default = EMAIL pra retrocompat). Permite o
-    // platform_owner reenviar so pra quem nao recebeu, sem spammear os ja
-    // notificados. Se nao houver tentativa anterior com falhas, devolve 400
-    // pra deixar claro que nao ha o que reenviar nesse modo.
+    // destinatarios que falharam na tentativa registrada mais recente do
+    // mesmo evento, no canal pedido (default EMAIL pra retrocompat).
+    // Task #266 — agora aceita canal=WHATSAPP tambem, lendo a ultima
+    // tentativa WHATSAPP e os detalhes_whatsapp[] (Task #176) pra extrair
+    // os telefones com sucesso=false.
+    const canalPedido: "EMAIL" | "WHATSAPP" =
+      req.body?.canal === "WHATSAPP" ? "WHATSAPP" : "EMAIL";
     const apenasFalhas = req.body?.apenasFalhas === true;
     let destinatariosOverride: string[] | undefined;
     if (apenasFalhas) {
@@ -1334,24 +1336,32 @@ router.post(
          LIMIT 1
       `);
       const avisos = ((histRes.rows[0] as { avisos?: RegistroAviso[] } | undefined)?.avisos ?? []) as RegistroAviso[];
-      const ultimoEmail = [...avisos]
+      const ultimo = [...avisos]
         .reverse()
-        .find((a) => (a.canal ?? "EMAIL") === "EMAIL");
+        .find((a) => (a.canal ?? "EMAIL") === canalPedido);
       const falhados: string[] = [];
-      if (ultimoEmail?.detalhes_email) {
-        for (const d of ultimoEmail.detalhes_email) {
+      if (canalPedido === "EMAIL") {
+        for (const d of ultimo?.detalhes_email ?? []) {
+          if (!d.sucesso && d.destinatario) falhados.push(d.destinatario);
+        }
+      } else {
+        for (const d of ultimo?.detalhes_whatsapp ?? []) {
           if (!d.sucesso && d.destinatario) falhados.push(d.destinatario);
         }
       }
       if (falhados.length === 0) {
         res.status(400).json({
           error:
-            "Nao ha destinatarios com falha registrada na ultima tentativa de email. " +
+            `Nao ha destinatarios com falha registrada na ultima tentativa de ${canalPedido.toLowerCase()}. ` +
             "Use o reenvio normal (sem apenasFalhas) ou aguarde uma nova tentativa que registre falhas.",
         });
         return;
       }
-      destinatariosOverride = Array.from(new Set(falhados.map((e) => e.trim().toLowerCase())));
+      // Email normaliza pra lowercase; WhatsApp mantem o formato original
+      // (numero ja vem normalizado da camada de envio).
+      destinatariosOverride = canalPedido === "EMAIL"
+        ? Array.from(new Set(falhados.map((e) => e.trim().toLowerCase())))
+        : Array.from(new Set(falhados.map((t) => t.trim())));
     }
 
     let emailRes = {
@@ -1361,61 +1371,132 @@ router.post(
       detalhes: [] as DetalheEnvioEmailAuditoria[],
     };
     let emailErro: string | null = null;
+    let whatsappRes: {
+      destinatarios: string[];
+      enviados: number;
+      falhas: number;
+      viaHsm: number;
+      viaTextoLivre: number;
+      detalhes: DetalheEnvioWhatsappAuditoria[];
+    } = {
+      destinatarios: [],
+      enviados: 0,
+      falhas: 0,
+      viaHsm: 0,
+      viaTextoLivre: 0,
+      detalhes: [],
+    };
+    let whatsappErro: string | null = null;
     try {
-      if (evento.acao === "SUSPENDER") {
-        emailRes = await enviarEmailSuspensao({
-          unidadeId: evento.unidade_id,
-          unidade,
-          motivo: motivoOriginal,
-          suspensoEm: new Date(evento.criado_em),
-          destinatariosOverride,
-        });
+      if (canalPedido === "EMAIL") {
+        if (evento.acao === "SUSPENDER") {
+          emailRes = await enviarEmailSuspensao({
+            unidadeId: evento.unidade_id,
+            unidade,
+            motivo: motivoOriginal,
+            suspensoEm: new Date(evento.criado_em),
+            destinatariosOverride,
+          });
+        } else {
+          emailRes = await enviarEmailReativacao({
+            unidadeId: evento.unidade_id,
+            unidade,
+            motivo: motivoOriginal,
+            reativadoEm: new Date(evento.criado_em),
+            destinatariosOverride,
+          });
+        }
+        req.log?.info(
+          { eventoId, apenasFalhas, canal: canalPedido, ...emailRes },
+          "[plataforma] reenvio de aviso executado",
+        );
       } else {
-        emailRes = await enviarEmailReativacao({
-          unidadeId: evento.unidade_id,
-          unidade,
-          motivo: motivoOriginal,
-          reativadoEm: new Date(evento.criado_em),
-          destinatariosOverride,
-        });
+        if (evento.acao === "SUSPENDER") {
+          whatsappRes = await enviarWhatsappSuspensao({
+            unidadeId: evento.unidade_id,
+            unidade,
+            motivo: motivoOriginal,
+            suspensoEm: new Date(evento.criado_em),
+            destinatariosOverride,
+          });
+        } else {
+          whatsappRes = await enviarWhatsappReativacao({
+            unidadeId: evento.unidade_id,
+            unidade,
+            motivo: motivoOriginal,
+            reativadoEm: new Date(evento.criado_em),
+            destinatariosOverride,
+          });
+        }
+        req.log?.info(
+          { eventoId, apenasFalhas, canal: canalPedido, ...whatsappRes },
+          "[plataforma] reenvio de aviso executado",
+        );
       }
-      req.log?.info(
-        { eventoId, apenasFalhas, ...emailRes },
-        "[plataforma] reenvio de aviso executado",
-      );
     } catch (err) {
-      emailErro = err instanceof Error ? err.message : String(err);
-      req.log?.warn({ err, eventoId }, "[plataforma] falha no reenvio de aviso");
+      const msg = err instanceof Error ? err.message : String(err);
+      if (canalPedido === "EMAIL") emailErro = msg;
+      else whatsappErro = msg;
+      req.log?.warn({ err, eventoId, canal: canalPedido }, "[plataforma] falha no reenvio de aviso");
     }
-    await anexarAvisoEmAuditoria(
-      evento.unidade_id,
-      evento.acao as AcaoKillSwitch,
-      {
-        tipo: evento.acao === "SUSPENDER" ? "REENVIO_SUSPENSAO" : "REENVIO_REATIVACAO",
-        canal: "EMAIL",
-        destinatarios: emailRes.destinatarios,
-        enviados: emailRes.enviados,
-        falhas: emailRes.falhas,
-        erro: emailErro,
-        em: new Date().toISOString(),
-        executado_por_usuario_id: actor.userId,
-        detalhes_email: emailRes.detalhes,
-        apenas_falhas: apenasFalhas,
-      },
-      eventoId,
-    );
-    // Task #150 — marca alerta de email travado (Task #141) como visualizado
-    // quando o Caio reenvia o aviso pelo painel (Task #134). Idempotente:
-    // a clausula visualizado_em IS NULL evita sobrescrever timestamp anterior.
-    if (emailErro === null) {
-      await db.execute(sql`
-        UPDATE alertas_ceo_killswitch_emails
-           SET visualizado_em = NOW()
-         WHERE evento_id = ${eventoId}
-           AND visualizado_em IS NULL
-      `);
+    if (canalPedido === "EMAIL") {
+      await anexarAvisoEmAuditoria(
+        evento.unidade_id,
+        evento.acao as AcaoKillSwitch,
+        {
+          tipo: evento.acao === "SUSPENDER" ? "REENVIO_SUSPENSAO" : "REENVIO_REATIVACAO",
+          canal: "EMAIL",
+          destinatarios: emailRes.destinatarios,
+          enviados: emailRes.enviados,
+          falhas: emailRes.falhas,
+          erro: emailErro,
+          em: new Date().toISOString(),
+          executado_por_usuario_id: actor.userId,
+          detalhes_email: emailRes.detalhes,
+          apenas_falhas: apenasFalhas,
+        },
+        eventoId,
+      );
+      // Task #150 — marca alerta de email travado (Task #141) como visualizado
+      // quando o Caio reenvia o aviso pelo painel (Task #134). Idempotente:
+      // a clausula visualizado_em IS NULL evita sobrescrever timestamp anterior.
+      if (emailErro === null) {
+        await db.execute(sql`
+          UPDATE alertas_ceo_killswitch_emails
+             SET visualizado_em = NOW()
+           WHERE evento_id = ${eventoId}
+             AND visualizado_em IS NULL
+        `);
+      }
+    } else {
+      await anexarAvisoEmAuditoria(
+        evento.unidade_id,
+        evento.acao as AcaoKillSwitch,
+        {
+          tipo: evento.acao === "SUSPENDER" ? "REENVIO_SUSPENSAO" : "REENVIO_REATIVACAO",
+          canal: "WHATSAPP",
+          destinatarios: whatsappRes.destinatarios,
+          enviados: whatsappRes.enviados,
+          falhas: whatsappRes.falhas,
+          erro: whatsappErro,
+          em: new Date().toISOString(),
+          executado_por_usuario_id: actor.userId,
+          via_hsm: whatsappRes.viaHsm,
+          via_texto_livre: whatsappRes.viaTextoLivre,
+          detalhes_whatsapp: whatsappRes.detalhes,
+          apenas_falhas: apenasFalhas,
+        },
+        eventoId,
+      );
     }
-    res.json({ ok: true, email: emailRes, erro: emailErro, apenasFalhas });
+    res.json({
+      ok: true,
+      canal: canalPedido,
+      email: emailRes,
+      whatsapp: whatsappRes,
+      erro: canalPedido === "EMAIL" ? emailErro : whatsappErro,
+      apenasFalhas,
+    });
   },
 );
 
