@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ClinicProvider } from "@/contexts/ClinicContext";
+import { Reverificacao2faProvider } from "@/components/Reverificacao2faProvider";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
@@ -260,8 +261,10 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <ClinicProvider>
-            <Router />
-            <Toaster />
+            <Reverificacao2faProvider>
+              <Router />
+              <Toaster />
+            </Reverificacao2faProvider>
           </ClinicProvider>
         </AuthProvider>
       </TooltipProvider>

@@ -78,9 +78,30 @@ export function clearPawardsUser(): void {
   }
 }
 
-export async function apiFetch(
+// Task #217: interceptor global pra 403 com `codigo: "2FA_EXPIRADO"`.
+// Quando o backend devolve esse codigo (middleware require2faRecente,
+// ver artifacts/api-server/src/middlewares/require2faRecente.ts), o
+// frontend precisa abrir um modal pedindo o codigo de 6 digitos do
+// app autenticador, chamar POST /api/usuarios/2fa/reverificar e
+// refazer a request original automaticamente — sem o usuario perceber
+// e sem cada pagina ter que tratar 403 manualmente.
+//
+// O handler e registrado pelo <Reverificacao2faProvider/> montado no
+// topo do App. Se nao houver provider montado (ex: tela de login), o
+// 403 passa sem interceptacao e o caller recebe a resposta original.
+export type Reverificacao2faHandler = () => Promise<{ success: boolean }>;
+
+let reverificacao2faHandler: Reverificacao2faHandler | null = null;
+
+export function setReverificacao2faHandler(
+  handler: Reverificacao2faHandler | null,
+): void {
+  reverificacao2faHandler = handler;
+}
+
+async function executarFetchInterno(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: RequestInit,
 ): Promise<Response> {
   const jwt = getPawardsToken();
   const incoming = new Headers(init.headers ?? undefined);
@@ -89,4 +110,23 @@ export async function apiFetch(
   }
   const credentials: RequestCredentials = init.credentials ?? "include";
   return fetch(input, { ...init, headers: incoming, credentials });
+}
+
+export async function apiFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> {
+  const r = await executarFetchInterno(input, init);
+  if (r.status !== 403 || !reverificacao2faHandler) return r;
+  // Clona pra nao consumir o body — o caller pode precisar ler depois.
+  const body = (await r
+    .clone()
+    .json()
+    .catch(() => null)) as { codigo?: string } | null;
+  if (!body || body.codigo !== "2FA_EXPIRADO") return r;
+  const resultado = await reverificacao2faHandler();
+  if (!resultado.success) return r;
+  // Janela de 8h renovada — refaz a request original e devolve a nova
+  // resposta, como se o 403 nunca tivesse acontecido.
+  return await executarFetchInterno(input, init);
 }
