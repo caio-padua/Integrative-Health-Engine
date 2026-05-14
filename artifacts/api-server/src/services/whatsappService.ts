@@ -51,7 +51,7 @@ async function enviarViaTwilio(
   }
 }
 
-interface HsmTemplateConfig {
+export interface HsmTemplateConfig {
   /** Twilio: Content SID (HX...) do template HSM aprovado pelo Meta. */
   twilioContentSid?: string;
   /** Gupshup: template id (UUID) do HSM aprovado. */
@@ -326,6 +326,55 @@ export async function enviarComTemplate<N extends TemplateNome>(
  * Fora dessa janela (madrugada, fim de semana) o texto livre e bloqueado
  * silenciosamente — somente HSM aprovado entrega.
  */
+/**
+ * Dispara um HSM usando UMA configuracao especifica (em vez de deixar
+ * `obterConfigWhatsapp` escolher). E pra rota de "Testar envio" da tela
+ * de templates HSM, onde o usuario quer validar o template que ele acabou
+ * de salvar naquela config — independente de a config ser a "ativa" pra
+ * unidade dela.
+ *
+ * Diferente de `enviarComTemplateHsm`, NAO faz fallback pra texto livre:
+ * o objetivo do teste e exatamente provar que o HSM aprovado entrega.
+ */
+export async function enviarHsmComConfig(
+  config: WhatsappConfig,
+  telefone: string,
+  templateNome: string,
+  variaveis: Record<string, string>,
+): Promise<EnvioResult & { logId?: number }> {
+  const hsm = obterHsmConfig(config, templateNome);
+  if (!hsm) {
+    return {
+      sucesso: false,
+      erro: `Template HSM '${templateNome}' nao configurado nesta config`,
+    };
+  }
+
+  const telefoneFormatado = formatarTelefone(telefone);
+  const resultado =
+    config.provedor === "TWILIO"
+      ? await enviarViaTwilioHsm(config, telefoneFormatado, hsm, variaveis)
+      : await enviarViaGupshupHsm(config, telefoneFormatado, hsm, variaveis);
+
+  const mensagemRegistro = `[HSM ${templateNome} TESTE] ${JSON.stringify(variaveis)}`;
+  const [log] = await db
+    .insert(whatsappMensagensLogTable)
+    .values({
+      configId: config.id,
+      provedor: config.provedor,
+      provedorMsgId: resultado.provedorMsgId,
+      telefoneDestino: telefoneFormatado,
+      templateNome,
+      mensagem: mensagemRegistro,
+      status: resultado.sucesso ? "ENVIADO" : "FALHOU",
+      erroDetalhes: resultado.erro,
+      enviadoEm: resultado.sucesso ? new Date() : null,
+    })
+    .returning();
+
+  return { ...resultado, logId: log.id };
+}
+
 export async function enviarComTemplateHsm(
   telefone: string,
   templateNome: string,

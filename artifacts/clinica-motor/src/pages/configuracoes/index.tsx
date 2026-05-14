@@ -426,6 +426,273 @@ function OperationalConfigCard({ apiBase, toast }: { apiBase: string; toast: any
   );
 }
 
+interface HsmTemplateVariavel {
+  chave: string;
+  descricao: string;
+  exemplo: string;
+}
+interface HsmTemplateDefinicao {
+  nome: string;
+  descricao: string;
+  variaveis: HsmTemplateVariavel[];
+}
+interface HsmTemplateConfigSalva {
+  twilioContentSid?: string;
+  gupshupTemplateId?: string;
+  ordemVariaveis?: string[];
+}
+
+function HsmTemplatesPanel({
+  apiBase, configId, provedor, toast,
+}: { apiBase: string; configId: number; provedor: "TWILIO" | "GUPSHUP"; toast: any }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [catalogo, setCatalogo] = useState<HsmTemplateDefinicao[]>([]);
+  const [configurados, setConfigurados] = useState<Record<string, HsmTemplateConfigSalva>>({});
+  const [forms, setForms] = useState<Record<string, { sid: string; ordem: string }>>({});
+  const [savingNome, setSavingNome] = useState<string | null>(null);
+  const [testNome, setTestNome] = useState<string | null>(null);
+  const [testTelefone, setTestTelefone] = useState("");
+  const [testVars, setTestVars] = useState<Record<string, string>>({});
+  const [testEnviando, setTestEnviando] = useState(false);
+
+  const carregar = async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`${apiBase}/whatsapp/config/${configId}/hsm-templates`);
+      if (res.ok) {
+        const data = await res.json();
+        setCatalogo(data.catalogo || []);
+        const cfgs = data.configurados || {};
+        setConfigurados(cfgs);
+        const initialForms: Record<string, { sid: string; ordem: string }> = {};
+        for (const def of (data.catalogo || []) as HsmTemplateDefinicao[]) {
+          const existente = cfgs[def.nome] as HsmTemplateConfigSalva | undefined;
+          const sidValor = provedor === "TWILIO"
+            ? (existente?.twilioContentSid ?? "")
+            : (existente?.gupshupTemplateId ?? "");
+          const ordemValor = (existente?.ordemVariaveis ?? def.variaveis.map(v => v.chave)).join(",");
+          initialForms[def.nome] = { sid: sidValor, ordem: ordemValor };
+        }
+        setForms(initialForms);
+      }
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (open && catalogo.length === 0) carregar();
+  }, [open]);
+
+  const salvarTemplate = async (nome: string) => {
+    const def = catalogo.find(d => d.nome === nome);
+    if (!def) return;
+    const f = forms[nome];
+    if (!f?.sid?.trim()) {
+      toast({ title: provedor === "TWILIO" ? "Cole o Content SID" : "Cole o Template ID", variant: "destructive" });
+      return;
+    }
+    const ordem = f.ordem.split(",").map(s => s.trim()).filter(Boolean);
+    setSavingNome(nome);
+    try {
+      const body: any = { ordemVariaveis: ordem };
+      if (provedor === "TWILIO") body.twilioContentSid = f.sid.trim();
+      else body.gupshupTemplateId = f.sid.trim();
+      const res = await apiFetch(`${apiBase}/whatsapp/config/${configId}/hsm-templates/${nome}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        toast({ title: `Template ${nome} salvo` });
+        await carregar();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: d.erro || "Erro ao salvar template", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setSavingNome(null);
+  };
+
+  const removerTemplate = async (nome: string) => {
+    if (!confirm(`Remover configuracao do template ${nome}?`)) return;
+    try {
+      const res = await apiFetch(`${apiBase}/whatsapp/config/${configId}/hsm-templates/${nome}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: `Template ${nome} removido` });
+        await carregar();
+      }
+    } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
+  };
+
+  const abrirTeste = (nome: string) => {
+    const def = catalogo.find(d => d.nome === nome);
+    if (!def) return;
+    const vars: Record<string, string> = {};
+    for (const v of def.variaveis) vars[v.chave] = v.exemplo;
+    setTestVars(vars);
+    setTestTelefone("");
+    setTestNome(nome);
+  };
+
+  const enviarTeste = async () => {
+    if (!testNome) return;
+    if (!testTelefone.trim()) {
+      toast({ title: "Informe o telefone", variant: "destructive" });
+      return;
+    }
+    setTestEnviando(true);
+    try {
+      const res = await apiFetch(`${apiBase}/whatsapp/config/${configId}/hsm-templates/${testNome}/testar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telefone: testTelefone.trim(), variaveis: testVars }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.sucesso) {
+        toast({ title: `HSM enviado (msgId: ${data.provedorMsgId ?? "?"})` });
+        setTestNome(null);
+      } else {
+        toast({ title: data.erro || "Falha ao enviar HSM", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erro de conexao", variant: "destructive" }); }
+    setTestEnviando(false);
+  };
+
+  return (
+    <div className="border-t border-border pt-2 mt-2">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="text-xs uppercase tracking-wider font-bold text-muted-foreground hover:text-foreground flex items-center gap-1"
+      >
+        <Layers className="w-3 h-3" />
+        Templates HSM aprovados {open ? "▲" : "▼"}
+        {Object.keys(configurados).length > 0 && (
+          <Badge className="ml-1 bg-blue-500/10 text-blue-500 border-blue-500/30 text-[10px]">
+            {Object.keys(configurados).length} configurado(s)
+          </Badge>
+        )}
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-3">
+          <p className="text-[11px] text-muted-foreground">
+            HSMs aprovados pelo Meta sao a unica forma de entregar mensagens fora da janela de 24h
+            (madrugada, fim de semana). Cole o {provedor === "TWILIO" ? "Content SID (HX...)" : "Template ID (UUID)"} aprovado pelo provedor + a ordem das variaveis no template.
+          </p>
+
+          {loading && <Skeleton className="h-16 w-full" />}
+
+          {!loading && catalogo.map(def => {
+            const cfg = configurados[def.nome];
+            const f = forms[def.nome] ?? { sid: "", ordem: def.variaveis.map(v => v.chave).join(",") };
+            const ativo = !!(provedor === "TWILIO" ? cfg?.twilioContentSid : cfg?.gupshupTemplateId);
+            return (
+              <div key={def.nome} className="rounded border border-border p-3 space-y-2 bg-background/40">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold">{def.nome}</span>
+                    {ativo
+                      ? <Badge className="bg-green-500/10 text-green-500 border-green-500/30 text-[10px]">Ativo</Badge>
+                      : <Badge className="bg-muted text-muted-foreground border-border text-[10px]">Nao configurado</Badge>}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="outline" disabled={!ativo} onClick={() => abrirTeste(def.nome)}>
+                      <Send className="h-3 w-3 mr-1" /> Testar envio
+                    </Button>
+                    {cfg && (
+                      <Button size="sm" variant="ghost" className="text-red-400" onClick={() => removerTemplate(def.nome)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{def.descricao}</p>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                    {provedor === "TWILIO" ? "Twilio Content SID" : "Gupshup Template ID"}
+                  </label>
+                  <Input
+                    value={f.sid}
+                    onChange={e => setForms({ ...forms, [def.nome]: { ...f, sid: e.target.value } })}
+                    placeholder={provedor === "TWILIO" ? "HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" : "00000000-0000-0000-0000-000000000000"}
+                    className="font-mono text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                    Ordem das variaveis (separar por virgula — vira {`{{1}}, {{2}}, ...`} no template)
+                  </label>
+                  <Input
+                    value={f.ordem}
+                    onChange={e => setForms({ ...forms, [def.nome]: { ...f, ordem: e.target.value } })}
+                    placeholder={def.variaveis.map(v => v.chave).join(",")}
+                    className="font-mono text-xs"
+                  />
+                  <div className="text-[10px] text-muted-foreground">
+                    Variaveis disponiveis:{" "}
+                    {def.variaveis.map(v => (
+                      <span key={v.chave} className="inline-block mr-2">
+                        <code className="font-mono">{v.chave}</code>
+                        <span className="text-muted-foreground/70"> ({v.descricao})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  onClick={() => salvarTemplate(def.nome)}
+                  disabled={savingNome === def.nome}
+                >
+                  {savingNome === def.nome ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  Salvar
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {testNome && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setTestNome(null)}>
+          <div className="bg-card border border-border w-full max-w-md p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wider">Testar HSM — {testNome}</h3>
+              <button onClick={() => setTestNome(null)}><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Telefone destino (com DDD)</label>
+              <Input value={testTelefone} onChange={e => setTestTelefone(e.target.value)} placeholder="11999999999" />
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {Object.keys(testVars).map(chave => (
+                <div key={chave} className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{chave}</label>
+                  <Input
+                    value={testVars[chave]}
+                    onChange={e => setTestVars({ ...testVars, [chave]: e.target.value })}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-2 border-t border-border">
+              <Button className="flex-1" onClick={enviarTeste} disabled={testEnviando}>
+                {testEnviando ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+                Enviar HSM de teste
+              </Button>
+              <Button variant="outline" onClick={() => setTestNome(null)}>Cancelar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ConfiguracoesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1289,6 +1556,7 @@ export default function ConfiguracoesPage() {
                       </div>
                     </div>
                     {cfg.accountSid && <span className="text-xs text-muted-foreground">SID: {cfg.accountSid}</span>}
+                    <HsmTemplatesPanel apiBase={apiBase} configId={cfg.id} provedor={cfg.provedor} toast={toast} />
                   </div>
                 ))}
               </div>

@@ -6,9 +6,11 @@ import {
 import { eq, desc, and, sql } from "drizzle-orm";
 import {
   enviarWhatsapp, enviarComTemplate, atualizarStatusWebhook, testarConexaoWhatsapp,
-  obterAuthTokenParaValidacao, obterConfigWhatsapp,
+  obterAuthTokenParaValidacao, obterConfigWhatsapp, enviarHsmComConfig,
+  type HsmTemplateConfig,
 } from "../services/whatsappService";
 import { TEMPLATES_DISPONIVEIS, type TemplateNome, type TemplateDadosMap } from "../services/whatsappTemplates";
+import { HSM_TEMPLATES_CATALOGO, obterHsmTemplateDefinicao } from "../services/whatsappHsmCatalog";
 import { encryptCredential, isEncrypted } from "../services/credentialEncryption";
 import { decryptCredential } from "../services/credentialEncryption";
 import { gerarPdfRAS } from "../pdf/gerarRAS";
@@ -424,6 +426,172 @@ router.post("/whatsapp/enviar-pdf", async (req, res): Promise<void> => {
 
 router.get("/whatsapp/templates", async (_req, res): Promise<void> => {
   res.json(TEMPLATES_DISPONIVEIS.map(t => ({ nome: t.nome, descricao: t.descricao })));
+});
+
+/**
+ * Lista o catalogo de templates HSM aprovaveis pelo Meta + o que ja esta
+ * configurado em `whatsapp_config.metadados.hsmTemplates` pra essa
+ * configuracao especifica.
+ */
+router.get("/whatsapp/config/:id/hsm-templates", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ erro: "ID invalido" }); return; }
+
+  const [config] = await db
+    .select()
+    .from(whatsappConfigTable)
+    .where(eq(whatsappConfigTable.id, id))
+    .limit(1);
+  if (!config) { res.status(404).json({ erro: "Configuracao nao encontrada" }); return; }
+
+  const meta = (config.metadados as Record<string, unknown> | null) ?? {};
+  const hsmTemplates = ((meta as { hsmTemplates?: Record<string, HsmTemplateConfig> }).hsmTemplates) ?? {};
+
+  res.json({
+    provedor: config.provedor,
+    catalogo: HSM_TEMPLATES_CATALOGO,
+    configurados: hsmTemplates,
+  });
+});
+
+/**
+ * Salva (upsert) a configuracao de UM template HSM em
+ * `whatsapp_config.metadados.hsmTemplates[<nome>]`. Mescla com o que ja
+ * existe — nao sobrescreve outros templates nem outros campos do metadados.
+ */
+router.put("/whatsapp/config/:id/hsm-templates/:nome", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ erro: "ID invalido" }); return; }
+
+  const nome = req.params.nome;
+  const def = obterHsmTemplateDefinicao(nome);
+  if (!def) { res.status(404).json({ erro: `Template HSM '${nome}' nao existe no catalogo` }); return; }
+
+  const { twilioContentSid, gupshupTemplateId, ordemVariaveis } = req.body as {
+    twilioContentSid?: string;
+    gupshupTemplateId?: string;
+    ordemVariaveis?: string[];
+  };
+
+  const sidTwilio = typeof twilioContentSid === "string" ? twilioContentSid.trim() : "";
+  const idGupshup = typeof gupshupTemplateId === "string" ? gupshupTemplateId.trim() : "";
+
+  if (!sidTwilio && !idGupshup) {
+    res.status(400).json({ erro: "Informe twilioContentSid OU gupshupTemplateId (nao pode ficar em branco)" });
+    return;
+  }
+
+  if (Array.isArray(ordemVariaveis)) {
+    const validas = new Set(def.variaveis.map((v) => v.chave));
+    for (const k of ordemVariaveis) {
+      if (!validas.has(k)) {
+        res.status(400).json({ erro: `Variavel '${k}' nao existe pro template '${nome}'` });
+        return;
+      }
+    }
+  }
+
+  const [config] = await db
+    .select()
+    .from(whatsappConfigTable)
+    .where(eq(whatsappConfigTable.id, id))
+    .limit(1);
+  if (!config) { res.status(404).json({ erro: "Configuracao nao encontrada" }); return; }
+
+  // Restringe o campo permitido ao provedor da config — evita salvar
+  // metadados ambiguos (ex: SID Twilio numa config Gupshup) que so iam
+  // explodir na hora do envio real.
+  if (config.provedor === "TWILIO" && !sidTwilio) {
+    res.status(400).json({ erro: "Config eh TWILIO — twilioContentSid e obrigatorio" });
+    return;
+  }
+  if (config.provedor === "GUPSHUP" && !idGupshup) {
+    res.status(400).json({ erro: "Config eh GUPSHUP — gupshupTemplateId e obrigatorio" });
+    return;
+  }
+
+  const meta = ((config.metadados as Record<string, unknown> | null) ?? {}) as Record<string, unknown>;
+  const hsmTemplates = ((meta.hsmTemplates as Record<string, HsmTemplateConfig> | undefined) ?? {});
+  const entry: HsmTemplateConfig = {};
+  if (config.provedor === "TWILIO" && sidTwilio) entry.twilioContentSid = sidTwilio;
+  if (config.provedor === "GUPSHUP" && idGupshup) entry.gupshupTemplateId = idGupshup;
+  if (Array.isArray(ordemVariaveis) && ordemVariaveis.length > 0) entry.ordemVariaveis = ordemVariaveis;
+
+  const novoHsm = { ...hsmTemplates, [nome]: entry };
+  const novoMeta = { ...meta, hsmTemplates: novoHsm };
+
+  const [updated] = await db
+    .update(whatsappConfigTable)
+    .set({ metadados: novoMeta })
+    .where(eq(whatsappConfigTable.id, id))
+    .returning();
+
+  res.json({ sucesso: true, template: nome, config: entry, hsmTemplates: (updated.metadados as { hsmTemplates?: Record<string, HsmTemplateConfig> })?.hsmTemplates ?? {} });
+});
+
+router.delete("/whatsapp/config/:id/hsm-templates/:nome", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ erro: "ID invalido" }); return; }
+  const nome = req.params.nome;
+
+  const [config] = await db
+    .select()
+    .from(whatsappConfigTable)
+    .where(eq(whatsappConfigTable.id, id))
+    .limit(1);
+  if (!config) { res.status(404).json({ erro: "Configuracao nao encontrada" }); return; }
+
+  const meta = ((config.metadados as Record<string, unknown> | null) ?? {}) as Record<string, unknown>;
+  const hsmTemplates = { ...((meta.hsmTemplates as Record<string, HsmTemplateConfig> | undefined) ?? {}) };
+  delete hsmTemplates[nome];
+  const novoMeta = { ...meta, hsmTemplates };
+
+  await db
+    .update(whatsappConfigTable)
+    .set({ metadados: novoMeta })
+    .where(eq(whatsappConfigTable.id, id));
+
+  res.json({ sucesso: true, template: nome });
+});
+
+/**
+ * Dispara o HSM ja salvo nessa config pra um numero de teste. Usa os
+ * `exemplo` do catalogo se o usuario nao mandar `variaveis` no body.
+ */
+router.post("/whatsapp/config/:id/hsm-templates/:nome/testar", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ erro: "ID invalido" }); return; }
+  const nome = req.params.nome;
+  const def = obterHsmTemplateDefinicao(nome);
+  if (!def) { res.status(404).json({ erro: `Template HSM '${nome}' nao existe no catalogo` }); return; }
+
+  const { telefone, variaveis: variaveisInput } = req.body as {
+    telefone?: string;
+    variaveis?: Record<string, string>;
+  };
+  if (!telefone || !telefone.trim()) {
+    res.status(400).json({ erro: "telefone e obrigatorio" });
+    return;
+  }
+
+  const [config] = await db
+    .select()
+    .from(whatsappConfigTable)
+    .where(eq(whatsappConfigTable.id, id))
+    .limit(1);
+  if (!config) { res.status(404).json({ erro: "Configuracao nao encontrada" }); return; }
+
+  const variaveis: Record<string, string> = {};
+  for (const v of def.variaveis) {
+    variaveis[v.chave] = (variaveisInput?.[v.chave] ?? v.exemplo) || "";
+  }
+
+  const resultado = await enviarHsmComConfig(config, telefone.trim(), nome, variaveis);
+  if (resultado.sucesso) {
+    res.json({ ...resultado, variaveisUsadas: variaveis });
+  } else {
+    res.status(502).json({ ...resultado, variaveisUsadas: variaveis });
+  }
 });
 
 router.get("/whatsapp/mensagens", async (req, res): Promise<void> => {
