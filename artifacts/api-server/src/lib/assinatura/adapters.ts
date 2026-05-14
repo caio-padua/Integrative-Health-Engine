@@ -13,6 +13,7 @@ import type {
   PayloadEnvelope,
   ProvedorCodigo,
   ResultadoEnvio,
+  ResultadoReentregaWebhook,
   Signatario,
   SignatureProviderAdapter,
   StatusDocumento,
@@ -129,11 +130,37 @@ abstract class BaseMockableAdapter implements SignatureProviderAdapter {
     return this.downloadReal(envelopeId);
   }
 
+  async reentregarWebhook(envelopeId: string): Promise<ResultadoReentregaWebhook> {
+    if (!envelopeId) {
+      return { ok: false, mock: false, detalhe: "envelope_id ausente" };
+    }
+    if (!this.isConfigured()) {
+      return {
+        ok: true,
+        mock: true,
+        detalhe: `mock ${this.codigo}: provedor nao configurado, simulando reentrega aceita`,
+      };
+    }
+    return this.reentregarWebhookReal(envelopeId);
+  }
+
   // Hooks para implementacao real (override quando integrar HTTP de verdade)
   protected abstract createReal(payload: PayloadEnvelope): Promise<ResultadoEnvio>;
   protected abstract sendReal(envelopeId: string): Promise<void>;
   protected abstract statusReal(envelopeId: string): Promise<StatusDocumento>;
   protected abstract downloadReal(envelopeId: string): Promise<Buffer>;
+  /**
+   * Default: provedor sem endpoint de reentrega manual. Subclasses que tem
+   * endpoint dedicado (ex: ZapSign POST /api/v1/docs/{token}/resend-webhooks/)
+   * fazem override.
+   */
+  protected async reentregarWebhookReal(_envelopeId: string): Promise<ResultadoReentregaWebhook> {
+    return {
+      ok: false,
+      mock: false,
+      detalhe: `provedor ${this.codigo} nao expoe endpoint de reentrega manual de webhook`,
+    };
+  }
   protected abstract signatureHeaderName(): string;
   protected abstract extractEventId(payload: Record<string, unknown>): string | undefined;
   protected abstract extractEventType(payload: Record<string, unknown>): string;
@@ -389,6 +416,44 @@ export class ZapsignAdapter extends BaseMockableAdapter {
     if (!data.signed_file) throw new Error("ZapSign: PDF assinado indisponivel");
     const r2 = await fetch(data.signed_file);
     return Buffer.from(await r2.arrayBuffer());
+  }
+
+  /**
+   * Task #248 — pede ao ZapSign pra reentregar todos os webhooks do envelope.
+   * Endpoint oficial: POST /api/v1/docs/{doc_token}/resend-webhooks/
+   * (https://docs.zapsign.com.br/webhooks/reenviar-webhooks). Body vazio =
+   * reenvia o webhook de todos os eventos elegiveis do documento. Resposta
+   * 2xx indica que o ZapSign enfileirou o reenvio (acontece em segundos).
+   *
+   * Defensivo: nunca lanca, retorna `ok=false` com `detalhe` quando o
+   * provedor recusa, pra UI mostrar o erro sem derrubar o request.
+   */
+  protected async reentregarWebhookReal(envelopeId: string): Promise<ResultadoReentregaWebhook> {
+    try {
+      const r = await fetch(`${this.baseUrl}/api/v1/docs/${envelopeId}/resend-webhooks/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.token}`,
+        },
+        body: "{}",
+      });
+      if (!r.ok) {
+        const corpo = await r.text().catch(() => "");
+        return {
+          ok: false,
+          mock: false,
+          detalhe: `ZapSign recusou reentrega (HTTP ${r.status}): ${corpo.slice(0, 240)}`,
+        };
+      }
+      return { ok: true, mock: false, detalhe: `ZapSign aceitou reentrega (HTTP ${r.status})` };
+    } catch (e) {
+      return {
+        ok: false,
+        mock: false,
+        detalhe: `falha de rede ao chamar ZapSign: ${(e as Error).message}`,
+      };
+    }
   }
 
   /**

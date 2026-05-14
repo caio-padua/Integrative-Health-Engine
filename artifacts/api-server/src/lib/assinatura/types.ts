@@ -117,6 +117,18 @@ export interface EventoWebhook {
   payload: Record<string, unknown>;
 }
 
+/**
+ * Resultado da reentrega manual do webhook (task #248).
+ * `ok=true` quando o provedor aceitou o pedido (ou quando rodando em modo
+ * mock por falta de credencial). `mock=true` sinaliza pra UI/auditoria que
+ * nenhuma chamada HTTP real foi feita.
+ */
+export interface ResultadoReentregaWebhook {
+  ok: boolean;
+  mock: boolean;
+  detalhe: string;
+}
+
 /** Interface unica que TODOS os provedores implementam (manifesto sec.9). */
 export interface SignatureProviderAdapter {
   readonly codigo: ProvedorCodigo;
@@ -126,4 +138,13 @@ export interface SignatureProviderAdapter {
   getDocumentStatus(envelopeId: string): Promise<StatusDocumento>;
   handleWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<EventoWebhook>;
   downloadSignedArtifact(envelopeId: string): Promise<Buffer>;
+  /**
+   * Task #248 — pede ao provedor pra reentregar o webhook do envelope.
+   * Usado pra destravar manualmente eventos do grupo `aguardando_webhook`
+   * (sentinel `pdf_upload_falhou_sem_manifesto:`) sem o operador precisar
+   * abrir o painel do provedor. Implementacoes que nao suportam reentrega
+   * (ex: provedores sem endpoint dedicado) devem retornar `ok=false` com
+   * `detalhe` explicativo em vez de lancar.
+   */
+  reentregarWebhook(envelopeId: string): Promise<ResultadoReentregaWebhook>;
 }

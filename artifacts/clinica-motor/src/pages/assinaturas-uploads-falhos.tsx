@@ -18,6 +18,7 @@ import {
   RotateCcw,
   X,
   Flame,
+  Send,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -42,6 +43,13 @@ type EventoFalho = {
   ultimo_reset_em: string | null;
   ultimo_reset_por: string | null;
   ultimo_reset_motivo: string | null;
+  // Task #248 — cache do ultimo pedido manual de reentrega de webhook
+  // (botao "Pedir reentrega ao ZapSign" so disponivel no grupo
+  // aguardando_webhook). UI esconde/desabilita o botao por 5min apos o
+  // ultimo pedido pra evitar spam contra a API ZapSign.
+  ultima_reentrega_solicitada_em: string | null;
+  ultima_reentrega_solicitada_por: string | null;
+  ultima_reentrega_resultado: string | null;
   sol_id: number | null;
   sol_status: string | null;
   paciente_id: number | null;
@@ -196,6 +204,15 @@ export default function AssinaturasUploadsFalhos() {
   const [erro, setErro] = useState<string | null>(null);
   const [retentando, setRetentando] = useState(false);
   const [resetandoId, setResetandoId] = useState<number | null>(null);
+  // Task #248 — controla qual evento esta com pedido de reentrega em voo
+  // (desabilita o botao + mostra spinner). Reentregas posteriores sao
+  // bloqueadas server-side por 5min (anti-spam ZapSign).
+  const [reentregandoId, setReentregandoId] = useState<number | null>(null);
+  const [reentregaMsg, setReentregaMsg] = useState<{
+    eventoId: number;
+    ok: boolean;
+    texto: string;
+  } | null>(null);
   const [ultimoRetry, setUltimoRetry] = useState<{
     tentados: number;
     sucesso: number;
@@ -293,6 +310,41 @@ export default function AssinaturasUploadsFalhos() {
       setErro((e as Error).message);
     } finally {
       setResetandoId(null);
+    }
+  }
+
+  // Task #248 — pede ao ZapSign pra reentregar o webhook do envelope.
+  // Endpoint server-side bloqueia spam (< 5min) e atualiza o cache no
+  // proprio evento, entao basta recarregar pra refletir o novo estado.
+  async function reentregarWebhook(eventoId: number) {
+    setReentregandoId(eventoId);
+    setReentregaMsg(null);
+    setErro(null);
+    try {
+      const r = await apiFetch(
+        `/api/assinaturas/uploads-falhos/${eventoId}/reentregar-webhook`,
+        { method: "POST", credentials: "include" },
+      );
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const msg = j.error || `HTTP ${r.status}`;
+        setReentregaMsg({ eventoId, ok: false, texto: msg });
+      } else {
+        const detalhe = j.detalhe || (j.mock ? "mock" : "ok");
+        const canc = j.notificacoes_ceo_canceladas ?? 0;
+        setReentregaMsg({
+          eventoId,
+          ok: true,
+          texto: `Reentrega pedida ao ZapSign. ${detalhe}${
+            canc > 0 ? ` · ${canc} alerta(s) CEO marcado(s) como tratado(s).` : ""
+          }`,
+        });
+      }
+      await carregar();
+    } catch (e) {
+      setReentregaMsg({ eventoId, ok: false, texto: (e as Error).message });
+    } finally {
+      setReentregandoId(null);
     }
   }
 
@@ -761,6 +813,79 @@ export default function AssinaturasUploadsFalhos() {
                           <span className="text-xs italic text-zinc-400">
                             sem solicitacao
                           </span>
+                        )}
+                        {/* Task #248 — botao de reentrega manual ZapSign no
+                            grupo aguardando_webhook. Server bloqueia por
+                            5min apos cada pedido (anti-spam). */}
+                        {r.status_retry === "aguardando_webhook" && (() => {
+                          const ultimaIso = r.ultima_reentrega_solicitada_em;
+                          const desdeMs = ultimaIso
+                            ? Date.now() - new Date(ultimaIso).getTime()
+                            : null;
+                          const bloqueado =
+                            desdeMs != null && desdeMs >= 0 && desdeMs < 5 * 60 * 1000;
+                          const restanteSeg = bloqueado
+                            ? Math.ceil((5 * 60 * 1000 - (desdeMs ?? 0)) / 1000)
+                            : 0;
+                          const tip = bloqueado
+                            ? `Reentrega ja foi pedida ha ${Math.round(
+                                (desdeMs ?? 0) / 1000,
+                              )}s${
+                                r.ultima_reentrega_solicitada_por
+                                  ? ` por ${r.ultima_reentrega_solicitada_por}`
+                                  : ""
+                              }. Aguarde ${restanteSeg}s. ZapSign reenvia em segundos.${
+                                r.ultima_reentrega_resultado
+                                  ? `\n${r.ultima_reentrega_resultado}`
+                                  : ""
+                              }`
+                            : `Pede ao ZapSign pra reentregar o webhook deste envelope (POST resend-webhooks). Use quando o evento estiver preso aguardando manifesto.${
+                                r.ultima_reentrega_resultado
+                                  ? `\nUltimo resultado: ${r.ultima_reentrega_resultado}`
+                                  : ""
+                              }`;
+                          return (
+                            <button
+                              onClick={() => reentregarWebhook(r.id)}
+                              disabled={
+                                reentregandoId === r.id ||
+                                bloqueado ||
+                                retentando
+                              }
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold border transition disabled:opacity-50"
+                              style={{
+                                background: "#FEF9E7",
+                                color: NAVY,
+                                borderColor: GOLD,
+                              }}
+                              title={tip}
+                              data-testid={`btn-reentregar-webhook-${r.id}`}
+                            >
+                              <Send
+                                size={10}
+                                className={
+                                  reentregandoId === r.id ? "animate-pulse" : ""
+                                }
+                              />
+                              {reentregandoId === r.id
+                                ? "Pedindo..."
+                                : bloqueado
+                                  ? `Aguarde ${restanteSeg}s`
+                                  : "Pedir reentrega ao ZapSign"}
+                            </button>
+                          );
+                        })()}
+                        {/* Task #248 — feedback inline (sucesso ou erro) do
+                            ultimo pedido de reentrega pra esta linha. */}
+                        {reentregaMsg?.eventoId === r.id && (
+                          <div
+                            className="text-[10px] mt-1 text-left max-w-[200px] break-words"
+                            style={{
+                              color: reentregaMsg.ok ? GREEN : RED,
+                            }}
+                          >
+                            {reentregaMsg.texto}
+                          </div>
                         )}
                         {(r.status_retry === "esgotado" ||
                           r.status_retry === "fora_janela") && (

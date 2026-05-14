@@ -1831,6 +1831,9 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (req: Request, res:
         e.ultimo_reset_em,
         e.ultimo_reset_por,
         e.ultimo_reset_motivo,
+        e.ultima_reentrega_solicitada_em,
+        e.ultima_reentrega_solicitada_por,
+        e.ultima_reentrega_resultado,
         sol.id            AS sol_id,
         sol.status        AS sol_status,
         sol.paciente_id,
@@ -2119,6 +2122,153 @@ router.post("/assinaturas/uploads-falhos/:eventoId/resetar", guardMaster, async 
     res.status(500).json({ error: (err as Error).message });
   }
 });
+
+/**
+ * POST /api/assinaturas/uploads-falhos/:eventoId/reentregar-webhook — task #248
+ *
+ * Pede ao provedor (ZapSign) pra reentregar o webhook do envelope quando o
+ * evento ficou preso no grupo `aguardando_webhook` (sentinel
+ * `pdf_upload_falhou_sem_manifesto:`). Hoje, quando o alerta CEO da task #67
+ * dispara, o operador precisa abrir o painel ZapSign manualmente e pedir
+ * reenvio do webhook na unha. Esta rota fecha o loop direto pelo painel.
+ *
+ * Operacao:
+ *   1. Valida que o evento esta no estado `aguardando_webhook` (so esses
+ *      sao reentregaveis — outros estados precisam de outra acao).
+ *   2. Anti-spam: bloqueia reentregas em janela < 5min do ultimo pedido
+ *      (a propria API ZapSign rate-limita; alem disso o reenvio chega em
+ *      segundos, entao spam imediato so polui auditoria).
+ *   3. Chama `adapter.reentregarWebhook(envelope_id)` (defensivo: nunca
+ *      lanca, retorna `ok=false` com detalhe quando o provedor recusa).
+ *   4. Grava `ultima_reentrega_solicitada_em/_por/_resultado` no evento
+ *      pra trilha de auditoria + UI esconder o botao logo apos o pedido.
+ *   5. Em caso de sucesso, marca como ENVIADO as notificacoes CEO PENDENTE
+ *      (momento='UPLOAD_PDF_AGUARDANDO_WEBHOOK', webhook_evento_id) — o
+ *      alerta foi tratado, nao precisa ir pro e-mail/WhatsApp.
+ *
+ * Body: nenhum (no-op). Mesmo gate master das demais rotas Wave 10.
+ *
+ * Resposta: { ok, evento_id, envelope_id, provedor, mock, detalhe,
+ *             notificacoes_ceo_canceladas }
+ */
+router.post(
+  "/assinaturas/uploads-falhos/:eventoId/reentregar-webhook",
+  guardMaster,
+  async (req: Request, res: Response) => {
+    try {
+      const eventoId = Number(req.params["eventoId"]);
+      if (!Number.isFinite(eventoId)) {
+        res.status(400).json({ error: "eventoId invalido" });
+        return;
+      }
+      const operador =
+        ((req.user as any)?.email as string | undefined) ||
+        ((req.user as any)?.nome as string | undefined) ||
+        "(desconhecido)";
+
+      const ev: any = await db.execute(sql`
+        SELECT id, provedor_codigo, envelope_id, erro_processamento,
+               ultima_reentrega_solicitada_em
+        FROM assinatura_webhook_eventos
+        WHERE id = ${eventoId}
+        LIMIT 1
+      `);
+      const evRow = ((ev.rows ?? ev) as Array<{
+        id: number;
+        provedor_codigo: string;
+        envelope_id: string | null;
+        erro_processamento: string | null;
+        ultima_reentrega_solicitada_em: string | Date | null;
+      }>)[0];
+      if (!evRow) {
+        res.status(404).json({ error: "Evento nao encontrado" });
+        return;
+      }
+      if (
+        !evRow.erro_processamento ||
+        !/^pdf_upload_falhou_sem_manifesto/.test(evRow.erro_processamento)
+      ) {
+        res.status(409).json({
+          error:
+            "Evento nao esta no grupo `aguardando_webhook`. Reentrega manual so faz sentido pra eventos com sentinel `pdf_upload_falhou_sem_manifesto:`.",
+          erro_atual: evRow.erro_processamento,
+        });
+        return;
+      }
+      if (!evRow.envelope_id) {
+        res.status(409).json({
+          error:
+            "Evento sem envelope_id — impossivel pedir reentrega ao provedor. Inspecione manualmente no painel.",
+        });
+        return;
+      }
+
+      // Anti-spam: 5min entre reentregas. ZapSign reenvia em segundos.
+      if (evRow.ultima_reentrega_solicitada_em) {
+        const ultima = new Date(evRow.ultima_reentrega_solicitada_em);
+        const desdeMs = Date.now() - ultima.getTime();
+        if (Number.isFinite(desdeMs) && desdeMs >= 0 && desdeMs < 5 * 60 * 1000) {
+          const restanteSeg = Math.ceil((5 * 60 * 1000 - desdeMs) / 1000);
+          res.status(429).json({
+            error: `Reentrega ja foi pedida ha ${Math.round(desdeMs / 1000)}s. Aguarde ${restanteSeg}s antes de pedir de novo (ZapSign reenvia em segundos).`,
+            codigo: "REENTREGA_RECENTE",
+            ultima_reentrega_solicitada_em: ultima.toISOString(),
+          });
+          return;
+        }
+      }
+
+      const { getAdapter } = await import("../lib/assinatura/adapters.js");
+      const adapter = getAdapter(evRow.provedor_codigo as any);
+      const resultado = await adapter.reentregarWebhook(evRow.envelope_id);
+
+      const detalhe = (resultado.detalhe || "").slice(0, 500);
+      await db.execute(sql`
+        UPDATE assinatura_webhook_eventos
+        SET ultima_reentrega_solicitada_em = NOW(),
+            ultima_reentrega_solicitada_por = ${operador},
+            ultima_reentrega_resultado = ${
+              resultado.ok
+                ? resultado.mock
+                  ? `mock: ${detalhe}`
+                  : `ok: ${detalhe}`
+                : `erro: ${detalhe}`
+            }
+        WHERE id = ${eventoId}
+      `);
+
+      let notificacoesCanceladas = 0;
+      if (resultado.ok) {
+        // Marca alerta CEO como tratado: as notificacoes PENDENTE pra esse
+        // evento sao silenciadas (o operador acabou de agir). Reuso do
+        // status PULADO_QUIET (worker `notifAssinatura` ja sabe ignorar)
+        // pra nao precisar estender o CHECK constraint.
+        const upd: any = await db.execute(sql`
+          UPDATE assinatura_notificacoes
+          SET status = 'PULADO_QUIET'
+          WHERE webhook_evento_id = ${eventoId}
+            AND momento = 'UPLOAD_PDF_AGUARDANDO_WEBHOOK'
+            AND status = 'PENDENTE'
+          RETURNING id
+        `);
+        notificacoesCanceladas = ((upd.rows ?? upd) as Array<unknown>).length;
+      }
+
+      res.status(resultado.ok ? 200 : 502).json({
+        ok: resultado.ok,
+        evento_id: eventoId,
+        envelope_id: evRow.envelope_id,
+        provedor: evRow.provedor_codigo,
+        mock: resultado.mock,
+        detalhe: resultado.detalhe,
+        operador,
+        notificacoes_ceo_canceladas: notificacoesCanceladas,
+      });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  },
+);
 
 /**
  * GET /api/assinaturas/uploads-falhos/:eventoId/resets — task #196
