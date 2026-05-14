@@ -1827,6 +1827,60 @@ router.get(
   },
 );
 
+// ───── SERIE TEMPORAL ALERTAS KILLSWITCH EMAILS (Task #262) ────────────
+// GET /api/plataforma/alertas-killswitch-emails/serie — agregador por dia
+// das ultimas 4 semanas (28 dias) pra mini-grafico de tendencia no topo da
+// tela. Devolve tambem comparativo "essa semana vs semana anterior" pra UI
+// indicar se ta piorando antes de scrollar a tabela.
+router.get(
+  "/plataforma/alertas-killswitch-emails/serie",
+  ...guardas,
+  async (_req, res): Promise<void> => {
+    // 28 dias de janela (4 semanas). generate_series garante zero-fill nos
+    // dias sem alerta (LEFT JOIN no aggregate). Buckets em BRT pra alinhar
+    // com a tabela exibida na UI.
+    const result = await db.execute(sql`
+      WITH dias AS (
+        SELECT generate_series(
+          (now() AT TIME ZONE 'America/Sao_Paulo')::date - 27,
+          (now() AT TIME ZONE 'America/Sao_Paulo')::date,
+          interval '1 day'
+        )::date AS dia
+      )
+      SELECT
+        d.dia,
+        COALESCE(COUNT(a.id), 0)::int AS total
+      FROM dias d
+      LEFT JOIN alertas_ceo_killswitch_emails a
+        ON (a.criado_em AT TIME ZONE 'America/Sao_Paulo')::date = d.dia
+      GROUP BY d.dia
+      ORDER BY d.dia ASC
+    `);
+    const serie = (result.rows ?? []).map((r) => ({
+      dia: String(r["dia"]).slice(0, 10),
+      total: Number(r["total"] ?? 0),
+    }));
+    // Comparativo essa semana (ultimos 7 dias) vs semana anterior (8..14)
+    const ultimos7 = serie.slice(-7).reduce((s, p) => s + p.total, 0);
+    const anteriores7 = serie.slice(-14, -7).reduce((s, p) => s + p.total, 0);
+    const variacaoPct =
+      anteriores7 === 0
+        ? ultimos7 > 0
+          ? null // nada na semana passada e algo essa semana → variacao infinita; UI mostra "novo"
+          : 0
+        : Math.round(((ultimos7 - anteriores7) / anteriores7) * 1000) / 10;
+    res.json({
+      serie,
+      janela_dias: 28,
+      comparativo: {
+        ultimos_7d: ultimos7,
+        anteriores_7d: anteriores7,
+        variacao_pct: variacaoPct,
+      },
+    });
+  },
+);
+
 // ─────────── HISTORICO AVISOS CARENCIA LGPD CLINICA (Task #257) ────────
 // GET /api/plataforma/notif-carencia-lgpd-clinicas — lista os ultimos N
 // envios do worker `avisoVencimentoCarenciaLgpd` (Task #135) gravados em

@@ -16,7 +16,18 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 type Alerta = {
   id: number;
@@ -73,12 +84,30 @@ function formatarPct(v: string | number | null): string {
   return `${n.toFixed(1)}%`;
 }
 
+type SeriePonto = { dia: string; total: number };
+type SerieResposta = {
+  serie: SeriePonto[];
+  janela_dias: number;
+  comparativo: {
+    ultimos_7d: number;
+    anteriores_7d: number;
+    variacao_pct: number | null;
+  };
+};
+
+function formatarDiaCurto(iso: string): string {
+  // "2026-05-14" -> "14/05"
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
+
 export default function PlataformaAlertasKillswitchEmails() {
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
   const [filtroMotivo, setFiltroMotivo] = useState<string>("todos");
+  const [serie, setSerie] = useState<SerieResposta | null>(null);
   const { runWithStepUp, openStepUp, modal: stepUpModal } = usePlatformStepUp();
 
   const carregar = useCallback(async () => {
@@ -88,7 +117,12 @@ export default function PlataformaAlertasKillswitchEmails() {
     if (filtroMotivo !== "todos") params.set("motivo", filtroMotivo);
     if (filtroUnidade !== "todas") params.set("unidade_id", filtroUnidade);
     const url = `/api/plataforma/alertas-killswitch-emails?${params.toString()}`;
-    const r = await runWithStepUp(() => apiFetch(url, { credentials: "include" }));
+    // Sequencial (NAO Promise.all): usePlatformStepUp tem slot unico de
+    // requisicao pendente, entao 2 chamadas concorrentes que cairem em
+    // 2FA_EXPIRADO sobrescrevem o resolver e travam uma das promises.
+    const r = await runWithStepUp(() =>
+      apiFetch(url, { credentials: "include" }),
+    );
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
       setErro(j.error ?? `Falha ao carregar (${r.status})`);
@@ -97,6 +131,15 @@ export default function PlataformaAlertasKillswitchEmails() {
     }
     const j = await r.json();
     setAlertas(Array.isArray(j.alertas) ? j.alertas : []);
+    const rSerie = await runWithStepUp(() =>
+      apiFetch("/api/plataforma/alertas-killswitch-emails/serie", {
+        credentials: "include",
+      }),
+    );
+    if (rSerie.ok) {
+      const js = (await rSerie.json().catch(() => null)) as SerieResposta | null;
+      if (js && Array.isArray(js.serie)) setSerie(js);
+    }
     setLoading(false);
   }, [filtroMotivo, filtroUnidade, runWithStepUp]);
 
@@ -166,6 +209,119 @@ export default function PlataformaAlertasKillswitchEmails() {
             </button>
           </div>
         </header>
+
+        {/* Task #262 — mini-card de tendencia (4 semanas, comparativo WoW) */}
+        {serie && serie.serie.length > 0 && (
+          <div
+            className="mb-6 bg-zinc-900/50 rounded-lg border border-zinc-800 p-4"
+            data-testid="card-tendencia-killswitch-emails"
+          >
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-[280px]">
+                <div className="text-xs text-zinc-400 uppercase tracking-wide mb-1">
+                  Tendencia · ultimas 4 semanas
+                </div>
+                <div className="flex items-baseline gap-3 flex-wrap">
+                  <div
+                    className="text-3xl font-bold text-zinc-100 font-mono"
+                    data-testid="text-killswitch-ultimos-7d"
+                  >
+                    {serie.comparativo.ultimos_7d}
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    alertas nos ultimos 7 dias
+                  </div>
+                  {(() => {
+                    const v = serie.comparativo.variacao_pct;
+                    const ant = serie.comparativo.anteriores_7d;
+                    if (v === null) {
+                      return (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded border bg-amber-500/15 text-amber-300 border-amber-500/40 text-xs"
+                          data-testid="badge-killswitch-variacao"
+                        >
+                          <TrendingUp size={12} /> novo (semana anterior: 0)
+                        </span>
+                      );
+                    }
+                    if (v === 0) {
+                      return (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded border bg-zinc-700/40 text-zinc-300 border-zinc-600 text-xs"
+                          data-testid="badge-killswitch-variacao"
+                        >
+                          <Minus size={12} /> estavel (vs {ant} sem. ant.)
+                        </span>
+                      );
+                    }
+                    const piorou = v > 0;
+                    const cls = piorou
+                      ? "bg-red-500/15 text-red-300 border-red-500/40"
+                      : "bg-emerald-500/15 text-emerald-300 border-emerald-500/40";
+                    const Icon = piorou ? TrendingUp : TrendingDown;
+                    const sinal = piorou ? "+" : "";
+                    return (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-xs ${cls}`}
+                        data-testid="badge-killswitch-variacao"
+                      >
+                        <Icon size={12} /> {sinal}
+                        {v.toFixed(1)}% vs sem. ant. ({ant})
+                      </span>
+                    );
+                  })()}
+                </div>
+                <div className="text-[11px] text-zinc-500 mt-1">
+                  Bate o olho aqui antes de scrollar a tabela: pico repentino =
+                  credencial Gmail caiu / threshold subindo.
+                </div>
+              </div>
+              <div
+                className="w-full sm:w-[420px] h-[80px]"
+                data-testid="grafico-killswitch-emails"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={serie.serie}
+                    margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+                  >
+                    <XAxis
+                      dataKey="dia"
+                      tickFormatter={formatarDiaCurto}
+                      tick={{ fontSize: 9, fill: "#71717a" }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={6}
+                    />
+                    <RechartsTooltip
+                      cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                      contentStyle={{
+                        background: "#18181b",
+                        border: "1px solid #3f3f46",
+                        borderRadius: 4,
+                        fontSize: 11,
+                      }}
+                      labelFormatter={(l: string) => formatarDiaCurto(l)}
+                      formatter={(v: number) => [`${v} alertas`, "Total"]}
+                    />
+                    <Bar dataKey="total" radius={[2, 2, 0, 0]}>
+                      {serie.serie.map((p, i) => {
+                        const ehUltimos7 = i >= serie.serie.length - 7;
+                        const cor =
+                          p.total === 0
+                            ? "#3f3f46"
+                            : ehUltimos7
+                              ? "#f59e0b"
+                              : "#52525b";
+                        return <Cell key={p.dia} fill={cor} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
 
         {erro && (
           <div className="mb-4 p-4 bg-red-500/10 border border-red-500/40 rounded text-red-300 flex items-start gap-2">
