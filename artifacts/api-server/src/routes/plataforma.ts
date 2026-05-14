@@ -228,7 +228,8 @@ type RegistroAviso = {
     | "REATIVACAO"
     | "REENVIO_SUSPENSAO"
     | "REENVIO_REATIVACAO"
-    | "SUSPENSAO_PACIENTES";
+    | "SUSPENSAO_PACIENTES"
+    | "REENVIO_SUSPENSAO_PACIENTES";
   // Canal de envio. Default "EMAIL" pra retrocompat com registros antigos
   // gravados antes da Task #176, quando so email era persistido na auditoria.
   canal?: "EMAIL" | "WHATSAPP";
@@ -252,6 +253,18 @@ type RegistroAviso = {
   // pros que falharam na ultima tentativa). Permite a UI mostrar "reenvio
   // parcial" e auditar exatamente o escopo da retentativa.
   apenas_falhas?: boolean;
+  // Task #183 — detalhe por paciente avisado (so populado em registros
+  // SUSPENSAO_PACIENTES e REENVIO_SUSPENSAO_PACIENTES). Permite o reenvio
+  // pular pacientes ja entregues com sucesso em tentativas anteriores.
+  detalhes_pacientes?: Array<{
+    pacienteId: number;
+    pacienteNome: string;
+    emailTentado: boolean;
+    emailSucesso: boolean;
+    whatsappTentado: boolean;
+    whatsappSucesso: boolean;
+    semContato: boolean;
+  }>;
 };
 
 async function anexarAvisoEmAuditoria(
@@ -497,7 +510,7 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
   // SUSPENSA), pra evitar spammear pacientes em re-POST do endpoint.
   // Best-effort, fora da transacao. Resultado vai pra metadata.avisos[]
   // da auditoria pra que o platform_owner consiga ver no painel.
-  let pacientesRes = {
+  let pacientesRes: import("../lib/notificacoes/avisarPacientesSuspensao").ResultadoAvisoPacientes = {
     pacientesAvisados: 0,
     emailEnviados: 0,
     emailFalhas: 0,
@@ -506,7 +519,9 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
     whatsappViaHsm: 0,
     whatsappViaTextoLivre: 0,
     pacientesSemContato: 0,
+    pacientesPulados: 0,
     janelaDias: 0,
+    detalhesPacientes: [],
   };
   let pacientesErro: string | null = null;
   if (transicaoEfetiva) {
@@ -531,6 +546,7 @@ router.post("/plataforma/clinicas/:id/suspender", ...guardas, async (req, res): 
       em: new Date().toISOString(),
       executado_por_usuario_id: actor.userId,
       detalhes: { ...pacientesRes, transicao_efetiva: true },
+      detalhes_pacientes: pacientesRes.detalhesPacientes,
     });
   } else {
     req.log?.info(
@@ -1226,6 +1242,128 @@ router.post(
       `);
     }
     res.json({ ok: true, email: emailRes, erro: emailErro, apenasFalhas });
+  },
+);
+
+// POST /api/plataforma/auditoria/:eventoId/reenviar-avisos-pacientes
+// Task #183 — Reenvia o aviso de remarcacao pra pacientes da unidade
+// suspensa, PULANDO os pacientes que ja receberam com sucesso (email OU
+// whatsapp) em alguma tentativa anterior do MESMO evento de suspensao.
+//
+// Diferente do reenvio pra responsaveis (REENVIO_SUSPENSAO acima), aqui
+// a idempotencia e por (paciente_id, evento_de_suspensao): o set de
+// "ja entregues" e reconstruido lendo metadata.avisos[] do evento e
+// agregando os detalhes_pacientes de cada SUSPENSAO_PACIENTES /
+// REENVIO_SUSPENSAO_PACIENTES anterior. Quem nao tem detalhes_pacientes
+// (registro antigo, anterior a Task #183) nao bloqueia o reenvio — o
+// motor reaviso vai consultar a janela atual de proximas consultas e
+// disparar pra todos que ainda nao tem sucesso registrado.
+router.post(
+  "/plataforma/auditoria/:eventoId/reenviar-avisos-pacientes",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const eventoId = Number(req.params.eventoId);
+    if (!Number.isInteger(eventoId) || eventoId <= 0) {
+      res.status(400).json({ error: "eventoId invalido" }); return;
+    }
+    const evRes = await db.execute(sql`
+      SELECT id, acao, unidade_id, motivo, criado_em,
+             COALESCE(metadata->'avisos', '[]'::jsonb) AS avisos
+        FROM auditoria_kill_switch
+       WHERE id = ${eventoId}
+       LIMIT 1
+    `);
+    const evento = evRes.rows[0] as
+      | {
+          id: number; acao: string; unidade_id: number;
+          motivo: string | null; criado_em: string;
+          avisos: RegistroAviso[];
+        }
+      | undefined;
+    if (!evento) { res.status(404).json({ error: "Evento nao encontrado" }); return; }
+    if (evento.acao !== "SUSPENDER") {
+      res.status(400).json({
+        error: "Reenvio pra pacientes so suportado em eventos SUSPENDER",
+        acao_evento: evento.acao,
+      });
+      return;
+    }
+    const [unidade] = await db.select().from(unidadesTable)
+      .where(eq(unidadesTable.id, evento.unidade_id));
+    if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+
+    // Reconstroi o set de pacientes ja entregues lendo TODOS os registros
+    // de paciente do evento (SUSPENSAO_PACIENTES + reenvios anteriores).
+    // "Entregue" = email OU whatsapp com sucesso em qualquer tentativa.
+    const pularPacienteIds = new Set<number>();
+    for (const av of evento.avisos ?? []) {
+      if (av.tipo !== "SUSPENSAO_PACIENTES" && av.tipo !== "REENVIO_SUSPENSAO_PACIENTES") {
+        continue;
+      }
+      for (const dp of av.detalhes_pacientes ?? []) {
+        if (dp.emailSucesso || dp.whatsappSucesso) {
+          pularPacienteIds.add(dp.pacienteId);
+        }
+      }
+    }
+
+    const actor = getActor(req);
+    let pacientesRes: import("../lib/notificacoes/avisarPacientesSuspensao").ResultadoAvisoPacientes = {
+      pacientesAvisados: 0,
+      emailEnviados: 0,
+      emailFalhas: 0,
+      whatsappEnviados: 0,
+      whatsappFalhas: 0,
+      whatsappViaHsm: 0,
+      whatsappViaTextoLivre: 0,
+      pacientesSemContato: 0,
+      pacientesPulados: 0,
+      janelaDias: 0,
+      detalhesPacientes: [],
+    };
+    let pacientesErro: string | null = null;
+    try {
+      pacientesRes = await avisarPacientesSuspensao({
+        unidadeId: evento.unidade_id,
+        unidade,
+        suspensoEm: new Date(evento.criado_em),
+        pularPacienteIds,
+      });
+      req.log?.info(
+        { eventoId, pulados: pularPacienteIds.size, ...pacientesRes },
+        "[plataforma] reenvio aviso pacientes executado",
+      );
+    } catch (err) {
+      pacientesErro = err instanceof Error ? err.message : String(err);
+      req.log?.warn({ err, eventoId }, "[plataforma] falha reenvio aviso pacientes");
+    }
+
+    await anexarAvisoEmAuditoria(
+      evento.unidade_id,
+      "SUSPENDER",
+      {
+        tipo: "REENVIO_SUSPENSAO_PACIENTES",
+        destinatarios: [],
+        enviados: pacientesRes.emailEnviados + pacientesRes.whatsappEnviados,
+        falhas: pacientesRes.emailFalhas + pacientesRes.whatsappFalhas,
+        erro: pacientesErro,
+        em: new Date().toISOString(),
+        executado_por_usuario_id: actor.userId,
+        detalhes: {
+          ...pacientesRes,
+          pacientes_pulados_por_idempotencia: pularPacienteIds.size,
+        },
+        detalhes_pacientes: pacientesRes.detalhesPacientes,
+      },
+      eventoId,
+    );
+
+    res.json({
+      ok: true,
+      pacientes: pacientesRes,
+      pulados_por_idempotencia: pularPacienteIds.size,
+      erro: pacientesErro,
+    });
   },
 );
 

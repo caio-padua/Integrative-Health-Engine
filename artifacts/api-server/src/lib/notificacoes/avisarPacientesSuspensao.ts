@@ -186,6 +186,20 @@ export async function buscarPacientesComConsultaProxima(
   }));
 }
 
+// Detalhe por paciente — gravado em metadata.avisos[].detalhes_pacientes
+// pra que o reenvio (Task #183) possa pular quem ja recebeu com sucesso
+// em alguma tentativa anterior. "Sucesso" = email OU whatsapp entregue
+// (qualquer canal serve pra avisar o paciente).
+export type DetalhePacienteAviso = {
+  pacienteId: number;
+  pacienteNome: string;
+  emailTentado: boolean;
+  emailSucesso: boolean;
+  whatsappTentado: boolean;
+  whatsappSucesso: boolean;
+  semContato: boolean;
+};
+
 export type ResultadoAvisoPacientes = {
   pacientesAvisados: number;
   emailEnviados: number;
@@ -195,7 +209,9 @@ export type ResultadoAvisoPacientes = {
   whatsappViaHsm: number;
   whatsappViaTextoLivre: number;
   pacientesSemContato: number;
+  pacientesPulados: number;
   janelaDias: number;
+  detalhesPacientes: DetalhePacienteAviso[];
 };
 
 /**
@@ -211,10 +227,17 @@ export async function avisarPacientesSuspensao(opts: {
   unidade: Unidade;
   suspensoEm: Date;
   janelaDias?: number;
+  /**
+   * Task #183 — IDs de pacientes pra PULAR (idempotencia do reenvio).
+   * Quando o caller ja sabe que esses pacientes receberam o aviso com
+   * sucesso em uma tentativa anterior, passa o set pra evitar spam.
+   */
+  pularPacienteIds?: ReadonlySet<number>;
 }): Promise<ResultadoAvisoPacientes> {
   const dias = normalizarJanelaDias(opts.janelaDias ?? JANELA_DIAS_DEFAULT);
   const consultas = await buscarPacientesComConsultaProxima(opts.unidadeId, dias);
   const subject = `[PAWARDS] Sua consulta na ${opts.unidade.nome} precisara ser remarcada`;
+  const pular = opts.pularPacienteIds ?? new Set<number>();
 
   const resultado: ResultadoAvisoPacientes = {
     pacientesAvisados: 0,
@@ -225,7 +248,9 @@ export async function avisarPacientesSuspensao(opts: {
     whatsappViaHsm: 0,
     whatsappViaTextoLivre: 0,
     pacientesSemContato: 0,
+    pacientesPulados: 0,
     janelaDias: dias,
+    detalhesPacientes: [],
   };
 
   if (consultas.length === 0) return resultado;
@@ -246,13 +271,31 @@ export async function avisarPacientesSuspensao(opts: {
     const telCanal = c.whatsapp || c.telefone;
     const tem_whatsapp = telefoneValido(telCanal);
 
+    if (pular.has(c.pacienteId)) {
+      resultado.pacientesPulados++;
+      continue;
+    }
+
+    const detalhe: DetalhePacienteAviso = {
+      pacienteId: c.pacienteId,
+      pacienteNome: c.pacienteNome,
+      emailTentado: false,
+      emailSucesso: false,
+      whatsappTentado: false,
+      whatsappSucesso: false,
+      semContato: false,
+    };
+
     if (!tem_email && !tem_whatsapp) {
       resultado.pacientesSemContato++;
+      detalhe.semContato = true;
+      resultado.detalhesPacientes.push(detalhe);
       continue;
     }
     resultado.pacientesAvisados++;
 
     if (tem_email && gmail) {
+      detalhe.emailTentado = true;
       try {
         const html = htmlPaciente({
           pacienteNome: c.pacienteNome,
@@ -264,6 +307,7 @@ export async function avisarPacientesSuspensao(opts: {
         const raw = buildRaw(c.email!, subject, html);
         await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
         resultado.emailEnviados++;
+        detalhe.emailSucesso = true;
       } catch (err) {
         resultado.emailFalhas++;
         logger.warn(
@@ -274,6 +318,7 @@ export async function avisarPacientesSuspensao(opts: {
     }
 
     if (tem_whatsapp) {
+      detalhe.whatsappTentado = true;
       try {
         const mensagem = mensagemWhatsappPaciente({
           pacienteNome: c.pacienteNome,
@@ -295,6 +340,7 @@ export async function avisarPacientesSuspensao(opts: {
         );
         if (r.sucesso) {
           resultado.whatsappEnviados++;
+          detalhe.whatsappSucesso = true;
           if (r.viaHsm) resultado.whatsappViaHsm++;
           if (r.usouFallback) resultado.whatsappViaTextoLivre++;
         } else {
@@ -312,6 +358,8 @@ export async function avisarPacientesSuspensao(opts: {
         );
       }
     }
+
+    resultado.detalhesPacientes.push(detalhe);
   }
 
   return resultado;

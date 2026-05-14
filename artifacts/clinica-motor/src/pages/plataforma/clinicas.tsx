@@ -28,7 +28,13 @@ type PreviaDestinatarios = {
 };
 
 type RegistroAviso = {
-  tipo: "SUSPENSAO" | "REATIVACAO" | "REENVIO_SUSPENSAO" | "REENVIO_REATIVACAO";
+  tipo:
+    | "SUSPENSAO"
+    | "REATIVACAO"
+    | "REENVIO_SUSPENSAO"
+    | "REENVIO_REATIVACAO"
+    | "SUSPENSAO_PACIENTES"
+    | "REENVIO_SUSPENSAO_PACIENTES";
   // Default "EMAIL" pra registros gravados antes da Task #176.
   canal?: "EMAIL" | "WHATSAPP";
   destinatarios: string[];
@@ -45,6 +51,16 @@ type RegistroAviso = {
     viaHsm: boolean;
     viaTextoLivre: boolean;
     erro: string | null;
+  }>;
+  detalhes?: Record<string, unknown>;
+  detalhes_pacientes?: Array<{
+    pacienteId: number;
+    pacienteNome: string;
+    emailTentado: boolean;
+    emailSucesso: boolean;
+    whatsappTentado: boolean;
+    whatsappSucesso: boolean;
+    semContato: boolean;
   }>;
 };
 
@@ -98,6 +114,7 @@ export default function PlataformaClinicas() {
     Record<number, EventoComAvisos[] | "loading" | "erro">
   >({});
   const [reenviandoEventoId, setReenviandoEventoId] = useState<number | null>(null);
+  const [reenviandoPacientesEventoId, setReenviandoPacientesEventoId] = useState<number | null>(null);
   const [previaSuspensao, setPreviaSuspensao] = useState<{
     clinica: Clinica;
     previa: PreviaDestinatarios;
@@ -266,6 +283,38 @@ export default function PlataformaClinicas() {
     if (!avisosPorClinica[c.id] || avisosPorClinica[c.id] === "erro") {
       await carregarAvisos(c.id);
     }
+  }
+
+  async function reenviarAvisosPacientes(clinicaId: number, eventoId: number) {
+    if (!window.confirm(
+      "Reenviar aviso de remarcacao pra pacientes deste evento de suspensao?\n\n" +
+      "Sao avisados pacientes com consulta nos proximos 14 dias que AINDA NAO\n" +
+      "receberam o aviso (email ou whatsapp) com sucesso em tentativas anteriores.\n" +
+      "Pacientes ja entregues sao automaticamente pulados.",
+    )) return;
+    setReenviandoPacientesEventoId(eventoId);
+    const r = await apiFetch(
+      `/api/plataforma/auditoria/${eventoId}/reenviar-avisos-pacientes`,
+      { method: "POST", credentials: "include" },
+    );
+    setReenviandoPacientesEventoId(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(`Erro: ${j.error ?? r.statusText}`);
+      return;
+    }
+    const j = await r.json();
+    const p = j.pacientes ?? {};
+    alert(
+      `Reenvio aos pacientes concluido.\n\n` +
+      `Pulados (ja entregues): ${j.pulados_por_idempotencia ?? 0}\n` +
+      `Pacientes avisados: ${p.pacientesAvisados ?? 0}\n` +
+      `Email enviados: ${p.emailEnviados ?? 0} (falhas: ${p.emailFalhas ?? 0})\n` +
+      `WhatsApp enviados: ${p.whatsappEnviados ?? 0} (falhas: ${p.whatsappFalhas ?? 0})\n` +
+      `Sem contato: ${p.pacientesSemContato ?? 0}` +
+      (j.erro ? `\n\nErro geral: ${j.erro}` : ""),
+    );
+    await carregarAvisos(clinicaId);
   }
 
   async function reenviarAvisos(clinicaId: number, eventoId: number) {
@@ -568,17 +617,30 @@ export default function PlataformaClinicas() {
                                           por {ev.executor_nome ?? "—"}
                                         </span>
                                       </div>
-                                      {podeReenviar && (
-                                        <button
-                                          disabled={reenviandoEventoId === ev.id}
-                                          onClick={() => void reenviarAvisos(c.id, ev.id)}
-                                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
-                                          title="Reenviar emails de aviso pra todos os destinatarios"
-                                        >
-                                          <Send size={11} />
-                                          {reenviandoEventoId === ev.id ? "reenviando..." : "Reenviar avisos"}
-                                        </button>
-                                      )}
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        {podeReenviar && (
+                                          <button
+                                            disabled={reenviandoEventoId === ev.id}
+                                            onClick={() => void reenviarAvisos(c.id, ev.id)}
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
+                                            title="Reenviar emails de aviso pra responsaveis (e-mails da unidade)"
+                                          >
+                                            <Send size={11} />
+                                            {reenviandoEventoId === ev.id ? "reenviando..." : "Reenviar avisos"}
+                                          </button>
+                                        )}
+                                        {ev.acao === "SUSPENDER" && (
+                                          <button
+                                            disabled={reenviandoPacientesEventoId === ev.id}
+                                            onClick={() => void reenviarAvisosPacientes(c.id, ev.id)}
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 disabled:opacity-50"
+                                            title="Reenviar aviso de remarcacao a pacientes que ainda nao receberam (idempotente)"
+                                          >
+                                            <Send size={11} />
+                                            {reenviandoPacientesEventoId === ev.id ? "reenviando..." : "Reenviar a pacientes"}
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                     {ev.motivo && (
                                       <div className="italic text-zinc-400 mb-2">"{ev.motivo}"</div>
