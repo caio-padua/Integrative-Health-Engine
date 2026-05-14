@@ -1550,8 +1550,22 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
  *
  * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por ordem de matching.
  */
-router.get("/assinaturas/uploads-falhos", guardMaster, async (_req: Request, res: Response) => {
+router.get("/assinaturas/uploads-falhos", guardMaster, async (req: Request, res: Response) => {
   try {
+    // Task #197 — filtro por unidade clinica (mesmo padrao do /timeline,
+    // linhas ~999-1004): rede multi-clinica (Padua + outras) precisa atacar
+    // problemas especificos de cada operacao (bucket cheio so de uma unidade,
+    // credencial revogada so em outra). Quando setado, restringe via
+    // pacientes.unidade_id derivada do JOIN solicitacao -> paciente. Eventos
+    // sem solicitacao/paciente vinculado ficam de fora do filtro (esperado:
+    // eles nao tem unidade pra atribuir).
+    const unidadeIdRaw = req.query["unidade_id"];
+    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
+      ? Number(unidadeIdRaw)
+      : null;
+    const filtroUnidadeWhere = unidadeIdFiltro !== null
+      ? sql` AND p.unidade_id = ${unidadeIdFiltro}`
+      : sql``;
     const r = await db.execute(sql`
       SELECT
         e.id,
@@ -1571,6 +1585,7 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (_req: Request, res
         sol.status        AS sol_status,
         sol.paciente_id,
         p.nome            AS paciente_nome,
+        p.unidade_id      AS paciente_unidade_id,
         t.codigo          AS template_codigo,
         t.nome_exibicao   AS template_nome,
         CASE
@@ -1586,6 +1601,7 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (_req: Request, res
       LEFT JOIN assinatura_templates t ON t.id = sol.template_id
       LEFT JOIN pacientes p            ON p.id = sol.paciente_id
       WHERE e.erro_processamento LIKE 'pdf_upload_falhou%'
+      ${filtroUnidadeWhere}
       ORDER BY e.recebido_em DESC
       LIMIT 200
     `);

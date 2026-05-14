@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/Layout";
 import { apiFetch } from "@/lib/api-fetch";
+import { useClinic } from "@/contexts/ClinicContext";
 import {
   AlertTriangle,
   RefreshCw,
@@ -44,6 +45,7 @@ type EventoFalho = {
   sol_status: string | null;
   paciente_id: number | null;
   paciente_nome: string | null;
+  paciente_unidade_id: number | null;
   template_codigo: string | null;
   template_nome: string | null;
   status_retry: "em_retry" | "esgotado" | "fora_janela" | "aguardando_webhook";
@@ -146,6 +148,11 @@ type TimelineResposta = {
 };
 
 export default function AssinaturasUploadsFalhos() {
+  const {
+    unidadeSelecionada,
+    setUnidadeSelecionada,
+    unidadesDisponiveis,
+  } = useClinic();
   const [data, setData] = useState<Resposta | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -193,7 +200,13 @@ export default function AssinaturasUploadsFalhos() {
     setLoading(true);
     setErro(null);
     try {
-      const r = await apiFetch("/api/assinaturas/uploads-falhos", {
+      // Task #197 — propaga filtro de unidade selecionada (mesmo padrao do
+      // /timeline). Quando "Todas as Clinicas", omite a query string e o
+      // backend devolve a rede inteira.
+      const qs = unidadeSelecionada
+        ? `?unidade_id=${unidadeSelecionada}`
+        : "";
+      const r = await apiFetch(`/api/assinaturas/uploads-falhos${qs}`, {
         credentials: "include",
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -204,7 +217,7 @@ export default function AssinaturasUploadsFalhos() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [unidadeSelecionada]);
 
   useEffect(() => {
     carregar();
@@ -300,7 +313,28 @@ export default function AssinaturasUploadsFalhos() {
               15m / 1h / 6h, max 5x, janela 7d).
             </p>
           </div>
-          <div className="flex flex-col gap-2 nao-imprimir">
+          <div className="flex flex-col gap-2 nao-imprimir items-end">
+            {unidadesDisponiveis.length > 1 && (
+              <select
+                value={unidadeSelecionada ?? ""}
+                onChange={(e) =>
+                  setUnidadeSelecionada(
+                    e.target.value === "" ? null : Number(e.target.value),
+                  )
+                }
+                className="px-3 py-1.5 rounded text-sm font-semibold border bg-white"
+                style={{ color: NAVY, borderColor: GOLD, minWidth: 200 }}
+                title="Filtra os eventos pela unidade clinica do paciente vinculado"
+                disabled={loading || retentando}
+              >
+                <option value="">Todas as clinicas</option>
+                {unidadesDisponiveis.map((u) => (
+                  <option key={u.unidadeId} value={u.unidadeId}>
+                    {u.unidadeNome}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               onClick={carregar}
               className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-semibold transition"
