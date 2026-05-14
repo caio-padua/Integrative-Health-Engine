@@ -331,6 +331,12 @@ router.get(
       emails,
       telefones,
       whatsappVazio: telefones.length === 0,
+      // Task #178: sem email cadastrado pros responsaveis o aviso por
+      // email tambem nao chega — quando WhatsApp tambem esta vazio a
+      // clinica acorda offline sem ninguem saber. Frontend usa esse
+      // sinal pra exigir confirmacao dupla e mostrar alerta vermelho
+      // mais forte.
+      emailVazio: emails.length === 0,
     });
   },
 );

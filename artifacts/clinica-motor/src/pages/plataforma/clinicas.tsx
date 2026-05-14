@@ -15,6 +15,10 @@ type PreviaDestinatarios = {
   emails: string[];
   telefones: string[];
   whatsappVazio: boolean;
+  // Task #178: quando emailVazio === true, NENHUM responsavel da clinica
+  // tem email cadastrado — combinado com whatsappVazio significa que
+  // ninguem vai receber o aviso de suspensao.
+  emailVazio: boolean;
 };
 
 type RegistroAviso = {
@@ -697,9 +701,15 @@ function PreviaSuspensaoModalImpl({
   const ehSuspender = acao === "suspender";
   // Confirmacao dupla obrigatoria APENAS pra SUSPENDER quando nenhum
   // responsavel tem WhatsApp — cenario em que a clinica acorda offline
-  // sem aviso no celular (Task #138). Reativar nao e destrutivo, entao
-  // nao exige confirmacao extra mesmo sem WhatsApp (Task #179).
-  const exigeConfirmacaoExtra = ehSuspender && previa.whatsappVazio;
+  // sem aviso no celular (Task #138). Task #178 estendeu: tambem exige
+  // confirmacao quando NENHUM email esta cadastrado (mesmo cenario:
+  // aviso nao chega em ninguem). Reativar nao e destrutivo, entao nao
+  // exige confirmacao extra mesmo sem WhatsApp/email (Task #179).
+  const exigeConfirmacaoExtra =
+    ehSuspender && (previa.whatsappVazio || previa.emailVazio);
+  // Cenario mais grave: NENHUM canal disponivel — clinica acorda offline
+  // e ninguem (nem por email, nem por WhatsApp) sera avisado.
+  const semNenhumCanal = previa.whatsappVazio && previa.emailVazio;
   const confirmacaoExtraOk =
     !exigeConfirmacaoExtra || confirmacaoExtra.trim().toUpperCase() === "SUSPENDER MESMO ASSIM";
   const podeConfirmar = motivoOk && confirmacaoExtraOk && !desabilitado;
@@ -746,9 +756,9 @@ function PreviaSuspensaoModalImpl({
               <div className="flex items-center gap-2 text-zinc-200 font-semibold mb-2">
                 <Mail size={14} /> Emails ({previa.emails.length})
               </div>
-              {previa.emails.length === 0 ? (
-                <div className="text-xs text-amber-300 italic">
-                  Nenhum email cadastrado pros responsaveis desta clinica.
+              {previa.emailVazio ? (
+                <div className="text-xs text-red-300 italic">
+                  Nenhum email cadastrado pros responsaveis desta clinica — o aviso por email NAO chegara em ninguem.
                 </div>
               ) : (
                 <ul className="text-xs text-zinc-300 space-y-1 break-all">
@@ -778,7 +788,35 @@ function PreviaSuspensaoModalImpl({
             </div>
           </div>
 
-          {previa.whatsappVazio && (
+          {semNenhumCanal ? (
+            // Cenario MAIS grave (Task #178): nem email nem WhatsApp tem
+            // destinatario — clinica acorda offline sem ninguem ser
+            // avisado. Vermelho forte pra diferenciar do aviso amarelo
+            // de WhatsApp-vazio-mas-email-ok.
+            <div className="flex items-start gap-2 p-3 rounded border-2 border-red-500/60 bg-red-500/15 text-red-100 text-xs">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <div className="font-semibold mb-1">
+                  Atencao critica: NENHUM canal de aviso disponivel.
+                </div>
+                {ehSuspender
+                  ? "Esta clinica nao tem email NEM WhatsApp cadastrado pros responsaveis — o aviso de suspensao nao chegara em ninguem e a clinica vai acordar offline sem entender o motivo. Cadastre pelo menos um email ou telefone antes de suspender."
+                  : "Esta clinica nao tem email NEM WhatsApp cadastrado pros responsaveis — ninguem sera avisado da reativacao."}
+              </div>
+            </div>
+          ) : previa.emailVazio ? (
+            <div className="flex items-start gap-2 p-3 rounded border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <div className="font-semibold mb-1">
+                  Atencao: lista de email vazia.
+                </div>
+                {ehSuspender
+                  ? "Nenhum responsavel tem email cadastrado — o aviso so chegara via WhatsApp. Considere cadastrar pelo menos um email antes de suspender."
+                  : "Nenhum responsavel vai receber o aviso de reativacao por email — apenas por WhatsApp."}
+              </div>
+            </div>
+          ) : previa.whatsappVazio ? (
             <div className="flex items-start gap-2 p-3 rounded border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs">
               <AlertTriangle size={16} className="shrink-0 mt-0.5" />
               <div>
@@ -790,7 +828,7 @@ function PreviaSuspensaoModalImpl({
                   : "Nenhum responsavel vai receber o aviso de reativacao no celular — apenas por email."}
               </div>
             </div>
-          )}
+          ) : null}
 
           <div>
             <label className="block text-xs text-zinc-400 mb-1">
