@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Activity, Sparkles, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
+import { Activity, Sparkles, ShieldCheck, Loader2, AlertTriangle, Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "E-mail inválido" }),
@@ -24,6 +24,8 @@ export default function Login() {
   const { toast } = useToast();
   const [codigo2fa, setCodigo2fa] = useState("");
   const [verificando2fa, setVerificando2fa] = useState(false);
+  // Task — olhinho mostrar/ocultar senha pra Caio conferir o que digitou.
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   // Task #222 — quando o login aceita codigo de recuperacao, segura o
   // redirecionamento e mostra banner amarelo na propria tela de login.
   // O dono so prossegue depois de clicar "Entendi, continuar".
@@ -292,13 +294,30 @@ export default function Login() {
                       Senha
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        {...field}
-                        className="bg-white border-[var(--pw-marfim)] rounded-none h-11 focus:border-[var(--pw-petroleo)] text-[var(--pw-grafite)]"
-                        data-testid="input-senha"
-                      />
+                      <div className="relative">
+                        <Input
+                          type={mostrarSenha ? "text" : "password"}
+                          placeholder="••••••••"
+                          {...field}
+                          className="bg-white border-[var(--pw-marfim)] rounded-none h-11 pr-11 focus:border-[var(--pw-petroleo)] text-[var(--pw-grafite)]"
+                          data-testid="input-senha"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarSenha((v) => !v)}
+                          aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                          aria-pressed={mostrarSenha}
+                          tabIndex={-1}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-[var(--pw-cinza-bruma)] hover:text-[var(--pw-petroleo)] transition-colors"
+                          data-testid="button-mostrar-senha"
+                        >
+                          {mostrarSenha ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
