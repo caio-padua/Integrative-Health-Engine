@@ -31,6 +31,7 @@
 
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { AGUARDANDO_WEBHOOK_LIMITE_HORAS } from "./pdfRetryUpload.js";
 
 const TICK_MS = 60 * 60 * 1000; // 60min
 const HORA_EXEC_BRT = 8; // 08:00 BRT (Brasilia, UTC-3 sem DST)
@@ -48,6 +49,9 @@ interface EventoEsgotado {
   solicitacao_id: number | null;
   template_nome: string | null;
   paciente_nome: string | null;
+  // Task #393 — quantas horas o evento esta preso (NOW() - ultima_tentativa_em
+  // ou recebido_em). Mesma convencao que /assinaturas/uploads-falhos (task #247).
+  preso_ha_horas: number | null;
 }
 
 function nowBrtHour(): number {
@@ -75,7 +79,15 @@ async function buscarEventosEsgotados24h(): Promise<EventoEsgotado[]> {
       e.erro_processamento                  AS motivo,
       s.id                                  AS solicitacao_id,
       t.nome_exibicao                       AS template_nome,
-      p.nome                                AS paciente_nome
+      p.nome                                AS paciente_nome,
+      -- Task #393 — tempo preso em horas decimais (mesma convencao do
+      -- endpoint /api/assinaturas/uploads-falhos da task #247). Usa
+      -- COALESCE pra cobrir eventos cuja ultima_tentativa_em ainda eh NULL
+      -- (situacao rara — esgotado sem nenhuma tentativa marcada).
+      ROUND(
+        EXTRACT(EPOCH FROM (NOW() - COALESCE(e.ultima_tentativa_em, e.recebido_em)))::numeric / 3600.0,
+        1
+      )::float8                              AS preso_ha_horas
     FROM assinatura_webhook_eventos e
     LEFT JOIN assinatura_solicitacoes s
       ON s.provedor_envelope_id = e.envelope_id
@@ -88,7 +100,10 @@ async function buscarEventosEsgotados24h(): Promise<EventoEsgotado[]> {
     ORDER BY e.ultima_tentativa_em ASC
     LIMIT 500
   `);
-  return ((r.rows ?? r) as EventoEsgotado[]);
+  return ((r.rows ?? r) as EventoEsgotado[]).map((ev) => ({
+    ...ev,
+    preso_ha_horas: ev.preso_ha_horas != null ? Number(ev.preso_ha_horas) : null,
+  }));
 }
 
 async function buscarTextoInstitucional(): Promise<{ assunto: string; corpo: string } | null> {
