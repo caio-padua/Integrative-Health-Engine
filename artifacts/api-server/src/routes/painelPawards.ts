@@ -678,6 +678,115 @@ router.get("/agenda-hoje", async (req, res) => {
 });
 
 // ===========================================================================
+// 11A.1) AGENDA HOJE — resumo rápido por paciente (popover na linha da agenda)
+// ===========================================================================
+router.get("/agenda-hoje/paciente-resumo/:id", async (req, res) => {
+  try {
+    if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+    const pacienteId = Number(req.params.id);
+    if (!Number.isFinite(pacienteId) || pacienteId <= 0) {
+      res.status(400).json({ error: "paciente_id invalido" });
+      return;
+    }
+
+    const dadosPaciente = await pool.query(
+      `SELECT id, nome, alergias, condicoes_clinicas, medicamentos_continuos, gestante
+         FROM pacientes
+        WHERE id = $1
+        LIMIT 1`,
+      [pacienteId],
+    );
+    if (dadosPaciente.rows.length === 0) {
+      res.status(404).json({ error: "paciente nao encontrado" });
+      return;
+    }
+    const p = dadosPaciente.rows[0];
+
+    interface ConsultaResumoRow {
+      data: string;
+      hora_inicio: string;
+      tipo_procedimento: string | null;
+      status: string | null;
+      unidade: string | null;
+    }
+    const ultima = await pool.query<ConsultaResumoRow>(
+      `SELECT a.data, a.hora_inicio, a.tipo_procedimento, a.status,
+              COALESCE(un.nick, un.nome) AS unidade
+         FROM appointments a
+         LEFT JOIN unidades un ON un.id = a.unidade_id
+        WHERE a.paciente_id = $1
+          AND (a.data::date < CURRENT_DATE
+               OR (a.data::date = CURRENT_DATE AND a.status IN ('concluido','cancelado')))
+        ORDER BY a.data::date DESC, a.hora_inicio DESC
+        LIMIT 1`,
+      [pacienteId],
+    );
+
+    const proxima = await pool.query<ConsultaResumoRow>(
+      `SELECT a.data, a.hora_inicio, a.tipo_procedimento, a.status,
+              COALESCE(un.nick, un.nome) AS unidade
+         FROM appointments a
+         LEFT JOIN unidades un ON un.id = a.unidade_id
+        WHERE a.paciente_id = $1
+          AND a.status NOT IN ('concluido','cancelado')
+          AND (a.data::date > CURRENT_DATE
+               OR (a.data::date = CURRENT_DATE AND a.hora_inicio > TO_CHAR(now(), 'HH24:MI')))
+        ORDER BY a.data::date ASC, a.hora_inicio ASC
+        LIMIT 1`,
+      [pacienteId],
+    );
+
+    interface FinanceiroResumoRow {
+      pendentes: number;
+      total_pendente: string | number;
+      pendente_mais_antigo: string | Date | null;
+    }
+    const financeiro = await pool.query<FinanceiroResumoRow>(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'pendente')::int          AS pendentes,
+         COALESCE(SUM(valor) FILTER (WHERE status = 'pendente'), 0)::numeric AS total_pendente,
+         MIN(criado_em) FILTER (WHERE status = 'pendente')         AS pendente_mais_antigo
+       FROM pagamentos
+      WHERE paciente_id = $1`,
+      [pacienteId],
+    );
+
+    const fin = financeiro.rows[0] ?? { pendentes: 0, total_pendente: 0, pendente_mais_antigo: null };
+    const pendentes = Number(fin.pendentes ?? 0);
+    const totalPendente = Number(fin.total_pendente ?? 0);
+    let statusFinanceiro: "em_dia" | "pendente" | "atrasado" = "em_dia";
+    if (pendentes > 0) {
+      statusFinanceiro = "pendente";
+      if (fin.pendente_mais_antigo) {
+        const diasAtraso = Math.floor(
+          (Date.now() - new Date(fin.pendente_mais_antigo as string).getTime()) / 86_400_000,
+        );
+        if (diasAtraso >= 7) statusFinanceiro = "atrasado";
+      }
+    }
+
+    res.json({
+      paciente_id: p.id,
+      paciente_nome: p.nome,
+      alergias: p.alergias ?? null,
+      condicoes_clinicas: p.condicoes_clinicas ?? null,
+      medicamentos_continuos: p.medicamentos_continuos ?? null,
+      gestante: p.gestante ?? null,
+      ultima_consulta: ultima.rows[0] ?? null,
+      proxima_consulta: proxima.rows[0] ?? null,
+      financeiro: {
+        status: statusFinanceiro,
+        pendentes,
+        total_pendente: totalPendente,
+      },
+    });
+  } catch (e: any) {
+    console.error("[painel-pawards/agenda-hoje/paciente-resumo]", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
 // 11B) ALERTAS — clínicas abaixo do mínimo, KPIs fora da faixa
 // ===========================================================================
 router.get("/alertas", async (req, res) => {

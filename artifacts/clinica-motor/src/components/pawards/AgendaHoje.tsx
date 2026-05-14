@@ -21,6 +21,32 @@ interface Props {
   onStatusChange?: () => void;
 }
 
+interface ResumoConsulta {
+  data: string;
+  hora_inicio: string;
+  tipo_procedimento?: string | null;
+  status?: string | null;
+  unidade?: string | null;
+}
+
+interface ResumoPaciente {
+  paciente_id: number;
+  paciente_nome: string;
+  alergias: string | null;
+  condicoes_clinicas: string | null;
+  medicamentos_continuos: string | null;
+  gestante: boolean | null;
+  ultima_consulta: ResumoConsulta | null;
+  proxima_consulta: ResumoConsulta | null;
+  financeiro: {
+    status: "em_dia" | "pendente" | "atrasado";
+    pendentes: number;
+    total_pendente: number;
+  };
+}
+
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
+
 const STATUS_COLOR: Record<string, string> = {
   agendado: PAWARDS.colors.status.online,
   aguardando: PAWARDS.colors.status.warning,
@@ -47,10 +73,257 @@ const TRANSICOES_VALIDAS: Record<string, string[]> = {
   cancelado: [],
 };
 
+const FINANCEIRO_LABEL: Record<ResumoPaciente["financeiro"]["status"], string> = {
+  em_dia: "Em dia",
+  pendente: "Pendência",
+  atrasado: "Em atraso",
+};
+
+const FINANCEIRO_COLOR: Record<ResumoPaciente["financeiro"]["status"], string> = {
+  em_dia: PAWARDS.colors.status.excellent,
+  pendente: PAWARDS.colors.status.warning,
+  atrasado: PAWARDS.colors.status.critical,
+};
+
 function fmtHorario(h: string) {
   if (!h) return "—";
   if (h.length >= 5) return h.slice(0, 5);
   return h;
+}
+
+function fmtDataConsulta(c: ResumoConsulta | null): string {
+  if (!c) return "—";
+  const d = (c.data ?? "").slice(0, 10);
+  let dataLabel = d;
+  const partes = d.split("-");
+  if (partes.length === 3) dataLabel = `${partes[2]}/${partes[1]}/${partes[0]}`;
+  const hora = fmtHorario(c.hora_inicio ?? "");
+  const sufixo = c.unidade ? ` · ${c.unidade}` : "";
+  return `${dataLabel} ${hora}${sufixo}`;
+}
+
+function fmtBRL(v: number): string {
+  try {
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  } catch {
+    return `R$ ${v.toFixed(2)}`;
+  }
+}
+
+const cacheResumo = new Map<number, ResumoPaciente>();
+const inFlight = new Map<number, Promise<ResumoPaciente | null>>();
+
+async function carregarResumo(pacienteId: number): Promise<ResumoPaciente | null> {
+  if (cacheResumo.has(pacienteId)) return cacheResumo.get(pacienteId)!;
+  const existente = inFlight.get(pacienteId);
+  if (existente) return existente;
+  const promessa = (async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/painel-pawards/agenda-hoje/paciente-resumo/${pacienteId}`);
+      if (!r.ok) return null;
+      const data = (await r.json()) as ResumoPaciente;
+      cacheResumo.set(pacienteId, data);
+      return data;
+    } catch {
+      return null;
+    } finally {
+      inFlight.delete(pacienteId);
+    }
+  })();
+  inFlight.set(pacienteId, promessa);
+  return promessa;
+}
+
+interface PopoverProps {
+  pacienteId: number;
+  paciente: string;
+  origem: "real" | "sintetico";
+}
+
+function ResumoPopover({ pacienteId, paciente, origem }: PopoverProps) {
+  const [resumo, setResumo] = useState<ResumoPaciente | null>(
+    cacheResumo.get(pacienteId) ?? null,
+  );
+  const [carregando, setCarregando] = useState(!cacheResumo.has(pacienteId));
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    if (cacheResumo.has(pacienteId)) {
+      setResumo(cacheResumo.get(pacienteId)!);
+      setCarregando(false);
+      return;
+    }
+    setCarregando(true);
+    carregarResumo(pacienteId).then((r) => {
+      if (cancelado) return;
+      if (!r) setErro("Sem dados");
+      else setResumo(r);
+      setCarregando(false);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [pacienteId]);
+
+  return (
+    <div
+      role="tooltip"
+      style={{
+        position: "absolute",
+        top: "100%",
+        left: 0,
+        marginTop: 6,
+        zIndex: 50,
+        background: PAWARDS.colors.bg.panel,
+        border: "1px solid rgba(255,255,255,0.12)",
+        boxShadow: PAWARDS.shadows.panel,
+        borderRadius: 8,
+        padding: 12,
+        width: 320,
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+          color: PAWARDS.colors.text.tertiary,
+          fontWeight: 700,
+          marginBottom: 6,
+        }}
+      >
+        Resumo do paciente
+        {origem === "sintetico" ? " · prévia" : ""}
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: PAWARDS.colors.text.primary,
+          marginBottom: 8,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {resumo?.paciente_nome ?? paciente}
+      </div>
+
+      {carregando && (
+        <div style={{ fontSize: 11, color: PAWARDS.colors.text.muted }}>
+          Carregando…
+        </div>
+      )}
+
+      {!carregando && erro && (
+        <div style={{ fontSize: 11, color: PAWARDS.colors.text.muted }}>
+          {erro}
+        </div>
+      )}
+
+      {!carregando && resumo && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <ResumoLinha
+            rotulo="Alergias"
+            valor={resumo.alergias?.trim() || "Não informado"}
+            destacar={!!resumo.alergias?.trim()}
+          />
+          <ResumoLinha
+            rotulo="Condições clínicas"
+            valor={resumo.condicoes_clinicas?.trim() || "Não informado"}
+          />
+          {resumo.gestante && (
+            <ResumoLinha rotulo="Gestante" valor="Sim" destacar />
+          )}
+          <ResumoLinha
+            rotulo="Última consulta"
+            valor={fmtDataConsulta(resumo.ultima_consulta)}
+          />
+          <ResumoLinha
+            rotulo="Próxima consulta"
+            valor={fmtDataConsulta(resumo.proxima_consulta)}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 8,
+              paddingTop: 6,
+              borderTop: "1px dashed rgba(255,255,255,0.08)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.06em",
+                color: PAWARDS.colors.text.muted,
+                textTransform: "uppercase",
+              }}
+            >
+              Financeiro
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: FINANCEIRO_COLOR[resumo.financeiro.status],
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {FINANCEIRO_LABEL[resumo.financeiro.status]}
+              </div>
+              {resumo.financeiro.pendentes > 0 && (
+                <div style={{ fontSize: 10, color: PAWARDS.colors.text.muted, marginTop: 2 }}>
+                  {resumo.financeiro.pendentes} em aberto · {fmtBRL(resumo.financeiro.total_pendente)}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResumoLinha({
+  rotulo,
+  valor,
+  destacar = false,
+}: {
+  rotulo: string;
+  valor: string;
+  destacar?: boolean;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 9,
+          letterSpacing: "0.08em",
+          color: PAWARDS.colors.text.muted,
+          textTransform: "uppercase",
+          marginBottom: 2,
+        }}
+      >
+        {rotulo}
+      </div>
+      <div
+        style={{
+          fontSize: 12,
+          color: destacar ? PAWARDS.colors.status.warning : PAWARDS.colors.text.primary,
+          lineHeight: 1.35,
+          wordBreak: "break-word",
+        }}
+      >
+        {valor}
+      </div>
+    </div>
+  );
 }
 
 export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
@@ -59,8 +332,12 @@ export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
   const [erroStatus, setErroStatus] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const [hoverId, setHoverId] = useState<number | string | null>(null);
+  const [pressId, setPressId] = useState<number | string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextClickRef = useRef(false);
 
-  // Fecha o menu ao clicar fora ou apertar Esc
+  // Fecha o menu de status ao clicar fora ou apertar Esc
   useEffect(() => {
     if (!menuAbertoId) return;
     function onDocClick(e: MouseEvent) {
@@ -78,6 +355,37 @@ export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
       document.removeEventListener("keydown", onKey);
     };
   }, [menuAbertoId]);
+
+  // Fecha o popover de resumo ao tocar/clicar fora de uma linha de agenda
+  useEffect(() => {
+    if (pressId == null) return;
+    function dismiss(e: MouseEvent | TouchEvent) {
+      const alvo = e.target as HTMLElement | null;
+      if (alvo && alvo.closest("[data-agenda-row='1']")) return;
+      setPressId(null);
+    }
+    document.addEventListener("mousedown", dismiss);
+    document.addEventListener("touchstart", dismiss);
+    return () => {
+      document.removeEventListener("mousedown", dismiss);
+      document.removeEventListener("touchstart", dismiss);
+    };
+  }, [pressId]);
+
+  function iniciarLongPress(id: number | string, pacienteId: number | null | undefined) {
+    if (pacienteId == null) return;
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      suppressNextClickRef.current = true;
+      setPressId(id);
+    }, 450);
+  }
+  function cancelarLongPress() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
 
   async function alterarStatus(id: number | string, novoStatus: string) {
     setSalvandoId(String(id));
@@ -186,6 +494,10 @@ export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
               ? `Prévia sintética — abrir unidade ${c.unidade ?? ""}`
               : "Sem destino disponível";
           const handleClick = () => {
+            if (suppressNextClickRef.current) {
+              suppressNextClickRef.current = false;
+              return;
+            }
             if (destino) setLocation(destino);
           };
 
@@ -196,11 +508,40 @@ export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
           const idStr = String(c.id);
           const menuAberto = menuAbertoId === idStr;
           const salvando = salvandoId === idStr;
+          const mostrarPopover =
+            temPaciente && (hoverId === c.id || pressId === c.id);
 
           return (
             <div
               key={c.id}
+              data-agenda-row="1"
+              onMouseEnter={() => {
+                if (temPaciente && c.paciente_id != null) {
+                  setHoverId(c.id);
+                  void carregarResumo(c.paciente_id);
+                }
+              }}
+              onMouseLeave={() => {
+                setHoverId((atual) => (atual === c.id ? null : atual));
+              }}
+              onTouchStart={() => {
+                iniciarLongPress(c.id, c.paciente_id ?? null);
+                if (temPaciente && c.paciente_id != null) {
+                  void carregarResumo(c.paciente_id);
+                }
+              }}
+              onTouchEnd={() => {
+                cancelarLongPress();
+              }}
+              onTouchCancel={() => {
+                cancelarLongPress();
+                setPressId((atual) => (atual === c.id ? null : atual));
+              }}
+              onTouchMove={() => {
+                cancelarLongPress();
+              }}
               style={{
+                position: "relative",
                 display: "grid",
                 gridTemplateColumns: "52px 1fr auto",
                 gap: 12,
@@ -212,13 +553,6 @@ export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
                 opacity: clicavel ? 1 : 0.75,
                 outline: "none",
                 transition: "background 120ms ease",
-                position: "relative",
-              }}
-              onMouseEnter={(e) => {
-                if (clicavel) e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.02)";
               }}
             >
               <div
@@ -238,6 +572,15 @@ export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
                       }
                     : undefined
                 }
+                onFocus={() => {
+                  if (temPaciente && c.paciente_id != null) {
+                    setHoverId(c.id);
+                    void carregarResumo(c.paciente_id);
+                  }
+                }}
+                onBlur={() => {
+                  setHoverId((atual) => (atual === c.id ? null : atual));
+                }}
                 style={{
                   fontFamily: "ui-monospace, monospace",
                   fontSize: 13,
@@ -264,6 +607,15 @@ export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
                       }
                     : undefined
                 }
+                onFocus={() => {
+                  if (temPaciente && c.paciente_id != null) {
+                    setHoverId(c.id);
+                    void carregarResumo(c.paciente_id);
+                  }
+                }}
+                onBlur={() => {
+                  setHoverId((atual) => (atual === c.id ? null : atual));
+                }}
                 style={{ minWidth: 0, cursor: clicavel ? "pointer" : "not-allowed" }}
               >
                 <div
@@ -388,6 +740,13 @@ export function AgendaHoje({ consultas, origem, onStatusChange }: Props) {
                   </div>
                 )}
               </div>
+              {mostrarPopover && c.paciente_id != null && (
+                <ResumoPopover
+                  pacienteId={c.paciente_id}
+                  paciente={c.paciente}
+                  origem={origem ?? "real"}
+                />
+              )}
             </div>
           );
         })}
