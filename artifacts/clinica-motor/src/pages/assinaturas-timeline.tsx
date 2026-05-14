@@ -541,25 +541,43 @@ export default function AssinaturasTimeline() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Task #90 — hidrata filtros de datas por-usuario quando o user.id fica
-  // disponivel. URL tem prioridade granular (link compartilhavel preserva
-  // exatamente o que ele traz). Unidade e status migraram pro hook
-  // `useFiltroPersistido` (Task #216) — a hidratacao deles agora roda dentro
-  // do proprio hook. Datas permanecem inline porque envolvem 3 chaves
-  // correlacionadas (preset + desde + ate) que precisam recomputar "hoje" no
-  // momento da hidratacao (HOJE/7D/30D nao sao snapshot, sao janela viva).
+  // Task #215 — chip discreto que avisa quando filtros foram restaurados
+  // automaticamente do localStorage (e nao da URL). Aparece logo apos a
+  // hidratacao da Task #90, some sozinho em ~6s, ou quando o usuario mexe
+  // em qualquer filtro, ou quando clica em "limpar". Sem o aviso, o Caio
+  // podia abrir a timeline e estranhar "porque so estou vendo a clinica X?"
+  // sem perceber que era preferencia da ultima visita.
+  const [filtrosRestaurados, setFiltrosRestaurados] = useState<string[] | null>(null);
+  const filtrosRestauradosTimerRef = useRef<number | null>(null);
+  const filtrosRestauradosSnapshotRef = useRef<string | null>(null);
+  const dispensarFiltrosRestaurados = useCallback(() => {
+    setFiltrosRestaurados(null);
+    filtrosRestauradosSnapshotRef.current = null;
+    if (filtrosRestauradosTimerRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(filtrosRestauradosTimerRef.current);
+      filtrosRestauradosTimerRef.current = null;
+    }
+  }, []);
+
+  // Task #90 — hidrata filtros de status e datas por-usuario quando o
+  // user.id fica disponivel. URL tem prioridade granular (link compartilhavel
+  // preserva exatamente o que ele traz). Unidade migrou pro hook
+  // `useFiltroPersistido` (Task #216) — a hidratacao dela agora roda dentro
+  // do proprio hook. Status e datas permanecem inline porque precisam
+  // alimentar o chip "Filtros restaurados" (Task #215) com seus labels e,
+  // no caso das datas, recomputar "hoje" no momento da hidratacao
+  // (HOJE/7D/30D nao sao snapshot, sao janela viva).
   useEffect(() => {
     if (!user?.id || typeof window === "undefined") return;
     const sp = new URLSearchParams(window.location.search);
+    // Task #215 — coleta os labels do que foi efetivamente restaurado pra
+    // alimentar o chip de aviso no fim do effect.
+    const restauradosLabels: string[] = [];
 
-    // Status (Task #212) — restaura o chip salvo + dispara um toast discreto
-    // de 3s avisando "Filtrando por <chip> — sua ultima escolha", com acao
-    // "ver tudo" que reseta pra TODOS e remove a chave salva (proxima visita
-    // re-mostra o aviso se o usuario configurar um novo chip). Mesmo padrao
-    // da Task #91 (aviso de ordenacao).
-    // Task #216 — filtroUnidadeId migrou pro hook `useFiltroPersistido` (a
-    // hidratacao roda dentro do hook); status NAO migrou porque depende
-    // deste toast colateral, entao a hidratacao dele segue inline aqui.
+    // Status — Task #215 substitui o toast individual da Task #212 pelo chip
+    // unificado: quando o status salvo e restaurado, registra o label
+    // "status" na lista de filtros restaurados (clinica + status + periodo)
+    // e o chip aparece uma unica vez com acao "limpar" que reseta tudo.
     if (!sp.get("status")) {
       const salvo = lerStorageFiltro("filtro_status", user.id);
       if (salvo !== null && salvo !== "") {
@@ -569,29 +587,11 @@ export default function AssinaturasTimeline() {
           salvo === "rejeitado"    ? "REJEITADO"    : null;
         if (proximo && proximo !== filtroStatus) {
           setFiltroStatus(proximo);
-          if (!avisoStatusMostradoRef.current) {
-            avisoStatusMostradoRef.current = true;
-            const t = toast({
-              title: `Filtrando por ${LABEL_STATUS[proximo]}`,
-              description: "Aplicamos sua última escolha de status.",
-              duration: 3000,
-              action: (
-                <ToastAction
-                  altText="Ver todos os status"
-                  onClick={() => {
-                    setFiltroStatus("TODOS");
-                    const k = chaveStorageFiltro("filtro_status", user?.id);
-                    if (k && typeof window !== "undefined") {
-                      try { window.localStorage.removeItem(k); } catch { /* ignore */ }
-                    }
-                    t.dismiss();
-                  }}
-                >
-                  ver tudo
-                </ToastAction>
-              ),
-            });
-          }
+          // Task #215 — substitui o toast individual da Task #212 pelo chip
+          // unificado que cobre todos os filtros restaurados (clinica, status,
+          // periodo). Evita double-notify quando varios filtros voltam juntos
+          // e da uma acao "limpar" que reseta tudo de uma vez.
+          restauradosLabels.push("status");
         }
       }
     }
@@ -610,16 +610,61 @@ export default function AssinaturasTimeline() {
         // Preset com datas calculadas (HOJE/7D/30D recomputam pra "hoje" da
         // sessao atual; PERSONALIZADO usa o que foi salvo).
         if (presetSalvo === "PERSONALIZADO") {
-          if (desdeOk || ateOk) aplicarPersonalizado(desdeOk, ateOk);
+          if (desdeOk || ateOk) {
+            aplicarPersonalizado(desdeOk, ateOk);
+            restauradosLabels.push("período");
+          }
         } else if (
           presetSalvo === "HOJE" || presetSalvo === "7D" || presetSalvo === "30D"
         ) {
           aplicarPresetData(presetSalvo as FiltroData);
+          restauradosLabels.push("período");
         }
+      }
+    }
+
+    // Task #215 — dispara o chip de aviso uma unica vez por hidratacao,
+    // com timer de 6s pra auto-dismiss. O snapshot dos filtros e capturado
+    // num useEffect separado (logo abaixo) pra detectar interacao do usuario.
+    if (restauradosLabels.length > 0) {
+      setFiltrosRestaurados(restauradosLabels);
+      if (typeof window !== "undefined") {
+        if (filtrosRestauradosTimerRef.current !== null) {
+          window.clearTimeout(filtrosRestauradosTimerRef.current);
+        }
+        filtrosRestauradosTimerRef.current = window.setTimeout(() => {
+          setFiltrosRestaurados(null);
+          filtrosRestauradosSnapshotRef.current = null;
+          filtrosRestauradosTimerRef.current = null;
+        }, 6000);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Task #215 — dispensa o chip quando o usuario mexe em qualquer filtro
+  // (unidade / status / datas). Usa snapshot tirado no primeiro render apos
+  // o chip aparecer; qualquer divergencia subsequente = interacao = some.
+  useEffect(() => {
+    if (filtrosRestaurados === null) return;
+    const snapshot = `${filtroUnidadeId ?? ""}|${filtroStatus}|${desdeInput}|${ateInput}`;
+    if (filtrosRestauradosSnapshotRef.current === null) {
+      filtrosRestauradosSnapshotRef.current = snapshot;
+      return;
+    }
+    if (filtrosRestauradosSnapshotRef.current !== snapshot) {
+      dispensarFiltrosRestaurados();
+    }
+  }, [filtrosRestaurados, filtroUnidadeId, filtroStatus, desdeInput, ateInput, dispensarFiltrosRestaurados]);
+
+  // Task #215 — limpeza do timer no unmount pra evitar setState apos unmount.
+  useEffect(() => {
+    return () => {
+      if (filtrosRestauradosTimerRef.current !== null && typeof window !== "undefined") {
+        window.clearTimeout(filtrosRestauradosTimerRef.current);
+      }
+    };
+  }, []);
   // Task #96 — clique simples substitui a ordenacao (mantem comportamento
   // anterior); Shift+clique adiciona a coluna como criterio secundario.
   // Regras:
@@ -1319,6 +1364,52 @@ export default function AssinaturasTimeline() {
             </div>
           </div>
         </div>
+
+        {/* Task #215 — aviso discreto quando filtros foram restaurados do
+            localStorage (preferencia da ultima visita). Some sozinho em 6s,
+            ou quando o usuario mexe em qualquer filtro, ou quando clica
+            "limpar". Nao aparece quando filtros vieram da URL (link
+            compartilhavel). */}
+        {filtrosRestaurados !== null && filtrosRestaurados.length > 0 && (
+          <div
+            className="nao-imprimir flex items-center gap-2"
+            data-testid="aviso-filtros-restaurados"
+          >
+            <span
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs border"
+              style={{ background: "#FEF9E7", color: NAVY, borderColor: AMBER }}
+            >
+              <RefreshCw size={12} style={{ color: AMBER }} />
+              <span>
+                Filtros restaurados da sua última visita ({filtrosRestaurados.join(", ")})
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFiltroUnidadeId(null);
+                  setFiltroStatus("TODOS");
+                  aplicarPresetData("TUDO");
+                  dispensarFiltrosRestaurados();
+                }}
+                data-testid="aviso-filtros-restaurados-limpar"
+                className="underline font-semibold"
+                style={{ color: NAVY }}
+              >
+                limpar
+              </button>
+              <button
+                type="button"
+                onClick={dispensarFiltrosRestaurados}
+                data-testid="aviso-filtros-restaurados-fechar"
+                aria-label="Fechar aviso"
+                className="ml-1"
+                style={{ color: ZINC }}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          </div>
+        )}
 
         {/* Task #64 — chips de filtro por intervalo de datas (criado_em) */}
         <div className="nao-imprimir flex flex-wrap items-center gap-2">
