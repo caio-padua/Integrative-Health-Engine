@@ -80,14 +80,13 @@ async function buscarEventosEsgotados24h(): Promise<EventoEsgotado[]> {
       s.id                                  AS solicitacao_id,
       t.nome_exibicao                       AS template_nome,
       p.nome                                AS paciente_nome,
-      -- Task #393 — tempo preso em horas decimais (mesma convencao do
-      -- endpoint /api/assinaturas/uploads-falhos da task #247). Usa
-      -- COALESCE pra cobrir eventos cuja ultima_tentativa_em ainda eh NULL
-      -- (situacao rara — esgotado sem nenhuma tentativa marcada).
-      ROUND(
-        EXTRACT(EPOCH FROM (NOW() - COALESCE(e.ultima_tentativa_em, e.recebido_em)))::numeric / 3600.0,
-        1
-      )::float8                              AS preso_ha_horas
+      -- Task #393 — tempo preso em horas decimais RAW (sem arredondar).
+      -- Mesma convencao do endpoint /api/assinaturas/uploads-falhos da
+      -- task #247. Round so na hora de exibir (montarLista) — comparar a
+      -- AGUARDANDO_WEBHOOK_LIMITE_HORAS no valor raw evita falso positivo
+      -- com 23.96h arredondado pra 24.0h cruzando o limite indevidamente.
+      (EXTRACT(EPOCH FROM (NOW() - COALESCE(e.ultima_tentativa_em, e.recebido_em)))::float8 / 3600.0)
+                                             AS preso_ha_horas
     FROM assinatura_webhook_eventos e
     LEFT JOIN assinatura_solicitacoes s
       ON s.provedor_envelope_id = e.envelope_id
@@ -134,6 +133,22 @@ async function buscarDestinatariosCEO(): Promise<CeoDestinatario[]> {
   return ((r.rows ?? r) as CeoDestinatario[]);
 }
 
+// Task #393 — formata "preso ha Xh" pra leitura no email/whatsapp.
+// Mesma convencao do helper formatarPresoHa do front (task #247).
+function formatarPresoHaTexto(horas: number | null): string {
+  if (horas == null || !Number.isFinite(horas) || horas < 0) return "—";
+  if (horas < 1) {
+    const min = Math.max(1, Math.round(horas * 60));
+    return `${min}min`;
+  }
+  if (horas < 24) {
+    return `${Math.floor(horas)}h`;
+  }
+  const dias = Math.floor(horas / 24);
+  const restoH = Math.floor(horas - dias * 24);
+  return restoH > 0 ? `${dias}d ${restoH}h` : `${dias}d`;
+}
+
 function montarLista(eventos: EventoEsgotado[], baseUrl: string): string {
   return eventos.map((ev, i) => {
     const idx = String(i + 1).padStart(2, "0");
@@ -146,10 +161,20 @@ function montarLista(eventos: EventoEsgotado[], baseUrl: string): string {
     const motivoLimpo = (ev.motivo || "")
       .replace(/^pdf_upload_falhou:\s*/, "")
       .slice(0, 120);
+    // Task #393 — linha extra "Preso ha Xh (limite 24h)" + marcador
+    // [PASSOU LIMITE] quando >= AGUARDANDO_WEBHOOK_LIMITE_HORAS, igual
+    // ao badge vermelho da tela /assinaturas/uploads-falhos.
+    const horas = ev.preso_ha_horas;
+    const passouLimite =
+      horas != null && horas >= AGUARDANDO_WEBHOOK_LIMITE_HORAS;
+    const presoTxt = `    Preso ha: ${formatarPresoHaTexto(horas)} (limite ${AGUARDANDO_WEBHOOK_LIMITE_HORAS}h)${
+      passouLimite ? " [PASSOU LIMITE]" : ""
+    }`;
     return [
       `${idx}. ${template} — ${paciente}`,
       `    Envelope: ${envelope}`,
       `    Evento: #${ev.evento_id} · ultima falha: ${motivoLimpo}`,
+      presoTxt,
       `    Detalhe: ${link}`,
     ].join("\n");
   }).join("\n\n");

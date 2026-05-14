@@ -62,9 +62,6 @@ app.listen(port, (err) => {
   iniciarWorkerAlertasDigestDiario();
   iniciarWorkerAvisoVencimentoCarenciaLgpd();
   iniciarWorkerLimpezaAuditoriaPainelPawards();
-<<<<<<< HEAD
   iniciarWorkerDigestRecusasCEO();
-=======
   iniciarWorkerWebhookAssinaturaSilencio();
->>>>>>> 53f0356 (Task #256 — Cao-de-guarda do webhook ZapSign silenciosamente quebrado)
 });

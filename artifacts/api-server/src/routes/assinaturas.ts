@@ -759,6 +759,50 @@ router.get("/admin/uploads-pdf-resumo-diario", guardMaster, async (req: Request,
     `);
     const dias = ((r as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
 
+    // Task #393 — enriquece cada dia com eventos_detalhe contendo
+    // preso_ha_horas + passou_limite_alerta por evento_id, mesma convencao
+    // do endpoint /api/assinaturas/uploads-falhos (task #247). Faz uma unica
+    // query agregada (1 round-trip) consultando todos os ids da janela.
+    const todosIds: number[] = [];
+    for (const d of dias) {
+      const ids = (d["evento_ids"] as number[] | null) || [];
+      for (const id of ids) todosIds.push(Number(id));
+    }
+    const detalhePorId = new Map<number, { preso_ha_horas: number | null; passou_limite_alerta: boolean }>();
+    if (todosIds.length > 0) {
+      const detalhesR = await db.execute(sql`
+        SELECT
+          id,
+          -- Task #393 — RAW (sem arredondar). Round so no display do front;
+          -- comparar passou_limite_alerta no valor raw evita 23.96h virar
+          -- 24.0h e disparar badge prematuramente.
+          (EXTRACT(EPOCH FROM (NOW() - COALESCE(ultima_tentativa_em, recebido_em)))::float8 / 3600.0)
+            AS preso_ha_horas
+        FROM assinatura_webhook_eventos
+        WHERE id = ANY(${todosIds}::int[])
+      `);
+      const rows = ((detalhesR as unknown as { rows?: Record<string, unknown>[] }).rows) || [];
+      for (const row of rows) {
+        const id = Number(row["id"]);
+        const presoBruto = row["preso_ha_horas"];
+        const presoHa = presoBruto != null ? Number(presoBruto) : null;
+        const passou = presoHa != null && presoHa >= AGUARDANDO_WEBHOOK_LIMITE_HORAS;
+        detalhePorId.set(id, { preso_ha_horas: presoHa, passou_limite_alerta: passou });
+      }
+    }
+    for (const d of dias) {
+      const ids = (d["evento_ids"] as number[] | null) || [];
+      d["eventos_detalhe"] = ids.map((rawId) => {
+        const id = Number(rawId);
+        const det = detalhePorId.get(id);
+        return {
+          evento_id: id,
+          preso_ha_horas: det?.preso_ha_horas ?? null,
+          passou_limite_alerta: det?.passou_limite_alerta ?? false,
+        };
+      });
+    }
+
     // Previa de hoje: se ja existe linha pra hoje, worker ja disparou.
     // Caso contrario, contar quantos esgotados estao na janela de 24h
     // exatamente como o worker faz (mesma query/condicoes).
@@ -800,6 +844,9 @@ router.get("/admin/uploads-pdf-resumo-diario", guardMaster, async (req: Request,
         ja_disparado: jaDisparado,
         total_esgotados_janela_24h: totalJanela24h,
       },
+      // Task #393 — limite expoe pra UI poder pintar badge "passou limite"
+      // sem hardcode. Mesma constante do worker pdfRetryUpload.
+      aguardando_webhook_limite_horas: AGUARDANDO_WEBHOOK_LIMITE_HORAS,
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

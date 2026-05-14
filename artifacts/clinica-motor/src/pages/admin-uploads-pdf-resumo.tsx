@@ -24,6 +24,7 @@ import {
   TrendingDown,
   Minus,
   Send,
+  Flame,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -38,11 +39,20 @@ const BLUE = "#2563eb";
 // `pdfRetryUploadResumoDiario.ts` constante `LIMIAR_ESGOTADOS`.
 const LIMIAR_DISPATCH = 3;
 
+// Task #393 — detalhe por evento com tempo preso, mesma convencao do
+// /api/assinaturas/uploads-falhos (task #247).
+type EventoDetalhe = {
+  evento_id: number;
+  preso_ha_horas: number | null;
+  passou_limite_alerta: boolean;
+};
+
 type DiaResumo = {
   dia_brt: string;            // YYYY-MM-DD
   total_esgotados: number;
   qtd_eventos: number;
   evento_ids: number[];
+  eventos_detalhe?: EventoDetalhe[]; // task #393
   notificado_em: string | null;
   dispatched: boolean;        // false = dia sem dispatch (preenchido pela serie densa)
   variacao_vs_anterior: number;
@@ -57,7 +67,24 @@ type Resposta = {
     ja_disparado: boolean;
     total_esgotados_janela_24h: number;
   };
+  aguardando_webhook_limite_horas?: number; // task #393
 };
+
+// Task #393 — formata "preso ha Xh" igual ao helper de
+// /assinaturas/uploads-falhos (task #247): "12 min", "3h", "2d 4h".
+function formatarPresoHa(horas: number | null | undefined): string {
+  if (horas == null || !Number.isFinite(horas) || horas < 0) return "—";
+  if (horas < 1) {
+    const min = Math.max(1, Math.round(horas * 60));
+    return `${min} min`;
+  }
+  if (horas < 24) {
+    return `${Math.floor(horas)}h`;
+  }
+  const dias = Math.floor(horas / 24);
+  const restoH = Math.floor(horas - dias * 24);
+  return restoH > 0 ? `${dias}d ${restoH}h` : `${dias}d`;
+}
 
 type DispararResultado = {
   executou: boolean;
@@ -388,13 +415,62 @@ export default function AdminUploadsPdfResumo() {
                             {d.qtd_eventos} eventos
                           </summary>
                           <div
-                            className="mt-2 p-2 rounded text-[11px] font-mono break-all max-w-[260px] max-h-[120px] overflow-auto"
+                            className="mt-2 p-2 rounded text-[11px] font-mono break-all max-w-[320px] max-h-[200px] overflow-auto"
                             style={{ background: "#F9FAFB", color: ZINC }}
                           >
-                            {d.evento_ids.length > 0
-                              ? d.evento_ids.map((id) => `#${id}`).join(", ")
-                              : "—"}
-                            <div className="mt-1 nao-imprimir">
+                            {/* Task #393 — lista enriquecida com "Preso ha Xh"
+                                + badge vermelho com Flame quando passou do
+                                limite (mesmo padrao da tela #247). Fallback
+                                pra evento_ids puros se backend antigo nao
+                                devolver eventos_detalhe (defesa em camadas). */}
+                            {d.eventos_detalhe && d.eventos_detalhe.length > 0 ? (
+                              <ul className="space-y-1 list-none">
+                                {d.eventos_detalhe.map((ev) => {
+                                  const label = formatarPresoHa(ev.preso_ha_horas);
+                                  if (ev.passou_limite_alerta) {
+                                    return (
+                                      <li
+                                        key={ev.evento_id}
+                                        className="flex items-center justify-between gap-2"
+                                      >
+                                        <span style={{ color: NAVY }}>#{ev.evento_id}</span>
+                                        <span
+                                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold"
+                                          style={{ background: "#FEE2E2", color: RED }}
+                                          title={`Preso ha ${label} — ja passou do limite de ${
+                                            data?.aguardando_webhook_limite_horas ?? 24
+                                          }h. Alerta CEO ja foi disparado pelo worker.`}
+                                          data-testid={`badge-passou-limite-${ev.evento_id}`}
+                                        >
+                                          <Flame size={9} />
+                                          {label}
+                                        </span>
+                                      </li>
+                                    );
+                                  }
+                                  return (
+                                    <li
+                                      key={ev.evento_id}
+                                      className="flex items-center justify-between gap-2"
+                                    >
+                                      <span style={{ color: NAVY }}>#{ev.evento_id}</span>
+                                      <span
+                                        className="font-mono"
+                                        style={{ color: ZINC }}
+                                        title={`Tempo desde a ultima tentativa: ${label}.`}
+                                      >
+                                        {label}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : d.evento_ids.length > 0 ? (
+                              d.evento_ids.map((id) => `#${id}`).join(", ")
+                            ) : (
+                              "—"
+                            )}
+                            <div className="mt-2 nao-imprimir">
                               <Link
                                 href="/assinaturas/uploads-falhos"
                                 className="inline-flex items-center gap-1 text-xs font-semibold"
