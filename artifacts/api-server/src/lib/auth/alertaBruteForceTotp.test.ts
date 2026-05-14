@@ -407,6 +407,108 @@ describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)",
     assert.equal(row.email_falhas, 0, "email sem falhas");
   });
 
+  it("(a-strict) 1 unico WhatsApp por destinatario com telefone cadastrado (telefone normalizado)", async () => {
+    // Arrange: provedor sucesso. So `validadorComTelefoneId` tem telefone
+    // entre todos os elegiveis (perfil_plataforma=platform_owner OR
+    // perfil=validador_mestre AND ativo=true). Logo: exatamente 1 envio.
+    _setEnviarWhatsappParaTestes(async (telefone, mensagem): Promise<EnvioResult> => {
+      wppCalls.push({ telefone, mensagem });
+      return { sucesso: true, provedorMsgId: "stub-strict" };
+    });
+
+    await dispararAlertaBruteForceTotp({
+      usuarioId: alvoUsuarioId,
+      ip: "8.8.8.8",
+      userAgent: "ua-wpp-strict",
+      janelaInicioEm: new Date("2026-05-13T12:00:00.000Z"),
+      contexto: "LOGIN_2FA",
+      tentativas: 5,
+    });
+
+    // (a) Exatamente 1 envio — protege contra regressao na resolucao de
+    //     telefones (ex: alguem largar o filtro `length >= 10` ou o Set dedupe).
+    assert.equal(wppCalls.length, 1, "1 unico wpp pro unico validador com telefone");
+    // E o telefone passado bate com o cadastrado, normalizado pra digitos.
+    assert.equal(wppCalls[0]!.telefone, TELEFONE_VALIDADOR);
+    // Mensagem leva assinatura institucional pra detectar regressao de copy.
+    assert.ok(
+      wppCalls[0]!.mensagem.includes("PAWARDS"),
+      "mensagem wpp contem assinatura PAWARDS",
+    );
+    assert.ok(
+      wppCalls[0]!.mensagem.includes(`#${alvoUsuarioId}`),
+      "mensagem wpp identifica o usuario alvo",
+    );
+
+    // (d) Contadores no DB batem com a realidade.
+    const r = await db.execute<{
+      wpp_enviados: number; wpp_falhas: number;
+    }>(sql`
+      SELECT coalesce(notif_wpp_enviados, 0)::int AS wpp_enviados,
+             coalesce(notif_wpp_falhas, 0)::int   AS wpp_falhas
+        FROM alertas_ceo_seguranca
+       WHERE usuario_id = ${alvoUsuarioId}
+    `);
+    assert.equal(r.rows![0]!.wpp_enviados, 1);
+    assert.equal(r.rows![0]!.wpp_falhas, 0);
+  });
+
+  it("(c) fallback CEO_WHATSAPP entra quando NENHUM owner tem telefone cadastrado", async () => {
+    // Arrange: zera o telefone do unico validador com telefone, e seta o
+    // env CEO_WHATSAPP. O helper le o env lazy (lerCeoWhatsappEnv) entao
+    // a mudanca em runtime e suficiente — sem reimportar o modulo.
+    const ENV_PREVIO = process.env["CEO_WHATSAPP"];
+    const FALLBACK_NUMERO_BRUTO = "+55 (11) 9 9999-1111"; // formato humano
+    const FALLBACK_NORMALIZADO = "5511999991111";         // so digitos
+    process.env["CEO_WHATSAPP"] = FALLBACK_NUMERO_BRUTO;
+    await db.execute(sql`
+      UPDATE usuarios SET telefone = NULL WHERE id = ${validadorComTelefoneId}
+    `);
+
+    _setEnviarWhatsappParaTestes(async (telefone, mensagem): Promise<EnvioResult> => {
+      wppCalls.push({ telefone, mensagem });
+      return { sucesso: true, provedorMsgId: "stub-fallback" };
+    });
+
+    try {
+      await dispararAlertaBruteForceTotp({
+        usuarioId: alvoUsuarioId,
+        ip: "4.4.4.4",
+        userAgent: "ua-wpp-fallback",
+        janelaInicioEm: new Date("2026-05-13T12:30:00.000Z"),
+        contexto: "LOGIN_2FA",
+        tentativas: 5,
+      });
+
+      // Exatamente 1 envio — pro CEO_WHATSAPP normalizado (so digitos).
+      // Protege contra regressao do `replace(/\D/g, "")` e do guarda
+      // `length >= 10`.
+      assert.equal(wppCalls.length, 1, "1 envio pro fallback CEO_WHATSAPP");
+      assert.equal(wppCalls[0]!.telefone, FALLBACK_NORMALIZADO);
+
+      const r = await db.execute<{
+        wpp_enviados: number; email_enviados: number;
+      }>(sql`
+        SELECT coalesce(notif_wpp_enviados, 0)::int   AS wpp_enviados,
+               coalesce(notif_email_enviados, 0)::int AS email_enviados
+          FROM alertas_ceo_seguranca
+         WHERE usuario_id = ${alvoUsuarioId}
+      `);
+      assert.equal(r.rows![0]!.wpp_enviados, 1, "contador refletindo o envio fallback");
+      // Email continua via destinatarios resolvidos pelo email (nao depende
+      // de telefone) — protege contra coupling indevido entre os canais.
+      assert.ok(r.rows![0]!.email_enviados >= 1, "canal email indep do telefone");
+    } finally {
+      // Restaura estado (proximos testes assumem telefone cadastrado).
+      await db.execute(sql`
+        UPDATE usuarios SET telefone = ${TELEFONE_VALIDADOR}
+         WHERE id = ${validadorComTelefoneId}
+      `);
+      if (ENV_PREVIO === undefined) delete process.env["CEO_WHATSAPP"];
+      else process.env["CEO_WHATSAPP"] = ENV_PREVIO;
+    }
+  });
+
   it("(c) idempotencia: 2 chamadas na MESMA janela = 1 unico envio WhatsApp", async () => {
     _setEnviarWhatsappParaTestes(async (telefone, mensagem): Promise<EnvioResult> => {
       wppCalls.push({ telefone, mensagem });

@@ -28,7 +28,11 @@ import { enviarWhatsapp } from "../../services/whatsappService";
  * Defensivo total: falha no WhatsApp NUNCA derruba email nem o fluxo de
  * auth — try/catch interno + try/catch externo do dispararAlertaBruteForceTotp.
  */
-const CEO_WHATSAPP = process.env["CEO_WHATSAPP"] || "";
+// Lido lazy a cada disparo (nao em module-load) pra que testes consigam
+// exercitar o caminho de fallback sem precisar reimportar o modulo.
+function lerCeoWhatsappEnv(): string {
+  return process.env["CEO_WHATSAPP"] || "";
+}
 
 // Task #163 — seam de injecao pro gmail client. Em producao usa o factory
 // real (`getGmailClient`); em testes a suite substitui por um stub sem
@@ -204,9 +208,12 @@ export async function dispararAlertaBruteForceTotp(
           .filter((t) => t.length >= 10),
       ),
     );
-    if (destinatariosWpp.length === 0 && CEO_WHATSAPP) {
-      const fallback = CEO_WHATSAPP.replace(/\D/g, "");
-      if (fallback.length >= 10) destinatariosWpp.push(fallback);
+    if (destinatariosWpp.length === 0) {
+      const ceoEnv = lerCeoWhatsappEnv();
+      if (ceoEnv) {
+        const fallback = ceoEnv.replace(/\D/g, "");
+        if (fallback.length >= 10) destinatariosWpp.push(fallback);
+      }
     }
 
     // 3) Tenta inserir o alerta. ON CONFLICT DO NOTHING garante no-spam.
