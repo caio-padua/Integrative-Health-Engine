@@ -434,6 +434,74 @@ export interface DispararDigestResultado {
 }
 
 /**
+ * Task #239 — Preferencia de blocos por destinatario do digest.
+ * Sem linha persistida = recebe os 3 blocos (preserva comportamento Task #26).
+ */
+export interface PreferenciaDigest {
+  recebeClinicas: boolean;
+  recebeKpis: boolean;
+  recebePendencias: boolean;
+}
+
+const DEFAULT_PREF: PreferenciaDigest = {
+  recebeClinicas: true,
+  recebeKpis: true,
+  recebePendencias: true,
+};
+
+interface PrefRow {
+  destinatario_email: string;
+  recebe_clinicas: boolean;
+  recebe_kpis: boolean;
+  recebe_pendencias: boolean;
+}
+
+export async function carregarPreferenciasDigest(
+  destinatarios: string[],
+): Promise<Map<string, PreferenciaDigest>> {
+  const map = new Map<string, PreferenciaDigest>();
+  if (destinatarios.length === 0) return map;
+  try {
+    const r = await pool.query<PrefRow>(
+      `SELECT lower(destinatario_email) AS destinatario_email,
+              recebe_clinicas, recebe_kpis, recebe_pendencias
+         FROM alertas_digest_preferencias
+        WHERE lower(destinatario_email) = ANY($1::text[])`,
+      [destinatarios.map((d) => d.toLowerCase())],
+    );
+    for (const row of r.rows) {
+      map.set(row.destinatario_email, {
+        recebeClinicas: !!row.recebe_clinicas,
+        recebeKpis: !!row.recebe_kpis,
+        recebePendencias: !!row.recebe_pendencias,
+      });
+    }
+  } catch (e) {
+    // Tabela pode nao existir em ambientes sem migration 057 aplicada;
+    // defensivo: degrada pra "todos recebem tudo".
+    console.warn("[alertasDigest] erro carregar preferencias:", (e as Error).message);
+  }
+  return map;
+}
+
+export function aplicarPreferencia(
+  payload: PayloadAlertasDigest,
+  pref: PreferenciaDigest,
+): PayloadAlertasDigest {
+  const clinicas = pref.recebeClinicas ? payload.clinicasAbaixoMinimo : [];
+  const kpis = pref.recebeKpis ? payload.kpisForaFaixa : [];
+  const pendencias = pref.recebePendencias ? payload.pendencias : [];
+  return {
+    diaBrt: payload.diaBrt,
+    geradoEm: payload.geradoEm,
+    clinicasAbaixoMinimo: clinicas,
+    kpisForaFaixa: kpis,
+    pendencias,
+    total: clinicas.length + kpis.length + pendencias.length,
+  };
+}
+
+/**
  * Disparo principal do digest. Calcula payload, decide se ha alerta,
  * envia email pra cada destinatario e persiste auditoria/idempotencia.
  */
@@ -467,22 +535,34 @@ export async function dispararDigestAlertas(
     };
   }
 
-  const subject = buildSubject(payload);
-  const html = renderHtmlDigest(payload);
-  const resumoJson = JSON.stringify({
-    clinicasAbaixoMinimo: payload.clinicasAbaixoMinimo.length,
-    kpisForaFaixa: payload.kpisForaFaixa.length,
-    pendencias: payload.pendencias.length,
-    total: payload.total,
-  });
+  // Task #239 — preferencias por destinatario (filtra blocos antes de renderizar).
+  const preferencias = await carregarPreferenciasDigest(destinatarios);
 
   const envios: EnvioDigestResultado[] = [];
 
   for (const dest of destinatarios) {
+    const pref = preferencias.get(dest) ?? DEFAULT_PREF;
+    const payloadFiltrado = aplicarPreferencia(payload, pref);
+
+    if (payloadFiltrado.total === 0) {
+      envios.push({ destinatario: dest, enviado: false, motivo: "sem_alertas_nas_preferencias" });
+      continue;
+    }
+
+    const subject = buildSubject(payloadFiltrado);
+    const html = renderHtmlDigest(payloadFiltrado);
+    const resumoJson = JSON.stringify({
+      clinicasAbaixoMinimo: payloadFiltrado.clinicasAbaixoMinimo.length,
+      kpisForaFaixa: payloadFiltrado.kpisForaFaixa.length,
+      pendencias: payloadFiltrado.pendencias.length,
+      total: payloadFiltrado.total,
+      preferencia: pref,
+    });
+
     if (!opts.forcar) {
       const ja = (await db.execute(sql`
         SELECT id FROM alertas_digest_envios
-        WHERE dia_brt = ${payload.diaBrt}::date
+        WHERE dia_brt = ${payloadFiltrado.diaBrt}::date
           AND destinatario_email = ${dest}
           AND status = 'ENVIADO'
         LIMIT 1
@@ -514,10 +594,10 @@ export async function dispararDigestAlertas(
            total_alertas, clinicas_abaixo_min, kpis_fora_faixa, pendencias,
            payload_resumo, erro, origem)
         VALUES
-          (${payload.diaBrt}::date, ${dest}, ${enviadoOk ? "ENVIADO" : "ERRO"},
-           ${gmailMessageId}, ${payload.total},
-           ${payload.clinicasAbaixoMinimo.length},
-           ${payload.kpisForaFaixa.length}, ${payload.pendencias.length},
+          (${payloadFiltrado.diaBrt}::date, ${dest}, ${enviadoOk ? "ENVIADO" : "ERRO"},
+           ${gmailMessageId}, ${payloadFiltrado.total},
+           ${payloadFiltrado.clinicasAbaixoMinimo.length},
+           ${payloadFiltrado.kpisForaFaixa.length}, ${payloadFiltrado.pendencias.length},
            ${resumoJson}::jsonb, ${erroMsg}, ${origem})
         ON CONFLICT (dia_brt, destinatario_email) DO UPDATE
           SET status = EXCLUDED.status,

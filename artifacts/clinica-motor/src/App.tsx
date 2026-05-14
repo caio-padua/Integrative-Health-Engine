@@ -94,6 +94,7 @@ import SobreParceriasTecnicas from "@/pages/sobre-parcerias-tecnicas";
 import AdminFarmaciasRoteamento from "@/pages/admin-farmacias-roteamento";
 import AdminAnalytics from "@/pages/admin-analytics";
 import AdminNotificacoes from "@/pages/admin-notificacoes";
+import AdminAlertasDigestPreferencias from "@/pages/admin-alertas-digest-preferencias";
 import AdminLogin from "@/pages/admin-login";
 // PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
 import PadcomPaciente from "@/pages/padcom/paciente";
@@ -166,6 +167,7 @@ function Router() {
       <Route path="/admin/farmacias-roteamento" component={AdminFarmaciasRoteamento} />
       <Route path="/admin/analytics" component={AdminAnalytics} />
       <Route path="/admin/notificacoes" component={AdminNotificacoes} />
+      <Route path="/admin/alertas-digest-preferencias" component={AdminAlertasDigestPreferencias} />
       <Route path="/painel-pawards" component={DashboardGlobal} />
       <Route path="/anamnese" component={Anamneses} />
       <Route path="/anamnese/nova" component={NovaAnamnese} />

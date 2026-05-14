@@ -231,4 +231,8 @@ router.use(segurancaTotpExpiradosRouter);
 import contasAPagarRouter from "./contasAPagar";
 router.use(contasAPagarRouter);
 
+// Task #239 — Preferencia por destinatario do digest diario de alertas
+import alertasDigestPreferenciasRouter from "./alertasDigestPreferencias";
+router.use(alertasDigestPreferenciasRouter);
+
 export default router;
