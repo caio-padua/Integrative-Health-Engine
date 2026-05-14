@@ -233,17 +233,25 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
 
   y = drawSectionTitle(doc, "Medicamentos em Uso no Inicio", y);
   if (data.medicamentos.length > 0) {
+    // Task #242 — coluna "POSO. ORIGEM" mostra se a posologia foi validada
+    // pelo medico (manual) ou interpretada automaticamente (parser).
     const medCols = [
-      { label: "MEDICAMENTO", x: 40, w: 140 },
-      { label: "POSOLOGIA", x: 180, w: 100 },
-      { label: "MOTIVO USO", x: 280, w: 120 },
-      { label: "STATUS", x: 400, w: 70 },
-      { label: "TEMPO USO", x: 470, w: 85 },
+      { label: "MEDICAMENTO", x: 40, w: 130 },
+      { label: "POSOLOGIA", x: 170, w: 95 },
+      { label: "POSO. ORIGEM", x: 265, w: 70 },
+      { label: "MOTIVO USO", x: 335, w: 100 },
+      { label: "STATUS", x: 435, w: 55 },
+      { label: "TEMPO USO", x: 490, w: 65 },
     ];
     y = drawTableHeader(doc, medCols, y);
     data.medicamentos.forEach((m: any, i: number) => {
       const inline = m.medicamentoDoseInline || `${m.nome}${m.dose ? " " + m.dose : ""}`;
-      y = drawTableRow(doc, medCols, [inline, posologiaCanonica(m.posologia, m.posologiaEstruturada), m.motivoUso || "—", m.statusAtual || "em_uso", m.tempoUso || "—"], y, i % 2 === 0);
+      const origemLabel = !m.posologia
+        ? "—"
+        : m.origemPosologia === "manual"
+          ? "validado medico"
+          : "auto (parser)";
+      y = drawTableRow(doc, medCols, [inline, posologiaCanonica(m.posologia, m.posologiaEstruturada), origemLabel, m.motivoUso || "—", m.statusAtual || "em_uso", m.tempoUso || "—"], y, i % 2 === 0);
     });
   }
   drawFooter(doc, false);
@@ -300,15 +308,20 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
   y = 80;
   y = drawPacienteBlock(doc, data, y, 842);
   y = drawSectionTitle(doc, "Lista Completa de Medicacao com Dosagem Incorporada", y);
+  // Task #242 — coluna "POSO. ORIGEM" sinaliza posologia validada pelo medico
+  // (manual) vs interpretada automaticamente pelo parser.
   const hmedCols = [
-    { label: "MEDICAMENTO + DOSE", x: 40, w: 160 },
-    { label: "POSOLOGIA", x: 200, w: 130 },
-    { label: "INDICACAO CLINICA", x: 330, w: 130 },
-    { label: "STATUS", x: 460, w: 80 },
-    { label: "SUBSTITUICAO NATURAL", x: 540, w: 140 },
-    { label: "EVIDENCIA MELHORA", x: 680, w: 122 },
+    { label: "MEDICAMENTO + DOSE", x: 40, w: 150 },
+    { label: "POSOLOGIA", x: 190, w: 115 },
+    { label: "POSO. ORIGEM", x: 305, w: 75 },
+    { label: "INDICACAO CLINICA", x: 380, w: 110 },
+    { label: "STATUS", x: 490, w: 65 },
+    { label: "SUBSTITUICAO NATURAL", x: 555, w: 130 },
+    { label: "EVIDENCIA MELHORA", x: 685, w: 117 },
   ];
   y = drawTableHeader(doc, hmedCols, y);
+  let totalManual = 0;
+  let totalParser = 0;
   data.medicamentos.forEach((m: any, i: number) => {
     if (y > HMED_PAGE_LIMIT) {
       drawFooter(doc, true);
@@ -319,8 +332,20 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
       y = drawTableHeader(doc, hmedCols, y);
     }
     const inline = m.medicamentoDoseInline || `${m.nome}${m.dose ? " " + m.dose : ""}`;
-    y = drawTableRow(doc, hmedCols, [inline, posologiaCanonica(m.posologia, m.posologiaEstruturada), m.indicacaoClinica || m.motivoUso || "—", m.statusAtual, m.substituicaoNatural || "—", m.evidenciaMelhora || "—"], y, i % 2 === 0);
+    const origemLabel = !m.posologia
+      ? "—"
+      : m.origemPosologia === "manual"
+        ? "validado medico"
+        : "auto (parser)";
+    if (m.posologia && m.origemPosologia === "manual") totalManual++;
+    if (m.posologia && m.origemPosologia === "parser") totalParser++;
+    y = drawTableRow(doc, hmedCols, [inline, posologiaCanonica(m.posologia, m.posologiaEstruturada), origemLabel, m.indicacaoClinica || m.motivoUso || "—", m.statusAtual, m.substituicaoNatural || "—", m.evidenciaMelhora || "—"], y, i % 2 === 0);
   });
+  // Task #242 — rodape de qualidade clinica: contagem agregada origem da posologia.
+  y += 6;
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.azulPetroleo)
+    .text(`Qualidade clinica - origem da posologia: ${totalManual} validada(s) pelo medico / ${totalParser} interpretada(s) automaticamente`, 40, y);
+  y += 14;
   drawFooter(doc, true);
   }
 
@@ -343,6 +368,12 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
         doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto);
         y = desenharPosologiaBlocos(doc, f.posologiaEstruturada ?? f.posologia, 100, y, 455);
         y += 4;
+        // Task #242 — origem da posologia (manual=validada pelo medico /
+        // parser=interpretada automaticamente).
+        const origemFmt = f.origemPosologia === "manual" ? "validada pelo medico" : "interpretada automaticamente";
+        doc.fontSize(7).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
+          .text(`Origem da posologia: ${origemFmt}`, 100, y);
+        y += 12;
       }
       if (f.motivoUso) {
         doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaClaro).text(`Indicacao: ${f.motivoUso}`, 50, y);

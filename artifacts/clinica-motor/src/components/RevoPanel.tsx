@@ -1037,6 +1037,29 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                           <Badge variant="outline" className={`text-[9px] ${STATUS_MED_COLORS[m.statusAtual] || ""}`}>
                             {(m.statusAtual || "em_uso").replace("_", " ")}
                           </Badge>
+                          {/* Task #242 — selo origem da posologia: validado pelo medico (manual)
+                              ou interpretado automaticamente (parser). So aparece quando ha
+                              posologia textual; medicamentos sem posologia nao tem selo. */}
+                          {m.posologia && m.origemPosologia === "manual" && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
+                              title="Posologia confirmada ou corrigida pelo medico no painel"
+                              data-testid={`badge-posologia-origem-manual-${m.id}`}
+                            >
+                              <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" /> Validado pelo medico
+                            </Badge>
+                          )}
+                          {m.posologia && m.origemPosologia === "parser" && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] bg-amber-500/10 text-amber-300 border-amber-500/40"
+                              title="Posologia interpretada automaticamente pelo parser, ainda sem confirmacao do medico"
+                              data-testid={`badge-posologia-origem-parser-${m.id}`}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 mr-0.5" /> Interpretado automaticamente
+                            </Badge>
+                          )}
                           {m.codigoSemantico ? (() => {
                             const dic = dicLookup[m.codigoSemantico];
                             return (

@@ -6,10 +6,82 @@ import {
   revoProximaEtapaTable, rasxAuditLogTable,
   pacientesTable, tratamentosTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { parsePosologia } from "@workspace/posologia";
+import { requireMasterEstrito } from "../middlewares/requireMasterEstrito";
 
 const router = Router();
+
+/**
+ * GET /api/rasx/posologia-origem-stats?unidadeId=X
+ *
+ * Task #242 — expoe a contagem de receitas (linhas em revo_medicamentos)
+ * por origem da posologia (`parser` automatico vs `manual` validado pelo
+ * medico). Permite Dr. Caio priorizar a fila de revisao por unidade.
+ *
+ * Sem `unidadeId` -> agrega rede inteira. Com `unidadeId` -> filtra via
+ * pacientes.unidade_id. Devolve tambem top 10 pacientes com mais linhas
+ * pendentes de validacao (origem='parser') pra abrir caminho ao prontuario.
+ *
+ * Master-only (mesma blindagem do admin-analytics).
+ */
+router.get("/rasx/posologia-origem-stats", requireMasterEstrito, async (req, res): Promise<void> => {
+  const unidadeIdRaw = req.query.unidadeId;
+  const unidadeId = unidadeIdRaw !== undefined && unidadeIdRaw !== "" ? Number(unidadeIdRaw) : null;
+  if (unidadeId !== null && Number.isNaN(unidadeId)) {
+    res.status(400).json({ error: "unidadeId invalido" });
+    return;
+  }
+
+  const filtroUnidade = unidadeId !== null
+    ? sql`AND p.unidade_id = ${unidadeId}`
+    : sql``;
+
+  const totaisRows = await db.execute(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE m.origem_posologia = 'parser') AS parser,
+      COUNT(*) FILTER (WHERE m.origem_posologia = 'manual') AS manual,
+      COUNT(*) AS total
+    FROM revo_medicamentos m
+    JOIN pacientes p ON p.id = m.paciente_id
+    WHERE m.posologia IS NOT NULL AND m.posologia <> ''
+    ${filtroUnidade}
+  `);
+  const t = (totaisRows as any).rows?.[0] ?? (totaisRows as any)[0] ?? {};
+  const parser = Number(t.parser ?? 0);
+  const manual = Number(t.manual ?? 0);
+  const total = Number(t.total ?? 0);
+
+  const porPacienteRows = await db.execute(sql`
+    SELECT
+      p.id AS paciente_id,
+      p.nome AS paciente_nome,
+      p.unidade_id,
+      COUNT(*) FILTER (WHERE m.origem_posologia = 'parser') AS parser,
+      COUNT(*) FILTER (WHERE m.origem_posologia = 'manual') AS manual
+    FROM revo_medicamentos m
+    JOIN pacientes p ON p.id = m.paciente_id
+    WHERE m.posologia IS NOT NULL AND m.posologia <> ''
+    ${filtroUnidade}
+    GROUP BY p.id, p.nome, p.unidade_id
+    HAVING COUNT(*) FILTER (WHERE m.origem_posologia = 'parser') > 0
+    ORDER BY COUNT(*) FILTER (WHERE m.origem_posologia = 'parser') DESC, p.nome ASC
+    LIMIT 10
+  `);
+  const porPaciente = ((porPacienteRows as any).rows ?? (porPacienteRows as any) ?? []).map((r: any) => ({
+    pacienteId: Number(r.paciente_id),
+    pacienteNome: r.paciente_nome,
+    unidadeId: Number(r.unidade_id),
+    parser: Number(r.parser ?? 0),
+    manual: Number(r.manual ?? 0),
+  }));
+
+  res.json({
+    unidadeId,
+    totais: { parser, manual, total },
+    porPaciente,
+  });
+});
 
 router.post("/rasx/:pacienteId/revo/start", async (req, res): Promise<void> => {
   const pacienteId = Number(req.params.pacienteId);

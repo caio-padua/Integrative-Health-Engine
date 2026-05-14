@@ -10,7 +10,7 @@ import {
   Users, Calendar, AlertTriangle, Pill, Activity,
   TrendingUp, Heart, Clock, XCircle, CheckCircle2,
   Flame, Eye, ChevronRight, Shield, FileDown,
-  FileSignature, ShieldAlert
+  FileSignature, ShieldAlert, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line } from "recharts";
@@ -262,6 +262,13 @@ export default function PainelComando() {
   const [activeTab, setActiveTab] = useState("visao-geral");
   // Task #200 — contagem de uploads "teimosos" (resets_manuais_count >= 3 e
   // voltaram a falhar). Polling 5min, gate guardMaster (silencioso 401/403).
+  // Task #242 — contagem de receitas com posologia ainda na origem 'parser'
+  // (interpretadas automaticamente, sem confirmacao do medico). Ajuda Dr. Caio
+  // a priorizar revisao por unidade e abre top 10 pacientes diretamente.
+  const [posologiaOrigemStats, setPosologiaOrigemStats] = useState<{
+    totais: { parser: number; manual: number; total: number };
+    porPaciente: Array<{ pacienteId: number; pacienteNome: string; unidadeId: number; parser: number; manual: number }>;
+  } | null>(null);
   const [uploadsTeimosos, setUploadsTeimosos] = useState<{
     total: number;
     eventos: Array<{
@@ -534,6 +541,30 @@ export default function PainelComando() {
     };
     carregar();
     const id = setInterval(carregar, 2 * 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, [unidadeSelecionada, isTodasClinicas]);
+
+  // Task #242 — polling leve do contador de receitas pendentes de validacao
+  // medica (origem_posologia='parser'). Filtro propagado pela ClinicContext.
+  // Endpoint master-only; falha silenciosa quando perfil nao bate.
+  useEffect(() => {
+    let alive = true;
+    const qs = unidadeSelecionada && !isTodasClinicas ? `?unidadeId=${unidadeSelecionada}` : "";
+    setPosologiaOrigemStats(null);
+    const carregar = async () => {
+      try {
+        const r = await apiFetch(`${API_BASE}/rasx/posologia-origem-stats${qs}`, { credentials: "include" });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (!alive) return;
+        setPosologiaOrigemStats({
+          totais: d.totais ?? { parser: 0, manual: 0, total: 0 },
+          porPaciente: d.porPaciente ?? [],
+        });
+      } catch { /* silencioso */ }
+    };
+    carregar();
+    const id = setInterval(carregar, 5 * 60_000);
     return () => { alive = false; clearInterval(id); };
   }, [unidadeSelecionada, isTodasClinicas]);
 
@@ -1371,6 +1402,75 @@ export default function PainelComando() {
                 </div>
               </div>
             </a>
+          );
+        })()}
+
+        {/* Task #242 — receitas pendentes de validacao medica (origem='parser').
+            Verde quando 0 (medicos confirmaram tudo); ambar/vermelho conforme
+            o backlog cresce. Lista top 10 pacientes pra abrir o prontuario direto. */}
+        {posologiaOrigemStats && (() => {
+          const { parser, manual, total } = posologiaOrigemStats.totais;
+          const cor: CorSemantica = parser === 0 ? "excelente" : parser < 20 ? "bom" : parser < 100 ? "atencao" : "critico";
+          const corHex = COR_SEMANTICA_HEX[cor];
+          const pacientes = posologiaOrigemStats.porPaciente;
+          const pctValidado = total > 0 ? Math.round((manual / total) * 100) : 0;
+          return (
+            <div
+              className="block border-l-4 px-4 py-3 rounded-sm bg-[var(--pw-petroleo)]/5"
+              style={{ borderLeftColor: corHex }}
+              data-testid="card-ceo-posologia-origem"
+              title="Receitas com posologia ainda interpretada automaticamente, sem confirmacao do medico"
+            >
+              <div className="flex items-start gap-3">
+                <FileText className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: corHex }} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold flex items-center gap-2 flex-wrap">
+                    <span>Posologia · validacao medica vs interpretacao automatica</span>
+                    <span
+                      className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold"
+                      style={{ backgroundColor: `${corHex}22`, color: corHex }}
+                      data-testid="card-ceo-posologia-origem-pendentes"
+                    >
+                      {parser === 0 ? "0 pendentes · 100% validado" : `${parser} pendente${parser > 1 ? "s" : ""} · ${pctValidado}% validado`}
+                    </span>
+                  </div>
+                  <div className="text-xs text-[var(--pw-tinta)] mt-1.5">
+                    {manual} receita{manual !== 1 ? "s" : ""} ja confirmada{manual !== 1 ? "s" : ""} pelo medico ·{" "}
+                    {parser} ainda interpretada{parser !== 1 ? "s" : ""} automaticamente pelo parser ·{" "}
+                    {total} no total {isTodasClinicas ? "(rede)" : `(${nomeUnidadeSelecionada})`}.
+                  </div>
+                  {pacientes.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-[11px] text-[var(--pw-tinta)] mb-1">
+                        Top pacientes com mais receitas pendentes — abra e confirme/corrija no RevoPanel:
+                      </div>
+                      {pacientes.map((p) => (
+                        <a
+                          key={p.pacienteId}
+                          href={`/pacientes/${p.pacienteId}`}
+                          className="block text-xs px-2 py-1.5 rounded-sm bg-white/40 border border-zinc-200/60 hover:bg-white/70"
+                          data-testid={`card-ceo-posologia-origem-paciente-${p.pacienteId}`}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-[10px] text-zinc-500">#{p.pacienteId}</span>
+                            <span className="font-semibold text-[var(--pw-petroleo)]">{p.pacienteNome}</span>
+                            <span
+                              className="ml-auto text-[10px] font-bold"
+                              style={{ color: corHex }}
+                            >
+                              {p.parser} pendente{p.parser > 1 ? "s" : ""}
+                            </span>
+                            {p.manual > 0 && (
+                              <span className="text-[10px] text-emerald-700">{p.manual} validada{p.manual > 1 ? "s" : ""}</span>
+                            )}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           );
         })()}
 
