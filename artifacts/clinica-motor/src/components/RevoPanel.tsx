@@ -293,6 +293,12 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
 
   const [editingPat, setEditingPat] = useState<any>(null);
   const [editingMed, setEditingMed] = useState<any>(null);
+  // Task #243: estrutura editada/confirmada pelo médico no modal de EDIÇÃO de
+  // medicamento existente. Mesma semântica do `newMedPosologiaManual`: quando
+  // não-nula, é enviada no PUT junto do texto livre e o backend grava
+  // `origem_posologia='manual'`. Permite promover receitas antigas marcadas
+  // como `parser` para `manual` sem deletar e recadastrar.
+  const [editingMedPosologiaManual, setEditingMedPosologiaManual] = useState<PosologiaEstruturadaUI | null>(null);
 
   const [timelineExpanded, setTimelineExpanded] = useState(false);
   const [etapasExpanded, setEtapasExpanded] = useState(false);
@@ -476,18 +482,25 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
   const handleUpdateMedicamento = async () => {
     if (!editingMed) return;
     try {
+      const payload: any = {
+        statusAtual: editingMed.statusAtual,
+        substituicaoNatural: editingMed.substituicaoNatural,
+        evidenciaMelhora: editingMed.evidenciaMelhora,
+        posologia: editingMed.posologia,
+      };
+      // Task #243: se o médico confirmou/corrigiu a estrutura no PosologiaPreview
+      // do modal de edição, envia junto. Backend grava `origem_posologia='manual'`
+      // — promove receitas antigas `parser` pra `manual` sem recadastrar.
+      if (editingMedPosologiaManual) payload.posologiaEstruturada = editingMedPosologiaManual;
       const res = await apiFetch(`${apiBase}/rasx/revo/medicamento/${editingMed.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          statusAtual: editingMed.statusAtual,
-          substituicaoNatural: editingMed.substituicaoNatural,
-          evidenciaMelhora: editingMed.evidenciaMelhora,
-        }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         toast({ title: "Medicamento atualizado" });
         setEditingMed(null);
+        setEditingMedPosologiaManual(null);
         fetchData();
       }
     } catch { toast({ title: "Erro ao atualizar", variant: "destructive" }); }
@@ -1406,7 +1419,7 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!editingMed} onOpenChange={() => setEditingMed(null)}>
+      <Dialog open={!!editingMed} onOpenChange={() => { setEditingMed(null); setEditingMedPosologiaManual(null); }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Editar Medicamento — {editingMed?.nome}</DialogTitle>
@@ -1424,6 +1437,25 @@ export default function RevoPanel({ pacienteId }: { pacienteId: number }) {
                     <SelectItem value="substituido">Substituido</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Posologia</label>
+                <Input
+                  placeholder="ex: 1 comp 2x/dia"
+                  value={editingMed.posologia || ""}
+                  onChange={e => setEditingMed((m: any) => ({ ...m, posologia: e.target.value }))}
+                />
+                {/* Task #243: confirma-ou-corrige da posologia também na edição.
+                    O `key` força remontar o PosologiaPreview ao trocar de
+                    medicamento, garantindo que o useEffect interno releia o
+                    texto e refaça o parse do zero (sem carregar estrutura
+                    editada de outro medicamento aberto antes). */}
+                <PosologiaPreview
+                  key={`edit-${editingMed.id}`}
+                  texto={editingMed.posologia || ""}
+                  contexto={{ categoria: editingMed.tipoMed === "formula" ? "revo_formula" : "revo_medicamento" }}
+                  onEstruturaChange={setEditingMedPosologiaManual}
+                />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">Substituicao Natural</label>
