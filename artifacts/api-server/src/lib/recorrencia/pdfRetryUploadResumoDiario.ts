@@ -300,6 +300,17 @@ async function tickComLock(): Promise<void> {
     lockOk = Boolean(((r.rows ?? r)[0] || {}).got);
     if (!lockOk) return;
     await rodarLogica(false);
+    // Task #252 — verificacao auxiliar de silencio do proprio worker.
+    // Encapsulada num try/catch defensivo pra nao quebrar o tick principal
+    // se a migration 059 ainda nao tiver sido aplicada.
+    try {
+      await rodarLogicaSilencio();
+    } catch (e) {
+      console.error(
+        "[pdfRetryUploadResumoDiario:silencio] erro no tick auxiliar:",
+        (e as Error).message,
+      );
+    }
   } catch (e) {
     console.error("[pdfRetryUploadResumoDiario] erro fatal no tick:", (e as Error).message);
   } finally {
@@ -326,4 +337,288 @@ export function iniciarWorkerPdfRetryUploadResumoDiario(): void {
 /** Disparo manual pra testes / endpoint admin (forca execucao independente de horario). */
 export async function rodarResumoDiarioAgora(): Promise<ResumoDiarioRunResult> {
   return rodarLogica(true);
+}
+
+// ============================================================================
+// Task #252 — Tick auxiliar: aviso "worker do resumo diario silencioso".
+//
+// Por que existe: este mesmo worker insere 1 linha por dia em
+// `pdf_upload_resumo_diario`. Se o tick agendado das 08:00 cair em silencio
+// (cluster mata setInterval, env some, container reinicia exatamente naquela
+// janela), nenhuma linha eh escrita e o Caio so descobre quando abrir
+// /admin/uploads-pdf-resumo (task #70). Este tick auxiliar fecha o buraco:
+// detecta gap >= N dias E confirma que existem eventos esgotados pendentes
+// (i.e., o worker DEVERIA ter disparado e nao disparou) — entao manda 1
+// aviso unico pro CEO via fila assinatura_notificacoes (mesmo canal do
+// resumo, com `is_sistema_ceo=true`).
+//
+// Idempotencia: PRIMARY KEY em pdf_upload_resumo_diario_silencio_alertas.dia_brt
+// + ON CONFLICT DO NOTHING. Mesmo que o tick rode 24x no dia (a cada 60min),
+// o Caio recebe APENAS 1 aviso de silencio por dia — evita tsunami enquanto
+// o worker continua caido.
+//
+// Defensivo: nunca lanca; falha em silencio com log.
+// ============================================================================
+
+const SILENCIO_DIAS_DEFAULT = 7;
+const SILENCIO_LIMIAR_ESGOTADOS_DEFAULT = LIMIAR_ESGOTADOS;
+const DIAS_SEM_RESUMO_INFINITO = 9999;
+
+export interface DecidirSilencioInput {
+  ultimaEntradaEm: Date | null;
+  totalEsgotados24h: number;
+  agora: Date;
+  diasMin: number;
+  limiarEsgotados: number;
+}
+
+export interface DecidirSilencioOutput {
+  dispara: boolean;
+  diasSemResumo: number;
+  motivo:
+    | "OK"
+    | "ABAIXO_DO_LIMIAR_ESGOTADOS"
+    | "GAP_ABAIXO_DO_MIN"
+    | "WORKER_SILENCIOSO_NUNCA_RODOU"
+    | "WORKER_SILENCIOSO_GAP_LONGO";
+}
+
+/**
+ * Decisao pura — exportada pra testes unitarios sem DB/lock/rede.
+ *
+ * Regra: dispara somente quando AMBAS condicoes sao verdadeiras:
+ *   1. totalEsgotados24h >= limiarEsgotados
+ *      (evita falso positivo em periodos saudaveis em que simplesmente nao
+ *      houve esgotados — ex.: bucket estavel ha semanas)
+ *   2. (ultimaEntradaEm == null) OR (gap em dias >= diasMin)
+ *      (worker nunca rodou OU silencio prolongado)
+ *
+ * `diasSemResumo` eh sempre retornado pra observabilidade, mesmo quando nao
+ * dispara. Quando ultimaEntradaEm == null usamos o sentinel
+ * DIAS_SEM_RESUMO_INFINITO pra distinguir "nunca rodou" de gap calculado.
+ */
+export function decidirSilencio(input: DecidirSilencioInput): DecidirSilencioOutput {
+  const { ultimaEntradaEm, totalEsgotados24h, agora, diasMin, limiarEsgotados } = input;
+
+  const diasSemResumo = ultimaEntradaEm
+    ? Math.floor((agora.getTime() - ultimaEntradaEm.getTime()) / (24 * 60 * 60 * 1000))
+    : DIAS_SEM_RESUMO_INFINITO;
+
+  if (totalEsgotados24h < limiarEsgotados) {
+    return { dispara: false, diasSemResumo, motivo: "ABAIXO_DO_LIMIAR_ESGOTADOS" };
+  }
+
+  if (ultimaEntradaEm === null) {
+    return { dispara: true, diasSemResumo, motivo: "WORKER_SILENCIOSO_NUNCA_RODOU" };
+  }
+
+  if (diasSemResumo < diasMin) {
+    return { dispara: false, diasSemResumo, motivo: "GAP_ABAIXO_DO_MIN" };
+  }
+
+  return { dispara: true, diasSemResumo, motivo: "WORKER_SILENCIOSO_GAP_LONGO" };
+}
+
+function lerDiasMinSilencio(): number {
+  const raw = process.env["PDF_RESUMO_DIARIO_SILENCIO_DIAS_MIN"];
+  if (!raw) return SILENCIO_DIAS_DEFAULT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) {
+    return SILENCIO_DIAS_DEFAULT;
+  }
+  return n;
+}
+
+async function buscarUltimaEntradaResumo(): Promise<Date | null> {
+  const r: any = await db.execute(sql`
+    SELECT MAX(notificado_em) AS ultima FROM pdf_upload_resumo_diario
+  `);
+  const row = ((r.rows ?? r) as Array<{ ultima: Date | string | null }>)[0];
+  if (!row || !row.ultima) return null;
+  return row.ultima instanceof Date ? row.ultima : new Date(String(row.ultima));
+}
+
+async function contarEsgotados24h(): Promise<number> {
+  const r: any = await db.execute(sql`
+    SELECT COUNT(*)::int AS total
+      FROM assinatura_webhook_eventos
+     WHERE erro_processamento LIKE 'pdf_upload_falhou:%'
+       AND tentativas_retry >= 5
+       AND ultima_tentativa_em > NOW() - INTERVAL '24 hours'
+  `);
+  const row = ((r.rows ?? r) as Array<{ total: number | string }>)[0];
+  return row ? Number(row.total) : 0;
+}
+
+async function buscarTextoSilencio(): Promise<{ assunto: string; corpo: string } | null> {
+  const r: any = await db.execute(sql`
+    SELECT assunto, corpo
+      FROM assinatura_textos_institucionais
+     WHERE codigo = 'UPLOAD_PDF_RESUMO_DIARIO_SILENCIO' AND ativo = true
+     LIMIT 1
+  `);
+  const row = ((r.rows ?? r) as Array<{ assunto: string | null; corpo: string }>)[0];
+  if (!row) return null;
+  return {
+    assunto: row.assunto || "[CEO] PAWARDS · Worker do resumo diario de PDFs travados parou",
+    corpo: row.corpo,
+  };
+}
+
+export interface SilencioRunResult {
+  executou: boolean;
+  motivo_skip?:
+    | "abaixo_do_limiar_esgotados"
+    | "gap_abaixo_do_min"
+    | "ja_disparado_hoje"
+    | "sem_texto_institucional"
+    | "sem_destinatarios";
+  dias_sem_resumo: number;
+  total_esgotados_pendentes: number;
+  ultima_entrada_em: string | null;
+  notificacoes_email: number;
+  notificacoes_whatsapp: number;
+  dia_brt: string;
+}
+
+async function reservarEEnfileirarSilencioAtomico(
+  diaIso: string,
+  diasSemResumo: number,
+  totalEsgotados: number,
+  ultimaEntradaEm: Date | null,
+  destinatarios: CeoDestinatario[],
+  assunto: string,
+  corpo: string,
+): Promise<{ reservou: boolean; email: number; whatsapp: number }> {
+  return await db.transaction(async (tx) => {
+    const r: any = await tx.execute(sql`
+      INSERT INTO pdf_upload_resumo_diario_silencio_alertas
+        (dia_brt, dias_sem_resumo, total_esgotados_pendentes, ultima_entrada_em)
+      VALUES
+        (${diaIso}::date, ${diasSemResumo}, ${totalEsgotados},
+         ${ultimaEntradaEm ? ultimaEntradaEm.toISOString() : null})
+      ON CONFLICT (dia_brt) DO NOTHING
+      RETURNING dia_brt
+    `);
+    const reservou = ((r.rows ?? r) as Array<unknown>).length > 0;
+    if (!reservou) return { reservou: false, email: 0, whatsapp: 0 };
+
+    let email = 0;
+    let whatsapp = 0;
+    for (const ceo of destinatarios) {
+      const emailDest = (ceo.email || "").trim();
+      if (emailDest && emailDest.includes("@")) {
+        await tx.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, assunto, corpo,
+             status, is_sistema_ceo)
+          VALUES
+            (NULL, 'EMAIL', 'UPLOAD_PDF_RESUMO_DIARIO_SILENCIO', ${emailDest},
+             ${assunto}, ${corpo}, 'PENDENTE', true)
+        `);
+        email += 1;
+      }
+      const telDest = (ceo.telefone || "").trim();
+      if (telDest) {
+        await tx.execute(sql`
+          INSERT INTO assinatura_notificacoes
+            (solicitacao_id, canal, momento, destinatario, corpo,
+             status, is_sistema_ceo)
+          VALUES
+            (NULL, 'WHATSAPP', 'UPLOAD_PDF_RESUMO_DIARIO_SILENCIO', ${telDest},
+             ${corpo}, 'PENDENTE', true)
+        `);
+        whatsapp += 1;
+      }
+    }
+    return { reservou: true, email, whatsapp };
+  });
+}
+
+async function rodarLogicaSilencio(): Promise<SilencioRunResult> {
+  const dia = hojeBrtISO();
+  const out: SilencioRunResult = {
+    executou: false,
+    dias_sem_resumo: 0,
+    total_esgotados_pendentes: 0,
+    ultima_entrada_em: null,
+    notificacoes_email: 0,
+    notificacoes_whatsapp: 0,
+    dia_brt: dia,
+  };
+
+  const diasMin = lerDiasMinSilencio();
+  const ultimaEntrada = await buscarUltimaEntradaResumo();
+  const totalEsgotados = await contarEsgotados24h();
+
+  out.ultima_entrada_em = ultimaEntrada ? ultimaEntrada.toISOString() : null;
+  out.total_esgotados_pendentes = totalEsgotados;
+
+  const decisao = decidirSilencio({
+    ultimaEntradaEm: ultimaEntrada,
+    totalEsgotados24h: totalEsgotados,
+    agora: new Date(),
+    diasMin,
+    limiarEsgotados: SILENCIO_LIMIAR_ESGOTADOS_DEFAULT,
+  });
+  out.dias_sem_resumo = decisao.diasSemResumo;
+
+  if (!decisao.dispara) {
+    out.motivo_skip = decisao.motivo === "ABAIXO_DO_LIMIAR_ESGOTADOS"
+      ? "abaixo_do_limiar_esgotados"
+      : "gap_abaixo_do_min";
+    return out;
+  }
+
+  const texto = await buscarTextoSilencio();
+  if (!texto) {
+    console.warn(
+      `[pdfRetryUploadResumoDiario:silencio] texto institucional UPLOAD_PDF_RESUMO_DIARIO_SILENCIO ausente — skip`,
+    );
+    out.motivo_skip = "sem_texto_institucional";
+    return out;
+  }
+
+  const destinatarios = await buscarDestinatariosCEO();
+  if (destinatarios.length === 0) {
+    console.warn(`[pdfRetryUploadResumoDiario:silencio] nenhum validador_mestre ativo — skip`);
+    out.motivo_skip = "sem_destinatarios";
+    return out;
+  }
+
+  const ultimaEntradaTxt = ultimaEntrada
+    ? ultimaEntrada.toISOString().slice(0, 10)
+    : "(nunca)";
+  const assunto = texto.assunto
+    .replace(/\{DIAS\}/g, String(decisao.diasSemResumo))
+    .replace(/\{TOTAL_ESGOTADOS\}/g, String(totalEsgotados))
+    .replace(/\{ULTIMA_ENTRADA\}/g, ultimaEntradaTxt);
+  const corpo = texto.corpo
+    .replace(/\{DIAS\}/g, String(decisao.diasSemResumo))
+    .replace(/\{TOTAL_ESGOTADOS\}/g, String(totalEsgotados))
+    .replace(/\{ULTIMA_ENTRADA\}/g, ultimaEntradaTxt);
+
+  const stats = await reservarEEnfileirarSilencioAtomico(
+    dia, decisao.diasSemResumo, totalEsgotados, ultimaEntrada,
+    destinatarios, assunto, corpo,
+  );
+  if (!stats.reservou) {
+    out.motivo_skip = "ja_disparado_hoje";
+    return out;
+  }
+  out.executou = true;
+  out.notificacoes_email = stats.email;
+  out.notificacoes_whatsapp = stats.whatsapp;
+
+  console.log(
+    `[pdfRetryUploadResumoDiario:silencio] aviso enfileirado dia=${dia} ` +
+    `dias_sem_resumo=${decisao.diasSemResumo} esgotados_pendentes=${totalEsgotados} ` +
+    `email=${stats.email} whatsapp=${stats.whatsapp}`,
+  );
+  return out;
+}
+
+/** Disparo manual pra testes / endpoint admin (independente de horario). */
+export async function rodarSilencioResumoDiarioAgora(): Promise<SilencioRunResult> {
+  return rodarLogicaSilencio();
 }
