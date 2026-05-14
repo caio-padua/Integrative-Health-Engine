@@ -16,3 +16,11 @@ export const FEATURE_ASSINATURAS_RESUMO_CEO = read(
   "ASSINATURAS_RESUMO_CEO",
   true,
 );
+
+// Task #271 — gate dedicado pro mini-card de bloqueios 2FA expirados (30d)
+// no Painel CEO. Independente do gate de assinaturas pra evitar que
+// desligar resumo de assinaturas suprima visibilidade de seguranca.
+export const FEATURE_SEGURANCA_2FA_EXPIRADOS_CEO = read(
+  "SEGURANCA_2FA_EXPIRADOS_CEO",
+  true,
+);

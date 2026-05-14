@@ -13,9 +13,9 @@ import {
   FileSignature, ShieldAlert, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line, ReferenceLine } from "recharts";
 import { useClinic } from "@/contexts/ClinicContext";
-import { FEATURE_PARQ_BANNER_CEO, FEATURE_ASSINATURAS_RESUMO_CEO } from "@/lib/feature-flags";
+import { FEATURE_PARQ_BANNER_CEO, FEATURE_ASSINATURAS_RESUMO_CEO, FEATURE_SEGURANCA_2FA_EXPIRADOS_CEO } from "@/lib/feature-flags";
 
 import { apiFetch } from "@/lib/api-fetch";
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -254,6 +254,92 @@ function MicroMatriz({ title, icon: Icon, items, emptyText, renderItem }: {
   );
 }
 
+// Task #271 — DTOs do endpoint /admin/seguranca/totp-bloqueios-expirados
+// (Task #160). Mantidos juntos pra facilitar manutencao do mini-card.
+type Bloqueios2faExpiradosFlag = "NORMAL" | "ATENCAO" | "ANOMALIA";
+
+interface Bloqueios2faExpiradosLinha {
+  dia: string;
+  totalRemovidas: number;
+  ticksExecutados: number;
+  ultimaEm: string | null;
+}
+
+interface Bloqueios2faExpiradosResposta {
+  dias: number;
+  serie: Bloqueios2faExpiradosLinha[];
+  hoje: { dia: string; totalRemovidas: number; ticksExecutados: number } | null;
+  mediaHistorica: number;
+  desvioPadrao: number;
+  anomalia: {
+    hojeAcimaDaMedia: boolean;
+    razaoVsMedia: number;
+    zScoreHoje: number;
+    flag: Bloqueios2faExpiradosFlag;
+  };
+}
+
+// Forma do payload por barra usada pelo BarChart Recharts (apos sort/map).
+interface Bloqueios2faExpiradosBarra {
+  dia: string;
+  diaCurto: string;
+  total: number;
+  ticks: number;
+}
+
+// Helpers de normalizacao defensiva (JSON externo -> tipo conhecido).
+function asNumberSafe(v: unknown, fallback = 0): number {
+  const n = typeof v === "string" ? Number(v) : (v as number);
+  return Number.isFinite(n) ? n : fallback;
+}
+function asStringSafe(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : fallback;
+}
+function asFlagSafe(v: unknown): Bloqueios2faExpiradosFlag {
+  return v === "ANOMALIA" || v === "ATENCAO" ? v : "NORMAL";
+}
+function normalizarBloqueios2faExpirados(d: unknown): Bloqueios2faExpiradosResposta | null {
+  if (!d || typeof d !== "object") return null;
+  const raiz = d as Record<string, unknown>;
+  const serieRaw = Array.isArray(raiz["serie"]) ? (raiz["serie"] as unknown[]) : null;
+  if (!serieRaw) return null;
+  const serie: Bloqueios2faExpiradosLinha[] = serieRaw.map((p) => {
+    const linha = (p ?? {}) as Record<string, unknown>;
+    return {
+      dia: asStringSafe(linha["dia"]),
+      totalRemovidas: asNumberSafe(linha["totalRemovidas"]),
+      ticksExecutados: asNumberSafe(linha["ticksExecutados"]),
+      ultimaEm: typeof linha["ultimaEm"] === "string" ? (linha["ultimaEm"] as string) : null,
+    };
+  });
+  const hojeRaw = raiz["hoje"];
+  const hoje =
+    hojeRaw && typeof hojeRaw === "object"
+      ? (() => {
+          const h = hojeRaw as Record<string, unknown>;
+          return {
+            dia: asStringSafe(h["dia"]),
+            totalRemovidas: asNumberSafe(h["totalRemovidas"]),
+            ticksExecutados: asNumberSafe(h["ticksExecutados"]),
+          };
+        })()
+      : null;
+  const anomaliaRaw = (raiz["anomalia"] ?? {}) as Record<string, unknown>;
+  return {
+    dias: asNumberSafe(raiz["dias"], 30),
+    serie,
+    hoje,
+    mediaHistorica: asNumberSafe(raiz["mediaHistorica"]),
+    desvioPadrao: asNumberSafe(raiz["desvioPadrao"]),
+    anomalia: {
+      hojeAcimaDaMedia: Boolean(anomaliaRaw["hojeAcimaDaMedia"]),
+      razaoVsMedia: asNumberSafe(anomaliaRaw["razaoVsMedia"]),
+      zScoreHoje: asNumberSafe(anomaliaRaw["zScoreHoje"]),
+      flag: asFlagSafe(anomaliaRaw["flag"]),
+    },
+  };
+}
+
 export default function PainelComando() {
   const { unidadeSelecionada, nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas } = useClinic();
   const [data, setData] = useState<DashboardComando | null>(null);
@@ -425,6 +511,13 @@ export default function PainelComando() {
     // Task #188 — serie horaria (24 buckets pra janela_horas=24) pra sparkline.
     serie_horaria: { hora: string; total: number }[];
   } | null>(null);
+
+  // Task #271 — serie diaria (30d) de bloqueios 2FA expirados pelo worker.
+  // Endpoint /admin/seguranca/totp-bloqueios-expirados (Task #160) devolve
+  // serie + media historica + flag de anomalia. Mini-card mostra barras
+  // dos ultimos 30 dias com linha da media e badge colorido pela flag.
+  const [bloqueios2faExpirados, setBloqueios2faExpirados] = useState<Bloqueios2faExpiradosResposta | null>(null);
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -690,6 +783,38 @@ export default function PainelComando() {
       window.removeEventListener("alertas_seguranca_marcados", onMarcados);
       window.removeEventListener("storage", onStorage);
     };
+  }, []);
+
+  // Task #271 — polling do endpoint de bloqueios 2FA expirados (Task #160).
+  // Worker `limpezaTotpRateLimit` roda em ticks ~30min; refetch a cada 5min
+  // e silencia 401/403 (zera) — mini-card so renderiza pra master autenticado.
+  useEffect(() => {
+    if (!FEATURE_SEGURANCA_2FA_EXPIRADOS_CEO) return;
+    let alive = true;
+    const carregar = async () => {
+      try {
+        const r = await apiFetch(
+          `${API_BASE}/admin/seguranca/totp-bloqueios-expirados?dias=30`,
+          { credentials: "include" },
+        );
+        if (!alive) return;
+        if (!r.ok) {
+          setBloqueios2faExpirados(null);
+          return;
+        }
+        const d: unknown = await r.json();
+        if (!alive) return;
+        const normalizado = normalizarBloqueios2faExpirados(d);
+        // Limpa estado stale quando payload vier invalido (mesma politica
+        // do branch !r.ok logo acima — evita UI mostrando dados antigos).
+        setBloqueios2faExpirados(normalizado);
+      } catch {
+        if (alive) setBloqueios2faExpirados(null);
+      }
+    };
+    carregar();
+    const id = setInterval(carregar, 5 * 60_000);
+    return () => { alive = false; clearInterval(id); };
   }, []);
 
   // Task #161 — polling leve de alertas de seguranca pendentes (2FA brute-force).
@@ -1522,6 +1647,136 @@ export default function PainelComando() {
                   )}
                 </span>
                 <ChevronRight className="w-4 h-4 text-[var(--pw-tinta)] ml-auto flex-shrink-0" />
+              </div>
+            </a>
+          );
+        })()}
+
+        {/* Task #271 — mini-card de bloqueios 2FA expirados (30d) com barras
+            diarias, linha da media historica e badge de anomalia. Consome
+            /admin/seguranca/totp-bloqueios-expirados (Task #160). Gate
+            dedicado de seguranca pra nao ficar amarrado ao gate de assinaturas. */}
+        {FEATURE_SEGURANCA_2FA_EXPIRADOS_CEO && bloqueios2faExpirados && bloqueios2faExpirados.serie.length > 0 && (() => {
+          const b = bloqueios2faExpirados;
+          const flag = b.anomalia.flag;
+          const cor: CorSemantica =
+            flag === "ANOMALIA" ? "critico"
+            : flag === "ATENCAO" ? "atencao"
+            : "excelente";
+          const corHex = COR_SEMANTICA_HEX[cor];
+          const badgeLabel =
+            flag === "ANOMALIA" ? "Anomalia"
+            : flag === "ATENCAO" ? "Atencao"
+            : "Normal";
+          // Recharts pinta da esquerda pra direita (mais antigo -> hoje).
+          const dadosBarras: Bloqueios2faExpiradosBarra[] = [...b.serie]
+            .sort((a, c) => a.dia.localeCompare(c.dia))
+            .map((p) => ({
+              dia: p.dia,
+              diaCurto: p.dia.slice(5),
+              total: p.totalRemovidas,
+              ticks: p.ticksExecutados,
+            }));
+          const totalJanela = dadosBarras.reduce((acc, p) => acc + p.total, 0);
+          return (
+            <a
+              href="/plataforma/alertas-seguranca"
+              className="block border-l-4 px-4 py-3 rounded-sm bg-[var(--pw-petroleo)]/5 hover:bg-[var(--pw-petroleo)]/10 transition-colors"
+              style={{ borderLeftColor: corHex }}
+              data-testid="card-ceo-bloqueios-2fa-expirados-30d"
+              title="Abrir fila de alertas de seguranca"
+            >
+              <div className="flex items-center gap-3 flex-wrap mb-2">
+                <Shield className="w-4 h-4 flex-shrink-0" style={{ color: corHex }} />
+                <span className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold">
+                  Bloqueios 2FA expirados · 30d
+                </span>
+                <span
+                  className="text-sm font-bold tracking-tight"
+                  style={{ color: corHex }}
+                  data-testid="card-ceo-bloqueios-2fa-expirados-30d-total"
+                >
+                  {totalJanela}
+                </span>
+                <span
+                  className="text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-sm border"
+                  style={{ color: corHex, borderColor: corHex }}
+                  data-testid="card-ceo-bloqueios-2fa-expirados-30d-flag"
+                >
+                  {badgeLabel}
+                </span>
+                <span className="text-[11px] text-[var(--pw-tinta)]">
+                  Hoje: <span style={{ color: corHex }} className="font-semibold">{b.hoje?.totalRemovidas ?? 0}</span>
+                  {" · Media: "}
+                  <span className="font-semibold">{b.mediaHistorica.toFixed(1)}</span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-[var(--pw-tinta)] ml-auto flex-shrink-0" />
+              </div>
+              <div style={{ width: "100%", height: 90 }} data-testid="card-ceo-bloqueios-2fa-expirados-30d-grafico">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dadosBarras} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <XAxis
+                      dataKey="diaCurto"
+                      tick={{ fontSize: 9, fill: "var(--pw-tinta)" }}
+                      interval="preserveStartEnd"
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 9, fill: "var(--pw-tinta)" }}
+                      width={24}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <RechartsTooltip
+                      cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                      contentStyle={{
+                        fontSize: 11,
+                        background: "var(--pw-petroleo)",
+                        border: "1px solid var(--pw-dourado)",
+                        color: "white",
+                        borderRadius: 0,
+                      }}
+                      labelFormatter={(label: string, payload: ReadonlyArray<{ payload?: Bloqueios2faExpiradosBarra }>) => {
+                        const dia = payload?.[0]?.payload?.dia ?? label;
+                        return `Dia ${dia}`;
+                      }}
+                      formatter={(
+                        value: number | string,
+                        _name: string,
+                        props: { payload?: Bloqueios2faExpiradosBarra },
+                      ): [string, string] => {
+                        const ticks = props?.payload?.ticks ?? 0;
+                        return [`${value} removidas · ${ticks} ticks`, "Total"];
+                      }}
+                    />
+                    <ReferenceLine
+                      y={b.mediaHistorica}
+                      stroke={COR_SEMANTICA_HEX.neutro}
+                      strokeDasharray="3 3"
+                      ifOverflow="extendDomain"
+                      label={{
+                        value: `Media ${b.mediaHistorica.toFixed(1)}`,
+                        position: "insideTopRight",
+                        fill: COR_SEMANTICA_HEX.neutro,
+                        fontSize: 9,
+                      }}
+                    />
+                    <Bar dataKey="total" fill={corHex} radius={[1, 1, 0, 0]} isAnimationActive={false}>
+                      {dadosBarras.map((p, i) => {
+                        const ehHoje = b.hoje && p.dia === b.hoje.dia;
+                        return (
+                          <Cell
+                            key={i}
+                            fill={ehHoje ? corHex : "var(--pw-petroleo)"}
+                            fillOpacity={ehHoje ? 1 : 0.55}
+                          />
+                        );
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </a>
           );
