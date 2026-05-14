@@ -49,6 +49,8 @@ function shortUserAgent(ua: string | null): string {
 export function AuditoriaAcessosPanel() {
   const [usuarioId, setUsuarioId] = useState<string>("");
   const [desde, setDesde] = useState<string>("");
+  const [endpointBusca, setEndpointBusca] = useState<string>("");
+  const [metodo, setMetodo] = useState<string>("");
   const [pageSize, setPageSize] = useState<number>(50);
   const [offset, setOffset] = useState<number>(0);
 
@@ -68,6 +70,8 @@ export function AuditoriaAcessosPanel() {
         // input datetime-local entrega "YYYY-MM-DDTHH:mm"; backend aceita timestamptz.
         params.set("desde", desde);
       }
+      if (endpointBusca.trim()) params.set("endpoint", endpointBusca.trim());
+      if (metodo) params.set("metodo", metodo);
       const res = await apiFetch(`/api/painel-pawards/auditoria/acessos?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as RespostaAuditoria;
@@ -77,7 +81,7 @@ export function AuditoriaAcessosPanel() {
     } finally {
       setLoading(false);
     }
-  }, [pageSize, offset, usuarioId, desde]);
+  }, [pageSize, offset, usuarioId, desde, endpointBusca, metodo]);
 
   useEffect(() => {
     fetchPage();
@@ -103,6 +107,8 @@ export function AuditoriaAcessosPanel() {
   const limpar = () => {
     setUsuarioId("");
     setDesde("");
+    setEndpointBusca("");
+    setMetodo("");
     setOffset(0);
   };
 
@@ -237,6 +243,50 @@ export function AuditoriaAcessosPanel() {
               fontFamily: "ui-monospace, monospace",
             }}
           />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, color: PAWARDS.colors.text.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          Endpoint contém
+          <input
+            type="text"
+            value={endpointBusca}
+            onChange={(e) => setEndpointBusca(e.target.value)}
+            placeholder="ex: parmavault"
+            data-testid="input-filtro-endpoint"
+            style={{
+              padding: "6px 10px",
+              minWidth: 180,
+              background: PAWARDS.colors.bg[800],
+              color: PAWARDS.colors.text.primary,
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 6,
+              fontSize: 12,
+              fontFamily: "ui-monospace, monospace",
+            }}
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, color: PAWARDS.colors.text.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          Método
+          <select
+            value={metodo}
+            onChange={(e) => { setMetodo(e.target.value); setOffset(0); }}
+            data-testid="select-filtro-metodo"
+            style={{
+              padding: "6px 10px",
+              background: PAWARDS.colors.bg[800],
+              color: PAWARDS.colors.text.primary,
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 6,
+              fontSize: 12,
+              fontFamily: "ui-monospace, monospace",
+            }}
+          >
+            <option value="">Todos</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="PATCH">PATCH</option>
+            <option value="DELETE">DELETE</option>
+          </select>
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, color: PAWARDS.colors.text.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
           Por página

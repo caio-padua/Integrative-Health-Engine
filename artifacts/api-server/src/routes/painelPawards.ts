@@ -1024,6 +1024,10 @@ router.get("/auditoria/acessos", async (req, res) => {
     const offset = Math.max(Number(req.query.offset ?? 0) || 0, 0);
     const usuarioId = req.query.usuario_id ? Number(req.query.usuario_id) : null;
     const desde = typeof req.query.desde === "string" ? req.query.desde : null;
+    const endpointFiltro = typeof req.query.endpoint === "string" ? req.query.endpoint.trim() : "";
+    const metodoFiltroRaw = typeof req.query.metodo === "string" ? req.query.metodo.trim().toUpperCase() : "";
+    const METODOS_VALIDOS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+    const metodoFiltro = METODOS_VALIDOS.has(metodoFiltroRaw) ? metodoFiltroRaw : "";
 
     const where: string[] = [];
     const params: (string | number)[] = [];
@@ -1034,6 +1038,14 @@ router.get("/auditoria/acessos", async (req, res) => {
     if (desde) {
       params.push(desde);
       where.push(`acessado_em >= $${params.length}::timestamptz`);
+    }
+    if (endpointFiltro) {
+      params.push(`%${endpointFiltro}%`);
+      where.push(`endpoint ILIKE $${params.length}`);
+    }
+    if (metodoFiltro) {
+      params.push(metodoFiltro);
+      where.push(`metodo = $${params.length}`);
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
