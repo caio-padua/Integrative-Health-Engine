@@ -31,6 +31,11 @@ import {
   serializarOrdenacoes as serializarOrdenacoesLib,
   alternarOrdenacao as alternarOrdenacaoLib,
 } from "@/lib/ordenacao-multi";
+// Task #216 — hook generico de "memoria de filtros por usuario com URL
+// ganhando do storage". Antes a logica vivia inline aqui (Task #88 +
+// Task #90); agora vive em `lib/useFiltroPersistido.ts` e e reaproveitada
+// em outras telas (pacientes/RAS).
+import { useFiltroPersistido } from "@/lib/useFiltroPersistido";
 
 const NAVY = "#020406";
 const GOLD = "#C89B3C";
@@ -268,27 +273,23 @@ export default function AssinaturasTimeline() {
 
   // Task #51 — leitura do filtro `?unidade_id=` na URL pra abrir a timeline
   // ja escopada numa clinica especifica (clique vindo do banner CEO).
-  // Usamos window.location direto pra nao depender de hook de router.
-  // Task #90 — agora com state + persistencia por-usuario; URL continua tendo
-  // prioridade na inicializacao (link compartilhavel).
-  function parseUnidadeFromUrl(): number | null {
-    if (typeof window === "undefined") return null;
-    const v = new URLSearchParams(window.location.search).get("unidade_id");
-    if (!v) return null;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  }
-  const [filtroUnidadeId, setFiltroUnidadeIdState] = useState<number | null>(parseUnidadeFromUrl);
-  const setFiltroUnidadeId = useCallback((novo: number | null) => {
-    setFiltroUnidadeIdState(novo);
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (novo !== null) url.searchParams.set("unidade_id", String(novo));
-    else url.searchParams.delete("unidade_id");
-    window.history.replaceState({}, "", url.toString());
-    salvarStorageFiltro("filtro_unidade_id", user?.id, novo === null ? "" : String(novo));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  // Task #90 — state + persistencia por-usuario; URL continua tendo prioridade.
+  // Task #216 — agora via hook generico `useFiltroPersistido`; comportamento
+  // identico (mesma chave de storage `pawards.timeline.filtro_unidade_id.<uid>`,
+  // mesmo paramUrl `unidade_id`, default `null`).
+  const [filtroUnidadeId, setFiltroUnidadeId] = useFiltroPersistido<number | null>({
+    scope: "timeline",
+    nome: "filtro_unidade_id",
+    uid: user?.id,
+    paramUrl: "unidade_id",
+    defaultValue: null,
+    parse: (raw) => {
+      if (!raw) return null;
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : null;
+    },
+    serialize: (v) => (v === null ? "" : String(v)),
+  });
 
   // Task #55 — chips de filtro por status no topo da tabela. Cada chip mapeia
   // pra 1+ status crus (ex.: "Em andamento" agrupa ENVIADO+PARCIAL, "Rejeitada"
@@ -318,6 +319,12 @@ export default function AssinaturasTimeline() {
     if (v === "rejeitado") return "REJEITADO";
     return "TODOS";
   }
+  // Task #216 — filtroStatus permanece inline (NAO migrou pro hook)
+  // porque a Task #212 dispara um toast "Filtrando por X — sua ultima
+  // escolha" no momento exato da hidratacao, com botao "ver tudo" pra
+  // resetar. Esse efeito colateral nao tem como ser expressado pelo hook
+  // generico sem vazar abstracao. filtroUnidadeId migrou; pacientes/index.tsx
+  // tambem migrou — ja temos prova de reuso.
   const [filtroStatus, setFiltroStatusState] = useState<FiltroStatus>(parseStatusFromUrl);
   const setFiltroStatus = useCallback((novo: FiltroStatus) => {
     setFiltroStatusState(novo);
@@ -327,8 +334,6 @@ export default function AssinaturasTimeline() {
     if (valor) url.searchParams.set("status", valor);
     else url.searchParams.delete("status");
     window.history.replaceState({}, "", url.toString());
-    // Task #90 — persiste por-usuario; "TODOS" salva string vazia (= "limpo
-    // explicitamente") pra reabrir a timeline lembrando do default.
     salvarStorageFiltro("filtro_status", user?.id, valor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -536,31 +541,25 @@ export default function AssinaturasTimeline() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Task #90 — hidrata os demais filtros (unidade, status, datas) por-usuario
-  // quando o user.id fica disponivel. Cada filtro so e restaurado se a URL
-  // atual NAO traz o param correspondente — link compartilhavel sempre vence
-  // por filtro (granular, ex: URL com `?status=` mas sem `?desde=` restaura
-  // so as datas, mantendo o status do link). String vazia salva = "limpo
-  // explicitamente" e nao dispara restauracao.
+  // Task #90 — hidrata filtros de datas por-usuario quando o user.id fica
+  // disponivel. URL tem prioridade granular (link compartilhavel preserva
+  // exatamente o que ele traz). Unidade e status migraram pro hook
+  // `useFiltroPersistido` (Task #216) — a hidratacao deles agora roda dentro
+  // do proprio hook. Datas permanecem inline porque envolvem 3 chaves
+  // correlacionadas (preset + desde + ate) que precisam recomputar "hoje" no
+  // momento da hidratacao (HOJE/7D/30D nao sao snapshot, sao janela viva).
   useEffect(() => {
     if (!user?.id || typeof window === "undefined") return;
     const sp = new URLSearchParams(window.location.search);
 
-    // Unidade
-    if (!sp.get("unidade_id")) {
-      const salvo = lerStorageFiltro("filtro_unidade_id", user.id);
-      if (salvo !== null && salvo !== "") {
-        const n = Number(salvo);
-        if (Number.isFinite(n) && n !== filtroUnidadeId) setFiltroUnidadeId(n);
-      }
-    }
-
-    // Status
-    // Task #212 — alem de restaurar o chip salvo, dispara um toast discreto
+    // Status (Task #212) — restaura o chip salvo + dispara um toast discreto
     // de 3s avisando "Filtrando por <chip> — sua ultima escolha", com acao
     // "ver tudo" que reseta pra TODOS e remove a chave salva (proxima visita
     // re-mostra o aviso se o usuario configurar um novo chip). Mesmo padrao
     // da Task #91 (aviso de ordenacao).
+    // Task #216 — filtroUnidadeId migrou pro hook `useFiltroPersistido` (a
+    // hidratacao roda dentro do hook); status NAO migrou porque depende
+    // deste toast colateral, entao a hidratacao dele segue inline aqui.
     if (!sp.get("status")) {
       const salvo = lerStorageFiltro("filtro_status", user.id);
       if (salvo !== null && salvo !== "") {
@@ -596,6 +595,7 @@ export default function AssinaturasTimeline() {
         }
       }
     }
+
 
     // Datas (preset + desde + ate). Hidrata so se nem `desde` nem `ate`
     // estao na URL — se um dos dois veio do link, respeitamos o link inteiro.

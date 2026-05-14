@@ -19,6 +19,11 @@ import {
   serializarOrdenacoes,
   alternarOrdenacao,
 } from "@/lib/ordenacao-multi";
+// Task #216 — hook generico de "memoria de filtros por usuario com URL
+// ganhando do storage". Antes a logica de hidratacao + persistencia vivia
+// inline aqui (espelhada da timeline de assinaturas); agora vem da lib
+// compartilhada `lib/useFiltroPersistido.ts`.
+import { useFiltroPersistido } from "@/lib/useFiltroPersistido";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
@@ -101,55 +106,33 @@ const URL_TO_ORDENACAO_PAC: Record<string, OrdenacaoPaciente> = (() => {
   });
   return m;
 })();
-function chaveStoragePac(uid: number | string | undefined): string | null {
-  if (uid === undefined || uid === null) return null;
-  return `pawards.pacientes.ordenar_por.${uid}`;
-}
+// Task #216 — chave de storage migrou pro hook generico
+// `useFiltroPersistido` (`pawards.pacientes.ordenar_por.<uid>` continua
+// igual, pra preservar memoria ja gravada nas contas dos usuarios).
 
 export default function Pacientes() {
   const { unidadeSelecionada } = useClinic();
   const { user } = useAuth();
   const [busca, setBusca] = useState("");
-  // Task #98 — estado de ordenacao multi-coluna. Hidratado de `?ordenar_por=`
-  // (link compartilhavel tem prioridade) ou de localStorage por-usuario.
-  const parseOrdPacFromUrl = (): OrdenacaoPaciente[] => {
-    if (typeof window === "undefined") return [];
-    const v = new URLSearchParams(window.location.search).get("ordenar_por") || "";
-    return parseOrdenacoesFromString<ChaveOrdenacaoPaciente>(v, URL_TO_ORDENACAO_PAC, MAX_ORDENACOES_PAC);
-  };
-  const [ordenacoesPac, setOrdenacoesPacState] = useState<OrdenacaoPaciente[]>(parseOrdPacFromUrl);
+  // Task #98 — estado de ordenacao multi-coluna.
+  // Task #216 — agora via hook generico: hidrata de `?ordenar_por=` (URL
+  // vence) ou de localStorage por-usuario. parseOrdenacoesFromString ja
+  // aplica dedupe internamente; o setter externo aplica dedupe extra antes
+  // de chamar o hook (defesa em profundidade pra clicks rapidos).
+  const [ordenacoesPac, setOrdenacoesPacRaw] = useFiltroPersistido<OrdenacaoPaciente[]>({
+    scope: "pacientes",
+    nome: "ordenar_por",
+    uid: user?.id,
+    paramUrl: "ordenar_por",
+    defaultValue: [],
+    parse: (raw) =>
+      parseOrdenacoesFromString<ChaveOrdenacaoPaciente>(raw, URL_TO_ORDENACAO_PAC, MAX_ORDENACOES_PAC),
+    serialize: (lista) =>
+      serializarOrdenacoes<ChaveOrdenacaoPaciente>(lista, ORDENACAO_URL_PAC),
+  });
   const setOrdenacoesPac = useCallback((novas: OrdenacaoPaciente[]) => {
-    const dedupe = dedupePorColuna<ChaveOrdenacaoPaciente>(novas, MAX_ORDENACOES_PAC);
-    setOrdenacoesPacState(dedupe);
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    const valor = serializarOrdenacoes<ChaveOrdenacaoPaciente>(dedupe, ORDENACAO_URL_PAC);
-    if (valor) url.searchParams.set("ordenar_por", valor);
-    else url.searchParams.delete("ordenar_por");
-    window.history.replaceState({}, "", url.toString());
-    const k = chaveStoragePac(user?.id);
-    if (k) {
-      try { window.localStorage.setItem(k, valor); } catch { /* ignore */ }
-    }
-  }, [user?.id]);
-  // Hidrata salva quando user fica disponivel, SOMENTE se a URL nao traz
-  // `?ordenar_por=` (link compartilhavel manda).
-  useEffect(() => {
-    if (!user?.id || typeof window === "undefined") return;
-    const urlTem = new URLSearchParams(window.location.search).get("ordenar_por");
-    if (urlTem) return;
-    const k = chaveStoragePac(user.id);
-    if (!k) return;
-    try {
-      const v = window.localStorage.getItem(k);
-      if (v === null) return;
-      const salvas = parseOrdenacoesFromString<ChaveOrdenacaoPaciente>(v, URL_TO_ORDENACAO_PAC, MAX_ORDENACOES_PAC);
-      const atual = serializarOrdenacoes<ChaveOrdenacaoPaciente>(ordenacoesPac, ORDENACAO_URL_PAC);
-      const proxima = serializarOrdenacoes<ChaveOrdenacaoPaciente>(salvas, ORDENACAO_URL_PAC);
-      if (proxima !== atual) setOrdenacoesPac(salvas);
-    } catch { /* ignore */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+    setOrdenacoesPacRaw(dedupePorColuna<ChaveOrdenacaoPaciente>(novas, MAX_ORDENACOES_PAC));
+  }, [setOrdenacoesPacRaw]);
   const ordenarPorString = serializarOrdenacoes<ChaveOrdenacaoPaciente>(ordenacoesPac, ORDENACAO_URL_PAC);
   const onClickColuna = useCallback((chave: ChaveOrdenacaoPaciente, shift: boolean) => {
     setOrdenacoesPac(alternarOrdenacao<ChaveOrdenacaoPaciente>(chave, shift, ordenacoesPac));
