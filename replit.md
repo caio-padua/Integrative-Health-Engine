@@ -129,6 +129,28 @@ o campo, e os históricos caíam no texto bruto.
 - Re-execução confirmada idempotente (0 linhas pendentes).
 - Migration 034 aplicada antes do backfill (era pré-requisito ausente no DB).
 
+## Wave V232 — Retencao automatica da auditoria do Painel PAWARDS (14/mai/2026)
+
+Task #232 fechada: a tabela `painel_pawards_auditoria` (migration 007) recebia
+um INSERT a cada GET no Painel PAWARDS sem nenhuma politica de retencao —
+em alguns meses viraria gigante e a paginacao ficaria lenta, alem de violar
+recomendacao da LGPD (manter trilha de acesso so pelo prazo necessario).
+
+### Migration 056 (`056_painel_pawards_auditoria_retencao.sql`)
+Cria `painel_pawards_auditoria_limpezas` (id, executado_em, corte_em,
+meses_retencao, removidas, pulado_por_lock) — log auditavel de cada
+execucao do worker. NAO mexe na tabela auditada (so adiciona historico).
+
+### Worker (`lib/recorrencia/limpezaAuditoriaPainelPawards.ts`)
+- Tick a cada 24h, primeiro disparo 5min apos boot.
+- `DELETE FROM painel_pawards_auditoria WHERE acessado_em < now() - N months`
+  numa unica query (usa indice `idx_painel_pawards_auditoria_acessado_em`).
+- N configuravel via env `PAINEL_PAWARDS_AUDITORIA_RETENCAO_MESES` (default 12).
+- Lock distribuido `pg_try_advisory_lock(15102320)` pra defesa multi-replica.
+- Persiste cada execucao em `painel_pawards_auditoria_limpezas`.
+- Defensivo: nunca lanca; tick falha = log + segue.
+- Wired em `index.ts` via `iniciarWorkerLimpezaAuditoriaPainelPawards()`.
+
 ## Wave V46 — WhatsApp do CEO ativado (13/mai/2026)
 
 Task #46 fechada: tela `/plataforma/perfil` agora permite cadastrar o
