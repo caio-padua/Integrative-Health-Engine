@@ -6,7 +6,7 @@ import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import {
   Building2, Power, PowerOff, RefreshCw, ShieldAlert,
   Trash2, Undo2, Download, Clock, Mail, ChevronDown, ChevronRight, Send,
-  Phone, AlertTriangle, X,
+  Phone, AlertTriangle, X, ShieldCheck, FileCheck2, Loader2,
 } from "lucide-react";
 
 type PreviaDestinatarios = {
@@ -89,7 +89,44 @@ type Clinica = {
   suspenso_por_nome: string | null;
   exclusao_carencia_ate: string | null;
   lgpd_export_url?: string | null;
+  lgpd_export_em?: string | null;
+  lgpd_export_sha256?: string | null;
+  lgpd_export_drive_file_id?: string | null;
+  lgpd_export_tamanho_bytes?: number | string | null;
+  lgpd_export_nome_arquivo?: string | null;
 };
+
+type VerificacaoIntegridade =
+  | { status: "verificando" }
+  | {
+      status: "ok";
+      sha256Calculado: string;
+      sha256Esperado: string;
+      tamanhoBytes: number;
+    }
+  | {
+      status: "divergente";
+      sha256Calculado: string;
+      sha256Esperado: string;
+      tamanhoBytes: number;
+    }
+  | { status: "erro"; mensagem: string };
+
+function formatarBytes(n: number | string | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  const v = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(v)) return "—";
+  if (v < 1024) return `${v} B`;
+  if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)} KB`;
+  return `${(v / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+async function calcularSha256Hex(buffer: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 function diasAteCarencia(iso: string | null): number | null {
   if (!iso) return null;
@@ -122,6 +159,7 @@ export default function PlataformaClinicas() {
     acao: "suspender" | "reativar" | "agendar_exclusao";
   } | null>(null);
   const [carregandoPreviaId, setCarregandoPreviaId] = useState<number | null>(null);
+  const [verificacoes, setVerificacoes] = useState<Record<number, VerificacaoIntegridade>>({});
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -391,6 +429,49 @@ export default function PlataformaClinicas() {
     await carregar();
   }
 
+  // Task #261 — baixa o arquivo do Drive via proxy backend, recalcula
+  // SHA-256 no navegador (Web Crypto) e compara com o hash gravado no DB.
+  // Prova juridica de integridade: se divergir, o arquivo no Drive foi
+  // adulterado depois do upload (ou alguem mexeu no DB).
+  async function verificarIntegridade(c: Clinica) {
+    if (!c.lgpd_export_sha256 || !c.lgpd_export_drive_file_id) return;
+    setVerificacoes(prev => ({ ...prev, [c.id]: { status: "verificando" } }));
+    try {
+      const r = await apiFetch(
+        `/api/plataforma/clinicas/${c.id}/exclusao/lgpd-export-arquivo`,
+        { credentials: "include" },
+      );
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({} as { error?: string }));
+        setVerificacoes(prev => ({
+          ...prev,
+          [c.id]: { status: "erro", mensagem: j.error ?? r.statusText },
+        }));
+        return;
+      }
+      const buffer = await r.arrayBuffer();
+      const sha256Calculado = await calcularSha256Hex(buffer);
+      const sha256Esperado = c.lgpd_export_sha256.toLowerCase();
+      const tamanhoBytes = buffer.byteLength;
+      const igual = sha256Calculado === sha256Esperado;
+      setVerificacoes(prev => ({
+        ...prev,
+        [c.id]: {
+          status: igual ? "ok" : "divergente",
+          sha256Calculado,
+          sha256Esperado,
+          tamanhoBytes,
+        },
+      }));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setVerificacoes(prev => ({
+        ...prev,
+        [c.id]: { status: "erro", mensagem: msg },
+      }));
+    }
+  }
+
   return (
     <Layout>
       <div className="p-6 max-w-7xl mx-auto">
@@ -612,6 +693,123 @@ export default function PlataformaClinicas() {
                     <tr className="border-t border-zinc-800 bg-zinc-950/40">
                       <td colSpan={6} className="px-6 py-4">
                         <div className="text-xs text-zinc-300">
+                          {/* Task #261 — painel de integridade do export LGPD */}
+                          <div className="font-semibold text-amber-300 mb-2 flex items-center gap-2">
+                            <FileCheck2 size={14} /> Export LGPD (prova juridica de integridade)
+                          </div>
+                          {(() => {
+                            const v = verificacoes[c.id];
+                            const temExport = !!c.lgpd_export_sha256 && !!c.lgpd_export_drive_file_id;
+                            return (
+                              <div className="mb-4 border border-zinc-800 rounded p-3 bg-zinc-900/40 space-y-2">
+                                {!c.lgpd_export_url && (
+                                  <div className="text-zinc-500 italic">
+                                    Nenhum export LGPD gerado pra esta clinica ainda.
+                                  </div>
+                                )}
+                                {c.lgpd_export_url && !temExport && (
+                                  <div className="text-amber-300">
+                                    Export antigo (sem hash gravado) — gere novamente pra ter prova de integridade.
+                                  </div>
+                                )}
+                                {c.lgpd_export_url && (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
+                                    <div className="md:col-span-2">
+                                      <span className="text-zinc-500">Nome do arquivo:</span>{" "}
+                                      <code className="text-zinc-100 break-all">
+                                        {c.lgpd_export_nome_arquivo ?? "—"}
+                                      </code>
+                                    </div>
+                                    <div>
+                                      <span className="text-zinc-500">Gerado em:</span>{" "}
+                                      <span className="text-zinc-200">
+                                        {c.lgpd_export_em
+                                          ? new Date(c.lgpd_export_em).toLocaleString("pt-BR")
+                                          : "—"}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-zinc-500">Tamanho:</span>{" "}
+                                      <span className="text-zinc-200">{formatarBytes(c.lgpd_export_tamanho_bytes)}</span>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                      <span className="text-zinc-500">SHA-256 gravado:</span>{" "}
+                                      <code className="text-emerald-300 break-all">
+                                        {c.lgpd_export_sha256 ?? "—"}
+                                      </code>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                      <span className="text-zinc-500">Arquivo no Drive:</span>{" "}
+                                      <a
+                                        href={c.lgpd_export_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-cyan-300 hover:underline break-all"
+                                      >
+                                        abrir no Google Drive ↗
+                                      </a>
+                                    </div>
+                                  </div>
+                                )}
+                                {temExport && (
+                                  <div className="flex items-center gap-2 pt-2">
+                                    <button
+                                      disabled={v?.status === "verificando"}
+                                      onClick={() => void verificarIntegridade(c)}
+                                      className="inline-flex items-center gap-1 px-3 py-1 rounded text-[11px] bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50"
+                                      title="Baixa o arquivo do Drive, recalcula SHA-256 no navegador e compara com o hash gravado"
+                                    >
+                                      {v?.status === "verificando" ? (
+                                        <Loader2 size={11} className="animate-spin" />
+                                      ) : (
+                                        <ShieldCheck size={11} />
+                                      )}
+                                      {v?.status === "verificando" ? "Verificando..." : "Verificar integridade"}
+                                    </button>
+                                  </div>
+                                )}
+                                {v?.status === "ok" && (
+                                  <div className="mt-2 p-2 border border-emerald-500/40 bg-emerald-500/10 rounded text-emerald-300 flex items-start gap-2">
+                                    <ShieldCheck size={14} className="shrink-0 mt-0.5" />
+                                    <div>
+                                      <div className="font-semibold">Integridade OK ✓</div>
+                                      <div className="text-[11px] opacity-90">
+                                        SHA-256 do arquivo baixado bate com o hash gravado no banco.
+                                        Tamanho: {formatarBytes(v.tamanhoBytes)}.
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {v?.status === "divergente" && (
+                                  <div className="mt-2 p-3 border-2 border-red-500 bg-red-500/15 rounded text-red-200 flex items-start gap-2">
+                                    <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                                    <div className="space-y-1">
+                                      <div className="font-bold text-red-100">⚠ HASH DIVERGENTE — arquivo possivelmente adulterado</div>
+                                      <div className="text-[11px]">
+                                        O SHA-256 calculado a partir do arquivo no Drive NAO bate com o hash
+                                        gravado no banco no momento do export. Investigue antes de usar este
+                                        arquivo como prova juridica.
+                                      </div>
+                                      <div className="text-[11px]">
+                                        <div><span className="text-red-300">Esperado:</span> <code>{v.sha256Esperado}</code></div>
+                                        <div><span className="text-red-300">Calculado:</span> <code>{v.sha256Calculado}</code></div>
+                                        <div><span className="text-red-300">Tamanho baixado:</span> {formatarBytes(v.tamanhoBytes)}</div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {v?.status === "erro" && (
+                                  <div className="mt-2 p-2 border border-red-500/40 bg-red-500/10 rounded text-red-300 flex items-start gap-2">
+                                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                                    <div>
+                                      <div className="font-semibold">Falha ao verificar</div>
+                                      <div className="text-[11px]">{v.mensagem}</div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <div className="font-semibold text-amber-300 mb-2 flex items-center gap-2">
                             <Mail size={14} /> Historico de avisos enviados (eventos SUSPENDER / REASSUMIR)
                           </div>

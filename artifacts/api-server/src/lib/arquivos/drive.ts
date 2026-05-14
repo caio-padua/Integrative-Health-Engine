@@ -519,6 +519,35 @@ export async function uploadExportLgpdUnidade(opts: {
   return { driveFileId, driveUrl, driveFolderId: folderId, nomeArquivo, sha256, tamanhoBytes };
 }
 
+/**
+ * Baixa o conteudo bruto de um arquivo do Drive como Buffer.
+ * Usado pelo botao "Verificar integridade" do export LGPD (Task #261):
+ * o navegador nao consegue baixar direto do Drive (CORS + redirect),
+ * entao o backend faz proxy de leitura e devolve os bytes pro client
+ * recalcular o SHA-256 e comparar com `unidades.lgpd_export_sha256`.
+ */
+export async function baixarArquivoDriveComoBuffer(
+  driveFileId: string,
+): Promise<{ buffer: Buffer; mimeType: string | null; nome: string | null }> {
+  const drive = await getDrive();
+  const meta = await drive.files.get({
+    fileId: driveFileId,
+    fields: "name, mimeType",
+    supportsAllDrives: true,
+  });
+  const r = await drive.files.get(
+    { fileId: driveFileId, alt: "media", supportsAllDrives: true },
+    { responseType: "arraybuffer" },
+  );
+  const data = r.data as ArrayBuffer | Buffer;
+  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+  return {
+    buffer,
+    mimeType: meta.data.mimeType ?? null,
+    nome: meta.data.name ?? null,
+  };
+}
+
 // ============================================================================
 // Helper de leitura unificada (pra IA, WhatsApp bot, painel)
 // ============================================================================

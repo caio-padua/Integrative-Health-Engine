@@ -33,7 +33,7 @@ import {
   JANELA_DIAS_MIN,
   JANELA_DIAS_MAX,
 } from "../lib/notificacoes/avisarPacientesSuspensao";
-import { uploadExportLgpdUnidade } from "../lib/arquivos/drive";
+import { uploadExportLgpdUnidade, baixarArquivoDriveComoBuffer } from "../lib/arquivos/drive";
 
 type AuthedRequest = Request & {
   user?: JwtPayload & { perfil?: string; perfilPlataforma?: string };
@@ -330,6 +330,8 @@ router.get("/plataforma/clinicas", ...guardas, async (_req, res): Promise<void> 
       u.id, u.nome, u.cidade, u.estado, u.cnpj, u.tipo, u.ativa,
       u.status, u.suspenso_em, u.suspenso_por_usuario_id, u.suspensao_motivo,
       u.exclusao_carencia_ate, u.lgpd_export_url, u.lgpd_export_em,
+      u.lgpd_export_sha256, u.lgpd_export_drive_file_id, u.lgpd_export_tamanho_bytes,
+      u.lgpd_export_nome_arquivo,
       sup.nome AS suspenso_por_nome
     FROM unidades u
     LEFT JOIN usuarios sup ON sup.id = u.suspenso_por_usuario_id
@@ -992,6 +994,7 @@ router.post(
                lgpd_export_sha256        = ${upload.sha256},
                lgpd_export_tamanho_bytes = ${upload.tamanhoBytes},
                lgpd_export_drive_file_id = ${upload.driveFileId},
+               lgpd_export_nome_arquivo  = ${upload.nomeArquivo},
                lgpd_export_em            = now()
          WHERE id = ${id}
       `);
@@ -1027,6 +1030,60 @@ router.post(
       tamanho_bytes: upload.tamanhoBytes,
       nome_arquivo: upload.nomeArquivo,
     });
+  },
+);
+
+// GET /api/plataforma/clinicas/:id/exclusao/lgpd-export-arquivo
+// Task #261 — proxy de leitura do export LGPD pro botao "Verificar
+// integridade" no /plataforma/clinicas. O navegador nao consegue baixar
+// direto do Drive (CORS + redirect de webViewLink), entao fazemos
+// streaming server-side dos bytes pro client recalcular SHA-256 e
+// comparar com `unidades.lgpd_export_sha256`. Mesmas guardas (platform
+// owner + 2FA recente) que as demais rotas LGPD.
+router.get(
+  "/plataforma/clinicas/:id/exclusao/lgpd-export-arquivo",
+  ...guardas,
+  async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "id invalido" }); return;
+    }
+    const row = await db.execute(sql`
+      SELECT lgpd_export_drive_file_id, lgpd_export_sha256, lgpd_export_tamanho_bytes
+        FROM unidades WHERE id = ${id}
+    `);
+    const r = row.rows[0] as
+      | {
+          lgpd_export_drive_file_id: string | null;
+          lgpd_export_sha256: string | null;
+          lgpd_export_tamanho_bytes: number | string | null;
+        }
+      | undefined;
+    if (!r) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
+    if (!r.lgpd_export_drive_file_id) {
+      res.status(404).json({
+        error: "Esta clinica nao tem export LGPD no Drive (export antigo data:URL ou ainda nao gerado).",
+      });
+      return;
+    }
+    try {
+      const arquivo = await baixarArquivoDriveComoBuffer(r.lgpd_export_drive_file_id);
+      res.setHeader("Content-Type", arquivo.mimeType ?? "application/json");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${(arquivo.nome ?? `lgpd-export-clinica-${id}.json`).replace(/"/g, "")}"`,
+      );
+      res.setHeader("X-Lgpd-Export-Sha256", r.lgpd_export_sha256 ?? "");
+      res.setHeader(
+        "X-Lgpd-Export-Tamanho-Bytes",
+        String(r.lgpd_export_tamanho_bytes ?? arquivo.buffer.byteLength),
+      );
+      res.send(arquivo.buffer);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      req.log?.error({ err: msg, unidadeId: id }, "[plataforma] falha ao baixar export LGPD do Drive");
+      res.status(502).json({ error: "Falha ao baixar export LGPD do Drive", detalhe: msg });
+    }
   },
 );
 
