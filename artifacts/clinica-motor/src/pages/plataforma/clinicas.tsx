@@ -118,7 +118,7 @@ export default function PlataformaClinicas() {
   const [previaSuspensao, setPreviaSuspensao] = useState<{
     clinica: Clinica;
     previa: PreviaDestinatarios;
-    acao: "suspender" | "reativar";
+    acao: "suspender" | "reativar" | "agendar_exclusao";
   } | null>(null);
   const [carregandoPreviaId, setCarregandoPreviaId] = useState<number | null>(null);
 
@@ -140,11 +140,13 @@ export default function PlataformaClinicas() {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
-  async function executar(c: Clinica, acao: "suspender" | "reativar") {
-    // Tanto SUSPENDER quanto REATIVAR abrem modal com previa de destinatarios
-    // antes de pedir motivo (Task #138 cobriu suspensao; Task #179 estendeu
-    // pra reativacao porque os mesmos responsaveis recebem aviso e a lista
-    // pode ter mudado durante a suspensao).
+  async function executar(c: Clinica, acao: "suspender" | "reativar" | "agendar_exclusao") {
+    // SUSPENDER, REATIVAR e AGENDAR EXCLUSAO abrem modal com previa de
+    // destinatarios antes de pedir motivo. Task #138 cobriu suspensao;
+    // Task #179 estendeu pra reativacao porque os mesmos responsaveis
+    // recebem aviso e a lista pode ter mudado; Task #195 estendeu pra
+    // agendamento de exclusao (acao mais destrutiva — irreversivel apos
+    // a janela LGPD de 30 dias) pra mostrar pra QUEM o aviso vai chegar.
     setCarregandoPreviaId(c.id);
     try {
       const r = await runWithStepUp(() =>
@@ -169,13 +171,24 @@ export default function PlataformaClinicas() {
     const c = previaSuspensao.clinica;
     const acao = previaSuspensao.acao;
     setAcaoId(c.id);
-    // Task #182 — propaga janelaDias overridada pra suspender (reativar nao usa)
-    const body: Record<string, unknown> = { motivo: motivo.trim() };
+    // Task #195: agendar exclusao usa endpoint dedicado e exige
+    // confirmacao dupla (nome da clinica). Os outros casos
+    // (suspender/reativar) usam o endpoint /:acao tradicional.
+    // Task #182: propaga janelaDias overridada pra suspender (reativar
+    // e agendar_exclusao nao usam).
+    const url =
+      acao === "agendar_exclusao"
+        ? `/api/plataforma/clinicas/${c.id}/exclusao/agendar`
+        : `/api/plataforma/clinicas/${c.id}/${acao}`;
+    const body: Record<string, unknown> =
+      acao === "agendar_exclusao"
+        ? { motivo: motivo.trim(), confirmacao: c.nome }
+        : { motivo: motivo.trim() };
     if (acao === "suspender" && janelaDias !== undefined) {
       body.janelaDias = janelaDias;
     }
     const r = await runWithStepUp(() =>
-      apiFetch(`/api/plataforma/clinicas/${c.id}/${acao}`, {
+      apiFetch(url, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -189,48 +202,14 @@ export default function PlataformaClinicas() {
       alert(`Erro: ${j.error ?? r.statusText}`);
       return;
     }
-    await carregar();
-  }
-
-  async function agendarExclusao(c: Clinica) {
-    const motivo = window.prompt(
-      `AGENDAR EXCLUSAO da clinica "${c.nome}" (id ${c.id}).\n\n` +
-      `Apos confirmar, comeca uma janela de carencia LGPD de 30 dias.\n` +
-      `Voce pode CANCELAR a qualquer momento dentro da janela.\n\n` +
-      `Motivo (minimo 8 caracteres):`,
-    );
-    if (!motivo || motivo.trim().length < 8) {
-      if (motivo !== null) alert("Motivo precisa ter pelo menos 8 caracteres.");
-      return;
-    }
-    const confirmacao = window.prompt(
-      `CONFIRMACAO DUPLA — digite EXATAMENTE o nome da clinica para prosseguir:\n\n${c.nome}`,
-    );
-    if (confirmacao !== c.nome) {
-      if (confirmacao !== null) alert("Confirmacao nao bateu. Operacao cancelada.");
-      return;
-    }
-    setAcaoId(c.id);
-    const r = await runWithStepUp(() =>
-      apiFetch(`/api/plataforma/clinicas/${c.id}/exclusao/agendar`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ motivo: motivo.trim(), confirmacao }),
-      }),
-    );
-    setAcaoId(null);
-    if (!r.ok) {
+    if (acao === "agendar_exclusao") {
       const j = await r.json().catch(() => ({}));
-      alert(`Erro: ${j.error ?? r.statusText}`);
-      return;
+      alert(
+        `Exclusao agendada.\n\nCarencia ate: ${
+          j.carencia_ate ? new Date(j.carencia_ate).toLocaleString("pt-BR") : "—"
+        }\n\nLEMBRE-SE de gerar o export LGPD antes do vencimento — sem ele o worker recusa executar.`,
+      );
     }
-    const j = await r.json();
-    alert(
-      `Exclusao agendada.\n\nCarencia ate: ${
-        j.carencia_ate ? new Date(j.carencia_ate).toLocaleString("pt-BR") : "—"
-      }\n\nLEMBRE-SE de gerar o export LGPD antes do vencimento — sem ele o worker recusa executar.`,
-    );
     await carregar();
   }
 
@@ -570,11 +549,12 @@ export default function PlataformaClinicas() {
                             <Download size={12} /> Export LGPD
                           </button>
                           <button
-                            disabled={desabilitado}
-                            onClick={() => void agendarExclusao(c)}
+                            disabled={desabilitado || carregandoPreviaId === c.id}
+                            onClick={() => void executar(c, "agendar_exclusao")}
                             className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs bg-red-700/30 text-red-200 hover:bg-red-700/50 disabled:opacity-50"
                           >
-                            <Trash2 size={12} /> Agendar exclusao
+                            <Trash2 size={12} />
+                            {carregandoPreviaId === c.id ? "carregando previa..." : "Agendar exclusao"}
                           </button>
                         </div>
                       )}
@@ -776,7 +756,7 @@ function PreviaSuspensaoModalImpl({
 }: {
   clinica: Clinica;
   previa: PreviaDestinatarios;
-  acao: "suspender" | "reativar";
+  acao: "suspender" | "reativar" | "agendar_exclusao";
   desabilitado: boolean;
   onCancelar: () => void;
   onConfirmar: (motivo: string, janelaDias?: number) => void;
@@ -794,19 +774,25 @@ function PreviaSuspensaoModalImpl({
   }, [previa.janelaDias]);
   const motivoOk = motivo.trim().length >= 8;
   const ehSuspender = acao === "suspender";
-  // Confirmacao dupla obrigatoria APENAS pra SUSPENDER quando nenhum
-  // responsavel tem WhatsApp — cenario em que a clinica acorda offline
-  // sem aviso no celular (Task #138). Task #178 estendeu: tambem exige
-  // confirmacao quando NENHUM email esta cadastrado (mesmo cenario:
-  // aviso nao chega em ninguem). Reativar nao e destrutivo, entao nao
-  // exige confirmacao extra mesmo sem WhatsApp/email (Task #179).
+  const ehExclusao = acao === "agendar_exclusao";
+  // Confirmacao dupla:
+  // - SUSPENDER (Task #138/#178): exige "SUSPENDER MESMO ASSIM" quando
+  //   nenhum responsavel tem WhatsApp OU nenhum tem email — cenarios em
+  //   que a clinica acorda offline sem aviso confiavel.
+  // - AGENDAR EXCLUSAO (Task #195): SEMPRE exige digitar o nome exato da
+  //   clinica — confirmacao dupla obrigatoria pre-existente, agora dentro
+  //   do modal junto da previa de destinatarios.
+  // - REATIVAR (Task #179): nao destrutivo, sem confirmacao extra.
   const exigeConfirmacaoExtra =
-    ehSuspender && (previa.whatsappVazio || previa.emailVazio);
+    ehExclusao || (ehSuspender && (previa.whatsappVazio || previa.emailVazio));
   // Cenario mais grave: NENHUM canal disponivel — clinica acorda offline
   // e ninguem (nem por email, nem por WhatsApp) sera avisado.
   const semNenhumCanal = previa.whatsappVazio && previa.emailVazio;
-  const confirmacaoExtraOk =
-    !exigeConfirmacaoExtra || confirmacaoExtra.trim().toUpperCase() === "SUSPENDER MESMO ASSIM";
+  const textoConfirmacaoEsperado = ehExclusao ? clinica.nome : "SUSPENDER MESMO ASSIM";
+  const confirmacaoExtraOk = ehExclusao
+    ? confirmacaoExtra === clinica.nome
+    : !exigeConfirmacaoExtra ||
+      confirmacaoExtra.trim().toUpperCase() === "SUSPENDER MESMO ASSIM";
   const podeConfirmar = motivoOk && confirmacaoExtraOk && !desabilitado;
 
   return (
@@ -819,9 +805,17 @@ function PreviaSuspensaoModalImpl({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between px-5 py-3 border-b border-zinc-800">
-          <h2 className={`font-semibold flex items-center gap-2 ${ehSuspender ? "text-amber-400" : "text-emerald-400"}`}>
-            {ehSuspender ? <PowerOff size={18} /> : <Power size={18} />}
-            {ehSuspender ? "Suspender clinica · previa de avisos" : "Reativar clinica · previa de avisos"}
+          <h2
+            className={`font-semibold flex items-center gap-2 ${
+              ehExclusao ? "text-red-400" : ehSuspender ? "text-amber-400" : "text-emerald-400"
+            }`}
+          >
+            {ehExclusao ? <Trash2 size={18} /> : ehSuspender ? <PowerOff size={18} /> : <Power size={18} />}
+            {ehExclusao
+              ? "Agendar exclusao · previa de avisos"
+              : ehSuspender
+              ? "Suspender clinica · previa de avisos"
+              : "Reativar clinica · previa de avisos"}
           </h2>
           <button
             onClick={onCancelar}
@@ -841,7 +835,9 @@ function PreviaSuspensaoModalImpl({
           </div>
 
           <div className="text-xs text-zinc-400 bg-zinc-800/40 border border-zinc-800 rounded p-3">
-            {ehSuspender
+            {ehExclusao
+              ? "Agendar exclusao inicia uma janela de carencia LGPD de 30 dias. Voce pode CANCELAR a qualquer momento dentro da janela, mas apos o vencimento a exclusao e IRREVERSIVEL. O aviso de exclusao agendada vai pros responsaveis abaixo — confira pra QUEM antes de confirmar."
+              : ehSuspender
               ? "Suspender paralisa a operacao inteira (login bloqueado, agenda/prescricoes/faturamento pausados). Antes de confirmar, verifique pra QUEM o aviso de suspensao vai chegar."
               : "Reativar religa a operacao da clinica. O aviso de reativacao vai pros mesmos responsaveis abaixo — confira a lista (pode ter mudado durante a suspensao) antes de confirmar."}
           </div>
@@ -894,7 +890,9 @@ function PreviaSuspensaoModalImpl({
                 <div className="font-semibold mb-1">
                   Atencao critica: NENHUM canal de aviso disponivel.
                 </div>
-                {ehSuspender
+                {ehExclusao
+                  ? "Esta clinica nao tem email NEM WhatsApp cadastrado pros responsaveis — o aviso de exclusao agendada nao chegara em ninguem e a clinica vai descobrir que foi excluida apenas quando o login parar de funcionar. Cadastre pelo menos um email ou telefone antes de agendar a exclusao."
+                  : ehSuspender
                   ? "Esta clinica nao tem email NEM WhatsApp cadastrado pros responsaveis — o aviso de suspensao nao chegara em ninguem e a clinica vai acordar offline sem entender o motivo. Cadastre pelo menos um email ou telefone antes de suspender."
                   : "Esta clinica nao tem email NEM WhatsApp cadastrado pros responsaveis — ninguem sera avisado da reativacao."}
               </div>
@@ -906,7 +904,9 @@ function PreviaSuspensaoModalImpl({
                 <div className="font-semibold mb-1">
                   Atencao: lista de email vazia.
                 </div>
-                {ehSuspender
+                {ehExclusao
+                  ? "Nenhum responsavel tem email cadastrado — o aviso de exclusao agendada so chegara via WhatsApp. Considere cadastrar pelo menos um email antes de agendar a exclusao."
+                  : ehSuspender
                   ? "Nenhum responsavel tem email cadastrado — o aviso so chegara via WhatsApp. Considere cadastrar pelo menos um email antes de suspender."
                   : "Nenhum responsavel vai receber o aviso de reativacao por email — apenas por WhatsApp."}
               </div>
@@ -918,7 +918,9 @@ function PreviaSuspensaoModalImpl({
                 <div className="font-semibold mb-1">
                   Atencao: lista de WhatsApp vazia.
                 </div>
-                {ehSuspender
+                {ehExclusao
+                  ? "Nenhum responsavel vai receber o aviso de exclusao agendada no celular — apenas por email. Considere cadastrar pelo menos um telefone antes de agendar a exclusao."
+                  : ehSuspender
                   ? "A clinica vai acordar offline sem aviso no celular. Considere cadastrar pelo menos um responsavel com telefone antes de suspender."
                   : "Nenhum responsavel vai receber o aviso de reativacao no celular — apenas por email."}
               </div>
@@ -1003,16 +1005,24 @@ function PreviaSuspensaoModalImpl({
 
           {exigeConfirmacaoExtra && (
             <div>
-              <label className="block text-xs text-amber-300 mb-1">
-                Confirmacao dupla — digite EXATAMENTE{" "}
-                <code className="font-mono">SUSPENDER MESMO ASSIM</code>
+              <label
+                className={`block text-xs mb-1 ${ehExclusao ? "text-red-300" : "text-amber-300"}`}
+              >
+                {ehExclusao
+                  ? "Confirmacao dupla — digite EXATAMENTE o nome da clinica:"
+                  : "Confirmacao dupla — digite EXATAMENTE "}
+                <code className="font-mono">{textoConfirmacaoEsperado}</code>
               </label>
               <input
                 type="text"
                 value={confirmacaoExtra}
                 onChange={(e) => setConfirmacaoExtra(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-950 border border-amber-500/40 rounded text-sm text-zinc-100 focus:border-amber-500 focus:outline-none"
-                placeholder="SUSPENDER MESMO ASSIM"
+                className={`w-full px-3 py-2 bg-zinc-950 border rounded text-sm text-zinc-100 focus:outline-none ${
+                  ehExclusao
+                    ? "border-red-500/40 focus:border-red-500"
+                    : "border-amber-500/40 focus:border-amber-500"
+                }`}
+                placeholder={textoConfirmacaoEsperado}
               />
             </div>
           )}
@@ -1029,13 +1039,17 @@ function PreviaSuspensaoModalImpl({
             disabled={!podeConfirmar}
             onClick={() => onConfirmar(motivo, ehSuspender ? previa.janelaDias : undefined)}
             className={`inline-flex items-center gap-1 px-3 py-2 text-sm rounded disabled:opacity-40 disabled:cursor-not-allowed ${
-              ehSuspender
+              ehExclusao
+                ? "bg-red-700/30 text-red-200 hover:bg-red-700/50"
+                : ehSuspender
                 ? "bg-red-500/20 text-red-300 hover:bg-red-500/30"
                 : "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
             }`}
           >
-            {ehSuspender ? <PowerOff size={14} /> : <Power size={14} />}
-            {ehSuspender
+            {ehExclusao ? <Trash2 size={14} /> : ehSuspender ? <PowerOff size={14} /> : <Power size={14} />}
+            {ehExclusao
+              ? (desabilitado ? "Agendando exclusao..." : "Agendar exclusao")
+              : ehSuspender
               ? (desabilitado ? "Suspendendo..." : "Suspender")
               : (desabilitado ? "Reativando..." : "Reativar")}
           </button>
