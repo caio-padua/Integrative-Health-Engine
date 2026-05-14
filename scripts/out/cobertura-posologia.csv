@@ -1,0 +1,141 @@
+texto,ocorrencias,interpretado,categoria_amostra
+1 cap 2x/dia,13,true,revo_formula
+100 MG / 2 ML,10,true,injetavel_im
+50 MG / 2 ML,9,true,injetavel_im
+1 comp 1x/dia manha,9,true,revo_medicamento
+20 MG / 2 ML,7,true,injetavel_im
+10 MG / 2 ML,7,true,injetavel_im
+1 G / 10 ML,6,true,injetavel_im
+200 MG / 2 ML,6,true,injetavel_im
+200 MG — 1 A 2 pellets,6,true,implante
+1 cap 1x/dia manha,6,true,revo_formula
+40 MG / 2 ML,5,true,injetavel_im
+500 MG / 2 ML,5,true,injetavel_im
+1 sachê 2x/dia,5,true,revo_formula
+750 MG / 5 ML,3,true,injetavel_im
+1500 MG / 10 ML,3,true,injetavel_im
+300 MG / 2 ML,3,true,injetavel_im
+500 MG / 5 ML,3,true,injetavel_im
+1 comp 2x/dia apos refeicoes,3,true,revo_medicamento
+1 cap 1x/dia,3,true,revo_medicamento
+1 cap/dia com almoco,3,true,revo_medicamento
+4 MG / 2 ML,2,true,injetavel_im
+100 MG / 5 ML,2,true,injetavel_im
+1 MG / 2 ML,2,true,injetavel_im
+100 MCG / 2 ML,2,true,injetavel_im
+30 MG / 2 ML,2,true,injetavel_im
+100 MG / 10 ML,2,true,injetavel_im
+10 MG / 1 ML,2,true,injetavel_im
+60 MG / 2 ML,2,true,injetavel_im
+2500 MCG / 1 ML,2,true,injetavel_im
+5 G / 10 ML,2,true,injetavel_im
+25 MG — 1 A 2 pellets,2,true,implante
+50 MG — 1 A 2 pellets,2,true,implante
+100 MG — 1 A 2 pellets,2,true,implante
+2 caps 2x/dia,2,true,revo_formula
+1 cap 2x/dia antes refeicoes,2,true,revo_formula
+1 comp 1x/dia noite,2,true,revo_medicamento
+1 comp jejum 30min antes cafe,2,true,revo_medicamento
+1 comp 1x/dia longe refeicoes,2,true,revo_medicamento
+1 comp antes dormir SOS,2,true,revo_medicamento
+1 cap 3x/dia,2,true,revo_formula
+1 sachê 1x/dia,2,true,revo_formula
+1 cap em jejum,2,true,revo_medicamento
+1 cap a noite,2,true,revo_medicamento
+2 caps 2x/dia com refeicoes,2,true,revo_formula
+20 MG / 5 ML,1,true,injetavel_im
+800 MG / 2 ML,1,true,injetavel_im
+300 MG / 10 ML,1,true,injetavel_im
+600 MG / 24 ML,1,true,injetavel_im
+8 MG / 1 ML,1,true,injetavel_im
+400 MG / 4 ML,1,true,injetavel_im
+2 MG / 1 ML,1,true,injetavel_im
+50 MG / 5 ML,1,true,injetavel_im
+840 MG / 10 ML,1,true,injetavel_im
+2 G / 10 ML,1,true,injetavel_im
+"6,10% / 2 ML",1,true,injetavel_im
+4995 MG / 5 ML,1,true,injetavel_im
+9990 MG / 10 ML,1,true,injetavel_im
+"2,50% / 2 ML",1,true,injetavel_im
+2500 UI / 1 ML,1,true,injetavel_im
+1 G / 2 ML,1,true,injetavel_im
+600 MG / 2 ML,1,true,injetavel_im
+75 MG / 2 ML,1,true,injetavel_im
+150 MG / 2 ML,1,true,injetavel_im
+20 MG / 1 ML,1,true,injetavel_im
+200 MG / 10 ML,1,true,injetavel_im
+500 MCG / 1 ML,1,true,injetavel_im
+25 MG / 1 ML,1,true,injetavel_im
+"3,5 MG / 2 ML",1,true,injetavel_im
+150 MG / 5 ML,1,true,injetavel_im
+200 MCG / 2 ML,1,true,injetavel_im
+5 MG / 2 ML,1,true,injetavel_im
+200 MG / 5 ML,1,true,injetavel_im
+350 MG / 50 ML,1,true,injetavel_im
+"0,25 MG / 1 ML",1,true,injetavel_im
+"0,5 MG / 1 ML",1,true,injetavel_im
+80 MCG / 2 ML,1,true,injetavel_im
+"0,5 MG / 2 ML",1,true,injetavel_im
+50 MCG / 1 ML,1,true,injetavel_im
+25.000 UI / 1 ML,1,true,injetavel_im
+100 MG / 1 ML,1,true,injetavel_im
+400 MG / 2 ML,1,true,injetavel_im
+1 G / 5 ML,1,true,injetavel_im
+10 G / 50 ML,1,true,injetavel_im
+100.000 UI / 1 ML,1,true,injetavel_im
+600.000 UI / 1 ML,1,true,injetavel_im
+200 UI / 1 ML,1,true,injetavel_im
+1300 MCG / 1 ML,1,true,injetavel_im
+5 MG — 1 A 3 pellets,1,true,implante
+10 MG — 1 A 2 pellets,1,true,implante
+"12,5 MG — 1 pellets",1,true,implante
+25 MG — 1 pellets,1,true,implante
+75 MG — 1 pellets,1,true,implante
+35 MG — 1 A 2 pellets,1,true,implante
+5000 UI — 1 A 2 pellets,1,true,implante
+10000 UI — 1 pellets,1,true,implante
+100 MG — 2 A 4 pellets,1,true,implante
+50 MG — 4 A 6 pellets,1,true,implante
+200 MG — 3 A 8 pellets,1,true,implante
+150+50 MG — 2 A 4 pellets,1,true,implante
+200 MG — 2 A 4 pellets,1,true,implante
+50 MG — 2 A 4 pellets,1,true,implante
+200 MG — HOMENS: 4-10 pellets,1,true,implante
+150 MG — H: 4-10 / M: 1 pellets,1,true,implante
+75 MG — H: MIN 6 / M: 1 A 2 pellets,1,true,implante
+100 MG — 2 pellets,1,true,implante
+200 MG — 2 pellets,1,true,implante
+VARIAVEL MG — 1 pellets,1,true,implante
+UMA DOSE AO DIA ANTES DO CAFE DA MANHA,1,true,formula
+UMA DOSE ANTES DO CAFE DA MANHA; UMA DOSE ANTES DO JANTAR,1,true,formula
+UMA DOSE PELA MANHA; UMA DOSE ANTES DO TREINO,1,true,formula
+UMA DOSE NO ALMOCO; UMA DOSE NO JANTAR,1,true,formula
+UMA DOSE 30 MINUTOS ANTES DO TREINO,1,true,formula
+1 cap 3x/dia antes das refeicoes,1,true,revo_formula
+2 caps 1x/dia pela manha,1,true,revo_formula
+Fracionada: 2 caps cafe + 2 caps almoco,1,true,revo_formula
+1 sachê 2x/dia dissolvido em água,1,true,revo_formula
+1 cap 1x/dia noite,1,true,revo_formula
+1 cap 1x/dia manha jejum,1,true,revo_formula
+1 comp 1x/dia,1,true,revo_medicamento
+1 comp 2x/dia na crise,1,true,revo_medicamento
+1 inalacao 2x/dia,1,true,revo_medicamento
+1 cap 1h antes dormir,1,true,revo_formula
+"1 comprimido via oral, todo dia pela manha",1,true,revo_medicamento
+1 capsula via oral apos almoco,1,true,revo_formula
+"1 capsula via oral apos almoco, 3x/semana",1,true,revo_formula
+"Implante subcutaneo regiao glutea, dose unica",1,true,revo_medicamento
+"Infusao endovenosa lenta (60 min), solucao com SF 250ml",1,true,revo_medicamento
+1 comp a noite,1,true,revo_medicamento
+1 cap/dia com cafe,1,true,revo_medicamento
+1 cap/dia,1,true,revo_medicamento
+1 cap/dia antes almoco,1,true,revo_medicamento
+2 caps/dia com cafe da manha,1,true,revo_formula
+1 cap 2x/dia por 21 dias/ciclo,1,true,revo_formula
+1 cap 3x/dia antes refeicoes,1,true,revo_formula
+2 caps 1h antes de dormir,1,true,revo_formula
+1 cap em jejum (separar 30min da Levo),1,true,revo_formula
+1 comp em jejum 30min antes cafe,1,true,revo_medicamento
+1 comp 30min antes de dormir,1,true,revo_medicamento
+1 comp 2x/dia com refeicoes,1,true,revo_medicamento
+2 caps/dia com refeicoes,1,true,revo_medicamento

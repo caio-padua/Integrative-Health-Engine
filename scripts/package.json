@@ -10,6 +10,7 @@
     "gerar-v25-luciano": "tsx ./src/gerar-v25-luciano.ts",
     "zapsign-configurar-webhooks-prod": "tsx ./src/zapsign-configurar-webhooks-prod.ts",
     "backfill-posologia-estruturada": "tsx ./src/backfill-posologia-estruturada.ts",
+    "cobertura-posologia": "tsx ./src/cobertura-posologia.ts",
     "backfill-lembrete-horarios-unidades": "tsx ./src/backfill-lembrete-horarios-unidades.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
