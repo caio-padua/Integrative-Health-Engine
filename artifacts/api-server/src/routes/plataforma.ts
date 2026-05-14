@@ -1271,6 +1271,38 @@ router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promis
     resposta["total_janela_anterior"] = anterior;
     resposta["variacao_pct"] = variacaoPct;
     resposta["tendencia"] = tendencia;
+
+    // Task #188 — serie horaria (N buckets = janela_horas) pra alimentar
+    // sparkline no mini-card do painel-comando. Buckets faltantes recebem 0
+    // pra manter o array sempre com `janela_horas` pontos em ordem cronologica
+    // (mais antigo -> mais recente). Cap defensivo em 168 buckets (7d) pra
+    // nao explodir resposta caso futuramente alguem peca janela maior.
+    const buckets = Math.min(janelaHoras, 168);
+    const serieRaw = await db.execute(sql`
+      SELECT date_trunc('hour', a.criado_em) AS bucket,
+             COUNT(*)::int AS total
+        FROM alertas_ceo_seguranca a
+       WHERE a.criado_em >= date_trunc('hour', now())
+                          - ((${buckets}::int - 1) * INTERVAL '1 hour')
+       GROUP BY bucket
+       ORDER BY bucket ASC
+    `);
+    const mapaBuckets = new Map<string, number>();
+    for (const r of serieRaw.rows as { bucket: string | Date; total: number }[]) {
+      const iso = r.bucket instanceof Date
+        ? r.bucket.toISOString()
+        : new Date(r.bucket).toISOString();
+      mapaBuckets.set(iso, Number(r.total) || 0);
+    }
+    const agoraHora = new Date();
+    agoraHora.setMinutes(0, 0, 0);
+    const serieHoraria: { hora: string; total: number }[] = [];
+    for (let i = buckets - 1; i >= 0; i--) {
+      const h = new Date(agoraHora.getTime() - i * 60 * 60 * 1000);
+      const iso = h.toISOString();
+      serieHoraria.push({ hora: iso, total: mapaBuckets.get(iso) ?? 0 });
+    }
+    resposta["serie_horaria"] = serieHoraria;
   }
 
   res.json(resposta);

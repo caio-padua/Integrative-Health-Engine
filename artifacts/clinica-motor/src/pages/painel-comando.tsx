@@ -124,6 +124,27 @@ function fmtVarPct(pct: number | null | undefined): string {
   return `${sinal}${pct.toFixed(1)}%`;
 }
 
+// Task #188 — sparkline simples (24 pontos = 24h) pra mini-card de bloqueios 2FA.
+// Aceita array generico de valores numericos. Reusa COR_SEMANTICA_HEX.
+function MiniSparklineSimples({ valores, cor, width = 60, height = 18 }: {
+  valores: number[];
+  cor: CorSemantica;
+  width?: number;
+  height?: number;
+}) {
+  if (!valores || valores.length === 0) return null;
+  const dados = valores.map((v, i) => ({ i, v }));
+  return (
+    <div style={{ width, height }} aria-hidden="true">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={dados}>
+          <Line type="monotone" dataKey="v" stroke={COR_SEMANTICA_HEX[cor]} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function MiniSparkline({ pontos, dataKey, cor }: {
   pontos: { dia: string; enviadas: number; assinadas: number; rejeitadas: number }[];
   dataKey: "enviadas" | "assinadas" | "rejeitadas";
@@ -324,6 +345,8 @@ export default function PainelComando() {
     total_janela_anterior: number;
     variacao_pct: number | null;
     tendencia: "subindo" | "caindo" | "estavel";
+    // Task #188 — serie horaria (24 buckets pra janela_horas=24) pra sparkline.
+    serie_horaria: { hora: string; total: number }[];
   } | null>(null);
   const { toast } = useToast();
 
@@ -479,6 +502,12 @@ export default function PainelComando() {
               ? null
               : Number(d.variacao_pct),
           tendencia: (d.tendencia ?? "estavel") as "subindo" | "caindo" | "estavel",
+          serie_horaria: Array.isArray(d.serie_horaria)
+            ? (d.serie_horaria as { hora: string; total: number | string }[]).map((p) => ({
+                hora: String(p.hora ?? ""),
+                total: Number(p.total ?? 0) || 0,
+              }))
+            : [],
         });
       } catch { /* silencioso */ }
     };
@@ -1076,6 +1105,14 @@ export default function PainelComando() {
                 >
                   {t.total_janela}
                 </span>
+                {t.serie_horaria && t.serie_horaria.length > 0 && (
+                  <span data-testid="card-ceo-bloqueios-2fa-24h-sparkline">
+                    <MiniSparklineSimples
+                      valores={t.serie_horaria.map((p) => p.total)}
+                      cor={cor}
+                    />
+                  </span>
+                )}
                 <span className="text-[11px] text-[var(--pw-tinta)]" data-testid="card-ceo-bloqueios-2fa-24h-tendencia">
                   <span style={{ color: corHex }}>{seta}</span>{" "}
                   {deltaTxt} vs ontem ({t.total_janela_anterior})
