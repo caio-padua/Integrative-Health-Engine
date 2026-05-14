@@ -351,8 +351,35 @@ export default function PainelComando() {
       if (novo) window.localStorage?.setItem("alertas_seguranca_som_mudo", "1");
       else window.localStorage?.removeItem("alertas_seguranca_som_mudo");
       setSomSegurancaMudo(novo);
+      toast({
+        title: novo ? "🔕 som mudo" : "🔔 som ativo",
+        description: novo
+          ? "Beep de bloqueio 2FA silenciado."
+          : "Beep de bloqueio 2FA reativado.",
+        duration: 2000,
+      });
     } catch { /* silencioso */ }
   }
+  // Task #191 — atalho global Shift+M alterna o mute do beep de seguranca sem
+  // precisar mover o mouse ate o cabecalho. Ignorado quando o foco esta em
+  // input/textarea/contenteditable pra nao atrapalhar digitacao.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key !== "M" && e.key !== "m") return;
+      const alvo = e.target as HTMLElement | null;
+      if (alvo) {
+        const tag = alvo.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (alvo.isContentEditable) return;
+      }
+      e.preventDefault();
+      alternarSomSeguranca();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [somSegurancaMudo]);
   // Task #175 — tendencia de bloqueios 2FA nas ultimas 24h vs 24h anteriores.
   // Mini-card pequeno (Bloqueios 2FA 24h: N ▲/▼ vs ontem). Cor verde quando
   // tendencia caindo, vermelho quando subindo, neutro quando estavel/sem dado.
@@ -876,8 +903,8 @@ export default function PainelComando() {
                       borderColor: "transparent",
                     }}
                     title={somSegurancaMudo
-                      ? "Som do alerta de bloqueio 2FA esta MUDO. Clique pra reativar."
-                      : "Som do alerta de bloqueio 2FA esta ATIVO. Clique pra silenciar."}
+                      ? "Som do alerta de bloqueio 2FA esta MUDO. Clique pra reativar. (atalho: Shift+M)"
+                      : "Som do alerta de bloqueio 2FA esta ATIVO. Clique pra silenciar. (atalho: Shift+M)"}
                     aria-pressed={somSegurancaMudo}
                     data-testid="botao-toggle-som-alertas-seguranca"
                   >
