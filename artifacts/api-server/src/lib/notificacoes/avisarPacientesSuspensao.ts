@@ -88,6 +88,47 @@ function buildRaw(to: string, subject: string, html: string): string {
   return Buffer.from(messageParts.join("\r\n")).toString("base64url");
 }
 
+function htmlPacienteReativacao(opts: {
+  pacienteNome: string;
+  unidadeNome: string;
+  consultaQuando: string;
+  reativadoEm: Date;
+  contatoRecurso: string;
+}): string {
+  const { pacienteNome, unidadeNome, consultaQuando, reativadoEm, contatoRecurso } = opts;
+  return `
+<!DOCTYPE html><html><body style="font-family: Georgia, serif; color:#1a1a2e; max-width:640px; margin:0 auto; padding:24px;">
+  <h2 style="color:#3a7d44; border-bottom: 2px solid #3a7d44; padding-bottom:8px;">A clinica voltou a operar</h2>
+  <p>Ola, ${escapeHtml(pacienteNome)}.</p>
+  <p>Boas noticias: a clinica <strong>${escapeHtml(unidadeNome)}</strong> voltou a operar na plataforma PAWARDS em <strong>${escapeHtml(dataPtBr(reativadoEm))}</strong>.</p>
+  <p style="background:#eef5ee; padding:12px; border-left:4px solid #3a7d44;">Sua consulta que estava marcada para <strong>${escapeHtml(consultaQuando)}</strong> precisa ser remarcada. A equipe da clinica vai entrar em contato pra acertar uma nova data o quanto antes.</p>
+  <p>Se preferir, voce tambem pode <strong>ligar pra clinica</strong> e adiantar a remarcacao.</p>
+  <p><strong>Duvidas ou urgencia clinica?</strong> Fale com ${escapeHtml(contatoRecurso)}.</p>
+  <p style="font-size:12px; color:#666; margin-top:32px; border-top:1px solid #ddd; padding-top:8px;">Mensagem automatica do motor de governanca PAWARDS. Obrigado pela paciencia.</p>
+</body></html>`;
+}
+
+function mensagemWhatsappPacienteReativacao(opts: {
+  pacienteNome: string;
+  unidadeNome: string;
+  consultaQuando: string;
+  contatoRecurso: string;
+}): string {
+  return [
+    `Ola, ${opts.pacienteNome}.`,
+    "",
+    `Boas noticias: a clinica *${opts.unidadeNome}* voltou a operar na plataforma PAWARDS.`,
+    "",
+    `Sua consulta que estava marcada para *${opts.consultaQuando}* precisa ser remarcada — a equipe vai entrar em contato pra acertar uma nova data.`,
+    "",
+    "Se preferir, voce tambem pode ligar pra clinica e adiantar a remarcacao.",
+    "",
+    `Duvidas ou urgencia clinica: ${opts.contatoRecurso}.`,
+    "",
+    "Mensagem automatica PAWARDS.",
+  ].join("\n");
+}
+
 function htmlPaciente(opts: {
   pacienteNome: string;
   unidadeNome: string;
@@ -360,6 +401,180 @@ export async function avisarPacientesSuspensao(opts: {
     }
 
     resultado.detalhesPacientes.push(detalhe);
+  }
+
+  return resultado;
+}
+
+/**
+ * Busca pacientes que tinham consulta dentro da janela usada na suspensao,
+ * incluindo datas que JA passaram (entre `suspensoEm` e hoje), pra atingir
+ * o mesmo conjunto que recebeu o aviso de "consulta precisara ser
+ * remarcada". DISTINCT ON garante UM aviso por paciente.
+ */
+async function buscarPacientesAvisadosNaSuspensao(
+  unidadeId: number,
+  suspensoEm: Date,
+  janelaDias: number,
+): Promise<ConsultaProxima[]> {
+  const isoDe = suspensoEm.toISOString().slice(0, 10);
+  const ate = new Date(suspensoEm.getTime() + janelaDias * 24 * 60 * 60 * 1000);
+  const isoAte = ate.toISOString().slice(0, 10);
+
+  const rows = await db.execute(sql`
+    SELECT DISTINCT ON (a.paciente_id)
+      a.paciente_id,
+      p.nome   AS paciente_nome,
+      p.email  AS email,
+      p.telefone AS telefone,
+      p.whatsapp AS whatsapp,
+      a.data,
+      a.hora_inicio
+    FROM appointments a
+    INNER JOIN pacientes p ON p.id = a.paciente_id
+    WHERE a.unidade_id = ${unidadeId}
+      AND a.status IN ('agendado', 'confirmado')
+      AND a.data >= ${isoDe}
+      AND a.data <= ${isoAte}
+    ORDER BY a.paciente_id, a.data ASC, a.hora_inicio ASC
+  `);
+
+  return rows.rows.map((r: Record<string, unknown>) => ({
+    pacienteId: Number(r.paciente_id),
+    pacienteNome: String(r.paciente_nome ?? ""),
+    email: r.email ? String(r.email) : null,
+    telefone: r.telefone ? String(r.telefone) : null,
+    whatsapp: r.whatsapp ? String(r.whatsapp) : null,
+    data: String(r.data),
+    horaInicio: String(r.hora_inicio),
+  }));
+}
+
+/**
+ * Task #184 — Quando uma unidade volta de SUSPENSO pra ATIVO via
+ * `/reativar`, dispara aviso pros mesmos pacientes que receberam o aviso
+ * de suspensao (Task #139): aqueles com consulta marcada na janela
+ * iniciada em `suspensoEm`. Mensagem amigavel dizendo que a clinica
+ * voltou e que a equipe vai remarcar (ou que o paciente pode ligar).
+ *
+ * Best-effort, igual aos demais avisos de reativacao. Caller decide se
+ * dispara (deve ser so quando ha transicao SUSPENSO -> ATIVO real).
+ *
+ * `janelaDias` deve ser a mesma usada na suspensao original — caller
+ * resolve lendo de `auditoria_kill_switch.metadata.avisos[].detalhes.janelaDias`.
+ * Se nao houver registro, cai no default (`PAWARDS_AVISO_PACIENTES_DIAS`).
+ */
+export async function avisarPacientesReativacao(opts: {
+  unidadeId: number;
+  unidade: Unidade;
+  reativadoEm: Date;
+  suspensoEm: Date;
+  janelaDias?: number;
+}): Promise<ResultadoAvisoPacientes> {
+  const dias = Math.max(1, Math.floor(opts.janelaDias ?? JANELA_DIAS_DEFAULT));
+  const consultas = await buscarPacientesAvisadosNaSuspensao(
+    opts.unidadeId,
+    opts.suspensoEm,
+    dias,
+  );
+  const subject = `[PAWARDS] A clinica ${opts.unidade.nome} voltou a operar`;
+
+  const resultado: ResultadoAvisoPacientes = {
+    pacientesAvisados: 0,
+    emailEnviados: 0,
+    emailFalhas: 0,
+    whatsappEnviados: 0,
+    whatsappFalhas: 0,
+    whatsappViaHsm: 0,
+    whatsappViaTextoLivre: 0,
+    pacientesSemContato: 0,
+    janelaDias: dias,
+  };
+
+  if (consultas.length === 0) return resultado;
+
+  let gmail: Awaited<ReturnType<typeof getGmailClient>> | null = null;
+  try {
+    gmail = await getGmailClient();
+  } catch (err) {
+    logger.warn(
+      { err, unidadeId: opts.unidadeId },
+      "[avisarPacientesReativacao] gmail client indisponivel — segue so com whatsapp",
+    );
+  }
+
+  for (const c of consultas) {
+    const consultaQuando = dataConsultaPtBr(c.data, c.horaInicio);
+    const tem_email = !!(c.email && c.email.includes("@"));
+    const telCanal = c.whatsapp || c.telefone;
+    const tem_whatsapp = telefoneValido(telCanal);
+
+    if (!tem_email && !tem_whatsapp) {
+      resultado.pacientesSemContato++;
+      continue;
+    }
+    resultado.pacientesAvisados++;
+
+    if (tem_email && gmail) {
+      try {
+        const html = htmlPacienteReativacao({
+          pacienteNome: c.pacienteNome,
+          unidadeNome: opts.unidade.nome,
+          consultaQuando,
+          reativadoEm: opts.reativadoEm,
+          contatoRecurso: CONTATO_RECURSO_PADRAO,
+        });
+        const raw = buildRaw(c.email!, subject, html);
+        await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+        resultado.emailEnviados++;
+      } catch (err) {
+        resultado.emailFalhas++;
+        logger.warn(
+          { err, pacienteId: c.pacienteId, unidadeId: opts.unidadeId },
+          "[avisarPacientesReativacao] falha email",
+        );
+      }
+    }
+
+    if (tem_whatsapp) {
+      try {
+        const mensagem = mensagemWhatsappPacienteReativacao({
+          pacienteNome: c.pacienteNome,
+          unidadeNome: opts.unidade.nome,
+          consultaQuando,
+          contatoRecurso: CONTATO_RECURSO_PADRAO,
+        });
+        const variaveis: Record<string, string> = {
+          pacienteNome: c.pacienteNome,
+          unidadeNome: opts.unidade.nome,
+          consultaQuando,
+          contatoRecurso: CONTATO_RECURSO_PADRAO,
+        };
+        const r = await enviarComTemplateHsm(
+          telCanal!,
+          "CLINICA_REATIVADA_PACIENTE",
+          variaveis,
+          { unidadeId: opts.unidadeId, mensagemFallback: mensagem },
+        );
+        if (r.sucesso) {
+          resultado.whatsappEnviados++;
+          if (r.viaHsm) resultado.whatsappViaHsm++;
+          if (r.usouFallback) resultado.whatsappViaTextoLivre++;
+        } else {
+          resultado.whatsappFalhas++;
+          logger.warn(
+            { erro: r.erro, pacienteId: c.pacienteId, unidadeId: opts.unidadeId },
+            "[avisarPacientesReativacao] whatsapp retornou falha",
+          );
+        }
+      } catch (err) {
+        resultado.whatsappFalhas++;
+        logger.warn(
+          { err, pacienteId: c.pacienteId, unidadeId: opts.unidadeId },
+          "[avisarPacientesReativacao] excecao whatsapp",
+        );
+      }
+    }
   }
 
   return resultado;

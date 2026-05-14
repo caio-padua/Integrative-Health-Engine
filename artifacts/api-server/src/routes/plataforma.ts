@@ -26,6 +26,7 @@ import {
 } from "../lib/whatsapp/clinicaSuspensaoWhatsapp";
 import {
   avisarPacientesSuspensao,
+  avisarPacientesReativacao,
   buscarPacientesComConsultaProxima,
   normalizarJanelaDias,
   JANELA_DIAS_DEFAULT,
@@ -229,7 +230,8 @@ type RegistroAviso = {
     | "REENVIO_SUSPENSAO"
     | "REENVIO_REATIVACAO"
     | "SUSPENSAO_PACIENTES"
-    | "REENVIO_SUSPENSAO_PACIENTES";
+    | "REENVIO_SUSPENSAO_PACIENTES"
+    | "REATIVACAO_PACIENTES";
   // Canal de envio. Default "EMAIL" pra retrocompat com registros antigos
   // gravados antes da Task #176, quando so email era persistido na auditoria.
   canal?: "EMAIL" | "WHATSAPP";
@@ -582,6 +584,13 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
   const [unidade] = await db.select().from(unidadesTable).where(eq(unidadesTable.id, id));
   if (!unidade) { res.status(404).json({ error: "Unidade nao encontrada" }); return; }
 
+  // Task #184 — captura se a chamada e uma transicao real (SUSPENSO -> ATIVO)
+  // ou um re-POST sobre clinica ja ATIVA. So a transicao real dispara aviso
+  // pra pacientes (re-POST nao deve spammear). Tambem guardamos `suspensoEm`
+  // antes do UPDATE limpar pra reusar a mesma janela da Task #139.
+  const transicaoEfetiva = unidade.status === "SUSPENSO";
+  const suspensoEmOriginal = unidade.suspensoEm;
+
   const actor = getActor(req);
   await db.transaction(async (tx) => {
     await tx.execute(sql`
@@ -596,10 +605,14 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
     await registrarAuditoria(tx, {
       acao: "REASSUMIR", unidadeId: id, executadoPorUsuarioId: actor.userId,
       motivo, ip: actor.ip, ua: actor.ua,
-      metadata: { status_anterior: unidade.status, nome: unidade.nome },
+      metadata: {
+        status_anterior: unidade.status,
+        nome: unidade.nome,
+        transicao_efetiva: transicaoEfetiva,
+      },
     });
   });
-  req.log?.info({ unidadeId: id, motivo }, "[plataforma] clinica reativada");
+  req.log?.info({ unidadeId: id, motivo, transicaoEfetiva }, "[plataforma] clinica reativada");
 
   let emailRes = { destinatarios: [] as string[], enviados: 0, falhas: 0 };
   let emailErro: string | null = null;
@@ -668,7 +681,99 @@ router.post("/plataforma/clinicas/:id/reativar", ...guardas, async (req, res): P
     detalhes_whatsapp: whatsappRes.detalhes,
   });
 
-  res.json({ ok: true, email: emailRes, whatsapp: whatsappRes });
+  // Task #184 — aviso pra pacientes que receberam o aviso de Task #139
+  // ("sua consulta precisara ser remarcada"). Mensagem amigavel dizendo
+  // que a clinica voltou e que a equipe vai remarcar (ou que o paciente
+  // pode ligar). Best-effort, fora da transacao. So dispara quando ha
+  // transicao real (clinica estava SUSPENSA) e quando temos `suspensoEm`
+  // pra reaproveitar a janela usada na suspensao.
+  let pacientesRes = {
+    pacientesAvisados: 0,
+    emailEnviados: 0,
+    emailFalhas: 0,
+    whatsappEnviados: 0,
+    whatsappFalhas: 0,
+    whatsappViaHsm: 0,
+    whatsappViaTextoLivre: 0,
+    pacientesSemContato: 0,
+    janelaDias: 0,
+  };
+  let pacientesErro: string | null = null;
+  if (transicaoEfetiva && suspensoEmOriginal) {
+    // Tenta ler a janela original do registro SUSPENSAO_PACIENTES da
+    // ultima suspensao desta unidade. Se nao achar (ex.: suspensao antes
+    // da Task #139), o helper cai no PAWARDS_AVISO_PACIENTES_DIAS default.
+    let janelaOriginal: number | undefined;
+    try {
+      const r = await db.execute(sql`
+        SELECT (a.value->'detalhes'->>'janelaDias')::int AS janela
+        FROM auditoria_kill_switch ks,
+             LATERAL jsonb_array_elements(COALESCE(ks.metadata->'avisos', '[]'::jsonb)) AS a(value)
+        WHERE ks.unidade_id = ${id}
+          AND ks.acao = 'SUSPENDER'
+          AND a.value->>'tipo' = 'SUSPENSAO_PACIENTES'
+          AND (a.value->'detalhes'->>'janelaDias') IS NOT NULL
+        ORDER BY ks.criado_em DESC, a.value->>'em' DESC
+        LIMIT 1
+      `);
+      const linha = r.rows[0] as { janela?: number | string | null } | undefined;
+      if (linha?.janela != null) janelaOriginal = Number(linha.janela);
+    } catch (err) {
+      req.log?.warn({ err, unidadeId: id }, "[plataforma] falha lendo janela original — usando default");
+    }
+    try {
+      pacientesRes = await avisarPacientesReativacao({
+        unidadeId: id,
+        unidade,
+        reativadoEm: new Date(),
+        suspensoEm: suspensoEmOriginal,
+        janelaDias: janelaOriginal,
+      });
+      req.log?.info({ unidadeId: id, ...pacientesRes }, "[plataforma] aviso pacientes reativacao enviado");
+    } catch (err) {
+      pacientesErro = err instanceof Error ? err.message : String(err);
+      req.log?.warn({ err, unidadeId: id }, "[plataforma] falha ao avisar pacientes da reativacao");
+    }
+    await anexarAvisoEmAuditoria(id, "REASSUMIR", {
+      tipo: "REATIVACAO_PACIENTES",
+      destinatarios: [],
+      enviados: pacientesRes.emailEnviados + pacientesRes.whatsappEnviados,
+      falhas: pacientesRes.emailFalhas + pacientesRes.whatsappFalhas,
+      erro: pacientesErro,
+      em: new Date().toISOString(),
+      executado_por_usuario_id: actor.userId,
+      detalhes: {
+        ...pacientesRes,
+        transicao_efetiva: true,
+        suspenso_em: suspensoEmOriginal.toISOString(),
+        janela_origem: janelaOriginal != null ? "auditoria" : "default",
+      },
+    });
+  } else {
+    const motivoPulo = !transicaoEfetiva
+      ? "clinica_nao_estava_suspensa"
+      : "suspenso_em_ausente";
+    req.log?.info(
+      { unidadeId: id, motivoPulo },
+      "[plataforma] reativacao sem aviso pra pacientes",
+    );
+    await anexarAvisoEmAuditoria(id, "REASSUMIR", {
+      tipo: "REATIVACAO_PACIENTES",
+      destinatarios: [],
+      enviados: 0,
+      falhas: 0,
+      erro: null,
+      em: new Date().toISOString(),
+      executado_por_usuario_id: actor.userId,
+      detalhes: {
+        pulado: true,
+        motivo_pulo: motivoPulo,
+        transicao_efetiva: transicaoEfetiva,
+      },
+    });
+  }
+
+  res.json({ ok: true, email: emailRes, whatsapp: whatsappRes, pacientes: pacientesRes });
 });
 
 // ─────────────────────── EXCLUSAO COM CARENCIA LGPD ──────────────────
