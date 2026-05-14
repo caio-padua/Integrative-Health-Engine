@@ -33,6 +33,8 @@ type EventoUnificado = {
   detalhe: string | null;
   link: { href: string; label: string };
   destaque: boolean;
+  usuarioId: number | null;
+  correlacao: { motivo: string; cor: string } | null;
 };
 
 type AuditoriaItem = {
@@ -192,6 +194,8 @@ export default function PlataformaTimeline() {
           label: "Abrir auditoria",
         },
         destaque: false,
+        usuarioId: null,
+        correlacao: null,
       });
     }
     for (const a of alertas) {
@@ -217,6 +221,8 @@ export default function PlataformaTimeline() {
           label: "Abrir alertas",
         },
         destaque: !a.visualizado_em,
+        usuarioId: a.usuario_id,
+        correlacao: null,
       });
     }
     for (const a of avisos) {
@@ -236,13 +242,60 @@ export default function PlataformaTimeline() {
           label: "Abrir avisos 2FA",
         },
         destaque: a.status === "expirou",
+        usuarioId: a.usuario_id,
+        correlacao: null,
       });
+    }
+    // Correlacao: aviso 2FA "expirou" + alerta brute-force (tipo
+    // 2FA_BRUTE_FORCE) <2h depois pro mesmo usuario_id. Marca os DOIS
+    // eventos com faixa lateral colorida e tooltip cruzado.
+    const JANELA_MS = 2 * 60 * 60 * 1000;
+    const expiracoes = avisos
+      .filter((v) => v.status === "expirou")
+      .map((v) => ({
+        usuarioId: v.usuario_id,
+        em: new Date(v.expira_em).getTime(),
+        chave: `avi-${v.id}`,
+      }));
+    const brutes = alertas
+      .filter((a) => a.tipo === "2FA_BRUTE_FORCE")
+      .map((a) => ({
+        usuarioId: a.usuario_id,
+        em: new Date(a.criado_em).getTime(),
+        chave: `alt-${a.id}`,
+        emIso: a.criado_em,
+      }));
+    const correlacionados = new Map<string, { motivo: string; cor: string }>();
+    for (const b of brutes) {
+      const match = expiracoes.find(
+        (e) =>
+          e.usuarioId === b.usuarioId &&
+          b.em - e.em >= 0 &&
+          b.em - e.em <= JANELA_MS,
+      );
+      if (!match) continue;
+      const minutos = Math.round((b.em - match.em) / 60000);
+      const cor = "border-l-4 border-l-fuchsia-500";
+      correlacionados.set(b.chave, {
+        motivo: `Brute-force ${minutos}min depois do aviso 2FA expirar (mesmo usuario)`,
+        cor,
+      });
+      correlacionados.set(match.chave, {
+        motivo: `Aviso 2FA expirou e ${minutos}min depois veio brute-force (mesmo usuario)`,
+        cor,
+      });
+    }
+    for (const ev of lista) {
+      const c = correlacionados.get(ev.chave);
+      if (c) ev.correlacao = c;
     }
     lista.sort((x, y) => (x.em < y.em ? 1 : x.em > y.em ? -1 : 0));
     return lista;
   }, [auditorias, alertas, avisos]);
 
   const visiveis = eventos.filter((e) => filtros[e.tipo]);
+  const correlacoesVisiveis = visiveis.filter((e) => e.correlacao !== null).length;
+  const paresCorrelacionados = Math.floor(correlacoesVisiveis / 2);
 
   function alternarFiltro(t: TipoEvento) {
     setFiltros((prev) => ({ ...prev, [t]: !prev[t] }));
@@ -308,6 +361,22 @@ export default function PlataformaTimeline() {
           </div>
         )}
 
+        <div
+          className={`mb-4 p-3 border rounded text-xs flex items-center gap-2 ${
+            paresCorrelacionados > 0
+              ? "bg-fuchsia-500/10 border-fuchsia-500/40 text-fuchsia-200"
+              : "bg-zinc-900 border-zinc-800 text-zinc-500"
+          }`}
+          data-testid="contador-correlacoes"
+          title="Regra: aviso 2FA expirou + alerta brute-force <2h depois pro mesmo usuario."
+        >
+          <ShieldAlert size={14} />
+          <span>
+            <strong>{paresCorrelacionados}</strong> correlacao(es) suspeita(s)
+            detectada(s) no recorte atual
+          </span>
+        </div>
+
         <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
           <div className="p-3 bg-amber-500/5 border border-amber-500/30 rounded">
             <div className="text-amber-400 uppercase">Auditoria</div>
@@ -362,11 +431,26 @@ export default function PlataformaTimeline() {
                       key={e.chave}
                       className={`border-t border-zinc-800 align-top ${
                         e.destaque ? "bg-amber-500/5" : ""
+                      } ${
+                        e.correlacao
+                          ? `${e.correlacao.cor} bg-fuchsia-500/5`
+                          : ""
                       }`}
                       data-testid={`row-timeline-${e.chave}`}
+                      data-correlacionado={e.correlacao ? "true" : "false"}
+                      title={e.correlacao?.motivo}
                     >
                       <td className="px-4 py-3 text-xs text-zinc-400 whitespace-nowrap font-mono">
                         {formatarData(e.em)}
+                        {e.correlacao && (
+                          <div
+                            className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/40"
+                            title={e.correlacao.motivo}
+                            data-testid={`badge-correlacao-${e.chave}`}
+                          >
+                            <ShieldAlert size={10} /> correlacao
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span
