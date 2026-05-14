@@ -103,6 +103,18 @@ router.get("/ras", async (req, res) => {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(...orderByFragments);
 
+  // Task #214 — quando ha qualquer filtro server-side aplicado, expoe via
+  // header `X-Ras-Total-Sem-Filtro` o total absoluto da tabela (sem filtros)
+  // pra UI poder mostrar "X de Y registros (filtrados)". Sem filtros, a
+  // contagem ja bate com `result.length` entao nao gastamos a query extra.
+  if (conditions.length > 0) {
+    const [{ total }] = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(rasTable);
+    res.setHeader("X-Ras-Total-Sem-Filtro", String(total));
+    res.setHeader("Access-Control-Expose-Headers", "X-Ras-Total-Sem-Filtro");
+  }
+
   res.json(result);
 });
 

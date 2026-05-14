@@ -268,7 +268,10 @@ export default function RasPage() {
     return i === -1 ? undefined : i + 1;
   };
 
-  const { data: rasList = [], isLoading } = useQuery<Ras[]>({
+  // Task #214 — `totalSemFiltro` vem do header `X-Ras-Total-Sem-Filtro`
+  // (so quando ha filtro server-side ativo). Usado pra mostrar "X de Y" no
+  // cabecalho. Quando nao ha filtro, header nao vem e usamos rasList.length.
+  const { data: rasResponse, isLoading } = useQuery<{ data: Ras[]; totalSemFiltro: number | null }>({
     queryKey: ["ras", ordenarPorString, filtroUnidadeId, filtroDataInicio, filtroDataFim],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -279,9 +282,15 @@ export default function RasPage() {
       const qs = params.toString() ? `?${params.toString()}` : "";
       const res = await apiFetch(`/api/ras${qs}`);
       if (!res.ok) throw new Error("Erro");
-      return res.json();
+      const data = (await res.json()) as Ras[];
+      const headerVal = res.headers.get("X-Ras-Total-Sem-Filtro");
+      const totalSemFiltro = headerVal !== null && headerVal !== "" ? Number(headerVal) : null;
+      return { data, totalSemFiltro: Number.isFinite(totalSemFiltro as number) ? totalSemFiltro : null };
     },
   });
+  const rasList: Ras[] = rasResponse?.data ?? [];
+  const totalSemFiltro = rasResponse?.totalSemFiltro ?? null;
+  const filtrosAtivos = filtroUnidadeId !== null || !!filtroDataInicio || !!filtroDataFim;
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -326,8 +335,28 @@ export default function RasPage() {
               <FileCheck className="h-6 w-6 text-primary" />
               RAS - Registro de Atendimento em Saude
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {rasList.length} registros de atendimento
+            {/* Task #214 — quando ha filtros server-side ativos, rasList.length
+                reflete so a janela filtrada. Mostra "X de Y" + chip "filtrado"
+                pra operador entender escala da clinica vs recorte atual. */}
+            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2" data-testid="ras-contagem">
+              {filtrosAtivos && totalSemFiltro !== null ? (
+                <>
+                  <span>
+                    <span data-testid="ras-contagem-filtrada">{rasList.length}</span>
+                    {" de "}
+                    <span data-testid="ras-contagem-total">{totalSemFiltro}</span>
+                    {" registros de atendimento"}
+                  </span>
+                  <Badge variant="outline" className="text-[10px]" data-testid="ras-chip-filtrado">
+                    filtrado
+                  </Badge>
+                </>
+              ) : (
+                <span>
+                  <span data-testid="ras-contagem-total">{rasList.length}</span>
+                  {" registros de atendimento"}
+                </span>
+              )}
             </p>
           </div>
           <Button onClick={() => setCreateOpen(true)}>
