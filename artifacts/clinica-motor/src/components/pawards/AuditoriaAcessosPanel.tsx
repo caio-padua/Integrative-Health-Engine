@@ -106,6 +106,34 @@ export function AuditoriaAcessosPanel() {
     setOffset(0);
   };
 
+  const [baixandoCsv, setBaixandoCsv] = useState(false);
+  const baixarCsv = useCallback(async () => {
+    setBaixandoCsv(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set("formato", "csv");
+      if (usuarioId.trim()) params.set("usuario_id", usuarioId.trim());
+      if (desde) params.set("desde", desde);
+      const res = await apiFetch(`/api/painel-pawards/auditoria/acessos?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const hoje = new Date().toISOString().slice(0, 10);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `auditoria-acessos-${hoje}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBaixandoCsv(false);
+    }
+  }, [usuarioId, desde]);
+
   return (
     <div
       style={{
@@ -267,6 +295,28 @@ export function AuditoriaAcessosPanel() {
           }}
         >
           Limpar
+        </button>
+        <button
+          type="button"
+          onClick={baixarCsv}
+          disabled={baixandoCsv || loading}
+          data-testid="button-baixar-csv"
+          title="Baixa todos os acessos que correspondem aos filtros atuais (não só a página visível)"
+          style={{
+            padding: "8px 16px",
+            background: "transparent",
+            color: PAWARDS.colors.gold[500],
+            border: `1px solid ${PAWARDS.colors.gold[700]}`,
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            cursor: baixandoCsv || loading ? "not-allowed" : "pointer",
+            opacity: baixandoCsv || loading ? 0.5 : 1,
+          }}
+        >
+          {baixandoCsv ? "Baixando…" : "Baixar CSV"}
         </button>
       </form>
 

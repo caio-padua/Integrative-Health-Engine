@@ -1005,9 +1005,21 @@ router.get("/blends/precificados", async (req, res) => {
 // ===========================================================================
 // 12) AUDITORIA — trilha de acessos ao Painel PAWARDS (master only)
 // ===========================================================================
+// Escapa um campo CSV conforme RFC 4180: envolve em aspas se contiver
+// vírgula, aspas, quebra de linha ou ponto-e-vírgula; aspas duplas
+// internas viram "" (escape padrão).
+function csvField(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  if (/[",;\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
 router.get("/auditoria/acessos", async (req, res) => {
   try {
     if (!isMaster(req)) { res.status(403).json({ error: 'Acesso restrito ao perfil master' }); return; }
+    const formato = typeof req.query.formato === "string" ? req.query.formato.toLowerCase() : "json";
+    const isCsv = formato === "csv";
     const limit = Math.min(Math.max(Number(req.query.limit ?? 100) || 100, 1), 500);
     const offset = Math.max(Number(req.query.offset ?? 0) || 0, 0);
     const usuarioId = req.query.usuario_id ? Number(req.query.usuario_id) : null;
@@ -1024,6 +1036,66 @@ router.get("/auditoria/acessos", async (req, res) => {
       where.push(`acessado_em >= $${params.length}::timestamptz`);
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    if (isCsv) {
+      // Export CSV — respeita filtros, ignora paginação e devolve TODAS as
+      // linhas do filtro (sem LIMIT). Streamado via cursor pra não estourar
+      // memória mesmo com filtro vazio.
+      const hoje = new Date().toISOString().slice(0, 10);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="auditoria-acessos-${hoje}.csv"`,
+      );
+      // BOM UTF-8 pra Excel abrir acentos corretamente. Header usa exatamente
+      // os nomes pedidos no Done looks like (com hífen em "user-agent" e
+      // acento em "método").
+      res.write("\uFEFF");
+      res.write("quando,email,perfil,método,endpoint,ip,user-agent\r\n");
+
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const cursorName = `aud_csv_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+        await client.query(
+          `DECLARE ${cursorName} NO SCROLL CURSOR FOR
+             SELECT acessado_em, email, perfil, metodo, endpoint, ip, user_agent
+             FROM painel_pawards_auditoria
+             ${whereSql}
+             ORDER BY acessado_em DESC`,
+          params,
+        );
+        // Lê em lotes pra streamar sem carregar tudo em memória.
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { rows } = await client.query(`FETCH 1000 FROM ${cursorName}`);
+          if (rows.length === 0) break;
+          for (const r of rows) {
+            const quando = r.acessado_em instanceof Date
+              ? r.acessado_em.toISOString()
+              : String(r.acessado_em ?? "");
+            res.write([
+              csvField(quando),
+              csvField(r.email),
+              csvField(r.perfil),
+              csvField(r.metodo),
+              csvField(r.endpoint),
+              csvField(r.ip),
+              csvField(r.user_agent),
+            ].join(",") + "\r\n");
+          }
+        }
+        await client.query(`CLOSE ${cursorName}`);
+        await client.query("COMMIT");
+      } catch (err) {
+        try { await client.query("ROLLBACK"); } catch { /* ignore */ }
+        throw err;
+      } finally {
+        client.release();
+      }
+      res.end();
+      return;
+    }
 
     params.push(limit);
     const limitIdx = params.length;
