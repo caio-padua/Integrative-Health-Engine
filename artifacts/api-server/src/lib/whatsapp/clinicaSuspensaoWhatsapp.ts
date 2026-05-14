@@ -1,6 +1,7 @@
 import { db, usuariosTable, unidadesTable, type Unidade } from "@workspace/db";
 import { and, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { enviarComTemplateHsm } from "../../services/whatsappService";
+import { janela24hAbertaParaTelefones, normalizarTelefoneBr } from "./janela24h";
 import { logger } from "../logger";
 
 function dataPtBr(d: Date | null | undefined): string {
@@ -113,6 +114,12 @@ export type DetalheEnvioWhatsapp = {
   // `whatsapp_mensagens_log` (atualizado pelo webhook em routes/whatsapp.ts).
   // Null quando o envio falhou antes de receber id do provedor.
   provedorMsgId: string | null;
+  // Task #205 — snapshot, no momento do envio, se o destinatario tinha
+  // mandado mensagem pra clinica nas ultimas 24h. Quando true, a entrega
+  // por texto livre eh garantida pelo provedor; quando false, pode ter
+  // sido bloqueada silenciosamente. Ausente em registros gravados antes
+  // da Task #205.
+  dentroJanela24h?: boolean;
 };
 
 async function enviarParaTodos(
@@ -185,6 +192,24 @@ async function enviarParaTodos(
       });
     }
   }
+  // Task #205 — anota cada detalhe com snapshot da janela de 24h.
+  // Batch query (1 SQL) pra evitar N consultas quando ha varios
+  // destinatarios. Best-effort: erro aqui nao bloqueia o envio (ja feito).
+  try {
+    // Contexto por unidadeId — em multi-clinica isso impede que inbound
+    // recebido em outra clinica abra janela aqui (mesmo telefone, contas
+    // WhatsApp distintas).
+    const aberta = await janela24hAbertaParaTelefones(
+      detalhes.map((d) => d.destinatario),
+      { unidadeId },
+    );
+    for (const d of detalhes) {
+      d.dentroJanela24h = aberta.has(normalizarTelefoneBr(d.destinatario));
+    }
+  } catch (err) {
+    logger.warn({ err, unidadeId, templateNome }, "[clinicaSuspensaoWhatsapp] falha ao calcular janela24h pros detalhes");
+  }
+
   return { enviados, falhas, viaHsm, viaTextoLivre, detalhes };
 }
 

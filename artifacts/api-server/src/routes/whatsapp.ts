@@ -1,8 +1,10 @@
 import { Router } from "express";
 import {
   db, whatsappConfigTable, whatsappMensagensLogTable,
+  whatsappInboundTable,
   alertasNotificacaoTable, insertWhatsappConfigSchema,
 } from "@workspace/db";
+import { normalizarTelefoneBr, localizarConfigPorNumeroDestino } from "../lib/whatsapp/janela24h";
 import { eq, desc, and, sql } from "drizzle-orm";
 import {
   enviarWhatsapp, enviarComTemplate, atualizarStatusWebhook, testarConexaoWhatsapp,
@@ -643,11 +645,191 @@ router.get("/whatsapp/mensagens/stats", async (_req, res): Promise<void> => {
   });
 });
 
+/**
+ * Task #205 — extrai inbound de payload Twilio.
+ * Twilio envia inbound no MESMO endpoint do status. Inbound real tem
+ * `From=whatsapp:+...` + `To=whatsapp:+...` (numero da clinica) + `Body`
+ * (texto) ou `MediaUrl0` (midia). Pode ainda vir com `SmsStatus=received`
+ * — esse status NAO mapeia pra ENTREGUE/LIDO/FALHOU do fluxo de status,
+ * entao usamos uma deteccao explicita por presenca de campos de mensagem
+ * recebida em vez de "ausencia de status".
+ */
+function ehInboundTwilio(body: Record<string, unknown>): boolean {
+  const from = typeof body.From === "string" ? body.From : "";
+  const to = typeof body.To === "string" ? body.To : "";
+  if (!from.startsWith("whatsapp:") || !to.startsWith("whatsapp:")) return false;
+  // SmsStatus=received é o marcador oficial Twilio pra inbound. Se vier,
+  // já basta. Se nao vier, exigimos pelo menos Body, MediaUrl0 ou WaId.
+  const status = body.MessageStatus || body.SmsStatus;
+  if (typeof status === "string" && status.toLowerCase() === "received") return true;
+  if (status) return false; // outros valores = evento de status, nao inbound
+  const temConteudo = typeof body.Body === "string"
+    || typeof body.MediaUrl0 === "string"
+    || typeof body.WaId === "string";
+  return temConteudo;
+}
+
+function ehInboundGupshup(body: Record<string, unknown>): boolean {
+  // Gupshup manda inbound como type="message" (status events vêm como
+  // "message-event"). Aceita também payload.type === "text"/"image"/etc.
+  if (body.type === "message") return true;
+  const payload = body.payload as Record<string, unknown> | undefined;
+  if (!payload) return false;
+  const tipo = payload.type;
+  return tipo === "text" || tipo === "image" || tipo === "audio"
+    || tipo === "video" || tipo === "document" || tipo === "location"
+    || tipo === "button_reply" || tipo === "list_reply";
+}
+
+async function registrarInbound(opts: {
+  provedor: "TWILIO" | "GUPSHUP";
+  provedorMsgId: string | null;
+  telefoneOrigem: string;
+  tipoMensagem: string | null;
+  conteudo: string | null;
+  payloadBruto: unknown;
+  configId: number | null;
+  unidadeId: number | null;
+}): Promise<void> {
+  const telefone = normalizarTelefoneBr(opts.telefoneOrigem);
+  if (!telefone) return;
+  await db.insert(whatsappInboundTable).values({
+    configId: opts.configId,
+    unidadeId: opts.unidadeId,
+    provedor: opts.provedor,
+    provedorMsgId: opts.provedorMsgId,
+    telefoneOrigem: telefone,
+    tipoMensagem: opts.tipoMensagem,
+    conteudo: opts.conteudo,
+    payloadBruto: opts.payloadBruto as Record<string, unknown>,
+  });
+}
+
+// Task #205 — busca a credencial decriptada da config identificada pelo
+// numero destino, pra validar a assinatura do webhook com a chave certa
+// (em ambiente multi-clinica, multiplas configs podem ter creds distintas).
+async function obterCredencialDaConfig(
+  configId: number,
+  provedor: "TWILIO" | "GUPSHUP",
+): Promise<string | null> {
+  const [config] = await db
+    .select()
+    .from(whatsappConfigTable)
+    .where(eq(whatsappConfigTable.id, configId))
+    .limit(1);
+  if (!config) return null;
+  if (provedor === "TWILIO") {
+    return config.authToken ? decryptCredential(config.authToken) : null;
+  }
+  return config.apiKey ? decryptCredential(config.apiKey) : null;
+}
+
 router.post("/webhooks/whatsapp/status", async (req, res): Promise<void> => {
   const body = req.body;
 
-  const isTwilioPayload = !!(body.MessageSid || body.SmsStatus);
-  const isGupshupPayload = !!(body.type === "message-event" || body.payload);
+  const isTwilioPayload = !!(body.MessageSid || body.SmsStatus || body.From);
+  const isGupshupPayload = !!(body.type === "message-event" || body.type === "message" || body.payload);
+
+  // Task #205 — Inbound (mensagem RECEBIDA do destinatario). Registra
+  // antes do fluxo de status pra abrir a janela de 24h. Reaproveita as
+  // mesmas validacoes de assinatura que ja blindam status events.
+  if (isTwilioPayload && ehInboundTwilio(body)) {
+    const twilioSignature = req.headers["x-twilio-signature"];
+    if (!twilioSignature) {
+      console.warn("[WhatsApp/Webhook] Inbound Twilio sem assinatura — rejeitando");
+      res.sendStatus(403);
+      return;
+    }
+    // Identifica a config pelo numero DESTINO (To) — em multi-clinica
+    // cada config tem credenciais e unidade proprias. Sem match: rejeita.
+    const to = String(body.To || "").replace(/^whatsapp:/, "").replace(/^\+/, "");
+    const cfg = to ? await localizarConfigPorNumeroDestino(to, "TWILIO") : null;
+    if (!cfg) {
+      console.warn("[WhatsApp/Webhook] Inbound Twilio sem config compativel pra To=", to);
+      res.sendStatus(403);
+      return;
+    }
+    try {
+      const authToken = await obterCredencialDaConfig(cfg.id, "TWILIO");
+      if (!authToken) {
+        console.warn("[WhatsApp/Webhook] Inbound Twilio: config sem authToken");
+        res.sendStatus(403);
+        return;
+      }
+      const { validateRequest } = await import("twilio");
+      const webhookUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+      const isValid = validateRequest(authToken, String(twilioSignature), webhookUrl, body);
+      if (!isValid) {
+        console.warn("[WhatsApp/Webhook] Assinatura Twilio inbound invalida — rejeitando");
+        res.sendStatus(403);
+        return;
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[WhatsApp/Webhook] Erro ao validar inbound Twilio:", message);
+      res.sendStatus(403);
+      return;
+    }
+    const from = String(body.From || "").replace(/^whatsapp:/, "").replace(/^\+/, "");
+    await registrarInbound({
+      provedor: "TWILIO",
+      provedorMsgId: typeof body.MessageSid === "string" ? body.MessageSid : null,
+      telefoneOrigem: from,
+      tipoMensagem: typeof body.MessageType === "string" ? body.MessageType : "text",
+      conteudo: typeof body.Body === "string" ? body.Body : null,
+      payloadBruto: body,
+      configId: cfg.id,
+      unidadeId: cfg.unidadeId,
+    });
+    res.sendStatus(200);
+    return;
+  }
+
+  if (isGupshupPayload && ehInboundGupshup(body)) {
+    const gupshupApiKey = req.headers["apikey"] || req.headers["x-api-key"];
+    if (!gupshupApiKey) {
+      console.warn("[WhatsApp/Webhook] Inbound Gupshup sem apikey — rejeitando");
+      res.sendStatus(403);
+      return;
+    }
+    const gupshupPayload = (body.payload as Record<string, unknown>) || body;
+    const sender = (gupshupPayload.sender as Record<string, unknown> | undefined)?.phone
+      ?? gupshupPayload.source
+      ?? gupshupPayload.from;
+    const tipo = typeof gupshupPayload.type === "string" ? gupshupPayload.type : "text";
+    const payloadInner = gupshupPayload.payload as Record<string, unknown> | undefined;
+    const texto = payloadInner && typeof payloadInner.text === "string"
+      ? payloadInner.text
+      : null;
+    // Numero DESTINO no Gupshup vem em `destination` (a clinica que recebeu).
+    const destination = (gupshupPayload.destination
+      ?? (body as Record<string, unknown>).destination
+      ?? "") as string;
+    const cfg = destination ? await localizarConfigPorNumeroDestino(String(destination), "GUPSHUP") : null;
+    if (!cfg) {
+      console.warn("[WhatsApp/Webhook] Inbound Gupshup sem config compativel pra destination=", destination);
+      res.sendStatus(403);
+      return;
+    }
+    const storedApiKey = await obterCredencialDaConfig(cfg.id, "GUPSHUP");
+    if (!storedApiKey || String(gupshupApiKey) !== storedApiKey) {
+      console.warn("[WhatsApp/Webhook] Apikey Gupshup inbound invalida — rejeitando");
+      res.sendStatus(403);
+      return;
+    }
+    await registrarInbound({
+      provedor: "GUPSHUP",
+      provedorMsgId: typeof gupshupPayload.id === "string" ? gupshupPayload.id : null,
+      telefoneOrigem: typeof sender === "string" ? sender : "",
+      tipoMensagem: tipo,
+      conteudo: texto,
+      payloadBruto: body,
+      configId: cfg.id,
+      unidadeId: cfg.unidadeId,
+    });
+    res.sendStatus(200);
+    return;
+  }
 
   if (isTwilioPayload) {
     const twilioSignature = req.headers["x-twilio-signature"];

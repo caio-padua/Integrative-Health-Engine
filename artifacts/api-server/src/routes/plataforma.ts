@@ -222,6 +222,8 @@ type DetalheEnvioWhatsappAuditoria = {
   statusEntrega?: "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU" | null;
   entregueEm?: string | null;
   lidoEm?: string | null;
+  // Task #205 — snapshot da janela de 24h no momento do envio.
+  dentroJanela24h?: boolean;
 };
 
 // Task #148 — detalhe por destinatario de email (analogo ao detalhes_whatsapp

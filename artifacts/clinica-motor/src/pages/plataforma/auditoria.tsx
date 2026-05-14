@@ -19,6 +19,11 @@ type DetalheEnvioWhatsapp = {
   statusEntrega?: "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU" | null;
   entregueEm?: string | null;
   lidoEm?: string | null;
+  // Task #205 — snapshot da janela de 24h: true se o destinatario tinha
+  // mandado mensagem pra clinica nas ultimas 24h ANTES do envio. Quando
+  // todos os texto-livre estao dentro da janela, suprimimos o alerta
+  // amarelo (entrega ja eh garantida pelo provedor).
+  dentroJanela24h?: boolean;
 };
 
 // Task #148 — analogo a DetalheEnvioWhatsapp, mas pro canal EMAIL. So
@@ -372,12 +377,27 @@ export default function PlataformaAuditoria() {
                                       d.statusEntrega === "ENTREGUE" ||
                                       d.statusEntrega === "LIDO",
                                   );
-                                const tudoTextoLivre =
+                                const tudoTextoLivreBruto =
                                   isWhatsapp &&
                                   av.enviados > 0 &&
                                   viaHsm === 0 &&
-                                  viaTextoLivre === av.enviados &&
-                                  !algumEntreguOuLido;
+                                  viaTextoLivre === av.enviados;
+                                // Task #205 — se a gente tem snapshot da janela
+                                // de 24h pra todos os destinatarios e TODOS
+                                // estavam dentro dela no envio, a entrega por
+                                // texto livre eh garantida — nao precisa do
+                                // alerta amarelo. Se faltar info (registros
+                                // antigos), preserva o comportamento conservador.
+                                // Task #204: se o webhook ja confirmou entrega,
+                                // tambem suprimimos o alerta.
+                                const todosDentroJanela =
+                                  detalhes.length > 0 &&
+                                  detalhes.every(
+                                    (d) =>
+                                      d.dentroJanela24h === true ||
+                                      (d.viaHsm && d.sucesso),
+                                  );
+                                const tudoTextoLivre = tudoTextoLivreBruto && !todosDentroJanela && !algumEntreguOuLido;
                                 // Task #204: alerta vermelho quando o webhook
                                 // do provedor confirmou FALHOU (bloqueio /
                                 // numero invalido / spam) em pelo menos um

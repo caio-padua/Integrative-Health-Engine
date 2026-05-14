@@ -50,6 +50,7 @@ type RegistroAviso = {
     sucesso: boolean;
     viaHsm: boolean;
     viaTextoLivre: boolean;
+    dentroJanela24h?: boolean;
     erro: string | null;
   }>;
   detalhes?: Record<string, unknown>;
@@ -637,11 +638,26 @@ export default function PlataformaClinicas() {
                                           const isWhatsapp = canal === "WHATSAPP";
                                           const viaHsm = av.via_hsm ?? 0;
                                           const viaTextoLivre = av.via_texto_livre ?? 0;
-                                          const tudoTextoLivre =
+                                          const tudoTextoLivreBruto =
                                             isWhatsapp &&
                                             av.enviados > 0 &&
                                             viaHsm === 0 &&
                                             viaTextoLivre === av.enviados;
+                                          // Task #205 — suprime alerta amarelo
+                                          // quando TODOS os destinatarios tinham
+                                          // a janela de 24h aberta no momento
+                                          // do envio (entrega de texto livre
+                                          // garantida pelo provedor).
+                                          const detalhesTL = av.detalhes_whatsapp ?? [];
+                                          const todosDentroJanela =
+                                            detalhesTL.length > 0 &&
+                                            detalhesTL.every(
+                                              (d) =>
+                                                d.dentroJanela24h === true ||
+                                                (d.viaHsm && d.sucesso),
+                                            );
+                                          const tudoTextoLivre =
+                                            tudoTextoLivreBruto && !todosDentroJanela;
                                           return (
                                           <div key={i} className="border-l-2 border-zinc-700 pl-2 text-[11px]">
                                             <div className="flex flex-wrap gap-2 items-center">
