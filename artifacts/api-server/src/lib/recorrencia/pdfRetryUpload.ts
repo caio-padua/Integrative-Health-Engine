@@ -62,7 +62,7 @@ const RESETS_TEIMOSO_LIMITE = 3;
 // e disparamos alerta CEO. ZapSign reentrega normalmente em minutos/horas;
 // 24h eh margem segura pra evitar falso-positivo durante incidente do
 // provedor.
-const AGUARDANDO_WEBHOOK_LIMITE_HORAS = 24;
+export const AGUARDANDO_WEBHOOK_LIMITE_HORAS = 24;
 
 async function buscarEventosElegiveis(): Promise<EventoFalho[]> {
   // Filtra:

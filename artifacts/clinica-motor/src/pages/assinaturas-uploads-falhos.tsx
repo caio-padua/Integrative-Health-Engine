@@ -51,11 +51,20 @@ type EventoFalho = {
   template_codigo: string | null;
   template_nome: string | null;
   status_retry: "em_retry" | "esgotado" | "fora_janela" | "aguardando_webhook";
+  // Task #247 — tempo (em horas decimais) que o evento esta preso, calculado
+  // pelo backend via `COALESCE(ultima_tentativa_em, recebido_em)` (mesma
+  // formula do worker pdfRetryUpload).
+  preso_ha_horas: number | null;
+  // Task #247 — true quando o evento aguardando_webhook ja passou do limite
+  // de AGUARDANDO_WEBHOOK_LIMITE_HORAS (= alerta CEO ja foi disparado).
+  passou_limite_alerta?: boolean;
 };
 
 type Resposta = {
   gerado_em: string;
   filtro_unidade_id: number | null;
+  // Task #247 — limite (em horas) usado pelo worker pra disparar alerta CEO.
+  aguardando_webhook_limite_horas: number;
   total: number;
   contagem: {
     em_retry: number;
@@ -108,6 +117,22 @@ const STATUS_CFG: Record<
     icon: CloudOff,
   },
 };
+
+// Task #247 — formata tempo preso (em horas decimais) numa string compacta
+// pro Caio bater o olho: "12 min", "3h", "2d 4h". Negativos/null caem em "—".
+function formatarPresoHa(horas: number | null | undefined): string {
+  if (horas == null || !Number.isFinite(horas) || horas < 0) return "—";
+  if (horas < 1) {
+    const min = Math.max(1, Math.round(horas * 60));
+    return `${min} min`;
+  }
+  if (horas < 24) {
+    return `${Math.floor(horas)}h`;
+  }
+  const dias = Math.floor(horas / 24);
+  const restoH = Math.floor(horas - dias * 24);
+  return restoH > 0 ? `${dias}d ${restoH}h` : `${dias}d`;
+}
 
 function formatarData(iso: string | null): string {
   if (!iso) return "—";
@@ -505,6 +530,12 @@ export default function AssinaturasUploadsFalhos() {
                   <th className="text-left px-3 py-2 font-semibold">Envelope</th>
                   <th className="text-center px-3 py-2 font-semibold">Tentativas</th>
                   <th className="text-left px-3 py-2 font-semibold">Ultima tentativa</th>
+                  <th
+                    className="text-center px-3 py-2 font-semibold"
+                    title={`Tempo decorrido desde a ultima tentativa (ou recebido_em quando nunca tentou). Eventos do grupo "Aguardando webhook" passando de ${data?.aguardando_webhook_limite_horas ?? 24}h ja dispararam alerta CEO.`}
+                  >
+                    Preso ha
+                  </th>
                   <th className="text-center px-3 py-2 font-semibold">Status</th>
                   <th
                     className="text-center px-3 py-2 font-semibold"
@@ -593,6 +624,51 @@ export default function AssinaturasUploadsFalhos() {
                     </td>
                     <td className="px-3 py-2 text-xs" style={{ color: ZINC }}>
                       {formatarData(r.ultima_tentativa_em)}
+                    </td>
+                    {/* Task #247 — coluna "Preso ha" com tempo desde a
+                        ultima tentativa (ou recebido_em). No grupo
+                        aguardando_webhook, eventos que ja passaram do limite
+                        ganham fundo vermelho + icone de chama indicando que o
+                        alerta CEO ja foi disparado pelo worker. */}
+                    <td className="px-3 py-2 text-center text-xs">
+                      {(() => {
+                        const horas = r.preso_ha_horas;
+                        const passouLimite = r.passou_limite_alerta === true;
+                        const limite = data?.aguardando_webhook_limite_horas ?? 24;
+                        const eAguardando = r.status_retry === "aguardando_webhook";
+                        const cor = passouLimite
+                          ? RED
+                          : eAguardando && horas != null && horas >= limite / 2
+                            ? AMBER
+                            : ZINC;
+                        const label = formatarPresoHa(horas);
+                        if (passouLimite) {
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono font-bold"
+                              style={{ background: "#FEE2E2", color: RED }}
+                              title={`Preso ha ${label} — ja passou do limite de ${limite}h. Alerta CEO ja foi disparado pelo worker (email/WhatsApp).`}
+                              data-testid={`badge-passou-limite-${r.id}`}
+                            >
+                              <Flame size={10} />
+                              {label}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span
+                            className="font-mono"
+                            style={{ color: cor, fontWeight: eAguardando ? 600 : 400 }}
+                            title={
+                              eAguardando
+                                ? `Preso ha ${label}. Limite pra alerta CEO: ${limite}h.`
+                                : `Tempo desde a ultima tentativa: ${label}.`
+                            }
+                          >
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <StatusBadge status={r.status_retry} />

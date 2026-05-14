@@ -18,6 +18,7 @@ import {
   semanticoCor,
   corRejeicao,
 } from "../lib/assinaturas/calcularResumo.js";
+import { AGUARDANDO_WEBHOOK_LIMITE_HORAS } from "../lib/recorrencia/pdfRetryUpload.js";
 
 const router: IRouter = Router();
 
@@ -1843,7 +1844,16 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (req: Request, res:
           WHEN e.recebido_em <= NOW() - INTERVAL '7 days' THEN 'fora_janela'
           WHEN e.tentativas_retry >= 5 THEN 'esgotado'
           ELSE 'em_retry'
-        END AS status_retry
+        END AS status_retry,
+        -- Task #247 — quanto tempo o evento esta preso aguardando o ZapSign
+        -- reentregar o webhook. Mesma formula do worker pdfRetryUpload
+        -- (COALESCE(ultima_tentativa_em, recebido_em)): assim o painel
+        -- mostra exatamente o numero que dispara o alerta CEO ao ultrapassar
+        -- AGUARDANDO_WEBHOOK_LIMITE_HORAS. Calculamos pra TODAS as linhas
+        -- (nao so do grupo aguardando_webhook) pra manter o shape uniforme
+        -- e permitir o frontend renderizar o tempo preso onde fizer sentido.
+        EXTRACT(EPOCH FROM (NOW() - COALESCE(e.ultima_tentativa_em, e.recebido_em))) / 3600.0
+          AS preso_ha_horas
       FROM assinatura_webhook_eventos e
       LEFT JOIN assinatura_solicitacoes sol
         ON sol.provedor_envelope_id = e.envelope_id
@@ -1870,14 +1880,39 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (req: Request, res:
     const RESETS_TEIMOSO_LIMITE = 3;
     for (const row of rows) {
       const status = String(row["status_retry"] || "em_retry") as keyof typeof grupos;
+      // Task #247 — node-postgres devolve EXTRACT(...)/3600.0 como string
+      // (tipo numeric/double precision sao serializados como string pra
+      // preservar precisao). Coerce pra Number aqui pra UI nao precisar
+      // adivinhar o tipo e renderizar "—" por engano. NaN/negativo viram
+      // null pra deixar o frontend exibir "—" explicitamente.
+      const presoBruto = row["preso_ha_horas"];
+      const presoNum = presoBruto == null ? NaN : Number(presoBruto);
+      row["preso_ha_horas"] =
+        Number.isFinite(presoNum) && presoNum >= 0 ? presoNum : null;
+      // `passou_limite_alerta` marca eventos do grupo aguardando_webhook
+      // que ja ultrapassaram a janela de AGUARDANDO_WEBHOOK_LIMITE_HORAS
+      // (= momento em que o worker dispara alerta CEO via email/WhatsApp).
+      row["passou_limite_alerta"] =
+        status === "aguardando_webhook" &&
+        row["preso_ha_horas"] !== null &&
+        (row["preso_ha_horas"] as number) >= AGUARDANDO_WEBHOOK_LIMITE_HORAS;
       (grupos[status] || grupos.em_retry).push(row);
       const resets = Number(row["resets_manuais_count"] ?? 0);
       if (resets >= RESETS_TEIMOSO_LIMITE) teimosos.push(row);
     }
 
+    // Task #247 — dentro do grupo aguardando_webhook, ordena por mais antigo
+    // primeiro (maior preso_ha_horas no topo) pra Caio ver os PDFs mais
+    // criticos primeiro. Demais grupos mantem ORDER BY do SQL (recebido_em DESC).
+    grupos.aguardando_webhook.sort(
+      (a, b) => Number(b["preso_ha_horas"] ?? 0) - Number(a["preso_ha_horas"] ?? 0),
+    );
+
     res.json({
       gerado_em: new Date().toISOString(),
       filtro_unidade_id: unidadeId,
+      // Task #247 — exposto pra UI usar o mesmo limite do worker sem hard-code.
+      aguardando_webhook_limite_horas: AGUARDANDO_WEBHOOK_LIMITE_HORAS,
       total: rows.length,
       contagem: {
         em_retry: grupos.em_retry.length,
