@@ -95,25 +95,41 @@ const COR_SEMANTICA_HEX: Record<CorSemantica, string> = {
 // Usa AudioContext lazy (instancia no primeiro disparo) e fecha em seguida pra
 // nao segurar recurso. Falha silenciosa quando o browser bloqueia o contexto
 // por falta de gesto do usuario — toast visual continua funcionando.
-function tocarBeepSeguranca(): void {
+//
+// Task #192 — aceita um "tipo" pra mapear frequencia/duracao distintas, de
+// forma que o CEO reconheca o tipo de alerta de seguranca so de ouvir, sem
+// precisar olhar a tela. Mute global (mesma chave de localStorage) continua
+// silenciando todos os tipos. Default = "bloqueio_2fa" pra preservar o som
+// original (880Hz / 300ms) usado desde a Task #174.
+type TipoAlertaSeguranca = "bloqueio_2fa" | "reset_suspeito";
+
+const PERFIL_BEEP_SEGURANCA: Record<TipoAlertaSeguranca, { frequencia: number; duracaoSegundos: number }> = {
+  // bloqueio_2fa — agudo curto (som original Task #174)
+  bloqueio_2fa:   { frequencia: 880, duracaoSegundos: 0.30 },
+  // reset_suspeito — grave longo, contraste claro com bloqueio_2fa
+  reset_suspeito: { frequencia: 440, duracaoSegundos: 0.55 },
+};
+
+function tocarBeepSeguranca(tipo: TipoAlertaSeguranca = "bloqueio_2fa"): void {
   try {
     if (typeof window === "undefined") return;
     if (window.localStorage?.getItem("alertas_seguranca_som_mudo") === "1") return;
     const Ctor = window.AudioContext
       || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return;
+    const perfil = PERFIL_BEEP_SEGURANCA[tipo] ?? PERFIL_BEEP_SEGURANCA.bloqueio_2fa;
     const ctx = new Ctor();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "square";
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(perfil.frequencia, ctx.currentTime);
     gain.gain.setValueAtTime(0.0001, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + perfil.duracaoSegundos);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start();
-    osc.stop(ctx.currentTime + 0.32);
+    osc.stop(ctx.currentTime + perfil.duracaoSegundos + 0.02);
     osc.onended = () => { ctx.close().catch(() => { /* silencioso */ }); };
   } catch { /* silencioso */ }
 }
