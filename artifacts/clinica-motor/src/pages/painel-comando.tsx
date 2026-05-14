@@ -260,6 +260,22 @@ export default function PainelComando() {
   const [loading, setLoading] = useState(true);
   const [selectedSubstancia, setSelectedSubstancia] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("visao-geral");
+  // Task #200 — contagem de uploads "teimosos" (resets_manuais_count >= 3 e
+  // voltaram a falhar). Polling 5min, gate guardMaster (silencioso 401/403).
+  const [uploadsTeimosos, setUploadsTeimosos] = useState<{
+    total: number;
+    eventos: Array<{
+      id: number;
+      sol_id: number | null;
+      paciente_nome: string | null;
+      unidade_nome: string | null;
+      template_codigo: string | null;
+      ultimo_reset_em: string | null;
+      ultimo_reset_por: string | null;
+      resets_manuais_count: number | null;
+      erro_processamento: string | null;
+    }>;
+  } | null>(null);
   const [cofreAusentes, setCofreAusentes] = useState<{
     total: number;
     has_more?: boolean;
@@ -483,6 +499,32 @@ export default function PainelComando() {
     const id = setInterval(carregar, 5 * 60_000);
     return () => { alive = false; clearInterval(id); };
   }, []);
+
+  // Task #200 — uploads "teimosos" (3+ resets manuais que voltaram a falhar).
+  // Reusa endpoint /assinaturas/uploads-falhos (master-only) e propaga filtro
+  // de unidade pra alinhar com o resto do dashboard. Polling 2min: o worker
+  // de retry roda a cada 5min, entao 2min cobre bem a janela de detec cao.
+  useEffect(() => {
+    if (!FEATURE_ASSINATURAS_RESUMO_CEO) return;
+    let alive = true;
+    const qs = unidadeSelecionada && !isTodasClinicas ? `?unidadeId=${unidadeSelecionada}` : "";
+    setUploadsTeimosos(null);
+    const carregar = async () => {
+      try {
+        const r = await apiFetch(`${API_BASE}/assinaturas/uploads-falhos${qs}`, { credentials: "include" });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (!alive || !d?.contagem) return;
+        setUploadsTeimosos({
+          total: d.contagem.teimosos ?? 0,
+          eventos: d.grupos?.teimosos ?? [],
+        });
+      } catch { /* silencioso */ }
+    };
+    carregar();
+    const id = setInterval(carregar, 2 * 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, [unidadeSelecionada, isTodasClinicas]);
 
   // Task #52 — polling leve da fila de alertas CEO (mesmo guard do banner).
   // Conta apenas os nao-visualizados pra mostrar o badge no painel.
@@ -1113,6 +1155,111 @@ export default function PainelComando() {
                 </div>
               </div>
             </div>
+          );
+        })()}
+
+        {/* Task #200 — uploads "teimosos" (3+ resets manuais que voltaram a falhar).
+            Verde 0, vermelho 1+. Clique abre /assinaturas/uploads-falhos com mesma
+            unidade selecionada (filtro propagado pela ClinicContext). */}
+        {FEATURE_ASSINATURAS_RESUMO_CEO && uploadsTeimosos && (() => {
+          const total = uploadsTeimosos.total;
+          const cor: CorSemantica = total === 0 ? "excelente" : "critico";
+          const corHex = COR_SEMANTICA_HEX[cor];
+          const eventos = uploadsTeimosos.eventos;
+          return (
+            <a
+              href="/assinaturas/uploads-falhos"
+              className="block border-l-4 px-4 py-3 rounded-sm bg-[var(--pw-petroleo)]/5 hover:bg-[var(--pw-petroleo)]/10 transition-colors"
+              style={{ borderLeftColor: corHex }}
+              data-testid="card-ceo-uploads-teimosos"
+              title="Abrir fila de uploads de PDF assinado com falha"
+            >
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: corHex }} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--pw-dourado)] font-semibold flex items-center gap-2 flex-wrap">
+                    <span>Uploads teimosos · 3+ resets sem sucesso</span>
+                    <span
+                      className="normal-case tracking-normal text-[10px] px-2 py-0.5 rounded-sm font-bold"
+                      style={{ backgroundColor: `${corHex}22`, color: corHex }}
+                      data-testid="card-ceo-uploads-teimosos-total"
+                    >
+                      {total === 0 ? "0 · sem teimoso" : `${total} upload${total > 1 ? "s" : ""} teimoso${total > 1 ? "s" : ""}`}
+                    </span>
+                  </div>
+                  {total === 0 ? (
+                    <div className="text-xs text-[var(--pw-tinta)] mt-1.5">
+                      Nenhum evento de upload de PDF assinado foi resetado 3+ vezes
+                      sem sucesso. Worker `pdfRetryUpload` esta dando conta do retry.
+                    </div>
+                  ) : (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-[11px] text-[var(--pw-tinta)] mb-1">
+                        Reset manual nao resolveu — precisa baixar do ZapSign na unha:
+                      </div>
+                      {eventos.slice(0, 5).map((e) => (
+                        <div
+                          key={e.id}
+                          className="text-xs px-2 py-1.5 rounded-sm bg-white/40 border border-zinc-200/60"
+                          data-testid={`card-ceo-upload-teimoso-${e.id}`}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-[10px] text-zinc-500">#{e.id}</span>
+                            <span className="font-semibold text-[var(--pw-petroleo)]">
+                              {e.paciente_nome || "(sem vinculo)"}
+                            </span>
+                            {e.template_codigo && (
+                              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                                {e.template_codigo}
+                              </span>
+                            )}
+                            {e.unidade_nome && (
+                              <span className="text-[10px] text-zinc-500">
+                                · {e.unidade_nome.replace(/^INSTITUTO\s+/i, "")}
+                              </span>
+                            )}
+                            <span
+                              className="ml-auto text-[10px] font-bold"
+                              style={{ color: corHex }}
+                              title="Quantidade de resets manuais que falharam"
+                            >
+                              {e.resets_manuais_count ?? 0}× reset
+                            </span>
+                          </div>
+                          {(e.ultimo_reset_em || e.ultimo_reset_por) && (
+                            <div className="text-[10px] text-zinc-500 mt-0.5">
+                              ultimo reset:{" "}
+                              {e.ultimo_reset_em
+                                ? new Date(e.ultimo_reset_em).toLocaleString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : "—"}
+                              {e.ultimo_reset_por && ` por ${e.ultimo_reset_por}`}
+                            </div>
+                          )}
+                          {e.erro_processamento && (
+                            <div
+                              className="text-[10px] text-red-700 mt-0.5 truncate"
+                              title={e.erro_processamento}
+                            >
+                              ultima falha: {e.erro_processamento}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {eventos.length > 5 && (
+                        <div className="text-[10px] text-zinc-500 italic">
+                          exibindo 5 de {total} · clique pra abrir a fila completa
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </a>
           );
         })()}
 

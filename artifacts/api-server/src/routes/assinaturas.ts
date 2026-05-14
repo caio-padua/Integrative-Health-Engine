@@ -1535,7 +1535,7 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
 });
 
 /**
- * GET /api/assinaturas/uploads-falhos — Wave 10.5 task #49
+ * GET /api/assinaturas/uploads-falhos — Wave 10.5 task #49 (+ task #200)
  *
  * Lista eventos de webhook em que o upload do PDF assinado pro bucket falhou.
  * Agrupa por status pra Caio (master-only) ver o que ainda esta em retry, o
@@ -1548,24 +1548,28 @@ router.get("/assinaturas/timeline.xlsx", guardMaster, async (req: Request, res: 
  *   - fora_janela        : prefixo `pdf_upload_falhou:` + recebido_em <= 7d atras (worker nao varre mais)
  *   - aguardando_webhook : prefixo `pdf_upload_falhou_sem_manifesto:` (esperando ZapSign reentregar)
  *
+ * Task #200 — campo agregado adicional `teimosos` (contagem + grupo) marcando
+ * eventos com `resets_manuais_count >= 3` (mesmo limiar do worker que dispara
+ * alerta CEO em `pdfRetryUpload.ts::RESETS_TEIMOSO_LIMITE`). KPI exibido no
+ * painel CEO pra priorizar inspecao manual. Filtro `?unidadeId=` filtra via
+ * JOIN `pacientes.unidade_id` (alinha com restante do dashboard).
+ *
  * IMPORTANTE: declarado ANTES de `/assinaturas/:id` por ordem de matching.
  */
 router.get("/assinaturas/uploads-falhos", guardMaster, async (req: Request, res: Response) => {
   try {
-    // Task #197 — filtro por unidade clinica (mesmo padrao do /timeline,
-    // linhas ~999-1004): rede multi-clinica (Padua + outras) precisa atacar
-    // problemas especificos de cada operacao (bucket cheio so de uma unidade,
-    // credencial revogada so em outra). Quando setado, restringe via
-    // pacientes.unidade_id derivada do JOIN solicitacao -> paciente. Eventos
-    // sem solicitacao/paciente vinculado ficam de fora do filtro (esperado:
-    // eles nao tem unidade pra atribuir).
-    const unidadeIdRaw = req.query["unidade_id"];
-    const unidadeIdFiltro = unidadeIdRaw !== undefined && unidadeIdRaw !== "" && Number.isFinite(Number(unidadeIdRaw))
-      ? Number(unidadeIdRaw)
-      : null;
-    const filtroUnidadeWhere = unidadeIdFiltro !== null
-      ? sql` AND p.unidade_id = ${unidadeIdFiltro}`
-      : sql``;
+    // Task #197 + Task #200 — filtro por unidade clinica (mesmo padrao do
+    // /timeline e do /assinaturas/resumo-hoje): rede multi-clinica (Padua +
+    // outras) precisa atacar problemas especificos de cada operacao (bucket
+    // cheio so de uma unidade, credencial revogada so em outra). Quando
+    // setado, restringe via pacientes.unidade_id derivada do JOIN solicitacao
+    // -> paciente. Eventos sem solicitacao/paciente vinculado ficam de fora
+    // do filtro (esperado: eles nao tem unidade pra atribuir). Aceita tanto
+    // `unidadeId` (camelCase, padrao novo) quanto `unidade_id` (legacy/T#197).
+    const unidadeIdRaw = req.query["unidadeId"] ?? req.query["unidade_id"];
+    const unidadeIdNum = Number(unidadeIdRaw);
+    const unidadeId = Number.isFinite(unidadeIdNum) && unidadeIdNum > 0 ? unidadeIdNum : null;
+
     const r = await db.execute(sql`
       SELECT
         e.id,
@@ -1585,7 +1589,8 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (req: Request, res:
         sol.status        AS sol_status,
         sol.paciente_id,
         p.nome            AS paciente_nome,
-        p.unidade_id      AS paciente_unidade_id,
+        p.unidade_id      AS unidade_id,
+        u.nome            AS unidade_nome,
         t.codigo          AS template_codigo,
         t.nome_exibicao   AS template_nome,
         CASE
@@ -1600,8 +1605,9 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (req: Request, res:
        AND sol.provedor_codigo = e.provedor_codigo
       LEFT JOIN assinatura_templates t ON t.id = sol.template_id
       LEFT JOIN pacientes p            ON p.id = sol.paciente_id
+      LEFT JOIN unidades u             ON u.id = p.unidade_id
       WHERE e.erro_processamento LIKE 'pdf_upload_falhou%'
-      ${filtroUnidadeWhere}
+        AND (${unidadeId}::int IS NULL OR p.unidade_id = ${unidadeId}::int)
       ORDER BY e.recebido_em DESC
       LIMIT 200
     `);
@@ -1613,21 +1619,32 @@ router.get("/assinaturas/uploads-falhos", guardMaster, async (req: Request, res:
       fora_janela: [] as Record<string, unknown>[],
       aguardando_webhook: [] as Record<string, unknown>[],
     };
+    // Task #200 — grupo "teimosos" eh transversal aos status (um evento
+    // esgotado tambem pode ser teimoso). Sem desempate: somamos linha por linha.
+    const teimosos: Record<string, unknown>[] = [];
+    const RESETS_TEIMOSO_LIMITE = 3;
     for (const row of rows) {
       const status = String(row["status_retry"] || "em_retry") as keyof typeof grupos;
       (grupos[status] || grupos.em_retry).push(row);
+      const resets = Number(row["resets_manuais_count"] ?? 0);
+      if (resets >= RESETS_TEIMOSO_LIMITE) teimosos.push(row);
     }
 
     res.json({
       gerado_em: new Date().toISOString(),
+      filtro_unidade_id: unidadeId,
       total: rows.length,
       contagem: {
         em_retry: grupos.em_retry.length,
         esgotado: grupos.esgotado.length,
         fora_janela: grupos.fora_janela.length,
         aguardando_webhook: grupos.aguardando_webhook.length,
+        teimosos: teimosos.length,
       },
-      grupos,
+      grupos: {
+        ...grupos,
+        teimosos,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

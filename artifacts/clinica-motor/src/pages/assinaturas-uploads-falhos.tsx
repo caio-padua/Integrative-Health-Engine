@@ -17,6 +17,7 @@ import {
   PlayCircle,
   RotateCcw,
   X,
+  Flame,
 } from "lucide-react";
 
 const NAVY = "#020406";
@@ -45,7 +46,8 @@ type EventoFalho = {
   sol_status: string | null;
   paciente_id: number | null;
   paciente_nome: string | null;
-  paciente_unidade_id: number | null;
+  unidade_id: number | null;
+  unidade_nome: string | null;
   template_codigo: string | null;
   template_nome: string | null;
   status_retry: "em_retry" | "esgotado" | "fora_janela" | "aguardando_webhook";
@@ -53,20 +55,25 @@ type EventoFalho = {
 
 type Resposta = {
   gerado_em: string;
+  filtro_unidade_id: number | null;
   total: number;
   contagem: {
     em_retry: number;
     esgotado: number;
     fora_janela: number;
     aguardando_webhook: number;
+    teimosos: number;
   };
   grupos: {
     em_retry: EventoFalho[];
     esgotado: EventoFalho[];
     fora_janela: EventoFalho[];
     aguardando_webhook: EventoFalho[];
+    teimosos: EventoFalho[];
   };
 };
+
+const RESETS_TEIMOSO_LIMITE = 3;
 
 const STATUS_CFG: Record<
   EventoFalho["status_retry"],
@@ -148,10 +155,16 @@ type TimelineResposta = {
 };
 
 export default function AssinaturasUploadsFalhos() {
+  // Task #197 + Task #200 — filtro por unidade clinica (igual ao restante do
+  // dashboard CEO). Mantemos `unidadesDisponiveis` + `setUnidadeSelecionada`
+  // pra renderizar o seletor local no header, e usamos `isTodasClinicas` +
+  // `nomeUnidadeSelecionada` pra montar a query string e o chip de filtro.
   const {
     unidadeSelecionada,
     setUnidadeSelecionada,
     unidadesDisponiveis,
+    nomeUnidadeSelecionada,
+    isTodasClinicas,
   } = useClinic();
   const [data, setData] = useState<Resposta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -200,12 +213,15 @@ export default function AssinaturasUploadsFalhos() {
     setLoading(true);
     setErro(null);
     try {
-      // Task #197 — propaga filtro de unidade selecionada (mesmo padrao do
-      // /timeline). Quando "Todas as Clinicas", omite a query string e o
-      // backend devolve a rede inteira.
-      const qs = unidadeSelecionada
-        ? `?unidade_id=${unidadeSelecionada}`
-        : "";
+      // Task #197 + Task #200 — propaga filtro de unidade selecionada (mesmo
+      // padrao do /timeline). Quando "Todas as Clinicas", omite a query
+      // string e o backend devolve a rede inteira. Backend aceita tanto
+      // `unidadeId` (camelCase, padrao novo) quanto `unidade_id` (legacy);
+      // mandamos o canonico camelCase.
+      const qs =
+        unidadeSelecionada && !isTodasClinicas
+          ? `?unidadeId=${unidadeSelecionada}`
+          : "";
       const r = await apiFetch(`/api/assinaturas/uploads-falhos${qs}`, {
         credentials: "include",
       });
@@ -217,7 +233,7 @@ export default function AssinaturasUploadsFalhos() {
     } finally {
       setLoading(false);
     }
-  }, [unidadeSelecionada]);
+  }, [unidadeSelecionada, isTodasClinicas]);
 
   useEffect(() => {
     carregar();
@@ -279,6 +295,7 @@ export default function AssinaturasUploadsFalhos() {
     esgotado: 0,
     fora_janela: 0,
     aguardando_webhook: 0,
+    teimosos: 0,
   };
   const todasLinhas: EventoFalho[] = data
     ? [
@@ -286,6 +303,16 @@ export default function AssinaturasUploadsFalhos() {
         ...data.grupos.em_retry,
         ...data.grupos.aguardando_webhook,
         ...data.grupos.fora_janela,
+      ]
+    : [];
+  // Task #200 — quando ha teimosos, lista comeca com eles em destaque
+  // (sao prioridade clinica/juridica). Dedup pelo id.
+  const teimosos = data?.grupos.teimosos ?? [];
+  const idsTeimosos = new Set(teimosos.map((t) => t.id));
+  const linhasOrdenadas: EventoFalho[] = data
+    ? [
+        ...teimosos,
+        ...todasLinhas.filter((r) => !idsTeimosos.has(r.id)),
       ]
     : [];
 
@@ -312,6 +339,16 @@ export default function AssinaturasUploadsFalhos() {
               falhou. Worker `pdfRetryUpload` retenta com backoff (1m / 5m /
               15m / 1h / 6h, max 5x, janela 7d).
             </p>
+            {/* Task #200 — chip mostrando filtro de unidade ativo */}
+            {unidadeSelecionada && !isTodasClinicas && (
+              <div
+                className="text-xs mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded"
+                style={{ background: GOLD, color: NAVY, fontWeight: 600 }}
+                title="Filtro de unidade clinica ativo (mude no seletor do topo)"
+              >
+                Filtrado por: {nomeUnidadeSelecionada || `unidade #${unidadeSelecionada}`}
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-2 nao-imprimir items-end">
             {unidadesDisponiveis.length > 1 && (
@@ -362,7 +399,35 @@ export default function AssinaturasUploadsFalhos() {
         </div>
 
         {/* Resumo grupos */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          {/* Task #200 — KPI agregado "Uploads teimosos" (resets >= 3). Eh
+              transversal aos demais status, por isso vem primeiro e tem
+              destaque visual (borda vermelha + icone Flame). */}
+          <div
+            className="bg-white border-2 rounded p-4"
+            style={{ borderColor: contagem.teimosos > 0 ? RED : "#E5E7EB" }}
+            data-testid="kpi-uploads-teimosos"
+            title={`Uploads que ja foram resetados manualmente ${RESETS_TEIMOSO_LIMITE}+ vezes e voltaram a falhar. Cada um disparou alerta CEO via worker.`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div
+                className="text-xs uppercase tracking-wide font-semibold"
+                style={{ color: contagem.teimosos > 0 ? RED : ZINC }}
+              >
+                Teimosos ({RESETS_TEIMOSO_LIMITE}+ resets)
+              </div>
+              <Flame
+                size={14}
+                style={{ color: contagem.teimosos > 0 ? RED : ZINC }}
+              />
+            </div>
+            <div className="text-2xl font-bold" style={{ color: NAVY }}>
+              {contagem.teimosos}
+            </div>
+            <div className="text-xs mt-1" style={{ color: ZINC }}>
+              Reset manual nao resolve. Baixe do ZapSign na unha.
+            </div>
+          </div>
           {(
             ["em_retry", "esgotado", "aguardando_webhook", "fora_janela"] as const
           ).map((k) => {
@@ -427,7 +492,7 @@ export default function AssinaturasUploadsFalhos() {
         )}
 
         {/* Tabela */}
-        {todasLinhas.length > 0 && (
+        {linhasOrdenadas.length > 0 && (
           <div className="bg-white border rounded overflow-hidden">
             <table className="w-full text-sm">
               <thead style={{ background: "#F9FAFB", color: NAVY }}>
@@ -435,6 +500,7 @@ export default function AssinaturasUploadsFalhos() {
                   <th className="text-left px-3 py-2 font-semibold">#</th>
                   <th className="text-left px-3 py-2 font-semibold">Recebido</th>
                   <th className="text-left px-3 py-2 font-semibold">Paciente</th>
+                  <th className="text-left px-3 py-2 font-semibold">Clinica</th>
                   <th className="text-left px-3 py-2 font-semibold">Template</th>
                   <th className="text-left px-3 py-2 font-semibold">Envelope</th>
                   <th className="text-center px-3 py-2 font-semibold">Tentativas</th>
@@ -459,9 +525,24 @@ export default function AssinaturasUploadsFalhos() {
                 </tr>
               </thead>
               <tbody>
-                {todasLinhas.map((r) => (
-                  <tr key={r.id} className="border-t hover:bg-zinc-50 align-top">
-                    <td className="px-3 py-2 font-mono text-xs">{r.id}</td>
+                {linhasOrdenadas.map((r) => {
+                  const eTeimoso = (r.resets_manuais_count ?? 0) >= RESETS_TEIMOSO_LIMITE;
+                  return (
+                  <tr
+                    key={r.id}
+                    className="border-t hover:bg-zinc-50 align-top"
+                    style={eTeimoso ? { background: "#FEF2F2" } : undefined}
+                    data-testid={eTeimoso ? `linha-teimoso-${r.id}` : undefined}
+                  >
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {eTeimoso && (
+                        <Flame
+                          size={10}
+                          style={{ color: RED, display: "inline", marginRight: 4 }}
+                        />
+                      )}
+                      {r.id}
+                    </td>
                     <td className="px-3 py-2 text-xs" style={{ color: ZINC }}>
                       {formatarData(r.recebido_em)}
                     </td>
@@ -470,6 +551,15 @@ export default function AssinaturasUploadsFalhos() {
                         <span>{r.paciente_nome}</span>
                       ) : (
                         <span className="italic text-zinc-400">— sem vinculo —</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {r.unidade_nome ? (
+                        <span style={{ color: NAVY }}>
+                          {r.unidade_nome.replace(/^INSTITUTO\s+/i, "")}
+                        </span>
+                      ) : (
+                        <span className="italic text-zinc-400">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
@@ -623,7 +713,8 @@ export default function AssinaturasUploadsFalhos() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
