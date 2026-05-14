@@ -1280,9 +1280,50 @@ router.get("/plataforma/alertas-seguranca", ...guardas, async (req, res): Promis
 // Retorna apenas o total de alertas nao-visualizados pra alimentar o badge da
 // campainha no header global sem precisar puxar a lista inteira (200 linhas
 // + JOIN). Usado em polling de 60s, entao precisa ser o mais barato possivel.
+//
+// Task #190 — guard relaxado: a campainha agora aparece tambem pra
+// `tenant_admin` (consultor de seguranca, admin de plantao) alem do
+// `platform_owner`. Matriz definida:
+//   - platform_owner       -> ve contador (sem step-up nesta rota leve)
+//   - tenant_admin         -> ve contador (sem step-up; somente leitura)
+//   - tenant_user          -> NAO ve (403)
+//   - perfil app === 'admin' (atalho legado herdado de Wave 10/ADMIN_TOKEN,
+//     mesmo criterio do `requirePlataforma`) -> ve contador. Mantido por
+//     consistencia com as demais rotas /plataforma/* nao-destrutivas; nao
+//     concede mais privilegio do que ja tinha pra LISTAGEM completa.
+// O endpoint de LISTAGEM completa (`GET /alertas-seguranca`) e as acoes
+// destrutivas (visualizar/marcar) continuam exigindo `...guardas` completo
+// (platform_owner estrito + 2FA recente). Ou seja: ver o numero na sineta
+// e leve; abrir a fila e clicar em qualquer item exige step-up real.
+function requireLeituraAlertasSeguranca(
+  req: Request, res: Response, next: NextFunction,
+): void {
+  const u = (req as AuthedRequest).user;
+  if (!u) {
+    res.status(401).json({ error: "Autenticacao necessaria" });
+    return;
+  }
+  // Atalho legado (mesmo criterio do `requirePlataforma`): perfil app `admin`
+  // historicamente equivale a platform_owner em rotas operacionais.
+  if (u.perfil === "admin") {
+    next();
+    return;
+  }
+  const perfilPlataforma = u.perfilPlataforma ?? "tenant_user";
+  if (perfilPlataforma === "platform_owner" || perfilPlataforma === "tenant_admin") {
+    next();
+    return;
+  }
+  res.status(403).json({
+    error: "Acesso negado: leitura de alertas de seguranca exige tenant_admin ou superior.",
+    perfil_minimo: "tenant_admin",
+    perfil_atual: perfilPlataforma,
+  });
+}
+
 router.get(
   "/plataforma/alertas-seguranca/contagem",
-  ...guardas,
+  requireLeituraAlertasSeguranca,
   async (_req, res): Promise<void> => {
     const result = await db.execute(sql`
       SELECT COUNT(*)::int AS total
