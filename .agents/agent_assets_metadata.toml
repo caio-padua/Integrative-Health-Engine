@@ -413,3 +413,9 @@ id = "6bIfwm6V0tgCIM1MN56yW"
 uri = "file://docs/dr-claude/10_INJETAVEIS_IM_EV_E_IMPLANTES.md"
 type = "text"
 title = "10 — Catálogo Parenteral Completo: 162 injetáveis IM/EV + 11 soros + 32 implantes"
+
+[[outputs]]
+id = "XTdXHteqG5GmH60LqdH9h"
+uri = "file://docs/dr-claude/11_ANALISE_ENCOMENDA_01_80_FORMULAS.md"
+type = "text"
+title = "11 — Análise da Encomenda 01: 80 fórmulas Dr. Claude (auditoria + 3 blockers + 8 perguntas)"
