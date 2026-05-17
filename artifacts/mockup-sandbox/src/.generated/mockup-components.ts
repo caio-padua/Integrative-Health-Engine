@@ -17,6 +17,7 @@ export const modules: ModuleMap = {
   "./components/mockups/craniotomia/CraniotomiaV4.tsx": () => import("../components/mockups/craniotomia/CraniotomiaV4.tsx"),
   "./components/mockups/craniotomia/GrafoSinapses.tsx": () => import("../components/mockups/craniotomia/GrafoSinapses.tsx"),
   "./components/mockups/craniotomia/MatrizDensa.tsx": () => import("../components/mockups/craniotomia/MatrizDensa.tsx"),
+  "./components/mockups/padua-atelier/PaduaAtelierPanel.tsx": () => import("../components/mockups/padua-atelier/PaduaAtelierPanel.tsx"),
   "./components/mockups/pawards-showcase/LogoOptions.tsx": () => import("../components/mockups/pawards-showcase/LogoOptions.tsx"),
   "./components/mockups/pawards-showcase/PdfHeaderFooter.tsx": () => import("../components/mockups/pawards-showcase/PdfHeaderFooter.tsx"),
   "./components/mockups/pawards-showcase/RasHmed.tsx": () => import("../components/mockups/pawards-showcase/RasHmed.tsx"),
@@ -26,6 +27,5 @@ export const modules: ModuleMap = {
   "./components/mockups/pawards-showcase/ShieldC.tsx": () => import("../components/mockups/pawards-showcase/ShieldC.tsx"),
   "./components/mockups/pawards-showcase/ShieldD.tsx": () => import("../components/mockups/pawards-showcase/ShieldD.tsx"),
   "./components/mockups/pawards-showcase/SistemaHeader.tsx": () => import("../components/mockups/pawards-showcase/SistemaHeader.tsx"),
-  "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx"),
-  "./components/mockups/padua-atelier/PaduaAtelierPanel.tsx": () => import("../components/mockups/padua-atelier/PaduaAtelierPanel.tsx")
+  "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx")
 };
