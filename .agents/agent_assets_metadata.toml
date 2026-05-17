@@ -395,3 +395,15 @@ id = "8xO1g8Hfoo6SwAWPOGv9J"
 uri = "file://attached_assets/planilha_blocos_csv/13_dicionario_nicks_b4.csv"
 type = "table"
 title = "DICIONARIO NICKS B4 (375 entradas - alfabetico nick->nome real)"
+
+[[outputs]]
+id = "MjbQprtgofbTiu6xuZc_u"
+uri = "file://docs/dr-claude/08_IGNICAO_MOTOR_E_SINAPSES.md"
+type = "text"
+title = "08 — Ignição do Motor PADCOM + Sinapses (anamnese → sugestões)"
+
+[[outputs]]
+id = "0iw_XIFxhQAsaSCxD-fi_"
+uri = "file://docs/dr-claude/09_CATALOGO_CLINICO_ESTRATIFICADO.md"
+type = "text"
+title = "09 — Catálogo Clínico Estratificado (2 visões + domínios completos)"
