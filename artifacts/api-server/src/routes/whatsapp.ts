@@ -16,6 +16,10 @@ import { HSM_TEMPLATES_CATALOGO, obterHsmTemplateDefinicao } from "../services/w
 import { encryptCredential, isEncrypted } from "../services/credentialEncryption";
 import { decryptCredential } from "../services/credentialEncryption";
 import { gerarPdfRAS } from "../pdf/gerarRAS";
+import {
+  dispararTesteCanalCeo,
+  obterUltimoTesteCanalCeo,
+} from "../lib/whatsapp/testeCanalCeo";
 
 type WhatsappMensagemStatus = "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
 
@@ -159,6 +163,36 @@ router.post("/whatsapp/enviar", async (req, res): Promise<void> => {
   } else {
     res.status(500).json(resultado);
   }
+});
+
+// Wave 13 — disparo do teste oficial pro celular do CEO. So platform_owner
+// pode acionar. Telefone do destinatario VEM DO BACKEND (usuarios.telefone
+// do platform_owner ativo), NUNCA do body do request — impede que alguem
+// com acesso a tela use o canal Twilio pra mandar mensagem pro celular
+// pessoal de terceiros. Persiste em assinatura_notificacoes com
+// momento='TESTE_CANAL_CEO' e is_sistema_ceo=true (bypass quiet hours).
+router.post("/whatsapp/teste-ceo", async (req, res): Promise<void> => {
+  const user = (req as unknown as { user?: { perfilPlataforma?: string } }).user;
+  if (!user || user.perfilPlataforma !== "platform_owner") {
+    res.status(403).json({ erro: "So o platform_owner pode disparar teste do canal CEO." });
+    return;
+  }
+  const resultado = await dispararTesteCanalCeo();
+  const httpStatus = resultado.status === "ENVIADO" ? 200
+    : resultado.motivoPre === "JA_EM_ANDAMENTO" ? 409
+    : resultado.motivoPre ? 412
+    : 502;
+  res.status(httpStatus).json(resultado);
+});
+
+router.get("/whatsapp/teste-ceo/ultimo", async (req, res): Promise<void> => {
+  const user = (req as unknown as { user?: { perfilPlataforma?: string } }).user;
+  if (!user || user.perfilPlataforma !== "platform_owner") {
+    res.status(403).json({ erro: "So o platform_owner pode consultar." });
+    return;
+  }
+  const ultimo = await obterUltimoTesteCanalCeo();
+  res.json({ ultimo });
 });
 
 router.post("/whatsapp/enviar-teste", async (req, res): Promise<void> => {
