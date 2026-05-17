@@ -183,6 +183,45 @@ Diferente da Task #251 (upload-INDIVIDUAL preso) e da Task #252 (silencio
 do PROPRIO worker do resumo diario) — esta vigia o silencio AGREGADO da
 chegada externa do webhook.
 
+## Wave V72 — Sprint 1 Motor V4: codigo_referencia_v4 em regras_motor (17/mai/2026)
+
+Migration 072 (`072_regras_motor_codigo_referencia_v4.sql`, psql aditivo
+IF NOT EXISTS) destrava o Sprint 1 do plano consolidado dos docs
+[`08`](./docs/dr-claude/08_IGNICAO_MOTOR_E_SINAPSES.md),
+[`11`](./docs/dr-claude/11_ANALISE_ENCOMENDA_01_80_FORMULAS.md) e
+[`12`](./docs/dr-claude/12_ANALISE_ENCOMENDA_02_SINAPSES_E_CRANIOTOMIA.md)
+— ponte aditiva entre o `codigo_referencia` V13 (autoritativo) e o
+`codigo_referencia_v4` (formato `B1 B2 B3 B4 SEQ` do catalogo Dr. Manus).
+Caminho B do Dr. Claude: V13 NUNCA e removido, segue funcionando ate
+swap aprovado pelo Caio.
+
+### Estado pos-migration
+- 37 regras_motor com `codigo_referencia` (V13) intactas
+- 0 regras com `codigo_referencia_v4` (sera preenchido pelos Sprints
+  4 e 5 — bridge V13->V4 nas 11 regras legadas + UPSERT de ~80 regras
+  novas das encomendas 01 e 02)
+- Indice condicional `ix_regras_motor_codigo_referencia_v4 WHERE codigo_
+  referencia_v4 IS NOT NULL` (mesmo padrao da migration 025 pra parametros_
+  referencia_global e analitos_catalogo)
+- Comentario `COMMENT ON COLUMN` registra origem da decisao (Dr. Claude
+  Caminho B) e referencia os docs
+
+### Idempotencia confirmada
+Re-execucao do script gera `NOTICE column ... already exists, skipping`
+sem erro. Migration segura pra reaplicar em qualquer ambiente.
+
+### Proximos sprints destravados (apos esta)
+Conforme plano consolidado §5 do doc 12 (Dr. Claude aprovou em
+17/mai/2026):
+- Sprint 2: alias columns em `formulas_master` (Opcao B ou C — pendente)
+- Sprint 3: UPSERT 81 formulas (80 + F81 Drenagem)
+- Sprint 4: Bridge V13->V4 (UPDATE codigo_referencia_v4 nas 11 legadas)
+- Sprint 5: UPSERT ~80 regras_motor novas (inativas)
+- Sprint 6: hardening matching (regex `\b`, score, negadores, qualificadores =ENUM)
+- Sprint A.5: funcao pura `mapearSinaisParaCodigo()` (mapa QC/QD entregue pelo Dr. Claude)
+- Sprint 7: ativar regras novas
+- Sprint 8: Craniotomia UI MVP (CRUD admin Caio)
+
 ## Wave V46 — WhatsApp do CEO ativado (13/mai/2026)
 
 Task #46 fechada: tela `/plataforma/perfil` agora permite cadastrar o
