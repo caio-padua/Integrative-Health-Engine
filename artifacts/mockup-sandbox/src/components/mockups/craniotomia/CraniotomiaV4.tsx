@@ -1,0 +1,761 @@
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import "./_group.css";
+import {
+  SINAPSES,
+  B1_LABEL,
+  B1_COR,
+  TIPO_LABEL,
+  TIPO_COR,
+  ESTADO_COR,
+  RESUMO,
+  type Sinapse,
+  type B1,
+  type TipoFenotipo,
+  type Estado,
+} from "./_mockData";
+import {
+  Activity,
+  Search,
+  Plus,
+  Eye,
+  Pencil,
+  FlaskConical,
+  ShieldCheck,
+  AlertTriangle,
+  Pause,
+  Play,
+  Trash2,
+  Copy,
+  Beaker,
+  Syringe,
+  Cpu,
+  Layers,
+  Zap,
+  User,
+  Keyboard,
+  Focus,
+  ChevronDown,
+} from "lucide-react";
+
+type Modo = "VISUALIZACAO" | "EDICAO" | "SIMULACAO";
+
+const TipoIcon: Record<TipoFenotipo, React.ElementType> = {
+  FORM: Beaker,
+  INJE: Syringe,
+  IMPL: Cpu,
+  EXAM: Activity,
+  PROT: Layers,
+};
+
+const GovIcon = {
+  AUTO: Zap,
+  MEDICO: User,
+  MEDICO_CHEFE: ShieldCheck,
+};
+
+export function CraniotomiaV4() {
+  const [modo, setModo] = useState<Modo>("VISUALIZACAO");
+  const [search, setSearch] = useState("");
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [isolatedNode, setIsolatedNode] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [filtroB1, setFiltroB1] = useState<Set<B1>>(new Set());
+  const tableRowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
+
+  // ---------- Filtragem ----------
+  const filteredSinapses = useMemo(() => {
+    return SINAPSES.filter((s) => {
+      if (filtroB1.size > 0 && !filtroB1.has(s.b1)) return false;
+      if (isolatedNode) {
+        const leftKey = s.b1 + "|" + s.b2;
+        const rightKey = s.tipo + "|" + s.fenotipo;
+        if (leftKey !== isolatedNode && rightKey !== isolatedNode) return false;
+      }
+      if (search) {
+        const t = search.toLowerCase();
+        return (
+          s.b2.toLowerCase().includes(t) ||
+          s.fenotipo.toLowerCase().includes(t) ||
+          s.codigoV4.toLowerCase().includes(t) ||
+          s.sinal.toLowerCase().includes(t)
+        );
+      }
+      return true;
+    });
+  }, [search, filtroB1, isolatedNode]);
+
+  // ---------- Nós ----------
+  const leftNodes = useMemo(() => {
+    const uniq = Array.from(new Set(filteredSinapses.map((s) => s.b1 + "|" + s.b2)));
+    return uniq
+      .map((key) => {
+        const group = filteredSinapses.filter((s) => s.b1 + "|" + s.b2 === key);
+        return { id: key, b1: group[0].b1, b2: group[0].b2, count: group.length };
+      })
+      .sort((a, b) => a.b1.localeCompare(b.b1) || a.b2.localeCompare(b.b2));
+  }, [filteredSinapses]);
+
+  const rightNodes = useMemo(() => {
+    const uniq = Array.from(new Set(filteredSinapses.map((s) => s.tipo + "|" + s.fenotipo)));
+    return uniq
+      .map((key) => {
+        const group = filteredSinapses.filter((s) => s.tipo + "|" + s.fenotipo === key);
+        return { id: key, tipo: group[0].tipo, fenotipo: group[0].fenotipo, count: group.length };
+      })
+      .sort((a, b) => a.tipo.localeCompare(b.tipo) || a.fenotipo.localeCompare(b.fenotipo));
+  }, [filteredSinapses]);
+
+  // ---------- Sincronização: clicar na tabela faz scroll ----------
+  useEffect(() => {
+    if (selectedId !== null) {
+      const row = tableRowRefs.current.get(selectedId);
+      if (row) row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedId]);
+
+  // ---------- Atalhos ----------
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "?") setShowShortcuts((v) => !v);
+      if (e.key === "Escape") {
+        setShowShortcuts(false);
+        setIsolatedNode(null);
+        setSelectedId(null);
+      }
+      if (e.key === "v" || e.key === "V") setModo("VISUALIZACAO");
+      if (e.key === "e" || e.key === "E") setModo("EDICAO");
+      if (e.key === "s" || e.key === "S") setModo("SIMULACAO");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // ---------- Estilo dinâmico da aresta ----------
+  function arestaStroke(s: Sinapse) {
+    if (s.estado === "BLOQUEADO") return { color: "var(--crn-estado-bloqueado)", dash: "6 4" };
+    if (s.estado === "AGUARDA_VALIDACAO") return { color: "var(--crn-estado-validacao)", dash: "2 3" };
+    if (s.estado === "PAUSADO") return { color: "var(--crn-estado-pausado)", dash: "none" };
+    return { color: B1_COR[s.b1], dash: "none" };
+  }
+
+  function arestaLargura(s: Sinapse, ativa: boolean) {
+    // base 3px, escala até 8px com peso, +2px se hover/selecionada
+    const base = 3 + Math.round(s.peso * 5);
+    return ativa ? base + 2 : base;
+  }
+
+  const toggleFiltroB1 = (b1: B1) => {
+    const n = new Set(filtroB1);
+    if (n.has(b1)) n.delete(b1);
+    else n.add(b1);
+    setFiltroB1(n);
+  };
+
+  const selectedSinapse = selectedId !== null ? SINAPSES.find((s) => s.id === selectedId) : null;
+
+  // ---------- Render ----------
+  return (
+    <div className="craniotomia-root min-h-screen w-full flex flex-col text-[11px] leading-tight overflow-hidden">
+      {/* ============ HEADER ============ */}
+      <header className="flex-none border-b border-[var(--crn-border)] bg-[var(--crn-bg-panel)] px-3 py-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Activity className="w-4 h-4 text-[var(--crn-accent-strong)]" />
+            <div className="flex flex-col">
+              <h1 className="craniotomia-serif text-sm font-semibold tracking-wide text-white">
+                CRANIOTOMIA <span className="text-[var(--crn-fg-muted)] font-normal">— Split-View V4</span>
+              </h1>
+              <span className="text-[9px] text-[var(--crn-fg-dim)] uppercase tracking-wider">
+                Grafo de sinapses + matriz espelho · cérebro do motor clínico
+              </span>
+            </div>
+          </div>
+
+          {/* MODE TOGGLE */}
+          <div className="flex border border-[var(--crn-border-strong)]">
+            <ModoBtn icon={Eye} label="VISUALIZAÇÃO" hint="V" active={modo === "VISUALIZACAO"} onClick={() => setModo("VISUALIZACAO")} />
+            <ModoBtn icon={Pencil} label="EDIÇÃO" hint="E" active={modo === "EDICAO"} onClick={() => setModo("EDICAO")} accent="var(--crn-estado-validacao)" />
+            <ModoBtn icon={FlaskConical} label="SIMULAÇÃO" hint="S" active={modo === "SIMULACAO"} onClick={() => setModo("SIMULACAO")} accent="var(--crn-accent)" />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center border border-[var(--crn-border)] bg-[var(--crn-bg)] px-2 h-7 w-56">
+              <Search className="w-3 h-3 text-[var(--crn-fg-dim)] mr-2" />
+              <input
+                type="text"
+                placeholder="Buscar sinapse, código, sinal..."
+                className="bg-transparent border-none outline-none w-full text-[var(--crn-fg)] placeholder:text-[var(--crn-fg-dim)]"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={() => setShowShortcuts((v) => !v)}
+              className="h-7 px-2 flex items-center gap-1 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] text-[var(--crn-fg-muted)] hover:text-[var(--crn-fg)]"
+              title="Atalhos (?)"
+            >
+              <Keyboard className="w-3 h-3" />
+              <span className="text-[10px]">?</span>
+            </button>
+            <button
+              disabled={modo !== "EDICAO"}
+              className="h-7 px-3 flex items-center gap-1 bg-[var(--crn-accent-strong)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-3 h-3" />
+              <span className="font-medium">NOVA SINAPSE</span>
+            </button>
+          </div>
+        </div>
+
+        {/* KPIs + Filtros B1 */}
+        <div className="flex items-center justify-between mt-2 gap-3">
+          <div className="flex gap-1">
+            <KpiPill label="TOTAL" value={RESUMO.total} />
+            <KpiPill label="ATIVAS" value={RESUMO.ativas} color="var(--crn-estado-ativo)" />
+            <KpiPill label="PAUSADAS" value={RESUMO.pausadas} color="var(--crn-estado-pausado)" />
+            <KpiPill label="BLOQ" value={RESUMO.bloqueadas} color="var(--crn-estado-bloqueado)" />
+            <KpiPill label="VALID" value={RESUMO.aguardando} color="var(--crn-estado-validacao)" />
+            <KpiPill label="HITS 30D" value={RESUMO.hitsTotal} color="var(--crn-accent)" />
+          </div>
+          <div className="flex items-center gap-1">
+            {(Object.keys(B1_LABEL) as B1[]).map((b1) => {
+              const active = filtroB1.has(b1);
+              return (
+                <button
+                  key={b1}
+                  onClick={() => toggleFiltroB1(b1)}
+                  className={`px-1.5 py-0.5 text-[9px] font-bold border ${
+                    active ? "text-white" : "text-[var(--crn-fg-muted)] hover:text-[var(--crn-fg)]"
+                  }`}
+                  style={{
+                    borderColor: active ? B1_COR[b1] : "var(--crn-border)",
+                    backgroundColor: active ? B1_COR[b1] : "transparent",
+                  }}
+                  title={B1_LABEL[b1]}
+                >
+                  {b1}
+                </button>
+              );
+            })}
+            {(filtroB1.size > 0 || isolatedNode) && (
+              <button
+                onClick={() => {
+                  setFiltroB1(new Set());
+                  setIsolatedNode(null);
+                }}
+                className="ml-1 px-1.5 py-0.5 text-[9px] border border-[var(--crn-border)] text-[var(--crn-fg-dim)] hover:text-[var(--crn-fg)]"
+                title="Limpar filtros / sair de isolar"
+              >
+                LIMPAR
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isolatedNode && (
+          <div className="mt-2 flex items-center gap-2 text-[10px] text-[var(--crn-estado-validacao)] bg-[var(--crn-estado-validacao)]/10 border border-[var(--crn-estado-validacao)] px-2 py-1">
+            <Focus className="w-3 h-3" />
+            <span>
+              Isolado: <strong>{isolatedNode.split("|")[1]}</strong> ({filteredSinapses.length} sinapses) — pressione Esc pra sair
+            </span>
+          </div>
+        )}
+      </header>
+
+      {/* ============ BODY: LEGEND | (GRAFO top + MATRIZ bottom) | INSPETOR ============ */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEGEND FIXA */}
+        <aside className="flex-none w-[64px] border-r border-[var(--crn-border)] bg-[var(--crn-bg-panel)] flex flex-col items-stretch py-2 gap-2">
+          <div className="text-[8px] text-[var(--crn-fg-dim)] uppercase tracking-wider text-center mb-1">B1</div>
+          {(Object.keys(B1_LABEL) as B1[]).map((b1) => (
+            <div key={b1} className="flex flex-col items-center gap-0.5" title={B1_LABEL[b1]}>
+              <div className="w-8 h-2" style={{ backgroundColor: B1_COR[b1] }} />
+              <span className="text-[8px] text-[var(--crn-fg-muted)] font-bold">{b1}</span>
+            </div>
+          ))}
+          <div className="border-t border-[var(--crn-border)] my-2" />
+          <div className="text-[8px] text-[var(--crn-fg-dim)] uppercase tracking-wider text-center mb-1">FENO</div>
+          {(Object.keys(TIPO_LABEL) as TipoFenotipo[]).map((t) => {
+            const Ic = TipoIcon[t];
+            return (
+              <div key={t} className="flex flex-col items-center gap-0.5" title={TIPO_LABEL[t]}>
+                <Ic className="w-3 h-3" style={{ color: TIPO_COR[t] }} />
+                <span className="text-[8px] text-[var(--crn-fg-muted)] font-bold">{t}</span>
+              </div>
+            );
+          })}
+        </aside>
+
+        {/* CENTRO: GRAFO + MATRIZ EMPILHADOS */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* ===== GRAFO (60%) ===== */}
+          <div className="relative bg-[var(--crn-bg)] overflow-hidden" style={{ height: "60%" }}>
+            <div className="absolute inset-0 left-[220px] right-[240px]">
+              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {filteredSinapses.map((s) => {
+                  const li = leftNodes.findIndex((n) => n.id === s.b1 + "|" + s.b2);
+                  const ri = rightNodes.findIndex((n) => n.id === s.tipo + "|" + s.fenotipo);
+                  if (li === -1 || ri === -1) return null;
+                  const y1 = ((li + 0.5) / leftNodes.length) * 100;
+                  const y2 = ((ri + 0.5) / rightNodes.length) * 100;
+                  const ativa = hoveredId === s.id || selectedId === s.id;
+                  const stroke = arestaStroke(s);
+                  const w = arestaLargura(s, ativa);
+                  const opacity = hoveredId === null && selectedId === null ? 0.85 : ativa ? 1 : 0.18;
+                  return (
+                    <path
+                      key={s.id}
+                      d={`M 0 ${y1} C 50 ${y1}, 50 ${y2}, 100 ${y2}`}
+                      fill="none"
+                      stroke={stroke.color}
+                      strokeWidth={w}
+                      strokeDasharray={stroke.dash}
+                      vectorEffect="non-scaling-stroke"
+                      style={{ opacity, cursor: "pointer", transition: "opacity 120ms, stroke-width 120ms" }}
+                      onMouseEnter={() => setHoveredId(s.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                      onClick={() => setSelectedId(s.id)}
+                    />
+                  );
+                })}
+              </svg>
+            </div>
+
+            {/* COLUNA ESQUERDA — Genótipos */}
+            <div className="absolute top-0 bottom-0 left-0 w-[220px] border-r border-[var(--crn-border)] bg-[var(--crn-bg-panel)]/60 backdrop-blur-sm z-10 p-2">
+              <div className="h-full relative">
+                {leftNodes.map((node, i) => {
+                  const top = ((i + 0.5) / leftNodes.length) * 100;
+                  const isHovered = filteredSinapses.some((s) => (s.id === hoveredId || s.id === selectedId) && s.b1 + "|" + s.b2 === node.id);
+                  return (
+                    <div
+                      key={node.id}
+                      className="absolute w-full flex items-center pr-2"
+                      style={{ top: `${top}%`, transform: "translateY(-50%)" }}
+                      onDoubleClick={() => setIsolatedNode(node.id)}
+                      title="Duplo-clique pra isolar"
+                    >
+                      <div
+                        className={`flex-1 border flex items-stretch h-7 cursor-pointer transition-all ${
+                          isHovered ? "border-[var(--crn-accent)] bg-[var(--crn-bg-row-hover)]" : "border-[var(--crn-border)] bg-[var(--crn-bg)] hover:border-[var(--crn-fg-dim)]"
+                        }`}
+                      >
+                        <div className="w-2 flex-none" style={{ backgroundColor: B1_COR[node.b1] }} />
+                        <div className="px-1.5 py-0.5 flex-1 flex items-center justify-between truncate">
+                          <div className="flex flex-col leading-tight">
+                            <span className="text-[8px] text-[var(--crn-fg-dim)] font-bold">{node.b1}</span>
+                            <span className="text-[10px] text-[var(--crn-fg)] truncate font-medium">{node.b2}</span>
+                          </div>
+                          <span className="text-[9px] text-[var(--crn-fg-dim)] bg-[var(--crn-bg-row)] px-1 border border-[var(--crn-border)]">{node.count}</span>
+                        </div>
+                      </div>
+                      <div className="w-1.5 h-1.5 ml-1" style={{ backgroundColor: B1_COR[node.b1] }} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* COLUNA DIREITA — Fenótipos */}
+            <div className="absolute top-0 bottom-0 right-0 w-[240px] border-l border-[var(--crn-border)] bg-[var(--crn-bg-panel)]/60 backdrop-blur-sm z-10 p-2">
+              <div className="h-full relative">
+                {rightNodes.map((node, i) => {
+                  const top = ((i + 0.5) / rightNodes.length) * 100;
+                  const Ic = TipoIcon[node.tipo];
+                  const isHovered = filteredSinapses.some((s) => (s.id === hoveredId || s.id === selectedId) && s.tipo + "|" + s.fenotipo === node.id);
+                  return (
+                    <div
+                      key={node.id}
+                      className="absolute w-full flex items-center pl-2"
+                      style={{ top: `${top}%`, transform: "translateY(-50%)" }}
+                      onDoubleClick={() => setIsolatedNode(node.id)}
+                      title="Duplo-clique pra isolar"
+                    >
+                      <div className="w-1.5 h-1.5 mr-1" style={{ backgroundColor: TIPO_COR[node.tipo] }} />
+                      <div
+                        className={`flex-1 border flex items-stretch h-7 cursor-pointer transition-all ${
+                          isHovered ? "border-[var(--crn-accent)] bg-[var(--crn-bg-row-hover)]" : "border-[var(--crn-border)] bg-[var(--crn-bg)] hover:border-[var(--crn-fg-dim)]"
+                        }`}
+                      >
+                        <div className="w-6 flex items-center justify-center border-r border-[var(--crn-border)] flex-none" style={{ color: TIPO_COR[node.tipo] }}>
+                          <Ic className="w-3 h-3" />
+                        </div>
+                        <div className="px-1.5 py-0.5 flex-1 flex items-center justify-between truncate">
+                          <div className="flex flex-col leading-tight">
+                            <span className="text-[8px] text-[var(--crn-fg-dim)] font-bold">{node.tipo}</span>
+                            <span className="text-[10px] text-[var(--crn-fg)] truncate font-medium">{node.fenotipo}</span>
+                          </div>
+                          <span className="text-[9px] text-[var(--crn-fg-dim)] bg-[var(--crn-bg-row)] px-1 border border-[var(--crn-border)] ml-1">{node.count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modo overlay */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[9px] uppercase tracking-wider z-20 pointer-events-none"
+              style={{
+                color: modo === "EDICAO" ? "var(--crn-estado-validacao)" : modo === "SIMULACAO" ? "var(--crn-accent)" : "var(--crn-fg-dim)",
+                borderBottom: `1px solid ${modo === "EDICAO" ? "var(--crn-estado-validacao)" : modo === "SIMULACAO" ? "var(--crn-accent)" : "var(--crn-fg-dim)"}`
+              }}>
+              GRAFO · MODO {modo}
+            </div>
+          </div>
+
+          {/* DIVISOR */}
+          <div className="flex-none h-[2px] bg-[var(--crn-accent-strong)] opacity-30" />
+
+          {/* ===== MATRIZ-ESPELHO (40%) ===== */}
+          <div className="overflow-auto bg-[var(--crn-bg)]" style={{ height: "40%" }}>
+            <div className="px-3 py-1.5 border-b border-[var(--crn-border)] bg-[var(--crn-bg-panel)] flex items-center justify-between sticky top-0 z-20">
+              <span className="text-[9px] uppercase tracking-wider text-[var(--crn-fg-dim)]">
+                MATRIZ-ESPELHO · {filteredSinapses.length} sinapses · sincronizada com o grafo acima
+              </span>
+              <span className="text-[9px] text-[var(--crn-fg-dim)]">
+                {selectedId !== null ? `linha #${selectedId} selecionada` : "clique numa aresta do grafo ou numa linha aqui"}
+              </span>
+            </div>
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead className="sticky top-[28px] z-10 bg-[var(--crn-bg-panel)] shadow-[0_1px_0_var(--crn-border)] text-[9px] text-[var(--crn-fg-dim)] uppercase tracking-wider">
+                <tr>
+                  <th className="px-2 py-1.5 w-14">BLOCO</th>
+                  <th className="px-2 py-1.5 w-32">CÓDIGO V4</th>
+                  <th className="px-2 py-1.5 w-[200px]">SINAL DE ANAMNESE</th>
+                  <th className="px-2 py-1.5 w-24">TIPO</th>
+                  <th className="px-2 py-1.5 w-[200px]">AÇÃO / FENÓTIPO</th>
+                  <th className="px-2 py-1.5 w-20">PESO</th>
+                  <th className="px-2 py-1.5 w-24">ESTADO</th>
+                  <th className="px-2 py-1.5 w-10 text-center" title="Governança">GOV</th>
+                  <th className="px-2 py-1.5 w-14 text-right">HITS</th>
+                  <th className="px-2 py-1.5 w-20 text-right">ÚLT. ED.</th>
+                </tr>
+              </thead>
+              <tbody className="text-[10px]">
+                {filteredSinapses.map((s, idx) => {
+                  const bgClass =
+                    s.estado === "BLOQUEADO"
+                      ? "bg-[#1f0f15]"
+                      : s.estado === "AGUARDA_VALIDACAO"
+                      ? "bg-[#211d0e]"
+                      : idx % 2 === 0
+                      ? "bg-[var(--crn-bg-row)]"
+                      : "bg-[var(--crn-bg-row-alt)]";
+                  const Ic = TipoIcon[s.tipo];
+                  const GIc = GovIcon[s.governanca];
+                  const isHovered = s.id === hoveredId;
+                  const isSelected = s.id === selectedId;
+                  return (
+                    <tr
+                      key={s.id}
+                      ref={(el) => { if (el) tableRowRefs.current.set(s.id, el); }}
+                      onMouseEnter={() => setHoveredId(s.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                      onClick={() => setSelectedId(s.id)}
+                      className={`group border-b border-[var(--crn-border)] cursor-pointer transition-colors ${bgClass} ${
+                        isSelected ? "ring-1 ring-[var(--crn-accent)] ring-inset" : isHovered ? "bg-[var(--crn-bg-row-hover)]" : ""
+                      }`}
+                      style={{ borderLeft: `4px solid ${B1_COR[s.b1]}` }}
+                    >
+                      <td className="px-2 py-1">
+                        <span
+                          className="inline-flex px-1.5 py-0.5 font-bold tracking-widest text-[8px] border"
+                          style={{ color: B1_COR[s.b1], borderColor: `${B1_COR[s.b1]}60`, backgroundColor: `${B1_COR[s.b1]}15` }}
+                        >
+                          {s.b1}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 font-mono text-[var(--crn-fg-muted)]">{s.codigoV4}</td>
+                      <td className="px-2 py-1 max-w-[200px] truncate" title={s.sinal}>{s.sinal}</td>
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1" style={{ color: TIPO_COR[s.tipo] }}>
+                          <Ic className="w-3 h-3" />
+                          <span className="text-[9px] font-semibold">{TIPO_LABEL[s.tipo]}</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-1 max-w-[200px] truncate text-[var(--crn-accent)]" title={s.fenotipo}>{s.fenotipo}</td>
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1">
+                          <span className="w-7 text-[9px] text-[var(--crn-fg-muted)]">{s.peso.toFixed(2)}</span>
+                          <div className="h-1.5 w-10 bg-[#1e2c47] overflow-hidden border border-[#2a3d63]">
+                            <div className="h-full bg-[var(--crn-accent)] opacity-80" style={{ width: `${s.peso * 100}%` }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5" style={{ backgroundColor: ESTADO_COR[s.estado] }} />
+                          <span className="text-[9px]" style={{ color: ESTADO_COR[s.estado] }}>
+                            {s.estado.replace("_", " ")}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-1 text-center">
+                        <GIc
+                          className="w-3.5 h-3.5 inline-block"
+                          style={{
+                            color:
+                              s.governanca === "AUTO"
+                                ? "var(--crn-fg-dim)"
+                                : s.governanca === "MEDICO"
+                                ? "var(--crn-accent)"
+                                : "var(--crn-estado-validacao)",
+                          }}
+                        />
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono text-[var(--crn-fg-muted)]">
+                        {s.hits30d > 0 ? s.hits30d : <span className="opacity-40">-</span>}
+                      </td>
+                      <td className="px-2 py-1 text-right text-[9px] text-[var(--crn-fg-dim)]">{s.ultimaEdicao}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* INSPETOR LATERAL */}
+        <aside className="flex-none w-[300px] bg-[var(--crn-bg-panel)] border-l border-[var(--crn-border)] flex flex-col overflow-hidden">
+          <div className="h-9 border-b border-[var(--crn-border)] flex items-center px-3 justify-between">
+            <h2 className="text-[11px] font-semibold text-[var(--crn-fg)]">INSPETOR</h2>
+            {selectedSinapse && (
+              <span className="text-[9px] text-[var(--crn-fg-dim)]">#{selectedSinapse.id}</span>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+            {selectedSinapse ? (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-[8px] text-[var(--crn-fg-dim)] uppercase">Código V4</span>
+                    <span className="font-bold text-[12px] tracking-wider text-[var(--crn-accent)] truncate" title={selectedSinapse.codigoV4}>
+                      {selectedSinapse.codigoV4}
+                    </span>
+                  </div>
+                  <div
+                    className="px-1.5 py-0.5 text-[9px] font-bold border whitespace-nowrap"
+                    style={{
+                      borderColor: ESTADO_COR[selectedSinapse.estado],
+                      color: ESTADO_COR[selectedSinapse.estado],
+                      backgroundColor: `${ESTADO_COR[selectedSinapse.estado]}1a`,
+                    }}
+                  >
+                    {selectedSinapse.estado.replace("_", " ")}
+                  </div>
+                </div>
+
+                <div className="border border-[var(--crn-border)] bg-[var(--crn-bg)] p-2 flex flex-col gap-2">
+                  <div>
+                    <span className="text-[8px] text-[var(--crn-fg-dim)] uppercase font-bold mb-0.5 block">Genótipo</span>
+                    <div className="flex items-center gap-2">
+                      <div className="px-1.5 py-0.5 text-[9px] font-bold text-white" style={{ backgroundColor: B1_COR[selectedSinapse.b1] }}>
+                        {selectedSinapse.b1}
+                      </div>
+                      <span className="text-[10px] text-[var(--crn-fg)] truncate">{selectedSinapse.sinal}</span>
+                    </div>
+                  </div>
+                  <div className="h-px bg-[var(--crn-border)]" />
+                  <div>
+                    <span className="text-[8px] text-[var(--crn-fg-dim)] uppercase font-bold mb-0.5 block">Fenótipo</span>
+                    <div className="flex items-center gap-2">
+                      <div className="px-1.5 py-0.5 text-[9px] font-bold border flex items-center gap-1"
+                        style={{ color: TIPO_COR[selectedSinapse.tipo], borderColor: TIPO_COR[selectedSinapse.tipo] }}>
+                        {React.createElement(TipoIcon[selectedSinapse.tipo], { className: "w-3 h-3" })}
+                        {selectedSinapse.tipo}
+                      </div>
+                      <span className="text-[10px] text-[var(--crn-fg)] font-medium truncate">{selectedSinapse.fenotipo}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Box label="PESO" value={selectedSinapse.peso.toFixed(2)} />
+                  <Box label="GOV" value={selectedSinapse.governanca} />
+                  <Box label="HITS 30D" value={String(selectedSinapse.hits30d)} />
+                  <Box label="ED" value={selectedSinapse.ultimaEdicao} />
+                </div>
+
+                {selectedSinapse.requerValidacao && (
+                  <div className="border border-[var(--crn-estado-validacao)] bg-[var(--crn-estado-validacao)]/10 p-2 flex items-start gap-2 text-[var(--crn-estado-validacao)]">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-none" />
+                    <div className="text-[9px]">
+                      <span className="font-bold block mb-0.5">REQUER VALIDAÇÃO</span>
+                      <span className="opacity-80">Não executa automaticamente sem aprovação do médico titular.</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border border-[var(--crn-border)] bg-[var(--crn-bg)] p-2">
+                  <span className="text-[8px] text-[var(--crn-fg-dim)] uppercase font-bold mb-1 block">Auditoria (últimas 3)</span>
+                  <ul className="text-[9px] text-[var(--crn-fg-muted)] space-y-0.5">
+                    <li>· Caio · {selectedSinapse.ultimaEdicao} · alterou peso (0.80→{selectedSinapse.peso.toFixed(2)})</li>
+                    <li>· Sistema · 02/mai/2026 · disparou {selectedSinapse.hits30d} vezes (aceita 78%)</li>
+                    <li>· Caio · 12/abr/2026 · criou sinapse</li>
+                  </ul>
+                </div>
+
+                <div className="mt-1 flex flex-col gap-1">
+                  <button
+                    disabled={modo !== "EDICAO"}
+                    className="h-7 flex items-center justify-center gap-1.5 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] hover:bg-[var(--crn-bg-row-hover)] text-[10px] text-[var(--crn-fg)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Pencil className="w-3 h-3" /> EDITAR {modo !== "EDICAO" && "(ATIVE MODO EDIÇÃO)"}
+                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      disabled={modo !== "EDICAO"}
+                      className="flex-1 h-7 flex items-center justify-center gap-1.5 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] hover:bg-[var(--crn-bg-row-hover)] text-[10px] disabled:opacity-40"
+                    >
+                      {selectedSinapse.estado === "PAUSADO" ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                      {selectedSinapse.estado === "PAUSADO" ? "RETOMAR" : "PAUSAR"}
+                    </button>
+                    <button
+                      disabled={modo !== "EDICAO"}
+                      className="flex-1 h-7 flex items-center justify-center gap-1.5 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] hover:bg-red-900/30 hover:text-red-400 text-[10px] text-[var(--crn-fg)] disabled:opacity-40"
+                    >
+                      <Trash2 className="w-3 h-3" /> EXCLUIR
+                    </button>
+                  </div>
+                  <button
+                    disabled={modo !== "EDICAO"}
+                    className="h-7 flex items-center justify-center gap-1.5 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] hover:bg-[var(--crn-bg-row-hover)] text-[10px] text-[var(--crn-fg-dim)] disabled:opacity-40"
+                  >
+                    <Copy className="w-3 h-3" /> DUPLICAR
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-[var(--crn-fg-dim)] gap-2 text-center px-4">
+                <Activity className="w-6 h-6 opacity-40" />
+                <p className="text-[10px] leading-relaxed">
+                  Clique numa aresta do grafo ou numa linha da matriz pra inspecionar a sinapse.
+                  <br />
+                  <span className="opacity-70">Duplo-clique num nó pra isolar a vizinhança.</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {/* ============ FOOTER ============ */}
+      <footer className="flex-none h-7 border-t border-[var(--crn-border)] bg-[var(--crn-bg-panel)] flex items-center px-3 justify-between text-[9px] text-[var(--crn-fg-dim)]">
+        <div className="flex items-center gap-3">
+          <span><strong className="text-[var(--crn-accent)]">●</strong> ativa</span>
+          <span><strong style={{ color: "var(--crn-estado-bloqueado)" }}>━ ━</strong> bloqueada</span>
+          <span><strong style={{ color: "var(--crn-estado-validacao)" }}>┄ ┄</strong> aguarda validação</span>
+          <span><strong style={{ color: "var(--crn-estado-pausado)" }}>━</strong> pausada</span>
+          <span className="ml-3">espessura = peso · cor = B1 de origem</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <kbd className="px-1 bg-[var(--crn-border)] border border-[var(--crn-border-strong)] text-[var(--crn-fg)] font-sans">V</kbd>
+          <kbd className="px-1 bg-[var(--crn-border)] border border-[var(--crn-border-strong)] text-[var(--crn-fg)] font-sans">E</kbd>
+          <kbd className="px-1 bg-[var(--crn-border)] border border-[var(--crn-border-strong)] text-[var(--crn-fg)] font-sans">S</kbd>
+          <span>modo</span>
+          <span className="mx-2">·</span>
+          <kbd className="px-1 bg-[var(--crn-border)] border border-[var(--crn-border-strong)] text-[var(--crn-fg)] font-sans">?</kbd>
+          <span>atalhos</span>
+          <span className="mx-2">·</span>
+          <kbd className="px-1 bg-[var(--crn-border)] border border-[var(--crn-border-strong)] text-[var(--crn-fg)] font-sans">Esc</kbd>
+          <span>limpar</span>
+        </div>
+      </footer>
+
+      {/* SHORTCUTS OVERLAY */}
+      {showShortcuts && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+          onClick={() => setShowShortcuts(false)}
+        >
+          <div className="bg-[var(--crn-bg-panel)] border border-[var(--crn-accent)] p-6 max-w-md text-[11px] text-[var(--crn-fg)]">
+            <h3 className="craniotomia-serif text-base mb-4 text-[var(--crn-accent)]">ATALHOS DE TECLADO</h3>
+            <table className="w-full">
+              <tbody className="leading-relaxed">
+                <ShortcutRow k="V" desc="Modo Visualização" />
+                <ShortcutRow k="E" desc="Modo Edição" />
+                <ShortcutRow k="S" desc="Modo Simulação" />
+                <ShortcutRow k="?" desc="Mostrar/esconder este painel" />
+                <ShortcutRow k="Esc" desc="Sair de isolar, limpar seleção" />
+                <ShortcutRow k="Duplo-clique no nó" desc="Isolar vizinhança da sinapse" />
+                <ShortcutRow k="Clique na aresta" desc="Selecionar sinapse (sincroniza com matriz)" />
+                <ShortcutRow k="Clique na linha" desc="Selecionar sinapse (sincroniza com grafo)" />
+              </tbody>
+            </table>
+            <div className="mt-4 text-[9px] text-[var(--crn-fg-dim)] text-center">
+              clique fora pra fechar
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Subcomponentes ----------
+function ModoBtn({
+  icon: Icon,
+  label,
+  hint,
+  active,
+  accent,
+  onClick,
+}: {
+  icon: React.ElementType;
+  label: string;
+  hint: string;
+  active: boolean;
+  accent?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2 py-1 flex items-center gap-1.5 text-[10px] font-semibold border-r border-[var(--crn-border-strong)] last:border-r-0 transition-colors ${
+        active ? "text-white" : "text-[var(--crn-fg-muted)] hover:text-[var(--crn-fg)]"
+      }`}
+      style={{
+        backgroundColor: active ? (accent ?? "var(--crn-accent-strong)") : "transparent",
+      }}
+      title={`${label} (${hint})`}
+    >
+      <Icon className="w-3 h-3" />
+      <span>{label}</span>
+      <kbd className="text-[8px] opacity-60 font-sans">{hint}</kbd>
+    </button>
+  );
+}
+
+function KpiPill({ label, value, color = "var(--crn-fg)" }: { label: string; value: number; color?: string }) {
+  return (
+    <div className="bg-[var(--crn-bg)] border border-[var(--crn-border)] px-2 py-1 flex items-center gap-2">
+      <span className="text-[8px] text-[var(--crn-fg-dim)] font-bold tracking-wider uppercase">{label}</span>
+      <span className="text-[12px] font-mono font-semibold" style={{ color }}>{value}</span>
+    </div>
+  );
+}
+
+function Box({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-[var(--crn-border)] bg-[var(--crn-bg)] p-1.5">
+      <span className="text-[8px] text-[var(--crn-fg-dim)] uppercase font-bold block mb-0.5">{label}</span>
+      <span className="text-[10px] text-[var(--crn-fg)] font-medium truncate block">{value}</span>
+    </div>
+  );
+}
+
+function ShortcutRow({ k, desc }: { k: string; desc: string }) {
+  return (
+    <tr>
+      <td className="py-0.5 pr-4">
+        <kbd className="px-1.5 py-0.5 bg-[var(--crn-bg-row)] border border-[var(--crn-border-strong)] text-[var(--crn-accent)] font-sans text-[10px]">{k}</kbd>
+      </td>
+      <td className="py-0.5 text-[var(--crn-fg-muted)]">{desc}</td>
+    </tr>
+  );
+}
+
+export default CraniotomiaV4;
