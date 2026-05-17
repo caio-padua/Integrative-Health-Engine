@@ -29,6 +29,9 @@ function configFixture(over: Partial<ConfigWhatsAppMin> = {}): ConfigWhatsAppMin
     numeroRemetente: "+14155551234",
     accountSid: "enc:ACxxx",
     authToken: "enc:tok",
+    // modoSandbox satisfaz pre-check HSM (sem precisar de hsmTemplates real
+    // no fixture). Testes especificos sobrescrevem metadados.
+    metadados: { modoSandbox: true },
     ...over,
   };
 }
@@ -47,6 +50,31 @@ function mkDeps(over: {
     decryptCredential: over.decrypt ?? decryptOk,
   };
 }
+
+import { traduzirErroTwilio } from "./testeCanalCeo";
+
+describe("traduzirErroTwilio", () => {
+  it("traduz erro 63016 (freeform fora 24h) pra PT-BR amigavel", () => {
+    const t = traduzirErroTwilio("Error 63016: cannot send freeform message");
+    assert.match(t!, /HSM aprovado/);
+  });
+  it("traduz erro 20003 (auth) pra PT-BR amigavel", () => {
+    const t = traduzirErroTwilio("HTTP 401: Authenticate failed");
+    assert.match(t!, /Credenciais Twilio invalidas/);
+  });
+  it("traduz erro 63007 (sandbox not opted in) pra PT-BR amigavel", () => {
+    const t = traduzirErroTwilio("63007: number is not opted in");
+    assert.match(t!, /whitelist do sandbox/);
+  });
+  it("retorna null pra erro vazio", () => {
+    assert.equal(traduzirErroTwilio(null), null);
+    assert.equal(traduzirErroTwilio(""), null);
+  });
+  it("retorna erro original quando nao reconhece o codigo", () => {
+    const t = traduzirErroTwilio("erro desconhecido xyz");
+    assert.equal(t, "erro desconhecido xyz");
+  });
+});
 
 describe("testeCanalCeo - puro", () => {
   it("montarMensagemTesteCeo inclui timestamp BRT fixo e label PAWARDS", () => {
@@ -152,6 +180,25 @@ describe("testeCanalCeo - integracao DB", () => {
     const r = await dispararTesteCanalCeo(CONFIG_ID_FIXTURE, mkDeps({ config: configFixture({ provedor: "GUPSHUP" }) }));
     assert.equal(r.status, "FALHA");
     assert.equal(r.motivoPre, "PROVEDOR_NAO_TWILIO");
+  });
+
+  it("pre-check SEM_HSM_TEMPLATE_CEO_ASSINATURA quando metadados sem template nem modoSandbox", async () => {
+    if (!ceoIdOriginal) return;
+    await db.execute(sql`UPDATE usuarios SET telefone = ${TELEFONE_TESTE} WHERE id = ${ceoIdOriginal}`);
+    const cfgSemHsm = configFixture({ metadados: {} });
+    const r = await dispararTesteCanalCeo(CONFIG_ID_FIXTURE, mkDeps({ config: cfgSemHsm }));
+    assert.equal(r.status, "FALHA");
+    assert.equal(r.motivoPre, "SEM_HSM_TEMPLATE_CEO_ASSINATURA");
+  });
+
+  it("pre-check passa quando hsmTemplates.CEO_ASSINATURA configurado", async () => {
+    if (!ceoIdOriginal) return;
+    await db.execute(sql`UPDATE usuarios SET telefone = ${TELEFONE_TESTE} WHERE id = ${ceoIdOriginal}`);
+    const cfgComHsm = configFixture({
+      metadados: { hsmTemplates: { CEO_ASSINATURA: { twilioContentSid: "HXabc" } } },
+    });
+    const r = await dispararTesteCanalCeo(CONFIG_ID_FIXTURE, mkDeps({ config: cfgComHsm }));
+    assert.equal(r.status, "PENDENTE");
   });
 
   it("pre-check CONFIG_NAO_E_A_ATIVA_GLOBAL quando configId difere da que o worker escolheria", async () => {

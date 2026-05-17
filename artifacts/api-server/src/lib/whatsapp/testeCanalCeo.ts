@@ -33,6 +33,14 @@ export type MotivoFalhaPre =
   | "CREDENCIAIS_INVALIDAS"
   | "SEM_NUMERO_REMETENTE"
   /**
+   * Code-review v3: worker chama enviarWhatsapp com templateNome=CEO_ASSINATURA
+   * (notifAssinatura.ts:302) quando is_sistema_ceo=true. Twilio FORA da janela
+   * de 24h exige HSM aprovado. Sem `metadados.hsmTemplates.CEO_ASSINATURA`
+   * configurado, mensagem cai em texto puro e e bloqueada pelo Meta. Pre-check
+   * exige template registrado.
+   */
+  | "SEM_HSM_TEMPLATE_CEO_ASSINATURA"
+  /**
    * Code-review v2: o worker notifAssinatura dispatcha via
    * enviarWhatsapp(dest, corpo, ...) que escolhe a config ativa global via
    * obterConfigWhatsapp() — nao recebe configId da fila. Pra impedir que o
@@ -130,6 +138,34 @@ export interface ConfigWhatsAppMin {
   numeroRemetente: string | null;
   accountSid: string | null;
   authToken: string | null;
+  /** metadados.hsmTemplates eh consultado pra validar HSM CEO_ASSINATURA. */
+  metadados?: Record<string, unknown> | null;
+}
+
+/**
+ * Code-review v3: traduz erros tecnicos do Twilio pra PT-BR amigavel
+ * (sandbox whitelist, credenciais invalidas, HSM obrigatorio, etc.).
+ * Aplicado em obterUltimoTesteCanalCeo antes de devolver pra UI.
+ */
+export function traduzirErroTwilio(erro: string | null | undefined): string | null {
+  if (!erro) return null;
+  const e = erro.toLowerCase();
+  if (e.includes("63016") || e.includes("freeform")) {
+    return "Twilio bloqueou mensagem fora da janela de 24h. Configure HSM aprovado (CEO_ASSINATURA) no painel Twilio.";
+  }
+  if (e.includes("63007") || e.includes("not opted in") || e.includes("sandbox")) {
+    return "Numero do CEO nao esta na whitelist do sandbox Twilio. Envie 'join <code>' pelo WhatsApp do celular do CEO ou migre pra producao.";
+  }
+  if (e.includes("20003") || e.includes("authenticate") || e.includes("authentication")) {
+    return "Credenciais Twilio invalidas (accountSid/authToken). Verifique em Configuracoes > WhatsApp.";
+  }
+  if (e.includes("21211") || e.includes("invalid 'to'") || e.includes("invalid phone")) {
+    return "Telefone do CEO em formato invalido. Cadastre em E.164 (+55DDD9XXXXXXXX) em /plataforma/perfil.";
+  }
+  if (e.includes("21610") || e.includes("unsubscribed")) {
+    return "Numero do CEO deu opt-out do canal. CEO precisa enviar 'start' pro numero remetente.";
+  }
+  return erro;
 }
 
 export function validarConfigTwilio(
@@ -176,6 +212,19 @@ export function validarConfigTwilio(
       erro: `Credenciais Twilio desta config nao puderam ser decriptadas: ${String(e?.message ?? e).slice(0, 120)}.`,
     };
   }
+  // HSM CEO_ASSINATURA configurado? Worker sempre passa esse templateNome
+  // quando is_sistema_ceo=true; sem template aprovado, Twilio rejeita fora
+  // de 24h. Tolera modo "sandbox" via metadados.modoSandbox = true.
+  const meta = (config.metadados ?? null) as { hsmTemplates?: Record<string, unknown>; modoSandbox?: boolean } | null;
+  const temHsm = !!meta?.hsmTemplates && typeof meta.hsmTemplates === "object"
+    && meta.hsmTemplates["CEO_ASSINATURA"] != null;
+  const modoSandbox = meta?.modoSandbox === true;
+  if (!temHsm && !modoSandbox) {
+    return {
+      motivoPre: "SEM_HSM_TEMPLATE_CEO_ASSINATURA",
+      erro: "HSM CEO_ASSINATURA nao configurado em metadados.hsmTemplates. Worker passa esse templateNome — sem template aprovado pelo Meta, Twilio rejeita fora da janela 24h. Configure no painel HSM ou marque metadados.modoSandbox=true.",
+    };
+  }
   return null;
 }
 
@@ -195,7 +244,8 @@ export interface TesteCanalCeoDeps {
 async function obterConfigPadrao(configId: number): Promise<ConfigWhatsAppMin | null> {
   const r: any = await db.execute(sql`
     SELECT id, provedor, ativo, numero_remetente AS "numeroRemetente",
-           account_sid AS "accountSid", auth_token AS "authToken"
+           account_sid AS "accountSid", auth_token AS "authToken",
+           metadados
       FROM whatsapp_config
      WHERE id = ${configId}
      LIMIT 1
@@ -226,6 +276,38 @@ const depsDefault: TesteCanalCeoDeps = {
     return mod.decryptCredential(s);
   },
 };
+
+/**
+ * Pre-check publico SEM enfileirar — usado pelo endpoint GET /precheck pra
+ * a UI saber se botao "Teste CEO" deve ficar habilitado ANTES do clique
+ * (code-review v3 requisito #5). Reaproveita validarConfigTwilio +
+ * resolverCeoEAtivo + obterConfigAtivaGlobal sem side-effects.
+ */
+export async function precheckTesteCanalCeo(
+  configId: number,
+  deps: TesteCanalCeoDeps = depsDefault,
+): Promise<{ ok: boolean; motivoPre?: MotivoFalhaPre; erro?: string }> {
+  const ceo = await resolverCeoEAtivo();
+  if (!ceo) {
+    return { ok: false, motivoPre: "SEM_TELEFONE_CEO", erro: "Nenhum CEO operacional cadastrado." };
+  }
+  if (!ceo.telefone || ceo.telefone.trim() === "") {
+    return { ok: false, motivoPre: "SEM_TELEFONE_CEO", erro: "Telefone do CEO nao cadastrado." };
+  }
+  const config = await deps.obterConfig(configId);
+  const erroConfig = validarConfigTwilio(config, deps.decryptCredential);
+  if (erroConfig) return { ok: false, motivoPre: erroConfig.motivoPre, erro: erroConfig.erro };
+  const ativaGlobal = await deps.obterConfigAtivaGlobal();
+  if (!ativaGlobal) return { ok: false, motivoPre: "SEM_CONFIG_WHATSAPP_ATIVA", erro: "Nenhuma config ativa global." };
+  if (ativaGlobal.id !== configId) {
+    return {
+      ok: false,
+      motivoPre: "CONFIG_NAO_E_A_ATIVA_GLOBAL",
+      erro: `Esta config (#${configId}) nao e a ativa global (#${ativaGlobal.id}).`,
+    };
+  }
+  return { ok: true };
+}
 
 /**
  * Enfileira o teste pro worker dispatchar. NAO chama Twilio direto — isso
@@ -353,6 +435,6 @@ export async function obterUltimoTesteCanalCeo(): Promise<UltimoTesteCeo | null>
     criadoEm: new Date(row.criado_em).toISOString(),
     enviadoEm: row.enviado_em ? new Date(row.enviado_em).toISOString() : null,
     provedorMsgId: resp.msgId ?? resp.sid ?? null,
-    erro: row.erro ?? null,
+    erro: traduzirErroTwilio(row.erro ?? null),
   };
 }

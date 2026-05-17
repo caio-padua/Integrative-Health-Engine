@@ -8,7 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, Users, ShieldAlert, CloudUpload, FileText, Loader2, CheckCircle2, ExternalLink, MessageSquare, Phone, Check, CheckCheck, X, Send, TestTube, Pencil, Shield, Layers, Timer, Zap, Clock, Trash2, Power, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -776,6 +776,9 @@ export default function ConfiguracoesPage() {
   const [testeCeoEnviando, setTesteCeoEnviando] = useState<number | null>(null);
   const [testeCeoResposta, setTesteCeoResposta] = useState<TesteCeoResposta | null>(null);
   const [ultimoTesteCeo, setUltimoTesteCeo] = useState<UltimoTesteCeoRow | null>(null);
+  // Code-review v3 #5: pre-check por config carregado on-mount. UI desabilita
+  // botao "Teste CEO" se o pre-check falhar, mostrando tooltip com motivo.
+  const [precheckPorConfig, setPrecheckPorConfig] = useState<Record<number, { ok: boolean; erro?: string }>>({});
 
   const carregarUltimoTesteCeo = useCallback(async () => {
     try {
@@ -789,14 +792,33 @@ export default function ConfiguracoesPage() {
     }
   }, [apiBase]);
 
+  const carregarPrecheckCeo = useCallback(async (configId: number) => {
+    try {
+      const r = await apiFetch(`${apiBase}/whatsapp/teste-ceo/precheck?configId=${configId}`);
+      if (r.ok) {
+        const d = await r.json();
+        setPrecheckPorConfig((prev) => ({ ...prev, [configId]: { ok: !!d.ok, erro: d.erro } }));
+      } else {
+        // Code-review v4 HIGH: erro HTTP do precheck mantem botao desabilitado.
+        setPrecheckPorConfig((prev) => ({ ...prev, [configId]: { ok: false, erro: `Pre-check HTTP ${r.status}` } }));
+      }
+    } catch (e: any) {
+      // Code-review v4 HIGH: erro de rede tambem fica desabilitado.
+      setPrecheckPorConfig((prev) => ({ ...prev, [configId]: { ok: false, erro: e?.message ?? "Pre-check sem rede" } }));
+    }
+  }, [apiBase]);
+
   const dispararTesteCeo = async (configId: number) => {
     setTesteCeoResposta(null);
     setTesteCeoEnviando(configId);
     try {
-      const r = await apiFetch(`${apiBase}/whatsapp/teste-ceo`, {
+      // Code-review v3 #1: usa rota /whatsapp/enviar-teste com destino="CEO"
+      // (reuso real da rota historica de admin) — backend delega pro
+      // dispararTesteCanalCeo que enfileira PENDENTE pro worker.
+      const r = await apiFetch(`${apiBase}/whatsapp/enviar-teste`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ configId }),
+        body: JSON.stringify({ configId, destino: "CEO" }),
       });
       const data = (await r.json().catch(() => ({}))) as TesteCeoResposta;
       setTesteCeoResposta(data);
@@ -816,6 +838,43 @@ export default function ConfiguracoesPage() {
       setTesteCeoEnviando(null);
     }
   };
+
+  // Code-review v3 #3 + v4 MED + v5 BLOCKER: polling automatico enquanto teste
+  // esta PENDENTE/PROCESSANDO. Worker notifAssinatura tem TICK_MS=5min, entao
+  // timeout precisa cobrir 1 tick + margem (Twilio API + status update) — 8min.
+  //
+  // Bug v5: cada poll faz setUltimoTesteCeo -> re-render -> efeito reinicia ->
+  // t0 reseta -> timeout NUNCA dispara. Fix: ancorar t0 num useRef pelo id do
+  // teste, resetando SO quando o id muda (novo disparo), nao a cada update do
+  // mesmo teste.
+  const pollingAncoraRef = useRef<{ idTeste: number | null; iniciadoEm: number }>({
+    idTeste: null,
+    iniciadoEm: 0,
+  });
+  useEffect(() => {
+    if (!ultimoTesteCeo) return;
+    if (ultimoTesteCeo.status !== "PENDENTE" && ultimoTesteCeo.status !== "PROCESSANDO") return;
+    if (pollingAncoraRef.current.idTeste !== ultimoTesteCeo.id) {
+      pollingAncoraRef.current = { idTeste: ultimoTesteCeo.id, iniciadoEm: Date.now() };
+    }
+    const TIMEOUT_MS = 8 * 60 * 1000;
+    const tick = window.setInterval(() => {
+      if (Date.now() - pollingAncoraRef.current.iniciadoEm > TIMEOUT_MS) {
+        window.clearInterval(tick);
+        return;
+      }
+      void carregarUltimoTesteCeo();
+    }, 5000);
+    return () => window.clearInterval(tick);
+  }, [ultimoTesteCeo, carregarUltimoTesteCeo]);
+
+  // Pre-check on mount de cada config TWILIO ativa.
+  useEffect(() => {
+    waConfigs.filter((c: any) => c.provedor === "TWILIO" && c.ativo).forEach((c: any) => {
+      void carregarPrecheckCeo(c.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waConfigs.length]);
 
   const fetchWaConfigs = async () => {
     setWaLoading(true);
@@ -1624,21 +1683,32 @@ export default function ConfiguracoesPage() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                        {cfg.provedor === "TWILIO" && cfg.ativo && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
-                            onClick={() => void dispararTesteCeo(cfg.id)}
-                            disabled={testeCeoEnviando === cfg.id}
-                            title="Enfileira mensagem real pro celular do CEO. Worker notifAssinatura dispatcha (≤5min)."
-                          >
-                            {testeCeoEnviando === cfg.id
-                              ? <Loader2 className="h-3 w-3 animate-spin" />
-                              : <Send className="h-3 w-3" />}
-                            <span className="ml-1">Teste CEO</span>
-                          </Button>
-                        )}
+                        {cfg.provedor === "TWILIO" && cfg.ativo && (() => {
+                          const pre = precheckPorConfig[cfg.id];
+                          // Code-review v4 HIGH: habilitacao estritamente positiva.
+                          // Estados "carregando/erro/sem precheck" ficam desabilitados.
+                          const habilitado = pre?.ok === true;
+                          const tooltip = !pre
+                            ? "Pre-check carregando..."
+                            : !pre.ok
+                              ? `Pre-check falhou: ${pre.erro ?? "config nao apta"}`
+                              : "Enfileira mensagem real pro celular do CEO. Worker notifAssinatura dispatcha (≤5min).";
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10 disabled:opacity-40"
+                              onClick={() => void dispararTesteCeo(cfg.id)}
+                              disabled={testeCeoEnviando === cfg.id || !habilitado}
+                              title={tooltip}
+                            >
+                              {testeCeoEnviando === cfg.id
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <Send className="h-3 w-3" />}
+                              <span className="ml-1">Teste CEO{!habilitado ? " ✕" : ""}</span>
+                            </Button>
+                          );
+                        })()}
                         <Button size="sm" variant="ghost" onClick={() => openEditWaConfig(cfg)}>
                           <Pencil className="h-3 w-3" />
                         </Button>
@@ -1667,7 +1737,10 @@ export default function ConfiguracoesPage() {
                         <RefreshCw className="h-3 w-3" /> Atualizar
                       </button>
                     </div>
-                    {testeCeoResposta?.status === "PENDENTE" && (
+                    {/* Code-review v3 #3: respostaInicial mostra so se NAO ha ultimoTesteCeo
+                        OU ainda nao progrediu. Quando worker transiciona (PROCESSANDO/
+                        ENVIADO/FALHA), polling atualiza ultimoTesteCeo e ele assume. */}
+                    {testeCeoResposta?.status === "PENDENTE" && !ultimoTesteCeo && (
                       <div className="text-amber-300">
                         [PENDENTE] Enfileirado #{testeCeoResposta.notifId}. Worker
                         dispatcha em até 5min para {testeCeoResposta.destinatario}.
@@ -1679,7 +1752,7 @@ export default function ConfiguracoesPage() {
                         {testeCeoResposta.erro}
                       </div>
                     )}
-                    {ultimoTesteCeo && !testeCeoResposta && (
+                    {ultimoTesteCeo && (
                       <div className="space-y-1 text-zinc-300">
                         <div>
                           Último: <span className="font-mono">#{ultimoTesteCeo.id}</span>{" "}
