@@ -419,3 +419,9 @@ id = "XTdXHteqG5GmH60LqdH9h"
 uri = "file://docs/dr-claude/11_ANALISE_ENCOMENDA_01_80_FORMULAS.md"
 type = "text"
 title = "11 — Análise da Encomenda 01: 80 fórmulas Dr. Claude (auditoria + 3 blockers + 8 perguntas)"
+
+[[outputs]]
+id = "XuCcaX-9oqTf8FFvqOqLh"
+uri = "file://docs/dr-claude/12_ANALISE_ENCOMENDA_02_SINAPSES_E_CRANIOTOMIA.md"
+type = "text"
+title = "12 — Análise da Encomenda 02: 83 sinapses + Craniotomia (9 blockers + matriz Hipótese A/B + plano 12 sprints)"
