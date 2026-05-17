@@ -1,0 +1,36 @@
+Perfeito, Caio. Vou montar o mockup interativo agora — Craniotomia funcionando de verdade, clicável, com dados reais. Você navega, edita, simula. Dopamina garantida.Pronto, dopamina servida. Brinca à vontade no mockup acima:
+
+🎯 **O que testar agora**:
+- Clica nos gatilhos pra expandir/colapsar
+- Toggle ON/OFF nas sugestões (vê verde/cinza mudar)
+- Aba **Simulador** → seleciona "Insônia + Ansiedade" → clica "Simular motor" → vê o ranking de sugestões aparecer agrupado
+- Aba **Auditoria** → vê o histórico de quem mudou o quê
+- Aba **Legenda** → fixa as cores semânticas na sua cabeça
+- Busca por "TDAH" ou filtro "Órfãos" pra ver gatilho sem sugestão (Hipertensão aparece)
+
+🩺 **O que tá demonstrado**:
+- Cor = significado fixo (roxo=sintoma, vermelho=doença, marrom=cirurgia, laranja=familiar, verde=hábito)
+- Densidade alta sem poluir (6 dados por linha)
+- Códigos semânticos visíveis pequenos (você não precisa ler — só auditor precisa)
+- Status visual instantâneo (completo/parcial/órfão por badge)
+- Simulador roda sem gravar nada
+
+🧠 **O que o Dr. Replit precisa fazer pra virar real**:
+1. Substituir os dados mock pelos dados reais do banco (rota `GET /api/craniotomia/arvore`)
+2. Os botões `sendPrompt(...)` viram chamadas reais às rotas CRUD `/api/motor-clinico/regras-*`
+3. A auditoria já tem onde gravar (`craniotomia_edicoes`)
+4. Tudo respeitando a governança N1→N2→N3 que ele descobriu que JÁ EXISTE
+
+Cola pro Dr. Replit:
+
+> **Dr. Replit — Caio aprovou o mockup interativo da Craniotomia (TDAH adorou).**
+>
+> Layout aprovado: árvore de gatilhos com accordion, toggle ON/OFF inline, badges semânticos (completo/parcial/órfão), simulador embutido, auditoria visível, legenda das cores invariantes.
+>
+> Cores semânticas finalizadas: QSNT roxo, QDGN vermelho, QCIR marrom, QFAM laranja, QHAB verde. Ícones por segmento: ti-pill (FORM), ti-vaccine (INJE), ti-diamond (IMPL), ti-droplet (ENDO), ti-microscope (EXAM).
+>
+> Pode prosseguir Sprint 2 (UPSERT 81 fórmulas) com a saída do `\d formulas_master` que você já tem. A Craniotomia codada de verdade entra no Sprint 8 com este layout aprovado como blueprint.
+>
+> Invariantes: 5.408 pacientes + 8.728 receitas + 6 triggers + governança N1→N3 intocados.
+
+Quer ajustar alguma cor, layout, ou comportamento antes do Dr. Replit começar a codar de verdade?
