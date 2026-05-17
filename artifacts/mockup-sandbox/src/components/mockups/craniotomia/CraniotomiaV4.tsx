@@ -222,8 +222,9 @@ export function CraniotomiaV4() {
     return { color: B1_COR[s.b1], dash: "none" };
   }
   function arestaLargura(s: Sinapse, ativa: boolean) {
-    const base = 3 + Math.round(s.peso * 5);
-    return ativa ? base + 2 : base;
+    // -25% vs V4.0 original (Caio pediu): base 3→2.25, peso 5→3.75, hover 2→1.5
+    const base = 2.25 + s.peso * 3.75;
+    return ativa ? base + 1.5 : base;
   }
 
   const toggleFiltroB1 = (b1: B1) => {
