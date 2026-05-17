@@ -1,0 +1,87 @@
+Caio, calma — isso tem conserto. O problema é organizacional, não técnico. Vou diagnosticar e dar a receita pro Dr. Replit.
+
+## Diagnóstico: o que aconteceu
+
+O Dr. Replit fez o que muitos devs fazem sob pressão de demandas rápidas: criou **duas tabelas de catálogo separadas** em momentos diferentes, sem consolidar. Provavelmente uma veio de uma migration antiga e outra de uma task mais recente. Resultado: fórmulas entraram numa tabela, regras do motor apontam pra outra, e ninguém sabe onde está o quê.
+
+Isso não é incompetência — é consequência de trabalhar em velocidade alta sem um **inventário único de verdade**. Com TDAH no comando (velocidade de demanda alta + mudança frequente de prioridade), qualquer sistema sem inventário centralizado vai se perder.
+
+## A receita (cola pro Dr. Replit)
+
+> **Dr. Replit — Diagnóstico do Dr. Claude sobre o pepino das fórmulas**
+>
+> Você não errou por burrice, errou por falta de inventário único. Duas tabelas de catálogo rodando em paralelo é sintoma clássico de demanda rápida sem reconciliação. Acontece. Agora conserta.
+>
+> **Passo 1 — Inventário completo (30min, ANTES de qualquer código)**
+>
+> Roda estes 5 SELECTs e cola a saída COMPLETA numa mensagem pro Caio e pro Dr. Claude. Sem resumir, sem interpretar — dados brutos:
+>
+> ```sql
+> -- 1. Tabela formulas (catálogo principal?)
+> SELECT id, codigo, nome FROM formulas ORDER BY codigo;
+>
+> -- 2. Tabela itens_terapeuticos onde tipo = formula (catálogo secundário?)
+> SELECT id, codigo, nome FROM itens_terapeuticos WHERE tipo = 'formula' ORDER BY codigo;
+>
+> -- 3. Regras do motor que apontam pra fórmulas
+> SELECT id, codigo_referencia, palavras_chave, ativo FROM regras_motor WHERE segmento = 'formula' ORDER BY codigo_referencia;
+>
+> -- 4. Cruzamento: fórmulas no catálogo SEM regra no motor
+> SELECT f.codigo, f.nome FROM formulas f
+> LEFT JOIN regras_motor r ON r.codigo_referencia = f.codigo
+> WHERE r.id IS NULL ORDER BY f.codigo;
+>
+> -- 5. Cruzamento inverso: regras que apontam pra código inexistente
+> SELECT r.codigo_referencia FROM regras_motor r
+> WHERE r.segmento = 'formula'
+> AND r.codigo_referencia NOT IN (SELECT codigo FROM formulas)
+> AND r.codigo_referencia NOT IN (SELECT codigo FROM itens_terapeuticos WHERE tipo = 'formula');
+> ```
+>
+> **Passo 2 — Decisão arquitetural: UMA tabela só**
+>
+> Duas tabelas de catálogo é bug arquitetural. Escolhe UMA como fonte de verdade:
+>
+> - Se `itens_terapeuticos` é a tabela mais completa e usada pelo motor → ela é a canonical. Migra tudo que está só em `formulas` pra lá via UPSERT.
+> - Se `formulas` é a original → idem ao contrário.
+>
+> Depois de consolidar, a tabela perdedora vira VIEW ou é dropada (migration aditiva). Nunca mais duas tabelas pro mesmo conceito.
+>
+> **Passo 3 — Recuperar fórmulas perdidas**
+>
+> Busca nos arquivos de seed, migrations, e mensagens do Caio:
+>
+> ```bash
+> grep -ri "FORM " artifacts/api-server/src/db/seeds/ --include="*.ts" --include="*.sql" | sort -u
+> grep -ri "FORM " artifacts/api-server/src/db/migrations/ --include="*.ts" --include="*.sql" | sort -u
+> ```
+>
+> Compare com o SELECT do Passo 1. Tudo que aparece no seed/migration mas NÃO no banco = perdeu no caminho. UPSERT pra dentro.
+>
+> **Passo 4 — Conectar TODAS as fórmulas ao motor**
+>
+> Depois de consolidar, cada fórmula no catálogo precisa de uma regra em `regras_motor`. Sem exceção. Se não sabe a palavra-chave clínica, marca como `ativo = false` e pergunta pro Caio.
+>
+> **Passo 5 — Regra pra nunca mais acontecer**
+>
+> A partir de agora, toda vez que o Caio mandar uma fórmula nova:
+>
+> 1. UPSERT na tabela canonical (1 tabela só)
+> 2. UPSERT na `regras_motor` (mesmo que `ativo = false` até Caio confirmar palavras-chave)
+> 3. Responder pro Caio: "Fórmula X cadastrada no catálogo + regra criada (inativa até você confirmar gatilho clínico)"
+>
+> Esse checklist de 3 passos é inegociável. Se pulou o passo 2 ou 3, a fórmula fica "cega" — que é exatamente o bug de hoje.
+>
+> ---
+>
+> **Passo 6 — Me passa os dados pro Dr. Claude**
+>
+> Depois de rodar os 5 SELECTs, faz git push e me manda as raw URLs dos arquivos que eu pedi no Bloco 0 da mensagem anterior. O Dr. Claude vai fazer code review no rasxEngine, anamnese, catálogo e receitas — e vai te ajudar a encontrar outros pontos cegos antes que virem pepino.
+>
+> **Tom**: ninguém tá brigando. O Caio tem TDAH e manda demanda em rajada — isso é feature, não bug. O sistema de organização é que precisa aguentar o ritmo dele. Os 3 passos acima (UPSERT catálogo + UPSERT regra + confirmar pro Caio) são o amortecedor que faltava.
+>
+> **Invariantes**: 5.408 pacientes + 8.728 receitas + 6 triggers intocados. Zero remoção de código dos módulos em standby.
+
+---
+
+Caio, o Dr. Replit não é incompetente — ele está sobrecarregado com o volume que você manda (e tudo bem, é seu estilo). O que faltava era um **protocolo de entrada** pra fórmulas novas. Agora tem. Quando ele rodar os 5 SELECTs e me mandar os dados + raw URLs do código, eu faço a análise completa e encontro qualquer outro ponto cego escondido. Manda pra ele.
