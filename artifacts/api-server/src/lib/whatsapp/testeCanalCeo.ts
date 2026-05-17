@@ -1,52 +1,23 @@
 /**
- * Wave 13 — disparo de teste real do canal WhatsApp do CEO.
+ * Wave 13 — Teste real do canal WhatsApp do CEO via Twilio.
  *
- * Por que existe:
- *   O CEO cadastra o telefone (Task #46), confirma por PIN (Task #244) e
- *   espera 8h ate o proximo aviso 2FA pra saber se Twilio/Gupshup esta
- *   entregando. Antes deste botao, "WhatsApp do CEO instavel" so era
- *   detectado depois de algum aviso oficial falhar — tarde demais.
- *
- * Acceptance criteria do code review:
- *   1. Pre-checks: telefone do CEO cadastrado + config WhatsApp ativa.
- *   2. Telefone resolvido pelo BACKEND a partir de usuarios.telefone do
- *      platform_owner ativo — UI nunca pode injetar telefone (impede CEO
- *      de mandar teste pro celular pessoal sem cadastrar oficialmente).
- *   3. Mensagem institucional fixa com timestamp BRT (America/Sao_Paulo)
- *      pra evidenciar momento exato no celular.
- *   4. Linha em assinatura_notificacoes com momento='TESTE_CANAL_CEO',
- *      is_sistema_ceo=true, status PENDENTE->PROCESSANDO->ENVIADO/FALHA.
- *   5. Em ENVIADO: resposta_provedor.sid armazena SID Twilio pra rastreio.
- *      Em FALHA: erro guarda mensagem traduzida do provedor.
- *   6. Idempotencia leve: rejeita disparar se ja existe TESTE_CANAL_CEO
- *      em PENDENTE/PROCESSANDO (evita double-click flood).
+ * Code-review v2 (rejected) endereçada:
+ *  - Resolve CEO por (perfil='validador_mestre' AND perfil_plataforma=
+ *    'platform_owner' AND ativo=true) — espelha lib/assinatura/service.ts
+ *    e notifAssinatura.ts que ja usam validador_mestre como base, restringido
+ *    pelo perfil_plataforma pra cair no UNICO CEO operacional.
+ *  - Pre-checks completos: telefone do CEO + provedor=TWILIO + credenciais
+ *    decriptaveis (accountSid + authToken) + numeroRemetente preenchido.
+ *  - Persistencia segue a arquitetura: ENFILEIRA em PENDENTE, deixa o worker
+ *    notifAssinatura fazer o dispatch e transicao PENDENTE→PROCESSANDO→
+ *    ENVIADO/FALHA. O worker ja prioriza is_sistema_ceo DESC e ja bypassa
+ *    opt-out/quiet hours pra essas linhas.
+ *  - Idempotencia: rejeita disparar se ja existe TESTE_CANAL_CEO em
+ *    PENDENTE/PROCESSANDO criado nos ultimos 5min (janela curta evita
+ *    lockout permanente se processo crashar entre claim e UPDATE).
  */
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import {
-  obterConfigWhatsapp as obterConfigWhatsappReal,
-  enviarWhatsapp as enviarWhatsappReal,
-  type EnvioResult,
-} from "../../services/whatsappService";
-
-/**
- * Deps injetaveis pra testabilidade. Os modulos ES nao permitem reatribuir
- * exports em tempo de teste, entao expomos o ponto de injecao aqui em vez
- * de tentar monkey-patch. Producao usa o default real.
- */
-export interface TesteCanalCeoDeps {
-  obterConfigWhatsapp: () => Promise<unknown | null>;
-  enviarWhatsapp: (
-    telefone: string,
-    mensagem: string,
-    opts?: { templateNome?: string },
-  ) => Promise<EnvioResult & { logId?: number }>;
-}
-
-const depsDefault: TesteCanalCeoDeps = {
-  obterConfigWhatsapp: () => obterConfigWhatsappReal(),
-  enviarWhatsapp: (t, m, o) => enviarWhatsappReal(t, m, o),
-};
 
 export type StatusTesteCeo =
   | "PENDENTE"
@@ -57,18 +28,33 @@ export type StatusTesteCeo =
 export type MotivoFalhaPre =
   | "SEM_TELEFONE_CEO"
   | "SEM_CONFIG_WHATSAPP_ATIVA"
+  | "CONFIG_NAO_ENCONTRADA"
+  | "PROVEDOR_NAO_TWILIO"
+  | "CREDENCIAIS_INVALIDAS"
+  | "SEM_NUMERO_REMETENTE"
+  /**
+   * Code-review v2: o worker notifAssinatura dispatcha via
+   * enviarWhatsapp(dest, corpo, ...) que escolhe a config ativa global via
+   * obterConfigWhatsapp() — nao recebe configId da fila. Pra impedir que o
+   * admin valide config A e o worker envie via config B, validamos no
+   * pre-check que a configId pedida E A MESMA que o worker escolheria.
+   */
+  | "CONFIG_NAO_E_A_ATIVA_GLOBAL"
   | "JA_EM_ANDAMENTO";
 
 export interface TesteCanalCeoResultado {
-  status: StatusTesteCeo;
+  /**
+   * Status retornado pela rota. Como o despacho real foi delegado ao worker
+   * notifAssinatura, sucesso aqui significa apenas que a notificacao foi
+   * enfileirada em PENDENTE — o resultado final (ENVIADO/FALHA) vai aparecer
+   * em /whatsapp/teste-ceo/ultimo no proximo tick (≤5min).
+   */
+  status: "PENDENTE" | "FALHA";
   notifId?: number;
   destinatario?: string;
-  /** SID Twilio (msg.sid) ou messageId Gupshup quando provedor aceitou. */
-  provedorMsgId?: string;
-  /** Mensagem traduzida do erro pro CEO ler na UI. */
-  erro?: string;
-  /** Motivo legivel quando falha pre-check (antes de tentar provedor). */
+  /** Motivo legivel quando falha pre-check (antes de enfileirar). */
   motivoPre?: MotivoFalhaPre;
+  erro?: string;
   /** Timestamp BRT que entrou na mensagem (pro CEO conferir no celular). */
   timestampBrt?: string;
 }
@@ -98,33 +84,9 @@ export function montarMensagemTesteCeo(timestampBrt: string): string {
     "",
     `Disparada em: ${timestampBrt}`,
     "",
-    "Se voce recebeu, o canal esta saudavel. Se nao, abra o painel CEO em",
-    "/plataforma/perfil e cheque o status do ultimo teste.",
+    "Se voce recebeu, o canal esta saudavel. Se nao, abra Configuracoes >",
+    "WhatsApp e cheque o status do ultimo teste.",
   ].join("\n");
-}
-
-/**
- * Traduz erros Twilio crus em mensagens uteis pro CEO. Mantemos o cru
- * em resposta_provedor pra suporte tecnico, mas a UI mostra o traduzido.
- */
-export function traduzirErroProvedor(erroCru: string): string {
-  const baixo = erroCru.toLowerCase();
-  if (baixo.includes("21610") || baixo.includes("opted out")) {
-    return "O CEO descadastrou (opt-out) este numero do WhatsApp. Envie STOP pra reativar.";
-  }
-  if (baixo.includes("21408") || baixo.includes("not enabled")) {
-    return "Numero remetente nao habilitado pra WhatsApp na conta Twilio. Verifique a sandbox/aprovacao do numero.";
-  }
-  if (baixo.includes("21614") || baixo.includes("not a valid")) {
-    return "Numero do CEO em formato invalido pro Twilio. Recadastre em /plataforma/perfil.";
-  }
-  if (baixo.includes("20003") || baixo.includes("authenticate")) {
-    return "Credenciais Twilio (ACCOUNT_SID / AUTH_TOKEN) invalidas ou revogadas. Reconfigure em WhatsApp Config.";
-  }
-  if (baixo.includes("63016") || baixo.includes("freeform") || baixo.includes("template")) {
-    return "Mensagem livre fora da janela de 24h. Use template HSM aprovado ou peca pro CEO mandar 'oi' antes.";
-  }
-  return `Provedor recusou: ${erroCru.slice(0, 220)}`;
 }
 
 interface CeoRow {
@@ -132,12 +94,20 @@ interface CeoRow {
   telefone: string | null;
 }
 
-/** Resolve o CEO (platform_owner ativo) e o telefone E.164 cadastrado. */
+/**
+ * Resolve o CEO unico: perfil='validador_mestre' AND perfil_plataforma=
+ * 'platform_owner' AND ativo=true. Outros workers (notifAssinatura.ts,
+ * lib/assinatura/service.ts) usam apenas perfil='validador_mestre' porque
+ * iteram em todos os validadores ativos pra notificar. Pra teste do canal
+ * CEO o destinatario tem que ser o UNICO operacional — adicionamos o filtro
+ * perfil_plataforma pra evitar mandar pro celular de validadores secundarios.
+ */
 export async function resolverCeoEAtivo(): Promise<CeoRow | null> {
   const r: any = await db.execute(sql`
     SELECT id, telefone
       FROM usuarios
-     WHERE perfil_plataforma = 'platform_owner'
+     WHERE perfil = 'validador_mestre'
+       AND perfil_plataforma = 'platform_owner'
        AND ativo = true
      ORDER BY id ASC
      LIMIT 1
@@ -148,19 +118,132 @@ export async function resolverCeoEAtivo(): Promise<CeoRow | null> {
 }
 
 /**
- * Dispara o teste. Pure-function-ish: nao depende de req/res, so do DB.
- * A rota chama isto e devolve o resultado bruto pro frontend.
+ * Valida que a config indicada pode realmente disparar via Twilio. Retorna
+ * motivoPre se algum requisito faltar; senao retorna null (config OK).
+ *
+ * decryptCredentialFn injetavel pra testes nao dependerem da chave real.
+ */
+export interface ConfigWhatsAppMin {
+  id: number;
+  provedor: string | null;
+  ativo: boolean | null;
+  numeroRemetente: string | null;
+  accountSid: string | null;
+  authToken: string | null;
+}
+
+export function validarConfigTwilio(
+  config: ConfigWhatsAppMin | null | undefined,
+  decryptCredentialFn: (s: string) => string,
+): { motivoPre: MotivoFalhaPre; erro: string } | null {
+  if (!config) {
+    return {
+      motivoPre: "CONFIG_NAO_ENCONTRADA",
+      erro: "Configuracao WhatsApp nao encontrada. Cadastre/selecione antes de testar.",
+    };
+  }
+  if (config.ativo !== true) {
+    return {
+      motivoPre: "SEM_CONFIG_WHATSAPP_ATIVA",
+      erro: "Esta configuracao WhatsApp esta inativa. Ative em Configuracoes > WhatsApp.",
+    };
+  }
+  if ((config.provedor ?? "").toUpperCase() !== "TWILIO") {
+    return {
+      motivoPre: "PROVEDOR_NAO_TWILIO",
+      erro: "Teste do canal CEO so suporta provedor TWILIO. Esta config usa outro provedor.",
+    };
+  }
+  if (!config.numeroRemetente || config.numeroRemetente.trim() === "") {
+    return {
+      motivoPre: "SEM_NUMERO_REMETENTE",
+      erro: "numeroRemetente da config Twilio esta vazio. Reconfigure antes de testar.",
+    };
+  }
+  if (!config.accountSid || !config.authToken) {
+    return {
+      motivoPre: "CREDENCIAIS_INVALIDAS",
+      erro: "Credenciais Twilio (accountSid/authToken) ausentes nesta config.",
+    };
+  }
+  try {
+    const sid = decryptCredentialFn(config.accountSid);
+    const tok = decryptCredentialFn(config.authToken);
+    if (!sid || !tok) throw new Error("decriptacao retornou vazio");
+  } catch (e: any) {
+    return {
+      motivoPre: "CREDENCIAIS_INVALIDAS",
+      erro: `Credenciais Twilio desta config nao puderam ser decriptadas: ${String(e?.message ?? e).slice(0, 120)}.`,
+    };
+  }
+  return null;
+}
+
+/** Dependencias injetaveis pra testabilidade (ES modules nao reatribuem exports). */
+export interface TesteCanalCeoDeps {
+  obterConfig: (configId: number) => Promise<ConfigWhatsAppMin | null>;
+  /**
+   * Retorna a config que o worker notifAssinatura REALMENTE vai usar quando
+   * processar a row (via enviarWhatsapp -> obterConfigWhatsapp). Como a fila
+   * nao carrega unidadeId, usamos a config ativa global (unidade_id IS NULL).
+   * Pre-check rejeita disparo se configId != id desta.
+   */
+  obterConfigAtivaGlobal: () => Promise<{ id: number } | null>;
+  decryptCredential: (s: string) => string;
+}
+
+async function obterConfigPadrao(configId: number): Promise<ConfigWhatsAppMin | null> {
+  const r: any = await db.execute(sql`
+    SELECT id, provedor, ativo, numero_remetente AS "numeroRemetente",
+           account_sid AS "accountSid", auth_token AS "authToken"
+      FROM whatsapp_config
+     WHERE id = ${configId}
+     LIMIT 1
+  `);
+  return r.rows?.[0] ?? null;
+}
+
+async function obterConfigAtivaGlobalPadrao(): Promise<{ id: number } | null> {
+  // IMPORTANTE: reusa o MESMO seletor do worker (obterConfigWhatsapp) pra
+  // garantir que pre-check e dispatch escolhem a MESMA row. Sem isso, se
+  // existir mais de uma config ativa global (sem ORDER BY no worker),
+  // pre-check valida config A e worker envia via config B (code-review v2).
+  // Sem unidadeId -> branch de "config ativa global" do whatsappService.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { obterConfigWhatsapp } = require("../../services/whatsappService");
+  const c = await obterConfigWhatsapp();
+  return c ? { id: c.id } : null;
+}
+
+const depsDefault: TesteCanalCeoDeps = {
+  obterConfig: (id) => obterConfigPadrao(id),
+  obterConfigAtivaGlobal: () => obterConfigAtivaGlobalPadrao(),
+  decryptCredential: (s) => {
+    // import dinamico pra evitar quebrar bundler quando lib nao existir
+    // em ambientes de teste isolados.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require("../../services/credentialEncryption");
+    return mod.decryptCredential(s);
+  },
+};
+
+/**
+ * Enfileira o teste pro worker dispatchar. NAO chama Twilio direto — isso
+ * preserva FSM auditavel (PENDENTE→PROCESSANDO via claim do worker) e
+ * permite que retry/quiet hours/templates HSM funcionem igual aos demais
+ * alertas operacionais do CEO.
  */
 export async function dispararTesteCanalCeo(
+  configId: number,
   deps: TesteCanalCeoDeps = depsDefault,
 ): Promise<TesteCanalCeoResultado> {
-  // Pre-check 1: existe CEO ativo com telefone cadastrado?
+  // Pre-check 1: CEO ativo com telefone cadastrado.
   const ceo = await resolverCeoEAtivo();
   if (!ceo) {
     return {
       status: "FALHA",
       motivoPre: "SEM_TELEFONE_CEO",
-      erro: "Nenhum platform_owner ativo encontrado.",
+      erro: "Nenhum CEO encontrado (perfil='validador_mestre' + perfil_plataforma='platform_owner' + ativo=true).",
     };
   }
   if (!ceo.telefone || ceo.telefone.trim() === "") {
@@ -171,23 +254,38 @@ export async function dispararTesteCanalCeo(
     };
   }
 
-  // Pre-check 2: existe config WhatsApp ativa?
-  const config = await deps.obterConfigWhatsapp();
-  if (!config) {
+  // Pre-check 2: config TWILIO ativa + credenciais decriptaveis + numero remetente.
+  const config = await deps.obterConfig(configId);
+  const erroConfig = validarConfigTwilio(config, deps.decryptCredential);
+  if (erroConfig) {
     return {
       status: "FALHA",
-      motivoPre: "SEM_CONFIG_WHATSAPP_ATIVA",
-      erro: "Nenhuma configuracao WhatsApp ativa. Cadastre em /admin/whatsapp-config.",
+      motivoPre: erroConfig.motivoPre,
+      erro: erroConfig.erro,
     };
   }
 
-  // Pre-check 3: ja ha um teste em andamento? (anti double-click)
-  //
-  // Janela curta de 5min: se o processo crashar entre o INSERT (PROCESSANDO)
-  // e o UPDATE final, sem janela um unico registro travado bloquearia novos
-  // testes pra sempre (lockout permanente). Code-review apontou isso. Tests
-  // legitimos terminam em segundos, entao 5min e folga suficiente sem
-  // permitir flood real.
+  // Pre-check 2.5: garante que configId pedida coincide com a que o worker
+  // notifAssinatura vai escolher (config ativa global). Sem este check, admin
+  // pode validar config TWILIO A e o worker enviar via config B (ex.: Gupshup
+  // tambem ativa), quebrando "teste real via Twilio".
+  const ativaGlobal = await deps.obterConfigAtivaGlobal();
+  if (!ativaGlobal) {
+    return {
+      status: "FALHA",
+      motivoPre: "SEM_CONFIG_WHATSAPP_ATIVA",
+      erro: "Nenhuma config WhatsApp ativa global (unidade_id IS NULL). Worker nao tem por onde enviar.",
+    };
+  }
+  if (ativaGlobal.id !== configId) {
+    return {
+      status: "FALHA",
+      motivoPre: "CONFIG_NAO_E_A_ATIVA_GLOBAL",
+      erro: `Esta config (#${configId}) nao e a ativa global que o worker usa (#${ativaGlobal.id}). Mude o ativo dela em Configuracoes > WhatsApp antes de testar.`,
+    };
+  }
+
+  // Pre-check 3: anti double-click (janela 5min evita lockout permanente).
   const emAndamento: any = await db.execute(sql`
     SELECT id FROM assinatura_notificacoes
      WHERE momento = 'TESTE_CANAL_CEO'
@@ -203,59 +301,25 @@ export async function dispararTesteCanalCeo(
     };
   }
 
-  // Insert PENDENTE -> avanca pra PROCESSANDO antes do disparo.
+  // Enfileira PENDENTE. Worker notifAssinatura faz o claim no proximo tick
+  // (≤5min), transiciona pra PROCESSANDO, dispara via enviarWhatsapp e
+  // grava ENVIADO/FALHA com retry exponencial em caso de erro transiente.
   const timestampBrt = timestampBrtAgora();
   const corpo = montarMensagemTesteCeo(timestampBrt);
-
   const ins: any = await db.execute(sql`
     INSERT INTO assinatura_notificacoes
-      (canal, momento, destinatario, corpo, status, is_sistema_ceo, processando_em)
+      (canal, momento, destinatario, corpo, status, is_sistema_ceo)
     VALUES
       ('WHATSAPP', 'TESTE_CANAL_CEO', ${ceo.telefone}, ${corpo},
-       'PROCESSANDO', true, now())
+       'PENDENTE', true)
     RETURNING id
   `);
   const notifId = Number(ins.rows[0].id);
 
-  // Dispara via service generico (cuida de Twilio vs Gupshup e ja loga em
-  // whatsapp_mensagens_log). NAO passamos alertaNotificacaoId aqui porque
-  // a coluna referencia alertas_notificacao (outro contexto, killswitch).
-  const env = await deps.enviarWhatsapp(ceo.telefone, corpo, {
-    templateNome: "TESTE_CANAL_CEO",
-  });
-
-  if (env.sucesso) {
-    await db.execute(sql`
-      UPDATE assinatura_notificacoes
-         SET status = 'ENVIADO',
-             enviado_em = now(),
-             resposta_provedor = ${JSON.stringify({ sid: env.provedorMsgId, logId: env.logId })}::jsonb,
-             tentativas = tentativas + 1
-       WHERE id = ${notifId}
-    `);
-    return {
-      status: "ENVIADO",
-      notifId,
-      destinatario: ceo.telefone,
-      provedorMsgId: env.provedorMsgId,
-      timestampBrt,
-    };
-  }
-
-  const erroTraduzido = traduzirErroProvedor(env.erro ?? "erro desconhecido");
-  await db.execute(sql`
-    UPDATE assinatura_notificacoes
-       SET status = 'FALHA',
-           erro = ${erroTraduzido},
-           resposta_provedor = ${JSON.stringify({ erroCru: env.erro, logId: env.logId })}::jsonb,
-           tentativas = tentativas + 1
-     WHERE id = ${notifId}
-  `);
   return {
-    status: "FALHA",
+    status: "PENDENTE",
     notifId,
     destinatario: ceo.telefone,
-    erro: erroTraduzido,
     timestampBrt,
   };
 }
@@ -281,14 +345,14 @@ export async function obterUltimoTesteCanalCeo(): Promise<UltimoTesteCeo | null>
   `);
   const row = r.rows?.[0];
   if (!row) return null;
-  const resp = (row.resposta_provedor ?? {}) as { sid?: string };
+  const resp = (row.resposta_provedor ?? {}) as { msgId?: string; sid?: string };
   return {
     id: Number(row.id),
     status: row.status,
     destinatario: row.destinatario,
     criadoEm: new Date(row.criado_em).toISOString(),
     enviadoEm: row.enviado_em ? new Date(row.enviado_em).toISOString() : null,
-    provedorMsgId: resp.sid ?? null,
+    provedorMsgId: resp.msgId ?? resp.sid ?? null,
     erro: row.erro ?? null,
   };
 }

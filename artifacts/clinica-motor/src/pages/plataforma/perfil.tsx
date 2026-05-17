@@ -189,63 +189,6 @@ export default function PlataformaPerfil() {
   const [historicoAvisos, setHistoricoAvisos] = useState<HistoricoAviso2fa[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
 
-  // Wave 13 — disparo de teste real do canal WhatsApp do CEO.
-  // POST /api/whatsapp/teste-ceo nao aceita telefone do body (backend
-  // resolve via usuarios.telefone do platform_owner ativo). Persiste em
-  // assinatura_notificacoes com momento='TESTE_CANAL_CEO'.
-  type StatusTesteCeo = "PENDENTE" | "PROCESSANDO" | "ENVIADO" | "FALHA";
-  interface UltimoTesteCeoRow {
-    id: number;
-    status: StatusTesteCeo | "PULADO_QUIET" | "PULADO_OPTOUT" | "AGRUPADO_DIGEST" | "ENVIADO_AGRUPADO";
-    destinatario: string;
-    criadoEm: string;
-    enviadoEm: string | null;
-    provedorMsgId: string | null;
-    erro: string | null;
-  }
-  interface TesteCeoResposta {
-    status: StatusTesteCeo;
-    notifId?: number;
-    destinatario?: string;
-    provedorMsgId?: string;
-    erro?: string;
-    motivoPre?: "SEM_TELEFONE_CEO" | "SEM_CONFIG_WHATSAPP_ATIVA" | "JA_EM_ANDAMENTO";
-    timestampBrt?: string;
-  }
-  const [disparandoTesteCeo, setDisparandoTesteCeo] = useState(false);
-  const [respostaTesteCeo, setRespostaTesteCeo] = useState<TesteCeoResposta | null>(null);
-  const [ultimoTesteCeo, setUltimoTesteCeo] = useState<UltimoTesteCeoRow | null>(null);
-
-  const carregarUltimoTesteCeo = useCallback(async () => {
-    try {
-      const r = await apiFetch("/api/whatsapp/teste-ceo/ultimo", { credentials: "include" });
-      if (r.ok) {
-        const d = await r.json();
-        setUltimoTesteCeo(d?.ultimo ?? null);
-      }
-    } catch {
-      // silencioso — card mostra "nunca testado"
-    }
-  }, []);
-
-  async function dispararTesteCanalCeo() {
-    setRespostaTesteCeo(null);
-    setDisparandoTesteCeo(true);
-    try {
-      const r = await apiFetch("/api/whatsapp/teste-ceo", {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = (await r.json().catch(() => ({}))) as TesteCeoResposta;
-      setRespostaTesteCeo(data);
-      await carregarUltimoTesteCeo();
-    } catch (e: any) {
-      setRespostaTesteCeo({ status: "FALHA", erro: e?.message ?? "Sem conexao." });
-    } finally {
-      setDisparandoTesteCeo(false);
-    }
-  }
-
   const carregarUltimoWa = useCallback(async () => {
     setLoadingUltimoWa(true);
     try {
@@ -305,7 +248,6 @@ export default function PlataformaPerfil() {
   useEffect(() => { void carregar(); }, [carregar]);
   useEffect(() => { void carregarHistoricoAvisos(); }, [carregarHistoricoAvisos]);
   useEffect(() => { void carregarUltimoWa(); }, [carregarUltimoWa]);
-  useEffect(() => { void carregarUltimoTesteCeo(); }, [carregarUltimoTesteCeo]);
 
   function toggleCanal(canal: CanalAviso) {
     setMsgOk(null);
@@ -806,130 +748,10 @@ export default function PlataformaPerfil() {
               })()}
             </section>
 
-            {/* Wave 13 — botao oficial pra disparar um WhatsApp de teste pro
-                celular do CEO AGORA. Antes desta secao o CEO so descobria
-                que o canal estava quebrado (rate-limit, opt-out, credencial
-                Twilio expirada) na hora que um alerta real falhava. So
-                aparece pro platform_owner. */}
-            {isOwner && (
-              <section className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-5">
-                <div className="flex items-start gap-3 mb-4">
-                  <Send size={20} className="text-amber-400 mt-1" />
-                  <div>
-                    <h2 className="font-semibold text-zinc-100">Teste do canal WhatsApp do CEO</h2>
-                    <p className="text-sm text-zinc-400 mt-1">
-                      Dispara uma mensagem real pro celular cadastrado acima
-                      usando a config Twilio ativa. O destinatario e
-                      resolvido pelo servidor (nao da pra mandar pra outro
-                      numero por aqui). Use isso pra confirmar que o canal
-                      esta saudavel antes de depender dele pra alertas
-                      criticos.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void dispararTesteCanalCeo()}
-                    disabled={disparandoTesteCeo || !!pinPendente}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 rounded text-sm disabled:opacity-50"
-                  >
-                    <Send size={16} />
-                    {disparandoTesteCeo ? "Disparando..." : "Enviar teste pro CEO"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void carregarUltimoTesteCeo()}
-                    className="text-[11px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-1"
-                  >
-                    <RefreshCw size={11} /> Atualizar status
-                  </button>
-                </div>
-
-                {/* Feedback imediato do POST atual. */}
-                {respostaTesteCeo && (() => {
-                  if (respostaTesteCeo.status === "ENVIADO") {
-                    return (
-                      <div className="mt-4 p-3 text-xs text-emerald-200 bg-emerald-500/10 border border-emerald-500/30 rounded">
-                        <div>
-                          <span className="text-emerald-300">[ENVIADO]</span>{" "}
-                          Provedor aceitou. Verifique se a mensagem chegou no
-                          celular.
-                        </div>
-                        {respostaTesteCeo.provedorMsgId && (
-                          <div className="mt-1 text-[10px] text-emerald-300/70 font-mono break-all">
-                            SID: {respostaTesteCeo.provedorMsgId}
-                          </div>
-                        )}
-                        {respostaTesteCeo.timestampBrt && (
-                          <div className="mt-1 text-[10px] text-emerald-300/70">
-                            Disparada em: {respostaTesteCeo.timestampBrt}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  // FALHA — distingue pre-check (orienta cadastro) de erro Twilio.
-                  let titulo = "[FALHA]";
-                  if (respostaTesteCeo.motivoPre === "SEM_TELEFONE_CEO") titulo = "[FALTA TELEFONE]";
-                  else if (respostaTesteCeo.motivoPre === "SEM_CONFIG_WHATSAPP_ATIVA") titulo = "[SEM CONFIG]";
-                  else if (respostaTesteCeo.motivoPre === "JA_EM_ANDAMENTO") titulo = "[AGUARDE]";
-                  return (
-                    <div className="mt-4 p-3 text-xs text-red-200 bg-red-500/10 border border-red-500/40 rounded">
-                      <div>
-                        <span className="text-red-300">{titulo}</span>{" "}
-                        {respostaTesteCeo.erro ?? "Erro nao especificado."}
-                      </div>
-                      {respostaTesteCeo.notifId && (
-                        <div className="mt-1 text-[10px] text-red-300/60 font-mono">
-                          Registro #{respostaTesteCeo.notifId}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Status do ULTIMO teste persistido (independente do POST atual). */}
-                {ultimoTesteCeo && !respostaTesteCeo && (
-                  <div className="mt-4 p-3 text-xs bg-zinc-950/50 border border-zinc-800 rounded">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-zinc-200">Ultimo teste</span>
-                      <span className="font-mono text-[10px] text-zinc-500">
-                        #{ultimoTesteCeo.id} · {formatarRelativo(ultimoTesteCeo.criadoEm)}
-                      </span>
-                    </div>
-                    <div className="text-zinc-300">
-                      Status:{" "}
-                      <span className={
-                        ultimoTesteCeo.status === "ENVIADO"
-                          ? "text-emerald-300"
-                          : ultimoTesteCeo.status === "FALHA"
-                          ? "text-red-300"
-                          : "text-amber-300"
-                      }>
-                        {ultimoTesteCeo.status}
-                      </span>
-                    </div>
-                    {ultimoTesteCeo.provedorMsgId && (
-                      <div className="mt-1 text-[10px] text-zinc-500 font-mono break-all">
-                        SID: {ultimoTesteCeo.provedorMsgId}
-                      </div>
-                    )}
-                    {ultimoTesteCeo.erro && (
-                      <div className="mt-1 text-red-300/80">{ultimoTesteCeo.erro}</div>
-                    )}
-                  </div>
-                )}
-
-                {!ultimoTesteCeo && !respostaTesteCeo && (
-                  <div className="mt-4 p-3 text-xs text-zinc-500 italic bg-zinc-950/50 border border-zinc-800 rounded">
-                    Nenhum teste disparado ainda. Clique acima pra fazer o primeiro.
-                  </div>
-                )}
-              </section>
-            )}
-
+            {/* Wave 13 — o disparo de teste real do canal WhatsApp do CEO
+                vive no painel admin WhatsApp (/configuracoes), nao mais aqui.
+                Code-review v2 pediu pra mantermos a operacao do canal junto
+                com a config Twilio (mesma tela onde admin edita credenciais). */}
             <section className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-5">
               <div className="flex items-start gap-3 mb-4">
                 <Bell size={20} className="text-amber-400 mt-1" />

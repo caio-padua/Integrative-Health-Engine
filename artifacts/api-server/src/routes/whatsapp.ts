@@ -165,30 +165,51 @@ router.post("/whatsapp/enviar", async (req, res): Promise<void> => {
   }
 });
 
-// Wave 13 — disparo do teste oficial pro celular do CEO. So platform_owner
-// pode acionar. Telefone do destinatario VEM DO BACKEND (usuarios.telefone
-// do platform_owner ativo), NUNCA do body do request — impede que alguem
-// com acesso a tela use o canal Twilio pra mandar mensagem pro celular
-// pessoal de terceiros. Persiste em assinatura_notificacoes com
-// momento='TESTE_CANAL_CEO' e is_sistema_ceo=true (bypass quiet hours).
+// Wave 13 — teste oficial pro celular do CEO via Twilio. Acionado pelo painel
+// admin WhatsApp em /configuracoes (mesma tela onde o admin cadastra a config
+// e usa POST /whatsapp/enviar-teste). Diferencas chave:
+//  - Destinatario NAO vem do body: resolvido server-side pra CEO unico
+//    (perfil='validador_mestre' + perfil_plataforma='platform_owner' + ativo).
+//  - Despacho NAO e sincrono: enfileira PENDENTE em assinatura_notificacoes
+//    com is_sistema_ceo=true. Worker notifAssinatura faz claim/transicao
+//    PROCESSANDO/ENVIADO/FALHA — mesma trilha auditavel dos alertas reais
+//    (Task #36 doc_signed/doc_refused), garantindo que retry exponencial,
+//    template HSM e bypass de quiet hours/opt-out funcionem identicamente.
+// Guard: platform_owner OU admin (mesmo nivel que opera whatsapp_config).
 router.post("/whatsapp/teste-ceo", async (req, res): Promise<void> => {
-  const user = (req as unknown as { user?: { perfilPlataforma?: string } }).user;
-  if (!user || user.perfilPlataforma !== "platform_owner") {
-    res.status(403).json({ erro: "So o platform_owner pode disparar teste do canal CEO." });
+  const user = (req as unknown as { user?: { perfil?: string; perfilPlataforma?: string } }).user;
+  const podeOperar = !!user && (
+    user.perfilPlataforma === "platform_owner" ||
+    user.perfil === "admin"
+  );
+  if (!podeOperar) {
+    res.status(403).json({ erro: "Acesso restrito ao admin/platform_owner." });
     return;
   }
-  const resultado = await dispararTesteCanalCeo();
-  const httpStatus = resultado.status === "ENVIADO" ? 200
+  const configIdRaw = req.body?.configId;
+  const configId = Number(configIdRaw);
+  if (!configIdRaw || !Number.isFinite(configId) || configId <= 0) {
+    res.status(400).json({ erro: "configId (numerico) e obrigatorio no body." });
+    return;
+  }
+  const resultado = await dispararTesteCanalCeo(configId);
+  // 202 Accepted: enfileirado, worker dispatcha no proximo tick.
+  // 409 conflict pra double-click; 412 pra pre-checks; 500 fallback.
+  const httpStatus = resultado.status === "PENDENTE" ? 202
     : resultado.motivoPre === "JA_EM_ANDAMENTO" ? 409
     : resultado.motivoPre ? 412
-    : 502;
+    : 500;
   res.status(httpStatus).json(resultado);
 });
 
 router.get("/whatsapp/teste-ceo/ultimo", async (req, res): Promise<void> => {
-  const user = (req as unknown as { user?: { perfilPlataforma?: string } }).user;
-  if (!user || user.perfilPlataforma !== "platform_owner") {
-    res.status(403).json({ erro: "So o platform_owner pode consultar." });
+  const user = (req as unknown as { user?: { perfil?: string; perfilPlataforma?: string } }).user;
+  const podeOperar = !!user && (
+    user.perfilPlataforma === "platform_owner" ||
+    user.perfil === "admin"
+  );
+  if (!podeOperar) {
+    res.status(403).json({ erro: "Acesso restrito ao admin/platform_owner." });
     return;
   }
   const ultimo = await obterUltimoTesteCanalCeo();
