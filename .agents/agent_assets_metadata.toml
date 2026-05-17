@@ -407,3 +407,9 @@ id = "0iw_XIFxhQAsaSCxD-fi_"
 uri = "file://docs/dr-claude/09_CATALOGO_CLINICO_ESTRATIFICADO.md"
 type = "text"
 title = "09 — Catálogo Clínico Estratificado (2 visões + domínios completos)"
+
+[[outputs]]
+id = "6bIfwm6V0tgCIM1MN56yW"
+uri = "file://docs/dr-claude/10_INJETAVEIS_IM_EV_E_IMPLANTES.md"
+type = "text"
+title = "10 — Catálogo Parenteral Completo: 162 injetáveis IM/EV + 11 soros + 32 implantes"
