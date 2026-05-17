@@ -1766,6 +1766,14 @@ export default function ConfiguracoesPage() {
                           </span>{" "}
                           para <span className="font-mono">{ultimoTesteCeo.destinatario}</span>
                         </div>
+                        {/* Code-review v6 #1: timestamps explicitos do ciclo
+                            PENDENTE -> ENVIADO pra trilha auditavel na UI. */}
+                        <div className="text-[10px] text-zinc-500 font-mono">
+                          Criado: {new Date(ultimoTesteCeo.criadoEm).toLocaleString("pt-BR")}
+                          {ultimoTesteCeo.enviadoEm
+                            ? ` · Enviado: ${new Date(ultimoTesteCeo.enviadoEm).toLocaleString("pt-BR")}`
+                            : " · Enviado: —"}
+                        </div>
                         {ultimoTesteCeo.provedorMsgId && (
                           <div className="text-[10px] text-zinc-500 font-mono break-all">
                             SID: {ultimoTesteCeo.provedorMsgId}
