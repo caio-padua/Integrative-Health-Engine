@@ -2,13 +2,16 @@ import { Router } from "express";
 import { db, followupsTable, pacientesTable, usuariosTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { CriarFollowupBody, ConcluirFollowupBody } from "@workspace/api-zod";
+import { resolverFiltroTenant } from "../lib/auth/filtroTenant";
 
 const router = Router();
 
 router.get("/followup", async (req, res): Promise<void> => {
   const pacienteId = req.query.pacienteId ? parseInt(req.query.pacienteId as string, 10) : undefined;
   const status = req.query.status as string | undefined;
-  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
+  // Wave 13 F2 — tenant isolation enforced
+  const { unidadeId: unidadeIdTenant } = resolverFiltroTenant(req);
+  const unidadeId = unidadeIdTenant !== null ? unidadeIdTenant : undefined;
 
   const followups = await db
     .select({

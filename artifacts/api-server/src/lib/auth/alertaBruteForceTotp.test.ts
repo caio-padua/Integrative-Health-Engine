@@ -293,6 +293,23 @@ describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)",
   const wppCalls: Array<{ telefone: string; mensagem: string }> = [];
 
   before(async () => {
+    // Wave 13 F2 — limpar debris de runs anteriores que nao foram deletados
+    // pelo after (ex: falha de teste que interrompeu o cleanup). Sem isso,
+    // o teste (c) encontra usuarios fantasma com o mesmo telefone e falha.
+    await db.execute(sql`
+      DELETE FROM alertas_ceo_seguranca
+       WHERE usuario_id IN (
+         SELECT id FROM usuarios
+          WHERE perfil = 'validador_mestre'
+            AND nome = 'Validador Mestre Com Telefone'
+       )
+    `);
+    await db.execute(sql`
+      DELETE FROM usuarios
+       WHERE perfil = 'validador_mestre'
+         AND nome = 'Validador Mestre Com Telefone'
+    `);
+
     validadorComTelefoneId = await inserirUsuario({
       nome: "Validador Mestre Com Telefone",
       email: `${SUFIXO}-vmestre-tel@example.com`,
