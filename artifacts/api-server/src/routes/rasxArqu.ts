@@ -6,7 +6,7 @@ import {
   rasxAuditLogTable, revoProximaEtapaTable,
   pacientesTable, tratamentosTable, termosJuridicosTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { parsePosologia } from "@workspace/posologia";
 import { gerarRasxPdf, gerarRacjPdf, gerarRacjPdfFromBanco, RAS_CATEGORIAS, type RasCategoria, type TermoJuridicoDb } from "../pdf/rasxPdf";
 import {
@@ -493,6 +493,106 @@ export async function collectPdfData(pacienteId: number) {
   const snapshotInicial = snapshots.find(s => s.tipo === "inicial") || null;
   const snapshotAtual = snapshots.find(s => s.tipo === "atual") || snapshotInicial;
 
+  // ===== ENRIQUECIMENTO V481 — "preencher TODAS as possibilidades disponiveis sempre"
+  // (regra Caio 18/mai/2026). Cruza prescricoes V8, anamneses, pedidos de exame,
+  // termos assinados, sessoes e arquivos pra alimentar os 11 cadernos do RAS V6.
+  // Merge in-memory, sem efeito colateral no REVO (motor clinico que coloniza REVO).
+  const prescV8Rows = (await db.execute(sql`
+    SELECT pb.id AS bloco_id, pb.prescricao_id, pb.titulo_apelido AS nome,
+           pb.forma_farmaceutica, pb.via_administracao, pb.qtd_doses,
+           pb.duracao_dias, pb.observacoes,
+           p.data_emissao, p.status, p.versao,
+           COALESCE(
+             (SELECT json_agg(json_build_object(
+                'nome', a.nome_ativo,
+                'dose', a.dose_valor,
+                'unidade', a.dose_unidade,
+                'observacao', a.observacao
+              ) ORDER BY a.ordem)
+              FROM prescricao_bloco_ativos a WHERE a.bloco_id = pb.id),
+             '[]'::json
+           ) AS ativos
+    FROM prescricao_blocos pb
+    JOIN prescricoes p ON p.id = pb.prescricao_id
+    WHERE p.paciente_id = ${pacienteId}
+    ORDER BY p.id DESC, pb.ordem
+  `)).rows as any[];
+
+  const seenKeys = new Set<string>();
+  const medsDePrescricoes: any[] = [];
+  for (const r of prescV8Rows) {
+    const key = `${r.nome}|${r.via_administracao}`;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    const ativos = Array.isArray(r.ativos) ? r.ativos : [];
+    const formula = /capsula|cápsula|composta|formula|fórmula|magistral|blend|oral/i.test(r.forma_farmaceutica || "");
+    const inline = ativos.length > 0
+      ? `${r.nome} — ${ativos.map((a: any) => `${a.nome} ${a.dose}${a.unidade}`).join(" + ")}`
+      : r.nome;
+    medsDePrescricoes.push({
+      id: `presc-${r.prescricao_id}-bloco-${r.bloco_id}`,
+      nome: r.nome,
+      medicamentoDoseInline: inline,
+      tipoMed: formula ? "formula" : "remedio",
+      viaAdministracao: r.via_administracao,
+      formaFarmaceutica: r.forma_farmaceutica,
+      qtdDoses: r.qtd_doses,
+      duracaoDias: r.duracao_dias,
+      observacoes: r.observacoes,
+      componentesFormula: formula ? ativos.map((a: any) => ({
+        nome: a.nome, dose: `${a.dose} ${a.unidade}`, observacao: a.observacao,
+      })) : undefined,
+      substituicaoNatural: false,
+      origem: "prescricao_v8",
+      prescricaoId: r.prescricao_id,
+      dataEmissao: r.data_emissao,
+      statusPrescricao: r.status,
+    });
+  }
+  const nomesRevo = new Set(medicamentos.map((m: any) => (m.nome || "").toLowerCase()));
+  const medicamentosEnriquecidos = [
+    ...medicamentos,
+    ...medsDePrescricoes.filter(m => !nomesRevo.has(m.nome.toLowerCase())),
+  ];
+
+  // Eventos extras: sintetizar a partir das prescricoes pra alimentar HLIN
+  const eventosExtras = medsDePrescricoes.map(m => ({
+    id: m.id,
+    pacienteId,
+    medicamentoId: null,
+    data: m.dataEmissao,
+    tipoEvento: "prescricao_emitida",
+    descricao: `Prescricao V8 emitida: ${m.nome} (${m.viaAdministracao})`,
+    origem: "prescricao_v8",
+  }));
+  const eventosEnriquecidos = [...eventos, ...eventosExtras].sort((a: any, b: any) => {
+    const da = a.data ? new Date(a.data).getTime() : 0;
+    const dbb = b.data ? new Date(b.data).getTime() : 0;
+    return da - dbb;
+  });
+
+  // Tabelas auxiliares (anamneses, pedidos, termos, sessoes, arquivos)
+  const anamneseRows = (await db.execute(sql`
+    SELECT id, criado_em, atualizado_em, status FROM anamneses
+    WHERE paciente_id = ${pacienteId} ORDER BY id DESC LIMIT 50
+  `)).rows as any[];
+  const pedidoExameRows = (await db.execute(sql`
+    SELECT id, criado_em, status FROM pedidos_exame
+    WHERE paciente_id = ${pacienteId} ORDER BY id DESC LIMIT 50
+  `)).rows as any[];
+  const termoAssinadoRows = (await db.execute(sql`
+    SELECT id, termo_id, titulo_termo, versao_assinada, meio_assinatura, data_assinatura FROM termos_assinados
+    WHERE paciente_id = ${pacienteId} ORDER BY id DESC LIMIT 50
+  `)).rows as any[];
+  const sessoesRows = (await db.execute(sql`
+    SELECT id, data_agendada, hora_agendada, status, tipo_servico FROM sessoes
+    WHERE paciente_id = ${pacienteId} ORDER BY id DESC LIMIT 50
+  `)).rows as any[];
+  const arquivosRows = (await db.execute(sql`
+    SELECT id, tipo_documento, categoria, subcategoria, nome_arquivo, drive_url, gerado_em FROM arquivos_paciente
+    WHERE paciente_id = ${pacienteId} ORDER BY id DESC LIMIT 100
+  `)).rows as any[];
+
   return {
     paciente,
     pdfData: {
@@ -517,16 +617,24 @@ export async function collectPdfData(pacienteId: number) {
         potenciais: patologias.filter(p => p.tipo === "potencial"),
       },
       orgaos,
-      medicamentos,
-      eventosMedicacao: eventos,
+      medicamentos: medicamentosEnriquecidos,
+      eventosMedicacao: eventosEnriquecidos,
       curvas: {
         doenca: curvas.filter(c => c.tipoCurva === "doenca"),
         saude: curvas.filter(c => c.tipoCurva === "saude"),
       },
       proximasEtapas: etapas,
+      // Dados auxiliares (rasxPdf ainda nao renderiza, mas ja vivem no payload
+      // pra futuras seçoes "Documentos e Eventos" e pra Motor consolidado).
+      anamneses: anamneseRows,
+      pedidosExame: pedidoExameRows,
+      termosAssinados: termoAssinadoRows,
+      sessoes: sessoesRows,
+      arquivos: arquivosRows,
+      prescricoesV8: medsDePrescricoes,
     },
     patologias,
-    medicamentos,
+    medicamentos: medicamentosEnriquecidos,
   };
 }
 

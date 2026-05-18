@@ -88,10 +88,10 @@ function getInstitutoRef(doc: PDFKit.PDFDocument): unknown | null {
 // matriz/tabelas perdem legibilidade com marca d'agua atras).
 // ============================================================================
 
-type AssinaturaTheme = "navy-gold" | "light-navy";
-type AssinaturaVariant = "completa" | "compacta";
+export type AssinaturaTheme = "navy-gold" | "light-navy";
+export type AssinaturaVariant = "completa" | "compacta";
 
-interface AssinaturaOpts {
+export interface AssinaturaOpts {
   centerX: number;
   bottomY: number;          // base do bloco (y do filete inferior / ultima linha)
   theme: AssinaturaTheme;
@@ -104,7 +104,7 @@ interface AssinaturaOpts {
 //   PADCON®    Advanced Systems Architecture
 // Variante "completa"  = 2 linhas com filetes acima/abaixo (capa, paginas-fim)
 // Variante "compacta"  = 2 linhas sem filetes (rodape paginas internas)
-function drawAssinaturaInstitucional(doc: PDFKit.PDFDocument, opts: AssinaturaOpts) {
+export function drawAssinaturaInstitucional(doc: PDFKit.PDFDocument, opts: AssinaturaOpts) {
   const isNavy = opts.theme === "navy-gold";
   const fgMark = isNavy ? CORES.douradoQueimado : CORES.azulPetroleo;
   const fgSub = isNavy ? CORES.cinzaClaro : CORES.cinzaTexto;
@@ -234,7 +234,7 @@ function posologiaCanonica(
 // Paleta Craniotomia V4 — alto contraste, denso, neon-clinico.
 // Mantemos os nomes antigos (azulPetroleo etc) pra nao quebrar as 11
 // secoes downstream, mas re-tonalizamos pra estetica premium.
-const CORES = {
+export const CORES = {
   azulPetroleo: "#0F2940",       // navy profundo (era #1B4F6C)
   azulPetroleoClaro: "#1B4F73",  // navy medio
   offWhite: "#F2EEDF",            // creme institucional
