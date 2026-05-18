@@ -425,3 +425,21 @@ id = "XuCcaX-9oqTf8FFvqOqLh"
 uri = "file://docs/dr-claude/12_ANALISE_ENCOMENDA_02_SINAPSES_E_CRANIOTOMIA.md"
 type = "text"
 title = "12 — Análise da Encomenda 02: 83 sinapses + Craniotomia (9 blockers + matriz Hipótese A/B + plano 12 sprints)"
+
+[[outputs]]
+id = "N3KxdGuaI00Bcbab76jB1"
+uri = "file://artifacts/api-server/src/pdf/assets/logo-pawards.png"
+type = "image"
+title = "Logo Pawards (versao original 1.4MB - fonte de verdade)"
+
+[[outputs]]
+id = "_2Z9wuu0MROJseVry371F"
+uri = "file://artifacts/api-server/src/pdf/assets/logo-pawards-optim.png"
+type = "image"
+title = "Logo Pawards otimizada (149KB - uso na capa)"
+
+[[outputs]]
+id = "7_iD1kwH7oKwNPi9EuMnN"
+uri = "file://artifacts/api-server/src/pdf/assets/logo-pawards-mini.png"
+type = "image"
+title = "Logo Pawards mini (40KB - uso no selo do rodape)"
