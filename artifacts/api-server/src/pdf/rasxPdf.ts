@@ -1,7 +1,42 @@
 import PDFDocument from "pdfkit";
 import { PassThrough } from "stream";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { parsePosologia, formatarPosologiaEstruturada, type PosologiaEstruturada } from "@workspace/posologia";
 import { desenharPosologiaBlocos } from "./posologiaBlocos.js";
+
+// Logo oficial Pawards MedCore (gold em fundo navy) — carregada uma vez por
+// processo (buffer otimizado ~150KB) e ABERTA UMA VEZ por PDFDocument via
+// doc.openImage(). Isso garante que a logo apareca na capa + nos 11 cadernos
+// referenciando o mesmo objeto interno do PDF (em vez de embedar 12 copias do
+// PNG, o que inflaria o arquivo de ~50KB para >15MB).
+let _LOGO_PAWARDS_BUF: Buffer | null = null;
+function loadLogoBuffer(): Buffer | null {
+  if (_LOGO_PAWARDS_BUF) return _LOGO_PAWARDS_BUF;
+  try {
+    const p = fileURLToPath(new URL("./assets/logo-pawards-optim.png", import.meta.url));
+    _LOGO_PAWARDS_BUF = readFileSync(p);
+    return _LOGO_PAWARDS_BUF;
+  } catch {
+    return null;
+  }
+}
+const LOGO_REF = new WeakMap<PDFKit.PDFDocument, unknown>();
+function getLogoRef(doc: PDFKit.PDFDocument): unknown | null {
+  const cached = LOGO_REF.get(doc);
+  if (cached) return cached;
+  const buf = loadLogoBuffer();
+  if (!buf) return null;
+  try {
+    // openImage() registra o image uma vez no PDF e retorna handle reutilizavel
+    const docAny = doc as unknown as { openImage(b: Buffer): unknown };
+    const ref = docAny.openImage(buf);
+    LOGO_REF.set(doc, ref);
+    return ref;
+  } catch {
+    return buf; // fallback: passa o buffer direto (cada chamada re-embeda)
+  }
+}
 
 /**
  * Devolve a frase canônica padronizada da posologia. Preferência por ordem:
@@ -97,31 +132,141 @@ function corSemaforo(s: string) {
 function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isLandscape: boolean) {
   const ctx = getCtx(doc);
   const width = isLandscape ? 842 : 595;
-  // Faixa unica densa 56px (vs 70px antigos). Selo dourado lateral 5px.
-  doc.rect(0, 0, width, 56).fill(CORES.azulPetroleo);
-  doc.rect(0, 0, 5, 56).fill(CORES.douradoQueimado);
-  // Linha 1: titulo humano grande (12pt, era 18pt — densidade > tamanho)
-  doc.fontSize(12).font("Helvetica-Bold").fillColor(CORES.offWhite)
-    .text(titulo.toUpperCase(), 14, 10, { width: width - 200 });
-  // Linha 2: codigo tecnico + caderno X/Y inline
+  // Faixa premium 64px navy + filete-ouro inferior (toque classico)
+  doc.rect(0, 0, width, 64).fill(CORES.azulPetroleo);
+  doc.rect(0, 0, 5, 64).fill(CORES.douradoQueimado);
+  // Bordas gold finas (toque editorial-classico)
+  doc.rect(0, 60, width, 1).fill(CORES.douradoQueimado);
+  doc.rect(0, 63, width, 1).fill(CORES.douradoQueimado);
+
+  // LOGO oficial Pawards MedCore (gold em navy) — canto direito do header
+  const logo = getLogoRef(doc);
+  const logoH = 48;
+  const logoW = 48;
+  const logoX = width - logoW - 14;
+  const logoY = 8;
+  if (logo) {
+    try { doc.image(logo, logoX, logoY, { fit: [logoW, logoH] }); }
+    catch { /* fallback silencioso pro texto abaixo */ }
+  }
+
+  // Linha 1: titulo humano (13pt bold off-white)
+  doc.fontSize(13).font("Helvetica-Bold").fillColor(CORES.offWhite)
+    .text(titulo.toUpperCase(), 14, 8, { width: width - logoW - 40 });
+  // Linha 2: codigo tecnico + caderno X/Y inline (gold 7pt)
   ctx.atual += 1;
   const paginacao = ctx.total > 0
     ? `CADERNO ${ctx.atual.toString().padStart(2, "0")}/${ctx.total.toString().padStart(2, "0")}`
     : `CADERNO ${ctx.atual.toString().padStart(2, "0")}`;
-  doc.fontSize(7).font("Helvetica").fillColor(CORES.douradoQueimado)
-    .text(`${codigo}   ·   ${paginacao}`, 14, 30);
-  // Linha 3: subtitulo institucional 6.5pt (tag classifier)
-  doc.fontSize(6).font("Helvetica-Oblique").fillColor(CORES.offWhite)
-    .text("RASX-MATRIZ V6  ·  PADCOM v15.2  ·  documento clinico assinado", 14, 42);
-  // Bloco direita: PAWARDS + INSTITUTO PADUA + token
-  doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
-    .text("PAWARDS", width - 170, 9, { width: 160, align: "right" });
-  doc.fontSize(6.5).font("Helvetica").fillColor(CORES.offWhite)
-    .text("INSTITUTO PADUA · MedCore", width - 170, 22, { width: 160, align: "right" });
-  doc.fontSize(5.5).font("Helvetica").fillColor(CORES.offWhite)
-    .text(`token ${ctx.tokenHash || "—"}  ·  ${ctx.codigoSemantico || ""}`, width - 220, 35, { width: 210, align: "right" });
-  // Linha divisoria gold
-  doc.rect(0, 54, width, 2).fill(CORES.douradoQueimado);
+  doc.fontSize(7.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text(`${codigo}  ·  ${paginacao}`, 14, 28, { width: width - logoW - 40 });
+  // Linha 3: tagline institucional italica (off-white 6.5pt)
+  doc.fontSize(6.5).font("Helvetica-Oblique").fillColor(CORES.offWhite)
+    .text("Pawards MedCore  ·  Sistema Clinico Inteligente  ·  RASX-MATRIZ V6  ·  PADCOM v15.2", 14, 40, { width: width - logoW - 40 });
+  // Linha 4: token + codigo semantico (mono cinzento 5.5pt) — auditavel
+  doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text(`token ${ctx.tokenHash || "—"}   ·   semantico ${ctx.codigoSemantico || "—"}   ·   documento clinico assinado`, 14, 51, { width: width - logoW - 40 });
+}
+
+// ----------------------------------------------------------------------------
+// CAPA PREMIUM — pagina de rosto classica/sofisticada (logo gigante centralizada,
+// titulo gold, separadores filete-ouro, bloco paciente, KPIs preview).
+// ----------------------------------------------------------------------------
+function drawCapa(doc: PDFKit.PDFDocument, data: RasxPdfData) {
+  const width = 595;
+  const height = 842;
+  // Fundo navy cheio (premium)
+  doc.rect(0, 0, width, height).fill(CORES.azulPetroleo);
+  // Moldura interna gold (filete fino editorial)
+  doc.rect(28, 28, width - 56, height - 56).lineWidth(0.8).stroke(CORES.douradoQueimado);
+  doc.rect(34, 34, width - 68, height - 68).lineWidth(0.3).stroke(CORES.douradoQueimado);
+
+  // Logo gigante centralizada (320x320 mantendo proporcao)
+  const logo = getLogoRef(doc);
+  const logoSize = 280;
+  if (logo) {
+    try {
+      doc.image(logo, (width - logoSize) / 2, 90, { fit: [logoSize, logoSize] });
+    } catch { /* ignore */ }
+  }
+
+  // Linha divisoria gold sob a logo
+  const dividerY = 400;
+  doc.moveTo(120, dividerY).lineTo(width - 120, dividerY).lineWidth(0.5).stroke(CORES.douradoQueimado);
+  doc.moveTo(width / 2 - 6, dividerY - 4).lineTo(width / 2, dividerY).lineTo(width / 2 + 6, dividerY - 4)
+    .lineWidth(0.5).stroke(CORES.douradoQueimado);
+
+  // Titulo principal (gold, serif-like) — usa Helvetica-Bold (no PDFkit padrao)
+  const titulo = (data.tituloRelatorio || "Relatorio Analitico de Saude").toUpperCase();
+  doc.fontSize(22).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text(titulo, 40, dividerY + 18, { width: width - 80, align: "center" });
+  // Subtitulo italico off-white
+  if (data.subtituloRelatorio) {
+    doc.fontSize(10).font("Helvetica-Oblique").fillColor(CORES.offWhite)
+      .text(data.subtituloRelatorio, 40, dividerY + 50, { width: width - 80, align: "center" });
+  }
+  // Tagline da marca
+  doc.fontSize(7.5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text("PAWARDS MEDCORE  ·  SISTEMA CLINICO INTELIGENTE", 40, dividerY + 70, { width: width - 80, align: "center", characterSpacing: 1.5 });
+
+  // ===== Bloco do paciente (caixa creme com selo gold) =====
+  const blockY = dividerY + 110;
+  const blockH = 110;
+  doc.rect(60, blockY, width - 120, blockH).fill(CORES.cinzaZebra);
+  doc.rect(60, blockY, 4, blockH).fill(CORES.douradoQueimado);
+  doc.rect(60, blockY, width - 120, blockH).lineWidth(0.3).stroke(CORES.douradoQueimado);
+  const p = data.paciente;
+  const idade = p.dataNascimento ? `${calcIdade(p.dataNascimento)} anos` : "—";
+  const dataNasc = p.dataNascimento ? new Date(p.dataNascimento).toLocaleDateString("pt-BR") : "—";
+  // Label "PACIENTE"
+  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text("PACIENTE", 75, blockY + 8, { width: 200, characterSpacing: 2 });
+  // Nome grande navy
+  doc.fontSize(14).font("Helvetica-Bold").fillColor(CORES.azulPetroleo)
+    .text(p.nome.toUpperCase(), 75, blockY + 20, { width: width - 150 });
+  // Dados em grid 2 colunas
+  const labelStyle = (l: string, x: number, y: number) => {
+    doc.fontSize(5.8).font("Helvetica-Bold").fillColor(CORES.cinzaClaro)
+      .text(l.toUpperCase(), x, y, { characterSpacing: 1.2 });
+  };
+  const valueStyle = (v: string, x: number, y: number, w: number) => {
+    doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(v, x, y + 7, { width: w });
+  };
+  labelStyle("CPF",            75, blockY + 46);
+  valueStyle(p.cpf || "—",     75, blockY + 46, 140);
+  labelStyle("Nascimento",     220, blockY + 46);
+  valueStyle(`${dataNasc} (${idade})`, 220, blockY + 46, 140);
+  labelStyle("Sexo",           380, blockY + 46);
+  valueStyle(p.sexo ? p.sexo.charAt(0).toUpperCase() + p.sexo.slice(1).toLowerCase() : "—", 380, blockY + 46, 100);
+  labelStyle("Plano",          75, blockY + 72);
+  valueStyle(p.plano || "Particular", 75, blockY + 72, 140);
+  labelStyle("WhatsApp",       220, blockY + 72);
+  valueStyle(p.telefone || "—", 220, blockY + 72, 140);
+  labelStyle("E-mail",         380, blockY + 72);
+  valueStyle(p.email || "—",   380, blockY + 72, 155);
+  labelStyle("Endereco",       75, blockY + 93);
+  doc.fontSize(7).font("Helvetica-Oblique").fillColor(CORES.cinzaTexto)
+    .text(p.enderecoCompleto || "—", 130, blockY + 95, { width: width - 200 });
+
+  // ===== Bloco emissor (medico, unidade, data) =====
+  const emitY = blockY + blockH + 14;
+  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text("EMITIDO POR", 60, emitY, { width: width - 120, align: "center", characterSpacing: 2 });
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.offWhite)
+    .text(data.medico, 60, emitY + 10, { width: width - 120, align: "center" });
+  doc.fontSize(8).font("Helvetica").fillColor(CORES.offWhite)
+    .text(`${data.unidade}   ·   Data-base ${data.dataBase}`, 60, emitY + 25, { width: width - 120, align: "center" });
+
+  // ===== Rodape capa: assinatura institucional + selo confidencial =====
+  const ctx = getCtx(doc);
+  // Faixa gold inferior fina
+  doc.rect(28, height - 60, width - 56, 1).fill(CORES.douradoQueimado);
+  doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text("DOCUMENTO CLINICO INSTITUCIONAL  ·  USO RESTRITO  ·  PROTEGIDO POR LGPD", 28, height - 54, { width: width - 56, align: "center", characterSpacing: 2 });
+  doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text(`token ${ctx.tokenHash || "—"}   ·   semantico ${ctx.codigoSemantico || "—"}   ·   ${ctx.total || 11} cadernos`, 28, height - 44, { width: width - 56, align: "center" });
+  doc.fontSize(5.5).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
+    .text("Developed by Pawards MedCore  ·  Sistema Clinico Inteligente", 28, height - 35, { width: width - 56, align: "center" });
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
@@ -365,11 +510,15 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
 
   let y = 0;
 
+  // ========== CAPA PREMIUM (pagina de rosto classica) ==========
+  doc.addPage({ size: "A4", layout: "portrait", margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+  drawCapa(doc, data);
+
   // ========== RACL HEST — Estado Inicial (RETRATO) ==========
   if (include("RACL HEST")) {
   addPageRetrato(doc);
   drawHeader(doc, data.tituloRelatorio || "Estado Inicial de Saude", "RACL HEST", false);
-  y = 70;
+  y = 78;
   y = drawPacienteBlock(doc, data, y, 595);
   // Craniotomia: subtitulo (cenario/momento clinico)
   if (data.subtituloRelatorio) {
