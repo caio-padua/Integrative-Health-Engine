@@ -35,6 +35,7 @@
     "pipeline-racj-carlucia": "tsx ./src/pipeline-racj-carlucia.ts",
     "disparar-zapsign-carlucia": "tsx ./src/disparar-zapsign-carlucia.ts",
     "regerar-racj-premium-carlucia": "tsx ./src/regerar-racj-premium-carlucia.ts",
+    "pipeline-ras-apresentacao-evolucao-carlucia": "tsx ./src/pipeline-ras-apresentacao-evolucao-carlucia.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },

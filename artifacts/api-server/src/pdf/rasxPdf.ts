@@ -21,19 +21,36 @@ function posologiaCanonica(
   return parsed.interpretado ? formatarPosologiaEstruturada(parsed) : texto;
 }
 
+// Paleta Craniotomia V4 — alto contraste, denso, neon-clinico.
+// Mantemos os nomes antigos (azulPetroleo etc) pra nao quebrar as 11
+// secoes downstream, mas re-tonalizamos pra estetica premium.
 const CORES = {
-  azulPetroleo: "#1B4F6C",
-  azulPetroleoClaro: "#2A6B8C",
-  offWhite: "#F5F0E8",
-  douradoQueimado: "#B8860B",
-  verdeSalvia: "#6B8E6B",
+  azulPetroleo: "#0F2940",       // navy profundo (era #1B4F6C)
+  azulPetroleoClaro: "#1B4F73",  // navy medio
+  offWhite: "#F2EEDF",            // creme institucional
+  douradoQueimado: "#C8951A",    // dourado mais saturado
+  verdeSalvia: "#3E8B5B",        // verde medico denso
   branco: "#FFFFFF",
-  cinzaTexto: "#333333",
-  cinzaClaro: "#666666",
-  vermelho: "#C0392B",
-  amarelo: "#D4A017",
-  verde: "#27AE60",
-};
+  cinzaTexto: "#1A1A1A",         // praticamente preto pra densidade
+  cinzaClaro: "#555555",
+  cinzaZebra: "#EDE9DC",
+  vermelho: "#B83227",
+  amarelo: "#C28920",
+  verde: "#1F7A3D",
+  ciano: "#0E7C8C",
+  magenta: "#7A2B5C",
+} as const;
+// Per-documento context (paginacao, token, codigo semantico). Antes era module-level
+// (race condition entre requests concorrentes ao mesmo gerador RASX); agora chaveado
+// por PDFDocument via WeakMap pra preservar isolamento sem mudar nenhuma assinatura
+// das funcoes draw* downstream.
+interface RasxRenderCtx { atual: number; total: number; codigoSemantico: string; tokenHash: string }
+const RENDER_CTX = new WeakMap<PDFKit.PDFDocument, RasxRenderCtx>();
+function getCtx(doc: PDFKit.PDFDocument): RasxRenderCtx {
+  let c = RENDER_CTX.get(doc);
+  if (!c) { c = { atual: 0, total: 0, codigoSemantico: "", tokenHash: "" }; RENDER_CTX.set(doc, c); }
+  return c;
+}
 
 interface RasxPdfData {
   paciente: { nome: string; cpf?: string; dataNascimento?: string; telefone?: string; email?: string; sexo?: string; enderecoCompleto?: string; plano?: string };
@@ -48,6 +65,12 @@ interface RasxPdfData {
   eventosMedicacao: any[];
   curvas: { doenca: any[]; saude: any[] };
   proximasEtapas: any[];
+  // Craniotomia V4 — extensoes opcionais p/ KPI bar + matriz + token rodape
+  codigoSemantico?: string;
+  tokenHash?: string;
+  tituloRelatorio?: string;       // ex: "RAS APRESENTACAO INICIAL" / "RAS EVOLUCAO SEMANA 3"
+  subtituloRelatorio?: string;    // ex: "Snapshot D0" / "Comparativo D0 vs D21"
+  kpis?: KpiPill[];               // exibidos na capa HEST logo abaixo do bloco paciente
 }
 
 function calcIdade(dataNasc: string): number {
@@ -65,14 +88,40 @@ function corSemaforo(s: string) {
   return CORES.vermelho;
 }
 
+// ============================================================================
+// CRANIOTOMIA V4 — funcoes base re-densificadas (faixa unica, KPI pills,
+// matriz, selo lateral, zebra reforcada). Substituem as versoes "respiradas"
+// da V481 mantendo as mesmas assinaturas pra nao quebrar as 11 secoes.
+// ============================================================================
+
 function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isLandscape: boolean) {
+  const ctx = getCtx(doc);
   const width = isLandscape ? 842 : 595;
-  doc.rect(0, 0, width, 70).fill(CORES.azulPetroleo);
-  doc.fontSize(18).font("Helvetica-Bold").fillColor(CORES.offWhite).text(titulo, 40, 20, { width: width - 250 });
-  doc.fontSize(9).font("Helvetica").fillColor(CORES.douradoQueimado).text(codigo, 40, 48);
-  doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.douradoQueimado).text("PAWARDS", width - 160, 18, { width: 120, align: "right" });
-  doc.fontSize(6).font("Helvetica").fillColor(CORES.offWhite).text("Sistema de Gestao Saude", width - 160, 30, { width: 120, align: "right" });
-  doc.fontSize(7).font("Helvetica").fillColor(CORES.offWhite).text("INSTITUTO PADUA", width - 160, 42, { width: 120, align: "right" });
+  // Faixa unica densa 56px (vs 70px antigos). Selo dourado lateral 5px.
+  doc.rect(0, 0, width, 56).fill(CORES.azulPetroleo);
+  doc.rect(0, 0, 5, 56).fill(CORES.douradoQueimado);
+  // Linha 1: titulo humano grande (12pt, era 18pt — densidade > tamanho)
+  doc.fontSize(12).font("Helvetica-Bold").fillColor(CORES.offWhite)
+    .text(titulo.toUpperCase(), 14, 10, { width: width - 200 });
+  // Linha 2: codigo tecnico + caderno X/Y inline
+  ctx.atual += 1;
+  const paginacao = ctx.total > 0
+    ? `CADERNO ${ctx.atual.toString().padStart(2, "0")}/${ctx.total.toString().padStart(2, "0")}`
+    : `CADERNO ${ctx.atual.toString().padStart(2, "0")}`;
+  doc.fontSize(7).font("Helvetica").fillColor(CORES.douradoQueimado)
+    .text(`${codigo}   ·   ${paginacao}`, 14, 30);
+  // Linha 3: subtitulo institucional 6.5pt (tag classifier)
+  doc.fontSize(6).font("Helvetica-Oblique").fillColor(CORES.offWhite)
+    .text("RASX-MATRIZ V6  ·  PADCOM v15.2  ·  documento clinico assinado", 14, 42);
+  // Bloco direita: PAWARDS + INSTITUTO PADUA + token
+  doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text("PAWARDS", width - 170, 9, { width: 160, align: "right" });
+  doc.fontSize(6.5).font("Helvetica").fillColor(CORES.offWhite)
+    .text("INSTITUTO PADUA · MedCore", width - 170, 22, { width: 160, align: "right" });
+  doc.fontSize(5.5).font("Helvetica").fillColor(CORES.offWhite)
+    .text(`token ${ctx.tokenHash || "—"}  ·  ${ctx.codigoSemantico || ""}`, width - 220, 35, { width: 210, align: "right" });
+  // Linha divisoria gold
+  doc.rect(0, 54, width, 2).fill(CORES.douradoQueimado);
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
@@ -85,49 +134,136 @@ function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number
   const email = p.email || "—";
   const endereco = p.enderecoCompleto || "—";
   const plano = p.plano || "Particular";
-  const blockH = 78;
-  doc.rect(40, y, width - 80, blockH).fill("#E8E4DC");
-  // Linha 1: nome + plano
-  doc.fontSize(11).font("Helvetica-Bold").fillColor(CORES.cinzaTexto).text(p.nome.toUpperCase(), 50, y + 8, { width: width - 200 });
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text(`PLANO: ${plano.toUpperCase()}`, width - 160, y + 10, { width: 110, align: "right" });
-  // Linha 2: dados pessoais
-  doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(`CPF: ${cpf}   |   Nasc: ${dataNasc} (${idade})   |   Sexo: ${sexo}`, 50, y + 26, { width: width - 100 });
-  // Linha 3: contato
-  doc.fontSize(7.5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(`Tel: ${tel}   |   Email: ${email}`, 50, y + 41, { width: width - 100 });
-  // Linha 4: endereco
-  doc.fontSize(7).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
-    .text(`End.: ${endereco}`, 50, y + 54, { width: width - 100, ellipsis: true, height: 10 });
-  // Linha 5: rodape do bloco
-  doc.fontSize(7).font("Helvetica").fillColor(CORES.azulPetroleo)
-    .text(`Data Base: ${data.dataBase}   |   ${data.medico}   |   ${data.unidade}`, 50, y + 65, { width: width - 100 });
-  return y + blockH + 10;
+  const blockH = 48; // compactado de 78 → 48 (Craniotomia density)
+  // Caixa creme + selo lateral cor (Endocrino/integrativa)
+  doc.rect(40, y, width - 80, blockH).fill(CORES.cinzaZebra);
+  doc.rect(40, y, 4, blockH).fill(CORES.douradoQueimado);
+  // Linha 1: NOME (10pt bold) + tags direita (PLANO + DATA BASE)
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.azulPetroleo)
+    .text(p.nome.toUpperCase(), 50, y + 5, { width: width - 240 });
+  // Selo plano (caixa direita)
+  const tagW = 90;
+  doc.rect(width - 40 - tagW, y + 4, tagW, 10).fill(CORES.azulPetroleo);
+  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.offWhite)
+    .text(`PLANO ${plano.toUpperCase()}`, width - 40 - tagW, y + 7, { width: tagW, align: "center" });
+  // Linha 2: micro-tabela inline (CPF | Nasc | Idade | Sexo | Tel | Email)
+  doc.fontSize(7).font("Helvetica").fillColor(CORES.cinzaTexto)
+    .text(`CPF ${cpf}  ·  Nasc ${dataNasc} (${idade})  ·  Sexo ${sexo}  ·  Tel ${tel}  ·  ${email}`, 50, y + 19, { width: width - 100 });
+  // Linha 3: endereco (italico cinza)
+  doc.fontSize(6.5).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
+    .text(endereco, 50, y + 30, { width: width - 100, ellipsis: true, height: 9 });
+  // Linha 4: data base + medico + unidade (dourado pequeno)
+  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text(`DATA-BASE ${data.dataBase}  ·  ${data.medico}  ·  ${data.unidade}`, 50, y + 39, { width: width - 100 });
+  return y + blockH + 6;
 }
 
 function drawTextoInstitucional(doc: PDFKit.PDFDocument, y: number): number {
-  const texto = "Nos nao somos apenas o que comemos; somos o que absorvemos, metabolizamos e utilizamos. Com a idade, com a inflamacao e com o estresse biologico cronico, a absorcao pode cair, a producao hormonal diminui e o organismo passa a sustentar sintomas e doencas de forma progressiva. Por isso, este relatorio acompanha nao apenas doencas e medicamentos, mas a recuperacao do terreno biologico, dos orgaos, do sono, da energia, da cognicao e da capacidade funcional do paciente.";
-  doc.rect(40, y, 515, 70).fill("#F0ECE4");
-  doc.fontSize(7.5).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro).text(texto, 50, y + 8, { width: 495, lineGap: 2 });
-  return y + 80;
+  // Caixa creme densa + selo lateral verde-salvia
+  const texto = "Nao somos apenas o que comemos; somos o que absorvemos, metabolizamos e utilizamos. Este relatorio acompanha nao so doencas e medicamentos, mas a recuperacao do terreno biologico, dos orgaos, do sono, da energia, da cognicao e da capacidade funcional.";
+  const h = 36;
+  doc.rect(40, y, 515, h).fill(CORES.cinzaZebra);
+  doc.rect(40, y, 3, h).fill(CORES.verdeSalvia);
+  doc.fontSize(6.8).font("Helvetica-Oblique").fillColor(CORES.cinzaTexto)
+    .text(texto, 49, y + 5, { width: 500, lineGap: 1.5 });
+  return y + h + 6;
 }
 
 function drawTableHeader(doc: PDFKit.PDFDocument, cols: { label: string; x: number; w: number }[], y: number) {
   const lastCol = cols[cols.length - 1];
-  doc.rect(cols[0].x, y, lastCol.x + lastCol.w - cols[0].x, 18).fill(CORES.azulPetroleo);
+  const totalW = lastCol.x + lastCol.w - cols[0].x;
+  // Faixa header densa 13px (vs 18px) + sub-linha gold
+  doc.rect(cols[0].x, y, totalW, 13).fill(CORES.azulPetroleo);
+  doc.rect(cols[0].x, y + 12, totalW, 1).fill(CORES.douradoQueimado);
   for (const c of cols) {
-    doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.offWhite).text(c.label, c.x + 4, y + 5, { width: c.w - 8 });
+    doc.fontSize(6.2).font("Helvetica-Bold").fillColor(CORES.offWhite)
+      .text(c.label, c.x + 3, y + 3, { width: c.w - 6 });
   }
-  return y + 18;
+  return y + 14;
 }
 
-function drawTableRow(doc: PDFKit.PDFDocument, cols: { x: number; w: number }[], values: string[], y: number, alt: boolean) {
+function drawTableRow(doc: PDFKit.PDFDocument, cols: { x: number; w: number }[], values: string[], y: number, alt: boolean, seloCor?: string) {
   const lastCol = cols[cols.length - 1];
-  if (alt) doc.rect(cols[0].x, y, lastCol.x + lastCol.w - cols[0].x, 16).fill("#F5F2EC");
+  const totalW = lastCol.x + lastCol.w - cols[0].x;
+  const rowH = 13;
+  // Zebra alternada cinzaZebra creme
+  if (alt) doc.rect(cols[0].x, y, totalW, rowH).fill(CORES.cinzaZebra);
+  // Selo lateral cor 2px (semaforo / categoria)
+  if (seloCor) doc.rect(cols[0].x, y, 2, rowH).fill(seloCor);
   for (let i = 0; i < cols.length; i++) {
-    doc.fontSize(7).font("Helvetica").fillColor(CORES.cinzaTexto).text(values[i] || "—", cols[i].x + 4, y + 4, { width: cols[i].w - 8 });
+    doc.fontSize(6.8).font("Helvetica").fillColor(CORES.cinzaTexto)
+      .text(values[i] || "—", cols[i].x + (i === 0 && seloCor ? 5 : 3), y + 3, { width: cols[i].w - 6, ellipsis: true, height: 8 });
   }
-  return y + 16;
+  return y + rowH;
+}
+
+// ----- NOVAS: KPI bar horizontal + matriz dos 11 cadernos --------------------
+
+interface KpiPill { label: string; valor: string; unidade?: string; cor: string; delta?: string }
+
+function drawKpiBar(doc: PDFKit.PDFDocument, kpis: KpiPill[], y: number, totalW: number): number {
+  const xStart = 40;
+  const gap = 4;
+  const pillW = (totalW - gap * (kpis.length - 1)) / kpis.length;
+  const pillH = 36;
+  kpis.forEach((k, i) => {
+    const x = xStart + i * (pillW + gap);
+    // fundo creme + selo lateral cor 4px (KPI)
+    doc.rect(x, y, pillW, pillH).fill(CORES.cinzaZebra);
+    doc.rect(x, y, 4, pillH).fill(k.cor);
+    // label up (uppercase 5.5pt)
+    doc.fontSize(5.5).font("Helvetica-Bold").fillColor(CORES.cinzaClaro)
+      .text(k.label.toUpperCase(), x + 7, y + 4, { width: pillW - 10 });
+    // valor grande (12pt bold navy)
+    doc.fontSize(13).font("Helvetica-Bold").fillColor(CORES.azulPetroleo)
+      .text(k.valor, x + 7, y + 13, { width: pillW - 10 });
+    // unidade pequena (lado direito linha valor)
+    if (k.unidade) {
+      doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
+        .text(k.unidade, x + 7, y + 27, { width: pillW - 10 });
+    }
+    // delta (subir/cair) — quando passado
+    if (k.delta) {
+      doc.fontSize(5.8).font("Helvetica-Bold").fillColor(k.cor)
+        .text(k.delta, x + 7, y + 27 + (k.unidade ? 8 : 0), { width: pillW - 10, align: "right" });
+    }
+  });
+  return y + pillH + 6;
+}
+
+function drawMatrizCadernos(
+  doc: PDFKit.PDFDocument,
+  cadernos: Array<{ codigo: string; titulo: string; preenchido: boolean }>,
+  y: number,
+  totalW: number,
+): number {
+  const xStart = 40;
+  const cellH = 14;
+  // Header da matriz
+  doc.rect(xStart, y, totalW, 12).fill(CORES.azulPetroleo);
+  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.offWhite)
+    .text("MATRIZ DE CADERNOS — RASX-MATRIZ V6 (11 cadernos × estado de preenchimento)", xStart + 4, y + 3);
+  let cur = y + 13;
+  cadernos.forEach((c, i) => {
+    const alt = i % 2 === 0;
+    if (alt) doc.rect(xStart, cur, totalW, cellH).fill(CORES.cinzaZebra);
+    const seloCor = c.preenchido ? CORES.verde : CORES.amarelo;
+    doc.rect(xStart, cur, 3, cellH).fill(seloCor);
+    // codigo (mono-narrow)
+    doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.azulPetroleo)
+      .text(c.codigo, xStart + 7, cur + 3, { width: 70 });
+    // titulo humano
+    doc.fontSize(6.8).font("Helvetica").fillColor(CORES.cinzaTexto)
+      .text(c.titulo, xStart + 80, cur + 3, { width: totalW - 200 });
+    // status pill direita
+    const stW = 90;
+    const stTxt = c.preenchido ? "POPULADO" : "RESERVADO";
+    doc.rect(xStart + totalW - stW - 4, cur + 2, stW, 10).fill(c.preenchido ? CORES.verde : CORES.cinzaClaro);
+    doc.fontSize(5.5).font("Helvetica-Bold").fillColor(CORES.branco)
+      .text(stTxt, xStart + totalW - stW - 4, cur + 5, { width: stW, align: "center" });
+    cur += cellH;
+  });
+  return cur + 6;
 }
 
 function addPageRetrato(doc: PDFKit.PDFDocument) {
@@ -139,34 +275,52 @@ function addPagePaisagem(doc: PDFKit.PDFDocument) {
 }
 
 function drawFooter(doc: PDFKit.PDFDocument, isLandscape: boolean) {
+  const ctx = getCtx(doc);
   const width = isLandscape ? 842 : 595;
   const height = isLandscape ? 595 : 842;
-  const footerY = height - 36;
-  doc.moveTo(40, footerY).lineTo(width - 40, footerY).lineWidth(0.3).stroke(CORES.cinzaClaro);
-  doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text("Developed by Pawards MedCore", 40, footerY + 5, { width: width - 140, align: "center" });
-  const badgeW = 48;
-  const badgeH = 10;
-  const badgeX = width - 40 - badgeW;
-  const badgeY = footerY + 3;
-  doc.rect(badgeX, badgeY, badgeW, badgeH).lineWidth(0.3).stroke(CORES.cinzaClaro);
-  doc.fontSize(4).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text("RASX-MATRIZ", badgeX, badgeY + 3, { width: badgeW, align: "center" });
+  const footerY = height - 28;
+  // Faixa navy slim 22px com selo gold
+  doc.rect(0, footerY, width, 22).fill(CORES.azulPetroleo);
+  doc.rect(0, footerY, width, 1).fill(CORES.douradoQueimado);
+  // Esquerda: token + codigo semantico
+  doc.fontSize(5.8).font("Helvetica").fillColor(CORES.offWhite)
+    .text(`token ${ctx.tokenHash || "—"}  ·  ${ctx.codigoSemantico || ""}`, 14, footerY + 4, { width: 280 });
+  // Centro: legenda semaforos
+  doc.fontSize(5.5).font("Helvetica").fillColor(CORES.offWhite)
+    .text("Legenda  ▮ verde=meta atingida   ▮ amarelo=em curso   ▮ vermelho=critico", 14, footerY + 13, { width: width - 200 });
+  // Direita: PAWARDS + paginacao
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text(`PAWARDS · MedCore  ·  Caderno ${ctx.atual.toString().padStart(2, "0")}/${(ctx.total || ctx.atual).toString().padStart(2, "0")}`, width - 240, footerY + 7, { width: 230, align: "right" });
 }
 
-function drawSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number): number {
-  doc.rect(40, y, 4, 16).fill(CORES.douradoQueimado);
-  doc.fontSize(11).font("Helvetica-Bold").fillColor(CORES.azulPetroleo).text(title, 52, y + 2);
-  return y + 24;
+function drawSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number, metricaDireita?: string): number {
+  const width = doc.page.width - 80;
+  // Faixa cheia 14px navy + selo gold 4px + label off-white
+  doc.rect(40, y, width, 14).fill(CORES.azulPetroleo);
+  doc.rect(40, y, 4, 14).fill(CORES.douradoQueimado);
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.offWhite)
+    .text(title.toUpperCase(), 50, y + 3, { width: width - (metricaDireita ? 200 : 10) });
+  if (metricaDireita) {
+    doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+      .text(metricaDireita, 40 + width - 200, y + 3, { width: 195, align: "right" });
+  }
+  return y + 18;
 }
 
 function drawCurvaBar(doc: PDFKit.PDFDocument, label: string, valor: number, cor: string, x: number, y: number, maxW: number): number {
-  const barW = (valor / 100) * maxW;
-  doc.fontSize(7).font("Helvetica").fillColor(CORES.cinzaTexto).text(label, x, y + 2, { width: 150 });
-  doc.rect(x + 155, y, maxW, 12).fill("#E0DDD5");
-  doc.rect(x + 155, y, barW, 12).fill(cor);
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.branco).text(`${valor}%`, x + 157 + barW - 30, y + 2, { width: 28, align: "right" });
-  return y + 18;
+  // Pill curva densa 14px com selo lateral cor + barra fundo creme
+  const labelW = 160;
+  doc.rect(x, y, labelW + maxW + 50, 14).fill(CORES.cinzaZebra);
+  doc.rect(x, y, 3, 14).fill(cor);
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.cinzaTexto)
+    .text(label, x + 7, y + 3.5, { width: labelW - 10 });
+  // Barra
+  const barW = Math.max(2, (valor / 100) * maxW);
+  doc.rect(x + labelW, y + 3, maxW, 8).fill(CORES.branco).strokeColor(CORES.cinzaClaro).lineWidth(0.3).stroke();
+  doc.rect(x + labelW, y + 3, barW, 8).fill(cor);
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.azulPetroleo)
+    .text(`${valor}%`, x + labelW + maxW + 5, y + 3.5, { width: 40 });
+  return y + 16;
 }
 
 export type RasCategoria = "COMPLETO" | "CLINICO" | "EVOLUTIVO" | "ESTADO_SAUDE";
@@ -202,17 +356,65 @@ export function gerarRasxPdf(data: RasxPdfData, categoria: RasCategoria = "COMPL
   const cadernos = RAS_CATEGORIAS[categoria].cadernos;
   const include = (cod: string) => cadernos.includes(cod);
 
+  // Reset + populate contexto Craniotomia (paginacao, token, semantico) per-doc
+  const ctx = getCtx(doc);
+  ctx.atual = 0;
+  ctx.total = cadernos.length;
+  ctx.codigoSemantico = data.codigoSemantico || "";
+  ctx.tokenHash = data.tokenHash || "";
+
   let y = 0;
 
   // ========== RACL HEST — Estado Inicial (RETRATO) ==========
   if (include("RACL HEST")) {
   addPageRetrato(doc);
-  drawHeader(doc, "Estado Inicial de Saude", "RACL HEST", false);
-  y = 80;
+  drawHeader(doc, data.tituloRelatorio || "Estado Inicial de Saude", "RACL HEST", false);
+  y = 70;
   y = drawPacienteBlock(doc, data, y, 595);
+  // Craniotomia: subtitulo (cenario/momento clinico)
+  if (data.subtituloRelatorio) {
+    doc.fontSize(7.5).font("Helvetica-Bold").fillColor(CORES.ciano)
+      .text(data.subtituloRelatorio.toUpperCase(), 40, y, { width: 515 });
+    y += 12;
+  }
+  // KPI BAR Craniotomia (4-5 metricas chave do snapshot)
+  if (data.kpis && data.kpis.length > 0) {
+    y = drawKpiBar(doc, data.kpis, y, 515);
+  }
+  // MATRIZ de cadernos (mostra todos os 11 e quais foram populados)
+  const matrizCadernos = (
+    [
+      ["RACL HEST", "Estado Inicial de Saude"],
+      ["RACL HPOT", "Patologias Potenciais"],
+      ["RACL HORG", "Orgaos e Sistemas Afetados"],
+      ["RACL HMED", "Medicamentos em Uso"],
+      ["RACL HFOR", "Formulas Magistrais"],
+      ["RACL HLIN", "Linha Temporal de Medicacao"],
+      ["RACL HTRN", "Transicao Terapeutica"],
+      ["RACL HEVO", "Evolucao Clinica Comparativa"],
+      ["RACL HCUR", "Curvas Declinante e Ascendente"],
+      ["RACL HATU", "Estado Atual de Saude"],
+      ["RACL HPLA", "Proxima Etapa"],
+    ] as Array<[string, string]>
+  ).map(([codigo, titulo]) => {
+    let preenchido = false;
+    if (codigo === "RACL HEST") preenchido = data.patologias.diagnosticadas.length > 0 || data.medicamentos.length > 0;
+    else if (codigo === "RACL HPOT") preenchido = data.patologias.potenciais.length > 0;
+    else if (codigo === "RACL HORG") preenchido = data.orgaos.length > 0;
+    else if (codigo === "RACL HMED") preenchido = data.medicamentos.length > 0;
+    else if (codigo === "RACL HFOR") preenchido = data.medicamentos.some((m: any) => m.tipoMed === "formula");
+    else if (codigo === "RACL HLIN") preenchido = data.eventosMedicacao.length > 0;
+    else if (codigo === "RACL HTRN") preenchido = data.medicamentos.some((m: any) => m.substituicaoNatural);
+    else if (codigo === "RACL HEVO") preenchido = data.patologias.diagnosticadas.length > 0;
+    else if (codigo === "RACL HCUR") preenchido = data.curvas.doenca.length + data.curvas.saude.length > 0;
+    else if (codigo === "RACL HATU") preenchido = !!(data.snapshotAtual || data.snapshotInicial);
+    else if (codigo === "RACL HPLA") preenchido = data.proximasEtapas.length > 0;
+    return { codigo, titulo, preenchido: preenchido && include(codigo) };
+  });
+  y = drawMatrizCadernos(doc, matrizCadernos, y, 515);
   y = drawTextoInstitucional(doc, y);
 
-  y = drawSectionTitle(doc, "Patologias Diagnosticadas", y);
+  y = drawSectionTitle(doc, "Patologias Diagnosticadas", y, `${data.patologias.diagnosticadas.length} registradas`);
   if (data.patologias.diagnosticadas.length > 0) {
     const cols = [
       { label: "PATOLOGIA", x: 40, w: 140 },
