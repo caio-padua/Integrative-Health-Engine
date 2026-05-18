@@ -41,6 +41,7 @@
     "mockup-substancia-3-abordagens-validacao": "tsx ./src/mockup-substancia-3-abordagens-validacao.ts",
     "mockup-substancia-3-hibridos": "tsx ./src/mockup-substancia-3-hibridos.ts",
     "mockup-substancia-v7-card-emoldurado": "tsx ./src/mockup-substancia-v7-card-emoldurado.ts",
+    "mockup-substancia-v8-pastel-numerais": "tsx ./src/mockup-substancia-v8-pastel-numerais.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
