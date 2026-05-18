@@ -395,7 +395,8 @@ export function CraniotomiaV4() {
                   const stroke = arestaStroke(s);
                   const w = arestaLargura(s, ativa);
                   const opacity = hoveredId === null && selectedId === null ? 0.85 : ativa ? 1 : 0.18;
-                  // Linha eletrificada: glow sutil em idle, intenso no hover (amperagem subindo)
+                  // Linha eletrificada: glow sutil em idle, pulso rapido no hover (amperagem)
+                  // Subida rapida (~70ms), descida rapida — volta ao padrao quase instantaneo
                   const glowPx = ativa ? 4 : 0.8;
                   const haloPx = ativa ? 9 : 0;
                   const filterStr = ativa
@@ -415,7 +416,7 @@ export function CraniotomiaV4() {
                           opacity,
                           cursor: "pointer",
                           filter: filterStr,
-                          transition: "opacity 180ms ease-out, stroke-width 180ms ease-out, filter 180ms ease-out",
+                          transition: "opacity 70ms ease-out, stroke-width 70ms ease-out, filter 70ms ease-out",
                         }}
                         onMouseEnter={() => setHoveredId(s.id)}
                         onMouseLeave={() => setHoveredId(null)}
@@ -580,8 +581,15 @@ export function CraniotomiaV4() {
                       onMouseLeave={() => setHoveredId(null)}
                       onClick={() => setSelectedId(s.id)}
                       onContextMenu={(e) => onCtxMenu(e, s.id)}
-                      className={`group border-b border-[var(--crn-border)] cursor-pointer transition-colors ${bgClass} ${isSelected ? "ring-1 ring-[var(--crn-accent)] ring-inset" : isHovered ? "bg-[var(--crn-bg-row-hover)]" : ""}`}
-                      style={{ borderLeft: `4px solid ${B1_COR[s.b1]}` }}
+                      className={`group border-b border-[var(--crn-border)] cursor-pointer ${bgClass} ${isSelected ? "bg-[var(--crn-bg-row-hover)]" : ""}`}
+                      style={{
+                        borderLeft: `4px solid ${B1_COR[s.b1]}`,
+                        // Neon na borda da row casando com a cor B1 da sinapse — surge e some rapido (70ms)
+                        boxShadow: (isHovered || isSelected)
+                          ? `inset 0 0 0 1px ${B1_COR[s.b1]}, 0 0 6px ${B1_COR[s.b1]}cc, 0 0 14px ${B1_COR[s.b1]}66`
+                          : "none",
+                        transition: "box-shadow 70ms ease-out, background-color 70ms ease-out",
+                      }}
                     >
                       <td className="px-2 py-1">
                         <span
