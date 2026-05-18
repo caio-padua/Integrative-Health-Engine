@@ -455,3 +455,9 @@ id = "5_TJJdvtmsO0nZgF171oS"
 uri = "file://scripts/.local/samples/ras-d21-evolucao-3a-semana.pdf"
 type = "pdf"
 title = "RAS D21 v2 — sem logo, 2 linhas PAWARDS® / PADCON®"
+
+[[outputs]]
+id = "Ecyr9DUCYMOqayZr172mV"
+uri = "file://scripts/.local/samples/mockup-substancia-3-variantes.pdf"
+type = "pdf"
+title = "3 variantes — Pagina individual por substancia (NAD+ exemplo)"
