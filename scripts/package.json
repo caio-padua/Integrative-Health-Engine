@@ -18,6 +18,7 @@
     "disparar-teste-whatsapp-ceo": "tsx ./src/disparar-teste-whatsapp-ceo.ts",
     "demo-carlucia-end-to-end": "tsx ./src/demo-carlucia-end-to-end.ts",
     "disparar-teste-telegram-ceo": "tsx ./src/disparar-teste-telegram-ceo.ts",
+    "demo-ras-carlucia": "tsx ./src/demo-ras-carlucia.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
