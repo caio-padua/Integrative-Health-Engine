@@ -5,36 +5,86 @@ import { fileURLToPath } from "node:url";
 import { parsePosologia, formatarPosologiaEstruturada, type PosologiaEstruturada } from "@workspace/posologia";
 import { desenharPosologiaBlocos } from "./posologiaBlocos.js";
 
-// Logo oficial Pawards MedCore (gold em fundo navy) — carregada uma vez por
-// processo (buffer otimizado ~150KB) e ABERTA UMA VEZ por PDFDocument via
-// doc.openImage(). Isso garante que a logo apareca na capa + nos 11 cadernos
-// referenciando o mesmo objeto interno do PDF (em vez de embedar 12 copias do
-// PNG, o que inflaria o arquivo de ~50KB para >15MB).
-let _LOGO_PAWARDS_BUF: Buffer | null = null;
-function loadLogoBuffer(): Buffer | null {
-  if (_LOGO_PAWARDS_BUF) return _LOGO_PAWARDS_BUF;
+// ============================================================================
+// LOGOS — distincao CLINICA x SISTEMA (decisao de marca Caio CEO 18/mai/2026)
+// ----------------------------------------------------------------------------
+// - Logo da CLINICA (Instituto Padua): area nobre, destaque no documento.
+//   Centralizada na capa + canto direito do header de cada caderno.
+//   Tamanho generoso, e a "dona" do documento clinico.
+// - Logo do SISTEMA (Pawards MedCore): discreta, "sistema desenvolvido por".
+//   Mini selo no rodape do documento — nao compete com a marca da clinica.
+//
+// Os PNG sao carregados 1x por processo (buffer cached) e ABERTOS 1x por
+// PDFDocument via doc.openImage() pra serem referenciados em multiplos lugares
+// sem duplicar bytes (sem isso, o PDF infla de ~190KB pra >15MB).
+// ============================================================================
+
+function loadAssetBuffer(filename: string): Buffer | null {
   try {
-    const p = fileURLToPath(new URL("./assets/logo-pawards-optim.png", import.meta.url));
-    _LOGO_PAWARDS_BUF = readFileSync(p);
-    return _LOGO_PAWARDS_BUF;
-  } catch {
-    return null;
-  }
+    const p = fileURLToPath(new URL(`./assets/${filename}`, import.meta.url));
+    return readFileSync(p);
+  } catch { return null; }
 }
-const LOGO_REF = new WeakMap<PDFKit.PDFDocument, unknown>();
-function getLogoRef(doc: PDFKit.PDFDocument): unknown | null {
-  const cached = LOGO_REF.get(doc);
+let _BUF_PAWARDS_MINI: Buffer | null = null;
+function loadPawardsMini(): Buffer | null {
+  if (_BUF_PAWARDS_MINI) return _BUF_PAWARDS_MINI;
+  _BUF_PAWARDS_MINI = loadAssetBuffer("logo-pawards-mini.png");
+  return _BUF_PAWARDS_MINI;
+}
+let _BUF_INSTITUTO: Buffer | null | undefined; // undefined=not-tried, null=tried-failed
+function loadInstituto(): Buffer | null {
+  if (_BUF_INSTITUTO !== undefined) return _BUF_INSTITUTO;
+  _BUF_INSTITUTO = loadAssetBuffer("logo-instituto-padua.png");
+  return _BUF_INSTITUTO;
+}
+
+const REF_PAWARDS = new WeakMap<PDFKit.PDFDocument, unknown>();
+const REF_INSTITUTO = new WeakMap<PDFKit.PDFDocument, unknown>();
+function _openOnce(doc: PDFKit.PDFDocument, buf: Buffer, cache: WeakMap<PDFKit.PDFDocument, unknown>): unknown {
+  const cached = cache.get(doc);
   if (cached) return cached;
-  const buf = loadLogoBuffer();
-  if (!buf) return null;
   try {
-    // openImage() registra o image uma vez no PDF e retorna handle reutilizavel
     const docAny = doc as unknown as { openImage(b: Buffer): unknown };
     const ref = docAny.openImage(buf);
-    LOGO_REF.set(doc, ref);
+    cache.set(doc, ref);
     return ref;
-  } catch {
-    return buf; // fallback: passa o buffer direto (cada chamada re-embeda)
+  } catch { return buf; }
+}
+function getPawardsRef(doc: PDFKit.PDFDocument): unknown | null {
+  const b = loadPawardsMini();
+  return b ? _openOnce(doc, b, REF_PAWARDS) : null;
+}
+function getInstitutoRef(doc: PDFKit.PDFDocument): unknown | null {
+  const b = loadInstituto();
+  return b ? _openOnce(doc, b, REF_INSTITUTO) : null;
+}
+
+// Placeholder elegante p/ logo Instituto Padua enquanto o arquivo
+// `assets/logo-instituto-padua.png` nao for fornecido. Caixa filete-ouro
+// com monograma "IP" + brasao tipografico. Classico, sem exageros.
+function drawInstitutoPlaceholder(
+  doc: PDFKit.PDFDocument, x: number, y: number, w: number, h: number,
+  variant: "header" | "capa" = "header",
+) {
+  // Moldura dupla filete-ouro (toque editorial)
+  doc.rect(x, y, w, h).lineWidth(0.6).stroke(CORES.douradoQueimado);
+  doc.rect(x + 2, y + 2, w - 4, h - 4).lineWidth(0.2).stroke(CORES.douradoQueimado);
+  if (variant === "capa") {
+    // Monograma "IP" grande gold serif-like
+    doc.fontSize(Math.floor(h * 0.42)).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+      .text("IP", x, y + h * 0.18, { width: w, align: "center" });
+    // Filete sob monograma
+    const lineY = y + h * 0.65;
+    doc.moveTo(x + w * 0.25, lineY).lineTo(x + w * 0.75, lineY).lineWidth(0.4).stroke(CORES.douradoQueimado);
+    // Nome instituto
+    doc.fontSize(Math.max(7, Math.floor(h * 0.07))).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+      .text("INSTITUTO PADUA", x, y + h * 0.72, { width: w, align: "center", characterSpacing: 2 });
+    doc.fontSize(Math.max(5, Math.floor(h * 0.04))).font("Helvetica-Oblique").fillColor(CORES.offWhite)
+      .text("medicina integrativa", x, y + h * 0.85, { width: w, align: "center" });
+  } else {
+    // header — mini monograma
+    doc.fontSize(Math.floor(h * 0.55)).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+      .text("IP", x, y + h * 0.18, { width: w, align: "center" });
   }
 }
 
@@ -139,33 +189,42 @@ function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isL
   doc.rect(0, 60, width, 1).fill(CORES.douradoQueimado);
   doc.rect(0, 63, width, 1).fill(CORES.douradoQueimado);
 
-  // LOGO oficial Pawards MedCore (gold em navy) — canto direito do header
-  const logo = getLogoRef(doc);
-  const logoH = 48;
-  const logoW = 48;
+  // LOGO da CLINICA — Instituto Padua no canto direito (area nobre do header).
+  // Se o arquivo logo-instituto-padua.png ainda nao existe, desenha placeholder
+  // elegante (caixa filete-ouro com monograma "IP"). Pawards (sistema) NAO
+  // aparece no header — fica reservada pro rodape com "sistema desenvolvido por".
+  const logoH = 44;
+  const logoW = 44;
   const logoX = width - logoW - 14;
-  const logoY = 8;
-  if (logo) {
-    try { doc.image(logo, logoX, logoY, { fit: [logoW, logoH] }); }
-    catch { /* fallback silencioso pro texto abaixo */ }
+  const logoY = 10;
+  const instLogo = getInstitutoRef(doc);
+  if (instLogo) {
+    try { doc.image(instLogo, logoX, logoY, { fit: [logoW, logoH] }); }
+    catch { drawInstitutoPlaceholder(doc, logoX, logoY, logoW, logoH, "header"); }
+  } else {
+    drawInstitutoPlaceholder(doc, logoX, logoY, logoW, logoH, "header");
   }
+  // Label institucional sob a logo (caps gold 5.5pt, classico)
+  doc.fontSize(5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text("INSTITUTO PADUA", logoX - 8, logoY + logoH + 2, { width: logoW + 16, align: "center", characterSpacing: 1.2 });
 
   // Linha 1: titulo humano (13pt bold off-white)
+  const tituloW = width - logoW - 40;
   doc.fontSize(13).font("Helvetica-Bold").fillColor(CORES.offWhite)
-    .text(titulo.toUpperCase(), 14, 8, { width: width - logoW - 40 });
+    .text(titulo.toUpperCase(), 14, 8, { width: tituloW });
   // Linha 2: codigo tecnico + caderno X/Y inline (gold 7pt)
   ctx.atual += 1;
   const paginacao = ctx.total > 0
     ? `CADERNO ${ctx.atual.toString().padStart(2, "0")}/${ctx.total.toString().padStart(2, "0")}`
     : `CADERNO ${ctx.atual.toString().padStart(2, "0")}`;
   doc.fontSize(7.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
-    .text(`${codigo}  ·  ${paginacao}`, 14, 28, { width: width - logoW - 40 });
-  // Linha 3: tagline institucional italica (off-white 6.5pt)
+    .text(`${codigo}  ·  ${paginacao}`, 14, 28, { width: tituloW });
+  // Linha 3: tagline da CLINICA (off-white 6.5pt italica)
   doc.fontSize(6.5).font("Helvetica-Oblique").fillColor(CORES.offWhite)
-    .text("Pawards MedCore  ·  Sistema Clinico Inteligente  ·  RASX-MATRIZ V6  ·  PADCOM v15.2", 14, 40, { width: width - logoW - 40 });
+    .text("Instituto Padua  ·  Medicina Integrativa  ·  RASX-MATRIZ V6  ·  PADCOM v15.2", 14, 40, { width: tituloW });
   // Linha 4: token + codigo semantico (mono cinzento 5.5pt) — auditavel
   doc.fontSize(5.5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(`token ${ctx.tokenHash || "—"}   ·   semantico ${ctx.codigoSemantico || "—"}   ·   documento clinico assinado`, 14, 51, { width: width - logoW - 40 });
+    .text(`token ${ctx.tokenHash || "—"}   ·   semantico ${ctx.codigoSemantico || "—"}   ·   documento clinico assinado`, 14, 51, { width: tituloW });
 }
 
 // ----------------------------------------------------------------------------
@@ -181,13 +240,17 @@ function drawCapa(doc: PDFKit.PDFDocument, data: RasxPdfData) {
   doc.rect(28, 28, width - 56, height - 56).lineWidth(0.8).stroke(CORES.douradoQueimado);
   doc.rect(34, 34, width - 68, height - 68).lineWidth(0.3).stroke(CORES.douradoQueimado);
 
-  // Logo gigante centralizada (320x320 mantendo proporcao)
-  const logo = getLogoRef(doc);
-  const logoSize = 280;
-  if (logo) {
-    try {
-      doc.image(logo, (width - logoSize) / 2, 90, { fit: [logoSize, logoSize] });
-    } catch { /* ignore */ }
+  // LOGO da CLINICA centralizada (dona do documento). 240x240, generosa mas
+  // sem extravagancia. Placeholder editorial enquanto arquivo nao existe.
+  const logoSize = 240;
+  const logoCX = (width - logoSize) / 2;
+  const logoCY = 100;
+  const instLogo = getInstitutoRef(doc);
+  if (instLogo) {
+    try { doc.image(instLogo, logoCX, logoCY, { fit: [logoSize, logoSize] }); }
+    catch { drawInstitutoPlaceholder(doc, logoCX, logoCY, logoSize, logoSize, "capa"); }
+  } else {
+    drawInstitutoPlaceholder(doc, logoCX, logoCY, logoSize, logoSize, "capa");
   }
 
   // Linha divisoria gold sob a logo
@@ -265,8 +328,22 @@ function drawCapa(doc: PDFKit.PDFDocument, data: RasxPdfData) {
     .text("DOCUMENTO CLINICO INSTITUCIONAL  ·  USO RESTRITO  ·  PROTEGIDO POR LGPD", 28, height - 54, { width: width - 56, align: "center", characterSpacing: 2 });
   doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
     .text(`token ${ctx.tokenHash || "—"}   ·   semantico ${ctx.codigoSemantico || "—"}   ·   ${ctx.total || 11} cadernos`, 28, height - 44, { width: width - 56, align: "center" });
-  doc.fontSize(5.5).font("Helvetica-Oblique").fillColor(CORES.cinzaClaro)
-    .text("Developed by Pawards MedCore  ·  Sistema Clinico Inteligente", 28, height - 35, { width: width - 56, align: "center" });
+  // Selo discreto "sistema desenvolvido por" — Pawards MedCore mini.
+  // Aparece SO no rodape da capa (nao no header) — sistema nao compete com a clinica.
+  const pwLogo = getPawardsRef(doc);
+  const pwSize = 14;
+  const pwLabel = "sistema desenvolvido por  PAWARDS MEDCORE";
+  doc.fontSize(5).font("Helvetica").fillColor(CORES.cinzaClaro);
+  const pwLabelW = doc.widthOfString(pwLabel, { characterSpacing: 1.5 });
+  const pwTotalW = pwSize + 6 + pwLabelW;
+  const pwX = (width - pwTotalW) / 2;
+  const pwY = height - 30;
+  if (pwLogo) {
+    try { doc.image(pwLogo, pwX, pwY - 2, { fit: [pwSize, pwSize] }); }
+    catch { /* ignore */ }
+  }
+  doc.fontSize(5).font("Helvetica").fillColor(CORES.cinzaClaro)
+    .text(pwLabel, pwX + pwSize + 6, pwY + 3, { characterSpacing: 1.5, lineBreak: false });
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
