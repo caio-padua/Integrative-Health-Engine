@@ -107,19 +107,38 @@ function cabecalho(doc: PDFKit.PDFDocument) {
   doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
     .text("APRESENTAÇÃO · D0", W - MARG - 130, 19,
       { width: 130, align: "center", characterSpacing: 1, lineBreak: false });
-  // Ribbon metadados em creme (mantem ancora visual)
-  doc.rect(0, 66, W, 28).fill(CORES.creme);
-  const metas: [string, string][] = [["VIA", NAD.via], ["DOSE", NAD.dose], ["FREQUÊNCIA", NAD.freq]];
-  let cx = MARG;
-  for (const [l, v] of metas) {
+  // (posologia agora vive em bloco enquadrado separado, abaixo do cabecalho)
+  return 80;
+}
+
+// =========================================================================
+// BLOCO POSOLOGIA ENQUADRADO (substitui o ribbon que atravessava a pagina)
+// =========================================================================
+function blocoPosologiaEnquadrado(doc: PDFKit.PDFDocument, y: number): number {
+  const CW = W - MARG * 2;
+  const altura = 38;
+  // Caixa com borda dourada
+  doc.rect(MARG, y, CW, altura).fillAndStroke(CORES.creme, CORES.dourado);
+  doc.lineWidth(0.8);
+  // 3 colunas: VIA | DOSE | FREQUÊNCIA com separadores verticais finos
+  const metas: [string, string][] = [
+    ["VIA", NAD.via],
+    ["DOSE", NAD.dose],
+    ["FREQUÊNCIA", NAD.freq],
+  ];
+  const colW = CW / 3;
+  for (let i = 0; i < 3; i++) {
+    const xCol = MARG + i * colW;
     doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.cinzaClaro)
-      .text(l, cx, 73, { characterSpacing: 0.8, lineBreak: false });
-    doc.fontSize(9.5).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
-      .text(v, cx, 82, { lineBreak: false });
-    cx += (W - MARG * 2) / 3;
+      .text(metas[i][0], xCol + 14, y + 8, { characterSpacing: 1, lineBreak: false });
+    doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
+      .text(metas[i][1], xCol + 14, y + 19, { width: colW - 20, lineBreak: false });
+    // separador vertical fino dourado entre colunas (nao depois da ultima)
+    if (i < 2) {
+      doc.rect(xCol + colW - 0.3, y + 6, 0.4, altura - 12).fill(CORES.dourado);
+    }
   }
-  doc.rect(0, 95, W, 1).fill(CORES.cinzaLinha);
-  return 116; // mais respiro: 116 em vez de 108
+  return y + altura + 14;
 }
 
 function rodape(doc: PDFKit.PDFDocument, etiqueta: string) {
@@ -173,31 +192,31 @@ function cardEmoldurado(
 ): number {
   const CW = W - MARG * 2;
   const headerH = 30;
-  const padInterno = 14; // mais padding (era 10)
-  const alturaTotal = headerH + alturaConteudo + padInterno * 2 - 8;
+  const padInterno = 14;
+  const gap = 4; // respiro entre os 2 retangulos (header e corpo separados)
+  const corpoH = alturaConteudo + padInterno * 2 - 8;
 
-  // borda externa dourada
-  doc.rect(MARG, y, CW, alturaTotal).strokeColor(CORES.dourado).lineWidth(1).stroke();
-  // tira do titulo navy
-  doc.rect(MARG + 0.5, y + 0.5, CW - 1, headerH).fill(CORES.navyProfundo);
-  // filete dourado entre titulo e corpo
-  doc.rect(MARG + 0.5, y + headerH, CW - 1, 1).fill(CORES.dourado);
-  // corpo: pastel CARD (tom mais claro que o fundo da pagina)
-  doc.rect(MARG + 0.5, y + headerH + 1, CW - 1, alturaTotal - headerH - 1.5).fill(CORES.pastelCard);
-
-  // Numeral arabico em quadradinho dourado dentro do header
-  doc.rect(MARG + 10, y + 6, 18, 18).fill(CORES.dourado);
+  // --- RETANGULO 1: header navy emoldurado (borda dourada propria)
+  doc.rect(MARG, y, CW, headerH).fillAndStroke(CORES.navyProfundo, CORES.dourado);
+  doc.lineWidth(0.8);
+  // numeral arabico em quadradinho dourado dentro do header
+  doc.rect(MARG + 8, y + 6, 18, 18).fill(CORES.dourado);
   doc.fontSize(12).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
-    .text(String(numero), MARG + 10, y + 10, { width: 18, align: "center", lineBreak: false });
-  // Titulo em creme sobre navy
+    .text(String(numero), MARG + 8, y + 10, { width: 18, align: "center", lineBreak: false });
+  // titulo em creme sobre navy
   doc.fontSize(11).font("Helvetica-Bold").fillColor("#F2EEDF")
-    .text(titulo.toUpperCase(), MARG + 38, y + 10,
-      { width: CW - 50, characterSpacing: 0.8, lineBreak: false });
+    .text(titulo.toUpperCase(), MARG + 36, y + 10,
+      { width: CW - 46, characterSpacing: 0.8, lineBreak: false });
 
-  // conteudo
-  render(MARG + padInterno, y + headerH + padInterno, CW - padInterno * 2);
+  // --- RETANGULO 2: corpo pastel emoldurado (borda dourada propria), separado por gap
+  const yCorpo = y + headerH + gap;
+  doc.rect(MARG, yCorpo, CW, corpoH).fillAndStroke(CORES.pastelCard, CORES.dourado);
+  doc.lineWidth(0.8);
 
-  return y + alturaTotal + 14; // mais respiro entre cards (era 10)
+  // conteudo dentro do retangulo do corpo
+  render(MARG + padInterno, yCorpo + padInterno, CW - padInterno * 2);
+
+  return yCorpo + corpoH + 14;
 }
 
 // =========================================================================
@@ -233,6 +252,9 @@ function paginaV8(doc: PDFKit.PDFDocument) {
   // Fundo pastel azulado (cor que Caio gostou na obs clinica antiga)
   doc.rect(0, 0, W, H).fill(CORES.pastelFundo);
   let y = cabecalho(doc);
+
+  // POSOLOGIA enquadrada (caixa com borda dourada, nao mais ribbon)
+  y = blocoPosologiaEnquadrado(doc, y);
 
   // BLOCO 1 — Por que esta substância
   {
