@@ -173,14 +173,8 @@ export function CraniotomiaV4() {
     const pulseId = `${sinapseId}-${now}`;
     setPulses((prev) => [...prev.filter((p) => p.sinapseId !== sinapseId), { id: pulseId, sinapseId, pathEl, originLen, totalLen, color }]);
 
-    // Sons: disparo inicial, chegadas nas pontas, encontro central
-    playClick(240, 0.05, 0.10);
-    const distL = originLen;
-    const distR = totalLen - originLen;
-    const maxD = Math.max(distL, distR, 1);
-    window.setTimeout(() => playClick(300, 0.04, 0.09), (distL / maxD) * 300);
-    window.setTimeout(() => playClick(300, 0.04, 0.09), (distR / maxD) * 300);
-    window.setTimeout(() => playClick(420, 0.04, 0.11), 580);
+    // Som: 1 burst único divergente (down-sweep "tssh" sináptico curto)
+    playClick(280, 0.12, 0.10);
   }, [modoSinaptico, playClick]);
 
   const removePulse = useCallback((id: string) => {
@@ -529,9 +523,12 @@ export function CraniotomiaV4() {
                     />
                   );
                 })}
-                {/* Choque sináptico: pulsos viajando pela curva */}
+                {/* Choque sináptico: 2 ondas zigzag divergem do ponto do mouse, sem retorno */}
                 {pulses.map((p) => (
-                  <SinapsePulse key={p.id} pathEl={p.pathEl} originLen={p.originLen} totalLen={p.totalLen} color={p.color} onDone={() => removePulse(p.id)} />
+                  <React.Fragment key={p.id}>
+                    <SinapseWave pathEl={p.pathEl} originLen={p.originLen} totalLen={p.totalLen} color={p.color} direction={-1} onDone={() => removePulse(p.id + ":L")} />
+                    <SinapseWave pathEl={p.pathEl} originLen={p.originLen} totalLen={p.totalLen} color={p.color} direction={1} onDone={() => removePulse(p.id)} />
+                  </React.Fragment>
                 ))}
               </svg>
             </div>
@@ -688,7 +685,7 @@ export function CraniotomiaV4() {
                       onMouseLeave={() => setHoveredId(null)}
                       onClick={() => setSelectedId(s.id)}
                       onContextMenu={(e) => onCtxMenu(e, s.id)}
-                      className={`group border-b border-[var(--crn-border)] cursor-pointer transition-colors ${bgClass} ${isSelected ? "ring-1 ring-[var(--crn-accent)] ring-inset" : isHovered ? "bg-[var(--crn-bg-row-hover)]" : ""}`}
+                      className={`group border-b border-[var(--crn-border)] cursor-pointer transition-colors ${bgClass} ${isSelected ? "ring-1 ring-[var(--crn-accent)] ring-inset" : isHovered ? "bg-[var(--crn-bg-row-hover)]" : ""} ${modoSinaptico && pulses.some((p) => p.sinapseId === s.id) ? "crn-row-wave" : ""}`}
                       style={{ borderLeft: `4px solid ${B1_COR[s.b1]}` }}
                     >
                       <td className="px-2 py-1">
@@ -1083,75 +1080,80 @@ function ShortcutRow({ k, desc }: { k: string; desc: string }) {
 }
 
 // ============================================================
-// SinapsePulse — choque sináptico animado pela curva da aresta
-// 2 pulsos partem do ponto de origem, vão até as pontas e voltam.
-// Quando se reencontram no centro: flash branco. Total ~620ms.
+// SinapseWave — onda zigzag estilo eletrocardiograma
+// Diverge do ponto de origem em UMA direção (-1 esquerda, +1 direita),
+// nunca retorna. Pacote de zigzag com envelope que fade out conforme
+// alcança a extremidade. ~500ms cada onda.
 // ============================================================
-function SinapsePulse({ pathEl, originLen, totalLen, color, onDone }: {
+function SinapseWave({ pathEl, originLen, totalLen, color, direction, onDone }: {
   pathEl: SVGPathElement;
   originLen: number;
   totalLen: number;
   color: string;
+  direction: -1 | 1;
   onDone: () => void;
 }) {
-  const leftRef = useRef<SVGCircleElement>(null);
-  const rightRef = useRef<SVGCircleElement>(null);
-  const flashRef = useRef<SVGCircleElement>(null);
-  const originPt = useMemo(() => {
-    try { return pathEl.getPointAtLength(originLen); } catch { return { x: 50, y: 50 } as DOMPoint; }
-  }, [pathEl, originLen]);
+  const polyRef = useRef<SVGPolylineElement>(null);
+  const glowRef = useRef<SVGPolylineElement>(null);
 
   useEffect(() => {
-    const DURATION = 620;
+    const DURATION = 520;
+    const SEGMENTS = 28;                         // resolução do zigzag
+    const AMP = 3.5;                             // amplitude grande (Caio pediu)
+    const FREQ = 4;                              // ciclos dentro do pacote
+    const targetLen = direction === -1 ? 0 : totalLen;
+    const travelDist = Math.abs(targetLen - originLen);
+    const WAVE_SPAN = Math.min(travelDist * 0.55, totalLen * 0.22);
     const start = performance.now();
     let raf = 0;
-    const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
-    const easeInCubic = (x: number) => x * x * x;
+    const easeOut = (x: number) => 1 - Math.pow(1 - x, 2.2);
 
     const loop = () => {
       const t = (performance.now() - start) / DURATION;
       if (t >= 1) { onDone(); return; }
-      // 0..0.5 outbound; 0.5..1 inbound
-      const phase = t < 0.5 ? t * 2 : (t - 0.5) * 2;
-      const eased = t < 0.5 ? easeOutCubic(phase) : 1 - easeInCubic(phase);
+      const eased = easeOut(t);
+      const center = originLen + (targetLen - originLen) * eased;
+      const ampFade = (1 - t) * (1 - t * 0.3);   // amplitude vai diminuindo
+      const opacity = 0.95 * (1 - t * t);        // brilho some quadraticamente
 
-      const leftLen = originLen * eased;
-      const rightLen = originLen + (totalLen - originLen) * eased;
-
+      const pts: string[] = [];
       try {
-        const pL = pathEl.getPointAtLength(leftLen);
-        const pR = pathEl.getPointAtLength(rightLen);
-        const op = (1 - Math.abs(2 * t - 1)) * 0.95 + 0.05;
-        if (leftRef.current) {
-          leftRef.current.setAttribute("cx", pL.x.toString());
-          leftRef.current.setAttribute("cy", pL.y.toString());
-          leftRef.current.setAttribute("opacity", op.toString());
+        for (let i = 0; i < SEGMENTS; i++) {
+          const u = i / (SEGMENTS - 1);                          // 0..1
+          const offset = (u - 0.5) * WAVE_SPAN;                  // -W/2..+W/2 ao redor do center
+          const len = Math.max(0.01, Math.min(totalLen - 0.01, center + offset));
+          const p = pathEl.getPointAtLength(len);
+          const pNext = pathEl.getPointAtLength(Math.min(totalLen - 0.001, len + 0.4));
+          const tx = pNext.x - p.x, ty = pNext.y - p.y;
+          const mag = Math.hypot(tx, ty) || 1;
+          const nx = -ty / mag, ny = tx / mag;                   // normal perpendicular ao path
+          const env = Math.sin(Math.PI * u);                     // envelope: 0→1→0 (extremidades zeram)
+          const wave = Math.sin(u * FREQ * Math.PI * 2);         // zigzag senoidal
+          const d = AMP * wave * env * ampFade;
+          pts.push(`${(p.x + nx * d).toFixed(3)},${(p.y + ny * d).toFixed(3)}`);
         }
-        if (rightRef.current) {
-          rightRef.current.setAttribute("cx", pR.x.toString());
-          rightRef.current.setAttribute("cy", pR.y.toString());
-          rightRef.current.setAttribute("opacity", op.toString());
+        const ptsStr = pts.join(" ");
+        if (polyRef.current) {
+          polyRef.current.setAttribute("points", ptsStr);
+          polyRef.current.setAttribute("opacity", opacity.toString());
         }
-        if (flashRef.current) {
-          // flash inicial no disparo + flash final no reencontro
-          const flashStart = Math.max(0, 1 - t * 6);
-          const flashEnd = t > 0.82 ? (t - 0.82) / 0.18 : 0;
-          const flashOp = Math.max(flashStart, flashEnd) * 0.9;
-          flashRef.current.setAttribute("opacity", flashOp.toString());
-          flashRef.current.setAttribute("r", (1.2 + flashEnd * 1.8).toString());
+        if (glowRef.current) {
+          glowRef.current.setAttribute("points", ptsStr);
+          glowRef.current.setAttribute("opacity", (opacity * 0.55).toString());
         }
       } catch { /* path desmontado */ }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [pathEl, originLen, totalLen, onDone]);
+  }, [pathEl, originLen, totalLen, direction, onDone]);
 
   return (
     <g pointerEvents="none" style={{ mixBlendMode: "screen" }}>
-      <circle ref={flashRef} cx={originPt.x} cy={originPt.y} r="1.5" fill="#ffffff" opacity="0" />
-      <circle ref={leftRef} cx={originPt.x} cy={originPt.y} r="0.9" fill="#ffffff" stroke={color} strokeWidth="0.3" vectorEffect="non-scaling-stroke" opacity="0" />
-      <circle ref={rightRef} cx={originPt.x} cy={originPt.y} r="0.9" fill="#ffffff" stroke={color} strokeWidth="0.3" vectorEffect="non-scaling-stroke" opacity="0" />
+      {/* glow externo */}
+      <polyline ref={glowRef} fill="none" stroke={color} strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0" />
+      {/* núcleo branco */}
+      <polyline ref={polyRef} fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0" />
     </g>
   );
 }
