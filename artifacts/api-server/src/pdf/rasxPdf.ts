@@ -93,78 +93,77 @@ type AssinaturaVariant = "completa" | "compacta";
 
 interface AssinaturaOpts {
   centerX: number;
-  bottomY: number;          // base do bloco (y do filete inferior)
+  bottomY: number;          // base do bloco (y do filete inferior / ultima linha)
   theme: AssinaturaTheme;
   variant: AssinaturaVariant;
-  includeLogoMini?: boolean;
 }
 
+// Layout cravado por Caio (18/mai): SEM logo, SEM "MedCore".
+// Duas linhas, marca em bold + referencia ao lado:
+//   PAWARDS®   Clinical Intelligence System
+//   PADCON®    Advanced Systems Architecture
+// Variante "completa"  = 2 linhas com filetes acima/abaixo (capa, paginas-fim)
+// Variante "compacta"  = 2 linhas sem filetes (rodape paginas internas)
 function drawAssinaturaInstitucional(doc: PDFKit.PDFDocument, opts: AssinaturaOpts) {
   const isNavy = opts.theme === "navy-gold";
   const fgMark = isNavy ? CORES.douradoQueimado : CORES.azulPetroleo;
   const fgSub = isNavy ? CORES.cinzaClaro : CORES.cinzaTexto;
-  const fileteW = 140;
-  const blockW = 240;
 
-  if (opts.variant === "compacta") {
-    // 1 linha inline: "PAWARDS MedCore®  ·  PADCON Platform®"
-    const label = "PAWARDS MedCore\u00ae   \u00b7   PADCON Platform\u00ae";
-    doc.fontSize(6).font("Helvetica-Bold").fillColor(fgMark);
-    const lw = doc.widthOfString(label, { characterSpacing: 2 });
-    let x = opts.centerX - lw / 2;
-    if (opts.includeLogoMini) {
-      const logo = getPawardsRef(doc);
-      if (logo) {
-        try { doc.image(logo, x - 16, opts.bottomY - 4, { fit: [10, 10] }); }
-        catch { /* ignore */ }
-      }
-    }
-    doc.fontSize(6).font("Helvetica-Bold").fillColor(fgMark)
-      .text(label, x, opts.bottomY, { characterSpacing: 2, lineBreak: false });
-    return;
-  }
+  // Tipografia
+  const sizeMark = opts.variant === "completa" ? 8 : 6;
+  const sizeSub = opts.variant === "completa" ? 7 : 5.5;
+  const gap = opts.variant === "completa" ? 8 : 5;   // espaco horiz entre marca e referencia
+  const lh = opts.variant === "completa" ? 11 : 8;   // line-height entre as 2 linhas
+  const filetePad = opts.variant === "completa" ? 5 : 0;
+  const fileteW = opts.variant === "completa" ? 180 : 0;
 
-  // Variante COMPLETA: 4 linhas + 2 filetes
-  //  filete sup
-  //  PAWARDS MedCore®
-  //  Clinical Intelligence System
-  //  PADCON Platform®
-  //  Advanced Systems Architecture
-  //  filete inf
-  const lh = 8;
-  const totalH = 6 + lh * 4 + 6 + 4;
+  // Mede largura das duas linhas em ambos os estilos pra alinhar como tabela 2 colunas
+  doc.font("Helvetica-Bold").fontSize(sizeMark);
+  const wPaw = doc.widthOfString("PAWARDS\u00ae", { characterSpacing: 1.5 });
+  const wPad = doc.widthOfString("PADCON\u00ae", { characterSpacing: 1.5 });
+  const colMarkW = Math.max(wPaw, wPad);
+  doc.font("Helvetica-Oblique").fontSize(sizeSub);
+  const wRef1 = doc.widthOfString("Clinical Intelligence System", { characterSpacing: 0.3 });
+  const wRef2 = doc.widthOfString("Advanced Systems Architecture", { characterSpacing: 0.3 });
+  const colRefW = Math.max(wRef1, wRef2);
+
+  const blockW = colMarkW + gap + colRefW;
+  const totalH = lh * 2 + filetePad * 2;
+
+  const xLeft = opts.centerX - blockW / 2;
+  const xMarkR = xLeft + colMarkW;       // ponta direita da coluna marca (alinhar a direita)
+  const xRefL = xLeft + colMarkW + gap;  // inicio da coluna referencia (alinhar a esquerda)
   let y = opts.bottomY - totalH;
 
-  // filete superior
-  doc.moveTo(opts.centerX - fileteW / 2, y).lineTo(opts.centerX + fileteW / 2, y)
-    .lineWidth(0.4).stroke(fgMark);
-  y += 6;
-
-  // Mini logo Pawards a esquerda do bloco (so na variante completa, se pedido)
-  if (opts.includeLogoMini) {
-    const logo = getPawardsRef(doc);
-    if (logo) {
-      try { doc.image(logo, opts.centerX - blockW / 2 - 6, y, { fit: [14, 14] }); }
-      catch { /* ignore */ }
-    }
+  // filete superior (so na variante completa)
+  if (opts.variant === "completa") {
+    doc.moveTo(opts.centerX - fileteW / 2, y).lineTo(opts.centerX + fileteW / 2, y)
+      .lineWidth(0.4).stroke(fgMark);
+    y += filetePad;
   }
 
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(fgMark)
-    .text("PAWARDS MedCore\u00ae", opts.centerX - blockW / 2, y, { width: blockW, align: "center", characterSpacing: 2 });
+  // Linha 1: PAWARDS®  ·  Clinical Intelligence System
+  doc.font("Helvetica-Bold").fontSize(sizeMark).fillColor(fgMark)
+    .text("PAWARDS\u00ae", xMarkR - wPaw, y, { characterSpacing: 1.5, lineBreak: false });
+  doc.font("Helvetica-Oblique").fontSize(sizeSub).fillColor(fgSub)
+    .text("Clinical Intelligence System", xRefL, y + (sizeMark - sizeSub) * 0.3,
+      { characterSpacing: 0.3, lineBreak: false });
   y += lh;
-  doc.fontSize(5.5).font("Helvetica-Oblique").fillColor(fgSub)
-    .text("Clinical Intelligence System", opts.centerX - blockW / 2, y, { width: blockW, align: "center", characterSpacing: 0.5 });
-  y += lh;
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(fgMark)
-    .text("PADCON Platform\u00ae", opts.centerX - blockW / 2, y, { width: blockW, align: "center", characterSpacing: 2 });
-  y += lh;
-  doc.fontSize(5.5).font("Helvetica-Oblique").fillColor(fgSub)
-    .text("Advanced Systems Architecture", opts.centerX - blockW / 2, y, { width: blockW, align: "center", characterSpacing: 0.5 });
-  y += 6;
 
-  // filete inferior
-  doc.moveTo(opts.centerX - fileteW / 2, y).lineTo(opts.centerX + fileteW / 2, y)
-    .lineWidth(0.4).stroke(fgMark);
+  // Linha 2: PADCON®  ·  Advanced Systems Architecture
+  doc.font("Helvetica-Bold").fontSize(sizeMark).fillColor(fgMark)
+    .text("PADCON\u00ae", xMarkR - wPad, y, { characterSpacing: 1.5, lineBreak: false });
+  doc.font("Helvetica-Oblique").fontSize(sizeSub).fillColor(fgSub)
+    .text("Advanced Systems Architecture", xRefL, y + (sizeMark - sizeSub) * 0.3,
+      { characterSpacing: 0.3, lineBreak: false });
+  y += lh;
+
+  // filete inferior (so na variante completa)
+  if (opts.variant === "completa") {
+    y += filetePad - lh + (sizeMark);
+    doc.moveTo(opts.centerX - fileteW / 2, opts.bottomY).lineTo(opts.centerX + fileteW / 2, opts.bottomY)
+      .lineWidth(0.4).stroke(fgMark);
+  }
 }
 
 // Marca d'agua: simbolo Pawards ampliado, opacidade baixa, centralizado.
@@ -462,7 +461,6 @@ function drawCapa(doc: PDFKit.PDFDocument, data: RasxPdfData) {
     bottomY: height - 18,
     theme: "navy-gold",
     variant: "completa",
-    includeLogoMini: true,
   });
 }
 
@@ -640,7 +638,6 @@ function drawFooter(doc: PDFKit.PDFDocument, isLandscape: boolean) {
     bottomY: footerY + 13,
     theme: "navy-gold",
     variant: "compacta",
-    includeLogoMini: true,
   });
 }
 
