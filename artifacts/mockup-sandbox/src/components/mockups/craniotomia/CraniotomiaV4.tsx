@@ -41,6 +41,9 @@ import {
   Clock,
   GitCommit,
   TrendingUp,
+  Volume2,
+  VolumeX,
+  Sparkles,
 } from "lucide-react";
 
 type Modo = "VISUALIZACAO" | "EDICAO" | "SIMULACAO";
@@ -77,6 +80,8 @@ export function CraniotomiaV4() {
   const [inspectorW, setInspectorW] = usePersisted<number>("crn-v4-inspector-w", 320);
   const [legendCollapsed, setLegendCollapsed] = usePersisted<boolean>("crn-v4-legend-collapsed", false);
   const [inspectorCollapsed, setInspectorCollapsed] = usePersisted<boolean>("crn-v4-inspector-collapsed", false);
+  const [modoSinaptico, setModoSinaptico] = usePersisted<boolean>("crn-v4-modo-sinaptico", true);
+  const [somSinaptico, setSomSinaptico] = usePersisted<boolean>("crn-v4-som-sinaptico", false);
 
   // ---------- Estado efêmero ----------
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -84,11 +89,103 @@ export function CraniotomiaV4() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showHistory, setShowHistory] = useState<number | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; sinapseId: number } | null>(null);
+  const [pulses, setPulses] = useState<Array<{ id: string; sinapseId: number; pathEl: SVGPathElement; originLen: number; totalLen: number; color: string }>>([]);
 
   const filtroB1 = useMemo(() => new Set(filtroB1Arr), [filtroB1Arr]);
   const tableRowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const bodyContainerRef = useRef<HTMLDivElement>(null);
+  const pathRefs = useRef<Map<number, SVGPathElement>>(new Map());
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const lastPulseAtRef = useRef<Map<number, number>>(new Map());
+  const reducedMotionRef = useRef(false);
+
+  // detecta preferência do SO uma vez
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    reducedMotionRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  // ---------- Web Audio (lazy, só ativa após gesto do usuário) ----------
+  const playClick = useCallback((freq: number, dur: number, gain = 0.12) => {
+    if (!somSinaptico) return;
+    try {
+      if (!audioCtxRef.current) {
+        const AC = (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext
+          || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!AC) return;
+        audioCtxRef.current = new AC();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === "suspended") void ctx.resume();
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.7, ctx.currentTime + dur);
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      osc.connect(g).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + dur + 0.02);
+    } catch {
+      /* AudioContext indisponível — silencioso */
+    }
+  }, [somSinaptico]);
+
+  // ---------- Trigger do choque sináptico ----------
+  const triggerSinapse = useCallback((sinapseId: number, clientX: number, clientY: number) => {
+    if (!modoSinaptico || reducedMotionRef.current) return;
+    const now = performance.now();
+    const last = lastPulseAtRef.current.get(sinapseId) ?? 0;
+    if (now - last < 650) return; // debounce: 1 disparo por aresta a cada 650ms
+    lastPulseAtRef.current.set(sinapseId, now);
+
+    const pathEl = pathRefs.current.get(sinapseId);
+    if (!pathEl) return;
+    const svg = pathEl.ownerSVGElement;
+    if (!svg) return;
+    const totalLen = pathEl.getTotalLength();
+    if (!Number.isFinite(totalLen) || totalLen === 0) return;
+
+    // Encontra ponto mais próximo do mouse no path (busca binária aproximada)
+    let originLen = totalLen / 2;
+    try {
+      const pt = svg.createSVGPoint();
+      pt.x = clientX;
+      pt.y = clientY;
+      const ctm = svg.getScreenCTM();
+      if (ctm) {
+        const svgPt = pt.matrixTransform(ctm.inverse());
+        let bestDist = Infinity;
+        for (let i = 0; i <= 40; i++) {
+          const l = (i / 40) * totalLen;
+          const p = pathEl.getPointAtLength(l);
+          const d = (p.x - svgPt.x) ** 2 + (p.y - svgPt.y) ** 2;
+          if (d < bestDist) { bestDist = d; originLen = l; }
+        }
+      }
+    } catch { /* fallback no centro */ }
+
+    const sinapse = SINAPSES.find((s) => s.id === sinapseId);
+    const color = sinapse ? B1_COR[sinapse.b1] : "#ffffff";
+    const pulseId = `${sinapseId}-${now}`;
+    setPulses((prev) => [...prev.filter((p) => p.sinapseId !== sinapseId), { id: pulseId, sinapseId, pathEl, originLen, totalLen, color }]);
+
+    // Sons: disparo inicial, chegadas nas pontas, encontro central
+    playClick(240, 0.05, 0.10);
+    const distL = originLen;
+    const distR = totalLen - originLen;
+    const maxD = Math.max(distL, distR, 1);
+    window.setTimeout(() => playClick(300, 0.04, 0.09), (distL / maxD) * 300);
+    window.setTimeout(() => playClick(300, 0.04, 0.09), (distR / maxD) * 300);
+    window.setTimeout(() => playClick(420, 0.04, 0.11), 580);
+  }, [modoSinaptico, playClick]);
+
+  const removePulse = useCallback((id: string) => {
+    setPulses((prev) => prev.filter((p) => p.id !== id));
+  }, []);
 
   // ---------- Filtragem ----------
   const filteredSinapses = useMemo(() => {
@@ -222,9 +319,10 @@ export function CraniotomiaV4() {
     return { color: B1_COR[s.b1], dash: "none" };
   }
   function arestaLargura(s: Sinapse, ativa: boolean) {
-    // -25% vs V4.0 original (Caio pediu): base 3→2.25, peso 5→3.75, hover 2→1.5
-    const base = 2.25 + s.peso * 3.75;
-    return ativa ? base + 1.5 : base;
+    // V4.2 ELEGANTE (Caio aprovou): range [1.25, 3.75]px, escala pra 200+ sinapses
+    // Hierarquia de peso 3× mantida (TOC), linhas finas não competem (TDAH), clássico Tufte
+    const base = 1.25 + s.peso * 2.5;
+    return ativa ? base + 2 : base;
   }
 
   const toggleFiltroB1 = (b1: B1) => {
@@ -283,6 +381,22 @@ export function CraniotomiaV4() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            <button
+              onClick={() => setModoSinaptico((v) => !v)}
+              className="h-7 px-2 flex items-center gap-1 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] hover:text-[var(--crn-fg)]"
+              style={{ color: modoSinaptico ? "var(--crn-accent-strong)" : "var(--crn-fg-dim)" }}
+              title={modoSinaptico ? "Choque sináptico: ATIVO (clique pra desligar)" : "Choque sináptico: DESLIGADO (clique pra ligar)"}
+            >
+              <Sparkles className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => setSomSinaptico((v) => !v)}
+              className="h-7 px-2 flex items-center gap-1 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] hover:text-[var(--crn-fg)]"
+              style={{ color: somSinaptico ? "var(--crn-accent-strong)" : "var(--crn-fg-dim)" }}
+              title={somSinaptico ? "Som sináptico: ATIVO (clique pra desligar)" : "Som sináptico: DESLIGADO (clique pra ligar)"}
+            >
+              {somSinaptico ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+            </button>
             <button
               onClick={() => setShowShortcuts((v) => !v)}
               className="h-7 px-2 flex items-center gap-1 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] text-[var(--crn-fg-muted)] hover:text-[var(--crn-fg)]"
@@ -397,6 +511,10 @@ export function CraniotomiaV4() {
                   return (
                     <path
                       key={s.id}
+                      ref={(el) => {
+                        if (el) pathRefs.current.set(s.id, el);
+                        else pathRefs.current.delete(s.id);
+                      }}
                       d={`M 0 ${y1} C 50 ${y1}, 50 ${y2}, 100 ${y2}`}
                       fill="none"
                       stroke={stroke.color}
@@ -404,13 +522,17 @@ export function CraniotomiaV4() {
                       strokeDasharray={stroke.dash}
                       vectorEffect="non-scaling-stroke"
                       style={{ opacity, cursor: "pointer", transition: "opacity 120ms, stroke-width 120ms" }}
-                      onMouseEnter={() => setHoveredId(s.id)}
+                      onMouseEnter={(e) => { setHoveredId(s.id); triggerSinapse(s.id, e.clientX, e.clientY); }}
                       onMouseLeave={() => setHoveredId(null)}
-                      onClick={() => setSelectedId(s.id)}
+                      onClick={(e) => { setSelectedId(s.id); triggerSinapse(s.id, e.clientX, e.clientY); }}
                       onContextMenu={(e) => onCtxMenu(e, s.id)}
                     />
                   );
                 })}
+                {/* Choque sináptico: pulsos viajando pela curva */}
+                {pulses.map((p) => (
+                  <SinapsePulse key={p.id} pathEl={p.pathEl} originLen={p.originLen} totalLen={p.totalLen} color={p.color} onDone={() => removePulse(p.id)} />
+                ))}
               </svg>
             </div>
 
@@ -957,6 +1079,80 @@ function ShortcutRow({ k, desc }: { k: string; desc: string }) {
       </td>
       <td className="py-0.5 text-[var(--crn-fg-muted)]">{desc}</td>
     </tr>
+  );
+}
+
+// ============================================================
+// SinapsePulse — choque sináptico animado pela curva da aresta
+// 2 pulsos partem do ponto de origem, vão até as pontas e voltam.
+// Quando se reencontram no centro: flash branco. Total ~620ms.
+// ============================================================
+function SinapsePulse({ pathEl, originLen, totalLen, color, onDone }: {
+  pathEl: SVGPathElement;
+  originLen: number;
+  totalLen: number;
+  color: string;
+  onDone: () => void;
+}) {
+  const leftRef = useRef<SVGCircleElement>(null);
+  const rightRef = useRef<SVGCircleElement>(null);
+  const flashRef = useRef<SVGCircleElement>(null);
+  const originPt = useMemo(() => {
+    try { return pathEl.getPointAtLength(originLen); } catch { return { x: 50, y: 50 } as DOMPoint; }
+  }, [pathEl, originLen]);
+
+  useEffect(() => {
+    const DURATION = 620;
+    const start = performance.now();
+    let raf = 0;
+    const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
+    const easeInCubic = (x: number) => x * x * x;
+
+    const loop = () => {
+      const t = (performance.now() - start) / DURATION;
+      if (t >= 1) { onDone(); return; }
+      // 0..0.5 outbound; 0.5..1 inbound
+      const phase = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+      const eased = t < 0.5 ? easeOutCubic(phase) : 1 - easeInCubic(phase);
+
+      const leftLen = originLen * eased;
+      const rightLen = originLen + (totalLen - originLen) * eased;
+
+      try {
+        const pL = pathEl.getPointAtLength(leftLen);
+        const pR = pathEl.getPointAtLength(rightLen);
+        const op = (1 - Math.abs(2 * t - 1)) * 0.95 + 0.05;
+        if (leftRef.current) {
+          leftRef.current.setAttribute("cx", pL.x.toString());
+          leftRef.current.setAttribute("cy", pL.y.toString());
+          leftRef.current.setAttribute("opacity", op.toString());
+        }
+        if (rightRef.current) {
+          rightRef.current.setAttribute("cx", pR.x.toString());
+          rightRef.current.setAttribute("cy", pR.y.toString());
+          rightRef.current.setAttribute("opacity", op.toString());
+        }
+        if (flashRef.current) {
+          // flash inicial no disparo + flash final no reencontro
+          const flashStart = Math.max(0, 1 - t * 6);
+          const flashEnd = t > 0.82 ? (t - 0.82) / 0.18 : 0;
+          const flashOp = Math.max(flashStart, flashEnd) * 0.9;
+          flashRef.current.setAttribute("opacity", flashOp.toString());
+          flashRef.current.setAttribute("r", (1.2 + flashEnd * 1.8).toString());
+        }
+      } catch { /* path desmontado */ }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [pathEl, originLen, totalLen, onDone]);
+
+  return (
+    <g pointerEvents="none" style={{ mixBlendMode: "screen" }}>
+      <circle ref={flashRef} cx={originPt.x} cy={originPt.y} r="1.5" fill="#ffffff" opacity="0" />
+      <circle ref={leftRef} cx={originPt.x} cy={originPt.y} r="0.9" fill="#ffffff" stroke={color} strokeWidth="0.3" vectorEffect="non-scaling-stroke" opacity="0" />
+      <circle ref={rightRef} cx={originPt.x} cy={originPt.y} r="0.9" fill="#ffffff" stroke={color} strokeWidth="0.3" vectorEffect="non-scaling-stroke" opacity="0" />
+    </g>
   );
 }
 
