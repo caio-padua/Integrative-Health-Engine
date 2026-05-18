@@ -14,6 +14,7 @@
     "backfill-lembrete-horarios-unidades": "tsx ./src/backfill-lembrete-horarios-unidades.ts",
     "backfill-totp-limpezas-diarias": "tsx ./src/backfill-totp-limpezas-diarias.ts",
     "migrar-lgpd-exports-data-url": "tsx ./src/migrar-lgpd-exports-data-url.ts",
+    "seed-whatsapp-twilio-sandbox": "tsx ./src/seed-whatsapp-twilio-sandbox.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },

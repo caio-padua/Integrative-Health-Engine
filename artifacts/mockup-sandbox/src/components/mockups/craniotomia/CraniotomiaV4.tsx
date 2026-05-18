@@ -41,9 +41,6 @@ import {
   Clock,
   GitCommit,
   TrendingUp,
-  Volume2,
-  VolumeX,
-  Sparkles,
 } from "lucide-react";
 
 type Modo = "VISUALIZACAO" | "EDICAO" | "SIMULACAO";
@@ -80,8 +77,6 @@ export function CraniotomiaV4() {
   const [inspectorW, setInspectorW] = usePersisted<number>("crn-v4-inspector-w", 320);
   const [legendCollapsed, setLegendCollapsed] = usePersisted<boolean>("crn-v4-legend-collapsed", false);
   const [inspectorCollapsed, setInspectorCollapsed] = usePersisted<boolean>("crn-v4-inspector-collapsed", false);
-  const [modoSinaptico, setModoSinaptico] = usePersisted<boolean>("crn-v4-modo-sinaptico", true);
-  const [somSinaptico, setSomSinaptico] = usePersisted<boolean>("crn-v4-som-sinaptico", false);
 
   // ---------- Estado efêmero ----------
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -89,97 +84,11 @@ export function CraniotomiaV4() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showHistory, setShowHistory] = useState<number | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; sinapseId: number } | null>(null);
-  const [pulses, setPulses] = useState<Array<{ id: string; sinapseId: number; pathEl: SVGPathElement; originLen: number; totalLen: number; color: string }>>([]);
 
   const filtroB1 = useMemo(() => new Set(filtroB1Arr), [filtroB1Arr]);
   const tableRowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const bodyContainerRef = useRef<HTMLDivElement>(null);
-  const pathRefs = useRef<Map<number, SVGPathElement>>(new Map());
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const lastPulseAtRef = useRef<Map<number, number>>(new Map());
-  const reducedMotionRef = useRef(false);
-
-  // detecta preferência do SO uma vez
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    reducedMotionRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  }, []);
-
-  // ---------- Web Audio (lazy, só ativa após gesto do usuário) ----------
-  const playClick = useCallback((freq: number, dur: number, gain = 0.12) => {
-    if (!somSinaptico) return;
-    try {
-      if (!audioCtxRef.current) {
-        const AC = (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext
-          || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (!AC) return;
-        audioCtxRef.current = new AC();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === "suspended") void ctx.resume();
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(freq * 0.7, ctx.currentTime + dur);
-      g.gain.setValueAtTime(0, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.004);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-      osc.connect(g).connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + dur + 0.02);
-    } catch {
-      /* AudioContext indisponível — silencioso */
-    }
-  }, [somSinaptico]);
-
-  // ---------- Trigger do choque sináptico ----------
-  const triggerSinapse = useCallback((sinapseId: number, clientX: number, clientY: number) => {
-    if (!modoSinaptico || reducedMotionRef.current) return;
-    const now = performance.now();
-    const last = lastPulseAtRef.current.get(sinapseId) ?? 0;
-    if (now - last < 650) return; // debounce: 1 disparo por aresta a cada 650ms
-    lastPulseAtRef.current.set(sinapseId, now);
-
-    const pathEl = pathRefs.current.get(sinapseId);
-    if (!pathEl) return;
-    const svg = pathEl.ownerSVGElement;
-    if (!svg) return;
-    const totalLen = pathEl.getTotalLength();
-    if (!Number.isFinite(totalLen) || totalLen === 0) return;
-
-    // Encontra ponto mais próximo do mouse no path (busca binária aproximada)
-    let originLen = totalLen / 2;
-    try {
-      const pt = svg.createSVGPoint();
-      pt.x = clientX;
-      pt.y = clientY;
-      const ctm = svg.getScreenCTM();
-      if (ctm) {
-        const svgPt = pt.matrixTransform(ctm.inverse());
-        let bestDist = Infinity;
-        for (let i = 0; i <= 40; i++) {
-          const l = (i / 40) * totalLen;
-          const p = pathEl.getPointAtLength(l);
-          const d = (p.x - svgPt.x) ** 2 + (p.y - svgPt.y) ** 2;
-          if (d < bestDist) { bestDist = d; originLen = l; }
-        }
-      }
-    } catch { /* fallback no centro */ }
-
-    const sinapse = SINAPSES.find((s) => s.id === sinapseId);
-    const color = sinapse ? B1_COR[sinapse.b1] : "#ffffff";
-    const pulseId = `${sinapseId}-${now}`;
-    setPulses((prev) => [...prev.filter((p) => p.sinapseId !== sinapseId), { id: pulseId, sinapseId, pathEl, originLen, totalLen, color }]);
-
-    // Som: 1 burst único divergente (down-sweep "tssh" sináptico curto)
-    playClick(280, 0.12, 0.10);
-  }, [modoSinaptico, playClick]);
-
-  const removePulse = useCallback((id: string) => {
-    setPulses((prev) => prev.filter((p) => p.id !== id));
-  }, []);
 
   // ---------- Filtragem ----------
   const filteredSinapses = useMemo(() => {
@@ -376,22 +285,6 @@ export function CraniotomiaV4() {
               />
             </div>
             <button
-              onClick={() => setModoSinaptico((v) => !v)}
-              className="h-7 px-2 flex items-center gap-1 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] hover:text-[var(--crn-fg)]"
-              style={{ color: modoSinaptico ? "var(--crn-accent-strong)" : "var(--crn-fg-dim)" }}
-              title={modoSinaptico ? "Choque sináptico: ATIVO (clique pra desligar)" : "Choque sináptico: DESLIGADO (clique pra ligar)"}
-            >
-              <Sparkles className="w-3 h-3" />
-            </button>
-            <button
-              onClick={() => setSomSinaptico((v) => !v)}
-              className="h-7 px-2 flex items-center gap-1 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] hover:text-[var(--crn-fg)]"
-              style={{ color: somSinaptico ? "var(--crn-accent-strong)" : "var(--crn-fg-dim)" }}
-              title={somSinaptico ? "Som sináptico: ATIVO (clique pra desligar)" : "Som sináptico: DESLIGADO (clique pra ligar)"}
-            >
-              {somSinaptico ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
-            </button>
-            <button
               onClick={() => setShowShortcuts((v) => !v)}
               className="h-7 px-2 flex items-center gap-1 bg-[var(--crn-bg-row)] border border-[var(--crn-border)] text-[var(--crn-fg-muted)] hover:text-[var(--crn-fg)]"
               title="Atalhos (?)"
@@ -502,34 +395,36 @@ export function CraniotomiaV4() {
                   const stroke = arestaStroke(s);
                   const w = arestaLargura(s, ativa);
                   const opacity = hoveredId === null && selectedId === null ? 0.85 : ativa ? 1 : 0.18;
+                  // Linha eletrificada: glow sutil em idle, intenso no hover (amperagem subindo)
+                  const glowPx = ativa ? 4 : 0.8;
+                  const haloPx = ativa ? 9 : 0;
+                  const filterStr = ativa
+                    ? `drop-shadow(0 0 ${glowPx}px ${stroke.color}) drop-shadow(0 0 ${haloPx}px ${stroke.color})`
+                    : `drop-shadow(0 0 ${glowPx}px ${stroke.color}aa)`;
                   return (
-                    <path
-                      key={s.id}
-                      ref={(el) => {
-                        if (el) pathRefs.current.set(s.id, el);
-                        else pathRefs.current.delete(s.id);
-                      }}
-                      d={`M 0 ${y1} C 50 ${y1}, 50 ${y2}, 100 ${y2}`}
-                      fill="none"
-                      stroke={stroke.color}
-                      strokeWidth={w}
-                      strokeDasharray={stroke.dash}
-                      vectorEffect="non-scaling-stroke"
-                      style={{ opacity, cursor: "pointer", transition: "opacity 120ms, stroke-width 120ms" }}
-                      onMouseEnter={(e) => { setHoveredId(s.id); triggerSinapse(s.id, e.clientX, e.clientY); }}
-                      onMouseLeave={() => setHoveredId(null)}
-                      onClick={(e) => { setSelectedId(s.id); triggerSinapse(s.id, e.clientX, e.clientY); }}
-                      onContextMenu={(e) => onCtxMenu(e, s.id)}
-                    />
+                    <g key={s.id}>
+                      {/* Núcleo da linha (recebe interação) */}
+                      <path
+                        d={`M 0 ${y1} C 50 ${y1}, 50 ${y2}, 100 ${y2}`}
+                        fill="none"
+                        stroke={stroke.color}
+                        strokeWidth={w}
+                        strokeDasharray={stroke.dash}
+                        vectorEffect="non-scaling-stroke"
+                        style={{
+                          opacity,
+                          cursor: "pointer",
+                          filter: filterStr,
+                          transition: "opacity 180ms ease-out, stroke-width 180ms ease-out, filter 180ms ease-out",
+                        }}
+                        onMouseEnter={() => setHoveredId(s.id)}
+                        onMouseLeave={() => setHoveredId(null)}
+                        onClick={() => setSelectedId(s.id)}
+                        onContextMenu={(e) => onCtxMenu(e, s.id)}
+                      />
+                    </g>
                   );
                 })}
-                {/* Choque sináptico: 2 ondas zigzag divergem do ponto do mouse, sem retorno */}
-                {pulses.map((p) => (
-                  <React.Fragment key={p.id}>
-                    <SinapseWave pathEl={p.pathEl} originLen={p.originLen} totalLen={p.totalLen} color={p.color} direction={-1} onDone={() => removePulse(p.id + ":L")} />
-                    <SinapseWave pathEl={p.pathEl} originLen={p.originLen} totalLen={p.totalLen} color={p.color} direction={1} onDone={() => removePulse(p.id)} />
-                  </React.Fragment>
-                ))}
               </svg>
             </div>
 
@@ -685,7 +580,7 @@ export function CraniotomiaV4() {
                       onMouseLeave={() => setHoveredId(null)}
                       onClick={() => setSelectedId(s.id)}
                       onContextMenu={(e) => onCtxMenu(e, s.id)}
-                      className={`group border-b border-[var(--crn-border)] cursor-pointer transition-colors ${bgClass} ${isSelected ? "ring-1 ring-[var(--crn-accent)] ring-inset" : isHovered ? "bg-[var(--crn-bg-row-hover)]" : ""} ${modoSinaptico && pulses.some((p) => p.sinapseId === s.id) ? "crn-row-wave" : ""}`}
+                      className={`group border-b border-[var(--crn-border)] cursor-pointer transition-colors ${bgClass} ${isSelected ? "ring-1 ring-[var(--crn-accent)] ring-inset" : isHovered ? "bg-[var(--crn-bg-row-hover)]" : ""}`}
                       style={{ borderLeft: `4px solid ${B1_COR[s.b1]}` }}
                     >
                       <td className="px-2 py-1">
@@ -1080,82 +975,8 @@ function ShortcutRow({ k, desc }: { k: string; desc: string }) {
 }
 
 // ============================================================
-// SinapseWave — onda zigzag estilo eletrocardiograma
-// Diverge do ponto de origem em UMA direção (-1 esquerda, +1 direita),
-// nunca retorna. Pacote de zigzag com envelope que fade out conforme
-// alcança a extremidade. ~500ms cada onda.
+// (Componente SinapseWave removido — design final usa glow CSS puro no path,
+//  sem animação JS, sem som, sem zigzag — clássico/sóbrio/austero.)
 // ============================================================
-function SinapseWave({ pathEl, originLen, totalLen, color, direction, onDone }: {
-  pathEl: SVGPathElement;
-  originLen: number;
-  totalLen: number;
-  color: string;
-  direction: -1 | 1;
-  onDone: () => void;
-}) {
-  const polyRef = useRef<SVGPolylineElement>(null);
-  const glowRef = useRef<SVGPolylineElement>(null);
-
-  useEffect(() => {
-    const DURATION = 520;
-    const SEGMENTS = 28;                         // resolução do zigzag
-    const AMP = 3.5;                             // amplitude grande (Caio pediu)
-    const FREQ = 4;                              // ciclos dentro do pacote
-    const targetLen = direction === -1 ? 0 : totalLen;
-    const travelDist = Math.abs(targetLen - originLen);
-    const WAVE_SPAN = Math.min(travelDist * 0.55, totalLen * 0.22);
-    const start = performance.now();
-    let raf = 0;
-    const easeOut = (x: number) => 1 - Math.pow(1 - x, 2.2);
-
-    const loop = () => {
-      const t = (performance.now() - start) / DURATION;
-      if (t >= 1) { onDone(); return; }
-      const eased = easeOut(t);
-      const center = originLen + (targetLen - originLen) * eased;
-      const ampFade = (1 - t) * (1 - t * 0.3);   // amplitude vai diminuindo
-      const opacity = 0.95 * (1 - t * t);        // brilho some quadraticamente
-
-      const pts: string[] = [];
-      try {
-        for (let i = 0; i < SEGMENTS; i++) {
-          const u = i / (SEGMENTS - 1);                          // 0..1
-          const offset = (u - 0.5) * WAVE_SPAN;                  // -W/2..+W/2 ao redor do center
-          const len = Math.max(0.01, Math.min(totalLen - 0.01, center + offset));
-          const p = pathEl.getPointAtLength(len);
-          const pNext = pathEl.getPointAtLength(Math.min(totalLen - 0.001, len + 0.4));
-          const tx = pNext.x - p.x, ty = pNext.y - p.y;
-          const mag = Math.hypot(tx, ty) || 1;
-          const nx = -ty / mag, ny = tx / mag;                   // normal perpendicular ao path
-          const env = Math.sin(Math.PI * u);                     // envelope: 0→1→0 (extremidades zeram)
-          const wave = Math.sin(u * FREQ * Math.PI * 2);         // zigzag senoidal
-          const d = AMP * wave * env * ampFade;
-          pts.push(`${(p.x + nx * d).toFixed(3)},${(p.y + ny * d).toFixed(3)}`);
-        }
-        const ptsStr = pts.join(" ");
-        if (polyRef.current) {
-          polyRef.current.setAttribute("points", ptsStr);
-          polyRef.current.setAttribute("opacity", opacity.toString());
-        }
-        if (glowRef.current) {
-          glowRef.current.setAttribute("points", ptsStr);
-          glowRef.current.setAttribute("opacity", (opacity * 0.55).toString());
-        }
-      } catch { /* path desmontado */ }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [pathEl, originLen, totalLen, direction, onDone]);
-
-  return (
-    <g pointerEvents="none" style={{ mixBlendMode: "screen" }}>
-      {/* glow externo */}
-      <polyline ref={glowRef} fill="none" stroke={color} strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0" />
-      {/* núcleo branco */}
-      <polyline ref={polyRef} fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0" />
-    </g>
-  );
-}
 
 export default CraniotomiaV4;
