@@ -31,6 +31,13 @@ const CORES = {
 
 const W = 595, H = 842, MARG = 42;
 
+const PACIENTE = {
+  nome: "CARLUCIA SANTOS FERNANDES",
+  sessao: "Sessão 39",
+  unidade: "Instituto Pádua",
+  quando: "19/mai/2026 · 07:30",
+};
+
 const NAD = {
   nome: "NAD+ Endovenoso",
   codigo: "NADE",
@@ -114,8 +121,20 @@ function cabecalho(doc: PDFKit.PDFDocument) {
     .text(`RXS  ${NAD.codigo}`, W - MARG - selW, 45,
       { width: selW, align: "center", characterSpacing: 1.6, lineBreak: false });
 
+  // --- Faixa fina PARA PACIENTE (logo abaixo do cabecalho navy)
+  const yPara = 72;
+  doc.rect(0, yPara, W, 18).fill(CORES.navyMedio);
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.dourado)
+    .text("PARA", MARG, yPara + 6, { characterSpacing: 1.4, lineBreak: false });
+  doc.fontSize(8.5).font("Helvetica-Bold").fillColor(CORES.creme)
+    .text(PACIENTE.nome, MARG + 32, yPara + 5,
+      { characterSpacing: 0.8, lineBreak: false });
+  doc.fontSize(7.5).font("Helvetica-Oblique").fillColor(CORES.cinzaLinha)
+    .text(`${PACIENTE.sessao} · ${PACIENTE.unidade} · ${PACIENTE.quando}`,
+      MARG + 32 + 200, yPara + 5, { lineBreak: false });
+
   // (posologia agora vive em bloco enquadrado separado, abaixo do cabecalho)
-  return 86;
+  return 96;
 }
 
 // =========================================================================
