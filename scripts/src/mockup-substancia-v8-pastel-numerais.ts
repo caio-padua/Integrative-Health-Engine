@@ -35,7 +35,7 @@ const PACIENTE = {
   nome: "CARLUCIA SANTOS FERNANDES",
   sessao: "Sessão 39",
   unidade: "Instituto Pádua",
-  quando: "19/mai/2026 · 07:30",
+  quando: "19 de maio de 2026",
 };
 
 const NAD = {
@@ -121,17 +121,17 @@ function cabecalho(doc: PDFKit.PDFDocument) {
     .text(`RXS  ${NAD.codigo}`, W - MARG - selW, 45,
       { width: selW, align: "center", characterSpacing: 1.6, lineBreak: false });
 
-  // --- Faixa fina PARA PACIENTE (logo abaixo do cabecalho navy)
+  // --- Faixa fina paciente (logo abaixo do cabecalho navy) — sem rotulo "PARA"
   const yPara = 72;
   doc.rect(0, yPara, W, 18).fill(CORES.navyMedio);
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.dourado)
-    .text("PARA", MARG, yPara + 6, { characterSpacing: 1.4, lineBreak: false });
-  doc.fontSize(8.5).font("Helvetica-Bold").fillColor(CORES.creme)
-    .text(PACIENTE.nome, MARG + 32, yPara + 5,
-      { characterSpacing: 0.8, lineBreak: false });
-  doc.fontSize(7.5).font("Helvetica-Oblique").fillColor(CORES.cinzaLinha)
+  // NOME do paciente em maiusculas, creme bold
+  doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.creme)
+    .text(PACIENTE.nome, MARG, yPara + 5,
+      { characterSpacing: 1, lineBreak: false });
+  // Frase descritiva em italico claro, alinhada a direita
+  doc.fontSize(8).font("Helvetica-Oblique").fillColor(CORES.cinzaLinha)
     .text(`${PACIENTE.sessao} · ${PACIENTE.unidade} · ${PACIENTE.quando}`,
-      MARG + 32 + 200, yPara + 5, { lineBreak: false });
+      MARG, yPara + 5, { width: W - MARG * 2, align: "right", lineBreak: false });
 
   // (posologia agora vive em bloco enquadrado separado, abaixo do cabecalho)
   return 96;
