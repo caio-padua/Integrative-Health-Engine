@@ -40,6 +40,7 @@
     "mockup-substancia-nad-tdah-toc-2-modos": "tsx ./src/mockup-substancia-nad-tdah-toc-2-modos.ts",
     "mockup-substancia-3-abordagens-validacao": "tsx ./src/mockup-substancia-3-abordagens-validacao.ts",
     "mockup-substancia-3-hibridos": "tsx ./src/mockup-substancia-3-hibridos.ts",
+    "mockup-substancia-v7-card-emoldurado": "tsx ./src/mockup-substancia-v7-card-emoldurado.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
