@@ -92,23 +92,31 @@ function fileiraEstrelas(doc: PDFKit.PDFDocument, x: number, y: number,
 // CABECALHO NAVY (mantido — Caio aprovou)
 // =========================================================================
 function cabecalho(doc: PDFKit.PDFDocument) {
-  doc.rect(0, 0, W, 64).fill(CORES.navyProfundo);
-  doc.rect(0, 64, W, 2).fill(CORES.dourado);
-  doc.rect(MARG, 14, 38, 38).fill(CORES.dourado);
+  doc.rect(0, 0, W, 70).fill(CORES.navyProfundo);
+  doc.rect(0, 70, W, 2).fill(CORES.dourado);
+  // Nome substancia (sem mais selo RXS quadrado a esquerda — selos foram pro canto sup dir)
+  doc.fontSize(18).font("Helvetica-Bold").fillColor("#F2EEDF")
+    .text(NAD.nome, MARG, 16, { width: 360, lineBreak: false });
+  doc.fontSize(9).font("Helvetica-Oblique").fillColor(CORES.dourado)
+    .text(NAD.categoria, MARG, 42, { width: 380, lineBreak: false });
+
+  // --- 2 retangulos empilhados no canto sup direito ---
+  const selW = 124;
+  // RETANGULO 1 (topo): APRESENTAÇÃO · D0 verde salvia
+  doc.rect(W - MARG - selW, 12, selW, 22).fillAndStroke(CORES.verdeSalvia, CORES.dourado);
+  doc.lineWidth(0.6);
+  doc.fontSize(8.5).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
+    .text("APRESENTAÇÃO · D0", W - MARG - selW, 19,
+      { width: selW, align: "center", characterSpacing: 1, lineBreak: false });
+  // RETANGULO 2 (logo abaixo): RXS NADE dourado
+  doc.rect(W - MARG - selW, 38, selW, 22).fillAndStroke(CORES.dourado, CORES.dourado);
   doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
-    .text("RXS", MARG, 20, { width: 38, align: "center", lineBreak: false });
+    .text("RXS", W - MARG - selW, 41, { width: selW, align: "center", characterSpacing: 1.4, lineBreak: false });
   doc.fontSize(11).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
-    .text(NAD.codigo, MARG, 32, { width: 38, align: "center", lineBreak: false });
-  doc.fontSize(17).font("Helvetica-Bold").fillColor("#F2EEDF")
-    .text(NAD.nome, MARG + 50, 16, { width: 320, lineBreak: false });
-  doc.fontSize(8.5).font("Helvetica-Oblique").fillColor(CORES.dourado)
-    .text(NAD.categoria, MARG + 50, 38, { width: 380, lineBreak: false });
-  doc.rect(W - MARG - 130, 14, 130, 18).fill(CORES.verdeSalvia);
-  doc.fontSize(8).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
-    .text("APRESENTAÇÃO · D0", W - MARG - 130, 19,
-      { width: 130, align: "center", characterSpacing: 1, lineBreak: false });
+    .text(NAD.codigo, W - MARG - selW, 49, { width: selW, align: "center", characterSpacing: 1.2, lineBreak: false });
+
   // (posologia agora vive em bloco enquadrado separado, abaixo do cabecalho)
-  return 80;
+  return 86;
 }
 
 // =========================================================================
@@ -142,35 +150,35 @@ function blocoPosologiaEnquadrado(doc: PDFKit.PDFDocument, y: number): number {
 }
 
 function rodape(doc: PDFKit.PDFDocument, etiqueta: string) {
-  // --- Assinatura PAWARDS®/PADCON® no canto inferior direito (sobre o pastel,
-  //     no padrao historico do pawards 3.pdf — letter-spacing largo + descritor
-  //     em serif italico) ANTES da faixa navy fina do final
-  const ySig = H - 70;
-  // selo PAWARDS® dourado letter-spacing largo
-  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.dourado)
-    .text("P A W A R D S ®", W - MARG - 260, ySig,
-      { width: 110, align: "right", characterSpacing: 1.8, lineBreak: false });
-  // descritor em serif italico cinza navy
-  doc.fontSize(9.5).font("Times-Italic").fillColor(CORES.navyMedio)
-    .text("Clinical Intelligence System", W - MARG - 145, ySig + 1,
-      { width: 145, align: "left", lineBreak: false });
-  // selo PADCON® dourado letter-spacing largo
-  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.dourado)
-    .text("P A D C O N ®", W - MARG - 260, ySig + 14,
-      { width: 110, align: "right", characterSpacing: 1.8, lineBreak: false });
-  // descritor em serif italico cinza navy
-  doc.fontSize(9.5).font("Times-Italic").fillColor(CORES.navyMedio)
-    .text("Advanced Systems Architecture", W - MARG - 145, ySig + 15,
-      { width: 145, align: "left", lineBreak: false });
+  // Faixa navy mais alta (44pt) pra acomodar PAWARDS/PADCON dentro dela
+  const altF = 44;
+  const yF = H - altF;
+  doc.rect(0, yF, W, altF).fill(CORES.navyProfundo);
+  doc.rect(0, yF, W, 1.5).fill(CORES.dourado);
 
-  // --- Faixa navy fina no rodape (so do lado esquerdo: Instituto Pádua + slogan)
-  const yF = H - 38;
-  doc.rect(0, yF, W, 38).fill(CORES.navyProfundo);
+  // --- Lado esquerdo: Instituto Pádua + slogan
   doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.dourado)
-    .text("INSTITUTO PÁDUA", MARG, yF + 8, { width: 300, characterSpacing: 0.6, lineBreak: false });
+    .text("INSTITUTO PÁDUA", MARG, yF + 10, { width: 300, characterSpacing: 0.6, lineBreak: false });
   doc.fontSize(7.5).font("Helvetica-Oblique").fillColor(CORES.creme)
     .text("Medicina Integrativa de Precisão · Restaura função, não remedia sintoma",
-      MARG, yF + 22, { width: 380, lineBreak: false });
+      MARG, yF + 25, { width: 380, lineBreak: false });
+
+  // --- Lado direito: assinatura PAWARDS®/PADCON® DENTRO da faixa navy
+  //     (letter-spacing largo dourado + descritor serif italico creme)
+  // PAWARDS® dourado
+  doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.dourado)
+    .text("P A W A R D S ®", W - MARG - 240, yF + 9,
+      { width: 100, align: "right", characterSpacing: 1.6, lineBreak: false });
+  doc.fontSize(8.5).font("Times-Italic").fillColor(CORES.creme)
+    .text("Clinical Intelligence System", W - MARG - 135, yF + 10,
+      { width: 135, align: "left", lineBreak: false });
+  // PADCON® dourado
+  doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.dourado)
+    .text("P A D C O N ®", W - MARG - 240, yF + 24,
+      { width: 100, align: "right", characterSpacing: 1.6, lineBreak: false });
+  doc.fontSize(8.5).font("Times-Italic").fillColor(CORES.creme)
+    .text("Advanced Systems Architecture", W - MARG - 135, yF + 25,
+      { width: 135, align: "left", lineBreak: false });
 
   // etiqueta minuscula da variante (canto sup esq da faixa navy)
   doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.douradoQueim)
