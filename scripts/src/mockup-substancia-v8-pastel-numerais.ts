@@ -123,6 +123,28 @@ function cabecalho(doc: PDFKit.PDFDocument) {
 }
 
 function rodape(doc: PDFKit.PDFDocument, etiqueta: string) {
+  // --- Assinatura PAWARDS®/PADCON® no canto inferior direito (sobre o pastel,
+  //     no padrao historico do pawards 3.pdf — letter-spacing largo + descritor
+  //     em serif italico) ANTES da faixa navy fina do final
+  const ySig = H - 70;
+  // selo PAWARDS® dourado letter-spacing largo
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.dourado)
+    .text("P A W A R D S ®", W - MARG - 260, ySig,
+      { width: 110, align: "right", characterSpacing: 1.8, lineBreak: false });
+  // descritor em serif italico cinza navy
+  doc.fontSize(9.5).font("Times-Italic").fillColor(CORES.navyMedio)
+    .text("Clinical Intelligence System", W - MARG - 145, ySig + 1,
+      { width: 145, align: "left", lineBreak: false });
+  // selo PADCON® dourado letter-spacing largo
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.dourado)
+    .text("P A D C O N ®", W - MARG - 260, ySig + 14,
+      { width: 110, align: "right", characterSpacing: 1.8, lineBreak: false });
+  // descritor em serif italico cinza navy
+  doc.fontSize(9.5).font("Times-Italic").fillColor(CORES.navyMedio)
+    .text("Advanced Systems Architecture", W - MARG - 145, ySig + 15,
+      { width: 145, align: "left", lineBreak: false });
+
+  // --- Faixa navy fina no rodape (so do lado esquerdo: Instituto Pádua + slogan)
   const yF = H - 38;
   doc.rect(0, yF, W, 38).fill(CORES.navyProfundo);
   doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.dourado)
@@ -130,11 +152,8 @@ function rodape(doc: PDFKit.PDFDocument, etiqueta: string) {
   doc.fontSize(7.5).font("Helvetica-Oblique").fillColor(CORES.creme)
     .text("Medicina Integrativa de Precisão · Restaura função, não remedia sintoma",
       MARG, yF + 22, { width: 380, lineBreak: false });
-  doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.dourado)
-    .text("PAWARDS®", W - MARG - 200, yF + 8, { width: 200, align: "right", lineBreak: false });
-  doc.fontSize(7.5).font("Helvetica").fillColor(CORES.creme)
-    .text("PADCON® · Plataforma Clínica Integrativa",
-      W - MARG - 200, yF + 22, { width: 200, align: "right", lineBreak: false });
+
+  // etiqueta minuscula da variante (canto sup esq da faixa navy)
   doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.douradoQueim)
     .text(etiqueta.toUpperCase(), MARG, yF - 8, { characterSpacing: 0.8, lineBreak: false });
 }
