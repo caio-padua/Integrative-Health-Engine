@@ -32,6 +32,7 @@
     "regerar-ras-oficial-carlucia": "tsx ./src/regerar-ras-oficial-carlucia.ts",
     "pipeline-oficial-carlucia": "tsx ./src/pipeline-oficial-carlucia.ts",
     "pipeline-receita-rasx-cheio-carlucia": "tsx ./src/pipeline-receita-rasx-cheio-carlucia.ts",
+    "pipeline-racj-carlucia": "tsx ./src/pipeline-racj-carlucia.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
