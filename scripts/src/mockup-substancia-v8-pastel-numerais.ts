@@ -108,12 +108,11 @@ function cabecalho(doc: PDFKit.PDFDocument) {
   doc.fontSize(8.5).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
     .text("APRESENTAÇÃO · D0", W - MARG - selW, 19,
       { width: selW, align: "center", characterSpacing: 1, lineBreak: false });
-  // RETANGULO 2 (logo abaixo): RXS NADE dourado
+  // RETANGULO 2 (logo abaixo): RXS NADE — lado a lado, TDAH-friendly (linha unica)
   doc.rect(W - MARG - selW, 38, selW, 22).fillAndStroke(CORES.dourado, CORES.dourado);
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
-    .text("RXS", W - MARG - selW, 41, { width: selW, align: "center", characterSpacing: 1.4, lineBreak: false });
-  doc.fontSize(11).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
-    .text(NAD.codigo, W - MARG - selW, 49, { width: selW, align: "center", characterSpacing: 1.2, lineBreak: false });
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(CORES.navyProfundo)
+    .text(`RXS  ${NAD.codigo}`, W - MARG - selW, 45,
+      { width: selW, align: "center", characterSpacing: 1.6, lineBreak: false });
 
   // (posologia agora vive em bloco enquadrado separado, abaixo do cabecalho)
   return 86;
@@ -150,39 +149,50 @@ function blocoPosologiaEnquadrado(doc: PDFKit.PDFDocument, y: number): number {
 }
 
 function rodape(doc: PDFKit.PDFDocument, etiqueta: string) {
-  // Faixa navy mais alta (44pt) pra acomodar PAWARDS/PADCON dentro dela
+  // Faixa navy 44pt + margens laterais BEM PERTO da extremidade (18pt em vez de 28)
   const altF = 44;
   const yF = H - altF;
+  const MROD = 18; // margem rodape mais proxima da extremidade
   doc.rect(0, yF, W, altF).fill(CORES.navyProfundo);
   doc.rect(0, yF, W, 1.5).fill(CORES.dourado);
 
-  // --- Lado esquerdo: Instituto Pádua + slogan
+  // --- Lado ESQUERDO: Instituto Pádua + slogan (X = MROD, colado na borda esq)
   doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.dourado)
-    .text("INSTITUTO PÁDUA", MARG, yF + 10, { width: 300, characterSpacing: 0.6, lineBreak: false });
+    .text("INSTITUTO PÁDUA", MROD, yF + 10, { width: 300, characterSpacing: 0.6, lineBreak: false });
   doc.fontSize(7.5).font("Helvetica-Oblique").fillColor(CORES.creme)
     .text("Medicina Integrativa de Precisão · Restaura função, não remedia sintoma",
-      MARG, yF + 25, { width: 380, lineBreak: false });
+      MROD, yF + 25, { width: 380, lineBreak: false });
 
-  // --- Lado direito: assinatura PAWARDS®/PADCON® DENTRO da faixa navy
-  //     (letter-spacing largo dourado + descritor serif italico creme)
-  // PAWARDS® dourado
+  // --- Lado DIREITO: PAWARDS®/PADCON® com:
+  //     (a) Ps alinhados na MESMA coluna X (xMarca)
+  //     (b) inicio dos descritores na MESMA coluna X (xDesc)
+  //     (c) borda direita do bloco colada em MROD da extremidade
+  const larguraDescritor = 165;          // "Advanced Systems Architecture" cabe aqui
+  const larguraMarca = 95;               // "P A W A R D S ®" cabe aqui (com letter-spacing 1.6)
+  const gap = 8;
+  const xDireitaTotal = W - MROD;        // extremidade direita
+  const xDesc = xDireitaTotal - larguraDescritor;
+  const xMarca = xDesc - gap - larguraMarca;
+
+  // Linha 1: PAWARDS ® + Clinical Intelligence System
   doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.dourado)
-    .text("P A W A R D S ®", W - MARG - 240, yF + 9,
-      { width: 100, align: "right", characterSpacing: 1.6, lineBreak: false });
+    .text("P A W A R D S ®", xMarca, yF + 10,
+      { width: larguraMarca, align: "left", characterSpacing: 1.6, lineBreak: false });
   doc.fontSize(8.5).font("Times-Italic").fillColor(CORES.creme)
-    .text("Clinical Intelligence System", W - MARG - 135, yF + 10,
-      { width: 135, align: "left", lineBreak: false });
-  // PADCON® dourado
+    .text("Clinical Intelligence System", xDesc, yF + 11,
+      { width: larguraDescritor, align: "left", lineBreak: false });
+
+  // Linha 2: PADCON ® + Advanced Systems Architecture
   doc.fontSize(9).font("Helvetica-Bold").fillColor(CORES.dourado)
-    .text("P A D C O N ®", W - MARG - 240, yF + 24,
-      { width: 100, align: "right", characterSpacing: 1.6, lineBreak: false });
+    .text("P A D C O N ®", xMarca, yF + 25,
+      { width: larguraMarca, align: "left", characterSpacing: 1.6, lineBreak: false });
   doc.fontSize(8.5).font("Times-Italic").fillColor(CORES.creme)
-    .text("Advanced Systems Architecture", W - MARG - 135, yF + 25,
-      { width: 135, align: "left", lineBreak: false });
+    .text("Advanced Systems Architecture", xDesc, yF + 26,
+      { width: larguraDescritor, align: "left", lineBreak: false });
 
   // etiqueta minuscula da variante (canto sup esq da faixa navy)
   doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.douradoQueim)
-    .text(etiqueta.toUpperCase(), MARG, yF - 8, { characterSpacing: 0.8, lineBreak: false });
+    .text(etiqueta.toUpperCase(), MROD, yF - 8, { characterSpacing: 0.8, lineBreak: false });
 }
 
 // =========================================================================
