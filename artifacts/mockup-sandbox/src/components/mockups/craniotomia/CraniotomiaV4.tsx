@@ -548,7 +548,7 @@ export function CraniotomiaV4() {
                 {selectedId !== null ? `linha #${selectedId} selecionada` : "clique numa aresta ou linha · clique direito = histórico"}
               </span>
             </div>
-            <table className="w-full text-left border-collapse whitespace-nowrap">
+            <table className="w-full text-left whitespace-nowrap" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
               <thead className="sticky top-[28px] z-10 bg-[var(--crn-bg-panel)] shadow-[0_1px_0_var(--crn-border)] text-[9px] text-[var(--crn-fg-dim)] uppercase tracking-wider">
                 <tr>
                   <th className="px-2 py-1.5 w-14">BLOCO</th>
@@ -581,12 +581,12 @@ export function CraniotomiaV4() {
                       onMouseLeave={() => setHoveredId(null)}
                       onClick={() => setSelectedId(s.id)}
                       onContextMenu={(e) => onCtxMenu(e, s.id)}
-                      className={`group border-b border-[var(--crn-border)] cursor-pointer ${bgClass} ${isSelected ? "bg-[var(--crn-bg-row-hover)]" : ""}`}
+                      className={`group cursor-pointer ${bgClass} ${isSelected ? "bg-[var(--crn-bg-row-hover)]" : ""}`}
                       style={{
-                        borderLeft: `4px solid ${B1_COR[s.b1]}`,
-                        // Neon na borda da row casando com a cor B1 da sinapse — surge e some rapido (70ms)
+                        // Neon retangular ao redor da row INTEIRA na cor da sinapse — surge/some em 70ms.
+                        // Como table usa border-separate, o boxShadow no <tr> renderiza por baixo das tds (que aplicam a borda visivel).
                         boxShadow: (isHovered || isSelected)
-                          ? `inset 0 0 0 1px ${B1_COR[s.b1]}, 0 0 6px ${B1_COR[s.b1]}cc, 0 0 14px ${B1_COR[s.b1]}66`
+                          ? `0 0 0 1px ${B1_COR[s.b1]}, 0 0 8px ${B1_COR[s.b1]}cc, 0 0 18px ${B1_COR[s.b1]}55`
                           : "none",
                         transition: "box-shadow 70ms ease-out, background-color 70ms ease-out",
                       }}
