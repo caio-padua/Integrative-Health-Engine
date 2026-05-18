@@ -17,6 +17,7 @@
     "seed-whatsapp-twilio-sandbox": "tsx ./src/seed-whatsapp-twilio-sandbox.ts",
     "disparar-teste-whatsapp-ceo": "tsx ./src/disparar-teste-whatsapp-ceo.ts",
     "demo-carlucia-end-to-end": "tsx ./src/demo-carlucia-end-to-end.ts",
+    "disparar-teste-telegram-ceo": "tsx ./src/disparar-teste-telegram-ceo.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
