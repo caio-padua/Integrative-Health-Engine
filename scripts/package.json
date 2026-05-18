@@ -37,6 +37,7 @@
     "regerar-racj-premium-carlucia": "tsx ./src/regerar-racj-premium-carlucia.ts",
     "pipeline-ras-apresentacao-evolucao-carlucia": "tsx ./src/pipeline-ras-apresentacao-evolucao-carlucia.ts",
     "mockup-substancia-individual-3-variantes": "tsx ./src/mockup-substancia-individual-3-variantes.ts",
+    "mockup-substancia-nad-tdah-toc-2-modos": "tsx ./src/mockup-substancia-nad-tdah-toc-2-modos.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
