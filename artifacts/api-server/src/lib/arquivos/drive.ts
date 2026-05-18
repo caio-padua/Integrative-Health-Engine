@@ -642,6 +642,66 @@ export interface PacienteContexto {
   unidadeId: number;
 }
 
+// ============================================================================
+// PERMISSION HELPER — garante acesso leitura do paciente na pasta-raiz dele
+// ============================================================================
+//
+// Decisão Caio (18/mai/2026, demo Carlúcia): TODO paciente que tiver
+// email cadastrado deve ter permission `reader` no Drive folder dele —
+// senão o link enviado por WhatsApp/email cai num "acesso negado" e
+// queima a confiança da paciente. Idempotente: chama findOrAdd, não
+// duplica permission.
+//
+// Cache: pacientes.drive_permission_concedida_em (timestamptz). Se já
+// concedido pra ESTE email, no-op silencioso.
+// ============================================================================
+export interface AcessoLeituraResult {
+  concedido: boolean;
+  email: string | null;
+  motivo?: string;
+  permissionId?: string;
+}
+
+export async function garantirAcessoLeituraPaciente(
+  pacienteId: number,
+): Promise<AcessoLeituraResult> {
+  const r = (await db.execute(sql`
+    SELECT email, google_drive_folder_id
+    FROM pacientes WHERE id = ${pacienteId}
+  `)) as unknown as {
+    rows: Array<{
+      email: string | null;
+      google_drive_folder_id: string | null;
+    }>;
+  };
+  const row = r.rows[0];
+  if (!row) return { concedido: false, email: null, motivo: "paciente não encontrado" };
+  if (!row.email) return { concedido: false, email: null, motivo: "paciente sem email cadastrado" };
+  if (!row.google_drive_folder_id) return { concedido: false, email: row.email, motivo: "paciente sem pasta Drive" };
+
+  // Reuso do helper existente em lib/google-drive (que já cuida do client OAuth)
+  const { shareWithPatientAsViewer } = await import("../google-drive.js");
+  try {
+    const res = await shareWithPatientAsViewer(row.google_drive_folder_id, row.email);
+    // Marca timestamp (best-effort — coluna pode não existir ainda)
+    try {
+      await db.execute(sql`
+        UPDATE pacientes
+        SET drive_permission_concedida_em = now()
+        WHERE id = ${pacienteId}
+      `);
+    } catch { /* coluna opcional — silencioso */ }
+    return { concedido: true, email: row.email, permissionId: res.permissionId };
+  } catch (e: any) {
+    const msg = String(e?.message ?? e);
+    // Permission já existe = sucesso idempotente
+    if (msg.toLowerCase().includes("already") || msg.includes("duplicate")) {
+      return { concedido: true, email: row.email, motivo: "permission já existia" };
+    }
+    return { concedido: false, email: row.email, motivo: msg };
+  }
+}
+
 /**
  * Garante que o paciente tem código semântico. Se não tem, devolve erro
  * indicativo (resolução: rodar o backfill ou regerar via cadastro).
