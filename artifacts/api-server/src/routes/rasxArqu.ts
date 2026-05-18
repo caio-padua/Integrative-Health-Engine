@@ -468,7 +468,7 @@ router.post("/rasx/:pacienteId/auto-populate", async (req, res): Promise<void> =
   });
 });
 
-async function collectPdfData(pacienteId: number) {
+export async function collectPdfData(pacienteId: number) {
   const [paciente] = await db.select().from(pacientesTable).where(eq(pacientesTable.id, pacienteId));
   if (!paciente) return null;
 
