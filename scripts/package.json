@@ -21,6 +21,7 @@
     "demo-ras-carlucia": "tsx ./src/demo-ras-carlucia.ts",
     "enviar-confirmacao-bonita-carlucia": "tsx ./src/enviar-confirmacao-bonita-carlucia.ts",
     "criar-agendamento-real-carlucia": "tsx ./src/criar-agendamento-real-carlucia.ts",
+    "agendar-via-rota-real": "tsx ./src/agendar-via-rota-real.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
