@@ -11,8 +11,11 @@ import { desenharPosologiaBlocos } from "./posologiaBlocos.js";
 // - Logo da CLINICA (Instituto Padua): area nobre, destaque no documento.
 //   Centralizada na capa + canto direito do header de cada caderno.
 //   Tamanho generoso, e a "dona" do documento clinico.
-// - Logo do SISTEMA (Pawards MedCore): discreta, "sistema desenvolvido por".
-//   Mini selo no rodape do documento — nao compete com a marca da clinica.
+// - Assinatura institucional do SISTEMA: triade "PAWARDS · PADCON · MEDCORE"
+//   (padrao oficial usado nos rodapes de WhatsApp e demos historicas; NUNCA
+//   usar "powered by" / "developed by" / "sistema desenvolvido por" — Caio CEO
+//   exigiu a triade institucional pura como assinatura unica do sistema).
+//   Aparece como selo mini no rodape da capa, sem competir com a clinica.
 //
 // Os PNG sao carregados 1x por processo (buffer cached) e ABERTOS 1x por
 // PDFDocument via doc.openImage() pra serem referenciados em multiplos lugares
@@ -192,7 +195,7 @@ function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isL
   // LOGO da CLINICA — Instituto Padua no canto direito (area nobre do header).
   // Se o arquivo logo-instituto-padua.png ainda nao existe, desenha placeholder
   // elegante (caixa filete-ouro com monograma "IP"). Pawards (sistema) NAO
-  // aparece no header — fica reservada pro rodape com "sistema desenvolvido por".
+  // aparece no header — fica reservada pra assinatura institucional do rodape.
   const logoH = 44;
   const logoW = 44;
   const logoX = width - logoW - 14;
@@ -328,22 +331,24 @@ function drawCapa(doc: PDFKit.PDFDocument, data: RasxPdfData) {
     .text("DOCUMENTO CLINICO INSTITUCIONAL  ·  USO RESTRITO  ·  PROTEGIDO POR LGPD", 28, height - 54, { width: width - 56, align: "center", characterSpacing: 2 });
   doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
     .text(`token ${ctx.tokenHash || "—"}   ·   semantico ${ctx.codigoSemantico || "—"}   ·   ${ctx.total || 11} cadernos`, 28, height - 44, { width: width - 56, align: "center" });
-  // Selo discreto "sistema desenvolvido por" — Pawards MedCore mini.
-  // Aparece SO no rodape da capa (nao no header) — sistema nao compete com a clinica.
+  // Assinatura institucional do sistema — triade oficial "PAWARDS · PADCON ·
+  // MEDCORE" (padrao Caio CEO, mesmo do rodape de WhatsApp). Mini logo
+  // Pawards 14px a esquerda, triade em caps gold-suave a direita. Discreta,
+  // editorial, sem competir com a marca da clinica.
   const pwLogo = getPawardsRef(doc);
   const pwSize = 14;
-  const pwLabel = "sistema desenvolvido por  PAWARDS MEDCORE";
-  doc.fontSize(5).font("Helvetica").fillColor(CORES.cinzaClaro);
-  const pwLabelW = doc.widthOfString(pwLabel, { characterSpacing: 1.5 });
-  const pwTotalW = pwSize + 6 + pwLabelW;
+  const pwLabel = "PAWARDS  \u00b7  PADCON  \u00b7  MEDCORE";
+  doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.douradoQueimado);
+  const pwLabelW = doc.widthOfString(pwLabel, { characterSpacing: 2.5 });
+  const pwTotalW = pwSize + 8 + pwLabelW;
   const pwX = (width - pwTotalW) / 2;
   const pwY = height - 30;
   if (pwLogo) {
     try { doc.image(pwLogo, pwX, pwY - 2, { fit: [pwSize, pwSize] }); }
     catch { /* ignore */ }
   }
-  doc.fontSize(5).font("Helvetica").fillColor(CORES.cinzaClaro)
-    .text(pwLabel, pwX + pwSize + 6, pwY + 3, { characterSpacing: 1.5, lineBreak: false });
+  doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text(pwLabel, pwX + pwSize + 8, pwY + 2, { characterSpacing: 2.5, lineBreak: false });
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
