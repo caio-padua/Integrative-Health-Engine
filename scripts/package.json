@@ -16,6 +16,7 @@
     "migrar-lgpd-exports-data-url": "tsx ./src/migrar-lgpd-exports-data-url.ts",
     "seed-whatsapp-twilio-sandbox": "tsx ./src/seed-whatsapp-twilio-sandbox.ts",
     "disparar-teste-whatsapp-ceo": "tsx ./src/disparar-teste-whatsapp-ceo.ts",
+    "demo-carlucia-end-to-end": "tsx ./src/demo-carlucia-end-to-end.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
