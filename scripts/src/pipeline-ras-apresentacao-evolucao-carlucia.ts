@@ -262,6 +262,10 @@ async function main() {
     const stream = rasxMod.gerarRasxPdf(pdfData, "COMPLETO");
     const buffer = await streamToBuffer(stream);
     console.log(`     PDF-1 (APRESENTACAO INICIAL D0): ${buffer.byteLength} bytes`);
+    const fs1 = await import("node:fs/promises");
+    await fs1.mkdir(".local/samples", { recursive: true });
+    await fs1.writeFile(".local/samples/ras-d0-apresentacao-inicial.pdf", buffer);
+    console.log(`     LOCAL: .local/samples/ras-d0-apresentacao-inicial.pdf`);
     const up = await driveMod.uploadArquivoPaciente({
       pacienteId: PACIENTE_ID,
       unidadeId: UNIDADE_ID,
@@ -343,6 +347,10 @@ async function main() {
     const stream = rasxMod.gerarRasxPdf(pdfData, "COMPLETO");
     const buffer = await streamToBuffer(stream);
     console.log(`     PDF-2 (EVOLUCAO 3a SEMANA D21): ${buffer.byteLength} bytes`);
+    const fs2 = await import("node:fs/promises");
+    await fs2.mkdir(".local/samples", { recursive: true });
+    await fs2.writeFile(".local/samples/ras-d21-evolucao-3a-semana.pdf", buffer);
+    console.log(`     LOCAL: .local/samples/ras-d21-evolucao-3a-semana.pdf`);
     const up = await driveMod.uploadArquivoPaciente({
       pacienteId: PACIENTE_ID,
       unidadeId: UNIDADE_ID,

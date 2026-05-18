@@ -443,3 +443,15 @@ id = "7_iD1kwH7oKwNPi9EuMnN"
 uri = "file://artifacts/api-server/src/pdf/assets/logo-pawards-mini.png"
 type = "image"
 title = "Logo Pawards mini (40KB - uso no selo do rodape)"
+
+[[outputs]]
+id = "8q62MaYpBjTpv1iBpwMRe"
+uri = "file://scripts/.local/samples/ras-d0-apresentacao-inicial.pdf"
+type = "pdf"
+title = "RAS D0 — Apresentacao Inicial (Variante A com assinatura institucional oficial)"
+
+[[outputs]]
+id = "5_TJJdvtmsO0nZgF171oS"
+uri = "file://scripts/.local/samples/ras-d21-evolucao-3a-semana.pdf"
+type = "pdf"
+title = "RAS D21 — Evolucao 3a Semana (Variante A com assinatura institucional oficial)"

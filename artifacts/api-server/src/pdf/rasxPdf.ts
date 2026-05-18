@@ -62,6 +62,129 @@ function getInstitutoRef(doc: PDFKit.PDFDocument): unknown | null {
   return b ? _openOnce(doc, b, REF_INSTITUTO) : null;
 }
 
+// ============================================================================
+// ASSINATURA INSTITUCIONAL OFICIAL (consolidada em seed-mensageria-opus.sql)
+// ----------------------------------------------------------------------------
+// Padrao cravado pelo Caio CEO — mesmo dos rodapes de WhatsApp e blueprints:
+//
+//                          ───────────────
+//                          PAWARDS MedCore®
+//                       Clinical Intelligence System
+//                          PADCON Platform®
+//                      Advanced Systems Architecture
+//                          ───────────────
+//
+// Ordem: PAWARDS primeiro (produto/motor), PADCON depois (plataforma/empresa).
+// Marcas registradas (®) obrigatorias. Cores ADAPTATIVAS ao layout:
+//  - tema "navy-gold": fundo navy → marcas gold + subtitulos cinza claro
+//  - tema "light-navy": fundo claro → marcas navy + subtitulos cinza medio
+// Variantes:
+//  - "completa": 4 linhas + filetes (capa, ultima pagina de receita/protocolo,
+//     termos LGPD/RACJ) — area de respiro
+//  - "compacta": 1 linha inline "PAWARDS MedCore® · PADCON Platform®" (rodape
+//     das paginas internas densas, onde nao cabe o bloco completo)
+// Marca d'agua: simbolo Pawards ampliado com opacidade ~5%, atras do conteudo,
+// SO em paginas com respiro (NUNCA em paginas internas densas do RAS — KPIs/
+// matriz/tabelas perdem legibilidade com marca d'agua atras).
+// ============================================================================
+
+type AssinaturaTheme = "navy-gold" | "light-navy";
+type AssinaturaVariant = "completa" | "compacta";
+
+interface AssinaturaOpts {
+  centerX: number;
+  bottomY: number;          // base do bloco (y do filete inferior)
+  theme: AssinaturaTheme;
+  variant: AssinaturaVariant;
+  includeLogoMini?: boolean;
+}
+
+function drawAssinaturaInstitucional(doc: PDFKit.PDFDocument, opts: AssinaturaOpts) {
+  const isNavy = opts.theme === "navy-gold";
+  const fgMark = isNavy ? CORES.douradoQueimado : CORES.azulPetroleo;
+  const fgSub = isNavy ? CORES.cinzaClaro : CORES.cinzaTexto;
+  const fileteW = 140;
+  const blockW = 240;
+
+  if (opts.variant === "compacta") {
+    // 1 linha inline: "PAWARDS MedCore®  ·  PADCON Platform®"
+    const label = "PAWARDS MedCore\u00ae   \u00b7   PADCON Platform\u00ae";
+    doc.fontSize(6).font("Helvetica-Bold").fillColor(fgMark);
+    const lw = doc.widthOfString(label, { characterSpacing: 2 });
+    let x = opts.centerX - lw / 2;
+    if (opts.includeLogoMini) {
+      const logo = getPawardsRef(doc);
+      if (logo) {
+        try { doc.image(logo, x - 16, opts.bottomY - 4, { fit: [10, 10] }); }
+        catch { /* ignore */ }
+      }
+    }
+    doc.fontSize(6).font("Helvetica-Bold").fillColor(fgMark)
+      .text(label, x, opts.bottomY, { characterSpacing: 2, lineBreak: false });
+    return;
+  }
+
+  // Variante COMPLETA: 4 linhas + 2 filetes
+  //  filete sup
+  //  PAWARDS MedCore®
+  //  Clinical Intelligence System
+  //  PADCON Platform®
+  //  Advanced Systems Architecture
+  //  filete inf
+  const lh = 8;
+  const totalH = 6 + lh * 4 + 6 + 4;
+  let y = opts.bottomY - totalH;
+
+  // filete superior
+  doc.moveTo(opts.centerX - fileteW / 2, y).lineTo(opts.centerX + fileteW / 2, y)
+    .lineWidth(0.4).stroke(fgMark);
+  y += 6;
+
+  // Mini logo Pawards a esquerda do bloco (so na variante completa, se pedido)
+  if (opts.includeLogoMini) {
+    const logo = getPawardsRef(doc);
+    if (logo) {
+      try { doc.image(logo, opts.centerX - blockW / 2 - 6, y, { fit: [14, 14] }); }
+      catch { /* ignore */ }
+    }
+  }
+
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(fgMark)
+    .text("PAWARDS MedCore\u00ae", opts.centerX - blockW / 2, y, { width: blockW, align: "center", characterSpacing: 2 });
+  y += lh;
+  doc.fontSize(5.5).font("Helvetica-Oblique").fillColor(fgSub)
+    .text("Clinical Intelligence System", opts.centerX - blockW / 2, y, { width: blockW, align: "center", characterSpacing: 0.5 });
+  y += lh;
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(fgMark)
+    .text("PADCON Platform\u00ae", opts.centerX - blockW / 2, y, { width: blockW, align: "center", characterSpacing: 2 });
+  y += lh;
+  doc.fontSize(5.5).font("Helvetica-Oblique").fillColor(fgSub)
+    .text("Advanced Systems Architecture", opts.centerX - blockW / 2, y, { width: blockW, align: "center", characterSpacing: 0.5 });
+  y += 6;
+
+  // filete inferior
+  doc.moveTo(opts.centerX - fileteW / 2, y).lineTo(opts.centerX + fileteW / 2, y)
+    .lineWidth(0.4).stroke(fgMark);
+}
+
+// Marca d'agua: simbolo Pawards ampliado, opacidade baixa, centralizado.
+// Usado SO em paginas com respiro (capa de receita/protocolo, termos LGPD).
+// NUNCA em paginas internas densas do RAS.
+function drawMarcaDagua(doc: PDFKit.PDFDocument, opts: { theme: AssinaturaTheme; size?: number }) {
+  const logo = getPawardsRef(doc);
+  if (!logo) return;
+  const size = opts.size ?? 320;
+  const pageW = doc.page.width;
+  const pageH = doc.page.height;
+  const docAny = doc as unknown as { save(): unknown; restore(): unknown; opacity(o: number): unknown };
+  try {
+    docAny.save();
+    docAny.opacity(opts.theme === "navy-gold" ? 0.08 : 0.05);
+    doc.image(logo, (pageW - size) / 2, (pageH - size) / 2, { fit: [size, size] });
+    docAny.restore();
+  } catch { /* ignore */ }
+}
+
 // Placeholder elegante p/ logo Instituto Padua enquanto o arquivo
 // `assets/logo-instituto-padua.png` nao for fornecido. Caixa filete-ouro
 // com monograma "IP" + brasao tipografico. Classico, sem exageros.
@@ -331,24 +454,16 @@ function drawCapa(doc: PDFKit.PDFDocument, data: RasxPdfData) {
     .text("DOCUMENTO CLINICO INSTITUCIONAL  ·  USO RESTRITO  ·  PROTEGIDO POR LGPD", 28, height - 54, { width: width - 56, align: "center", characterSpacing: 2 });
   doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
     .text(`token ${ctx.tokenHash || "—"}   ·   semantico ${ctx.codigoSemantico || "—"}   ·   ${ctx.total || 11} cadernos`, 28, height - 44, { width: width - 56, align: "center" });
-  // Assinatura institucional do sistema — triade oficial "PAWARDS · PADCON ·
-  // MEDCORE" (padrao Caio CEO, mesmo do rodape de WhatsApp). Mini logo
-  // Pawards 14px a esquerda, triade em caps gold-suave a direita. Discreta,
-  // editorial, sem competir com a marca da clinica.
-  const pwLogo = getPawardsRef(doc);
-  const pwSize = 14;
-  const pwLabel = "PAWARDS  \u00b7  PADCON  \u00b7  MEDCORE";
-  doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.douradoQueimado);
-  const pwLabelW = doc.widthOfString(pwLabel, { characterSpacing: 2.5 });
-  const pwTotalW = pwSize + 8 + pwLabelW;
-  const pwX = (width - pwTotalW) / 2;
-  const pwY = height - 30;
-  if (pwLogo) {
-    try { doc.image(pwLogo, pwX, pwY - 2, { fit: [pwSize, pwSize] }); }
-    catch { /* ignore */ }
-  }
-  doc.fontSize(6).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
-    .text(pwLabel, pwX + pwSize + 8, pwY + 2, { characterSpacing: 2.5, lineBreak: false });
+  // Assinatura institucional OFICIAL — bloco completo de 4 linhas com filetes,
+  // ordem PAWARDS → PADCON, mini logo Pawards a esquerda, cores adaptativas
+  // (fundo navy aqui → tema "navy-gold"). Mesmo padrao do rodape WhatsApp.
+  drawAssinaturaInstitucional(doc, {
+    centerX: width / 2,
+    bottomY: height - 18,
+    theme: "navy-gold",
+    variant: "completa",
+    includeLogoMini: true,
+  });
 }
 
 function drawPacienteBlock(doc: PDFKit.PDFDocument, data: RasxPdfData, y: number, width: number): number {
@@ -515,9 +630,18 @@ function drawFooter(doc: PDFKit.PDFDocument, isLandscape: boolean) {
   // Centro: legenda semaforos
   doc.fontSize(5.5).font("Helvetica").fillColor(CORES.offWhite)
     .text("Legenda  ▮ verde=meta atingida   ▮ amarelo=em curso   ▮ vermelho=critico", 14, footerY + 13, { width: width - 200 });
-  // Direita: PAWARDS + paginacao
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
-    .text(`PAWARDS · MedCore  ·  Caderno ${ctx.atual.toString().padStart(2, "0")}/${(ctx.total || ctx.atual).toString().padStart(2, "0")}`, width - 240, footerY + 7, { width: 230, align: "right" });
+  // Direita: paginacao + assinatura institucional COMPACTA (1 linha inline,
+  // tema navy-gold — adaptado ao fundo navy do rodape).
+  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text(`Caderno ${ctx.atual.toString().padStart(2, "0")}/${(ctx.total || ctx.atual).toString().padStart(2, "0")}`,
+      width - 110, footerY + 3, { width: 100, align: "right" });
+  drawAssinaturaInstitucional(doc, {
+    centerX: width - 130,
+    bottomY: footerY + 13,
+    theme: "navy-gold",
+    variant: "compacta",
+    includeLogoMini: true,
+  });
 }
 
 function drawSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number, metricaDireita?: string): number {
