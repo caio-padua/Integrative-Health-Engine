@@ -30,6 +30,7 @@
     "regerar-demo-carlucia-completa": "tsx ./src/regerar-demo-carlucia-completa.ts",
     "executar-segunda-sessao-carlucia": "tsx ./src/executar-segunda-sessao-carlucia.ts",
     "regerar-ras-oficial-carlucia": "tsx ./src/regerar-ras-oficial-carlucia.ts",
+    "pipeline-oficial-carlucia": "tsx ./src/pipeline-oficial-carlucia.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
