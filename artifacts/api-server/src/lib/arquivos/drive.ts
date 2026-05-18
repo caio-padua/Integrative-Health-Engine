@@ -325,9 +325,42 @@ export interface UploadResultado {
 }
 
 /**
+ * ESTOPIM — REGRA DO SISTEMA (Caio, 13/mai/2026):
+ * O 1o arquivo gravado pra um paciente dispara o provisionamento EAGER da
+ * arvore completa (32 pastas) + ficha cadastral em Google Sheets.
+ *
+ * Necessario porque pacientes legados (Wave Padua = 4.278 importados em massa)
+ * NUNCA passaram pelo POST /pacientes (unico ponto que tinha o hook). Sem
+ * este estopim, eles ficavam com lazy create parcial e sem ficha Sheets.
+ *
+ * Idempotente: pacientes.arvore_drive_provisionada_em IS NOT NULL = no-op.
+ * Sincrono: o upload PRECISA das pastas criadas antes de gravar o arquivo.
+ * Import dinamico p/ evitar ciclo (autoProvisionDrive.ts importa drive.ts).
+ */
+async function garantirArvoreProvisionada(p: UploadParams): Promise<void> {
+  const r = (await db.execute(sql`
+    SELECT arvore_drive_provisionada_em, cpf
+    FROM pacientes WHERE id = ${p.pacienteId}
+  `)) as unknown as { rows: Array<{ arvore_drive_provisionada_em: Date | null; cpf: string | null }> };
+  const row = r.rows[0];
+  if (!row) throw new Error(`[drive] paciente ${p.pacienteId} nao encontrado`);
+  if (row.arvore_drive_provisionada_em) return; // ja provisionada — no-op
+
+  const mod = await import("../pacientes/autoProvisionDrive.js");
+  await mod.provisionarDriveCompleto({
+    id: p.pacienteId,
+    nome: p.pacienteNome,
+    codigoSemantico: p.codigoSemantico,
+    unidadeId: p.unidadeId,
+    cpf: row.cpf,
+  });
+}
+
+/**
  * UPLOAD HOLISTICO — porta única do sistema pra gravar arquivo na pasta do
  * paciente seguindo TODAS as regras Wave Cadastro Pádua:
  *
+ *  ✅ ESTOPIM: provisiona arvore EAGER no 1o upload (regra Caio)
  *  ✅ Pasta-raiz do paciente em unidades.clientes_subfolder_id (lazy create)
  *  ✅ Subpasta categoria/subcategoria (lazy create + cache jsonb)
  *  ✅ Nome do arquivo no padrão YY.MM.DD TIPO [IDENT] CODIGO NOME-PACIENTE.ext
@@ -339,6 +372,9 @@ export interface UploadResultado {
 export async function uploadArquivoPaciente(p: UploadParams): Promise<UploadResultado> {
   const cfg = TIPOS_DOCUMENTO[p.tipo];
   if (!cfg) throw new Error(`[drive] Tipo desconhecido: ${p.tipo}`);
+
+  // 0. ESTOPIM — garante arvore + ficha cadastral provisionadas (idempotente)
+  await garantirArvoreProvisionada(p);
 
   // 1. nome do arquivo
   const nomeArquivo = gerarNomeArquivo({
