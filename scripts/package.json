@@ -20,6 +20,7 @@
     "disparar-teste-telegram-ceo": "tsx ./src/disparar-teste-telegram-ceo.ts",
     "demo-ras-carlucia": "tsx ./src/demo-ras-carlucia.ts",
     "enviar-confirmacao-bonita-carlucia": "tsx ./src/enviar-confirmacao-bonita-carlucia.ts",
+    "criar-agendamento-real-carlucia": "tsx ./src/criar-agendamento-real-carlucia.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
