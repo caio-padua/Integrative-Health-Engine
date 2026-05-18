@@ -142,9 +142,8 @@ async function main(): Promise<void> {
   for (const [label, resp] of [["apresentacao_bianca", r1], ["confirmacao_agendamento", r2], ["entrega_ras_pdf", r3]] as const) {
     const msgId = ((resp as { result?: { message_id?: number } }).result?.message_id ?? null);
     await db.execute(sql`
-      INSERT INTO whatsapp_mensagens_log (telefone_destino, mensagem_resumo, status, paciente_id, unidade_id, provedor_msg_id, criado_em)
-      VALUES (${TELEFONE_JID}, ${`[TELEGRAM] ${label}`}, 'delivered', ${PACIENTE_ID}, 15, ${msgId ? `tg_${msgId}` : null}, NOW())
-      ON CONFLICT DO NOTHING
+      INSERT INTO whatsapp_mensagens_log (provedor, telefone_destino, template_nome, mensagem, status, provedor_msg_id, criado_em, enviado_em)
+      VALUES ('telegram', ${TELEFONE_JID}, ${`TELEGRAM_${label.toUpperCase()}`}, ${`[Telegram chat ${chatId}] ${label}`}, 'sent', ${msgId ? `tg_${msgId}` : null}, NOW(), NOW())
     `);
   }
 
