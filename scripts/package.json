@@ -24,6 +24,7 @@
     "agendar-via-rota-real": "tsx ./src/agendar-via-rota-real.ts",
     "enviar-telegram-carlucia": "tsx ./src/enviar-telegram-carlucia.ts",
     "provisionar-arvore-drive-carlucia": "tsx ./src/provisionar-arvore-drive-carlucia.ts",
+    "gerar-ficha-cadastral-carlucia": "tsx ./src/gerar-ficha-cadastral-carlucia.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
   },
