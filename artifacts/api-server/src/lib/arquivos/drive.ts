@@ -57,12 +57,60 @@ function escapeQ(s: string) {
   return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+// Caio 18/mai/2026: estopim duplicou pastas na Aceli porque catalogo migrou
+// de "01_CADASTRO" (underscore) pra "01 CADASTRO" (espaco) sem migration de
+// rename — match exato pelo nome falhava, sistema criava nova vazia ao lado.
+// Solucao: lookup tolerante a separadores (espaco/underscore/hifen) e case.
+// Lista TODAS as folders do parent (~7 macro por paciente, custo trivial) e
+// faz match normalizado em memoria. Funciona pros 4.278 legados Padua.
+export function normalizarNomePasta(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[\s_\-]+/g, "")
+    .trim();
+}
+
 async function findFolderByName(parentId: string, name: string): Promise<string | null> {
   const drive = await getDrive();
-  const q = `'${escapeQ(parentId)}' in parents and mimeType='application/vnd.google-apps.folder' and name='${escapeQ(name)}' and trashed=false`;
-  const r = await drive.files.list({ q, fields: "files(id,name)", spaces: "drive", pageSize: 5 });
-  return r.data.files?.[0]?.id ?? null;
+  const q = `'${escapeQ(parentId)}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const r = await drive.files.list({ q, fields: "files(id,name)", spaces: "drive", pageSize: 200 });
+  const alvo = normalizarNomePasta(name);
+  const hit = (r.data.files ?? []).find((f) => normalizarNomePasta(f.name ?? "") === alvo);
+  return hit?.id ?? null;
 }
+
+// Helpers expostos pro script de limpeza de duplicatas (Caio 18/mai/2026).
+export interface FolderListItem { id: string; name: string; createdTime: string }
+export async function listarFoldersDoParent(parentId: string): Promise<FolderListItem[]> {
+  const drive = await getDrive();
+  const q = `'${escapeQ(parentId)}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const r = await drive.files.list({ q, fields: "files(id,name,createdTime)", spaces: "drive", pageSize: 500 });
+  return (r.data.files ?? []).map((f) => ({ id: f.id!, name: f.name ?? "", createdTime: f.createdTime ?? "" }));
+}
+export async function pastaEstaVazia(folderId: string): Promise<boolean> {
+  const drive = await getDrive();
+  const q = `'${escapeQ(folderId)}' in parents and trashed=false`;
+  const r = await drive.files.list({ q, fields: "files(id)", spaces: "drive", pageSize: 1 });
+  return (r.data.files ?? []).length === 0;
+}
+export async function moverPastaPraLixeira(folderId: string): Promise<void> {
+  const drive = await getDrive();
+  await drive.files.update({ fileId: folderId, requestBody: { trashed: true } });
+}
+export interface DriveItem { id: string; name: string; mimeType: string; createdTime: string }
+export async function listarTudoDoParent(parentId: string): Promise<DriveItem[]> {
+  const drive = await getDrive();
+  const q = `'${escapeQ(parentId)}' in parents and trashed=false`;
+  const r = await drive.files.list({ q, fields: "files(id,name,mimeType,createdTime)", spaces: "drive", pageSize: 500 });
+  return (r.data.files ?? []).map((f) => ({ id: f.id!, name: f.name ?? "", mimeType: f.mimeType ?? "", createdTime: f.createdTime ?? "" }));
+}
+export async function moverItemParaPasta(itemId: string, novoParentId: string, antigoParentId: string): Promise<void> {
+  const drive = await getDrive();
+  await drive.files.update({ fileId: itemId, addParents: novoParentId, removeParents: antigoParentId, fields: "id, parents" });
+}
+export const MIME_FOLDER = "application/vnd.google-apps.folder";
 
 async function createFolder(parentId: string, name: string): Promise<string> {
   const drive = await getDrive();

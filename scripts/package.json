@@ -26,6 +26,7 @@
     "provisionar-arvore-drive-carlucia": "tsx ./src/provisionar-arvore-drive-carlucia.ts",
     "gerar-ficha-cadastral-carlucia": "tsx ./src/gerar-ficha-cadastral-carlucia.ts",
     "smoke-estopim-upload": "tsx ./src/smoke-estopim-upload.ts",
+    "limpar-duplicatas-drive-paciente": "tsx ./src/limpar-duplicatas-drive-paciente.ts",
     "regerar-demo-carlucia-completa": "tsx ./src/regerar-demo-carlucia-completa.ts",
     "test": "tsx --test src/check-api-fetch.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsx --test src/check-api-fetch.test.ts"
