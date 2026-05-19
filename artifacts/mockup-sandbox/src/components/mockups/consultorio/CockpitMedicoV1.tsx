@@ -42,6 +42,12 @@ import {
   Microscope,
   Beaker,
   Leaf,
+  X,
+  Filter,
+  BookMarked,
+  Layers,
+  Star,
+  Building,
 } from "lucide-react";
 
 // ============================================================================
@@ -970,13 +976,16 @@ function PdfPreview() {
 // TAB: PRESCRIÇÃO
 // ============================================================================
 function PrescricaoTab() {
+  const [drawer, setDrawer] = useState<null | "catalogo" | "nova" | "padcon">(null);
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-5 relative">
       <PageHeader
         eyebrow="MANIFESTO BLUEPRINT V2 · DUAL-MODE"
         title="Prescrição — Sessão 39"
         meta="2 fórmulas manipuladas · 1 remédio industrializado · 1 injetável"
       />
+
+      <PrescricaoToolbar onAction={setDrawer} />
 
       <div className="grid grid-cols-2 gap-4">
         <PrescCard
@@ -1024,6 +1033,417 @@ function PrescricaoTab() {
       </div>
 
       <CompatBanner />
+
+      {drawer && <CatalogoDrawer modo={drawer} onClose={() => setDrawer(null)} />}
+    </div>
+  );
+}
+
+function PrescricaoToolbar({ onAction }: { onAction: (m: "catalogo" | "nova" | "padcon") => void }) {
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-3"
+      style={{ background: tk.bgAlt, border: `1px solid ${tk.border}`, borderLeft: `3px solid ${tk.accent}` }}
+    >
+      <div className="flex items-center gap-2 mr-2" style={{ color: tk.inkMuted, fontSize: 11 }}>
+        <Plus size={13} style={{ color: tk.accent }} />
+        <span style={{ fontFamily: tk.mono, letterSpacing: 0.8 }} className="uppercase">
+          Adicionar item terapêutico
+        </span>
+      </div>
+
+      <button
+        onClick={() => onAction("catalogo")}
+        className="px-3 py-2 flex items-center gap-2"
+        style={{ background: tk.bg, border: `1px solid ${tk.border}`, color: tk.ink, fontSize: 12 }}
+      >
+        <BookMarked size={13} style={{ color: tk.accent }} />
+        Buscar no Catálogo PARMAVAULT
+        <span style={{ fontSize: 9, fontFamily: tk.mono, color: tk.inkSubtle, marginLeft: 4 }}>
+          8.728 itens
+        </span>
+      </button>
+
+      <button
+        onClick={() => onAction("nova")}
+        className="px-3 py-2 flex items-center gap-2"
+        style={{ background: tk.bg, border: `1px solid ${tk.border}`, color: tk.ink, fontSize: 12 }}
+      >
+        <Beaker size={13} style={{ color: tk.accent }} />
+        Criar nova fórmula manipulada
+      </button>
+
+      <button
+        onClick={() => onAction("padcon")}
+        className="px-3 py-2 flex items-center gap-2"
+        style={{ background: tk.bg, border: `1px solid ${tk.border}`, color: tk.ink, fontSize: 12 }}
+      >
+        <Layers size={13} style={{ color: tk.accent }} />
+        Aplicar Protocolo PADCON
+      </button>
+
+      <div className="ml-auto flex items-center gap-3" style={{ fontSize: 11, color: tk.inkSubtle, fontFamily: tk.mono }}>
+        <span>4 itens · ⌘P pra abrir busca rápida</span>
+      </div>
+    </div>
+  );
+}
+
+function CatalogoDrawer({ modo, onClose }: { modo: "catalogo" | "nova" | "padcon"; onClose: () => void }) {
+  const titulos = {
+    catalogo: "Catálogo PARMAVAULT · Itens Terapêuticos Unificados",
+    nova: "Nova Fórmula Manipulada",
+    padcon: "Protocolos PADCON",
+  };
+  const eyebrows = {
+    catalogo: "BUSCA NO CATÁLOGO · 8.728 ITENS · COBERTURA SEMÂNTICA 100%",
+    nova: "EDITOR MANIPULADO · MOTOR DE COMPATIBILIDADE",
+    padcon: "PROTOCOLOS PRÉ-MONTADOS · 47 DISPONÍVEIS",
+  };
+  return (
+    <div
+      className="fixed inset-0 z-50 flex justify-end"
+      style={{ background: "rgba(11, 18, 32, 0.78)", backdropFilter: "blur(2px)" }}
+      onClick={onClose}
+    >
+      <aside
+        onClick={(e) => e.stopPropagation()}
+        className="flex flex-col"
+        style={{
+          width: 720,
+          background: tk.bgAlt,
+          borderLeft: `1px solid ${tk.borderStrong}`,
+          boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+        }}
+      >
+        <div className="px-6 py-4 flex items-start justify-between" style={{ borderBottom: `1px solid ${tk.border}` }}>
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: 1.5, color: tk.accent, fontFamily: tk.mono }}>
+              {eyebrows[modo]}
+            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: tk.ink, marginTop: 4 }}>{titulos[modo]}</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5"
+            style={{ color: tk.inkMuted, border: `1px solid ${tk.border}` }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {modo === "catalogo" && <CatalogoBusca />}
+        {modo === "nova" && <FormulaEditor />}
+        {modo === "padcon" && <PadconLista />}
+      </aside>
+    </div>
+  );
+}
+
+function CatalogoBusca() {
+  const [q, setQ] = useState("magnésio");
+  const resultados = [
+    {
+      cod: "MAN-MG-DIM-200",
+      nome: "Magnésio dimalato 200mg",
+      tipo: "Substância · Manipulada",
+      categoria: "Mineral / Cofator",
+      farmacias: ["Galena", "Pharmavita", "Fórmula Certa"],
+      preco: "≈ R$ 0,38/cápsula",
+      compat: "ok",
+      uso: 1247,
+    },
+    {
+      cod: "MAN-MG-GLI-300",
+      nome: "Magnésio glicinato 300mg",
+      tipo: "Substância · Manipulada",
+      categoria: "Mineral / Sono",
+      farmacias: ["Galena", "Pharmavita"],
+      preco: "≈ R$ 0,52/cápsula",
+      compat: "ok",
+      uso: 892,
+    },
+    {
+      cod: "FOR-ADAPT-NOT-V3",
+      nome: "Adapto-noturna + Magnésio dimalato",
+      tipo: "Fórmula composta · Pré-validada",
+      categoria: "Sono / Adaptógenos",
+      farmacias: ["Galena"],
+      preco: "≈ R$ 4,80/cápsula",
+      compat: "ok",
+      uso: 612,
+      destaque: true,
+    },
+    {
+      cod: "MAN-MG-TRE-2G",
+      nome: "Magnésio treonato 2g",
+      tipo: "Substância · Manipulada",
+      categoria: "Mineral / Cognitivo",
+      farmacias: ["Pharmavita", "Fórmula Certa"],
+      preco: "≈ R$ 1,90/sachê",
+      compat: "alerta",
+      uso: 184,
+    },
+    {
+      cod: "IND-MG-CIT-RXN",
+      nome: "Citrato de Magnésio (industrializado)",
+      tipo: "Remédio · Industrializado",
+      categoria: "Mineral / OTC",
+      farmacias: ["Qualquer drogaria"],
+      preco: "R$ 28,90/cx 30 cp",
+      compat: "ok",
+      uso: 2104,
+    },
+  ];
+  return (
+    <div className="flex-1 overflow-auto">
+      <div className="px-6 py-4 sticky top-0" style={{ background: tk.bgAlt, borderBottom: `1px solid ${tk.border}`, zIndex: 1 }}>
+        <div
+          className="flex items-center gap-2 px-3 py-2.5"
+          style={{ background: tk.bg, border: `1px solid ${tk.accent}` }}
+        >
+          <Search size={14} style={{ color: tk.accent }} />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="flex-1 outline-none bg-transparent"
+            style={{ color: tk.ink, fontSize: 13, fontFamily: tk.sans }}
+            placeholder="Buscar por nome, substância, código semântico ou CAS…"
+          />
+          <span style={{ fontSize: 10, color: tk.inkSubtle, fontFamily: tk.mono }}>5 resultados · 0,12s</span>
+        </div>
+
+        <div className="flex items-center gap-2 mt-3" style={{ fontSize: 11 }}>
+          <Filter size={11} style={{ color: tk.inkSubtle }} />
+          {["Todos", "Manipuladas", "Industrializadas", "Injetáveis", "Fórmulas compostas", "Mais usadas"].map((f, i) => (
+            <button
+              key={f}
+              className="px-2.5 py-1"
+              style={{
+                background: i === 0 ? tk.accent : tk.bg,
+                color: i === 0 ? tk.bg : tk.inkMuted,
+                border: `1px solid ${i === 0 ? tk.accent : tk.border}`,
+                fontSize: 11,
+                fontWeight: i === 0 ? 600 : 400,
+              }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        {resultados.map((r) => {
+          const corCompat = r.compat === "ok" ? tk.ok : tk.warn;
+          return (
+            <div
+              key={r.cod}
+              className="px-6 py-4 flex gap-4 items-start"
+              style={{
+                borderBottom: `1px solid ${tk.border}`,
+                background: r.destaque ? tk.bgSoft : "transparent",
+              }}
+            >
+              <div className="flex flex-col items-center gap-1" style={{ width: 36 }}>
+                <div
+                  className="w-9 h-9 grid place-items-center"
+                  style={{
+                    background: tk.bg,
+                    border: `1px solid ${tk.border}`,
+                    color: tk.accent,
+                  }}
+                >
+                  {r.tipo.includes("Industrializado") ? <Pill size={14} /> : r.tipo.includes("Fórmula composta") ? <Star size={14} /> : <Beaker size={14} />}
+                </div>
+                {r.destaque && (
+                  <span style={{ fontSize: 8, color: tk.accent, fontFamily: tk.mono, letterSpacing: 0.5 }}>
+                    SUG. MOTOR
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 13, fontWeight: 600, color: tk.ink }}>{r.nome}</span>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontFamily: tk.mono,
+                      padding: "1px 5px",
+                      background: tk.bg,
+                      color: corCompat,
+                      border: `1px solid ${corCompat}`,
+                    }}
+                  >
+                    {r.compat === "ok" ? "COMPATÍVEL" : "VER ALERTA"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: tk.inkSubtle, fontFamily: tk.mono, marginTop: 2 }}>
+                  {r.cod} · {r.tipo}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2" style={{ fontSize: 11, color: tk.inkMuted }}>
+                  <span className="flex items-center gap-1">
+                    <Layers size={10} />
+                    {r.categoria}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Building size={10} />
+                    {r.farmacias.join(", ")}
+                  </span>
+                  <span className="flex items-center gap-1" style={{ fontFamily: tk.mono }}>
+                    {r.preco}
+                  </span>
+                  <span style={{ color: tk.inkSubtle }}>· usado {r.uso}×</span>
+                </div>
+              </div>
+              <button
+                className="px-3 py-2 flex items-center gap-1.5 flex-shrink-0"
+                style={{ background: tk.accent, color: tk.bg, fontSize: 11, fontWeight: 600 }}
+              >
+                <Plus size={12} /> Adicionar
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FormulaEditor() {
+  return (
+    <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
+      <FieldGroup label="Nome da fórmula" required>
+        <SoftInput value="Nova fórmula — paciente PAD-2026-3497" />
+      </FieldGroup>
+
+      <div>
+        <label
+          className="flex items-center justify-between mb-2"
+          style={{ fontSize: 10, color: tk.inkMuted, letterSpacing: 1, fontWeight: 500 }}
+        >
+          <span className="uppercase">Composição</span>
+          <span style={{ fontSize: 10, color: tk.inkSubtle, fontFamily: tk.mono }}>
+            0 substâncias · adicione abaixo
+          </span>
+        </label>
+        <div
+          className="px-3 py-8 grid place-items-center"
+          style={{ background: tk.bg, border: `1px dashed ${tk.border}`, color: tk.inkSubtle, fontSize: 12 }}
+        >
+          <div className="text-center">
+            <Beaker size={20} style={{ color: tk.inkSubtle, margin: "0 auto 8px" }} />
+            <div>Clique para buscar substância no catálogo PARMAVAULT</div>
+            <div style={{ fontSize: 10, marginTop: 4, fontFamily: tk.mono }}>
+              + ADICIONAR SUBSTÂNCIA (Ctrl+S)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <FieldGroup label="Posologia">
+          <SoftInput value="01 cápsula 60 min antes de dormir" />
+        </FieldGroup>
+        <FieldGroup label="Duração do tratamento">
+          <SoftInput value="90 dias" mono />
+        </FieldGroup>
+      </div>
+
+      <FieldGroup label="Farmácia de aviamento">
+        <SoftInput value="Galena Manipulação (id=7) — preferencial" />
+      </FieldGroup>
+
+      <FieldGroup label="Justificativa clínica">
+        <textarea
+          className="w-full px-3 py-3 outline-none"
+          style={{
+            background: tk.bg,
+            color: tk.ink,
+            border: `1px solid ${tk.border}`,
+            fontSize: 13,
+            lineHeight: 1.6,
+            minHeight: 80,
+            resize: "vertical",
+            fontFamily: tk.sans,
+          }}
+          placeholder="Por que essa fórmula? Qual sintoma trata? Quais evidências sustentam?"
+        />
+      </FieldGroup>
+
+      <div
+        className="flex items-center gap-2 px-3 py-2.5"
+        style={{ background: tk.bg, border: `1px solid ${tk.warn}`, borderLeft: `3px solid ${tk.warn}` }}
+      >
+        <ShieldAlert size={14} style={{ color: tk.warn }} />
+        <span style={{ fontSize: 11, color: tk.ink }}>
+          O motor validará compatibilidade com alergias e medicações em uso ao salvar.
+        </span>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        <button className="px-4 py-2" style={{ background: tk.bg, color: tk.ink, border: `1px solid ${tk.border}`, fontSize: 12 }}>
+          Salvar rascunho
+        </button>
+        <button className="px-4 py-2 flex items-center gap-2" style={{ background: tk.accent, color: tk.bg, fontSize: 12, fontWeight: 600 }}>
+          <Check size={13} /> Adicionar à prescrição
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PadconLista() {
+  const protocolos = [
+    { cod: "METAB-PÓS", nome: "PADCON METAB-PÓS — Síndrome metabólica pós-menopausa", duracao: "90 dias", itens: 7, match: 87 },
+    { cod: "DETOX-3M", nome: "PADCON DETOX 3 Meses — Hepático + Intestinal", duracao: "90 dias", itens: 9, match: 64 },
+    { cod: "SONO-RESTR", nome: "PADCON SONO Restaurador — Cortisol + Melatonina", duracao: "60 dias", itens: 5, match: 78 },
+    { cod: "IMUNO-INV", nome: "PADCON IMUNO Inverno — Antiviral preventivo", duracao: "45 dias", itens: 6, match: 41 },
+    { cod: "ANSI-LEVE", nome: "PADCON ANSI Leve — Ansiedade situacional", duracao: "30 dias", itens: 4, match: 52 },
+  ];
+  return (
+    <div className="flex-1 overflow-auto px-6 py-5">
+      <p style={{ fontSize: 12, color: tk.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
+        Protocolos pré-montados pela equipe médica do Instituto. O match é calculado pelo motor
+        cruzando o perfil clínico da paciente com a indicação canônica de cada protocolo.
+      </p>
+      <div className="flex flex-col gap-2">
+        {protocolos.map((p) => {
+          const matchCor = p.match >= 70 ? tk.ok : p.match >= 50 ? tk.warn : tk.inkSubtle;
+          return (
+            <div
+              key={p.cod}
+              className="flex items-center gap-4 px-4 py-3"
+              style={{ background: tk.bg, border: `1px solid ${tk.border}`, borderLeft: `3px solid ${matchCor}` }}
+            >
+              <div className="flex-1">
+                <div style={{ fontSize: 13, fontWeight: 600, color: tk.ink }}>{p.nome}</div>
+                <div className="flex items-center gap-3 mt-1" style={{ fontSize: 10, color: tk.inkSubtle, fontFamily: tk.mono }}>
+                  <span>{p.cod}</span>
+                  <span>·</span>
+                  <span>{p.duracao}</span>
+                  <span>·</span>
+                  <span>{p.itens} itens terapêuticos</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div style={{ fontFamily: tk.mono, fontSize: 18, fontWeight: 700, color: matchCor }}>
+                  {p.match}%
+                </div>
+                <div style={{ fontSize: 9, color: tk.inkSubtle, letterSpacing: 0.8 }} className="uppercase">
+                  match
+                </div>
+              </div>
+              <button
+                className="px-3 py-2 flex items-center gap-1.5"
+                style={{ background: tk.accent, color: tk.bg, fontSize: 11, fontWeight: 600 }}
+              >
+                <Plus size={12} /> Aplicar
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
