@@ -146,9 +146,9 @@ export const TEMPLATES_INICIAIS: Record<CenarioId, string> = {
 
 {PRONOME_TRATAMENTO} {NOME_PACIENTE}, tudo bem?
 
-{STATUS_DR_CAIO}
+{SLOT_TOPO}
 
-Hoje é *{DIA_SEMANA}* — estamos na *{SEMANA_DO_MES}*.
+{STATUS_DR_CAIO}
 
 {ABERTURA_PERIODO}
 
@@ -157,11 +157,15 @@ Hoje é *{DIA_SEMANA}* — estamos na *{SEMANA_DO_MES}*.
 
 {LISTA_FORMULAS}
 
+{SLOT_MEIO}
+
 {FALA_DR_CAIO}
 
 {OBS_DOSE}
 
 {CARTA_ENCANTAMENTO}
+
+{SLOT_RODAPE}
 
 {ASSINATURA_BEATRIZ}`,
 
@@ -170,44 +174,132 @@ Hoje é *{DIA_SEMANA}* — estamos na *{SEMANA_DO_MES}*.
 
 {PRONOME_TRATAMENTO} {NOME_PACIENTE}, lembrete dos medicamentos de farmácia comum:
 
+{SLOT_TOPO}
+
 *Período: {NOME_PERIODO}* {EMOJI_PERIODO}
 {LISTA_FORMULAS}
 
 {POSOLOGIA}
 
+{SLOT_MEIO}
+
 ⚠️ Se faltar caixa nova, avise a equipe pra reposição.
 
 {CARTA_ENCANTAMENTO}
+
+{SLOT_RODAPE}
 
 {ASSINATURA_BEATRIZ}`,
 
   injetavel_implante:
 `{PRONOME_TRATAMENTO} {NOME_PACIENTE}, lembrete do seu procedimento:
 
+{SLOT_TOPO}
+
 💉 *{NOME_PROCEDIMENTO}*
 📅 *{DATA_AGENDAMENTO}* às *{HORA_AGENDAMENTO}*
 📍 {SALA} · com {ENFERMEIRA}
 
-Cheguar 10 min antes pra acomodação.
+{SLOT_MEIO}
+
+Chegar 10 min antes pra acomodação.
 Manter hidratação na véspera.
 
 {CARTA_ENCANTAMENTO}
+
+{SLOT_RODAPE}
 
 {ASSINATURA_BEATRIZ}`,
 
   followup_estetico:
 `{PRONOME_TRATAMENTO} {NOME_PACIENTE}, seu *{NOME_PROCEDIMENTO}* está prestes a vencer:
 
+{SLOT_TOPO}
+
 📅 Última aplicação: *{DATA_ULTIMA_APLICACAO}*
 ⏳ Vence em: *{DATA_VENCIMENTO}* (faltam *{DIAS_RESTANTES}*)
+
+{SLOT_MEIO}
 
 Quer agendar a renovação?
 {NOME_FECHADORA} já recebeu seu card e vai te procurar.
 
 {CARTA_ENCANTAMENTO}
 
+{SLOT_RODAPE}
+
 {ASSINATURA_BEATRIZ}`,
 };
+
+// ───────────────────────────────────────────────────────────────────────
+// VERSÍCULOS BÍBLICOS · catálogo (Caio escolhe ao vivo no teatro)
+// ───────────────────────────────────────────────────────────────────────
+export const VERSICULOS_BIBLICOS = [
+  { ref: "Provérbios 17:22", texto: "O coração alegre é bom remédio, mas o espírito abatido seca os ossos." },
+  { ref: "Jeremias 30:17",   texto: "Restaurarei a tua saúde e curarei as tuas feridas, diz o Senhor." },
+  { ref: "Salmos 103:2-3",   texto: "Bendize, ó minha alma, ao Senhor — Ele é quem perdoa todas as tuas iniquidades e sara todas as tuas enfermidades." },
+  { ref: "Isaías 40:31",     texto: "Os que esperam no Senhor renovam as suas forças — correm e não se cansam, caminham e não se fatigam." },
+  { ref: "3 João 1:2",       texto: "Amado, desejo que te vá bem em todas as coisas, e que tenhas saúde, assim como bem vai a tua alma." },
+  { ref: "Filipenses 4:13",  texto: "Posso todas as coisas naquele que me fortalece." },
+];
+
+// ───────────────────────────────────────────────────────────────────────
+// ADD-ONS OPCIONAIS · 4 mensagens editáveis com posição configurável
+// Caio decide ao vivo: marca toggle ON/OFF, edita o texto e escolhe onde
+// vai aparecer no template (topo · meio · rodapé). Renderização substitui
+// os marcadores {SLOT_TOPO} / {SLOT_MEIO} / {SLOT_RODAPE} no template.
+// ───────────────────────────────────────────────────────────────────────
+export type SlotPosicao = "topo" | "meio" | "rodape";
+
+export type AddOnId = "versiculo" | "dia_semana" | "semana_mes" | "custom";
+
+export type AddOn = {
+  id: AddOnId;
+  emoji: string;
+  rotulo: string;
+  ativo: boolean;
+  posicao: SlotPosicao;
+  texto: string;     // texto que será injetado
+  meta?: string;     // ex: referência bíblica, dia escolhido, etc
+};
+
+export type AddOnsConfig = Record<AddOnId, AddOn>;
+
+export function addOnsPadrao(): AddOnsConfig {
+  return {
+    versiculo: {
+      id: "versiculo", emoji: "📖", rotulo: "Versículo bíblico",
+      ativo: true, posicao: "rodape",
+      texto: `_"${VERSICULOS_BIBLICOS[1].texto}"_`,
+      meta: VERSICULOS_BIBLICOS[1].ref,
+    },
+    dia_semana: {
+      id: "dia_semana", emoji: "📅", rotulo: "Frase do dia da semana",
+      ativo: true, posicao: "topo",
+      texto: "Hoje é *quarta-feira* — no meio da semana, consistência é o que faz a diferença.",
+      meta: "quarta",
+    },
+    semana_mes: {
+      id: "semana_mes", emoji: "🗓️", rotulo: "Frase da semana do mês",
+      ativo: false, posicao: "topo",
+      texto: "Estamos na *terceira semana* — já na segunda metade do mês.",
+      meta: "3",
+    },
+    custom: {
+      id: "custom", emoji: "✍️", rotulo: "Mensagem custom",
+      ativo: false, posicao: "meio",
+      texto: "",
+      meta: undefined,
+    },
+  };
+}
+
+export function renderSlot(addons: AddOnsConfig, slot: SlotPosicao): string {
+  return Object.values(addons)
+    .filter(a => a.ativo && a.posicao === slot && a.texto.trim().length > 0)
+    .map(a => `${a.emoji} ${a.texto}${a.meta && a.id === "versiculo" ? `\n— *${a.meta}*` : ""}`)
+    .join("\n\n");
+}
 
 // ───────────────────────────────────────────────────────────────────────
 // CARTA DE ENCANTAMENTO · matriz períodos × cenários (controle no GPS)
@@ -281,8 +373,14 @@ export function resolverPlaceholder(
     falaDrCaio?: string;
     assinatura?: string;
     obsDose?: string;
+    slotTopo?: string;
+    slotMeio?: string;
+    slotRodape?: string;
   },
 ): string {
+  if (chave === "{SLOT_TOPO}")   return ctx.slotTopo   ?? "";
+  if (chave === "{SLOT_MEIO}")   return ctx.slotMeio   ?? "";
+  if (chave === "{SLOT_RODAPE}") return ctx.slotRodape ?? "";
   const ph = PLACEHOLDERS.find(p => p.chave === chave);
   switch (chave) {
     case "{NOME_PACIENTE}":      return "Graco";

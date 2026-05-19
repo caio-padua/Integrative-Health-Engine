@@ -8,7 +8,9 @@ import {
 import {
   CENARIOS, PLACEHOLDERS, TEMPLATES_INICIAIS, exemploCartaFuturoPapai,
   resolverPlaceholder, cartaAtivaPara,
-  type CenarioId, type Cenario, type Placeholder, type MatrizCartaEncantamento,
+  VERSICULOS_BIBLICOS, addOnsPadrao, renderSlot,
+  type CenarioId, type Placeholder, type MatrizCartaEncantamento,
+  type AddOnsConfig, type AddOnId, type SlotPosicao,
 } from "./_teatro";
 
 const blendMenopausa = CATALOGO.find(s => s.id === "blend-vo")!;
@@ -49,30 +51,42 @@ const GRUPO_COR: Record<Placeholder["grupo"], string> = {
   encantamento: "#E8A5D8", assinatura: "#9AA9C2",
 };
 
+const SLOT_COR: Record<SlotPosicao, string> = {
+  topo: "#7BC9A5", meio: "#F5C26B", rodape: "#A8C7FA",
+};
+
 export function TeatroMensageriaPadua() {
   const [cenarioId, setCenarioId] = useState<CenarioId>("receita_manipulada");
   const [periodoSel, setPeriodoSel] = useState<PeriodoDia>(PERIODOS_DIA[1]); // IM default
+  const [diaSel, setDiaSel] = useState(DIAS_SEMANA[2]); // quarta
+  const [semanaSel, setSemanaSel] = useState(SEMANAS_MES[2]); // 3ª
   const [statusIdx, setStatusIdx] = useState(0);
   const [falaIdx, setFalaIdx] = useState(0);
   const [template, setTemplate] = useState<Record<CenarioId, string>>(TEMPLATES_INICIAIS);
   const [carta] = useState<MatrizCartaEncantamento>(exemploCartaFuturoPapai());
+  const [addons, setAddons] = useState<AddOnsConfig>(addOnsPadrao());
 
   const cenario = CENARIOS.find(c => c.id === cenarioId)!;
   const phsCenario = PLACEHOLDERS.filter(p => p.cenarios.includes(cenarioId));
   const periodosAtivos = useMemo(() => periodosComDose(), []);
+
+  const slotTopo   = useMemo(() => renderSlot(addons, "topo"),   [addons]);
+  const slotMeio   = useMemo(() => renderSlot(addons, "meio"),   [addons]);
+  const slotRodape = useMemo(() => renderSlot(addons, "rodape"), [addons]);
 
   const ctx = useMemo(() => ({
     periodo: cenario.usaPeriodos ? periodoSel : undefined,
     carta,
     cenario: cenarioId,
     listaFormulasRendered: cenario.usaPeriodos ? renderListaFormulas(periodoSel) : undefined,
-    diaSemana: DIAS_SEMANA[2].label.toLowerCase(),
-    semanaMes: SEMANAS_MES[2].frase,
+    diaSemana: diaSel.label.toLowerCase(),
+    semanaMes: semanaSel.frase,
     statusDrCaio: DR_CAIO_STATUS[statusIdx],
     falaDrCaio: DR_CAIO_FALAS[falaIdx].texto,
     obsDose: OBS_DOSE,
     assinatura: `${ASSINATURA_BEATRIZ.saudacao_fechamento}\n\n*${ASSINATURA_BEATRIZ.nome}*\n_${ASSINATURA_BEATRIZ.papel}_\n\n───────────\n${ASSINATURA_BEATRIZ.rodape_linha1}\n_${ASSINATURA_BEATRIZ.rodape_subtitulo1}_\n\n${ASSINATURA_BEATRIZ.rodape_linha2}\n_${ASSINATURA_BEATRIZ.rodape_subtitulo2}_\n───────────`,
-  }), [cenarioId, periodoSel, statusIdx, falaIdx, carta, cenario.usaPeriodos]);
+    slotTopo, slotMeio, slotRodape,
+  }), [cenarioId, periodoSel, diaSel, semanaSel, statusIdx, falaIdx, carta, cenario.usaPeriodos, slotTopo, slotMeio, slotRodape]);
 
   const preview = useMemo(
     () => renderTemplate(template[cenarioId], ctx).replace(/\n{3,}/g, "\n\n"),
@@ -85,6 +99,27 @@ export function TeatroMensageriaPadua() {
     setTemplate(t => ({ ...t, [cenarioId]: t[cenarioId] + " " + chave }));
   }
 
+  function patchAddon(id: AddOnId, patch: Partial<AddOnsConfig[AddOnId]>) {
+    setAddons(a => ({ ...a, [id]: { ...a[id], ...patch } }));
+  }
+
+  function escolherVersiculo(idx: number) {
+    const v = VERSICULOS_BIBLICOS[idx];
+    patchAddon("versiculo", { texto: `_"${v.texto}"_`, meta: v.ref });
+  }
+
+  function escolherDia(idx: number) {
+    const d = DIAS_SEMANA[idx];
+    setDiaSel(d);
+    patchAddon("dia_semana", { texto: `Hoje é *${d.label.toLowerCase()}* — ${d.frase.toLowerCase().replace(/\.$/, "")}.`, meta: d.chave });
+  }
+
+  function escolherSemana(idx: number) {
+    const s = SEMANAS_MES[idx];
+    setSemanaSel(s);
+    patchAddon("semana_mes", { texto: `Estamos na *${s.frase}*.`, meta: s.chave });
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: tk.bg, color: tk.ink, fontFamily: tk.sans, padding: 14, display: "flex", flexDirection: "column", gap: 10, fontSize: 11 }}>
 
@@ -92,10 +127,10 @@ export function TeatroMensageriaPadua() {
       <header style={{ background: tk.bgAlt, border: `1px solid ${tk.border}`, padding: "10px 14px", display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 14, alignItems: "center" }}>
         <div>
           <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.accent, letterSpacing: 2.5 }}>
-            ★ TEATRO DA MENSAGERIA · 4 CENÁRIOS · TEMPLATE EDITÁVEL · BEATRIZ ROMANOV v3 OPUS
+            ★ TEATRO DA MENSAGERIA · 4 CENÁRIOS · TEMPLATE EDITÁVEL · 4 ADD-ONS · BEATRIZ ROMANOV v3 OPUS
           </div>
           <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>
-            Motor genérico de lembretes · placeholders compartilhados entre Receita / Injetável / Procedimento / Follow-up
+            Motor genérico de lembretes · placeholders + slots TOPO/MEIO/RODAPÉ pra mensagens opcionais
           </div>
           <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 1 }}>
             paciente exemplo: {PACIENTE.nome} · plano {PACIENTE.plano} · template renderiza pra QUALQUER paciente
@@ -105,7 +140,7 @@ export function TeatroMensageriaPadua() {
         <div style={{ padding: "6px 12px", background: tk.bg, borderLeft: `3px solid ${tk.accent}` }}>
           <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5 }}>TABELAS LIVE</div>
           <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.accent, marginTop: 2 }}>
-            periodos_dia · mensagens_catalogo · catalogo_agentes · task_cards · followups
+            periodos_dia · mensagens_catalogo · catalogo_agentes · task_cards · followups · mensagens_addons
           </div>
         </div>
       </header>
@@ -183,6 +218,150 @@ export function TeatroMensageriaPadua() {
         </section>
       )}
 
+      {/* DIAS DA SEMANA + SEMANAS DO MÊS · seletores temporais */}
+      <section style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 6 }}>
+        <div style={{ background: tk.bgAlt, border: `1px solid ${tk.border}`, padding: 10 }}>
+          <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5, marginBottom: 6 }}>
+            ▶ DIA DA SEMANA · alimenta o add-on 📅 e o placeholder {`{DIA_SEMANA}`}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+            {DIAS_SEMANA.map((d, i) => {
+              const sel = d.chave === diaSel.chave;
+              return (
+                <button key={d.chave} onClick={() => escolherDia(i)} style={{
+                  padding: "5px 4px", textAlign: "left", cursor: "pointer",
+                  background: sel ? "#7BC9A522" : tk.bg, color: sel ? "#7BC9A5" : tk.ink,
+                  border: `1px solid ${sel ? "#7BC9A5" : tk.border}`,
+                  borderTop: `3px solid ${sel ? "#7BC9A5" : tk.borderStrong}`,
+                  fontFamily: tk.mono, fontSize: 8, fontWeight: sel ? 700 : 400, letterSpacing: 1,
+                }}>
+                  {d.label.slice(0, 3).toUpperCase()}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ fontFamily: "Georgia, serif", fontSize: 10, fontStyle: "italic", color: tk.inkMuted, marginTop: 6, padding: "4px 8px", borderLeft: `2px solid #7BC9A5`, background: tk.bg }}>
+            "{diaSel.frase}"
+          </div>
+        </div>
+        <div style={{ background: tk.bgAlt, border: `1px solid ${tk.border}`, padding: 10 }}>
+          <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5, marginBottom: 6 }}>
+            ▶ SEMANA DO MÊS
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 3 }}>
+            {SEMANAS_MES.map((s, i) => {
+              const sel = s.chave === semanaSel.chave;
+              return (
+                <button key={s.chave} onClick={() => escolherSemana(i)} style={{
+                  padding: "5px 4px", textAlign: "center", cursor: "pointer",
+                  background: sel ? "#7BC9A522" : tk.bg, color: sel ? "#7BC9A5" : tk.ink,
+                  border: `1px solid ${sel ? "#7BC9A5" : tk.border}`,
+                  borderTop: `3px solid ${sel ? "#7BC9A5" : tk.borderStrong}`,
+                  fontFamily: tk.mono, fontSize: 9, fontWeight: sel ? 700 : 400,
+                }}>
+                  {s.chave}ª
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ★★★ 4 ADD-ONS · toggle ON/OFF + texto editável + posição ★★★ */}
+      <section style={{ background: tk.bgAlt, border: `1px solid #7BC9A555`, borderLeft: `3px solid #7BC9A5`, padding: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+          <span style={{ fontFamily: tk.mono, fontSize: 9, color: "#7BC9A5", letterSpacing: 1.5 }}>
+            ★ 4 ADD-ONS · mensagens opcionais com posição configurável (topo · meio · rodapé)
+          </span>
+          <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkMuted }}>
+            {Object.values(addons).filter(a => a.ativo).length}/4 ativos · injetados nos slots do template
+          </span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+          {Object.values(addons).map(a => (
+            <div key={a.id} style={{
+              padding: 10,
+              background: a.ativo ? tk.bg : tk.bgSoft,
+              border: `1px solid ${a.ativo ? SLOT_COR[a.posicao] + "55" : tk.border}`,
+              borderLeft: `3px solid ${a.ativo ? SLOT_COR[a.posicao] : tk.borderStrong}`,
+              opacity: a.ativo ? 1 : 0.55,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: tk.mono, fontSize: 10, color: tk.ink, cursor: "pointer", fontWeight: 700 }}>
+                  <input type="checkbox" checked={a.ativo} onChange={e => patchAddon(a.id, { ativo: e.target.checked })}
+                    aria-label={`Ativar add-on ${a.rotulo}`}
+                    style={{ accentColor: SLOT_COR[a.posicao] }} />
+                  <span style={{ fontSize: 14 }}>{a.emoji}</span> {a.rotulo}
+                </label>
+                <div style={{ display: "flex", gap: 2 }}>
+                  {(["topo", "meio", "rodape"] as SlotPosicao[]).map(pos => (
+                    <button key={pos} onClick={() => patchAddon(a.id, { posicao: pos })}
+                      disabled={!a.ativo}
+                      aria-label={`Posição ${pos}`}
+                      style={{
+                        padding: "2px 7px", cursor: a.ativo ? "pointer" : "not-allowed",
+                        background: a.posicao === pos ? SLOT_COR[pos] : tk.bgAlt,
+                        color: a.posicao === pos ? tk.bg : tk.inkMuted,
+                        border: `1px solid ${a.posicao === pos ? SLOT_COR[pos] : tk.border}`,
+                        fontFamily: tk.mono, fontSize: 8, letterSpacing: 1, fontWeight: a.posicao === pos ? 700 : 400,
+                      }}>
+                      {pos === "rodape" ? "RODAPÉ" : pos.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* atalho do versículo: chips com 6 versículos pré-prontos */}
+              {a.id === "versiculo" && a.ativo && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 5 }}>
+                  {VERSICULOS_BIBLICOS.map((v, i) => {
+                    const sel = a.meta === v.ref;
+                    return (
+                      <button key={v.ref} onClick={() => escolherVersiculo(i)} title={v.texto}
+                        style={{
+                          padding: "2px 6px", cursor: "pointer",
+                          background: sel ? "#A8C7FA22" : tk.bgAlt, color: sel ? "#A8C7FA" : tk.inkMuted,
+                          border: `1px solid ${sel ? "#A8C7FA" : tk.border}`,
+                          fontFamily: tk.mono, fontSize: 8, fontWeight: sel ? 700 : 400,
+                        }}>
+                        {v.ref}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <textarea value={a.texto} onChange={e => patchAddon(a.id, { texto: e.target.value })}
+                disabled={!a.ativo}
+                placeholder={a.id === "custom" ? "ex: Bom mês de aniversário! 🎂" : "(texto da mensagem)"}
+                aria-label={`Texto do add-on ${a.rotulo}`}
+                style={{
+                  width: "100%", minHeight: 42, background: tk.bg, color: tk.ink,
+                  border: `1px solid ${tk.border}`, padding: 6,
+                  fontFamily: a.id === "versiculo" ? "Georgia, serif" : tk.mono,
+                  fontSize: 9, lineHeight: 1.4, resize: "vertical", outline: "none",
+                  opacity: a.ativo ? 1 : 0.5,
+                  fontStyle: a.id === "versiculo" ? "italic" : "normal",
+                }} />
+
+              <div style={{ fontFamily: tk.mono, fontSize: 7, color: tk.inkSubtle, marginTop: 4 }}>
+                injetado em <strong style={{ color: SLOT_COR[a.posicao] }}>{`{SLOT_${a.posicao.toUpperCase()}}`}</strong>
+                {a.id === "versiculo" && a.meta && <span> · ref: <em>{a.meta}</em></span>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, marginTop: 8, lineHeight: 1.4 }}>
+          <span style={{ color: "#7BC9A5" }}>regra Caio:</span> os 4 add-ons NÃO precisam estar todos ligados.
+          marque os que quer + escolha onde (topo abre a mensagem, meio fica entre conteúdo, rodapé fecha antes da assinatura).
+          o template tem 3 marcadores <strong style={{ color: "#7BC9A5" }}>{`{SLOT_TOPO}`}</strong>{" "}
+          <strong style={{ color: "#F5C26B" }}>{`{SLOT_MEIO}`}</strong>{" "}
+          <strong style={{ color: "#A8C7FA" }}>{`{SLOT_RODAPE}`}</strong> que recebem essas mensagens.
+        </div>
+      </section>
+
       {/* CORPO · 2 colunas: editor de template + preview WhatsApp */}
       <section style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: 10, alignItems: "start" }}>
 
@@ -202,6 +381,7 @@ export function TeatroMensageriaPadua() {
               value={template[cenarioId]}
               onChange={e => setTemplate(t => ({ ...t, [cenarioId]: e.target.value }))}
               spellCheck={false}
+              aria-label={`Template do cenário ${cenario.nome}`}
               style={{
                 width: "100%", minHeight: 360, background: tk.bg, color: tk.ink,
                 border: `1px solid ${tk.border}`, padding: 10,
@@ -217,9 +397,24 @@ export function TeatroMensageriaPadua() {
 
           <div style={{ background: tk.bgAlt, border: `1px solid ${tk.border}`, padding: 12 }}>
             <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5, marginBottom: 6 }}>
-              ▶ PALETA DE PLACEHOLDERS · {phsCenario.length} disponíveis pra este cenário
+              ▶ PALETA DE PLACEHOLDERS · {phsCenario.length} disponíveis pra este cenário + 3 slots de add-on
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {(["{SLOT_TOPO}","{SLOT_MEIO}","{SLOT_RODAPE}"] as const).map(s => {
+                const pos = s.replace(/[{}]/g, "").replace("SLOT_", "").toLowerCase() as SlotPosicao;
+                const cor = SLOT_COR[pos];
+                return (
+                  <button key={s} onClick={() => insereTemplate(s)} title={`slot de add-on (${pos})`}
+                    style={{
+                      padding: "4px 7px", cursor: "pointer",
+                      background: tk.bg, color: cor,
+                      border: `1px solid ${cor}55`, borderLeft: `2px solid ${cor}`,
+                      fontFamily: tk.mono, fontSize: 9, fontWeight: 700,
+                    }}>
+                    {s}
+                  </button>
+                );
+              })}
               {phsCenario.map(ph => {
                 const cor = GRUPO_COR[ph.grupo];
                 return (
@@ -280,14 +475,14 @@ export function TeatroMensageriaPadua() {
             </div>
             <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, marginTop: 6, lineHeight: 1.4 }}>
               <span style={{ color: "#E8A5D8" }}>regra Caio:</span> a carta SÓ aparece em IM × Receita Manipulada + FN × Receita Manipulada
-              (não 9x/dia, não em todos os cenários). Matriz controlada no GPS, card{" "}
+              (não 9x/dia). Matriz controlada no GPS · card{" "}
               <strong>"CARTA DE ENCANTAMENTO"</strong> embaixo do EditorBlend.
             </div>
           </div>
         </div>
 
         {/* COLUNA DIREITA · PREVIEW WHATSAPP */}
-        <div style={{ background: "#0a1a10", border: `1px solid ${cenario.cor_primary}44`, boxShadow: `0 12px 40px ${cenario.cor_primary}22`, display: "flex", flexDirection: "column", maxHeight: 1100 }}>
+        <div style={{ background: "#0a1a10", border: `1px solid ${cenario.cor_primary}44`, boxShadow: `0 12px 40px ${cenario.cor_primary}22`, display: "flex", flexDirection: "column", maxHeight: 1300 }}>
           <div style={{ background: "linear-gradient(90deg, #143820, #1a3d24)", padding: "11px 14px", borderBottom: `1px solid ${cenario.cor_primary}33`, display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg, ${cenario.cor_primary}, ${cenario.cor_primary}aa)`, display: "grid", placeItems: "center", fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: "Georgia, serif" }}>β</div>
             <div style={{ flex: 1 }}>
@@ -319,7 +514,7 @@ export function TeatroMensageriaPadua() {
       {/* RODAPÉ · matriz visual cenário × placeholders + gatilhos */}
       <section style={{ background: tk.bgAlt, border: `1px solid ${tk.border}`, padding: 10 }}>
         <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5, marginBottom: 8 }}>
-          ▶ MATRIZ MENSAGERIA · {CENARIOS.length} cenários × {PLACEHOLDERS.length} placeholders · gatilhos + destinatários + canal
+          ▶ MATRIZ MENSAGERIA · {CENARIOS.length} cenários × {PLACEHOLDERS.length} placeholders + 4 add-ons em 3 slots
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: tk.mono, fontSize: 8 }}>
