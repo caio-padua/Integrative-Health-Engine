@@ -267,100 +267,115 @@ export function TeatroMensageriaPadua() {
         </div>
       </section>
 
-      {/* ★★★ 4 ADD-ONS · toggle ON/OFF + texto editável + posição ★★★ */}
-      <section style={{ background: tk.bgAlt, border: `1px solid #7BC9A555`, borderLeft: `3px solid #7BC9A5`, padding: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-          <span style={{ fontFamily: tk.mono, fontSize: 9, color: "#7BC9A5", letterSpacing: 1.5 }}>
-            ★ 4 ADD-ONS · mensagens opcionais com posição configurável (topo · meio · rodapé)
-          </span>
-          <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkMuted }}>
-            {Object.values(addons).filter(a => a.ativo).length}/4 ativos · injetados nos slots do template
-          </span>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-          {Object.values(addons).map(a => (
-            <div key={a.id} style={{
-              padding: 10,
-              background: a.ativo ? tk.bg : tk.bgSoft,
-              border: `1px solid ${a.ativo ? SLOT_COR[a.posicao] + "55" : tk.border}`,
-              borderLeft: `3px solid ${a.ativo ? SLOT_COR[a.posicao] : tk.borderStrong}`,
-              opacity: a.ativo ? 1 : 0.55,
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <label style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: tk.mono, fontSize: 10, color: tk.ink, cursor: "pointer", fontWeight: 700 }}>
-                  <input type="checkbox" checked={a.ativo} onChange={e => patchAddon(a.id, { ativo: e.target.checked })}
-                    aria-label={`Ativar add-on ${a.rotulo}`}
-                    style={{ accentColor: SLOT_COR[a.posicao] }} />
-                  <span style={{ fontSize: 14 }}>{a.emoji}</span> {a.rotulo}
-                </label>
-                <div style={{ display: "flex", gap: 2 }}>
-                  {(["topo", "meio", "rodape"] as SlotPosicao[]).map(pos => (
-                    <button key={pos} onClick={() => patchAddon(a.id, { posicao: pos })}
-                      disabled={!a.ativo}
-                      aria-label={`Posição ${pos}`}
-                      style={{
-                        padding: "2px 7px", cursor: a.ativo ? "pointer" : "not-allowed",
-                        background: a.posicao === pos ? SLOT_COR[pos] : tk.bgAlt,
-                        color: a.posicao === pos ? tk.bg : tk.inkMuted,
-                        border: `1px solid ${a.posicao === pos ? SLOT_COR[pos] : tk.border}`,
-                        fontFamily: tk.mono, fontSize: 8, letterSpacing: 1, fontWeight: a.posicao === pos ? 700 : 400,
-                      }}>
-                      {pos === "rodape" ? "RODAPÉ" : pos.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* atalho do versículo: chips com 6 versículos pré-prontos */}
-              {a.id === "versiculo" && a.ativo && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 5 }}>
-                  {VERSICULOS_BIBLICOS.map((v, i) => {
-                    const sel = a.meta === v.ref;
-                    return (
-                      <button key={v.ref} onClick={() => escolherVersiculo(i)} title={v.texto}
-                        style={{
-                          padding: "2px 6px", cursor: "pointer",
-                          background: sel ? "#A8C7FA22" : tk.bgAlt, color: sel ? "#A8C7FA" : tk.inkMuted,
-                          border: `1px solid ${sel ? "#A8C7FA" : tk.border}`,
-                          fontFamily: tk.mono, fontSize: 8, fontWeight: sel ? 700 : 400,
-                        }}>
-                        {v.ref}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <textarea value={a.texto} onChange={e => patchAddon(a.id, { texto: e.target.value })}
-                disabled={!a.ativo}
-                placeholder={a.id === "custom" ? "ex: Bom mês de aniversário! 🎂" : "(texto da mensagem)"}
-                aria-label={`Texto do add-on ${a.rotulo}`}
-                style={{
-                  width: "100%", minHeight: 42, background: tk.bg, color: tk.ink,
-                  border: `1px solid ${tk.border}`, padding: 6,
-                  fontFamily: a.id === "versiculo" ? "Georgia, serif" : tk.mono,
-                  fontSize: 9, lineHeight: 1.4, resize: "vertical", outline: "none",
-                  opacity: a.ativo ? 1 : 0.5,
-                  fontStyle: a.id === "versiculo" ? "italic" : "normal",
-                }} />
-
-              <div style={{ fontFamily: tk.mono, fontSize: 7, color: tk.inkSubtle, marginTop: 4 }}>
-                injetado em <strong style={{ color: SLOT_COR[a.posicao] }}>{`{SLOT_${a.posicao.toUpperCase()}}`}</strong>
-                {a.id === "versiculo" && a.meta && <span> · ref: <em>{a.meta}</em></span>}
-              </div>
+      {/* ★★★ ADD-ONS · 4 essenciais + 6 kaizen · toggle + texto + posição ★★★ */}
+      {(["essencial","kaizen"] as const).map(grupoId => {
+        const itens = Object.values(addons).filter(a => a.grupo === grupoId);
+        const ativos = itens.filter(a => a.ativo).length;
+        const corGrupo = grupoId === "essencial" ? "#7BC9A5" : "#F5C26B";
+        const tituloGrupo = grupoId === "essencial"
+          ? `★ ADD-ONS ESSENCIAIS · ${itens.length} disponíveis · ${ativos} ativos`
+          : `🌱 KAIZEN · ${itens.length} melhorias contínuas · ${ativos} ativos · OFF por padrão`;
+        const subtitulo = grupoId === "essencial"
+          ? "versículo bíblico, dia da semana, semana do mês, mensagem custom"
+          : "aniversário, marcos, hidratação, respiração, carinho familiar, check-in";
+        return (
+          <section key={grupoId} style={{ background: tk.bgAlt, border: `1px solid ${corGrupo}55`, borderLeft: `3px solid ${corGrupo}`, padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+              <span style={{ fontFamily: tk.mono, fontSize: 9, color: corGrupo, letterSpacing: 1.5 }}>
+                {tituloGrupo}
+              </span>
+              <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkMuted }}>
+                {subtitulo}
+              </span>
             </div>
-          ))}
-        </div>
 
-        <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, marginTop: 8, lineHeight: 1.4 }}>
-          <span style={{ color: "#7BC9A5" }}>regra Caio:</span> os 4 add-ons NÃO precisam estar todos ligados.
-          marque os que quer + escolha onde (topo abre a mensagem, meio fica entre conteúdo, rodapé fecha antes da assinatura).
-          o template tem 3 marcadores <strong style={{ color: "#7BC9A5" }}>{`{SLOT_TOPO}`}</strong>{" "}
-          <strong style={{ color: "#F5C26B" }}>{`{SLOT_MEIO}`}</strong>{" "}
-          <strong style={{ color: "#A8C7FA" }}>{`{SLOT_RODAPE}`}</strong> que recebem essas mensagens.
-        </div>
-      </section>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+              {itens.map(a => (
+                <div key={a.id} style={{
+                  padding: 10,
+                  background: a.ativo ? tk.bg : tk.bgSoft,
+                  border: `1px solid ${a.ativo ? SLOT_COR[a.posicao] + "55" : tk.border}`,
+                  borderLeft: `3px solid ${a.ativo ? SLOT_COR[a.posicao] : tk.borderStrong}`,
+                  opacity: a.ativo ? 1 : 0.6,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 6 }}>
+                    <label style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: tk.mono, fontSize: 10, color: tk.ink, cursor: "pointer", fontWeight: 700, flex: 1, minWidth: 0 }}>
+                      <input type="checkbox" checked={a.ativo} onChange={e => patchAddon(a.id, { ativo: e.target.checked })}
+                        aria-label={`Ativar add-on ${a.rotulo}`}
+                        style={{ accentColor: SLOT_COR[a.posicao], flexShrink: 0 }} />
+                      <span style={{ fontSize: 14 }}>{a.emoji}</span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.rotulo}</span>
+                    </label>
+                    <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                      {(["topo", "meio", "rodape"] as SlotPosicao[]).map(pos => (
+                        <button key={pos} onClick={() => patchAddon(a.id, { posicao: pos })}
+                          disabled={!a.ativo}
+                          aria-label={`Posição ${pos} para ${a.rotulo}`}
+                          style={{
+                            padding: "2px 6px", cursor: a.ativo ? "pointer" : "not-allowed",
+                            background: a.posicao === pos ? SLOT_COR[pos] : tk.bgAlt,
+                            color: a.posicao === pos ? tk.bg : tk.inkMuted,
+                            border: `1px solid ${a.posicao === pos ? SLOT_COR[pos] : tk.border}`,
+                            fontFamily: tk.mono, fontSize: 7, letterSpacing: 1, fontWeight: a.posicao === pos ? 700 : 400,
+                          }}>
+                          {pos === "rodape" ? "RDP" : pos.slice(0,3).toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* atalho do versículo: chips com 6 versículos pré-prontos */}
+                  {a.id === "versiculo" && a.ativo && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 5 }}>
+                      {VERSICULOS_BIBLICOS.map((v, i) => {
+                        const sel = a.meta === v.ref;
+                        return (
+                          <button key={v.ref} onClick={() => escolherVersiculo(i)} title={v.texto}
+                            style={{
+                              padding: "2px 6px", cursor: "pointer",
+                              background: sel ? "#A8C7FA22" : tk.bgAlt, color: sel ? "#A8C7FA" : tk.inkMuted,
+                              border: `1px solid ${sel ? "#A8C7FA" : tk.border}`,
+                              fontFamily: tk.mono, fontSize: 8, fontWeight: sel ? 700 : 400,
+                            }}>
+                            {v.ref}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <textarea value={a.texto} onChange={e => patchAddon(a.id, { texto: e.target.value })}
+                    disabled={!a.ativo}
+                    placeholder={a.id === "custom" ? "ex: Bom mês de aniversário! 🎂" : "(texto da mensagem)"}
+                    aria-label={`Texto do add-on ${a.rotulo}`}
+                    style={{
+                      width: "100%", minHeight: 50, background: tk.bg, color: tk.ink,
+                      border: `1px solid ${tk.border}`, padding: 6,
+                      fontFamily: a.id === "versiculo" ? "Georgia, serif" : tk.mono,
+                      fontSize: 9, lineHeight: 1.4, resize: "vertical", outline: "none",
+                      opacity: a.ativo ? 1 : 0.5,
+                      fontStyle: a.id === "versiculo" ? "italic" : "normal",
+                    }} />
+
+                  <div style={{ fontFamily: tk.mono, fontSize: 7, color: tk.inkSubtle, marginTop: 4, lineHeight: 1.4 }}>
+                    <span>injetado em <strong style={{ color: SLOT_COR[a.posicao] }}>{`{SLOT_${a.posicao.toUpperCase()}}`}</strong></span>
+                    {a.id === "versiculo" && a.meta && <span> · ref: <em>{a.meta}</em></span>}
+                    {a.gatilho && <div style={{ color: corGrupo, marginTop: 2 }}>🎯 gatilho: {a.gatilho}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+
+      <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, lineHeight: 1.5, padding: "6px 12px", background: tk.bgAlt, borderLeft: `2px solid ${tk.accent}` }}>
+        <span style={{ color: tk.accent }}>regra Caio (kaizen):</span> os 10 add-ons NÃO precisam estar todos ligados.
+        marque os que quer + escolha onde (<strong style={{ color: "#7BC9A5" }}>TOPO</strong> abre a mensagem,{" "}
+        <strong style={{ color: "#F5C26B" }}>MEIO</strong> fica entre conteúdo,{" "}
+        <strong style={{ color: "#A8C7FA" }}>RODAPÉ</strong> fecha antes da assinatura).
+        os 6 kaizen têm <em>gatilho condicional</em> próprio (aniversário, marco, sexta-feira) que vão pra cron worker quando subir pra produção.
+      </div>
 
       {/* CORPO · 2 colunas: editor de template + preview WhatsApp */}
       <section style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: 10, alignItems: "start" }}>

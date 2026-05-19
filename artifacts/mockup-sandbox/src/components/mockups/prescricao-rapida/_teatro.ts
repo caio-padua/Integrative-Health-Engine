@@ -251,45 +251,90 @@ export const VERSICULOS_BIBLICOS = [
 // ───────────────────────────────────────────────────────────────────────
 export type SlotPosicao = "topo" | "meio" | "rodape";
 
-export type AddOnId = "versiculo" | "dia_semana" | "semana_mes" | "custom";
+export type AddOnId =
+  | "versiculo" | "dia_semana" | "semana_mes" | "custom"
+  | "aniversario" | "marco_constancia" | "hidratacao"
+  | "respiracao" | "carinho_familiar" | "checkin_sintomas";
+
+export type AddOnGrupo = "essencial" | "kaizen";
 
 export type AddOn = {
   id: AddOnId;
+  grupo: AddOnGrupo;
   emoji: string;
   rotulo: string;
   ativo: boolean;
   posicao: SlotPosicao;
   texto: string;     // texto que será injetado
   meta?: string;     // ex: referência bíblica, dia escolhido, etc
+  gatilho?: string;  // condição opcional (data, marco)
 };
 
 export type AddOnsConfig = Record<AddOnId, AddOn>;
 
 export function addOnsPadrao(): AddOnsConfig {
   return {
+    // ──── ESSENCIAIS (4) — sempre disponíveis, alguns ligados por padrão ────
     versiculo: {
-      id: "versiculo", emoji: "📖", rotulo: "Versículo bíblico",
+      id: "versiculo", grupo: "essencial", emoji: "📖", rotulo: "Versículo bíblico",
       ativo: true, posicao: "rodape",
       texto: `_"${VERSICULOS_BIBLICOS[1].texto}"_`,
       meta: VERSICULOS_BIBLICOS[1].ref,
     },
     dia_semana: {
-      id: "dia_semana", emoji: "📅", rotulo: "Frase do dia da semana",
+      id: "dia_semana", grupo: "essencial", emoji: "📅", rotulo: "Frase do dia da semana",
       ativo: true, posicao: "topo",
       texto: "Hoje é *quarta-feira* — no meio da semana, consistência é o que faz a diferença.",
       meta: "quarta",
     },
     semana_mes: {
-      id: "semana_mes", emoji: "🗓️", rotulo: "Frase da semana do mês",
+      id: "semana_mes", grupo: "essencial", emoji: "🗓️", rotulo: "Frase da semana do mês",
       ativo: false, posicao: "topo",
       texto: "Estamos na *terceira semana* — já na segunda metade do mês.",
       meta: "3",
     },
     custom: {
-      id: "custom", emoji: "✍️", rotulo: "Mensagem custom",
+      id: "custom", grupo: "essencial", emoji: "✍️", rotulo: "Mensagem custom",
       ativo: false, posicao: "meio",
       texto: "",
-      meta: undefined,
+    },
+
+    // ──── KAIZEN (6) — melhorias contínuas, OFF por padrão ────
+    aniversario: {
+      id: "aniversario", grupo: "kaizen", emoji: "🎂", rotulo: "Aniversário do paciente",
+      ativo: false, posicao: "topo",
+      texto: "🎂 *Feliz aniversário, {NOME_PACIENTE}!* Que este novo ciclo venha com ainda mais saúde, vitalidade e bençãos. A equipe PADCOM celebra com o senhor.",
+      gatilho: "data_nascimento = hoje (pacientes.data_nascimento)",
+    },
+    marco_constancia: {
+      id: "marco_constancia", grupo: "kaizen", emoji: "🏆", rotulo: "Marco de constância",
+      ativo: false, posicao: "meio",
+      texto: "🏆 *Marco alcançado:* o senhor já completou *90 dias* de protocolo sem falhar. Isso é raro — e é exatamente o que separa quem trata do sintoma de quem trata da raiz.",
+      gatilho: "doses_consecutivas IN (30, 60, 90, 180, 365)",
+    },
+    hidratacao: {
+      id: "hidratacao", grupo: "kaizen", emoji: "💧", rotulo: "Lembrete de hidratação",
+      ativo: false, posicao: "meio",
+      texto: "💧 *Antes de tomar*, beba um copo grande de água em temperatura ambiente. A absorção das fórmulas depende de hidratação adequada — não pule esse passo.",
+      gatilho: "periodos_dia.sigla IN ('JE','IM') — só jejum e início manhã",
+    },
+    respiracao: {
+      id: "respiracao", grupo: "kaizen", emoji: "🌬️", rotulo: "Pausa de respiração (1 min)",
+      ativo: false, posicao: "topo",
+      texto: "🌬️ *Pausa de 1 minuto:* inspire por 4s, segure por 4s, expire por 6s. Repita 5x. Reduz cortisol, melhora foco e prepara o corpo pra absorver melhor.",
+      gatilho: "manhã ou pré-procedimento (IM, MM, ou injetavel_implante)",
+    },
+    carinho_familiar: {
+      id: "carinho_familiar", grupo: "kaizen", emoji: "❤️", rotulo: "Carinho familiar",
+      ativo: false, posicao: "rodape",
+      texto: "❤️ A *Bia* pediu pra reforçar: ela está acompanhando seu protocolo de longe e tem muito orgulho da disciplina que o senhor vem mantendo.",
+      gatilho: "manual — equipe ativa quando familiar autoriza",
+    },
+    checkin_sintomas: {
+      id: "checkin_sintomas", grupo: "kaizen", emoji: "📊", rotulo: "Check-in de sintomas",
+      ativo: false, posicao: "rodape",
+      texto: "📊 *Check-in semanal:* como o senhor avaliaria sua energia hoje, de 0 a 10? E o sono da semana? Responda essa mensagem com 2 números — eu registro pro Dr. Caio.",
+      gatilho: "1x/semana — sexta-feira no FN (Fim de Noite)",
     },
   };
 }
