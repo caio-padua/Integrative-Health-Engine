@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
   VIA_META, FREQUENCIAS, HORARIOS_PADRAO,
+} from "./_tokens";
+import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
+import {
   type Substancia, type Via, type Frequencia, type Ancora, type ComponenteBlend,
 } from "./_tokens";
 
@@ -831,8 +834,62 @@ function EditorBlend({ formula, update, onClose }: {
                 `${horarios.sort().join(" · ")} durante ${formula.sessoes} ${formula.frequencia === "diária" ? "dias" : "ciclos"}`}
             </div>
           </div>
+
+          {/* MOTOR DE MENSAGERIA · 1 disparo por período */}
+          <MapeamentoMensageria horarios={horarios} corVia={c.dot} />
         </div>
       </div>
     </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Mapeamento horários → períodos cronobiológicos (Beatriz · WhatsApp)
+// ───────────────────────────────────────────────────────────────────────
+function MapeamentoMensageria({ horarios, corVia }: { horarios: string[]; corVia: string }) {
+  const grupos = new Map<string, { p: typeof PERIODOS_DIA[number]; horarios: string[] }>();
+  for (const h of horarios) {
+    const p = horarioParaPeriodo(h);
+    if (!p) continue;
+    if (!grupos.has(p.sigla)) grupos.set(p.sigla, { p, horarios: [] });
+    grupos.get(p.sigla)!.horarios.push(h);
+  }
+  const lista = Array.from(grupos.values()).sort((a, b) => a.p.janela_inicio.localeCompare(b.p.janela_inicio));
+
+  return (
+    <div style={{ marginTop: 8, padding: 10, background: tk.bg, border: `1px solid ${tk.border}`, borderLeft: `3px solid ${tk.accent}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+        <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5 }}>
+          ▶ MOTOR DE MENSAGERIA · whatsapp via Beatriz Romanov
+        </span>
+        <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.accent }}>
+          {lista.length} mensagem{lista.length !== 1 ? "s" : ""}/dia
+        </span>
+      </div>
+      {lista.length === 0 ? (
+        <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle }}>
+          (selecione horários pra ver quais períodos disparam)
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {lista.map(g => (
+            <div key={g.p.sigla} style={{
+              display: "grid", gridTemplateColumns: "auto 28px auto 1fr auto", gap: 6,
+              alignItems: "center", padding: "3px 6px",
+              background: tk.bgAlt, borderLeft: `2px solid ${g.p.cor_primary}`,
+            }}>
+              <span style={{ fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: g.p.cor_primary, letterSpacing: 1 }}>{g.p.sigla}</span>
+              <span style={{ fontSize: 12 }}>{g.p.emoji}</span>
+              <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted }}>{g.p.nome}</span>
+              <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.ink }}>{g.horarios.join(" + ")}</span>
+              <span style={{ fontFamily: tk.mono, fontSize: 8, color: g.p.cor_primary, padding: "1px 5px", border: `1px solid ${g.p.cor_primary}55`, letterSpacing: 1 }}>1 PING</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, marginTop: 6, lineHeight: 1.4 }}>
+        regra: múltiplos horários no mesmo período = <span style={{ color: corVia }}>1 única mensagem</span> listando todas as fórmulas. paciente empresário não é incomodado a toda hora.
+      </div>
+    </div>
   );
 }
