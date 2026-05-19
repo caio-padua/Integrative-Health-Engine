@@ -1428,22 +1428,22 @@ function FormulaEditor() {
         >
           Período do dia · 9 canônicos Pádua <span style={{ color: tk.warn, marginLeft: 4 }}>*</span>
           <span style={{ color: tk.inkMuted, marginLeft: 8, textTransform: "none", letterSpacing: 0, fontSize: 9 }}>
-            (fonte: <code>periodos_dia</code> · migrations 075+076)
+            (fonte: <code>periodos_dia</code> · migrations 075+077 · SIGLAS SEMPRE MAIÚSCULAS)
           </span>
         </label>
         <div className="flex flex-wrap gap-1.5">
           {[
-            { sigla: "je", nome: "Jejum",           janela: "05:00–06:59", emoji: "🌑", cor: "#d4a574" },
-            { sigla: "im", nome: "Início Manhã",    janela: "07:00–08:59", emoji: "🌅", cor: "#f5b947" },
-            { sigla: "mm", nome: "Meio Manhã",      janela: "09:00–10:59", emoji: "☀️", cor: "#f5d547" },
-            { sigla: "al", nome: "Almoço",          janela: "11:00–13:29", emoji: "🍽️", cor: "#f57a47" },
-            { sigla: "it", nome: "Início Tarde",    janela: "13:30–15:59", emoji: "🌤️", cor: "#e87a47" },
-            { sigla: "mt", nome: "Meio Tarde",      janela: "16:00–17:59", emoji: "⛅", cor: "#d9663d" },
-            { sigla: "no", nome: "Noite",           janela: "18:00–19:59", emoji: "🌆", cor: "#7a6bd9" },
-            { sigla: "fn", nome: "Final Noite",     janela: "20:00–22:29", emoji: "🌙", cor: "#6b5fb0" },
-            { sigla: "ce", nome: "Ceia",            janela: "22:30–23:59", emoji: "🦉", cor: "#5b4e9b" },
+            { sigla: "JE", nome: "Jejum",           janela: "05:00–06:59", emoji: "🌑", cor: "#d4a574" },
+            { sigla: "IM", nome: "Início Manhã",    janela: "07:00–08:59", emoji: "🌅", cor: "#f5b947" },
+            { sigla: "MM", nome: "Meio Manhã",      janela: "09:00–10:59", emoji: "☀️", cor: "#f5d547" },
+            { sigla: "AL", nome: "Almoço",          janela: "11:00–13:29", emoji: "🍽️", cor: "#f57a47" },
+            { sigla: "IT", nome: "Início Tarde",    janela: "13:30–15:59", emoji: "🌤️", cor: "#e87a47" },
+            { sigla: "MT", nome: "Meio Tarde",      janela: "16:00–17:59", emoji: "⛅", cor: "#d9663d" },
+            { sigla: "NO", nome: "Noite",           janela: "18:00–19:59", emoji: "🌆", cor: "#7a6bd9" },
+            { sigla: "FN", nome: "Final Noite",     janela: "20:00–22:29", emoji: "🌙", cor: "#6b5fb0" },
+            { sigla: "CE", nome: "Ceia",            janela: "22:30–23:59", emoji: "🦉", cor: "#5b4e9b" },
           ].map((p) => {
-            const ativo = p.sigla === "fn";
+            const ativo = p.sigla === "FN";
             return (
               <button
                 key={p.sigla}
