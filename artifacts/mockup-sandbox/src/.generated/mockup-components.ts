@@ -33,6 +33,7 @@ export const modules: ModuleMap = {
   "./components/mockups/prescricao-rapida/GpsPadua.tsx": () => import("../components/mockups/prescricao-rapida/GpsPadua.tsx"),
   "./components/mockups/prescricao-rapida/MotorMensageriaPadua.tsx": () => import("../components/mockups/prescricao-rapida/MotorMensageriaPadua.tsx"),
   "./components/mockups/prescricao-rapida/PilhaPorVia.tsx": () => import("../components/mockups/prescricao-rapida/PilhaPorVia.tsx"),
+  "./components/mockups/prescricao-rapida/TeatroMensageriaPadua.tsx": () => import("../components/mockups/prescricao-rapida/TeatroMensageriaPadua.tsx"),
   "./components/mockups/prescricao-rapida/TimelineSessoes.tsx": () => import("../components/mockups/prescricao-rapida/TimelineSessoes.tsx"),
   "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx")
 };

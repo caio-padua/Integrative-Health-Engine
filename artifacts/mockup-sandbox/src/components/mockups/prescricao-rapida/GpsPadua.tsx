@@ -4,6 +4,7 @@ import {
   VIA_META, FREQUENCIAS, HORARIOS_PADRAO,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
+import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
 import {
   type Substancia, type Via, type Frequencia, type Ancora, type ComponenteBlend,
 } from "./_tokens";
@@ -60,6 +61,8 @@ export function GpsPadua() {
     EV: false, IM: false, SC: false, VO: false, IMP: true, PRC: true,
   });
   const [editandoFormula, setEditandoFormula] = useState<string | null>("blend-vo");
+  // Lifted: carta de encantamento persiste mesmo ao fechar/abrir o EditorBlend
+  const [carta, setCarta] = useState<MatrizCartaEncantamento>(exemploCartaFuturoPapai());
 
   const porVia = useMemo(() => {
     const m: Record<Via, Substancia[]> = { EV: [], IM: [], SC: [], VO: [], IMP: [], PRC: [] };
@@ -96,7 +99,8 @@ export function GpsPadua() {
         <EditorBlend
           formula={formulaAberta}
           update={(patch) => update(formulaAberta.id, patch)}
-          onClose={() => setEditandoFormula(null)} />
+          onClose={() => setEditandoFormula(null)}
+          carta={carta} setCarta={setCarta} />
       )}
 
       {(modo === "TIMELINE" || modo === "GPS") && (
@@ -611,10 +615,12 @@ function ActionBar({ total, sel, porVia }: {
 // 3º ANDAR · Editor de Blend (fórmula magistral expandida)
 // ───────────────────────────────────────────────────────────────────────
 
-function EditorBlend({ formula, update, onClose }: {
+function EditorBlend({ formula, update, onClose, carta, setCarta }: {
   formula: Substancia;
   update: (patch: Partial<Substancia>) => void;
   onClose: () => void;
+  carta: MatrizCartaEncantamento;
+  setCarta: (c: MatrizCartaEncantamento) => void;
 }) {
   const c = tk.via[formula.via];
   const componentes = formula.componentes || [];
@@ -837,6 +843,9 @@ function EditorBlend({ formula, update, onClose }: {
 
           {/* MOTOR DE MENSAGERIA · 1 disparo por período */}
           <MapeamentoMensageria horarios={horarios} corVia={c.dot} />
+
+          {/* CARTA DE ENCANTAMENTO · matriz períodos × cenários (estado lifted no GpsPadua) */}
+          <CartaEncantamentoMatriz horarios={horarios} carta={carta} setCarta={setCarta} />
         </div>
       </div>
     </section>
@@ -889,6 +898,126 @@ function MapeamentoMensageria({ horarios, corVia }: { horarios: string[]; corVia
       )}
       <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, marginTop: 6, lineHeight: 1.4 }}>
         regra: múltiplos horários no mesmo período = <span style={{ color: corVia }}>1 única mensagem</span> listando todas as fórmulas. paciente empresário não é incomodado a toda hora.
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// CARTA DE ENCANTAMENTO · matriz períodos × cenários (toggle por paciente)
+// Conceito Caio 19/05: 1 placeholder {CARTA_ENCANTAMENTO} no template do teatro,
+// mas controlado AQUI no GPS por matriz pra evitar "pesadelo de repetição".
+// ───────────────────────────────────────────────────────────────────────
+function CartaEncantamentoMatriz({ horarios, carta, setCarta }: {
+  horarios: string[];
+  carta: MatrizCartaEncantamento;
+  setCarta: (c: MatrizCartaEncantamento) => void;
+}) {
+  const { ativo, texto, dataInicio, dataFim, matriz } = carta;
+  const setAtivo = (v: boolean) => setCarta({ ...carta, ativo: v });
+  const setTexto = (v: string) => setCarta({ ...carta, texto: v });
+  const setDataInicio = (v: string) => setCarta({ ...carta, dataInicio: v });
+  const setDataFim = (v: string) => setCarta({ ...carta, dataFim: v });
+
+  // só mostra períodos que têm dose marcada (foco TDAH)
+  const periodosUtilizados = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of horarios) { const p = horarioParaPeriodo(h); if (p) set.add(p.sigla); }
+    return PERIODOS_DIA.filter(p => set.has(p.sigla));
+  }, [horarios]);
+
+  function toggle(sigla: string, cen: CenarioId) {
+    setCarta({
+      ...carta,
+      matriz: { ...matriz, [sigla]: { ...matriz[sigla], [cen]: !matriz[sigla][cen] } },
+    });
+  }
+
+  const totalDisparos = useMemo(() => {
+    let n = 0;
+    for (const p of Object.values(matriz)) for (const v of Object.values(p)) if (v) n++;
+    return n;
+  }, [matriz]);
+
+  return (
+    <div style={{ marginTop: 8, padding: 10, background: tk.bg, border: `1px solid #E8A5D855`, borderLeft: `3px solid #E8A5D8` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+        <span style={{ fontFamily: tk.mono, fontSize: 9, color: "#E8A5D8", letterSpacing: 1.5 }}>
+          ✨ CARTA DE ENCANTAMENTO · placeholder {`{CARTA_ENCANTAMENTO}`} injetado por matriz
+        </span>
+        <label style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: tk.mono, fontSize: 9, color: tk.ink, cursor: "pointer" }}>
+          <input type="checkbox" checked={ativo} onChange={e => setAtivo(e.target.checked)} style={{ accentColor: "#E8A5D8" }} />
+          {ativo ? "ATIVA" : "DESLIGADA"}
+        </label>
+      </div>
+
+      <textarea value={texto} onChange={e => setTexto(e.target.value)} disabled={!ativo} placeholder='ex: "o dia da grande bênção está chegando 👶"'
+        style={{
+          width: "100%", minHeight: 50, background: tk.bgAlt, color: tk.ink,
+          border: `1px solid ${ativo ? "#E8A5D855" : tk.border}`, padding: 8,
+          fontFamily: "Georgia, serif", fontSize: 11, fontStyle: "italic", resize: "vertical",
+          opacity: ativo ? 1 : 0.4, outline: "none",
+        }} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1 }}>JANELA · DATA INÍCIO</span>
+          <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} disabled={!ativo}
+            style={{ background: tk.bgAlt, color: tk.ink, border: `1px solid ${tk.border}`, padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, opacity: ativo ? 1 : 0.4 }} />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1 }}>JANELA · DATA FIM</span>
+          <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} disabled={!ativo}
+            style={{ background: tk.bgAlt, color: tk.ink, border: `1px solid ${tk.border}`, padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, opacity: ativo ? 1 : 0.4 }} />
+        </label>
+      </div>
+
+      <div style={{ marginTop: 10 }}>
+        <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5, marginBottom: 4 }}>
+          ▶ MATRIZ DE INJEÇÃO · marque ONDE a frase deve aparecer (períodos × cenários). Total: <strong style={{ color: "#E8A5D8" }}>{totalDisparos}</strong> injeções/dia
+        </div>
+        {periodosUtilizados.length === 0 ? (
+          <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, padding: 6 }}>
+            (marque horários acima pra liberar a matriz)
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: tk.mono, fontSize: 8, opacity: ativo ? 1 : 0.4 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "4px 6px", color: tk.inkSubtle, borderBottom: `1px solid ${tk.border}`, letterSpacing: 1 }}>PERÍODO</th>
+                  {CENARIOS.map(c => (
+                    <th key={c.id} style={{ textAlign: "center", padding: "4px 6px", color: c.cor_primary, borderBottom: `1px solid ${tk.border}`, fontSize: 8, letterSpacing: 1 }}>
+                      {c.emoji}<br />{c.nome.split(" ")[0].toUpperCase()}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {periodosUtilizados.map(p => (
+                  <tr key={p.sigla}>
+                    <td style={{ padding: "5px 6px", color: tk.ink, borderBottom: `1px solid ${tk.border}`, borderLeft: `2px solid ${p.cor_primary}` }}>
+                      <strong style={{ color: p.cor_primary }}>{p.sigla}</strong> {p.emoji} {p.nome} <span style={{ color: tk.inkSubtle }}>{p.janela_inicio}</span>
+                    </td>
+                    {CENARIOS.map(c => (
+                      <td key={c.id} style={{ padding: "5px 6px", textAlign: "center", borderBottom: `1px solid ${tk.border}` }}>
+                        <input type="checkbox" checked={matriz[p.sigla]?.[c.id] ?? false}
+                          onChange={() => ativo && toggle(p.sigla, c.id)} disabled={!ativo}
+                          aria-label={`Injetar carta de encantamento no período ${p.sigla} (${p.nome}) para cenário ${c.nome}`}
+                          style={{ accentColor: c.cor_primary, cursor: ativo ? "pointer" : "not-allowed" }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, marginTop: 8, lineHeight: 1.4 }}>
+        <span style={{ color: "#E8A5D8" }}>regra Caio (19/05):</span> a carta encanta sem cansar. marque só os cruzamentos
+        certos pra evitar repetir a mesma frase 9× ao dia. salvo em <code style={{ color: tk.accent }}>pacientes.carta_encantamento</code> (jsonb).
       </div>
     </div>
   );
