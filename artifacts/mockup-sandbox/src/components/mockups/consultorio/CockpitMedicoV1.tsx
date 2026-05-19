@@ -1426,36 +1426,49 @@ function FormulaEditor() {
           className="block mb-2 uppercase"
           style={{ fontSize: 10, color: tk.inkMuted, letterSpacing: 1, fontWeight: 500 }}
         >
-          Período do dia <span style={{ color: tk.warn, marginLeft: 4 }}>*</span>
+          Período do dia · 9 canônicos Pádua <span style={{ color: tk.warn, marginLeft: 4 }}>*</span>
+          <span style={{ color: tk.inkMuted, marginLeft: 8, textTransform: "none", letterSpacing: 0, fontSize: 9 }}>
+            (fonte: <code>periodos_dia</code> · migration 075)
+          </span>
         </label>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {[
-            { id: "jejum", label: "Em jejum" },
-            { id: "manha", label: "Manhã" },
-            { id: "almoco", label: "Almoço" },
-            { id: "tarde", label: "Tarde" },
-            { id: "jantar", label: "Jantar" },
-            { id: "noite", label: "Noite" },
-            { id: "deitar", label: "Ao deitar" },
-            { id: "madrugada", label: "Madrugada" },
+            { sigla: "JE", nome: "Jejum",           janela: "05:00–06:59", emoji: "🌑", cor: "#d4a574" },
+            { sigla: "IM", nome: "Início Manhã",    janela: "07:00–08:59", emoji: "🌅", cor: "#f5b947" },
+            { sigla: "MM", nome: "Meio Manhã",      janela: "09:00–10:59", emoji: "☀️", cor: "#f5d547" },
+            { sigla: "AL", nome: "Almoço",          janela: "11:00–13:29", emoji: "🍽️", cor: "#f57a47" },
+            { sigla: "IT", nome: "Início Tarde",    janela: "13:30–15:59", emoji: "🌤️", cor: "#e87a47" },
+            { sigla: "MT", nome: "Meio Tarde",      janela: "16:00–17:59", emoji: "⛅", cor: "#d9663d" },
+            { sigla: "NO", nome: "Noite",           janela: "18:00–19:59", emoji: "🌆", cor: "#7a6bd9" },
+            { sigla: "FN", nome: "Final Noite",     janela: "20:00–22:29", emoji: "🌙", cor: "#6b5fb0" },
+            { sigla: "CE", nome: "Ceia",            janela: "22:30–23:59", emoji: "🦉", cor: "#5b4e9b" },
           ].map((p) => {
-            const ativo = p.id === "deitar";
+            const ativo = p.sigla === "FN";
             return (
               <button
-                key={p.id}
-                className="px-3 py-1.5"
+                key={p.sigla}
+                title={`${p.sigla} · ${p.nome} · ${p.janela}`}
+                className="flex items-center gap-1.5 px-2.5 py-1.5"
                 style={{
-                  background: ativo ? tk.accent : tk.bg,
-                  color: ativo ? tk.bg : tk.inkMuted,
-                  border: `1px solid ${ativo ? tk.accent : tk.border}`,
+                  background: ativo ? p.cor : tk.bg,
+                  color: ativo ? "#0a0e14" : tk.inkMuted,
+                  border: `1px solid ${ativo ? p.cor : tk.border}`,
+                  borderLeft: `3px solid ${p.cor}`,
                   fontSize: 11,
                   fontWeight: ativo ? 600 : 400,
+                  fontFamily: "JetBrains Mono, monospace",
                 }}
               >
-                {p.label}
+                <span style={{ fontSize: 12 }}>{p.emoji}</span>
+                <span style={{ fontWeight: 700, letterSpacing: 0.5 }}>{p.sigla}</span>
+                <span style={{ opacity: 0.85 }}>{p.nome}</span>
+                <span style={{ fontSize: 9, opacity: 0.6, marginLeft: 2 }}>{p.janela}</span>
               </button>
             );
           })}
+        </div>
+        <div style={{ fontSize: 9, color: tk.inkMuted, marginTop: 6, fontStyle: "italic" }}>
+          ⓘ Madrugada 00:00–04:59 deliberadamente vazia — paciente não recebe lembrete dormindo.
         </div>
       </div>
 
