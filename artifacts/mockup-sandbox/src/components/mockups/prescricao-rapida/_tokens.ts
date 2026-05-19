@@ -50,6 +50,12 @@ export type Ancora =
   | "S01" | "S02" | "S03" | "S04" | "S05" | "S06" | "S07" | "S08"
   | "penultima" | "ultima";
 
+export type ComponenteBlend = {
+  id: string;
+  nome: string;
+  dose: string;
+};
+
 export type Substancia = {
   id: string;
   nome: string;
@@ -61,7 +67,11 @@ export type Substancia = {
   preco: number;
   ancora?: Ancora;
   periodos?: string[];
+  componentes?: ComponenteBlend[];
+  horarios?: string[];
 };
+
+export const HORARIOS_PADRAO = ["06h", "07h", "08h", "09h", "12h", "15h", "18h", "20h", "22h"] as const;
 
 export const PACIENTE = {
   nome: "Graco Souza Pádua",
@@ -85,9 +95,28 @@ export const CATALOGO: Substancia[] = [
   { id: "resv-im",   nome: "Resveratrol Injetável",      via: "IM",  dose: "250 mg",      detalhe: "Sirtuína / longevidade",     sessoes: 4,  frequencia: "1×/sem",   preco: 210, ancora: "sem-ancora" },
   { id: "sema-sc",   nome: "Semaglutida 0,5 mg",         via: "SC",  dose: "0,5 mg",      detalhe: "GLP-1 · controle apetite",   sessoes: 12, frequencia: "1×/sem",   preco: 380, ancora: "sem-ancora" },
   { id: "tirz-sc",   nome: "Tirzepatida 2,5 mg",         via: "SC",  dose: "2,5 mg",      detalhe: "GLP-1/GIP · titulação",      sessoes: 8,  frequencia: "1×/sem",   preco: 520, ancora: "sem-ancora" },
-  { id: "blend-vo",  nome: "Fórmula Blend Menopausa",    via: "VO",  dose: "1 cáps/dia",  detalhe: "Magistral · Galena",         sessoes: 30, frequencia: "diária",   preco: 380, ancora: "primeira" },
-  { id: "blend-en",  nome: "Fórmula Blend Energia AM",   via: "VO",  dose: "1 cáps/dia",  detalhe: "Magistral · Galena",         sessoes: 30, frequencia: "diária",   preco: 290, ancora: "primeira" },
-  { id: "mag-vo",    nome: "Magnésio Dimalato",          via: "VO",  dose: "300 mg",      detalhe: "Quelado · 2× ao dia",        sessoes: 30, frequencia: "2×/dia",   preco: 110, ancora: "primeira" },
+  { id: "blend-vo",  nome: "Fórmula Blend Menopausa",    via: "VO",  dose: "1 cáps/dia",  detalhe: "Magistral · Galena",         sessoes: 30, frequencia: "diária",   preco: 380, ancora: "primeira",
+    horarios: ["08h", "20h"],
+    componentes: [
+      { id: "c1", nome: "DHEA Micronizado",        dose: "25 mg" },
+      { id: "c2", nome: "Pregnenolona",            dose: "30 mg" },
+      { id: "c3", nome: "Resveratrol Trans-puro",  dose: "150 mg" },
+      { id: "c4", nome: "Vitex Agnus-Castus EP",   dose: "200 mg" },
+      { id: "c5", nome: "Magnésio Bisglicinato",   dose: "100 mg" },
+    ],
+  },
+  { id: "blend-en",  nome: "Fórmula Blend Energia AM",   via: "VO",  dose: "1 cáps/dia",  detalhe: "Magistral · Galena",         sessoes: 30, frequencia: "diária",   preco: 290, ancora: "primeira",
+    horarios: ["07h"],
+    componentes: [
+      { id: "c1", nome: "Cafeína Anidra",          dose: "100 mg" },
+      { id: "c2", nome: "L-Tirosina",              dose: "500 mg" },
+      { id: "c3", nome: "Rhodiola Rosea EP 3%",    dose: "300 mg" },
+      { id: "c4", nome: "Vitamina B6 P5P",         dose: "25 mg" },
+    ],
+  },
+  { id: "mag-vo",    nome: "Magnésio Dimalato",          via: "VO",  dose: "300 mg",      detalhe: "Quelado · 2× ao dia",        sessoes: 30, frequencia: "2×/dia",   preco: 110, ancora: "primeira",
+    horarios: ["12h", "22h"],
+  },
   { id: "gest-imp",  nome: "Gestrinona-T 12 mg",         via: "IMP", dose: "12 mg",       detalhe: "Implante hormonal 4-6 meses", sessoes: 1,  frequencia: "semestral", preco: 1280, ancora: "primeira" },
   { id: "trem-imp",  nome: "Trembolona-T 50 mg",         via: "IMP", dose: "50 mg",       detalhe: "Implante 3-4 meses",          sessoes: 1,  frequencia: "trimestral", preco: 980,  ancora: "primeira" },
   { id: "consulta",  nome: "Consulta Dr. Caio Pádua",    via: "PRC", dose: "60 min",      detalhe: "Reavaliação clínica",         sessoes: 2,  frequencia: "mensal",    preco: 500,  ancora: "primeira" },

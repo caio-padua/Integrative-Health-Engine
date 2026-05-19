@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
-  VIA_META, FREQUENCIAS,
-  type Substancia, type Via, type Frequencia, type Ancora,
+  VIA_META, FREQUENCIAS, HORARIOS_PADRAO,
+  type Substancia, type Via, type Frequencia, type Ancora, type ComponenteBlend,
 } from "./_tokens";
 
 type Modo = "PILHA" | "TIMELINE" | "GPS";
@@ -53,6 +53,10 @@ export function GpsPadua() {
   const [modo, setModo] = useState<Modo>("GPS");
   const [sel, setSel] = useState<Substancia[]>(SELECIONADAS_INICIAIS);
   const [hoverItem, setHoverItem] = useState<string | null>(null);
+  const [colMin, setColMin] = useState<Record<Via, boolean>>({
+    EV: false, IM: false, SC: false, VO: false, IMP: true, PRC: true,
+  });
+  const [editandoFormula, setEditandoFormula] = useState<string | null>("blend-vo");
 
   const porVia = useMemo(() => {
     const m: Record<Via, Substancia[]> = { EV: [], IM: [], SC: [], VO: [], IMP: [], PRC: [] };
@@ -65,6 +69,9 @@ export function GpsPadua() {
   const update = (id: string, patch: Partial<Substancia>) =>
     setSel(sel.map(s => s.id === id ? { ...s, ...patch } : s));
   const remove = (id: string) => setSel(sel.filter(s => s.id !== id));
+  const toggleCol = (v: Via) => setColMin({ ...colMin, [v]: !colMin[v] });
+
+  const formulaAberta = editandoFormula ? sel.find(s => s.id === editandoFormula) : null;
 
   return (
     <div style={{
@@ -77,7 +84,16 @@ export function GpsPadua() {
       {(modo === "PILHA" || modo === "GPS") && (
         <Pilha porVia={porVia} update={update} remove={remove}
           hoverItem={hoverItem} setHoverItem={setHoverItem}
-          addItem={(s) => setSel([...sel, { ...s }])} sel={sel} />
+          addItem={(s) => setSel([...sel, { ...s }])} sel={sel}
+          colMin={colMin} toggleCol={toggleCol}
+          editandoFormula={editandoFormula} setEditandoFormula={setEditandoFormula} />
+      )}
+
+      {(modo === "PILHA" || modo === "GPS") && formulaAberta && (
+        <EditorBlend
+          formula={formulaAberta}
+          update={(patch) => update(formulaAberta.id, patch)}
+          onClose={() => setEditandoFormula(null)} />
       )}
 
       {(modo === "TIMELINE" || modo === "GPS") && (
@@ -188,7 +204,8 @@ function Kpi({ lbl, val, cor }: { lbl: string; val: string; cor: string }) {
 // Modo PILHA: 6 colunas por via
 // ───────────────────────────────────────────────────────────────────────
 
-function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel }: {
+function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
+  colMin, toggleCol, editandoFormula, setEditandoFormula }: {
   porVia: Record<Via, Substancia[]>;
   update: (id: string, patch: Partial<Substancia>) => void;
   remove: (id: string) => void;
@@ -196,26 +213,71 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel }
   setHoverItem: (id: string | null) => void;
   addItem: (s: Substancia) => void;
   sel: Substancia[];
+  colMin: Record<Via, boolean>;
+  toggleCol: (v: Via) => void;
+  editandoFormula: string | null;
+  setEditandoFormula: (id: string | null) => void;
 }) {
+  // Grid dinâmico: colunas min ocupam 60px, colunas max ocupam fração
+  const cols = VIAS_ORDEM.map(v => colMin[v] ? "60px" : "1fr").join(" ");
+
   return (
-    <section style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
+    <section style={{ display: "grid", gridTemplateColumns: cols, gap: 8, transition: "all 0.2s" }}>
       {VIAS_ORDEM.map(v => {
         const c = tk.via[v];
         const meta = VIA_META[v];
         const itens = porVia[v];
+        const minimizada = colMin[v];
+
+        if (minimizada) {
+          // Coluna colapsada: sigla vertical + contador + botão ↕
+          return (
+            <div key={v}
+              onClick={() => toggleCol(v)}
+              style={{
+                background: tk.bgAlt, border: `1px solid ${tk.border}`,
+                borderTop: `3px solid ${c.dot}`, cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between",
+                padding: "8px 0", minHeight: 360, transition: "all 0.12s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = c.soft; e.currentTarget.style.boxShadow = `0 0 8px ${c.line}`; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = tk.bgAlt; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <div style={{ fontFamily: tk.mono, fontSize: 12, color: c.dot }}>↕</div>
+              <div style={{
+                writingMode: "vertical-rl", transform: "rotate(180deg)",
+                fontFamily: tk.mono, fontSize: 13, fontWeight: 700, color: c.dot, letterSpacing: 3,
+              }}>{v} · {meta.titulo}</div>
+              <div style={{
+                fontFamily: tk.mono, fontSize: 10, fontWeight: 700, color: c.dot,
+                padding: "3px 6px", background: c.soft, border: `1px solid ${c.line}`,
+              }}>{itens.length}</div>
+            </div>
+          );
+        }
+
         const cands = CATALOGO.filter(s => s.via === v && !sel.find(x => x.id === s.id));
         const subtotal = itens.reduce((a, s) => a + s.preco * s.sessoes, 0);
+
         return (
           <div key={v} style={{
             background: tk.bgAlt, border: `1px solid ${tk.border}`,
             borderTop: `3px solid ${c.dot}`,
             display: "flex", flexDirection: "column", minHeight: 360,
           }}>
-            {/* Header coluna */}
+            {/* Header coluna com botão min */}
             <div style={{ padding: "8px 10px", borderBottom: `1px solid ${tk.border}`, background: c.soft }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                 <span style={{ fontFamily: tk.mono, fontSize: 13, fontWeight: 700, color: c.dot, letterSpacing: 1.5 }}>{v}</span>
-                <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted }}>{itens.length} ITENS</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted }}>{itens.length} ITENS</span>
+                  <button onClick={() => toggleCol(v)}
+                    title="Minimizar coluna"
+                    style={{
+                      background: "transparent", border: `1px solid ${c.line}`, color: c.dot,
+                      fontFamily: tk.mono, fontSize: 10, cursor: "pointer", padding: "1px 5px", lineHeight: 1,
+                    }}>↕</button>
+                </div>
               </div>
               <div style={{ fontSize: 10, color: tk.ink, marginTop: 1 }}>{meta.titulo}</div>
               <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, marginTop: 1 }}>{meta.sub}</div>
@@ -225,25 +287,41 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel }
             <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
               {itens.map(s => {
                 const h = hoverItem === s.id;
+                const ehFormula = !!s.componentes;
+                const aberta = editandoFormula === s.id;
                 return (
                   <div key={s.id}
                     onMouseEnter={() => setHoverItem(s.id)}
                     onMouseLeave={() => setHoverItem(null)}
                     style={{
                       background: tk.bg, padding: 8,
-                      border: `1px solid ${tk.border}`, borderLeft: `3px solid ${c.dot}`,
+                      border: `1px solid ${aberta ? c.dot : tk.border}`, borderLeft: `3px solid ${c.dot}`,
                       transition: "all 0.12s",
-                      ...(h ? { outline: `1px solid ${c.dot}`, outlineOffset: "-1px", boxShadow: `0 0 10px ${c.line}` } : {}),
+                      ...(h || aberta ? { outline: `1px solid ${c.dot}`, outlineOffset: "-1px", boxShadow: `0 0 10px ${c.line}` } : {}),
                     }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.25 }}>{s.nome}</div>
-                        <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 1 }}>{s.dose}</div>
+                        <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 1 }}>
+                          {s.dose}{ehFormula ? ` · ${s.componentes!.length} subst.` : ""}
+                        </div>
                       </div>
-                      <button onClick={() => remove(s.id)} style={{
-                        background: "transparent", color: tk.inkSubtle, border: "none",
-                        fontFamily: tk.mono, fontSize: 12, cursor: "pointer", padding: 0, lineHeight: 1,
-                      }}>×</button>
+                      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                        {ehFormula && (
+                          <button
+                            onClick={() => setEditandoFormula(aberta ? null : s.id)}
+                            title={aberta ? "Fechar editor de blend" : "Abrir editor de blend (3º andar)"}
+                            style={{
+                              background: aberta ? c.dot : "transparent", color: aberta ? tk.bg : c.dot,
+                              border: `1px solid ${c.dot}`, fontFamily: tk.mono, fontSize: 8, fontWeight: 700,
+                              cursor: "pointer", padding: "1px 5px", letterSpacing: 1, lineHeight: 1.4,
+                            }}>⚙ BLEND</button>
+                        )}
+                        <button onClick={() => remove(s.id)} style={{
+                          background: "transparent", color: tk.inkSubtle, border: "none",
+                          fontFamily: tk.mono, fontSize: 12, cursor: "pointer", padding: 0, lineHeight: 1,
+                        }}>×</button>
+                      </div>
                     </div>
 
                     {/* Controles em linha */}
@@ -523,5 +601,238 @@ function ActionBar({ total, sel, porVia }: {
         ))}
       </div>
     </footer>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// 3º ANDAR · Editor de Blend (fórmula magistral expandida)
+// ───────────────────────────────────────────────────────────────────────
+
+function EditorBlend({ formula, update, onClose }: {
+  formula: Substancia;
+  update: (patch: Partial<Substancia>) => void;
+  onClose: () => void;
+}) {
+  const c = tk.via[formula.via];
+  const componentes = formula.componentes || [];
+  const horarios = formula.horarios || [];
+  const [customH, setCustomH] = useState("");
+
+  const setComp = (idx: number, patch: Partial<ComponenteBlend>) => {
+    const novo = componentes.map((c, i) => i === idx ? { ...c, ...patch } : c);
+    update({ componentes: novo });
+  };
+  const addComp = () => {
+    const novo = [...componentes, { id: `c${Date.now()}`, nome: "", dose: "" }];
+    update({ componentes: novo });
+  };
+  const removeComp = (idx: number) => {
+    update({ componentes: componentes.filter((_, i) => i !== idx) });
+  };
+  const toggleHorario = (h: string) => {
+    const novo = horarios.includes(h) ? horarios.filter(x => x !== h) : [...horarios, h];
+    update({ horarios: novo });
+  };
+  const addCustomH = () => {
+    if (!customH.trim() || horarios.includes(customH.trim())) return;
+    update({ horarios: [...horarios, customH.trim()] });
+    setCustomH("");
+  };
+
+  const dosesDia = horarios.length;
+  const dosesPeriodo = dosesDia * formula.sessoes;
+
+  return (
+    <section style={{
+      background: tk.bgAlt, border: `1px solid ${c.dot}`,
+      borderLeft: `4px solid ${c.dot}`, padding: 0,
+      boxShadow: `0 0 16px ${c.line}`,
+    }}>
+      {/* Cabeçalho */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "10px 14px", background: c.soft, borderBottom: `1px solid ${tk.border}`,
+      }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+          <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 2 }}>3º ANDAR · EDITOR DE BLEND</span>
+          <span style={{
+            fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: c.dot,
+            padding: "2px 6px", background: tk.bg, border: `1px solid ${c.line}`, letterSpacing: 1,
+          }}>{formula.via} · {formula.nome}</span>
+          <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted }}>
+            {formula.detalhe} · {formula.sessoes} {formula.frequencia === "diária" ? "dias" : "ciclos"}
+          </span>
+        </div>
+        <button onClick={onClose} style={{
+          background: "transparent", color: tk.inkMuted, border: `1px solid ${tk.border}`,
+          fontFamily: tk.mono, fontSize: 9, cursor: "pointer", padding: "3px 8px", letterSpacing: 1,
+        }}>FECHAR ×</button>
+      </div>
+
+      {/* Conteúdo em 2 colunas: substâncias do blend + horários */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 14, padding: 14 }}>
+
+        {/* COLUNA 1 · substâncias do blend (linhas editáveis) */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+            <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5 }}>
+              SUBSTÂNCIAS DO BLEND · {componentes.length} linhas
+            </span>
+            <button onClick={addComp} style={{
+              background: "transparent", color: c.dot, border: `1px solid ${c.line}`,
+              fontFamily: tk.mono, fontSize: 9, fontWeight: 700, cursor: "pointer", padding: "3px 8px", letterSpacing: 1,
+            }}>+ LINHA</button>
+          </div>
+
+          {/* Cabeçalho da tabela de componentes */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "28px 1fr 100px 22px", gap: 6,
+            padding: "4px 0", borderBottom: `1px solid ${tk.border}`,
+            fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5,
+          }}>
+            <span>#</span><span>SUBSTÂNCIA</span><span>DOSE</span><span></span>
+          </div>
+
+          {/* Linhas editáveis */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {componentes.map((comp, i) => (
+              <div key={comp.id} style={{
+                display: "grid", gridTemplateColumns: "28px 1fr 100px 22px", gap: 6,
+                padding: "4px 0", borderBottom: `1px dashed ${tk.border}`, alignItems: "center",
+              }}>
+                <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, textAlign: "center" }}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <input value={comp.nome}
+                  onChange={(e) => setComp(i, { nome: e.target.value })}
+                  placeholder="Nome da substância"
+                  style={{ ...inpBase, fontSize: 11, fontFamily: tk.sans }} />
+                <input value={comp.dose}
+                  onChange={(e) => setComp(i, { dose: e.target.value })}
+                  placeholder="ex: 25 mg"
+                  style={{ ...inpBase, textAlign: "right" }} />
+                <button onClick={() => removeComp(i)} style={{
+                  background: "transparent", color: tk.inkSubtle, border: "none",
+                  fontFamily: tk.mono, fontSize: 12, cursor: "pointer", padding: 0,
+                }}>×</button>
+              </div>
+            ))}
+            {componentes.length === 0 && (
+              <div style={{
+                border: `1px dashed ${tk.borderStrong}`, padding: 14, textAlign: "center",
+                fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1, marginTop: 6,
+              }}>NENHUMA SUBSTÂNCIA · CLIQUE EM “+ LINHA”</div>
+            )}
+          </div>
+
+          {/* Última linha fixa: VIA DE ADMINISTRAÇÃO */}
+          <div style={{
+            marginTop: 10, padding: "8px 10px",
+            background: tk.bg, border: `1px solid ${c.dot}`, borderLeft: `3px solid ${c.dot}`,
+            display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center",
+          }}>
+            <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5 }}>
+              VIA DE ADMINISTRAÇÃO
+            </span>
+            <select value={formula.via}
+              onChange={(e) => update({ via: e.target.value as Via })}
+              style={{ ...inpBase, fontSize: 11, fontWeight: 700, color: c.dot }}>
+              {(Object.keys(VIA_META) as Via[]).map(v => (
+                <option key={v} value={v}>{v} · {VIA_META[v].titulo}</option>
+              ))}
+            </select>
+            <span style={{
+              fontFamily: tk.mono, fontSize: 9, color: c.dot,
+              padding: "3px 8px", background: c.soft, border: `1px solid ${c.line}`, letterSpacing: 1,
+            }}>{VIA_META[formula.via].sub}</span>
+          </div>
+        </div>
+
+        {/* COLUNA 2 · horários TDAH/TOC-friendly */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+            <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5 }}>
+              HORÁRIOS DE TOMADA · dentro do período
+            </span>
+            <span style={{ fontFamily: tk.mono, fontSize: 9, color: c.dot }}>
+              {dosesDia} dose{dosesDia !== 1 ? "s" : ""}/dia
+            </span>
+          </div>
+
+          {/* Chips de horário padrão */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+            {HORARIOS_PADRAO.map(h => {
+              const on = horarios.includes(h);
+              return (
+                <button key={h} onClick={() => toggleHorario(h)}
+                  onMouseEnter={(e) => { if (!on) e.currentTarget.style.borderColor = c.dot; }}
+                  onMouseLeave={(e) => { if (!on) e.currentTarget.style.borderColor = tk.border; }}
+                  style={{
+                    fontFamily: tk.mono, fontSize: 11, fontWeight: 700, letterSpacing: 1,
+                    padding: "6px 10px", cursor: "pointer",
+                    background: on ? c.dot : tk.bg, color: on ? tk.bg : tk.ink,
+                    border: `1px solid ${on ? c.dot : tk.border}`, transition: "all 0.12s",
+                    ...(on ? { boxShadow: `0 0 8px ${c.line}` } : {}),
+                  }}>{h}</button>
+              );
+            })}
+          </div>
+
+          {/* Horários custom (fora do padrão) */}
+          {horarios.filter(h => !HORARIOS_PADRAO.includes(h as any)).length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5 }}>CUSTOM ATIVOS</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 4 }}>
+                {horarios.filter(h => !HORARIOS_PADRAO.includes(h as any)).map(h => (
+                  <button key={h} onClick={() => toggleHorario(h)}
+                    style={{
+                      fontFamily: tk.mono, fontSize: 11, fontWeight: 700, letterSpacing: 1,
+                      padding: "6px 10px", cursor: "pointer",
+                      background: c.dot, color: tk.bg, border: `1px solid ${c.dot}`,
+                      boxShadow: `0 0 8px ${c.line}`,
+                    }}>{h} ×</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Input livre pra horário custom */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+            <input value={customH}
+              onChange={(e) => setCustomH(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addCustomH(); }}
+              placeholder="ex: 11h30, 23h, em jejum…"
+              style={{ ...inpBase, flex: 1, fontSize: 10, padding: "5px 8px" }} />
+            <button onClick={addCustomH} style={{
+              background: "transparent", color: c.dot, border: `1px solid ${c.line}`,
+              fontFamily: tk.mono, fontSize: 9, fontWeight: 700, cursor: "pointer", padding: "0 12px", letterSpacing: 1,
+            }}>+ ADD</button>
+          </div>
+
+          {/* Resumo do esquema */}
+          <div style={{
+            padding: 10, background: tk.bg, border: `1px solid ${tk.border}`, borderLeft: `3px solid ${c.dot}`,
+          }}>
+            <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5, marginBottom: 6 }}>
+              ESQUEMA RESULTANTE
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div>
+                <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle }}>DOSES/DIA</div>
+                <div style={{ fontFamily: tk.mono, fontSize: 16, fontWeight: 700, color: c.dot }}>{dosesDia}</div>
+              </div>
+              <div>
+                <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle }}>TOTAL NO PERÍODO</div>
+                <div style={{ fontFamily: tk.mono, fontSize: 16, fontWeight: 700, color: c.dot }}>{dosesPeriodo}</div>
+              </div>
+            </div>
+            <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 8, lineHeight: 1.5 }}>
+              <span style={{ color: c.dot }}>→</span> {dosesDia === 0 ? "(selecione ao menos 1 horário)" :
+                `${horarios.sort().join(" · ")} durante ${formula.sessoes} ${formula.frequencia === "diária" ? "dias" : "ciclos"}`}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
