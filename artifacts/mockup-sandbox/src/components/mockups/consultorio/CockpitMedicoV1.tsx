@@ -664,11 +664,11 @@ function FieldGroup({
   );
 }
 
-function SoftInput({ value, mono }: { value: string; mono?: boolean }) {
+function SoftInput({ value, mono, className }: { value: string; mono?: boolean; className?: string }) {
   return (
     <input
       defaultValue={value}
-      className="w-full px-3 py-2 outline-none"
+      className={`w-full px-3 py-2 outline-none ${className ?? ""}`}
       style={{
         background: tk.bg,
         color: tk.ink,
@@ -677,6 +677,42 @@ function SoftInput({ value, mono }: { value: string; mono?: boolean }) {
         fontFamily: mono ? tk.mono : tk.sans,
       }}
     />
+  );
+}
+
+function SelectInput({
+  value,
+  options,
+  className,
+}: {
+  value: string;
+  options: string[];
+  className?: string;
+}) {
+  return (
+    <select
+      defaultValue={value}
+      className={`w-full px-3 py-2 outline-none ${className ?? ""}`}
+      style={{
+        background: tk.bg,
+        color: tk.ink,
+        border: `1px solid ${tk.border}`,
+        fontSize: 13,
+        fontFamily: tk.sans,
+        appearance: "none",
+        backgroundImage: `linear-gradient(45deg, transparent 50%, ${tk.inkSubtle} 50%), linear-gradient(135deg, ${tk.inkSubtle} 50%, transparent 50%)`,
+        backgroundPosition: "calc(100% - 14px) 50%, calc(100% - 9px) 50%",
+        backgroundSize: "5px 5px, 5px 5px",
+        backgroundRepeat: "no-repeat",
+        paddingRight: 28,
+      }}
+    >
+      {options.map((opt) => (
+        <option key={opt} value={opt} style={{ background: tk.bg, color: tk.ink }}>
+          {opt}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -814,7 +850,7 @@ function SugestoesMotor() {
       ]} />
 
       <SugBucket icon={Leaf} title="Protocolo terapêutico" count={1} items={[
-        { t: "PADCON METAB-PÓS — 90 dias", just: "Match 87% perfil paciente" },
+        { t: "Protocolo METAB-PÓS — 90 dias", just: "Match 87% perfil paciente" },
       ]} />
 
       <button
@@ -957,7 +993,7 @@ function PdfPreview() {
           <li>Resistência insulínica subclínica</li>
         </ol>
         <p style={{ marginTop: 10 }}>
-          <strong>Plano terapêutico:</strong> protocolo PADCON METAB-PÓS de 90 dias, com início de
+          <strong>Plano terapêutico:</strong> protocolo Pádua METAB-PÓS de 90 dias, com início de
           fórmula manipulada adapto-noturna + magnésio dimalato, berberina 500mg 2x/d, e
           continuidade da soroterapia mensal Coquetel B-detox.
         </p>
@@ -976,7 +1012,7 @@ function PdfPreview() {
 // TAB: PRESCRIÇÃO
 // ============================================================================
 function PrescricaoTab() {
-  const [drawer, setDrawer] = useState<null | "catalogo" | "nova" | "padcon">(null);
+  const [drawer, setDrawer] = useState<null | "catalogo" | "nova" | "protocolo">(null);
   return (
     <div className="p-6 space-y-5 relative">
       <PageHeader
@@ -1039,7 +1075,7 @@ function PrescricaoTab() {
   );
 }
 
-function PrescricaoToolbar({ onAction }: { onAction: (m: "catalogo" | "nova" | "padcon") => void }) {
+function PrescricaoToolbar({ onAction }: { onAction: (m: "catalogo" | "nova" | "protocolo") => void }) {
   return (
     <div
       className="flex items-center gap-3 px-4 py-3"
@@ -1074,12 +1110,12 @@ function PrescricaoToolbar({ onAction }: { onAction: (m: "catalogo" | "nova" | "
       </button>
 
       <button
-        onClick={() => onAction("padcon")}
+        onClick={() => onAction("protocolo")}
         className="px-3 py-2 flex items-center gap-2"
         style={{ background: tk.bg, border: `1px solid ${tk.border}`, color: tk.ink, fontSize: 12 }}
       >
         <Layers size={13} style={{ color: tk.accent }} />
-        Aplicar Protocolo PADCON
+        Aplicar Protocolo Pádua
       </button>
 
       <div className="ml-auto flex items-center gap-3" style={{ fontSize: 11, color: tk.inkSubtle, fontFamily: tk.mono }}>
@@ -1089,16 +1125,16 @@ function PrescricaoToolbar({ onAction }: { onAction: (m: "catalogo" | "nova" | "
   );
 }
 
-function CatalogoDrawer({ modo, onClose }: { modo: "catalogo" | "nova" | "padcon"; onClose: () => void }) {
+function CatalogoDrawer({ modo, onClose }: { modo: "catalogo" | "nova" | "protocolo"; onClose: () => void }) {
   const titulos = {
     catalogo: "Catálogo PARMAVAULT · Itens Terapêuticos Unificados",
     nova: "Nova Fórmula Manipulada",
-    padcon: "Protocolos PADCON",
+    protocolo: "Protocolos do Instituto Pádua",
   };
   const eyebrows = {
     catalogo: "BUSCA NO CATÁLOGO · 8.728 ITENS · COBERTURA SEMÂNTICA 100%",
     nova: "EDITOR MANIPULADO · MOTOR DE COMPATIBILIDADE",
-    padcon: "PROTOCOLOS PRÉ-MONTADOS · 47 DISPONÍVEIS",
+    protocolo: "PROTOCOLOS PRÉ-MONTADOS · 47 DISPONÍVEIS",
   };
   return (
     <div
@@ -1134,7 +1170,7 @@ function CatalogoDrawer({ modo, onClose }: { modo: "catalogo" | "nova" | "padcon
 
         {modo === "catalogo" && <CatalogoBusca />}
         {modo === "nova" && <FormulaEditor />}
-        {modo === "padcon" && <PadconLista />}
+        {modo === "protocolo" && <ProtocoloLista />}
       </aside>
     </div>
   );
@@ -1341,17 +1377,113 @@ function FormulaEditor() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <FieldGroup label="Posologia">
-          <SoftInput value="01 cápsula 60 min antes de dormir" />
+      <div className="grid grid-cols-3 gap-3">
+        <FieldGroup label="Via de administração" required>
+          <SelectInput
+            value="Oral"
+            options={["Oral", "Sublingual", "Tópica", "Retal", "Vaginal", "Inalatória", "Subcutânea", "Intramuscular", "Endovenosa"]}
+          />
         </FieldGroup>
-        <FieldGroup label="Duração do tratamento">
+        <FieldGroup label="Forma farmacêutica">
+          <SelectInput
+            value="Cápsula"
+            options={["Cápsula", "Comprimido", "Sachê", "Solução oral", "Suspensão", "Gel", "Creme", "Pomada", "Supositório", "Óvulo", "Ampola"]}
+          />
+        </FieldGroup>
+        <FieldGroup label="Dose por administração" required>
+          <div className="flex gap-2">
+            <SoftInput value="1" mono className="flex-1" />
+            <SelectInput value="cápsula" options={["cápsula", "comprimido", "sachê", "mL", "gota", "puff"]} className="flex-1" />
+          </div>
+        </FieldGroup>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <FieldGroup label="Frequência" required>
+          <SelectInput
+            value="1x ao dia"
+            options={[
+              "1x ao dia",
+              "2x ao dia",
+              "3x ao dia",
+              "4x ao dia",
+              "De 8 em 8 horas",
+              "De 12 em 12 horas",
+              "Dias alternados",
+              "Semanal",
+              "Mensal",
+              "Conforme orientação",
+            ]}
+          />
+        </FieldGroup>
+        <FieldGroup label="Duração do tratamento" required>
           <SoftInput value="90 dias" mono />
         </FieldGroup>
       </div>
 
-      <FieldGroup label="Farmácia de aviamento">
-        <SoftInput value="Galena Manipulação (id=7) — preferencial" />
+      <div>
+        <label
+          className="block mb-2 uppercase"
+          style={{ fontSize: 10, color: tk.inkMuted, letterSpacing: 1, fontWeight: 500 }}
+        >
+          Período do dia <span style={{ color: tk.warn, marginLeft: 4 }}>*</span>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "jejum", label: "Em jejum" },
+            { id: "manha", label: "Manhã" },
+            { id: "almoco", label: "Almoço" },
+            { id: "tarde", label: "Tarde" },
+            { id: "jantar", label: "Jantar" },
+            { id: "noite", label: "Noite" },
+            { id: "deitar", label: "Ao deitar" },
+            { id: "madrugada", label: "Madrugada" },
+          ].map((p) => {
+            const ativo = p.id === "deitar";
+            return (
+              <button
+                key={p.id}
+                className="px-3 py-1.5"
+                style={{
+                  background: ativo ? tk.accent : tk.bg,
+                  color: ativo ? tk.bg : tk.inkMuted,
+                  border: `1px solid ${ativo ? tk.accent : tk.border}`,
+                  fontSize: 11,
+                  fontWeight: ativo ? 600 : 400,
+                }}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <FieldGroup label="Horário sugerido (opcional)">
+          <SoftInput value="22:00" mono />
+        </FieldGroup>
+        <FieldGroup label="Relação com alimentação">
+          <SelectInput
+            value="60 min antes"
+            options={["Indiferente", "Em jejum", "Antes da refeição", "30 min antes", "60 min antes", "Durante a refeição", "Após a refeição", "60 min após"]}
+          />
+        </FieldGroup>
+        <FieldGroup label="Quantidade total aviada">
+          <SoftInput value="90 cápsulas" mono />
+        </FieldGroup>
+      </div>
+
+      <FieldGroup label="Farmácia de aviamento" required>
+        <SelectInput
+          value="Galena Manipulação (id=7) — preferencial"
+          options={[
+            "Galena Manipulação (id=7) — preferencial",
+            "Pharmavita Manipulação (id=12)",
+            "Fórmula Certa (id=18)",
+            "Outras (escolher na hora)",
+          ]}
+        />
       </FieldGroup>
 
       <FieldGroup label="Justificativa clínica">
@@ -1393,13 +1525,13 @@ function FormulaEditor() {
   );
 }
 
-function PadconLista() {
+function ProtocoloLista() {
   const protocolos = [
-    { cod: "METAB-PÓS", nome: "PADCON METAB-PÓS — Síndrome metabólica pós-menopausa", duracao: "90 dias", itens: 7, match: 87 },
-    { cod: "DETOX-3M", nome: "PADCON DETOX 3 Meses — Hepático + Intestinal", duracao: "90 dias", itens: 9, match: 64 },
-    { cod: "SONO-RESTR", nome: "PADCON SONO Restaurador — Cortisol + Melatonina", duracao: "60 dias", itens: 5, match: 78 },
-    { cod: "IMUNO-INV", nome: "PADCON IMUNO Inverno — Antiviral preventivo", duracao: "45 dias", itens: 6, match: 41 },
-    { cod: "ANSI-LEVE", nome: "PADCON ANSI Leve — Ansiedade situacional", duracao: "30 dias", itens: 4, match: 52 },
+    { cod: "PAD-METAB-PÓS", nome: "Protocolo Pádua METAB-PÓS — Síndrome metabólica pós-menopausa", duracao: "90 dias", itens: 7, match: 87 },
+    { cod: "PAD-DETOX-3M", nome: "Protocolo Pádua DETOX 3 Meses — Hepático + Intestinal", duracao: "90 dias", itens: 9, match: 64 },
+    { cod: "PAD-SONO-RESTR", nome: "Protocolo Pádua SONO Restaurador — Cortisol + Melatonina", duracao: "60 dias", itens: 5, match: 78 },
+    { cod: "PAD-IMUNO-INV", nome: "Protocolo Pádua IMUNO Inverno — Antiviral preventivo", duracao: "45 dias", itens: 6, match: 41 },
+    { cod: "PAD-ANSI-LEVE", nome: "Protocolo Pádua ANSI Leve — Ansiedade situacional", duracao: "30 dias", itens: 4, match: 52 },
   ];
   return (
     <div className="flex-1 overflow-auto px-6 py-5">
