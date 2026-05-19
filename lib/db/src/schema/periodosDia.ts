@@ -15,10 +15,12 @@ export const periodosDiaTable = pgTable("periodos_dia", {
 
 export type PeriodoDia = typeof periodosDiaTable.$inferSelect;
 
-// Siglas canônicas oficiais (Caio 2026-05-19 · Migration 075).
-// Histórico: antes da Migration 075 eram J/IM/MM/AL/T/IN/N/NF/C.
-// Subdivisão fina da tarde/noite + renomeação pra padrão 2 letras consistente.
-export const PERIODOS_DIA_SIGLAS = ["JE", "IM", "MM", "AL", "IT", "MT", "NO", "FN", "CE"] as const;
+// Siglas canônicas oficiais (Caio 2026-05-19 · Migrations 075 + 076).
+// Histórico:
+//   - antes 075: J/IM/MM/AL/T/IN/N/NF/C (maiúsculas, 1-2 letras).
+//   - 075: subdivisão fina + padrão 2 letras maiúsculas JE/IM/MM/AL/IT/MT/NO/FN/CE.
+//   - 076: minúsculas (caixa baixa).
+export const PERIODOS_DIA_SIGLAS = ["je", "im", "mm", "al", "it", "mt", "no", "fn", "ce"] as const;
 export type SiglaPeriodoDia = typeof PERIODOS_DIA_SIGLAS[number];
 
 // Metadata read-only dos 9 períodos canônicos pra clientes que precisam
@@ -34,13 +36,13 @@ export const PERIODOS_DIA_CANONICOS: ReadonlyArray<{
   corHex: string;
   descricao: string;
 }> = [
-  { ordem: 1, sigla: "JE", nome: "Jejum",           janelaInicio: "05:00", janelaFim: "06:59", emoji: "🌑", corHex: "#d4a574", descricao: "Jejum metabólico, antes do café — máxima biodisponibilidade" },
-  { ordem: 2, sigla: "IM", nome: "Início da Manhã", janelaInicio: "07:00", janelaFim: "08:59", emoji: "🌅", corHex: "#f5b947", descricao: "Café da manhã + ativos matinais (pico de cortisol)" },
-  { ordem: 3, sigla: "MM", nome: "Meio da Manhã",   janelaInicio: "09:00", janelaFim: "10:59", emoji: "☀️", corHex: "#f5d547", descricao: "Lanche da manhã + foco produtivo pré-almoço" },
-  { ordem: 4, sigla: "AL", nome: "Almoço",          janelaInicio: "11:00", janelaFim: "13:29", emoji: "🍽️", corHex: "#f57a47", descricao: "Almoço + janela de digestão ativa" },
-  { ordem: 5, sigla: "IT", nome: "Início da Tarde", janelaInicio: "13:30", janelaFim: "15:59", emoji: "🌤️", corHex: "#e87a47", descricao: "Pós-almoço · pico de sonolência cronobiológica, retomada de foco" },
-  { ordem: 6, sigla: "MT", nome: "Meio da Tarde",   janelaInicio: "16:00", janelaFim: "17:59", emoji: "⛅", corHex: "#d9663d", descricao: "Lanche da tarde + ativos pré-jantar (transição luz→escuro)" },
-  { ordem: 7, sigla: "NO", nome: "Noite",           janelaInicio: "18:00", janelaFim: "19:59", emoji: "🌆", corHex: "#7a6bd9", descricao: "Jantar + relaxamento" },
-  { ordem: 8, sigla: "FN", nome: "Final da Noite",  janelaInicio: "20:00", janelaFim: "22:29", emoji: "🌙", corHex: "#6b5fb0", descricao: "Pós-jantar · digestão + preparação pro sono (melatonina subindo)" },
-  { ordem: 9, sigla: "CE", nome: "Ceia",            janelaInicio: "22:30", janelaFim: "23:59", emoji: "🦉", corHex: "#5b4e9b", descricao: "Última dose leve + ativos do sono profundo" },
+  { ordem: 1, sigla: "je", nome: "Jejum",           janelaInicio: "05:00", janelaFim: "06:59", emoji: "🌑", corHex: "#d4a574", descricao: "Jejum metabólico, antes do café — máxima biodisponibilidade" },
+  { ordem: 2, sigla: "im", nome: "Início da Manhã", janelaInicio: "07:00", janelaFim: "08:59", emoji: "🌅", corHex: "#f5b947", descricao: "Café da manhã + ativos matinais (pico de cortisol)" },
+  { ordem: 3, sigla: "mm", nome: "Meio da Manhã",   janelaInicio: "09:00", janelaFim: "10:59", emoji: "☀️", corHex: "#f5d547", descricao: "Lanche da manhã + foco produtivo pré-almoço" },
+  { ordem: 4, sigla: "al", nome: "Almoço",          janelaInicio: "11:00", janelaFim: "13:29", emoji: "🍽️", corHex: "#f57a47", descricao: "Almoço + janela de digestão ativa" },
+  { ordem: 5, sigla: "it", nome: "Início da Tarde", janelaInicio: "13:30", janelaFim: "15:59", emoji: "🌤️", corHex: "#e87a47", descricao: "Pós-almoço · pico de sonolência cronobiológica, retomada de foco" },
+  { ordem: 6, sigla: "mt", nome: "Meio da Tarde",   janelaInicio: "16:00", janelaFim: "17:59", emoji: "⛅", corHex: "#d9663d", descricao: "Lanche da tarde + ativos pré-jantar (transição luz→escuro)" },
+  { ordem: 7, sigla: "no", nome: "Noite",           janelaInicio: "18:00", janelaFim: "19:59", emoji: "🌆", corHex: "#7a6bd9", descricao: "Jantar + relaxamento" },
+  { ordem: 8, sigla: "fn", nome: "Final da Noite",  janelaInicio: "20:00", janelaFim: "22:29", emoji: "🌙", corHex: "#6b5fb0", descricao: "Pós-jantar · digestão + preparação pro sono (melatonina subindo)" },
+  { ordem: 9, sigla: "ce", nome: "Ceia",            janelaInicio: "22:30", janelaFim: "23:59", emoji: "🦉", corHex: "#5b4e9b", descricao: "Última dose leve + ativos do sono profundo" },
 ];
