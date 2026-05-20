@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { PainelSinapticoBanner } from "@/components/sinaptico";
 
 type Linha = { antes: string; depois: string; nome: string; leitura?: string };
 type Bloco = { titulo: string; cor: string; total: number; regra: string; linhas: Linha[] };
@@ -166,8 +167,38 @@ export default function PainelTransmutacao() {
   useEffect(() => { document.title = "PAWARDS · Painel de Transmutação Semântica"; }, []);
   const totalGeral = BLOCOS.reduce((s, b) => s + b.total, 0);
 
+  const blocosKpi = [
+    { l: "Exames", v: 246 },
+    { l: "Injetáveis", v: 305 },
+    { l: "Endovenosos", v: 63 },
+    { l: "Implantes", v: 32 },
+    { l: "Fórmulas", v: 54 },
+    { l: "Doenças", v: 49 },
+  ];
+  const totalCatalogoPT = blocosKpi.reduce((s, b) => s + b.v, 0);
+
   return (
     <div style={{ background: PALETA.offwhite, minHeight: "100vh", color: PALETA.carvao, fontFamily: "Georgia, 'Times New Roman', serif" }}>
+      <div style={{ padding: "16px 24px 0", background: "#0B1220" }}>
+        <PainelSinapticoBanner
+          titulo="Sinapses · Transmutação Semântica V16"
+          subtitulo="Reorganização da gramática dos códigos — 4 blocos alfa + 1 numérico"
+          corAcento={PALETA.dourado}
+          relogios={[
+            { label: "Transmutações", valor: totalGeral, total: Math.max(totalCatalogoPT, totalGeral, 1), formato: "absoluto", cor: "#5EE6E6" },
+            { label: "Catálogo Total", valor: totalCatalogoPT, total: Math.max(totalCatalogoPT, 1), formato: "absoluto", cor: "#A8C7FA" },
+            { label: "Blocos Mapeados", valor: BLOCOS.length, total: BLOCOS.length, formato: "absoluto", cor: "#7BC9A5" },
+            { label: "Cobertura", valor: totalCatalogoPT > 0 ? Math.round((totalGeral / totalCatalogoPT) * 100) : 0, cor: "#E2C470" },
+          ]}
+          barras={blocosKpi.map((b) => ({
+            label: b.l,
+            valor: b.v,
+            total: totalCatalogoPT,
+            cor: PALETA.dourado,
+            sufixo: "registros",
+          }))}
+        />
+      </div>
       <header style={{ background: PALETA.petroleo, color: PALETA.offwhite, padding: "32px 48px", borderBottom: `4px solid ${PALETA.dourado}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <div>

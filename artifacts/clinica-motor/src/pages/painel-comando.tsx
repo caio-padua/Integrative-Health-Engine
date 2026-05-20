@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Layout } from "@/components/Layout";
+import { PainelSinapticoBanner } from "@/components/sinaptico";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -923,6 +924,11 @@ export default function PainelComando() {
   const { resumoGeral, statusSessoes, substanciasResumo, alertasDetalhes, faltasDetalhes, sessoesUltimaSemana } = data;
 
   const ss = statusSessoes ?? { concluidas: 0, agendadas: 0, confirmadas: 0, faltas: 0, canceladas: 0 } as any;
+  const totalSessoesPC = (ss.concluidas ?? 0) + (ss.agendadas ?? 0) + (ss.confirmadas ?? 0) + (ss.faltas ?? 0) + (ss.canceladas ?? 0);
+  const taxaConclusaoPC = totalSessoesPC > 0 ? Math.round(((ss.concluidas ?? 0) / totalSessoesPC) * 100) : 0;
+  const totalAlertasPC = Number((alertasDetalhes as any)?.length ?? 0);
+  const totalFaltasPC = Number((faltasDetalhes as any)?.length ?? ss.faltas ?? 0);
+  const pacientesAtivosPC = Number((resumoGeral as any)?.pacientesAtivos ?? (resumoGeral as any)?.totalPacientes ?? 0);
   const pieData = [
     { name: "Concluidas", value: ss.concluidas ?? 0, fill: "#22c55e" },
     { name: "Agendadas", value: ss.agendadas ?? 0, fill: "#3b82f6" },
@@ -984,6 +990,23 @@ export default function PainelComando() {
   return (
     <Layout>
       <div className="space-y-6">
+        <PainelSinapticoBanner
+          titulo="Sinapses · Painel de Comando CEO"
+          subtitulo="Sessões, substâncias, alertas e faltas em tempo real"
+          corAcento="#5EE6E6"
+          relogios={[
+            { label: "Taxa Conclusão", valor: taxaConclusaoPC, cor: taxaConclusaoPC >= 80 ? "#22C55E" : taxaConclusaoPC >= 50 ? "#F5C26B" : "#E07B7B" },
+            { label: "Sessões Totais", valor: totalSessoesPC, total: Math.max(totalSessoesPC, 1), formato: "absoluto", cor: "#A8C7FA" },
+            { label: "Alertas Abertos", valor: totalAlertasPC, total: Math.max(totalAlertasPC, 10), formato: "absoluto", cor: totalAlertasPC > 0 ? "#E07B7B" : "#7BC9A5" },
+            { label: "Pacientes Ativos", valor: pacientesAtivosPC, total: Math.max(pacientesAtivosPC, 1), formato: "absoluto", cor: "#5EE6E6" },
+          ]}
+          barras={[
+            { label: "Concluídas", valor: ss.concluidas ?? 0, total: Math.max(totalSessoesPC, 1), cor: "#22C55E" },
+            { label: "Agendadas + Confirmadas", valor: (ss.agendadas ?? 0) + (ss.confirmadas ?? 0), total: Math.max(totalSessoesPC, 1), cor: "#A8C7FA" },
+            { label: "Faltas", valor: totalFaltasPC, total: Math.max(totalSessoesPC, 1), cor: "#F5C26B" },
+            { label: "Canceladas", valor: ss.canceladas ?? 0, total: Math.max(totalSessoesPC, 1), cor: "#E07B7B" },
+          ]}
+        />
         {/* Wave 9 PARQ — Banner de autonomia preservada (não-fechável, link p/ admin) */}
         {/* Task #153 — banner inline com a fila de bloqueios 2FA pendentes.
             Antes o CEO so via o badge dentro do banner de assinaturas (Task
