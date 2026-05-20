@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, abrirPdfAutenticado } from "@/lib/api-fetch";
 import {
   FileText,
   Plus,
@@ -196,7 +196,7 @@ export default function PedidosExame() {
   }
 
   function abrirPdf(pedidoId: number, tipo: "solicitacao" | "justificativa") {
-    window.open(`/api/pedidos-exame/${pedidoId}/pdf/${tipo}`, "_blank");
+    abrirPdfAutenticado(`/api/pedidos-exame/${pedidoId}/pdf/${tipo}`);
   }
 
   const pacientesFiltrados = pacientes.filter(

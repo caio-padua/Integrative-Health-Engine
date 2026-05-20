@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { RefreshCw, Send, Eye, Bell, Clock, Save, Search } from "lucide-react";
 
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, abrirPdfAutenticado } from "@/lib/api-fetch";
 type NotifRow = {
   id: number;
   canal: "EMAIL" | "WHATSAPP" | "DRIVE";
@@ -162,7 +162,7 @@ export default function AdminNotificacoes() {
   }
 
   function preview(id: number) {
-    window.open(`/api/admin/notif-assinatura/preview/${id}`, "_blank", "noopener");
+    abrirPdfAutenticado(`/api/admin/notif-assinatura/preview/${id}`);
   }
 
   async function salvarConfig() {
