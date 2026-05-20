@@ -17,6 +17,9 @@
     },
     {
       "path": "./lib/exports"
+    },
+    {
+      "path": "./lib/mensageria-core"
     }
   ]
 }
