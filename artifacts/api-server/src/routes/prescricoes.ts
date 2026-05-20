@@ -35,6 +35,23 @@ async function carregarPrescricaoComEscopo(
   return p;
 }
 
+// ===== GET /farmacias-disponiveis  → dropdown pra prescrição rápida =====
+// Lista enxuta de farmácias ativas (id, nome_fantasia, cnpj) sem exigir
+// perfil master — necessário pro médico escolher destino do PDF magistral.
+router.get("/farmacias-disponiveis", async (_req, res): Promise<void> => {
+  try {
+    const r = await pool.query(
+      `SELECT id, nome_fantasia, cnpj
+         FROM farmacias_parmavault
+        WHERE COALESCE(ativo, TRUE) = TRUE
+        ORDER BY nome_fantasia ASC`
+    );
+    res.json(r.rows);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ===== GET /prescricoes/tipos-receita-anvisa  → catálogo dos 14 tipos =====
 // (REGISTRADA ANTES de /prescricoes/:id para evitar colisão de rota)
 router.get("/prescricoes/tipos-receita-anvisa", async (_req, res): Promise<void> => {
