@@ -326,6 +326,7 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Validação", path: "/validacao", icon: CheckSquare, slug: "validacao" },
         { name: "Filas", path: "/filas", icon: ListOrdered, slug: "filas" },
         { name: "Pacientes", path: "/pacientes", icon: Users, slug: "pacientes" },
+        { name: "Prescrição Rápida", path: "/prescricao-rapida", icon: FileText, slug: "prescricao-rapida" },
         { name: "Pedidos de Exame", path: "/pedidos-exame", icon: FileText, slug: "pedidos-exame" },
         { name: "RAS", path: "/ras", icon: FileCheck, slug: "ras" },
         { name: "RAS Evolutivo", path: "/ras-evolutivo", icon: BarChart3, slug: "ras-evolutivo" },
