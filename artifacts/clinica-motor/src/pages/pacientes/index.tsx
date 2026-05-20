@@ -463,7 +463,7 @@ export default function Pacientes() {
           </Dialog>
         </div>
 
-        <Card className="pw-card rounded-none">
+        <Card className="pw-card rounded-none text-[var(--pw-grafite)]">
           <CardHeader className="pb-3 border-b border-[var(--pw-marfim)]">
             <div className="flex items-center gap-2">
               <Search className="h-4 w-4 text-[var(--pw-cinza-bruma)]" />
