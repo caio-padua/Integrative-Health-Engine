@@ -97,7 +97,6 @@ export const TIPOS_DOCUMENTO: Record<string, TipoDocumentoConfig> = {
   ORCAMENTO_FARMA:      { categoria: "05 JURIDICO",    subcategoria: "CONTRATOS",            label: "ORCAMENTO",        requerValor: true,         extensaoPadrao: "pdf" },
   TCLE:                 { categoria: "05 JURIDICO",    subcategoria: "TERMOS",               label: "TCLE",             requerIdentificador: true, extensaoPadrao: "pdf" },
   LGPD:                 { categoria: "05 JURIDICO",    subcategoria: "TERMOS",               label: "LGPD CONSENTIMENTO",                       extensaoPadrao: "pdf" },
-  RACJ:                 { categoria: "05 JURIDICO",    subcategoria: "TERMOS",               label: "RACJ",             requerIdentificador: true, extensaoPadrao: "pdf" },
   ENVELOPE_ZAPSIGN:     { categoria: "05 JURIDICO",    subcategoria: "ASSINATURAS ZAPSIGN",  label: "ENVELOPE",         requerIdentificador: true, extensaoPadrao: "pdf" },
 
   // IMAGENS

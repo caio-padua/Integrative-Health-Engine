@@ -32,9 +32,6 @@ import {
   _resetGmailClientFactoryParaTestes,
   _setEnviarWhatsappParaTestes,
   _resetEnviarWhatsappParaTestes,
-  _setResolverDestinatariosParaTestes,
-  _resetResolverDestinatariosParaTestes,
-  type OwnerDestinatarioRow,
 } from "./alertaBruteForceTotp";
 import type { EnvioResult } from "../../services/whatsappService";
 
@@ -296,23 +293,6 @@ describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)",
   const wppCalls: Array<{ telefone: string; mensagem: string }> = [];
 
   before(async () => {
-    // Wave 13 F2 — limpar debris de runs anteriores que nao foram deletados
-    // pelo after (ex: falha de teste que interrompeu o cleanup). Sem isso,
-    // o teste (c) encontra usuarios fantasma com o mesmo telefone e falha.
-    await db.execute(sql`
-      DELETE FROM alertas_ceo_seguranca
-       WHERE usuario_id IN (
-         SELECT id FROM usuarios
-          WHERE perfil = 'validador_mestre'
-            AND nome = 'Validador Mestre Com Telefone'
-       )
-    `);
-    await db.execute(sql`
-      DELETE FROM usuarios
-       WHERE perfil = 'validador_mestre'
-         AND nome = 'Validador Mestre Com Telefone'
-    `);
-
     validadorComTelefoneId = await inserirUsuario({
       nome: "Validador Mestre Com Telefone",
       email: `${SUFIXO}-vmestre-tel@example.com`,
@@ -323,32 +303,12 @@ describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)",
       UPDATE usuarios SET telefone = ${TELEFONE_VALIDADOR}
        WHERE id = ${validadorComTelefoneId}
     `);
-
-    // Task #166 follow-up (2026-05-18) — isola o resolvedor de destinatarios
-    // pra so enxergar os 2 usuarios criados por esta suite (validadorAtivoId
-    // do `before` global + validadorComTelefoneId desta suite). Sem isso, o
-    // DB compartilhado com producao traz o Caio (id=1, validador_mestre +
-    // platform_owner ATIVO + telefone real `5511977154000` da Wave V46) e
-    // contamina:
-    //   (a-strict) `wppCalls.length === 1` vira 2;
-    //   (c-fallback) o telefone do Caio "vence" o CEO_WHATSAPP no resultado.
-    // O fake ainda CONSULTA o DB (respeita UPDATE telefone=NULL do teste c),
-    // so restringe o universo. O resolvedor real e restaurado no `after`.
-    _setResolverDestinatariosParaTestes(async (): Promise<OwnerDestinatarioRow[]> => {
-      const r = await db.execute<OwnerDestinatarioRow>(sql`
-        SELECT email, telefone FROM usuarios
-        WHERE ativo = true
-          AND id IN (${validadorAtivoId}, ${validadorComTelefoneId})
-      `);
-      return r.rows ?? [];
-    });
   });
 
   after(async () => {
     await db.execute(sql`DELETE FROM alertas_ceo_seguranca WHERE usuario_id = ${alvoUsuarioId}`);
     await db.execute(sql`DELETE FROM usuarios WHERE id = ${validadorComTelefoneId}`);
     _resetEnviarWhatsappParaTestes();
-    _resetResolverDestinatariosParaTestes();
   });
 
   beforeEach(async () => {

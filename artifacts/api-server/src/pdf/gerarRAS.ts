@@ -1,5 +1,4 @@
 import PDFDocument from "pdfkit";
-import { CORES as CORES_V8, drawAssinaturaInstitucional } from "./rasxPdf";
 
 function removeAccents(str: string): string {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -115,59 +114,34 @@ const PAGE_HEIGHT = 595.28;
 const PAGE_WIDTH = 841.89;
 const CONTENT_WIDTH = PAGE_WIDTH - LEFT * 2;
 
-// Paleta V8 institucional — alinhada com rasxPdf (CORES_V8).
-// Mantemos os nomes COLORS.* pra nao reescrever as ~800 linhas downstream;
-// so re-tonalizamos pra estetica navy/dourado/creme.
 const COLORS = {
-  headerBg: CORES_V8.azulPetroleo,          // navy profundo V8
-  headerText: CORES_V8.offWhite,            // creme institucional
-  headerAccent: CORES_V8.douradoQueimado,   // filete dourado V8
-  labelBg: CORES_V8.cinzaZebra,             // creme zebra V8
-  gridBorder: CORES_V8.douradoQueimado,     // bordas finas em dourado fraco
-  gridLight: "#D6CFB8",                     // tracejado interno mais claro
-  textDark: CORES_V8.cinzaTexto,            // preto denso
-  textMedium: CORES_V8.cinzaClaro,          // cinza medio
+  headerBg: "#2C3E50",
+  headerText: "#FFFFFF",
+  labelBg: "#F5F5F5",
+  gridBorder: "#999999",
+  gridLight: "#DDDDDD",
+  textDark: "#111111",
+  textMedium: "#444444",
   textLight: "#888888",
-  accent: CORES_V8.azulPetroleo,            // labels navy
-  white: CORES_V8.branco,
-  statusPendente: "#F2E6B0",                // amarelado off-white pra harmonizar
-  statusAplicada: "#C5DCC1",                // verde sage
-  statusNaoAplicada: "#E8B8AE",             // vermelho off
-  rowAlt: "#F7F3E4",                        // creme alt
+  accent: "#1A5276",
+  white: "#FFFFFF",
+  statusPendente: "#FFF9C4",
+  statusAplicada: "#C8E6C9",
+  statusNaoAplicada: "#FFCDD2",
+  rowAlt: "#FAFAFA",
 };
-
-// Footer institucional V8 — chamado em cada pagina paisagem do RAS Classico.
-// Tema light-navy + variante compacta pra densidade.
-function drawFooterV8(doc: InstanceType<typeof PDFDocument>) {
-  drawAssinaturaInstitucional(doc, {
-    centerX: PAGE_WIDTH / 2,
-    bottomY: PAGE_HEIGHT - 10,
-    theme: "light-navy",
-    variant: "compacta",
-  });
-}
 
 function drawRASHeader(doc: InstanceType<typeof PDFDocument>, dados: DadosRAS, pageNum: number, totalPages: number) {
   const y = TOP;
 
-  // Faixa dourada superior V8 (4px) — assinatura visual institucional
   doc.save();
-  doc.rect(LEFT, y, CONTENT_WIDTH, 4).fill(COLORS.headerAccent);
+  doc.rect(LEFT, y, CONTENT_WIDTH, 22).fill(COLORS.headerBg);
   doc.restore();
 
-  // Bloco navy principal logo abaixo da faixa
-  doc.save();
-  doc.rect(LEFT, y + 4, CONTENT_WIDTH, 22).fill(COLORS.headerBg);
-  doc.restore();
-
-  // Titulo + assinatura institucional inline (estilo V8)
-  doc.fontSize(11).font("Helvetica-Bold").fillColor(COLORS.headerAccent);
-  doc.text("RAS", LEFT + 8, y + 10, { lineBreak: false });
-  doc.fontSize(10).font("Helvetica").fillColor(COLORS.headerText);
-  doc.text("  REGISTRO DE ADMINISTRACAO DE SUBSTANCIAS", LEFT + 32, y + 11, { width: CONTENT_WIDTH - 160, lineBreak: false });
-
-  doc.fontSize(7).font("Helvetica-Oblique").fillColor(COLORS.headerAccent);
-  doc.text(`pag ${pageNum}/${totalPages}`, LEFT + CONTENT_WIDTH - 80, y + 12, { width: 72, align: "right" });
+  doc.fontSize(11).font("Helvetica-Bold").fillColor(COLORS.headerText);
+  doc.text("RAS - REGISTRO ADMINISTRACAO DE SUBSTANCIAS", LEFT + 8, y + 6, { width: CONTENT_WIDTH - 120 });
+  doc.fontSize(7).font("Helvetica").fillColor(COLORS.headerText);
+  doc.text(`pag ${pageNum}/${totalPages}`, LEFT + CONTENT_WIDTH - 80, y + 8, { width: 72, align: "right" });
 
   const infoY = y + 26;
   const colW = CONTENT_WIDTH / 2;
@@ -969,27 +943,22 @@ export function gerarPdfRAS(dados: DadosRAS): Promise<Buffer> {
     let y = drawRASHeader(doc, dados, 1, totalPages);
     const { y: afterProto, fixedColsWidth, substColW } = drawProtocolHeader(doc, dados, y);
     drawMarcacoesGrid(doc, dados, marcacoes1, afterProto, fixedColsWidth, substColW);
-    drawFooterV8(doc);
 
     doc.addPage({ layout: "landscape", size: "A4" });
     y = drawRASHeader(doc, dados, 2, totalPages);
     const proto2 = drawProtocolHeader(doc, dados, y);
     const afterGrid2 = drawMarcacoesGrid(doc, dados, marcacoes2, proto2.y, proto2.fixedColsWidth, proto2.substColW);
     drawSignatureArea(doc, dados, afterGrid2);
-    drawFooterV8(doc);
 
     doc.addPage({ layout: "landscape", size: "A4" });
     drawSubstanciaInfoPage(doc, dados);
-    drawFooterV8(doc);
 
     doc.addPage({ layout: "landscape", size: "A4" });
     drawConsentPage(doc, dados);
-    drawFooterV8(doc);
 
     if (hasFinanceiro) {
       doc.addPage({ layout: "landscape", size: "A4" });
       drawFinancialContractPage(doc, dados);
-      drawFooterV8(doc);
     }
 
     doc.end();

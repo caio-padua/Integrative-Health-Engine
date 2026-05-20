@@ -748,10 +748,6 @@ export default function PlataformaPerfil() {
               })()}
             </section>
 
-            {/* Wave 13 — o disparo de teste real do canal WhatsApp do CEO
-                vive no painel admin WhatsApp (/configuracoes), nao mais aqui.
-                Code-review v2 pediu pra mantermos a operacao do canal junto
-                com a config Twilio (mesma tela onde admin edita credenciais). */}
             <section className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-5">
               <div className="flex items-start gap-3 mb-4">
                 <Bell size={20} className="text-amber-400 mt-1" />

@@ -57,60 +57,12 @@ function escapeQ(s: string) {
   return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
-// Caio 18/mai/2026: estopim duplicou pastas na Aceli porque catalogo migrou
-// de "01_CADASTRO" (underscore) pra "01 CADASTRO" (espaco) sem migration de
-// rename — match exato pelo nome falhava, sistema criava nova vazia ao lado.
-// Solucao: lookup tolerante a separadores (espaco/underscore/hifen) e case.
-// Lista TODAS as folders do parent (~7 macro por paciente, custo trivial) e
-// faz match normalizado em memoria. Funciona pros 4.278 legados Padua.
-export function normalizarNomePasta(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[\s_\-]+/g, "")
-    .trim();
-}
-
 async function findFolderByName(parentId: string, name: string): Promise<string | null> {
   const drive = await getDrive();
-  const q = `'${escapeQ(parentId)}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  const r = await drive.files.list({ q, fields: "files(id,name)", spaces: "drive", pageSize: 200 });
-  const alvo = normalizarNomePasta(name);
-  const hit = (r.data.files ?? []).find((f) => normalizarNomePasta(f.name ?? "") === alvo);
-  return hit?.id ?? null;
+  const q = `'${escapeQ(parentId)}' in parents and mimeType='application/vnd.google-apps.folder' and name='${escapeQ(name)}' and trashed=false`;
+  const r = await drive.files.list({ q, fields: "files(id,name)", spaces: "drive", pageSize: 5 });
+  return r.data.files?.[0]?.id ?? null;
 }
-
-// Helpers expostos pro script de limpeza de duplicatas (Caio 18/mai/2026).
-export interface FolderListItem { id: string; name: string; createdTime: string }
-export async function listarFoldersDoParent(parentId: string): Promise<FolderListItem[]> {
-  const drive = await getDrive();
-  const q = `'${escapeQ(parentId)}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  const r = await drive.files.list({ q, fields: "files(id,name,createdTime)", spaces: "drive", pageSize: 500 });
-  return (r.data.files ?? []).map((f) => ({ id: f.id!, name: f.name ?? "", createdTime: f.createdTime ?? "" }));
-}
-export async function pastaEstaVazia(folderId: string): Promise<boolean> {
-  const drive = await getDrive();
-  const q = `'${escapeQ(folderId)}' in parents and trashed=false`;
-  const r = await drive.files.list({ q, fields: "files(id)", spaces: "drive", pageSize: 1 });
-  return (r.data.files ?? []).length === 0;
-}
-export async function moverPastaPraLixeira(folderId: string): Promise<void> {
-  const drive = await getDrive();
-  await drive.files.update({ fileId: folderId, requestBody: { trashed: true } });
-}
-export interface DriveItem { id: string; name: string; mimeType: string; createdTime: string }
-export async function listarTudoDoParent(parentId: string): Promise<DriveItem[]> {
-  const drive = await getDrive();
-  const q = `'${escapeQ(parentId)}' in parents and trashed=false`;
-  const r = await drive.files.list({ q, fields: "files(id,name,mimeType,createdTime)", spaces: "drive", pageSize: 500 });
-  return (r.data.files ?? []).map((f) => ({ id: f.id!, name: f.name ?? "", mimeType: f.mimeType ?? "", createdTime: f.createdTime ?? "" }));
-}
-export async function moverItemParaPasta(itemId: string, novoParentId: string, antigoParentId: string): Promise<void> {
-  const drive = await getDrive();
-  await drive.files.update({ fileId: itemId, addParents: novoParentId, removeParents: antigoParentId, fields: "id, parents" });
-}
-export const MIME_FOLDER = "application/vnd.google-apps.folder";
 
 async function createFolder(parentId: string, name: string): Promise<string> {
   const drive = await getDrive();
@@ -373,42 +325,9 @@ export interface UploadResultado {
 }
 
 /**
- * ESTOPIM — REGRA DO SISTEMA (Caio, 13/mai/2026):
- * O 1o arquivo gravado pra um paciente dispara o provisionamento EAGER da
- * arvore completa (32 pastas) + ficha cadastral em Google Sheets.
- *
- * Necessario porque pacientes legados (Wave Padua = 4.278 importados em massa)
- * NUNCA passaram pelo POST /pacientes (unico ponto que tinha o hook). Sem
- * este estopim, eles ficavam com lazy create parcial e sem ficha Sheets.
- *
- * Idempotente: pacientes.arvore_drive_provisionada_em IS NOT NULL = no-op.
- * Sincrono: o upload PRECISA das pastas criadas antes de gravar o arquivo.
- * Import dinamico p/ evitar ciclo (autoProvisionDrive.ts importa drive.ts).
- */
-async function garantirArvoreProvisionada(p: UploadParams): Promise<void> {
-  const r = (await db.execute(sql`
-    SELECT arvore_drive_provisionada_em, cpf
-    FROM pacientes WHERE id = ${p.pacienteId}
-  `)) as unknown as { rows: Array<{ arvore_drive_provisionada_em: Date | null; cpf: string | null }> };
-  const row = r.rows[0];
-  if (!row) throw new Error(`[drive] paciente ${p.pacienteId} nao encontrado`);
-  if (row.arvore_drive_provisionada_em) return; // ja provisionada — no-op
-
-  const mod = await import("../pacientes/autoProvisionDrive.js");
-  await mod.provisionarDriveCompleto({
-    id: p.pacienteId,
-    nome: p.pacienteNome,
-    codigoSemantico: p.codigoSemantico,
-    unidadeId: p.unidadeId,
-    cpf: row.cpf,
-  });
-}
-
-/**
  * UPLOAD HOLISTICO — porta única do sistema pra gravar arquivo na pasta do
  * paciente seguindo TODAS as regras Wave Cadastro Pádua:
  *
- *  ✅ ESTOPIM: provisiona arvore EAGER no 1o upload (regra Caio)
  *  ✅ Pasta-raiz do paciente em unidades.clientes_subfolder_id (lazy create)
  *  ✅ Subpasta categoria/subcategoria (lazy create + cache jsonb)
  *  ✅ Nome do arquivo no padrão YY.MM.DD TIPO [IDENT] CODIGO NOME-PACIENTE.ext
@@ -420,9 +339,6 @@ async function garantirArvoreProvisionada(p: UploadParams): Promise<void> {
 export async function uploadArquivoPaciente(p: UploadParams): Promise<UploadResultado> {
   const cfg = TIPOS_DOCUMENTO[p.tipo];
   if (!cfg) throw new Error(`[drive] Tipo desconhecido: ${p.tipo}`);
-
-  // 0. ESTOPIM — garante arvore + ficha cadastral provisionadas (idempotente)
-  await garantirArvoreProvisionada(p);
 
   // 1. nome do arquivo
   const nomeArquivo = gerarNomeArquivo({
@@ -640,66 +556,6 @@ export interface PacienteContexto {
   nome: string;
   codigoSemantico: string;
   unidadeId: number;
-}
-
-// ============================================================================
-// PERMISSION HELPER — garante acesso leitura do paciente na pasta-raiz dele
-// ============================================================================
-//
-// Decisão Caio (18/mai/2026, demo Carlúcia): TODO paciente que tiver
-// email cadastrado deve ter permission `reader` no Drive folder dele —
-// senão o link enviado por WhatsApp/email cai num "acesso negado" e
-// queima a confiança da paciente. Idempotente: chama findOrAdd, não
-// duplica permission.
-//
-// Cache: pacientes.drive_permission_concedida_em (timestamptz). Se já
-// concedido pra ESTE email, no-op silencioso.
-// ============================================================================
-export interface AcessoLeituraResult {
-  concedido: boolean;
-  email: string | null;
-  motivo?: string;
-  permissionId?: string;
-}
-
-export async function garantirAcessoLeituraPaciente(
-  pacienteId: number,
-): Promise<AcessoLeituraResult> {
-  const r = (await db.execute(sql`
-    SELECT email, google_drive_folder_id
-    FROM pacientes WHERE id = ${pacienteId}
-  `)) as unknown as {
-    rows: Array<{
-      email: string | null;
-      google_drive_folder_id: string | null;
-    }>;
-  };
-  const row = r.rows[0];
-  if (!row) return { concedido: false, email: null, motivo: "paciente não encontrado" };
-  if (!row.email) return { concedido: false, email: null, motivo: "paciente sem email cadastrado" };
-  if (!row.google_drive_folder_id) return { concedido: false, email: row.email, motivo: "paciente sem pasta Drive" };
-
-  // Reuso do helper existente em lib/google-drive (que já cuida do client OAuth)
-  const { shareWithPatientAsViewer } = await import("../google-drive.js");
-  try {
-    const res = await shareWithPatientAsViewer(row.google_drive_folder_id, row.email);
-    // Marca timestamp (best-effort — coluna pode não existir ainda)
-    try {
-      await db.execute(sql`
-        UPDATE pacientes
-        SET drive_permission_concedida_em = now()
-        WHERE id = ${pacienteId}
-      `);
-    } catch { /* coluna opcional — silencioso */ }
-    return { concedido: true, email: row.email, permissionId: res.permissionId };
-  } catch (e: any) {
-    const msg = String(e?.message ?? e);
-    // Permission já existe = sucesso idempotente
-    if (msg.toLowerCase().includes("already") || msg.includes("duplicate")) {
-      return { concedido: true, email: row.email, motivo: "permission já existia" };
-    }
-    return { concedido: false, email: row.email, motivo: msg };
-  }
 }
 
 /**

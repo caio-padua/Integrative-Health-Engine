@@ -5,7 +5,6 @@ import { CriarPacienteBody } from "@workspace/api-zod";
 import { autoProvisionDriveAsync } from "../lib/pacientes/autoProvisionDrive";
 import { gerarCodigoSemantico } from "../lib/arquivos/codigoSemantico";
 import { cpfCanonico, telefoneCanonico, emailCanonico, cepCanonico } from "../lib/format/canonico";
-import { resolverFiltroTenant } from "../lib/auth/filtroTenant";
 
 const router = Router();
 
@@ -56,9 +55,7 @@ function montarOrderByPacientes(tokens: string[]): SQL[] {
 }
 
 router.get("/pacientes", async (req, res): Promise<void> => {
-  // Wave 13 F2 — tenant isolation: platform_owner usa query param livremente;
-  // tenant com unidadeId no JWT tem isolamento forcado (ignora query param).
-  const { unidadeId: unidadeIdTenant } = resolverFiltroTenant(req);
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
   const busca = req.query.busca as string | undefined;
   const ordenarPorRaw = typeof req.query["ordenarPor"] === "string"
     ? (req.query["ordenarPor"] as string).toLowerCase()
@@ -70,8 +67,8 @@ router.get("/pacientes", async (req, res): Promise<void> => {
   // Nada de SQL cru aqui — o ORDER BY dinamico e o unico ponto que usa
   // sql template fragments, e mesmo assim so valores ja whitelisted.
   const condicoes: SQL[] = [];
-  if (unidadeIdTenant !== null && Number.isFinite(unidadeIdTenant)) {
-    condicoes.push(eq(pacientesTable.unidadeId, unidadeIdTenant));
+  if (unidadeId !== undefined && Number.isFinite(unidadeId)) {
+    condicoes.push(eq(pacientesTable.unidadeId, unidadeId));
   }
   if (busca && busca.trim() !== "") {
     const padrao = `%${busca.toLowerCase()}%`;

@@ -2,7 +2,6 @@ import { Router } from "express";
 import { db, filasTable, pacientesTable, usuariosTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { MoverItemFilaBody } from "@workspace/api-zod";
-import { resolverFiltroTenant } from "../lib/auth/filtroTenant";
 
 const router = Router();
 
@@ -34,9 +33,7 @@ const buildFilaResult = async (tipo: string | undefined, unidadeId: number | und
 
 router.get("/filas", async (req, res): Promise<void> => {
   const tipo = req.query.tipo as string | undefined;
-  // Wave 13 F2 — tenant isolation enforced
-  const { unidadeId: unidadeIdTenant } = resolverFiltroTenant(req);
-  const unidadeId = unidadeIdTenant !== null ? unidadeIdTenant : undefined;
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
 
   const todos = await buildFilaResult(undefined, unidadeId);
 

@@ -2,7 +2,6 @@ import { Router, Request, Response } from "express";
 import { db } from "@workspace/db";
 import { demandasServicoTable, pacientesTable, usuariosTable, unidadesTable, PLANOS_ACOMPANHAMENTO, CUSTO_POR_COMPLEXIDADE } from "@workspace/db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
-import { resolverFiltroTenant } from "../lib/auth/filtroTenant";
 
 const router = Router();
 
@@ -23,9 +22,7 @@ router.patch("/acompanhamento/paciente/:id/plano", async (req: Request, res: Res
 });
 
 router.get("/demandas", async (req: Request, res: Response) => {
-  // Wave 13 F2 — tenant isolation enforced
-  const { unidadeId: unidadeIdTenant } = resolverFiltroTenant(req);
-  const unidadeId = unidadeIdTenant !== null ? unidadeIdTenant : undefined;
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
   const consultorId = req.query.consultorId ? parseInt(req.query.consultorId as string, 10) : undefined;
   const status = req.query.status as string | undefined;
 
@@ -92,9 +89,7 @@ router.patch("/demandas/:id/status", async (req: Request, res: Response) => {
 });
 
 router.get("/demandas/resumo", async (req: Request, res: Response) => {
-  // Wave 13 F2 — tenant isolation enforced
-  const { unidadeId: unidadeIdTenant } = resolverFiltroTenant(req);
-  const unidadeId = unidadeIdTenant !== null ? unidadeIdTenant : undefined;
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
 
   let demandas = await db.select().from(demandasServicoTable);
   if (unidadeId) demandas = demandas.filter(d => d.unidadeId === unidadeId);

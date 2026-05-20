@@ -27,16 +27,180 @@ A ponte oficial pro Dr. Claude ler tudo via raw GitHub é a pasta
   real** com raw URLs por domínio
 - `raws/` — espelhos exatos dos docs `.local/*`
 
-## Waves recentes (resumo, detalhes em `docs/historico-wave-v200-plus.md`)
+## Wave Cadastro Pádua — 4.278 pacientes (13/mai/2026)
 
-- **Cadastro Pádua (13/mai)** — 3.872 pacientes importados em `unidade_id=15` com `codigo_semantico`, Migration 040/042 (campos pacientes + auto-completar via PL/pgSQL).
-- **V25 PADCOM Demo Luciano (13/mai)** — planilha Sheets 14 abas com narrativa "antes→durante→depois" e cores institucionais por terços.
-- **Backfill posologia estruturada Task #40 (13/mai)** — 259/259 (100%) interpretados em `itens_terapeuticos` + `revo_medicamentos`.
-- **V46 WhatsApp do CEO (13/mai)** — `usuarios.telefone` ativa canal WhatsApp em assinatura digital.
-- **V72 Sprint 1 Motor V4 (17/mai)** — Migration 072 ponte aditiva `codigo_referencia` V13 → `codigo_referencia_v4`. Caminho B Dr. Claude: V13 nunca removido.
-- **V232 retenção auditoria Painel PAWARDS (14/mai)** — worker 24h limpa `painel_pawards_auditoria` conforme `PAINEL_PAWARDS_AUDITORIA_RETENCAO_MESES`.
-- **V256 cão-de-guarda webhook ZapSign silencioso (14/mai)** — worker 60min detecta queda silenciosa e enfileira alerta CEO.
-- **V479–V483 demo investidora Carlúcia (18/mai)** — sessão 39 (id=3497, Pádua, 19/mai 07:30): RAS Completo cheio (26.353b, 11 cadernos populados), receita manipulada via `gerarPrescricaoPdf` (Manifesto Blueprint v2.0) roteada pra Galena Manipulação (id=7 em `farmacias_parmavault`), RACJ presencial (9 termos em `termos_assinados`, PDF consolidado 67.541b via novo `gerarPdfRacj`), envelope ZapSign real (solicitação 257, envelope `8f0eb530...`) com link de assinatura enviado por WhatsApp.
+Importação completa do Instituto Pádua (`unidade_id=15`) a partir da
+planilha Google Sheets (`SHEET_ID=1uR0jIx1rIQE3346EUQZhy52gDkrtslH91NGeIPF7QxY`,
+tab "Cadastro Mestre"). Estrutura nova de Drive hierárquica + código semântico
+interno + nomenclatura padrão de arquivos.
+
+### Resultado
+- **3.872 inseridos + 20 atualizados + 386 pulados sem telefone, 0 erros**
+- 3.847 pacientes Pádua com `codigo_semantico` (ex: `PADU-AGRA-ABHI-MASC-1979-9801`)
+- Coverage: 2.600 com CPF · 3.847 com tel · 3.792 com WhatsApp · 3.222 com data nascimento
+- Idempotência confirmada via `(unidade_id, codigo_externo)` → re-run = `UPDATE` no-op
+- Invariantes Wave 9 PRESERVADAS: 8.728 receitas, R$ 2.736.536,10 comissão, 5 triggers ATIVOS
+
+### Migration 040 (`040_pacientes_codigo_semantico.sql`, psql aditivo)
+Adiciona em `pacientes`: `codigo_externo`, `codigo_semantico`,
+`drive_subpastas jsonb`, `telefone_fixo`, `whatsapp`. Cria tabelas
+`arquivos_paciente` (registry de arquivos no Drive) e `importacoes_lote`
+(rastreabilidade de batches).
+
+### Libs novas
+- `lib/format/canonico.ts` — canonicaliza CPF/tel/email/CEP
+- `lib/arquivos/codigoSemantico.ts` — gera `SLUGCLINICA-SOBR-NOME-SEXO-AAAA-DDDD`
+- `lib/arquivos/catalogo.ts` — 7 categorias macro
+- `lib/arquivos/registry.ts` — persiste arquivo no DB + Drive
+- `lib/arquivos/drive.ts` — estrutura PAWARDS > GESTAO CLINICA > EMPRESAS >
+  [CLINICA] > CLIENTES [CLINICA] > [paciente] > [categoria] (lazy-create)
+
+### Migration 042 — auto-completar dados cadastrais
+5 funções PL/pgSQL (`fn_padcon_calcular_idade`, `fn_padcon_classificar_faixa_etaria`,
+`fn_padcon_inferir_sexo_por_nome`, `fn_padcon_inferir_estado_civil_por_idade`,
+`fn_padcon_inferir_profissao_padrao`) + trigger `trg_padcon_completar_dados`
+BEFORE INSERT/UPDATE em `pacientes`. POST `/pacientes` retorna
+`avisoCadastroIncompleto` quando faltam campos críticos.
+
+## Wave V25 PADCOM Demo — Luciano Carvalho (13/mai/2026)
+
+Peça de demonstração executiva: **planilha Google Sheets V25 PADCOM
+populada** com dados clinicamente plausíveis (claramente marcada
+"DEMONSTRAÇÃO") para o paciente **Luciano Carvalho Torraga Dos Santos**
+(id=4587, masc, 38 anos, código `PADU SANT LUCI MASC 1988 6873`).
+
+### Estrutura V25 PADCOM (briefing Dr. Claude)
+14 abas — narrativa clínica integrativa "antes → durante → depois":
+1. CADASTRO — identidade do paciente (3 datas avaliativas)
+2. RESUMO EXECUTIVO — semáforo de classificações
+3. CARDIOVASCULAR (6 exames: Colesterol Total, LDL, HDL, Triglicerídeos, hs-CRP, Homocisteína)
+4. METABÓLICO (7: Glicose, Insulina, HOMA-IR, HbA1c, TSH, Cortisol, DHEA-S)
+5. VITAMINAS_MINERAIS (6: Vit D, B12, Folato, Ferritina, Magnésio, Zinco)
+6. AUTOIMUNE (4: FAN, Fator Reumatoide, PCR-us, IgA total)
+7. ONCOLÓGICO (3 rastreio masc: PSA total, PSA livre, CEA)
+8. NEURO_PSI (5: Cortisol noturno, Melatonina, Triptofano, Vit B6, DHEA-S)
+9. GASTRO_HEPÁTICO (5: AST, ALT, GGT, Bilirrubina total, Albumina)
+10. RENAL (5: Ureia, Creatinina, eGFR, Ác. úrico, Microalbuminúria)
+11. MUSCULO_ESQUELÉTICO (5: CPK, Cálcio iônico, Fósforo, PTH, Osteocalcina)
+12. BLENDS (20 slots × 5 ativos cada — protocolo manipulado)
+13. CIRURGIAS (registro histórico)
+14. PARÂMETROS — legenda de cores + escala terços (PREOCUPANTE / BAIXO / MEDIANO / OTIMO / ALERTA)
+
+### Classificação por terços (cores institucionais)
+- 🔴 PREOCUPANTE / ALERTA → vermelho-escuro `#7d1d2e`
+- 🟠 BAIXO / ALTO → laranja `#d97a3c`
+- 🟡 MEDIANO → amarelo `#e8c547`
+- 🟢 OTIMO (terço-alvo do analito) → verde `#3a7d44`
+
+### Lib + Script
+- `artifacts/api-server/src/lib/sheets/fichaV25Padcom.ts` — gerador V25
+  (cria spreadsheet com 14 abas, formatação por terço, blends, cirurgias)
+- `scripts/src/gerar-v25-luciano.ts` — CLI (`pnpm --filter @workspace/scripts run gerar-v25-luciano`)
+- Saída: spreadsheet Google compartilhado + URL impressa no console
+
+### Dados simulados (paciente sem prontuário real)
+Narrativa "Caso Luciano": homem 38a com déficit Vit D inicial (18 ng/mL,
+PREOCUPANTE) + LDL alto (142, ALERTA) + HOMA-IR 3.2 (ALERTA) que
+**recupera com protocolo PADCON** ao longo de 3 datas avaliativas
+(D1=01/2026, D2=04/2026, D3=05/2026), terminando com Vit D=58 (ÓTIMO),
+LDL=115 (ÓTIMO), HOMA-IR=1.8 (ÓTIMO). Demonstra valor clínico do motor.
+
+## Wave Backfill Posologia Estruturada — Task #40 (13/mai/2026)
+
+Backfill único da coluna `posologia_estruturada` (jsonb, migration 034) nos
+registros históricos de `itens_terapeuticos` e `revo_medicamentos`. A partir
+desta onda, TODOS os PDFs (RASX/REVO/Motor) renderizam a frase canônica
+padronizada — antes só novas inserções via `/sync-catalogo` ou UI populavam
+o campo, e os históricos caíam no texto bruto.
+
+### Script (`scripts/src/backfill-posologia-estruturada.ts`)
+- CLI: `pnpm --filter @workspace/scripts run backfill-posologia-estruturada`
+- Lê `posologia_estruturada IS NULL AND posologia IS NOT NULL` em chunks de 500.
+- Chama `parsePosologia` (lib pura `@workspace/posologia`) com contexto:
+  - `itens_terapeuticos` → `categoria` herdada da própria coluna
+  - `revo_medicamentos` → `revo_formula` (tipo_med=formula) ou `revo_medicamento`
+- `UPDATE` por id; não toca em `posologia` (texto bruto = fonte de verdade).
+- Idempotente: re-run = no-op (query já exclui linhas backfilled).
+
+### Resultado (snapshot 13/mai/2026)
+- **itens_terapeuticos: 167 processados | 167 interpretado (100,0%) | 0 fallback**
+- **revo_medicamentos: 92 processados | 92 interpretado (100,0%) | 0 fallback**
+- **Geral: 259/259 (100,0% interpretado, 0% fallback)**
+- Re-execução confirmada idempotente (0 linhas pendentes).
+- Migration 034 aplicada antes do backfill (era pré-requisito ausente no DB).
+
+## Wave V232 — Retencao automatica da auditoria do Painel PAWARDS (14/mai/2026)
+
+Task #232 fechada: a tabela `painel_pawards_auditoria` (migration 007) recebia
+um INSERT a cada GET no Painel PAWARDS sem nenhuma politica de retencao —
+em alguns meses viraria gigante e a paginacao ficaria lenta, alem de violar
+recomendacao da LGPD (manter trilha de acesso so pelo prazo necessario).
+
+### Migration 056 (`056_painel_pawards_auditoria_retencao.sql`)
+Cria `painel_pawards_auditoria_limpezas` (id, executado_em, corte_em,
+meses_retencao, removidas, pulado_por_lock) — log auditavel de cada
+execucao do worker. NAO mexe na tabela auditada (so adiciona historico).
+
+### Worker (`lib/recorrencia/limpezaAuditoriaPainelPawards.ts`)
+- Tick a cada 24h, primeiro disparo 5min apos boot.
+- `DELETE FROM painel_pawards_auditoria WHERE acessado_em < now() - N months`
+  numa unica query (usa indice `idx_painel_pawards_auditoria_acessado_em`).
+- N configuravel via env `PAINEL_PAWARDS_AUDITORIA_RETENCAO_MESES` (default 12).
+- Lock distribuido `pg_try_advisory_lock(15102320)` pra defesa multi-replica.
+- Persiste cada execucao em `painel_pawards_auditoria_limpezas`.
+- Defensivo: nunca lanca; tick falha = log + segue.
+- Wired em `index.ts` via `iniciarWorkerLimpezaAuditoriaPainelPawards()`.
+
+## Wave V256 — Cao-de-guarda do webhook ZapSign silenciosamente quebrado (14/mai/2026)
+
+Task #256 fechada: a Task #129 ja documentou que quando o dominio Replit
+muda, a URL configurada no painel ZapSign aponta pra um endpoint que nao
+existe mais e o webhook para de chegar SILENCIOSAMENTE — `auditoria_assinaturas`
+fica vazia mas a fila de pendentes infla. Hoje so descobriamos quando alguem
+abria o painel e reparava.
+
+### Migration 060 (`060_webhook_assinatura_silencio_alerta.sql`)
+Cria `webhook_assinatura_silencio_alertas` (PK dia_brt, idempotencia diaria)
++ amplia CHECK de `assinatura_notificacoes.momento` pra aceitar
+`WEBHOOK_ASSINATURA_SILENCIO` + texto institucional novo (placeholders
+`{HORAS}`, `{PENDENTES}`, `{ULTIMA_AUDITORIA}`).
+
+### Worker (`lib/recorrencia/webhookAssinaturaSilencio.ts`)
+- Tick 60min, lock distribuido `pg_try_advisory_lock(30303033)`.
+- Pega `MAX(criado_em)` de `auditoria_assinaturas` + conta solicitacoes
+  PENDENTE/ENVIADO/PROCESSANDO criadas DENTRO da janela.
+- Funcao pura `decidirSilencioWebhook()` regra AND: dispara so quando ha
+  pendentes na janela E (webhook nunca recebeu OU gap >= horasJanela).
+- Janela default 24h, configuravel via env
+  `WEBHOOK_ASSINATURA_SILENCIO_HORAS`.
+- Reserva atomica + enfileiramento via `assinatura_notificacoes`
+  (`is_sistema_ceo=true`, bypass opt-out/quiet hours) — falha rola back
+  reserva tambem, evitando falso positivo permanente.
+- Defensivo: nunca lanca; tick falha = log + segue.
+- Wired em `index.ts` via `iniciarWorkerWebhookAssinaturaSilencio()`.
+
+Diferente da Task #251 (upload-INDIVIDUAL preso) e da Task #252 (silencio
+do PROPRIO worker do resumo diario) — esta vigia o silencio AGREGADO da
+chegada externa do webhook.
+
+## Wave V46 — WhatsApp do CEO ativado (13/mai/2026)
+
+Task #46 fechada: tela `/plataforma/perfil` agora permite cadastrar o
+telefone celular do CEO (validador_mestre) com mascara BR
+`(11) 91234-5678` + validacao E.164. O numero e gravado em
+`usuarios.telefone` no formato `+55DDD9XXXXXXXX` via `PUT /api/usuarios/:id`
+(rota ja aceitava `telefone` em SELF_FIELDS).
+
+**Canal WhatsApp do CEO depende deste cadastro.** Sem `usuarios.telefone`
+preenchido pra um usuario com `perfil = '''validador_mestre''' AND ativo = true`,
+o service de assinatura (`artifacts/api-server/src/lib/assinatura/service.ts`,
+funcao `notificarCeoAssinaturaConcluida`) so consegue enfileirar e-mail
+nos eventos `doc_signed`/`doc_refused` (Task #36). Apos o cadastro, o
+proximo evento ZapSign ja dispara WhatsApp via Twilio/Gupshup — sem
+mudar codigo, sem deploy.
+
+`GET /api/usuarios/perfil-atual` agora devolve `telefone` pra hidratar
+a tela. PUT existente continua sendo a rota oficial de escrita.
 
 ## User Preferences
 

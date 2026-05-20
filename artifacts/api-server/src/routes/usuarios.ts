@@ -3,7 +3,6 @@ import { db, usuariosTable, unidadesTable, consultorUnidadesTable } from "@works
 import { eq, and, sql } from "drizzle-orm";
 import { CriarUsuarioBody, LoginUsuarioBody } from "@workspace/api-zod";
 import { signJwt, novoJti } from "../lib/auth/jwt";
-import { resolverFiltroTenant } from "../lib/auth/filtroTenant";
 import { extrairUserAgent, extrairIp, registrarSessao } from "../lib/auth/sessoesJwt";
 import { bloqueioLoginSuspenso } from "../lib/email/clinicaSuspensao";
 import {
@@ -18,8 +17,7 @@ const router = Router();
 
 router.get("/usuarios", async (req, res): Promise<void> => {
   const perfil = req.query.perfil as string | undefined;
-  // Wave 13 F2 — tenant isolation: nao expoe usuarios de outras clinicas
-  const { unidadeId: unidadeIdTenant } = resolverFiltroTenant(req);
+  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
 
   let usuarios = await db
     .select({
@@ -49,8 +47,8 @@ router.get("/usuarios", async (req, res): Promise<void> => {
   if (perfil) {
     usuarios = usuarios.filter(u => u.perfil === perfil);
   }
-  if (unidadeIdTenant !== null) {
-    usuarios = usuarios.filter(u => u.unidadeId === unidadeIdTenant);
+  if (unidadeId) {
+    usuarios = usuarios.filter(u => u.unidadeId === unidadeId);
   }
 
   res.json(usuarios);
