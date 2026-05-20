@@ -18,9 +18,24 @@ import {
   TIPOS_PROCEDIMENTO,
 } from "@workspace/db";
 import { eq, and, sql, or, desc, gte, lte, inArray, between, isNull } from "drizzle-orm";
-import { getCalendarClient, getEventColor } from "../lib/google-calendar";
+import {
+  getCalendarClient,
+  getEventColor,
+  createCalendarEvent,
+  updateCalendarEventDescription,
+  buildEventSummary,
+  type SessaoCalendarData,
+} from "../lib/google-calendar";
 
 const router = Router();
+
+// Normaliza o opt-out de sync Calendar pra aceitar false | "false" | 0 | "0".
+// Default = sincronizar; so desliga quando o cliente envia explicitamente
+// um valor reconhecido como "false". Architect 18/mai/2026: comparacao
+// estrita !== false quebrava clientes legados que enviavam string "false".
+function isOptOutSync(v: unknown): boolean {
+  return v === false || v === 0 || v === "false" || v === "0";
+}
 
 async function auditLog(entidadeTipo: string, entidadeId: number, acao: string, detalhes: any, usuarioId?: number) {
   await db.insert(agendaAuditEventsTable).values({ entidadeTipo, entidadeId, acao, detalhes, usuarioId: usuarioId || null });
@@ -524,14 +539,18 @@ router.post("/agenda-motor/book", async (req, res) => {
 
     await auditLog("APPOINTMENT", result.id, "AGENDADO", { slotId, pacienteId, data: result.data, hora: result.horaInicio });
 
-    if (syncGoogleCalendar) {
+    // REGRA DO SISTEMA: sync Calendar e SEMPRE feito por default. Cliente pode
+    // desligar explicitamente passando syncGoogleCalendar=false (testes/migracoes).
+    // Aceita false | "false" | 0 | "0" pra retrocompat de clientes legados.
+    if (!isOptOutSync(syncGoogleCalendar)) {
       try {
-        const googleEventId = await syncAppointmentToGoogleCalendar(result);
-        if (googleEventId) {
+        const sync = await syncAppointmentToGoogleCalendar(result.id);
+        if (sync) {
           await db.update(appointmentsTable)
-            .set({ googleEventId, atualizadoEm: new Date() })
+            .set({ googleEventId: sync.googleEventId, googleCalendarId: sync.calendarId, atualizadoEm: new Date() })
             .where(eq(appointmentsTable.id, result.id));
-          result.googleEventId = googleEventId;
+          result.googleEventId = sync.googleEventId;
+          result.googleCalendarId = sync.calendarId;
         }
       } catch (gcErr) {
         console.error("Erro sync GCal (nao-bloqueante):", gcErr);
@@ -661,20 +680,19 @@ router.post("/agenda-motor/reschedule", async (req, res) => {
 
     await auditLog("APPOINTMENT", Number(appointmentId), "REAGENDADO", { de: result.anterior, para: result.novo, motivo });
 
-    if (syncGoogleCalendar && result.appointment.googleEventId) {
+    // REGRA DO SISTEMA: reagendamento SEMPRE re-sincroniza Calendar (description
+    // rica + nova data/hora). Default true; cliente desliga com syncGoogleCalendar=false.
+    // Aceita false | "false" | 0 | "0" pra retrocompat de clientes legados.
+    if (!isOptOutSync(syncGoogleCalendar)) {
       try {
-        const calendar = await getCalendarClient();
-        const calendarId = result.appointment.googleCalendarId || "primary";
-        await calendar.events.patch({
-          calendarId,
-          eventId: result.appointment.googleEventId,
-          requestBody: {
-            start: { dateTime: `${result.novo.data}T${result.novo.hora}:00`, timeZone: "America/Sao_Paulo" },
-            end: { dateTime: `${result.novo.data}T${result.appointment.horaFim}:00`, timeZone: "America/Sao_Paulo" },
-          },
-        });
+        const sync = await syncAppointmentToGoogleCalendar(result.appointment.id);
+        if (sync) {
+          await db.update(appointmentsTable)
+            .set({ googleEventId: sync.googleEventId, googleCalendarId: sync.calendarId, atualizadoEm: new Date() })
+            .where(eq(appointmentsTable.id, result.appointment.id));
+        }
       } catch (gcErr) {
-        console.error("Erro update GCal event:", gcErr);
+        console.error("Erro re-sync GCal (nao-bloqueante):", gcErr);
       }
     }
 
@@ -830,44 +848,28 @@ router.post("/agenda-motor/sync-gcal", async (req, res) => {
       return;
     }
 
-    const [appointment] = await db
-      .select({
-        id: appointmentsTable.id,
-        pacienteNome: pacientesTable.nome,
-        pacienteTelefone: pacientesTable.telefone,
-        profissionalNome: usuariosTable.nome,
-        unidadeNome: unidadesTable.nome,
-        googleCalendarIdUnidade: unidadesTable.googleCalendarId,
-        tipoProcedimento: appointmentsTable.tipoProcedimento,
-        data: appointmentsTable.data,
-        horaInicio: appointmentsTable.horaInicio,
-        horaFim: appointmentsTable.horaFim,
-        duracaoMin: appointmentsTable.duracaoMin,
-        status: appointmentsTable.status,
-        googleEventId: appointmentsTable.googleEventId,
-        observacoes: appointmentsTable.observacoes,
-      })
+    // Verifica existencia ANTES de sincronizar pra preservar contrato 404
+    // (architect 18/mai/2026: regressao introduzida quando movemos JOIN pra
+    // dentro de syncAppointmentToGoogleCalendar mascarava input invalido).
+    const [existe] = await db
+      .select({ id: appointmentsTable.id })
       .from(appointmentsTable)
-      .leftJoin(pacientesTable, eq(appointmentsTable.pacienteId, pacientesTable.id))
-      .leftJoin(usuariosTable, eq(appointmentsTable.profissionalId, usuariosTable.id))
-      .leftJoin(unidadesTable, eq(appointmentsTable.unidadeId, unidadesTable.id))
       .where(eq(appointmentsTable.id, Number(appointmentId)));
-
-    if (!appointment) {
+    if (!existe) {
       res.status(404).json({ erro: "Agendamento nao encontrado" });
       return;
     }
 
-    const googleEventId = await syncAppointmentToGoogleCalendar(appointment);
+    const sync = await syncAppointmentToGoogleCalendar(Number(appointmentId));
 
-    if (googleEventId) {
+    if (sync) {
       await db.update(appointmentsTable)
-        .set({ googleEventId, googleCalendarId: appointment.googleCalendarIdUnidade || "primary", atualizadoEm: new Date() })
-        .where(eq(appointmentsTable.id, appointment.id));
+        .set({ googleEventId: sync.googleEventId, googleCalendarId: sync.calendarId, atualizadoEm: new Date() })
+        .where(eq(appointmentsTable.id, Number(appointmentId)));
     }
 
-    await auditLog("APPOINTMENT", appointment.id, "GCAL_SYNC", { googleEventId });
-    res.json({ ok: true, googleEventId });
+    await auditLog("APPOINTMENT", Number(appointmentId), "GCAL_SYNC", { googleEventId: sync?.googleEventId, calendarId: sync?.calendarId });
+    res.json({ ok: true, googleEventId: sync?.googleEventId ?? null, calendarId: sync?.calendarId ?? null });
   } catch (err: any) {
     console.error("Erro sync-gcal:", err);
     res.status(500).json({ erro: err.message });
@@ -1050,50 +1052,120 @@ router.get("/agenda-motor/weekly-view", async (req, res) => {
   }
 });
 
-async function syncAppointmentToGoogleCalendar(appointment: any): Promise<string | null> {
+// REGRA DO SISTEMA (Caio, 18/mai/2026): TODO appointment criado/remarcado pelo
+// motor de agenda gera evento Google Calendar com layout INSTITUCIONAL completo
+// (titulo "NOME CPF [CODIGO]", paciente, CPF formatado, unidade, procedimentos
+// com 👍/👎, status, substancias do protocolo, legenda, endereco + Maps/Waze)
+// via createCalendarEvent oficial. Carrega TUDO numa unica passada com JOIN
+// pra paciente+unidade+profissional, mantendo a fonte unica de verdade.
+//
+// Antes desta funcao, o sync de appointments montava description inline pobre
+// (Paciente: — / Telefone: — / Unidade: —) deixando o Calendar com layout
+// "tosco" — investidora reclamou em 18/mai/2026 e disparou esta refatoracao.
+async function syncAppointmentToGoogleCalendar(
+  appointmentId: number,
+): Promise<{ googleEventId: string; calendarId: string } | null> {
   try {
-    const calendar = await getCalendarClient();
-    const calendarId = appointment.googleCalendarIdUnidade || appointment.googleCalendarId || "primary";
-    const tipoInfo = TIPOS_PROCEDIMENTO[appointment.tipoProcedimento as keyof typeof TIPOS_PROCEDIMENTO];
+    const [enriched] = await db
+      .select({
+        id: appointmentsTable.id,
+        googleEventId: appointmentsTable.googleEventId,
+        googleCalendarIdApt: appointmentsTable.googleCalendarId,
+        tipoProcedimento: appointmentsTable.tipoProcedimento,
+        data: appointmentsTable.data,
+        horaInicio: appointmentsTable.horaInicio,
+        horaFim: appointmentsTable.horaFim,
+        duracaoMin: appointmentsTable.duracaoMin,
+        observacoes: appointmentsTable.observacoes,
+        pacienteNome: pacientesTable.nome,
+        pacienteCpf: pacientesTable.cpf,
+        profissionalNome: usuariosTable.nome,
+        unidadeNome: unidadesTable.nome,
+        unidadeCalendarId: unidadesTable.googleCalendarId,
+        unidadeEndereco: unidadesTable.endereco,
+        unidadeBairro: unidadesTable.bairro,
+        unidadeCep: unidadesTable.cep,
+        unidadeCidade: unidadesTable.cidade,
+        unidadeEstado: unidadesTable.estado,
+      })
+      .from(appointmentsTable)
+      .leftJoin(pacientesTable, eq(appointmentsTable.pacienteId, pacientesTable.id))
+      .leftJoin(usuariosTable, eq(appointmentsTable.profissionalId, usuariosTable.id))
+      .leftJoin(unidadesTable, eq(appointmentsTable.unidadeId, unidadesTable.id))
+      .where(eq(appointmentsTable.id, appointmentId));
 
-    const summary = `${appointment.pacienteNome || "Paciente"} - ${tipoInfo?.label || appointment.tipoProcedimento}`;
-    const description = [
-      `MOTOR CLINICO - AGENDAMENTO`,
-      `Paciente: ${appointment.pacienteNome || "—"}`,
-      `Telefone: ${appointment.pacienteTelefone || "—"}`,
-      `Profissional: ${appointment.profissionalNome || "—"}`,
-      `Unidade: ${appointment.unidadeNome || "—"}`,
-      `Procedimento: ${tipoInfo?.label || appointment.tipoProcedimento}`,
-      `Duracao: ${appointment.duracaoMin} min`,
-      appointment.observacoes ? `Obs: ${appointment.observacoes}` : "",
-    ].filter(Boolean).join("\n");
-
-    if (appointment.googleEventId) {
-      await calendar.events.patch({
-        calendarId,
-        eventId: appointment.googleEventId,
-        requestBody: {
-          summary,
-          description,
-          start: { dateTime: `${appointment.data}T${appointment.horaInicio}:00`, timeZone: "America/Sao_Paulo" },
-          end: { dateTime: `${appointment.data}T${appointment.horaFim}:00`, timeZone: "America/Sao_Paulo" },
-        },
-      });
-      return appointment.googleEventId;
+    if (!enriched) {
+      console.warn(`[GCal sync] appointment ${appointmentId} nao encontrado`);
+      return null;
     }
 
-    const event = await calendar.events.insert({
-      calendarId,
-      requestBody: {
-        summary,
-        description,
-        start: { dateTime: `${appointment.data}T${appointment.horaInicio}:00`, timeZone: "America/Sao_Paulo" },
-        end: { dateTime: `${appointment.data}T${appointment.horaFim}:00`, timeZone: "America/Sao_Paulo" },
-        colorId: getEventColor(appointment.tipoProcedimento),
-      },
-    });
+    const calendarId = enriched.googleCalendarIdApt || enriched.unidadeCalendarId || "primary";
+    const substancias: SessaoCalendarData["substancias"] = []; // protocolo opcional; agenda-motor ainda nao linka sessoes ao apt
 
-    return event.data.id || null;
+    const data: SessaoCalendarData = {
+      sessaoId: enriched.id,
+      pacienteNome: enriched.pacienteNome || "Paciente",
+      pacienteCpf: enriched.pacienteCpf || undefined,
+      profissionalNome: enriched.profissionalNome || "",
+      tipoProcedimento: enriched.tipoProcedimento || "CONSULTA",
+      duracaoMin: enriched.duracaoMin ?? 60,
+      dataAgendada: enriched.data,
+      horaAgendada: enriched.horaInicio,
+      horaFim: enriched.horaFim || enriched.horaInicio,
+      calendarId,
+      numeroMarcacao: 1,
+      totalMarcacoes: 1,
+      unidadeNome: enriched.unidadeNome || undefined,
+      substancias,
+      endereco: enriched.unidadeEndereco
+        ? {
+            rua: enriched.unidadeEndereco,
+            bairro: enriched.unidadeBairro || undefined,
+            cep: enriched.unidadeCep || undefined,
+            cidade: enriched.unidadeCidade || undefined,
+            estado: enriched.unidadeEstado || undefined,
+          }
+        : undefined,
+    };
+
+    if (enriched.googleEventId) {
+      await updateCalendarEventDescription(
+        calendarId,
+        enriched.googleEventId,
+        substancias,
+        data.tipoProcedimento,
+        data.duracaoMin,
+        data.endereco,
+        {
+          pacienteNome: data.pacienteNome,
+          pacienteCpf: data.pacienteCpf,
+          numeroMarcacao: data.numeroMarcacao,
+          totalMarcacoes: data.totalMarcacoes,
+          unidadeNome: data.unidadeNome,
+        },
+      );
+      const calendar = await getCalendarClient();
+      await calendar.events.patch({
+        calendarId,
+        eventId: enriched.googleEventId,
+        requestBody: {
+          summary: buildEventSummary({
+            pacienteNome: data.pacienteNome,
+            pacienteCpf: data.pacienteCpf,
+            tipoProcedimento: data.tipoProcedimento,
+            substancias,
+          }),
+          start: { dateTime: `${data.dataAgendada}T${data.horaAgendada}:00`, timeZone: "America/Sao_Paulo" },
+          end: { dateTime: `${data.dataAgendada}T${data.horaFim}:00`, timeZone: "America/Sao_Paulo" },
+          colorId: getEventColor(data.tipoProcedimento, substancias),
+        },
+      });
+      return { googleEventId: enriched.googleEventId, calendarId };
+    }
+
+    const event = await createCalendarEvent(data);
+    if (!event?.id) return null;
+    return { googleEventId: event.id, calendarId };
   } catch (err) {
     console.error("Erro syncAppointmentToGoogleCalendar:", err);
     return null;

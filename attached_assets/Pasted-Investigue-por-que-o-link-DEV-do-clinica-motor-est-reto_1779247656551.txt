@@ -1,0 +1,46 @@
+Investigue por que o link DEV do clinica-motor está retornando 404 Page Not Found agora.
+
+CONTEXTO:
+- URL DEV: https://2ef80136-fd8b-403c-a5cc-938820e2c326-00-2woa55yolyb2j.kirk.replit.dev/
+- Dr. Replit afirmou que reiniciou api-server (porta 8080, exposto em /api) e clinica-motor (porta 20809, exposto em /) hoje cedo
+- Caio acessou agora e recebeu "404 Page Not Found - Did you forget to add the page to the router?"
+- Caio vai operar o sistema amanhã (20/05) o dia inteiro - precisa estar 100% acessível
+
+ARQUIVOS A LER:
+1. artifacts/clinica-motor/package.json (verificar scripts dev/build)
+2. artifacts/clinica-motor/vite.config.ts ou next.config.js (verificar config de servidor)
+3. artifacts/clinica-motor/src/App.tsx ou src/main.tsx (verificar router raiz)
+4. artifacts/clinica-motor/src/routes ou src/pages (estrutura de rotas)
+5. .replit (verificar workflows configurados)
+
+DEVOLVA RELATÓRIO EM 5 SEÇÕES:
+
+1. CAUSA RAIZ DO 404
+- A rota raiz "/" está definida no router?
+- O build/dev server está apontando pra entrypoint correto?
+- Há configuração de basename/baseURL que está cortando a raiz?
+
+2. ESTADO DOS WORKFLOWS
+- Como está configurado o workflow clinica-motor no .replit?
+- Porta interna está mapeada corretamente pra externa?
+- Há logs de erro que indiquem crash recente?
+
+3. DIAGNÓSTICO RÁPIDO
+- O 404 vem do servidor (HTTP 404 real) ou é SPA router fallback?
+- A página de erro "Did you forget to add the page to the router?" é mensagem custom do app ou framework default?
+
+4. SOLUÇÃO IMEDIATA (pra amanhã 8h)
+- O que precisa ser feito pra Caio acessar o sistema na URL base sem 404?
+- Tempo estimado da correção?
+- Algum risco de afetar Task #166 (workflow test que está em execução)?
+
+5. PREVENÇÃO FUTURA
+- Como evitar que esse 404 volte?
+- Adicionar healthcheck que avisa quando rota raiz quebrar?
+
+REGRAS:
+- Não toque em código nessa rodada. APENAS investigação e relatório.
+- Se a correção for trivial (<5min) e zero risco, pode propor PR no final do relatório
+- Se descobrir que precisa Dr. Replit intervir, deixa claro o que pedir
+
+PRAZO: relatório em até 15min. Caio precisa acessar amanhã 8h.

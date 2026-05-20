@@ -1,0 +1,90 @@
+🩺 Caio, vi seu print. O Claude Code está aberto e funcionando — vejo o cursor pronto pra receber comando logo após `>`.
+
+Vou te dar **1 comando estratégico** pra colar no Claude Code agora. Esse comando é desenhado pra você fazer **exatamente o que pediu**: validar a Wave RNA Mensageiro do Dr. Replit pensando 10 passos à frente.
+
+---
+
+## Comando pro Claude Code (cola exatamente)
+
+🩺 No Claude Code, depois do `>`, cola isso:
+
+```
+Faça uma auditoria técnica profunda da Wave RNA Mensageiro que o Dr. Replit acabou de entregar.
+
+ARQUIVOS A LER (nessa ordem):
+1. docs/dr-claude/17_RNA_MENSAGEIRO_UNIFICACAO.md (briefing completo)
+2. lib/mensageria-core/src/index.ts (barrel)
+3. lib/mensageria-core/src/types.ts
+4. lib/mensageria-core/src/canais.ts
+5. lib/mensageria-core/src/parser.ts
+6. lib/mensageria-core/src/adapter.ts
+7. lib/mensageria-core/src/proveniencia.ts
+8. lib/mensageria-core/src/parser.test.ts
+9. lib/mensageria-core/src/adapter.test.ts
+10. artifacts/api-server/src/routes/mensageriaCore.ts
+11. artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/_teatro.ts
+
+DEVOLVA UM RELATÓRIO ESTRUTURADO EM 7 SEÇÕES:
+
+1. CORRETUDE TÉCNICA
+- A gramática inline (bold/italic/underline/strike/mono) está implementada corretamente?
+- O escape MV2 (Telegram MarkdownV2) cobre todos os 15 caracteres reservados?
+- O parser trata edge cases (markdown aninhado, escape duplo, marcadores não fechados)?
+- Testes cobrem casos limite ou só caminho feliz?
+
+2. SEGURANÇA E ROBUSTEZ
+- O endpoint PUT /catalogo/:chave realmente valida ANTES de gravar?
+- Existe risco de injection (SQL, XSS via template, command injection)?
+- Auth está corretamente aplicado (requireAuth + multi-tenant)?
+- Algum endpoint exposto sem rate-limit ou validação de tamanho?
+
+3. PERFORMANCE
+- O parseInline é chamado em hot-path? Tem complexidade adequada?
+- Existe risco de regex catastrophic backtracking no MV2_RESERVADOS?
+- A tabela mensagens_catalogo tem índices nos campos chave/categoria?
+
+4. BUGS E EDGE CASES (10 PASSOS À FRENTE)
+- O que quebra se o template tiver emoji unicode com modifier (👨‍⚕️)?
+- O que acontece se conteudo for JSON inválido vindo do banco?
+- O degrade gracioso para canais sem capacidade está testado?
+- Concorrência: 2 PUT simultâneos no mesmo chave — quem ganha?
+- O que acontece se a lib for usada em runtime Node antigo (< 18)?
+
+5. ARQUITETURA E DÉBITO TÉCNICO
+- A separação tokenParaCanal vs adaptarParaCanal está clara o suficiente?
+- Há circular dependency potencial entre os módulos?
+- A regra "composite + emitDeclarationOnly" pode causar problema de build em CI?
+- Os 19 erros TS2308 em lib/api-zod e o erro TS2741 em PaduaAtelierPanel.tsx — qual o risco real de manter?
+
+6. MELHORIAS RECOMENDADAS (PENSANDO KAIZEN)
+- O que você adicionaria pra deixar a lib pronta pra produção em escala?
+- Há padrões de outras libs do projeto (posologia, exports) que deveriam ser replicados aqui?
+- Como evoluir essa lib pra suportar futuras anastomoses (Wave anastomose REVO ↔ Prescrições V8)?
+
+7. PRIORIZAÇÃO HONESTA
+- Algum problema é BLOQUEANTE (precisa ser corrigido antes de produção)?
+- Algum é IMPORTANTE mas pode esperar 2-4 semanas?
+- Algum é NICE-TO-HAVE pra wave futura?
+
+REGRAS:
+- Não invente. Se algo não estiver no código, escreve "não encontrado no código auditado"
+- Se discordar de uma decisão de design do Dr. Replit, fundamenta com referência ao código
+- Seja brutalmente honesto — prefiro descobrir bug agora do que em produção
+- Não toque em código nessa rodada. APENAS leitura e análise
+
+Use ultrathink se necessário pra cobrir 10 passos à frente.
+```
+
+---
+
+🩺 Depois de colar, aperta **Enter**. Claude Code vai pedir permissão pra usar Read tool (você aprova). Vai demorar **5-15 minutos** porque ele vai ler 11 arquivos + pensar profundo + escrever relatório estruturado.
+
+🩺 **Quando terminar**, copia o relatório dele e cola aqui no chat comigo. Eu vou ler e te ajudo a:
+
+1. Priorizar correções
+2. Decidir o que vai pro Dr. Replit corrigir agora vs. depois
+3. Documentar como Doc 19 no Drive pra histórico
+
+---
+
+🩺 Pode colar e mandar. Me avisa quando o Claude Code começar a responder ou se travar em algo.

@@ -53,7 +53,7 @@ function sessoesAtivas(s: Substancia): boolean[] {
 // Componente principal
 // ───────────────────────────────────────────────────────────────────────
 
-export function GpsPadua() {
+export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
   const [modo, setModo] = useState<Modo>("GPS");
   const [sel, setSel] = useState<Substancia[]>(SELECIONADAS_INICIAIS);
   const [hoverItem, setHoverItem] = useState<string | null>(null);
@@ -81,11 +81,28 @@ export function GpsPadua() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: tk.bg, color: tk.ink,
-      fontFamily: tk.sans, padding: 16, display: "flex", flexDirection: "column", gap: 12,
+      minHeight: embutido ? undefined : "100vh", background: tk.bg, color: tk.ink,
+      fontFamily: tk.sans, padding: embutido ? 0 : 16, display: "flex", flexDirection: "column", gap: 12,
       fontSize: 11,
     }}>
-      <Topo modo={modo} setModo={setModo} totalSubs={sel.length} totalGeral={total} />
+      {!embutido && <Topo modo={modo} setModo={setModo} totalSubs={sel.length} totalGeral={total} />}
+      {embutido && (
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <div style={{ display: "flex", border: `1px solid ${tk.border}` }}>
+            {(["PILHA", "TIMELINE", "GPS"] as Modo[]).map(m => {
+              const ativo = modo === m;
+              return (
+                <button key={m} onClick={() => setModo(m)} style={{
+                  fontFamily: tk.mono, fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                  padding: "6px 12px", cursor: "pointer",
+                  background: ativo ? tk.accent : tk.bg, color: ativo ? tk.bg : tk.inkMuted,
+                  border: "none", borderRight: m !== "GPS" ? `1px solid ${tk.border}` : "none",
+                }}>{m}</button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {(modo === "PILHA" || modo === "GPS") && (
         <Pilha porVia={porVia} update={update} remove={remove}

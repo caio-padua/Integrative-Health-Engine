@@ -1,0 +1,541 @@
+[
+  {
+    "codigo_padcom": "INJE ENDO SUPR COQ1 0100",
+    "codigo_rxs": "RXS COQX",
+    "nome_comercial": "Coenzima Q10 (Ubiquinona)",
+    "nome_subtitulo": "Cofator mitocondrial · Antioxidante lipossolúvel · Rendimento bioenergético",
+    "evidencia_nivel": "A",
+    "metadados_strip": {
+      "sessoes_ataque": 8,
+      "duracao_protocolo": "8 sem",
+      "janela_efeito": "14-21 dias",
+      "manutencao": "mensal"
+    },
+    "curva_declinio": {
+      "titulo": "CURVA DE DECLÍNIO FISIOLÓGICO",
+      "subtitulo": "CoQ10 MIOCÁRDICO · ng/g",
+      "pontos": [
+        { "idade": 20, "percentual": 100, "cor": "verde" },
+        { "idade": 40, "percentual": 75, "cor": "oliva" },
+        { "idade": 60, "percentual": 50, "cor": "ambar" },
+        { "idade": 80, "percentual": 28, "cor": "vermelho" }
+      ],
+      "callout_reposicao": "+ 70% c/ EV em 8 sem",
+      "citacao_fonte": "Kalén A. et al. Lipids 1989",
+      "legenda_final": "Reposição endovenosa restaura 70% dos níveis em 8 semanas."
+    },
+    "timeline_farmacocinetico": [
+      { "momento": "0h", "cor": "verde", "titulo": "INFUSÃO", "descricao": "Pico plasmático em formação" },
+      { "momento": "1h", "cor": "oliva", "titulo": "PICO SÉRICO", "descricao": "Concentração máxima sanguínea" },
+      { "momento": "6h", "cor": "ambar", "titulo": "CAPTAÇÃO", "descricao": "Tecidos de alta demanda" },
+      { "momento": "14d", "cor": "azul", "titulo": "EFEITO PERCEBIDO", "descricao": "Paciente sente diferença" }
+    ],
+    "bloco_por_que": [
+      { "etiqueta": "DECLÍNIO ↓", "numero_destaque": "72%", "frase": "de redução nos níveis miocárdicos entre 20 e 80 anos. Queda silenciosa, contínua, fisiológica." },
+      { "etiqueta": "ESTATINAS", "numero_destaque": "40-50%", "frase": "de depleção adicional em pacientes em uso crônico de inibidores de HMG-CoA redutase." },
+      { "etiqueta": "ABSORÇÃO VO", "numero_destaque": "2-3%", "frase": "de biodisponibilidade oral — lipossolúvel, exige bile íntegra, fragmentado pelo primeiro passo hepático." },
+      { "etiqueta": "PREMISSA", "numero_destaque": "", "frase": "Não somos o que comemos — somos o que absorvemos.", "estilo": "italico_premissa" }
+    ],
+    "bloco_como_atua": [
+      { "etiqueta": "COMPLEXOS", "frase": "Cofator obrigatório dos Complexos I, II e III da cadeia respiratória mitocondrial." },
+      { "etiqueta": "ATP", "numero_destaque": "95%", "frase": "Responsável por 95% da produção de energia celular em tecidos de alta demanda metabólica." },
+      { "etiqueta": "CIRCULAÇÃO", "frase": "Único antioxidante lipossolúvel sintetizado endogenamente — protege membrana mitocondrial e LDL circulante." },
+      { "etiqueta": "EVIDÊNCIA", "numero_destaque": "-43%", "frase": "Q-SYMBIO Trial demonstrou redução de 43% em mortalidade cardiovascular em ICC com suplementação 300mg/dia.", "referencia": "JACC Heart Failure 2014" }
+    ],
+    "bloco_impacto_sistemas": [
+      { "sistema": "Cardiovascular", "observacao_curta": "Função miocárdica · HRV · função endotelial", "score_padua": 95, "score_mercado": 72 },
+      { "sistema": "Energia mitocondrial", "observacao_curta": "ATP · cadeia respiratória · fadiga", "score_padua": 92, "score_mercado": 68 },
+      { "sistema": "Performance física", "observacao_curta": "VO2max · recuperação · resistência", "score_padua": 84, "score_mercado": 55 },
+      { "sistema": "Anti-envelhecimento", "observacao_curta": "Proteção LDL · membrana celular · pele", "score_padua": 78, "score_mercado": 48 },
+      { "sistema": "Neurocognitivo", "observacao_curta": "Função executiva · neuroproteção", "score_padua": 70, "score_mercado": 42 },
+      { "sistema": "Reprodutivo", "observacao_curta": "Motilidade espermática · oocitária", "score_padua": 65, "score_mercado": 38 },
+      { "sistema": "Imunológico", "observacao_curta": "Modulação inflamatória discreta", "score_padua": 55, "score_mercado": 30 },
+      { "sistema": "Metabólico", "observacao_curta": "Adjuvante em síndrome metabólica", "score_padua": 48, "score_mercado": 25 }
+    ],
+    "bloco_posologia": {
+      "ev": {
+        "biodisponibilidade": 98,
+        "etiqueta_principal": "PROTOCOLO CLÍNICO",
+        "etiqueta_secundaria": "HOME NURSE",
+        "dose_descricao": "100-200 mg em SF 0,9%, infusão 30-45 min",
+        "texto_completo": "100-200 mg em SF 0,9%, infusão 30-45 min. Aplicação na clínica ou via home nurse. Pico sérico em 60 min. Captação miocárdica observada em 4-6 horas. Protocolo padrão: 8 sessões semanais de saturação + manutenção mensal.",
+        "cor": "verde_salvia"
+      },
+      "im": {
+        "biodisponibilidade": 65,
+        "etiqueta_principal": "MANUTENÇÃO",
+        "dose_descricao": "100 mg em 2 ml oleoso, 1×/semana",
+        "texto_completo": "100 mg em 2 ml oleoso, 1×/semana. Aplicação na clínica ou via home nurse. Indicada como ponte entre ciclos EV ou para pacientes com agenda restrita. Não substitui o protocolo EV inicial.",
+        "cor": "ambar"
+      },
+      "oral": {
+        "biodisponibilidade": 3,
+        "etiqueta_principal": "LIMITAÇÃO ABSORTIVA",
+        "dose_descricao": "Cápsulas 100-200 mg/dia VO",
+        "texto_completo": "Cápsulas 100-200 mg/dia VO. Dependente de bile, gordura concomitante e mucosa intestinal preservada. Inadequada em pacientes pós-bariátricos, em uso de IBP ou idade superior a 60 anos.",
+        "cor": "cinza"
+      }
+    },
+    "contraindicacoes": [
+      "Hipersensibilidade ao composto",
+      "Anticoagulação com varfarina (CoQ10 reduz INR)",
+      "Gestação categoria C",
+      "Quimioterapia ativa (consultar oncologista)"
+    ],
+    "sinapses_farmacologicas": {
+      "central": { "nome": "CoQ10", "codigo": "RXS COQX" },
+      "perifericas": [
+        { "nome": "NAD+", "codigo_referencia": "RXS NADH", "efeito_potencializacao": "+ 38% ATP", "cor": "verde", "posicao": "NO" },
+        { "nome": "L-Carnitina", "codigo_referencia": "RXS LCAR", "efeito_potencializacao": "β-oxidação acoplada", "cor": "azul", "posicao": "SO" },
+        { "nome": "D-Ribose", "codigo_referencia": "RXS DRIB", "efeito_potencializacao": "substrato ATP", "cor": "ambar", "posicao": "NE" },
+        { "nome": "Glutationa", "codigo_referencia": "RXS GLUT", "efeito_potencializacao": "reciclagem antioxidante", "cor": "roxo", "posicao": "SE" }
+      ],
+      "legenda": "Substâncias que potencializam o efeito mitocondrial no Protocolo Pádua"
+    },
+    "scorecard": {
+      "protocolos_ativos": 847,
+      "delta_trimestre": 18,
+      "satisfacao": 94,
+      "janela_retorno": "14-21 dias",
+      "eventos_adversos": 0.3,
+      "classificacao_eventos": "leves · auto-limitados",
+      "adesao_protocolo": 89,
+      "detalhe_adesao": "conclusão das 8 sessões"
+    },
+    "categoria_principal": "ENERGIA",
+    "vias_disponiveis": ["EV", "IM", "ORAL"],
+    "prioridade_clinica": "alta",
+    "pendente_revisao_caio": true,
+    "ativo": false,
+    "criado_em": "2026-05-18T00:00:00Z",
+    "atualizado_em": "2026-05-18T00:00:00Z"
+  },
+
+  {
+    "codigo_padcom": "INJE ENDO SUPR ALAX 0600",
+    "codigo_rxs": "RXS ALAX",
+    "nome_comercial": "Ácido Alfa Lipoico (ALA)",
+    "nome_subtitulo": "Antioxidante universal · Cofator metabólico · Regenerador antioxidante",
+    "evidencia_nivel": "A",
+    "metadados_strip": {
+      "sessoes_ataque": 10,
+      "duracao_protocolo": "10 sem",
+      "janela_efeito": "7-14 dias",
+      "manutencao": "quinzenal"
+    },
+    "curva_declinio": {
+      "titulo": "DECLÍNIO COM ENVELHECIMENTO E DIABETES",
+      "subtitulo": "ALA TECIDUAL · pmol/mg proteína",
+      "pontos": [
+        { "idade": 25, "percentual": 100, "cor": "verde" },
+        { "idade": 45, "percentual": 70, "cor": "oliva" },
+        { "idade": 65, "percentual": 45, "cor": "ambar" },
+        { "idade": 75, "percentual": 28, "cor": "vermelho" }
+      ],
+      "callout_reposicao": "Restaura SOD em 21 dias",
+      "citacao_fonte": "Hagen TM. FASEB 2002",
+      "legenda_final": "Diabéticos apresentam queda adicional de 30-40% nos níveis tissulares."
+    },
+    "timeline_farmacocinetico": [
+      { "momento": "0h", "cor": "verde", "titulo": "INFUSÃO", "descricao": "Distribuição vascular rápida" },
+      { "momento": "30min", "cor": "oliva", "titulo": "PICO", "descricao": "Captação hepática e neural" },
+      { "momento": "4h", "cor": "ambar", "titulo": "ATIVAÇÃO", "descricao": "Regeneração de glutationa" },
+      { "momento": "7d", "cor": "azul", "titulo": "EFEITO PERCEBIDO", "descricao": "Redução de neuropatia" }
+    ],
+    "bloco_por_que": [
+      { "etiqueta": "DECLÍNIO ↓", "numero_destaque": "55%", "frase": "de queda nos níveis teciduais entre 25 e 65 anos." },
+      { "etiqueta": "DIABETES", "numero_destaque": "30-40%", "frase": "de depleção adicional em diabéticos tipo 2 — agravando neuropatia periférica." },
+      { "etiqueta": "ABSORÇÃO VO", "numero_destaque": "30%", "frase": "de biodisponibilidade oral com alimento — cai pela metade se ingerido com refeição." },
+      { "etiqueta": "PREMISSA", "frase": "Único antioxidante hidro- e lipossolúvel simultâneo — atravessa qualquer membrana biológica.", "estilo": "italico_premissa" }
+    ],
+    "bloco_como_atua": [
+      { "etiqueta": "RECICLAGEM", "frase": "Regenera Vitamina C, Vitamina E, glutationa e CoQ10 oxidados — multiplicador antioxidante." },
+      { "etiqueta": "INSULÍNICO", "numero_destaque": "+40%", "frase": "Aumenta captação de glicose pelo GLUT4 em músculo esquelético." },
+      { "etiqueta": "QUELANTE", "frase": "Quela metais pesados (Hg, As, Cd) — único antioxidante com essa propriedade." },
+      { "etiqueta": "EVIDÊNCIA", "numero_destaque": "-65%", "frase": "ALADIN III Trial: redução de 65% em sintomas de neuropatia diabética com 600mg EV.", "referencia": "Diabetes Care 1999" }
+    ],
+    "bloco_impacto_sistemas": [
+      { "sistema": "Neuropatia periférica", "observacao_curta": "Reversão de parestesias · dor neuropática", "score_padua": 96, "score_mercado": 70 },
+      { "sistema": "Metabólico", "observacao_curta": "Sensibilidade insulínica · HOMA-IR", "score_padua": 88, "score_mercado": 60 },
+      { "sistema": "Detoxificação", "observacao_curta": "Quelação metais pesados · fase II", "score_padua": 85, "score_mercado": 52 },
+      { "sistema": "Hepático", "observacao_curta": "Esteatose · regeneração", "score_padua": 80, "score_mercado": 50 },
+      { "sistema": "Antioxidante", "observacao_curta": "Reciclagem multiplicadora", "score_padua": 78, "score_mercado": 48 },
+      { "sistema": "Cognitivo", "observacao_curta": "Neuroproteção · brain fog", "score_padua": 65, "score_mercado": 38 },
+      { "sistema": "Cardiovascular", "observacao_curta": "Função endotelial · NO biodisponível", "score_padua": 58, "score_mercado": 35 },
+      { "sistema": "Anti-envelhecimento", "observacao_curta": "Senescência celular", "score_padua": 55, "score_mercado": 30 }
+    ],
+    "bloco_posologia": {
+      "ev": {
+        "biodisponibilidade": 100,
+        "etiqueta_principal": "PROTOCOLO CLÍNICO",
+        "etiqueta_secundaria": "HOME NURSE",
+        "dose_descricao": "600 mg em SF 0,9% 250ml, infusão 30 min",
+        "texto_completo": "600 mg em SF 0,9% 250ml, infusão 30 min. Aplicação na clínica ou via home nurse. Protocolo neuropatia diabética: 10 sessões em 2-3 semanas, depois manutenção quinzenal. Pacientes referem redução de queimação e formigamento já na 3ª sessão.",
+        "cor": "verde_salvia"
+      },
+      "im": {
+        "biodisponibilidade": 70,
+        "etiqueta_principal": "MANUTENÇÃO",
+        "dose_descricao": "300 mg em 2 ml, 2×/semana",
+        "texto_completo": "300 mg em 2 ml, 2×/semana. Aplicação na clínica ou via home nurse. Alternativa para pacientes com acesso venoso difícil ou agenda restrita.",
+        "cor": "ambar"
+      },
+      "oral": {
+        "biodisponibilidade": 30,
+        "etiqueta_principal": "MANUTENÇÃO DOMICILIAR",
+        "dose_descricao": "300-600 mg/dia VO em jejum",
+        "texto_completo": "300-600 mg/dia VO em jejum (1h antes do café). Tomar com estômago vazio é essencial — alimento reduz absorção em 50%. Adequada para manutenção após protocolo EV de ataque.",
+        "cor": "cinza"
+      }
+    },
+    "contraindicacoes": [
+      "Hipersensibilidade ao composto",
+      "Deficiência de tiamina não corrigida (risco neurológico)",
+      "Hipoglicemia em jejum",
+      "Gestação categoria B (cautela em 1º trimestre)"
+    ],
+    "sinapses_farmacologicas": {
+      "central": { "nome": "ALA", "codigo": "RXS ALAX" },
+      "perifericas": [
+        { "nome": "Metilcobalamina", "codigo_referencia": "RXS MTCB", "efeito_potencializacao": "sinergia em neuropatia", "cor": "verde", "posicao": "NO" },
+        { "nome": "Benfotiamina", "codigo_referencia": "RXS BNFT", "efeito_potencializacao": "via pentose-fosfato", "cor": "azul", "posicao": "SO" },
+        { "nome": "Glutationa", "codigo_referencia": "RXS GLUT", "efeito_potencializacao": "reciclagem ativa", "cor": "roxo", "posicao": "NE" },
+        { "nome": "Vit C EV", "codigo_referencia": "RXS VITC", "efeito_potencializacao": "antioxidante ampliado", "cor": "ambar", "posicao": "SE" }
+      ],
+      "legenda": "Protocolo de neuropatia diabética e detox metabólico"
+    },
+    "scorecard": {
+      "protocolos_ativos": 612,
+      "delta_trimestre": 24,
+      "satisfacao": 91,
+      "janela_retorno": "7-14 dias",
+      "eventos_adversos": 0.5,
+      "classificacao_eventos": "náusea leve · hipoglicemia transitória",
+      "adesao_protocolo": 87,
+      "detalhe_adesao": "conclusão das 10 sessões"
+    },
+    "categoria_principal": "ANTIENV",
+    "vias_disponiveis": ["EV", "IM", "ORAL"],
+    "prioridade_clinica": "alta",
+    "pendente_revisao_caio": true,
+    "ativo": false,
+    "criado_em": "2026-05-18T00:00:00Z",
+    "atualizado_em": "2026-05-18T00:00:00Z"
+  },
+
+  {
+    "codigo_padcom": "INJE ENDO SUPR NACX 0600",
+    "codigo_rxs": "RXS NACX",
+    "nome_comercial": "N-Acetil Cisteína (NAC)",
+    "nome_subtitulo": "Precursor de glutationa · Mucolítico · Modulador hepático",
+    "evidencia_nivel": "A",
+    "metadados_strip": {
+      "sessoes_ataque": 6,
+      "duracao_protocolo": "6 sem",
+      "janela_efeito": "10-21 dias",
+      "manutencao": "quinzenal"
+    },
+    "timeline_farmacocinetico": [
+      { "momento": "0h", "cor": "verde", "titulo": "INFUSÃO", "descricao": "Cisteína intracelular disponível" },
+      { "momento": "1h", "cor": "oliva", "titulo": "GSH INICIAL", "descricao": "Síntese hepática iniciada" },
+      { "momento": "8h", "cor": "ambar", "titulo": "PICO GSH", "descricao": "Glutationa tecidual restaurada" },
+      { "momento": "10d", "cor": "azul", "titulo": "EFEITO CLÍNICO", "descricao": "Marcadores inflamatórios reduzem" }
+    ],
+    "bloco_por_que": [
+      { "etiqueta": "PRECURSOR", "frase": "Aminoácido sulfurado essencial para síntese endógena de glutationa — antioxidante mestre do corpo." },
+      { "etiqueta": "FÍGADO", "numero_destaque": "100%", "frase": "Padrão-ouro mundial em intoxicação por paracetamol — único antídoto reconhecido." },
+      { "etiqueta": "PSIQUIATRIA", "numero_destaque": "-40%", "frase": "Redução em sintomas de TOC, tricotilomania e compulsões com NAC 1200-2400mg/dia.", "referencia": "Berk M. Am J Psychiatry 2013" },
+      { "etiqueta": "PREMISSA", "frase": "Repor o substrato é melhor que repor o produto final — corpo escolhe a dose certa.", "estilo": "italico_premissa" }
+    ],
+    "bloco_como_atua": [
+      { "etiqueta": "GLUTATIONA", "numero_destaque": "+78%", "frase": "Aumenta glutationa intracelular hepática em até 78% em 7 dias de uso EV." },
+      { "etiqueta": "MUCOLÍTICO", "frase": "Quebra pontes dissulfeto de muco brônquico, intestinal e renal — fluidifica secreções." },
+      { "etiqueta": "DOPAMINA", "frase": "Modula receptores glutamatérgicos e dopaminérgicos — base do efeito psiquiátrico." },
+      { "etiqueta": "EVIDÊNCIA", "frase": "Mais de 2.000 estudos publicados — uma das moléculas mais bem documentadas em medicina integrativa." }
+    ],
+    "bloco_impacto_sistemas": [
+      { "sistema": "Hepático · detox", "observacao_curta": "GSH · fase II · regeneração", "score_padua": 95, "score_mercado": 70 },
+      { "sistema": "Pulmonar", "observacao_curta": "DPOC · fibrose · muco", "score_padua": 88, "score_mercado": 65 },
+      { "sistema": "Psiquiátrico", "observacao_curta": "TOC · compulsão · ansiedade", "score_padua": 82, "score_mercado": 45 },
+      { "sistema": "Antioxidante", "observacao_curta": "Reciclagem glutationa", "score_padua": 80, "score_mercado": 50 },
+      { "sistema": "Renal", "observacao_curta": "Nefroproteção · contraste", "score_padua": 75, "score_mercado": 48 },
+      { "sistema": "Reprodutivo", "observacao_curta": "Fragmentação espermática", "score_padua": 70, "score_mercado": 40 },
+      { "sistema": "Cardiovascular", "observacao_curta": "Função endotelial · homocisteína", "score_padua": 60, "score_mercado": 35 },
+      { "sistema": "Imunológico", "observacao_curta": "Modulação Th1/Th2", "score_padua": 55, "score_mercado": 30 }
+    ],
+    "bloco_posologia": {
+      "ev": {
+        "biodisponibilidade": 100,
+        "etiqueta_principal": "PROTOCOLO CLÍNICO",
+        "etiqueta_secundaria": "HOME NURSE",
+        "dose_descricao": "600-1200 mg em SF 0,9% 250ml, infusão 60 min",
+        "texto_completo": "600-1200 mg em SF 0,9% 250ml, infusão 60 min. Aplicação na clínica ou via home nurse. Protocolo detox hepático: 6 sessões semanais. Em casos de intoxicação aguda, doses até 150mg/kg.",
+        "cor": "verde_salvia"
+      },
+      "im": {
+        "biodisponibilidade": 80,
+        "etiqueta_principal": "MANUTENÇÃO",
+        "dose_descricao": "300 mg em 2 ml, 2×/semana",
+        "texto_completo": "300 mg em 2 ml, 2×/semana. Aplicação na clínica ou via home nurse. Para pacientes em manutenção pós-protocolo de ataque.",
+        "cor": "ambar"
+      },
+      "oral": {
+        "biodisponibilidade": 10,
+        "etiqueta_principal": "MANUTENÇÃO DOMICILIAR",
+        "dose_descricao": "600-1200 mg/dia VO em 2 tomadas",
+        "texto_completo": "600-1200 mg/dia VO em 2 tomadas. Biodisponibilidade limitada — adequada apenas para manutenção crônica após protocolo de ataque EV.",
+        "cor": "cinza"
+      }
+    },
+    "contraindicacoes": [
+      "Hipersensibilidade à cisteína",
+      "Asma instável (raro broncoespasmo)",
+      "Úlcera péptica ativa",
+      "Gestação categoria B"
+    ],
+    "sinapses_farmacologicas": {
+      "central": { "nome": "NAC", "codigo": "RXS NACX" },
+      "perifericas": [
+        { "nome": "Glutationa", "codigo_referencia": "RXS GLUT", "efeito_potencializacao": "via direta vs precursor", "cor": "roxo", "posicao": "NO" },
+        { "nome": "Selênio", "codigo_referencia": "RXS SELE", "efeito_potencializacao": "GPx ativação", "cor": "azul", "posicao": "SO" },
+        { "nome": "ALA", "codigo_referencia": "RXS ALAX", "efeito_potencializacao": "regeneração antioxidante", "cor": "verde", "posicao": "NE" },
+        { "nome": "Vit C EV", "codigo_referencia": "RXS VITC", "efeito_potencializacao": "ciclo redox completo", "cor": "ambar", "posicao": "SE" }
+      ],
+      "legenda": "Quarteto detox-hepático e antioxidante de precisão"
+    },
+    "scorecard": {
+      "protocolos_ativos": 534,
+      "delta_trimestre": 22,
+      "satisfacao": 92,
+      "janela_retorno": "10-21 dias",
+      "eventos_adversos": 0.4,
+      "classificacao_eventos": "náusea transitória",
+      "adesao_protocolo": 88,
+      "detalhe_adesao": "conclusão das 6 sessões"
+    },
+    "categoria_principal": "DETOX",
+    "vias_disponiveis": ["EV", "IM", "ORAL"],
+    "prioridade_clinica": "alta",
+    "pendente_revisao_caio": true,
+    "ativo": false,
+    "criado_em": "2026-05-18T00:00:00Z",
+    "atualizado_em": "2026-05-18T00:00:00Z"
+  },
+
+  {
+    "codigo_padcom": "INJE ENDO SUPR GLUT 0600",
+    "codigo_rxs": "RXS GLUT",
+    "nome_comercial": "Glutationa Reduzida (GSH)",
+    "nome_subtitulo": "Antioxidante mestre · Detox hepático · Clareamento dérmico",
+    "evidencia_nivel": "A",
+    "metadados_strip": {
+      "sessoes_ataque": 6,
+      "duracao_protocolo": "12 sem",
+      "janela_efeito": "15-30 dias",
+      "manutencao": "mensal"
+    },
+    "curva_declinio": {
+      "titulo": "DECLÍNIO COM ENVELHECIMENTO",
+      "subtitulo": "GLUTATIONA ERITROCITÁRIA · μmol/L",
+      "pontos": [
+        { "idade": 25, "percentual": 100, "cor": "verde" },
+        { "idade": 45, "percentual": 75, "cor": "oliva" },
+        { "idade": 65, "percentual": 50, "cor": "ambar" },
+        { "idade": 80, "percentual": 40, "cor": "vermelho" }
+      ],
+      "callout_reposicao": "+ 85% c/ EV em 6 sem",
+      "citacao_fonte": "Sechi G. Lancet 1996",
+      "legenda_final": "Pacientes COVID graves apresentaram níveis 60% inferiores aos controles."
+    },
+    "timeline_farmacocinetico": [
+      { "momento": "0h", "cor": "verde", "titulo": "INFUSÃO", "descricao": "Distribuição vascular imediata" },
+      { "momento": "30min", "cor": "oliva", "titulo": "PICO ERITROCITÁRIO", "descricao": "Captação celular sistêmica" },
+      { "momento": "4h", "cor": "ambar", "titulo": "AÇÃO TECIDUAL", "descricao": "Conjugação fase II hepática" },
+      { "momento": "15d", "cor": "azul", "titulo": "EFEITO PERCEBIDO", "descricao": "Pele luminosa · energia · sono" }
+    ],
+    "bloco_por_que": [
+      { "etiqueta": "DECLÍNIO ↓", "numero_destaque": "60%", "frase": "de redução nos níveis eritrocitários entre 25 e 80 anos." },
+      { "etiqueta": "POTÊNCIA", "numero_destaque": "1000×", "frase": "mais eficiente que Vitamina C isolada na neutralização de radicais livres." },
+      { "etiqueta": "ORAL", "numero_destaque": "<5%", "frase": "de biodisponibilidade oral — destruída por enzimas digestivas." },
+      { "etiqueta": "PREMISSA", "frase": "O antioxidante dos antioxidantes — recicla todos os outros.", "estilo": "italico_premissa" }
+    ],
+    "bloco_como_atua": [
+      { "etiqueta": "RECICLAGEM", "frase": "Regenera Vitamina C, Vitamina E e CoQ10 oxidados — multiplicador antioxidante universal." },
+      { "etiqueta": "QUELAÇÃO", "frase": "Conjuga e elimina metais pesados, xenobióticos e pesticidas via bile." },
+      { "etiqueta": "MELANINA", "frase": "Inibe tirosinase — clareamento dérmico progressivo, mecanismo registrado em mais de 200 estudos." },
+      { "etiqueta": "EVIDÊNCIA", "numero_destaque": "-60%", "frase": "Pacientes COVID graves italianos apresentaram queda de 60% nos níveis de GSH vs controles saudáveis.", "referencia": "Polonikov A. ACS Infect Dis 2020" }
+    ],
+    "bloco_impacto_sistemas": [
+      { "sistema": "Detoxificação hepática", "observacao_curta": "Fase II · CYP450 · metais pesados", "score_padua": 96, "score_mercado": 72 },
+      { "sistema": "Dermatológico", "observacao_curta": "Clareamento · luminosidade · poros", "score_padua": 92, "score_mercado": 65 },
+      { "sistema": "Antioxidante", "observacao_curta": "Reciclagem universal", "score_padua": 90, "score_mercado": 60 },
+      { "sistema": "Imunológico", "observacao_curta": "Linfócitos T · NK", "score_padua": 85, "score_mercado": 52 },
+      { "sistema": "Neurológico", "observacao_curta": "Proteção mitocondrial · BHE", "score_padua": 78, "score_mercado": 48 },
+      { "sistema": "Pulmonar", "observacao_curta": "Anti-inflamatório · oxidativo", "score_padua": 70, "score_mercado": 42 },
+      { "sistema": "Cardiovascular", "observacao_curta": "Função endotelial · NO", "score_padua": 65, "score_mercado": 38 },
+      { "sistema": "Anti-envelhecimento", "observacao_curta": "Telômeros · senescência", "score_padua": 75, "score_mercado": 45 }
+    ],
+    "bloco_posologia": {
+      "ev": {
+        "biodisponibilidade": 100,
+        "etiqueta_principal": "PROTOCOLO CLÍNICO",
+        "etiqueta_secundaria": "HOME NURSE",
+        "dose_descricao": "600-1200 mg em SF 0,9% 100ml, infusão 30-45 min",
+        "texto_completo": "600-1200 mg em SF 0,9% 100ml, infusão 30-45 min. Aplicação na clínica ou via home nurse. Biodisponibilidade 100% — a molécula chega íntegra à corrente sanguínea. Resultado visível em 15-30 dias (pele luminosa, energia, sono profundo). Protocolo padrão: 6 sessões quinzenais + manutenção mensal.",
+        "cor": "verde_salvia"
+      },
+      "im": {
+        "biodisponibilidade": 50,
+        "etiqueta_principal": "MANUTENÇÃO",
+        "dose_descricao": "100-300 mg em 2 ml, 1×/semana",
+        "texto_completo": "100-300 mg em 2 ml, 1×/semana. Aplicação na clínica ou via home nurse. Opção pra manutenção entre sessões EV ou pra pacientes com agenda restrita. Não substitui o protocolo EV inicial.",
+        "cor": "ambar"
+      },
+      "oral": {
+        "biodisponibilidade": 5,
+        "etiqueta_principal": "NÃO INDICADO",
+        "dose_descricao": "Forma lipossomal 500-1000 mg/dia",
+        "texto_completo": "A molécula é amplamente destruída no trato digestivo. Mesmo as formas lipossomais alcançam menos de 5% de biodisponibilidade sistêmica. Esta substância só faz sentido na clínica.",
+        "cor": "cinza"
+      }
+    },
+    "contraindicacoes": [
+      "Hipersensibilidade ao composto",
+      "Gestantes (cautela — ausência de estudos)",
+      "Pacientes em quimioterapia ativa (consultar oncologista)",
+      "Asma instável (raro)"
+    ],
+    "sinapses_farmacologicas": {
+      "central": { "nome": "Glutationa", "codigo": "RXS GLUT" },
+      "perifericas": [
+        { "nome": "Vit C EV", "codigo_referencia": "RXS VITC", "efeito_potencializacao": "ciclo redox ativo", "cor": "ambar", "posicao": "NO" },
+        { "nome": "NAC", "codigo_referencia": "RXS NACX", "efeito_potencializacao": "precursor sustentado", "cor": "verde", "posicao": "SO" },
+        { "nome": "ALA", "codigo_referencia": "RXS ALAX", "efeito_potencializacao": "regeneração mútua", "cor": "azul", "posicao": "NE" },
+        { "nome": "Selênio", "codigo_referencia": "RXS SELE", "efeito_potencializacao": "GPx ativação", "cor": "teal", "posicao": "SE" }
+      ],
+      "legenda": "Quarteto antioxidante de precisão — detox e clareamento"
+    },
+    "scorecard": {
+      "protocolos_ativos": 1024,
+      "delta_trimestre": 28,
+      "satisfacao": 96,
+      "janela_retorno": "15-30 dias",
+      "eventos_adversos": 0.2,
+      "classificacao_eventos": "leves · raros",
+      "adesao_protocolo": 91,
+      "detalhe_adesao": "conclusão das 6 sessões"
+    },
+    "categoria_principal": "DETOX",
+    "vias_disponiveis": ["EV", "IM"],
+    "prioridade_clinica": "alta",
+    "pendente_revisao_caio": true,
+    "ativo": false,
+    "criado_em": "2026-05-18T00:00:00Z",
+    "atualizado_em": "2026-05-18T00:00:00Z"
+  },
+
+  {
+    "codigo_padcom": "INJE ENDO SUPR NADH 0500",
+    "codigo_rxs": "RXS NADH",
+    "nome_comercial": "NAD+ (Nicotinamida Adenina Dinucleotídeo)",
+    "nome_subtitulo": "Cofator de longevidade · Ativador de sirtuínas · Energia mitocondrial",
+    "evidencia_nivel": "B",
+    "metadados_strip": {
+      "sessoes_ataque": 6,
+      "duracao_protocolo": "6 sem",
+      "janela_efeito": "1-7 dias",
+      "manutencao": "mensal"
+    },
+    "curva_declinio": {
+      "titulo": "DECLÍNIO FISIOLÓGICO COM IDADE",
+      "subtitulo": "NAD+ TECIDUAL · μM",
+      "pontos": [
+        { "idade": 30, "percentual": 100, "cor": "verde" },
+        { "idade": 50, "percentual": 65, "cor": "oliva" },
+        { "idade": 70, "percentual": 35, "cor": "vermelho" },
+        { "idade": 80, "percentual": 20, "cor": "vermelho" }
+      ],
+      "callout_reposicao": "+ 80% c/ EV em 6 sem",
+      "citacao_fonte": "Massudi H. PLoS One 2012",
+      "legenda_final": "Sinclair (Harvard): camundongos repostos rejuvenesceram marcadores epigenéticos equivalentes a 12 anos humanos."
+    },
+    "timeline_farmacocinetico": [
+      { "momento": "0h", "cor": "verde", "titulo": "INFUSÃO INICIAL", "descricao": "Distribuição vascular lenta" },
+      { "momento": "2h", "cor": "oliva", "titulo": "PICO SÉRICO", "descricao": "Captação celular sistêmica" },
+      { "momento": "8h", "cor": "ambar", "titulo": "ATIVAÇÃO SIRTUÍNAS", "descricao": "Reparo de DNA iniciado" },
+      { "momento": "1-3d", "cor": "azul", "titulo": "EFEITO PERCEBIDO", "descricao": "Energia · clareza mental · sono" }
+    ],
+    "bloco_por_que": [
+      { "etiqueta": "DECLÍNIO ↓", "numero_destaque": "50%", "frase": "de queda nos níveis teciduais entre 30 e 60 anos — base bioquímica do envelhecimento celular." },
+      { "etiqueta": "EXCLUSIVO EV", "numero_destaque": "100%", "frase": "Forma EV é a única que atinge concentração clínica relevante — VO é destruída antes da circulação." },
+      { "etiqueta": "BEVERLY HILLS", "numero_destaque": "US$ 1.500-3.000", "frase": "por sessão é o preço cobrado em clínicas premium internacionais. Aqui você acessa a mesma molécula." },
+      { "etiqueta": "PREMISSA", "frase": "Não tratamos doença — repomos o cofator que o corpo deixou de produzir.", "estilo": "italico_premissa" }
+    ],
+    "bloco_como_atua": [
+      { "etiqueta": "MITOCÔNDRIA", "frase": "Cofator essencial da cadeia respiratória — base da produção de ATP em cada célula." },
+      { "etiqueta": "SIRTUÍNAS", "numero_destaque": "SIRT1-7", "frase": "Ativa as 7 sirtuínas — genes guardiões da longevidade e reparo de DNA descobertos por Sinclair." },
+      { "etiqueta": "BHE", "frase": "Atravessa a barreira hematoencefálica — ação direta em neurônios e células gliais." },
+      { "etiqueta": "EVIDÊNCIA", "frase": "David Sinclair (Harvard): camundongos com NAD+ reposto rejuvenesceram marcadores epigenéticos equivalentes a 12 anos humanos.", "referencia": "Cell 2020" }
+    ],
+    "bloco_impacto_sistemas": [
+      { "sistema": "Energia mitocondrial", "observacao_curta": "ATP · cadeia respiratória", "score_padua": 95, "score_mercado": 55 },
+      { "sistema": "Neurocognitivo", "observacao_curta": "Clareza · foco · memória", "score_padua": 92, "score_mercado": 50 },
+      { "sistema": "Reparo celular DNA", "observacao_curta": "Sirtuínas · PARPs · senescência", "score_padua": 90, "score_mercado": 45 },
+      { "sistema": "Sono · ritmo circadiano", "observacao_curta": "Clock molecular · profundidade", "score_padua": 80, "score_mercado": 42 },
+      { "sistema": "Metabólico", "observacao_curta": "Sensibilidade insulínica", "score_padua": 75, "score_mercado": 40 },
+      { "sistema": "Imunológico", "observacao_curta": "Modulação IL-6", "score_padua": 68, "score_mercado": 35 },
+      { "sistema": "Cardiovascular", "observacao_curta": "HRV · função endotelial", "score_padua": 65, "score_mercado": 32 },
+      { "sistema": "Osteomuscular", "observacao_curta": "Recuperação pós-esforço", "score_padua": 60, "score_mercado": 30 }
+    ],
+    "bloco_posologia": {
+      "ev": {
+        "biodisponibilidade": 100,
+        "etiqueta_principal": "PROTOCOLO EXCLUSIVO",
+        "etiqueta_secundaria": "HOME NURSE",
+        "dose_descricao": "250-500 mg em SF 0,9% 500ml, infusão lenta 2-4h",
+        "texto_completo": "250-500 mg em SF 0,9% 500ml, infusão lenta 2-4 horas. Aplicação na clínica ou via home nurse — paciente confortavelmente sentado/deitado durante a infusão. Resultado percebido a partir da 1ª sessão (energia, clareza mental). Protocolo padrão: 6 sessões semanais de ataque + manutenção mensal vitalícia.",
+        "cor": "verde_salvia"
+      },
+      "sublingual": {
+        "biodisponibilidade": 30,
+        "etiqueta_principal": "MANUTENÇÃO",
+        "dose_descricao": "NADH sublingual 5-20 mg/dia",
+        "texto_completo": "NADH sublingual 5-20 mg/dia, em jejum matinal. Forma estável para manutenção entre ciclos EV. Não substitui o protocolo de ataque.",
+        "cor": "azul_petroleo"
+      }
+    },
+    "contraindicacoes": [
+      "Hipersensibilidade ao composto",
+      "Gestantes (ausência de estudos)",
+      "Pacientes oncológicos em tratamento ativo",
+      "Hipertensão não controlada (cautela)"
+    ],
+    "sinapses_farmacologicas": {
+      "central": { "nome": "NAD+", "codigo": "RXS NADH" },
+      "perifericas": [
+        { "nome": "CoQ10", "codigo_referencia": "RXS COQX", "efeito_potencializacao": "ATP em cascata", "cor": "verde", "posicao": "NO" },
+        { "nome": "Resveratrol", "codigo_referencia": "RXS RESV", "efeito_potencializacao": "ativação SIRT1", "cor": "roxo", "posicao": "SO" },
+        { "nome": "PQQ", "codigo_referencia": "RXS PQQP", "efeito_potencializacao": "biogênese mitocondrial", "cor": "ambar", "posicao": "NE" },
+        { "nome": "Vit B3 (Niacina)", "codigo_referencia": "RXS NIAC", "efeito_potencializacao": "precursor NAD+", "cor": "azul", "posicao": "SE" }
+      ],
+      "legenda": "Protocolo de longevidade e ativação epigenética"
+    },
+    "scorecard": {
+      "protocolos_ativos": 423,
+      "delta_trimestre": 42,
+      "satisfacao": 95,
+      "janela_retorno": "1-7 dias",
+      "eventos_adversos": 0.6,
+      "classificacao_eventos": "rubor · dor torácica transitória",
+      "adesao_protocolo": 86,
+      "detalhe_adesao": "conclusão das 6 sessões"
+    },
+    "categoria_principal": "ANTIENV",
+    "vias_disponiveis": ["EV", "SL"],
+    "prioridade_clinica": "alta",
+    "pendente_revisao_caio": true,
+    "ativo": false,
+    "criado_em": "2026-05-18T00:00:00Z",
+    "atualizado_em": "2026-05-18T00:00:00Z"
+  }
+]
