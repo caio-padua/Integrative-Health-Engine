@@ -142,8 +142,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Login} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/dashboard" component={DashboardCockpit} />
       <Route path="/dashboard-cockpit" component={DashboardCockpit} />
+      <Route path="/dashboard-legado" component={Dashboard} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard-global" component={DashboardGlobal} />
       <Route path="/admin/farmacias" component={FarmaciasParmavault} />
