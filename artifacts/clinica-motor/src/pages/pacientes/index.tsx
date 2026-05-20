@@ -203,7 +203,7 @@ export default function Pacientes() {
 
   return (
     <Layout>
-      <div className="p-6 space-y-6 bg-[var(--pw-pergaminho)] min-h-screen">
+      <div className="p-6 space-y-6 bg-[var(--pw-pergaminho)] text-[var(--pw-grafite)] min-h-screen">
         <div className="flex items-start justify-between gap-4 pw-borda-sagrada py-1">
           <div className="flex items-start gap-4">
             <UserPlus className="w-7 h-7 text-[var(--pw-petroleo)] mt-1" />
