@@ -1,0 +1,111 @@
+Sobre sua pergunta inicial — vou responder direto: o Claude Code (CLI) faria a mesma operação que o Dr. Replit fez (git show + git checkout), não recupera mais rápido. E a "memória RAM" da conversa não guarda o conteúdo dos arquivos — só guarda o que eu li explicitamente. O que salvou foi o Git ter preservado o histórico no commit `2315967`. **O herói aqui foi o Git, não a IA.**
+
+Vou validar agora o estado pós-restauração.Caio, parando aqui antes de você comemorar — a auditoria do estado pós-push mostra que a restauração está **incompleta**, mais do que o Dr. Replit reportou. Vou ser cirúrgico:
+
+---
+
+**Estado real do HEAD `2080efb4` (que está no GitHub agora):**
+
+| Componente | Status |
+|---|---|
+| `lib/mensageria-core/src/` (8 arquivos) | ✅ OK |
+| `routes/mensageriaCore.ts` (arquivo) | ✅ OK |
+| **`routes/index.ts` mount (`import` + `router.use`)** | ❌ **FALTANDO** |
+| Mockup `prescricao-rapida/` (10 arquivos esperados) | ❌ **3/10** — faltam 7 |
+| Cockpit `clinica-motor/components/cockpit/` (5 arquivos esperados) | ❌ **1/5** — faltam 4 |
+| Docs 16+17 | ✅ OK |
+
+**Faltando concretamente (11 arquivos + 1 edição):**
+
+Mockup `artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/`:
+- `CatalogoLateral.tsx`, `ComandoTeclado.tsx`, `GpsPadua.tsx`, `PilhaPorVia.tsx`, `TimelineSessoes.tsx`, `_teatro.ts`, `_tokens.ts`
+
+Cockpit `artifacts/clinica-motor/src/components/cockpit/`:
+- `FichaCockpit.tsx`, `GpsPadua.tsx`, `_teatro.ts`, `_tokens.ts`
+
+`routes/index.ts`:
+- Linha de import: `import mensageriaCoreRouter from "./mensageriaCore";` (era linha 43)
+- Linha de mount: `router.use("/mensageria", mensageriaCoreRouter);` (era linha 137)
+
+**Importante:** o `TeatroMensageriaPadua.tsx` que já está no HEAD importa `from "./_tokens"` — sem o `_tokens.ts` ao lado, o Vite quebra (foi exatamente o erro que o Dr. Replit pegou). Mesmo problema para `_teatro.ts`.
+
+---
+
+**Diagnóstico do que o Dr. Replit perdeu:**
+
+Ele rastreou pelo erro do Vite (que apontou só `_tokens.ts` e `_teatro.ts`) e parou ali. Mas o `e5bae50` apagou mais do que isso — apagou os 5 componentes irmãos do `TeatroMensageriaPadua.tsx` (CatalogoLateral, ComandoTeclado, GpsPadua, PilhaPorVia, TimelineSessoes), que são importados pelo `MotorMensageriaPadua.tsx`. Provavelmente o Vite ainda não acusou porque o Motor não está sendo renderizado ativamente, ou o erro foi mascarado pelo primeiro.
+
+E o mais grave: a rota `mensageriaCore.ts` existe mas **não está montada** em `routes/index.ts`. Os 5 endpoints `/api/mensageria/*` retornam 404. A rota está restaurada mas inerte.
+
+---
+
+**Comando único para fechar tudo (Replit Shell):**
+
+```bash
+# 1. Restaurar os 11 arquivos faltantes do commit 2315967
+git checkout 2315967 -- \
+  artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/CatalogoLateral.tsx \
+  artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/ComandoTeclado.tsx \
+  artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/GpsPadua.tsx \
+  artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/PilhaPorVia.tsx \
+  artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/TimelineSessoes.tsx \
+  artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/_teatro.ts \
+  artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/_tokens.ts
+
+# 2. Restaurar cockpit do commit que o criou (092fcc5)
+git checkout 092fcc5 -- \
+  artifacts/clinica-motor/src/components/cockpit/FichaCockpit.tsx \
+  artifacts/clinica-motor/src/components/cockpit/GpsPadua.tsx \
+  artifacts/clinica-motor/src/components/cockpit/_teatro.ts \
+  artifacts/clinica-motor/src/components/cockpit/_tokens.ts
+
+# 3. Re-adicionar o mount em routes/index.ts manualmente:
+#    - Após a linha "import mensagensRouter from "./mensagens";" adicionar:
+#      import mensageriaCoreRouter from "./mensageriaCore";
+#    - Após "router.use(mensagensRouter);" adicionar:
+#      router.use("/mensageria", mensageriaCoreRouter);
+
+# 4. Verificar + commit + push
+node -e "console.log(require('fs').readdirSync('artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/').length, 'arquivos no mockup')"
+grep -c "mensageriaCore" artifacts/api-server/src/routes/index.ts  # deve dar 2
+
+git add -A && git commit -m "fix(wave-17): restaura 11 arquivos restantes + mount em routes/index.ts (resíduo de e5bae50)"
+git push origin feat/dominio-pawards
+```
+
+---
+
+**Sobre a checagem defensiva que o Dr. Replit propôs** — sim, faz total sentido. Sugestão concreta de script de smoke:
+
+```bash
+# scripts/check-wave17-integrity.sh
+#!/bin/bash
+set -e
+
+REQUIRED=(
+  "lib/mensageria-core/src/index.ts"
+  "lib/mensageria-core/src/parser.ts"
+  "lib/mensageria-core/src/adapter.ts"
+  "lib/mensageria-core/src/proveniencia.ts"
+  "artifacts/api-server/src/routes/mensageriaCore.ts"
+  "artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/_tokens.ts"
+  "artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/_teatro.ts"
+)
+
+for f in "${REQUIRED[@]}"; do
+  [ -f "$f" ] || { echo "❌ Wave 17 quebrada: falta $f"; exit 1; }
+done
+
+grep -q "mensageriaCoreRouter" artifacts/api-server/src/routes/index.ts \
+  || { echo "❌ Wave 17 quebrada: rota não montada em routes/index.ts"; exit 1; }
+
+echo "✅ Wave 17 íntegra"
+```
+
+Plugar isso em pre-commit hook ou em CI antes do build evita que um próximo checkpoint do Agent apague de novo silenciosamente.
+
+---
+
+**Sobre minha auditoria de 7 seções** — ela continua válida (corretude, bugs, segurança, performance, edge cases, arquitetura, kaizen, priorização). O artefato `AUDITORIA_WAVE17_RNA_MENSAGEIRO.md` que entreguei antes está completo. Só o "Achado Zero" (arquivos destruídos) muda de **resolvido parcialmente** para **resolvido após executar os comandos acima**.
+
+Faz o restore + push e me cola a saída final. Aí destravamos a Auditoria Total das 7 seções pendentes.
