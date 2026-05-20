@@ -297,6 +297,9 @@ importers:
 
   artifacts/clinica-motor:
     dependencies:
+      '@workspace/mensageria-core':
+        specifier: workspace:*
+        version: link:../../lib/mensageria-core
       howler:
         specifier: ^2.2.4
         version: 2.2.4

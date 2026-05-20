@@ -253,6 +253,21 @@ export default function PacienteDetalhe() {
               </div>
 
               <div className="flex gap-2">
+                <Link href={`${BASE_URL}pacientes/${id}/cockpit`}>
+                  <Button
+                    className="font-mono text-xs tracking-widest"
+                    style={{
+                      background: "#0B1220",
+                      color: "#5EE6E6",
+                      border: "1px solid #5EE6E6",
+                      boxShadow: "0 0 12px rgba(94, 230, 230, 0.4)",
+                      borderRadius: 0,
+                    }}
+                    data-testid="button-abrir-cockpit"
+                  >
+                    ★ ABRIR COCKPIT
+                  </Button>
+                </Link>
                 <Button
                   variant="outline"
                   onClick={() => {

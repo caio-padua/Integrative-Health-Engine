@@ -19,6 +19,7 @@ import Pacientes from "@/pages/pacientes";
 import ExamesGrafico from "@/pages/pacientes/exames-grafico";
 import LaboratorioValidacao from "@/pages/laboratorio-validacao";
 import PacienteDetalhe from "@/pages/pacientes/[id]";
+import PacienteCockpitPage from "@/pages/pacientes/cockpit";
 import ItensTerapeuticos from "@/pages/itens-terapeuticos";
 import Protocolos from "@/pages/protocolos";
 import Followup from "@/pages/followup";
@@ -184,6 +185,7 @@ function Router() {
       <Route path="/atendimento/exames/:pacienteId/vitrine" component={ExamesVitrinePaciente} />
       <Route path="/atendimento/exames/:pacienteId" component={ExamesDashboardMedico} />
       <Route path="/laboratorio/validacao" component={LaboratorioValidacao} />
+      <Route path="/pacientes/:id/cockpit" component={PacienteCockpitPage} />
       <Route path="/pacientes/:id" component={PacienteDetalhe} />
       <Route path="/itens-terapeuticos" component={ItensTerapeuticos} />
       <Route path="/protocolos" component={Protocolos} />
