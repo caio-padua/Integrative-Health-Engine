@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api-fetch";
 import {
   Grid3X3, Download, Filter, Search, X, FlaskConical, Activity, Users
 } from "lucide-react";
+import { PainelSinapticoBanner } from "@/components/sinaptico";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
@@ -130,9 +131,38 @@ export default function MatrizAnaliticaPage() {
     return true;
   });
 
+  const totalLinhas = Number(data?.totalRows ?? data?.total ?? filteredRows.length);
+  const filtrosAtivos = filterVias.length + filterStatus.length + filterSubstancias.length + filterUnidades.length + (searchNome ? 1 : 0);
+
   return (
     <Layout>
       <div className="space-y-4">
+        <PainelSinapticoBanner
+          titulo="Sinapses · Matriz Analítica"
+          subtitulo="Cross-filter dinâmico — facetas reativas em tempo real"
+          corAcento="#A8C7FA"
+          relogios={[
+            {
+              label: "Linhas Filtradas",
+              valor: filteredRows.length,
+              total: Math.max(totalLinhas, 1),
+              formato: "absoluto",
+              cor: "#5EE6E6",
+            },
+            {
+              label: "Filtros Ativos",
+              valor: filtrosAtivos,
+              total: 5,
+              formato: "absoluto",
+              cor: filtrosAtivos > 0 ? "#7BC9A5" : "#9AA9C2",
+            },
+            {
+              label: "Cobertura",
+              valor: totalLinhas > 0 ? Math.round((filteredRows.length / totalLinhas) * 100) : 0,
+              cor: "#A8C7FA",
+            },
+          ]}
+        />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold uppercase tracking-tight text-foreground flex items-center gap-2">

@@ -130,3 +130,30 @@ export async function apiFetch(
   // resposta, como se o 403 nunca tivesse acontecido.
   return await executarFetchInterno(input, init);
 }
+
+// Wave Cockpit — abre PDF protegido por JWT numa aba nova.
+// Como <a target="_blank"> nao injeta header Authorization, baixamos o
+// blob via apiFetch (JWT vai no header) e abrimos via URL.createObjectURL.
+export async function abrirPdfAutenticado(url: string): Promise<void> {
+  try {
+    const r = await apiFetch(url);
+    if (!r.ok) {
+      throw new Error(`Falha ao abrir PDF (HTTP ${r.status})`);
+    }
+    const blob = await r.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const w = window.open(blobUrl, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    if (!w) {
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = "documento.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  } catch (e) {
+    console.error("[abrirPdfAutenticado] erro", e);
+    throw e;
+  }
+}

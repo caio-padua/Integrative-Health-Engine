@@ -68,7 +68,11 @@ const pacienteSchema = z.object({
   alturaCm: z.coerce.number().int().min(30).max(260).optional().or(z.literal("").transform(() => undefined)),
   pesoKg: z.coerce.number().min(0.5).max(500).optional().or(z.literal("").transform(() => undefined)),
   alergias: z.string().optional(),
+  condicoesClinicas: z.string().optional(),
+  medicamentosContinuos: z.string().optional(),
   gestante: z.boolean().optional(),
+  fototipoFitzpatrick: z.string().optional(),
+  atividadeFisica: z.string().optional(),
 });
 
 export default function PacienteDetalhe() {
@@ -253,6 +257,27 @@ export default function PacienteDetalhe() {
               </div>
 
               <div className="flex gap-2">
+                {/* Wave Cockpit — entrada PAINEL TÁTICO (border-left neon ciano,
+                    JetBrains Mono, destaque visual conforme padrão Caio TDAH) */}
+                <Link href={`/pacientes/${id}/cockpit`}>
+                  <Button
+                    variant="outline"
+                    style={{
+                      borderLeft: "3px solid #5EE6E6",
+                      fontFamily: "JetBrains Mono, monospace",
+                      fontSize: 11,
+                      letterSpacing: 1.5,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      color: "#5EE6E6",
+                      borderRadius: 0,
+                    }}
+                    data-testid="botao-painel-tatico-cockpit"
+                  >
+                    <Activity className="w-4 h-4 mr-2" />
+                    Painel Tático
+                  </Button>
+                </Link>
                 <Button
                   variant="outline"
                   onClick={() => {

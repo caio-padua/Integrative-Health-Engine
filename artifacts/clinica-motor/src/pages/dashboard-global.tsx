@@ -29,6 +29,7 @@ import { AlertasPanel, type AlertasData } from "@/components/pawards/AlertasPane
 import { CaixaPanel, type CaixaData } from "@/components/pawards/CaixaPanel";
 import { AuditoriaAcessosPanel } from "@/components/pawards/AuditoriaAcessosPanel";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
+import { PainelSinapticoBanner } from "@/components/sinaptico";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { PAWARDS, fmtBRL, fmtInt } from "@/lib/pawards-tokens";
 
@@ -140,6 +141,42 @@ export default function DashboardGlobal() {
     <div style={{ background: PAWARDS.colors.bg[950], minHeight: "100vh", color: PAWARDS.colors.text.primary }}>
       <BotaoImprimirFlutuante titulo="Dashboard Global · Visão CEO PAWARDS" />
       <InactivityWarningModal secondsLeft={warningSecondsLeft} onStay={resetTimer} />
+      {/* Wave Sináptico — banner topo CEO */}
+      <div style={{ padding: "16px 24px 0" }}>
+        <PainelSinapticoBanner
+          titulo="Sinapses · Visão CEO Multi-Unidade"
+          subtitulo={`Atualizado ${lastUpdate ? new Date(lastUpdate).toLocaleTimeString("pt-BR") : "—"}`}
+          corAcento="#E2C470"
+          relogios={[
+            {
+              label: "Meta do Mês",
+              valor: pctMeta,
+              cor: pctMeta >= 80 ? "#22C55E" : pctMeta >= 50 ? "#F5C26B" : "#E07B7B",
+            },
+            {
+              label: "Faturamento Realizado",
+              valor: realizado,
+              total: Math.max(meta, max, 1),
+              formato: "absoluto",
+              cor: "#A8C7FA",
+            },
+            {
+              label: "Caixa 30d",
+              valor: Number((caixa as any)?.saldo_atual ?? 0),
+              total: Math.max(Number((caixa as any)?.saldo_atual ?? 1), 1),
+              formato: "absoluto",
+              cor: "#7BC9A5",
+            },
+            {
+              label: "Clínicas Ativas",
+              valor: Number((ranking ?? []).length),
+              total: Math.max((ranking ?? []).length, 1),
+              formato: "absoluto",
+              cor: "#5EE6E6",
+            },
+          ]}
+        />
+      </div>
       {/* HEADER */}
       <div
         style={{

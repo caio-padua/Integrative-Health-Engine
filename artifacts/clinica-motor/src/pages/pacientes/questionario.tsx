@@ -14,6 +14,7 @@ import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useObterPaciente,
+  getObterPacienteQueryKey,
   useListarPerguntasQuestionario,
   getListarPerguntasQuestionarioQueryKey,
   useListarRespostasQuestionario,
@@ -513,10 +514,18 @@ function formatDate(d: string) {
 export default function QuestionarioPaciente() {
   const [, params] = useRoute("/pacientes/:id/questionario");
   const pacienteId = parseInt(params?.id || "0");
-  const { data: paciente, isLoading: loadingPaciente } = useObterPaciente(pacienteId, { query: { enabled: !!pacienteId } });
-  const { data: perguntas, isLoading: loadingPerguntas } = useListarPerguntasQuestionario(pacienteId, { query: { enabled: !!pacienteId } });
-  const { data: respostas, isLoading: loadingRespostas } = useListarRespostasQuestionario(pacienteId, { query: { enabled: !!pacienteId } });
-  const { data: estados, isLoading: loadingEstados } = useListarEstadoSaude(pacienteId, { query: { enabled: !!pacienteId } });
+  const { data: paciente, isLoading: loadingPaciente } = useObterPaciente(pacienteId, {
+    query: { enabled: !!pacienteId, queryKey: getObterPacienteQueryKey(pacienteId) },
+  });
+  const { data: perguntas, isLoading: loadingPerguntas } = useListarPerguntasQuestionario(pacienteId, {
+    query: { enabled: !!pacienteId, queryKey: getListarPerguntasQuestionarioQueryKey(pacienteId) },
+  });
+  const { data: respostas, isLoading: loadingRespostas } = useListarRespostasQuestionario(pacienteId, {
+    query: { enabled: !!pacienteId, queryKey: getListarRespostasQuestionarioQueryKey(pacienteId) },
+  });
+  const { data: estados, isLoading: loadingEstados } = useListarEstadoSaude(pacienteId, {
+    query: { enabled: !!pacienteId, queryKey: getListarEstadoSaudeQueryKey(pacienteId) },
+  });
 
   const queryClient = useQueryClient();
   const { toast } = useToast();

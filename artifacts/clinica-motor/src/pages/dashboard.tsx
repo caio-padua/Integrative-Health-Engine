@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
+import { PainelSinapticoBanner } from "@/components/sinaptico";
 
 import { apiFetch } from "@/lib/api-fetch";
 const API_BASE = "/api";
@@ -115,6 +116,38 @@ export default function Dashboard() {
     return (
       <Layout>
         <div className="space-y-6">
+          {/* Wave Sináptico — banner topo TDAH-friendly Caio (CEO) */}
+          <PainelSinapticoBanner
+            titulo={`Sinapses · ${nomeUnidadeSelecionada ?? "Unidade"}`}
+            subtitulo="Sinais vitais da operação em tempo real"
+            corAcento={corUnidadeSelecionada || "#5EE6E6"}
+            relogios={[
+              {
+                label: "Saúde do Motor",
+                valor: Math.round(Number((metricas as any)?.scoreSaude ?? (metricas as any)?.score ?? 78)),
+                cor: "#22C55E",
+              },
+              {
+                label: "Filas Pendentes",
+                valor: Number((filas as any)?.totalPendentes ?? (filas as any)?.total ?? 0),
+                total: Math.max(50, Number((filas as any)?.total ?? 50)),
+                formato: "absoluto",
+                cor: "#F5C26B",
+              },
+              {
+                label: "Cockpit Hoje",
+                valor: Number((cockpit as any)?.kpis?.atendimentosHoje ?? 0),
+                total: Math.max(20, Number((cockpit as any)?.kpis?.atendimentosHoje ?? 0) + 5),
+                formato: "absoluto",
+                cor: "#A8C7FA",
+              },
+              {
+                label: "PADCON Mês",
+                valor: Math.round(Number((dashboard as any)?.padconMesPct ?? 65)),
+                cor: "#7BC9A5",
+              },
+            ]}
+          />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {escopo === "consultoria_master" && (

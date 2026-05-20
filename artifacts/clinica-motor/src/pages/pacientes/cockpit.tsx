@@ -1,13 +1,13 @@
 import { useRoute, Link } from "wouter";
-import { useObterPaciente } from "@workspace/api-client-react";
+import { useObterPaciente, getObterPacienteQueryKey } from "@workspace/api-client-react";
 import { FichaCockpit, type PacienteCockpit } from "@/components/cockpit/FichaCockpit";
-
-const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 export default function PacienteCockpitPage() {
   const [, params] = useRoute("/pacientes/:id/cockpit");
   const id = parseInt(params?.id || "0");
-  const { data: paciente, isLoading, error } = useObterPaciente(id, { query: { enabled: id > 0 } });
+  const { data: paciente, isLoading, error } = useObterPaciente(id, {
+    query: { enabled: id > 0, queryKey: getObterPacienteQueryKey(id) },
+  });
 
   if (isLoading) {
     return (
@@ -28,7 +28,7 @@ export default function PacienteCockpitPage() {
     );
   }
 
-  const p = paciente as Record<string, unknown>;
+  const p = paciente as unknown as Record<string, unknown>;
   const pacienteCockpit: PacienteCockpit = {
     id: (p.id as number) ?? id,
     nome: (p.nome as string) ?? "Sem nome",

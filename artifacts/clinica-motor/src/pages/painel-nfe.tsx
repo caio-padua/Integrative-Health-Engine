@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Ban, Pencil, Trash2, Shield, Eye, RefreshCcw, AlertTriangle } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
+import { PainelSinapticoBanner } from "@/components/sinaptico";
 const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleString("pt-BR") : "—";
 
@@ -73,8 +74,56 @@ export default function PainelNfePage() {
   const stats = dash?.estatisticas ?? {};
   const recentes = dash?.recentes ?? [];
 
+  const totalNfe = Number(stats?.total ?? 0);
+  const emitidasNfe = Number(stats?.emitidas ?? 0);
+  const canceladasNfe = Number(stats?.canceladas ?? 0);
+  const errosNfe = Number(stats?.erros ?? 0);
+  const valorMesNfe = Number(stats?.valor_mes ?? stats?.valorMes ?? 0);
+
   return (
     <div className="space-y-4">
+      <PainelSinapticoBanner
+        titulo="Sinapses · NFe"
+        subtitulo="Saúde fiscal e emissão"
+        corAcento="#B8941F"
+        relogios={[
+          {
+            label: "Taxa Sucesso",
+            valor: totalNfe > 0 ? Math.round((emitidasNfe / totalNfe) * 100) : 0,
+            cor: "#22C55E",
+          },
+          {
+            label: "Emitidas",
+            valor: emitidasNfe,
+            total: Math.max(totalNfe, 1),
+            formato: "absoluto",
+            cor: "#5EE6E6",
+          },
+          {
+            label: "Canceladas",
+            valor: canceladasNfe,
+            total: Math.max(totalNfe, 1),
+            formato: "absoluto",
+            cor: "#F5C26B",
+          },
+          {
+            label: "Erros",
+            valor: errosNfe,
+            total: Math.max(totalNfe, 1),
+            formato: "absoluto",
+            cor: "#E07B7B",
+          },
+        ]}
+        barras={valorMesNfe > 0 ? [
+          {
+            label: "Valor Total Faturado (Mês)",
+            valor: valorMesNfe,
+            total: Math.max(valorMesNfe, 1),
+            cor: "#B8941F",
+            sufixo: "BRL",
+          },
+        ] : []}
+      />
       <header className="flex items-center gap-3 pb-3 border-b border-border">
         <FileText className="w-7 h-7 text-[#1F4E5F]" />
         <div>
