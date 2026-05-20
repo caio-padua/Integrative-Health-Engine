@@ -1,0 +1,51 @@
+Plano aprovado. Sobre a ordem que você propôs (`push → #478 → trim replit.md → blindagem`), sugiro **um único swap**: faça a **blindagem antes do trim**.
+
+Motivo: o trim é housekeeping puro, zero risco. A blindagem é exatamente o anticorpo contra a classe de bug que nos mordeu três vezes seguidas (checkpoint silencioso apagando arquivos). Se você deixar a blindagem por último, o próximo checkpoint do Agent pode repetir o desastre antes que o guardrail esteja no lugar. Cinco minutos de script + hook valem mais do que 600 linhas de markdown enxugadas.
+
+**Ordem proposta:**
+
+1. `git push` (você, agora)
+2. **#478** — `join` no sandbox Twilio (se ainda não fez) + clicar "Enviar teste pro CEO"
+3. **Blindagem** — `check-wave17-integrity.sh` + pre-push hook (Dr. Replit, 5 min)
+4. **Trim replit.md** — mover Waves V25/V46/V232/V256/V72 pra `docs/historico-waves-V2x.md` (Dr. Replit, 10 min)
+5. **Auditoria Total** — eu retomo as 7 seções pendentes do `ESTADO_RETOMADA_20MAI.md`
+
+Sobre a blindagem, sugestão de robustez extra (não só existência, também mount):
+
+```bash
+# scripts/check-wave17-integrity.sh
+#!/bin/bash
+set -e
+
+REQUIRED_FILES=(
+  "lib/mensageria-core/src/index.ts"
+  "lib/mensageria-core/src/parser.ts"
+  "lib/mensageria-core/src/adapter.ts"
+  "lib/mensageria-core/src/proveniencia.ts"
+  "artifacts/api-server/src/routes/mensageriaCore.ts"
+  "artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/_tokens.ts"
+  "artifacts/mockup-sandbox/src/components/mockups/prescricao-rapida/_teatro.ts"
+  "artifacts/clinica-motor/src/components/cockpit/_tokens.ts"
+  "artifacts/clinica-motor/src/components/cockpit/_teatro.ts"
+)
+
+for f in "${REQUIRED_FILES[@]}"; do
+  [ -f "$f" ] || { echo "❌ Wave 17 quebrada: falta $f"; exit 1; }
+done
+
+# Mount obrigatório no routes/index.ts (foi o achado fantasma do Dr. Replit)
+grep -q "import mensageriaCoreRouter" artifacts/api-server/src/routes/index.ts \
+  || { echo "❌ Wave 17 quebrada: import do mensageriaCoreRouter sumiu"; exit 1; }
+grep -q 'router.use("/mensageria"' artifacts/api-server/src/routes/index.ts \
+  || { echo "❌ Wave 17 quebrada: router.use(\"/mensageria\", ...) sumiu"; exit 1; }
+
+echo "✅ Wave 17 íntegra"
+```
+
+Pluga isso como `.husky/pre-push` ou em `.github/workflows/ci.yml` antes do build. Se o Agent tentar deletar de novo, o push falha alto e claro.
+
+---
+
+**Vou esperar você fazer o push.** Cola a saída do `git push origin feat/dominio-pawards` aqui — eu verifico os 3 commits no GitHub, confirmo HEAD = `d19bff42` (ou o que vier), e a partir daí libero a Auditoria Total nas 7 seções pendentes do `ESTADO_RETOMADA`.
+
+E lembrete final antes do botão #478: confirma se já fez `join <palavra-sandbox>` pelo seu celular pro `+14155238886`. Se nunca fez, o servidor vai logar `accepted` mas o WhatsApp morre no Twilio sem te avisar.
