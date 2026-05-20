@@ -516,6 +516,45 @@ export function Layout({ children }: { children: ReactNode }) {
           );
         })()}
 
+        {/* 🩺 COCKPIT — atalho destacado pro painel tático do paciente.
+            Vive embaixo dos PINS com tamanho maior e cor única (ciano neon
+            da mensageria), pra Caio bater o olho e abrir o modo
+            "painel de guerra" do paciente sem precisar caçar no menu. */}
+        {modulosPermitidos.includes("pacientes") && (
+          <div className="px-3 py-3 border-b border-border">
+            <Link
+              href="/pacientes?modo=cockpit"
+              className={`group relative flex items-center gap-3 px-3 py-3 border-l-[3px] transition-all overflow-hidden ${
+                // Wouter useLocation devolve só o pathname — leio search direto
+                // do window pra detectar ?modo=cockpit. /pacientes/:id/cockpit
+                // (path-based) também ativa o destaque pra coerência visual.
+                (typeof window !== "undefined" && location.startsWith("/pacientes") && (window.location.search.includes("modo=cockpit") || location.includes("/cockpit")))
+                  ? "bg-[#5EE6E6]/15 text-sidebar-foreground"
+                  : "hover:bg-[#5EE6E6]/8 text-sidebar-foreground/85 hover:text-sidebar-foreground"
+              }`}
+              style={{ borderLeftColor: "#5EE6E6", boxShadow: "inset 0 0 0 1px rgba(94,230,230,0.35)" }}
+              data-testid="atalho-cockpit"
+              title="Modo COCKPIT — painel tático do paciente"
+            >
+              <span
+                className="w-10 h-10 flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: "rgba(94,230,230,0.18)", color: "#5EE6E6" }}
+              >
+                <Stethoscope className="w-5 h-5" />
+              </span>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-[9px] uppercase tracking-[0.2em] font-mono font-bold leading-none" style={{ color: "#5EE6E6" }}>
+                  Painel Tático
+                </span>
+                <span className="text-[13px] font-bold uppercase tracking-wider leading-tight mt-0.5">
+                  Cockpit Paciente
+                </span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[#5EE6E6] group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+        )}
+
         <nav className="flex-1 overflow-y-auto py-2 px-1">
           {grupos.map((g, idx) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));

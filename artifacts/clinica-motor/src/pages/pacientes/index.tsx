@@ -9,7 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Search, UserPlus, User as UserIcon, Stethoscope, MapPin, Check,
   Users as UsersIcon, Activity, Sparkles, ChevronRight as ChevronRightIcon,
-  Phone, AtSign, AlertTriangle,
+  Phone, AtSign, AlertTriangle, Camera, CreditCard, FileText, Crown, Cloud, Receipt,
 } from "lucide-react";
 // Task #98 — ordenacao multi-coluna estilo Excel (clique substitui, Shift+clique
 // adiciona criterio secundario, badge numerada mostra prioridade). Lib extraida
@@ -37,7 +37,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useClinic } from "@/contexts/ClinicContext";
 
 import { apiFetch } from "@/lib/api-fetch";
@@ -98,6 +98,22 @@ const pacienteSchema = z.object({
   pesoKg: z.coerce.number().min(0.5).max(500).optional().or(z.literal("").transform(() => undefined)),
   alergias: z.string().optional(),
   condicoesClinicas: z.string().optional(),
+  // Etapa 4 — Mídia & Documentos. Campos JÁ existentes no schema do banco
+  // (lib/db/src/schema/pacientes.ts): foto_rosto, foto_corpo, plano_acompanhamento,
+  // google_drive_folder_id. Não precisa migration.
+  fotoRosto: z.string().url("URL inválida").optional().or(z.literal("")),
+  fotoCorpo: z.string().url("URL inválida").optional().or(z.literal("")),
+  googleDriveFolderId: z.string().optional(),
+  planoAcompanhamento: z.enum(["diamante", "ouro", "prata", "cobre"]).optional(),
+  // Etapa 5 — Pagamento & NF. APENAS CADASTRAIS (sem integração de cobrança
+  // por enquanto, decisão do Caio em 20/05). Persistência destes campos
+  // depende de migration aditiva pacientes pagamento_* / nota_fiscal_*
+  // (PRÓXIMO TURNO). Por ora ficam UI-only e são removidos do payload.
+  pagamentoTitularNome: z.string().optional(),
+  pagamentoCartaoUltimos4Digitos: z.string().regex(/^\d{0,4}$/, "Use só dígitos").optional().or(z.literal("")),
+  pagamentoCartaoBandeira: z.enum(["visa", "mastercard", "elo", "amex", "hipercard", "outro"]).optional(),
+  notaFiscalCnpj: z.string().optional(),
+  notaFiscalRazaoSocial: z.string().optional(),
   medicamentosContinuos: z.string().optional(),
   gestante: z.boolean().default(false),
   fototipoFitzpatrick: z.enum(["I","II","III","IV","V","VI"]).optional().or(z.literal("").transform(() => undefined)),
@@ -196,21 +212,34 @@ export default function Pacientes() {
   // 🪜 WIZARD — 3 etapas no modal Novo Paciente. Estado local ao componente.
   // Reset pra etapa 1 toda vez que o modal abre. Validação por etapa
   // (form.trigger nos campos da etapa) impede avançar com campo inválido.
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  type StepN = 1 | 2 | 3 | 4 | 5;
+  const TOTAL_STEPS = 5;
+  // 🩺 MODO COCKPIT — detecta ?modo=cockpit na URL (vem do atalho destacado
+  // do sidebar). Quando ativo, clicar numa linha da lista vai pra
+  // /pacientes/:id/cockpit (painel tático) em vez de /pacientes/:id (ficha
+  // clássica). useSearch do wouter devolve a query string sem o "?".
+  const searchString = useSearch();
+  const modoCockpit = new URLSearchParams(searchString).get("modo") === "cockpit";
+
+  const [step, setStep] = useState<StepN>(1);
   useEffect(() => { if (open) setStep(1); }, [open]);
   const STEPS = [
-    { n: 1 as const, label: "Identidade", icon: UserIcon, cor: "#5B8DEF" },
-    { n: 2 as const, label: "Dados Clínicos", icon: Stethoscope, cor: "#7BC79E" },
-    { n: 3 as const, label: "Endereço", icon: MapPin, cor: "#F5B946" },
+    { n: 1 as StepN, label: "Identidade", icon: UserIcon, cor: "#5B8DEF" },
+    { n: 2 as StepN, label: "Clínico", icon: Stethoscope, cor: "#7BC79E" },
+    { n: 3 as StepN, label: "Endereço", icon: MapPin, cor: "#F5B946" },
+    { n: 4 as StepN, label: "Mídia & Drive", icon: Camera, cor: "#A78BFA" },
+    { n: 5 as StepN, label: "Plano & NF", icon: CreditCard, cor: "#22C7B8" },
   ];
-  const camposPorStep: Record<1 | 2 | 3, (keyof z.infer<typeof pacienteSchema>)[]> = {
+  const camposPorStep: Record<StepN, (keyof z.infer<typeof pacienteSchema>)[]> = {
     1: ["nome", "telefone", "cpf", "email", "genero", "unidadeId"],
     2: ["alturaCm", "pesoKg", "fototipoFitzpatrick", "atividadeFisica", "gestante", "alergias", "condicoesClinicas", "medicamentosContinuos"],
     3: ["cep", "endereco", "complemento", "bairro", "cidade", "estado", "pais"],
+    4: ["fotoRosto", "fotoCorpo", "googleDriveFolderId", "planoAcompanhamento"],
+    5: ["pagamentoTitularNome", "pagamentoCartaoUltimos4Digitos", "pagamentoCartaoBandeira", "notaFiscalCnpj", "notaFiscalRazaoSocial"],
   };
   const irProximoStep = async () => {
     const ok = await form.trigger(camposPorStep[step]);
-    if (ok) setStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s));
+    if (ok) setStep((s) => (s < TOTAL_STEPS ? ((s + 1) as StepN) : s));
   };
 
   // Stats da listagem — calculados em cima dos pacientes retornados.
@@ -242,6 +271,19 @@ export default function Pacientes() {
     if (!payload.fototipoFitzpatrick) delete payload.fototipoFitzpatrick;
     if (!payload.atividadeFisica) delete payload.atividadeFisica;
     if (typeof payload.pesoKg === "number") payload.pesoKg = String(payload.pesoKg);
+    // Mídia & Drive — limpa strings vazias pra não estourar validador URL no backend
+    if (!payload.fotoRosto) delete payload.fotoRosto;
+    if (!payload.fotoCorpo) delete payload.fotoCorpo;
+    if (!payload.googleDriveFolderId) delete payload.googleDriveFolderId;
+    if (!payload.planoAcompanhamento) delete payload.planoAcompanhamento;
+    // Plano & NF — campos UI-only neste sprint, não vão pro backend até a
+    // migration aditiva pacientes_pagamento_e_nf. Removo do payload pra não
+    // quebrar o CriarPacienteBody do api-zod (que ainda não conhece esses campos).
+    delete payload.pagamentoTitularNome;
+    delete payload.pagamentoCartaoUltimos4Digitos;
+    delete payload.pagamentoCartaoBandeira;
+    delete payload.notaFiscalCnpj;
+    delete payload.notaFiscalRazaoSocial;
     criarPaciente.mutate({ data: payload }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListarPacientesQueryKey() });
@@ -253,35 +295,51 @@ export default function Pacientes() {
 
   return (
     <Layout>
-      <div className="p-6 space-y-6 bg-[var(--pw-pergaminho)] text-[var(--pw-grafite)] min-h-screen">
+      <div className="p-6 space-y-6 bg-slate-950 text-slate-100 min-h-screen">
+        {/* 🩺 Banner MODO COCKPIT — só aparece quando entrou pelo atalho
+            destacado do sidebar. Indica que clicar numa linha abre o
+            painel tático em vez da ficha clássica. */}
+        {modoCockpit && (
+          <div className="flex items-center gap-3 px-4 py-3 border-l-[3px] border-l-[#5EE6E6] bg-[#5EE6E6]/10" data-testid="banner-modo-cockpit">
+            <Stethoscope className="w-5 h-5 text-[#5EE6E6] flex-shrink-0" />
+            <div className="flex-1">
+              <div className="text-[10px] uppercase tracking-[0.2em] font-mono font-bold text-[#5EE6E6]">Modo Cockpit Ativo</div>
+              <div className="text-[12px] text-slate-200 mt-0.5">Clique num paciente abaixo pra abrir o <strong className="text-[#5EE6E6]">painel tático</strong> direto (RAS, exames, alergias, agenda — visão de guerra).</div>
+            </div>
+            <Link href="/pacientes" className="text-[10px] uppercase tracking-widest font-bold text-slate-400 hover:text-slate-200 px-2 py-1 border border-slate-700" data-testid="sair-modo-cockpit">
+              Sair do modo
+            </Link>
+          </div>
+        )}
+
         <div className="flex items-start justify-between gap-4 pw-borda-sagrada py-1">
           <div className="flex items-start gap-4">
-            <UserPlus className="w-7 h-7 text-[var(--pw-petroleo)] mt-1" />
+            <UserPlus className="w-7 h-7 text-[#5B8DEF] mt-1" />
             <div>
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="pw-titulo-manifesto text-2xl">Pacientes</h1>
                 <span className="pw-selo-dourado px-2 py-1 text-[10px] tracking-[0.2em]">PADCON · CADASTRO CLÍNICO</span>
               </div>
-              <p className="text-sm text-[var(--pw-tinta)] mt-1">
+              <p className="text-sm text-slate-400 mt-1">
                 Pessoas sob cuidado integrativo — anamnese, alergias, comorbidades e protocolos.
               </p>
             </div>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white rounded-none">
+              <Button className="bg-[#5B8DEF] hover:bg-[#4978d4] text-white rounded-none">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Novo Paciente
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[680px] max-h-[92vh] overflow-hidden p-0 gap-0 rounded-none border-l-[3px] border-l-[var(--pw-petroleo)]">
+            <DialogContent className="sm:max-w-[680px] max-h-[92vh] overflow-hidden p-0 gap-0 rounded-none border-l-[3px] border-l-[#5B8DEF]">
               {/* HEADER do wizard com STEPPER visual */}
-              <DialogHeader className="px-6 pt-5 pb-4 bg-[var(--pw-marfim)]/30 border-b border-[var(--pw-marfim)]">
-                <DialogTitle className="flex items-center gap-3 text-[var(--pw-grafite)]">
-                  <UserPlus className="w-5 h-5 text-[var(--pw-petroleo)]" />
+              <DialogHeader className="px-6 pt-5 pb-4 bg-slate-900/60 border-b border-slate-800">
+                <DialogTitle className="flex items-center gap-3 text-slate-100">
+                  <UserPlus className="w-5 h-5 text-[#5B8DEF]" />
                   <span className="text-base font-bold tracking-tight">Novo Paciente</span>
-                  <span className="text-[10px] uppercase tracking-[0.2em] font-mono text-[var(--pw-cinza-bruma)] ml-auto">
-                    Etapa {String(step).padStart(2, "0")} / 03
+                  <span className="text-[10px] uppercase tracking-[0.2em] font-mono text-slate-500 ml-auto">
+                    Etapa {String(step).padStart(2, "0")} / 05
                   </span>
                 </DialogTitle>
                 {/* Stepper neon */}
@@ -312,7 +370,7 @@ export default function Pacientes() {
                             <span className="text-[9px] uppercase tracking-widest font-bold leading-none" style={{ color: ativo || completo ? s.cor : "#aaa" }}>
                               {String(s.n).padStart(2, "0")}
                             </span>
-                            <span className={`text-[12px] font-semibold leading-tight mt-0.5 ${ativo ? "text-[var(--pw-grafite)]" : completo ? "text-[var(--pw-tinta)]" : "text-[#aaa]"}`}>
+                            <span className={`text-[12px] font-semibold leading-tight mt-0.5 ${ativo ? "text-slate-100" : completo ? "text-slate-400" : "text-[#aaa]"}`}>
                               {s.label}
                             </span>
                           </div>
@@ -333,15 +391,15 @@ export default function Pacientes() {
                     {/* ━━━━━━━━ STEP 1: IDENTIDADE ━━━━━━━━ */}
                     {step === 1 && (
                       <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-200">
-                        <div className="flex items-center gap-2 pb-1 border-b border-[var(--pw-marfim)]">
+                        <div className="flex items-center gap-2 pb-1 border-b border-slate-800">
                           <UserIcon className="w-4 h-4 text-[#5B8DEF]" />
-                          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[var(--pw-tinta)]">Quem é a pessoa</span>
+                          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">Quem é a pessoa</span>
                         </div>
 
                         <FormField control={form.control} name="nome" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Nome Completo *</FormLabel>
-                            <FormControl><Input {...field} placeholder="Ex.: Maria Aparecida da Silva" className="rounded-none border-[var(--pw-marfim)] focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20 text-base" autoFocus /></FormControl>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Nome Completo *</FormLabel>
+                            <FormControl><Input {...field} placeholder="Ex.: Maria Aparecida da Silva" className="rounded-none border-slate-800 focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20 text-base" autoFocus /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -349,18 +407,18 @@ export default function Pacientes() {
                         <div className="grid grid-cols-2 gap-3">
                           <FormField control={form.control} name="telefone" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)] flex items-center gap-1"><Phone className="w-3 h-3" /> Celular *</FormLabel>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1"><Phone className="w-3 h-3" /> Celular *</FormLabel>
                               <FormControl>
-                                <Input value={field.value} onChange={(e) => field.onChange(formatCelular(e.target.value))} placeholder="(11) 99999-9999" className="rounded-none border-[var(--pw-marfim)] focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20 font-mono" />
+                                <Input value={field.value} onChange={(e) => field.onChange(formatCelular(e.target.value))} placeholder="(11) 99999-9999" className="rounded-none border-slate-800 focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20 font-mono" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
                           <FormField control={form.control} name="cpf" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">CPF</FormLabel>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">CPF</FormLabel>
                               <FormControl>
-                                <Input value={field.value} onChange={(e) => field.onChange(formatCpf(e.target.value))} placeholder="000.000.000-00" className="rounded-none border-[var(--pw-marfim)] focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20 font-mono" />
+                                <Input value={field.value} onChange={(e) => field.onChange(formatCpf(e.target.value))} placeholder="000.000.000-00" className="rounded-none border-slate-800 focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20 font-mono" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -369,15 +427,15 @@ export default function Pacientes() {
 
                         <FormField control={form.control} name="email" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)] flex items-center gap-1"><AtSign className="w-3 h-3" /> E-mail</FormLabel>
-                            <FormControl><Input type="email" {...field} placeholder="paciente@exemplo.com" className="rounded-none border-[var(--pw-marfim)] focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20" /></FormControl>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1"><AtSign className="w-3 h-3" /> E-mail</FormLabel>
+                            <FormControl><Input type="email" {...field} placeholder="paciente@exemplo.com" className="rounded-none border-slate-800 focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
 
                         <FormField control={form.control} name="genero" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Gênero</FormLabel>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Gênero</FormLabel>
                             <div className="grid grid-cols-4 gap-2">
                               {[
                                 { v: "feminino", l: "Feminino", e: "♀" },
@@ -389,7 +447,7 @@ export default function Pacientes() {
                                   key={g.v}
                                   type="button"
                                   onClick={() => field.onChange(g.v)}
-                                  className={`flex flex-col items-center gap-0.5 py-2 px-2 border-l-[3px] transition-all ${field.value === g.v ? "bg-[#5B8DEF]/15 border-l-[#5B8DEF] text-[var(--pw-grafite)] font-semibold" : "border-l-transparent border border-[var(--pw-marfim)] text-[var(--pw-tinta)] hover:bg-[var(--pw-marfim)]/30"}`}
+                                  className={`flex flex-col items-center gap-0.5 py-2 px-2 border-l-[3px] transition-all ${field.value === g.v ? "bg-[#5B8DEF]/15 border-l-[#5B8DEF] text-slate-100 font-semibold" : "border-l-transparent border border-slate-800 text-slate-400 hover:bg-slate-900/60"}`}
                                   data-testid={`genero-${g.v}`}
                                 >
                                   <span className="text-base leading-none">{g.e}</span>
@@ -406,31 +464,31 @@ export default function Pacientes() {
                     {/* ━━━━━━━━ STEP 2: CLÍNICO ━━━━━━━━ */}
                     {step === 2 && (
                       <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-200">
-                        <div className="flex items-center gap-2 pb-1 border-b border-[var(--pw-marfim)]">
+                        <div className="flex items-center gap-2 pb-1 border-b border-slate-800">
                           <Stethoscope className="w-4 h-4 text-[#7BC79E]" />
-                          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[var(--pw-tinta)]">Perfil clínico</span>
+                          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">Perfil clínico</span>
                         </div>
 
                         <div className="grid grid-cols-3 gap-3">
                           <FormField control={form.control} name="alturaCm" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Altura (cm)</FormLabel>
-                              <FormControl><Input type="number" min={30} max={260} placeholder="170" {...field} value={field.value ?? ""} className="rounded-none border-[var(--pw-marfim)] focus:border-[#7BC79E] focus:ring-[#7BC79E]/20 font-mono" /></FormControl>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Altura (cm)</FormLabel>
+                              <FormControl><Input type="number" min={30} max={260} placeholder="170" {...field} value={field.value ?? ""} className="rounded-none border-slate-800 focus:border-[#7BC79E] focus:ring-[#7BC79E]/20 font-mono" /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
                           <FormField control={form.control} name="pesoKg" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Peso (kg)</FormLabel>
-                              <FormControl><Input type="number" step="0.1" min={0.5} max={500} placeholder="70.5" {...field} value={field.value ?? ""} className="rounded-none border-[var(--pw-marfim)] focus:border-[#7BC79E] focus:ring-[#7BC79E]/20 font-mono" /></FormControl>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Peso (kg)</FormLabel>
+                              <FormControl><Input type="number" step="0.1" min={0.5} max={500} placeholder="70.5" {...field} value={field.value ?? ""} className="rounded-none border-slate-800 focus:border-[#7BC79E] focus:ring-[#7BC79E]/20 font-mono" /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
                           <FormField control={form.control} name="fototipoFitzpatrick" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Fototipo</FormLabel>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Fototipo</FormLabel>
                               <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || undefined)}>
-                                <FormControl><SelectTrigger className="rounded-none border-[var(--pw-marfim)]"><SelectValue placeholder="—" /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="rounded-none border-slate-800"><SelectValue placeholder="—" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                   <SelectItem value="I">I — Muito clara</SelectItem>
                                   <SelectItem value="II">II — Clara</SelectItem>
@@ -448,9 +506,9 @@ export default function Pacientes() {
                         <div className="grid grid-cols-2 gap-3">
                           <FormField control={form.control} name="atividadeFisica" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Atividade Física</FormLabel>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Atividade Física</FormLabel>
                               <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || undefined)}>
-                                <FormControl><SelectTrigger className="rounded-none border-[var(--pw-marfim)]"><SelectValue placeholder="—" /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="rounded-none border-slate-800"><SelectValue placeholder="—" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                   <SelectItem value="sedentario">Sedentário</SelectItem>
                                   <SelectItem value="leve">Leve</SelectItem>
@@ -464,11 +522,11 @@ export default function Pacientes() {
                           )} />
                           <FormField control={form.control} name="gestante" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Gestante / Lactante</FormLabel>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Gestante / Lactante</FormLabel>
                               <button
                                 type="button"
                                 onClick={() => field.onChange(!field.value)}
-                                className={`w-full flex items-center gap-2 px-3 py-2 border-l-[3px] transition-all ${field.value ? "bg-[#F472B6]/15 border-l-[#F472B6] text-[var(--pw-grafite)] font-semibold" : "border-l-transparent border border-[var(--pw-marfim)] text-[var(--pw-tinta)] hover:bg-[var(--pw-marfim)]/30"}`}
+                                className={`w-full flex items-center gap-2 px-3 py-2 border-l-[3px] transition-all ${field.value ? "bg-[#F472B6]/15 border-l-[#F472B6] text-slate-100 font-semibold" : "border-l-transparent border border-slate-800 text-slate-400 hover:bg-slate-900/60"}`}
                                 data-testid="toggle-gestante"
                               >
                                 <Checkbox checked={field.value} className="pointer-events-none" />
@@ -488,15 +546,15 @@ export default function Pacientes() {
                         )} />
                         <FormField control={form.control} name="condicoesClinicas" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Condições / Comorbidades</FormLabel>
-                            <FormControl><Textarea {...field} rows={2} placeholder="Hipertensão, Diabetes tipo 2, Hipotireoidismo…" className="rounded-none border-[var(--pw-marfim)] focus:border-[#7BC79E] focus:ring-[#7BC79E]/20" /></FormControl>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Condições / Comorbidades</FormLabel>
+                            <FormControl><Textarea {...field} rows={2} placeholder="Hipertensão, Diabetes tipo 2, Hipotireoidismo…" className="rounded-none border-slate-800 focus:border-[#7BC79E] focus:ring-[#7BC79E]/20" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={form.control} name="medicamentosContinuos" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Medicamentos Contínuos</FormLabel>
-                            <FormControl><Textarea {...field} rows={2} placeholder="Losartana 50mg 1x/dia, Levotiroxina 50mcg em jejum…" className="rounded-none border-[var(--pw-marfim)] focus:border-[#7BC79E] focus:ring-[#7BC79E]/20" /></FormControl>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Medicamentos Contínuos</FormLabel>
+                            <FormControl><Textarea {...field} rows={2} placeholder="Losartana 50mg 1x/dia, Levotiroxina 50mcg em jejum…" className="rounded-none border-slate-800 focus:border-[#7BC79E] focus:ring-[#7BC79E]/20" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -506,18 +564,18 @@ export default function Pacientes() {
                     {/* ━━━━━━━━ STEP 3: ENDEREÇO ━━━━━━━━ */}
                     {step === 3 && (
                       <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-200">
-                        <div className="flex items-center gap-2 pb-1 border-b border-[var(--pw-marfim)]">
+                        <div className="flex items-center gap-2 pb-1 border-b border-slate-800">
                           <MapPin className="w-4 h-4 text-[#F5B946]" />
-                          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[var(--pw-tinta)]">Onde mora</span>
-                          <span className="ml-auto text-[10px] text-[var(--pw-cinza-bruma)] italic">CEP preenche sozinho ↓</span>
+                          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">Onde mora</span>
+                          <span className="ml-auto text-[10px] text-slate-500 italic">CEP preenche sozinho ↓</span>
                         </div>
 
                         <div className="grid grid-cols-3 gap-3">
                           <FormField control={form.control} name="cep" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">CEP</FormLabel>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">CEP</FormLabel>
                               <FormControl>
-                                <Input value={field.value} onChange={(e) => { const f = formatCep(e.target.value); field.onChange(f); if (f.replace(/\D/g, "").length === 8) buscarCep(f); }} placeholder="00000-000" className="rounded-none border-[var(--pw-marfim)] focus:border-[#F5B946] focus:ring-[#F5B946]/20 font-mono" />
+                                <Input value={field.value} onChange={(e) => { const f = formatCep(e.target.value); field.onChange(f); if (f.replace(/\D/g, "").length === 8) buscarCep(f); }} placeholder="00000-000" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20 font-mono" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -525,8 +583,8 @@ export default function Pacientes() {
                           <div className="col-span-2">
                             <FormField control={form.control} name="endereco" render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Endereço</FormLabel>
-                                <FormControl><Input {...field} placeholder="Rua, número" className="rounded-none border-[var(--pw-marfim)] focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
+                                <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Endereço</FormLabel>
+                                <FormControl><Input {...field} placeholder="Rua, número" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )} />
@@ -536,15 +594,15 @@ export default function Pacientes() {
                         <div className="grid grid-cols-2 gap-3">
                           <FormField control={form.control} name="complemento" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Complemento</FormLabel>
-                              <FormControl><Input {...field} placeholder="Apto, Sala, Bloco…" className="rounded-none border-[var(--pw-marfim)] focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Complemento</FormLabel>
+                              <FormControl><Input {...field} placeholder="Apto, Sala, Bloco…" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
                           <FormField control={form.control} name="bairro" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Bairro</FormLabel>
-                              <FormControl><Input {...field} className="rounded-none border-[var(--pw-marfim)] focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Bairro</FormLabel>
+                              <FormControl><Input {...field} className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
@@ -553,31 +611,215 @@ export default function Pacientes() {
                         <div className="grid grid-cols-3 gap-3">
                           <FormField control={form.control} name="cidade" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">Cidade</FormLabel>
-                              <FormControl><Input {...field} className="rounded-none border-[var(--pw-marfim)] focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Cidade</FormLabel>
+                              <FormControl><Input {...field} className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
                           <FormField control={form.control} name="estado" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">UF</FormLabel>
-                              <FormControl><Input {...field} placeholder="SP" maxLength={2} className="rounded-none border-[var(--pw-marfim)] focus:border-[#F5B946] focus:ring-[#F5B946]/20 font-mono uppercase" /></FormControl>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">UF</FormLabel>
+                              <FormControl><Input {...field} placeholder="SP" maxLength={2} className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20 font-mono uppercase" /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
                           <FormField control={form.control} name="pais" render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-[var(--pw-tinta)]">País</FormLabel>
-                              <FormControl><Input {...field} className="rounded-none border-[var(--pw-marfim)] focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">País</FormLabel>
+                              <FormControl><Input {...field} className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
                         </div>
 
-                        <div className="mt-4 p-3 bg-[#7BC79E]/10 border-l-[3px] border-l-[#7BC79E]">
-                          <p className="text-[11px] text-[var(--pw-grafite)] leading-relaxed">
+                        <div className="mt-4 p-3 bg-[#F5B946]/10 border-l-[3px] border-l-[#F5B946]">
+                          <p className="text-[11px] text-slate-100 leading-relaxed">
+                            <ChevronRightIcon className="inline w-3.5 h-3.5 text-[#F5B946] mr-1" />
+                            Endereço pronto. Próximo: <strong>Mídia & Drive</strong> (foto, pasta Drive, plano).
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ━━━━━━━━ STEP 4: MÍDIA & DOCUMENTOS ━━━━━━━━ */}
+                    {step === 4 && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-200">
+                        <div className="flex items-center gap-2 pb-1 border-b border-slate-800">
+                          <Camera className="w-4 h-4 text-[#A78BFA]" />
+                          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">Foto, Drive e plano de acompanhamento</span>
+                        </div>
+
+                        {/* Plano de acompanhamento — 4 cards visuais (Diamante/Ouro/Prata/Cobre) */}
+                        <FormField control={form.control} name="planoAcompanhamento" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                              <Crown className="w-3 h-3" /> Plano de Acompanhamento
+                            </FormLabel>
+                            <div className="grid grid-cols-4 gap-2">
+                              {[
+                                { v: "diamante", l: "Diamante", e: "💎", cor: "#22C7B8" },
+                                { v: "ouro",     l: "Ouro",     e: "🥇", cor: "#F5B946" },
+                                { v: "prata",    l: "Prata",    e: "🥈", cor: "#94A3B8" },
+                                { v: "cobre",    l: "Cobre",    e: "🥉", cor: "#E07A5F" },
+                              ].map((p) => {
+                                const ativo = field.value === p.v;
+                                return (
+                                  <button
+                                    key={p.v}
+                                    type="button"
+                                    onClick={() => field.onChange(p.v)}
+                                    className={`flex flex-col items-center gap-1 py-3 px-2 border-l-[3px] transition-all ${ativo ? "text-slate-100 font-bold" : "border-l-transparent border border-slate-800 text-slate-400 hover:bg-slate-900/60"}`}
+                                    style={ativo ? { borderLeftColor: p.cor, backgroundColor: `${p.cor}1F`, boxShadow: `inset 0 0 0 1px ${p.cor}55` } : undefined}
+                                    data-testid={`plano-${p.v}`}
+                                  >
+                                    <span className="text-lg leading-none">{p.e}</span>
+                                    <span className="text-[10px] uppercase tracking-wider font-bold">{p.l}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+
+                        {/* Fotos rosto + corpo — URL por enquanto (upload direto requer endpoint
+                            de storage que ainda não existe; CEO confirma ok cadastrar URL agora) */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField control={form.control} name="fotoRosto" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                                <Camera className="w-3 h-3" /> URL Foto do Rosto
+                              </FormLabel>
+                              <FormControl><Input type="url" {...field} placeholder="https://drive.google.com/…" className="rounded-none border-slate-800 focus:border-[#A78BFA] focus:ring-[#A78BFA]/20 font-mono text-[12px]" /></FormControl>
+                              <FormMessage />
+                              {field.value && (
+                                <div className="mt-1.5 w-20 h-20 border border-slate-800 overflow-hidden bg-slate-900/50">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={field.value} alt="Prévia rosto" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                </div>
+                              )}
+                            </FormItem>
+                          )} />
+                          <FormField control={form.control} name="fotoCorpo" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                                <Camera className="w-3 h-3" /> URL Foto Corpo Inteiro
+                              </FormLabel>
+                              <FormControl><Input type="url" {...field} placeholder="https://drive.google.com/…" className="rounded-none border-slate-800 focus:border-[#A78BFA] focus:ring-[#A78BFA]/20 font-mono text-[12px]" /></FormControl>
+                              <FormMessage />
+                              {field.value && (
+                                <div className="mt-1.5 w-20 h-20 border border-slate-800 overflow-hidden bg-slate-900/50">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={field.value} alt="Prévia corpo" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                </div>
+                              )}
+                            </FormItem>
+                          )} />
+                        </div>
+
+                        <FormField control={form.control} name="googleDriveFolderId" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                              <Cloud className="w-3 h-3" /> ID da Pasta Google Drive
+                            </FormLabel>
+                            <FormControl><Input {...field} placeholder="1a2B3c4D5e6F7g8H9i0J… (cole o ID da URL do Drive)" className="rounded-none border-slate-800 focus:border-[#A78BFA] focus:ring-[#A78BFA]/20 font-mono text-[12px]" /></FormControl>
+                            <p className="text-[10px] text-slate-500 mt-1">
+                              Pasta onde ficam exames, notas fiscais, fotos extras. Cola só o ID (parte depois de <span className="font-mono text-[#A78BFA]">/folders/</span> na URL).
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+                    )}
+
+                    {/* ━━━━━━━━ STEP 5: PLANO & NF ━━━━━━━━ */}
+                    {step === 5 && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-200">
+                        <div className="flex items-center gap-2 pb-1 border-b border-slate-800">
+                          <CreditCard className="w-4 h-4 text-[#22C7B8]" />
+                          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">Dados de cobrança e nota fiscal</span>
+                        </div>
+
+                        {/* Aviso explícito: campos cadastrais, integração de cobrança no próximo sprint */}
+                        <div className="p-2.5 bg-[#22C7B8]/10 border-l-[3px] border-l-[#22C7B8] flex items-start gap-2">
+                          <AlertTriangle className="w-3.5 h-3.5 text-[#22C7B8] mt-0.5 flex-shrink-0" />
+                          <p className="text-[10.5px] text-slate-300 leading-relaxed">
+                            <strong className="text-slate-100">Só cadastro de dados</strong> neste sprint — sem cobrança automática ainda.
+                            Integração com Asaas/MP/Stripe entra no próximo turno (campos serão persistidos quando a migration <span className="font-mono text-[#22C7B8]">078_pacientes_pagamento_e_nf</span> rodar).
+                          </p>
+                        </div>
+
+                        {/* Pagamento — titular + bandeira + últimos 4 */}
+                        <div className="space-y-3 p-3 border border-slate-800 bg-slate-900/40">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-3.5 h-3.5 text-[#22C7B8]" />
+                            <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#22C7B8]">Cartão de Cobrança Recorrente</span>
+                          </div>
+
+                          <FormField control={form.control} name="pagamentoTitularNome" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Nome do Titular (como no cartão)</FormLabel>
+                              <FormControl><Input {...field} placeholder="MARIA A DA SILVA" className="rounded-none border-slate-800 focus:border-[#22C7B8] focus:ring-[#22C7B8]/20 font-mono uppercase" /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <FormField control={form.control} name="pagamentoCartaoBandeira" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Bandeira</FormLabel>
+                                <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || undefined)}>
+                                  <FormControl><SelectTrigger className="rounded-none border-slate-800"><SelectValue placeholder="—" /></SelectTrigger></FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="visa">Visa</SelectItem>
+                                    <SelectItem value="mastercard">Mastercard</SelectItem>
+                                    <SelectItem value="elo">Elo</SelectItem>
+                                    <SelectItem value="amex">American Express</SelectItem>
+                                    <SelectItem value="hipercard">Hipercard</SelectItem>
+                                    <SelectItem value="outro">Outro</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="pagamentoCartaoUltimos4Digitos" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Últimos 4 dígitos</FormLabel>
+                                <FormControl><Input value={field.value} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="••••" maxLength={4} className="rounded-none border-slate-800 focus:border-[#22C7B8] focus:ring-[#22C7B8]/20 font-mono text-center text-lg tracking-[0.4em]" /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                          </div>
+                        </div>
+
+                        {/* Nota fiscal — opcional, só se o paciente quiser NF em outro CNPJ */}
+                        <div className="space-y-3 p-3 border border-slate-800 bg-slate-900/40">
+                          <div className="flex items-center gap-2">
+                            <Receipt className="w-3.5 h-3.5 text-[#F5B946]" />
+                            <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#F5B946]">Nota Fiscal (opcional)</span>
+                            <span className="text-[10px] text-slate-500 italic ml-auto">só se NF em CNPJ diferente do CPF</span>
+                          </div>
+
+                          <FormField control={form.control} name="notaFiscalCnpj" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">CNPJ Emissão</FormLabel>
+                              <FormControl><Input {...field} placeholder="00.000.000/0000-00" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20 font-mono" /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={form.control} name="notaFiscalRazaoSocial" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Razão Social</FormLabel>
+                              <FormControl><Input {...field} placeholder="Empresa LTDA" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                        </div>
+
+                        <div className="mt-2 p-3 bg-[#7BC79E]/10 border-l-[3px] border-l-[#7BC79E]">
+                          <p className="text-[11px] text-slate-100 leading-relaxed">
                             <Check className="inline w-3.5 h-3.5 text-[#7BC79E] mr-1" />
-                            Tudo pronto. Confere os dados e clica <strong>Cadastrar Paciente</strong>.
+                            Tudo pronto. Confere e clica <strong>Cadastrar Paciente</strong>.
                           </p>
                         </div>
                       </div>
@@ -585,17 +827,17 @@ export default function Pacientes() {
                   </div>
 
                   {/* FOOTER do wizard com navegação */}
-                  <div className="flex items-center justify-between px-6 py-3 border-t border-[var(--pw-marfim)] bg-[var(--pw-marfim)]/20">
-                    <Button type="button" variant="ghost" onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s))} disabled={step === 1} className="rounded-none text-[var(--pw-tinta)] disabled:opacity-30" data-testid="wizard-voltar">
+                  <div className="flex items-center justify-between px-6 py-3 border-t border-slate-800 bg-slate-900/50">
+                    <Button type="button" variant="ghost" onClick={() => setStep((s) => (s > 1 ? ((s - 1) as StepN) : s))} disabled={step === 1} className="rounded-none text-slate-400 disabled:opacity-30" data-testid="wizard-voltar">
                       ← Voltar
                     </Button>
                     <div className="flex items-center gap-1.5">
-                      {[1, 2, 3].map((n) => (
-                        <span key={n} className="w-2 h-2 rounded-full transition-colors" style={{ backgroundColor: step >= n ? STEPS[n - 1].cor : "#d4d4d4" }} />
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <span key={n} className="w-2 h-2 rounded-full transition-colors" style={{ backgroundColor: step >= n ? STEPS[n - 1].cor : "#475569" }} />
                       ))}
                     </div>
-                    {step < 3 ? (
-                      <Button type="button" onClick={irProximoStep} className="bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white rounded-none" data-testid="wizard-proximo">
+                    {step < TOTAL_STEPS ? (
+                      <Button type="button" onClick={irProximoStep} className="bg-[#5B8DEF] hover:bg-[#4978d4] text-white rounded-none" data-testid="wizard-proximo">
                         Próximo →
                       </Button>
                     ) : (
@@ -621,7 +863,7 @@ export default function Pacientes() {
             return (
               <div
                 key={c.label}
-                className="bg-white border-l-[3px] px-4 py-3 flex items-center gap-3"
+                className="bg-slate-900 border-l-[3px] px-4 py-3 flex items-center gap-3"
                 style={{ borderLeftColor: c.cor, boxShadow: `inset 0 0 0 1px ${c.cor}22` }}
                 data-testid={`stat-${c.label.toLowerCase().replace(/\s/g, "-")}`}
               >
@@ -629,8 +871,8 @@ export default function Pacientes() {
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-[var(--pw-cinza-bruma)] leading-none">{c.label}</span>
-                  <span className="text-2xl font-bold font-mono text-[var(--pw-grafite)] leading-tight mt-1 tabular-nums">{isLoading ? "—" : c.valor.toLocaleString("pt-BR")}</span>
+                  <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-slate-500 leading-none">{c.label}</span>
+                  <span className="text-2xl font-bold font-mono text-slate-100 leading-tight mt-1 tabular-nums">{isLoading ? "—" : c.valor.toLocaleString("pt-BR")}</span>
                 </div>
               </div>
             );
@@ -638,34 +880,34 @@ export default function Pacientes() {
         </div>
 
         {/* ━━ BUSCA + LISTA densa visual ━━ */}
-        <div className="bg-white border-l-[3px] border-l-[var(--pw-petroleo)] text-[var(--pw-grafite)]">
+        <div className="bg-slate-900 border-l-[3px] border-l-[#5B8DEF] text-slate-100">
           {/* Barra de busca grande e óbvia */}
-          <div className="border-b border-[var(--pw-marfim)] px-4 py-3 flex items-center gap-3 bg-[var(--pw-marfim)]/15">
-            <Search className="h-4 w-4 text-[var(--pw-petroleo)] flex-shrink-0" />
+          <div className="border-b border-slate-800 px-4 py-3 flex items-center gap-3 bg-slate-900/40">
+            <Search className="h-4 w-4 text-[#5B8DEF] flex-shrink-0" />
             <Input
               placeholder="Buscar paciente por nome, CPF…"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="flex-1 max-w-md border-0 bg-transparent rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm placeholder:text-[var(--pw-cinza-bruma)]"
+              className="flex-1 max-w-md border-0 bg-transparent rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm placeholder:text-slate-500"
               data-testid="input-busca-pacientes"
             />
             {busca && (
               <button
                 type="button"
                 onClick={() => setBusca("")}
-                className="text-[10px] uppercase tracking-widest font-bold text-[var(--pw-tinta)] hover:text-[var(--pw-petroleo)]"
+                className="text-[10px] uppercase tracking-widest font-bold text-slate-400 hover:text-[#5B8DEF]"
                 data-testid="limpar-busca"
               >
                 Limpar
               </button>
             )}
-            <span className="ml-auto text-[10px] uppercase tracking-widest font-mono text-[var(--pw-cinza-bruma)]">
+            <span className="ml-auto text-[10px] uppercase tracking-widest font-mono text-slate-500">
               {isLoading ? "carregando…" : `${stats.total} resultado${stats.total === 1 ? "" : "s"}`}
             </span>
           </div>
 
           {/* Header da grade (ordenação) */}
-          <div className="hidden md:grid grid-cols-[1fr_140px_160px_100px_44px] gap-3 px-4 py-2 border-b border-[var(--pw-marfim)] bg-[var(--pw-marfim)]/8 text-[10px] uppercase tracking-[0.15em] font-bold text-[var(--pw-tinta)]">
+          <div className="hidden md:grid grid-cols-[1fr_140px_160px_100px_44px] gap-3 px-4 py-2 border-b border-slate-800 bg-slate-900/30 text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400">
             <ColunaOrdenavel label="Paciente" ativaDesc={colunaAtivaDesc("NOME")} ativaAsc={colunaAtivaAsc("NOME")} posicao={posicaoOrd("NOME")} onClick={(shift) => onClickColuna("NOME", shift)} testId="ord-nome" />
             <ColunaOrdenavel label="CPF" ativaDesc={colunaAtivaDesc("CPF")} ativaAsc={colunaAtivaAsc("CPF")} posicao={posicaoOrd("CPF")} onClick={(shift) => onClickColuna("CPF", shift)} testId="ord-cpf" />
             <ColunaOrdenavel label="Celular" ativaDesc={colunaAtivaDesc("TELEFONE")} ativaAsc={colunaAtivaAsc("TELEFONE")} posicao={posicaoOrd("TELEFONE")} onClick={(shift) => onClickColuna("TELEFONE", shift)} testId="ord-telefone" />
@@ -675,37 +917,37 @@ export default function Pacientes() {
 
           {/* Linhas dos pacientes */}
           {isLoading ? (
-            <div className="divide-y divide-[var(--pw-marfim)]">
+            <div className="divide-y divide-slate-800">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <div key={i} className="px-4 py-3 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[var(--pw-marfim)] animate-pulse" />
+                  <div className="w-10 h-10 bg-slate-800 animate-pulse" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="h-3.5 bg-[var(--pw-marfim)] animate-pulse w-1/3" />
-                    <div className="h-2.5 bg-[var(--pw-marfim)]/70 animate-pulse w-1/2" />
+                    <div className="h-3.5 bg-slate-800 animate-pulse w-1/3" />
+                    <div className="h-2.5 bg-slate-800/70 animate-pulse w-1/2" />
                   </div>
                 </div>
               ))}
             </div>
           ) : pacientes?.length === 0 ? (
-            <div className="text-center py-16 px-4 text-[var(--pw-cinza-bruma)]">
+            <div className="text-center py-16 px-4 text-slate-500">
               <UsersIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="text-sm">{busca ? `Nenhum paciente bate com "${busca}"` : "Nenhum paciente cadastrado ainda."}</p>
               {!busca && (
-                <button type="button" onClick={() => setOpen(true)} className="mt-4 inline-flex items-center gap-2 px-4 py-2 border-l-[3px] border-l-[var(--pw-petroleo)] bg-[var(--pw-petroleo)]/10 text-[var(--pw-petroleo)] text-sm font-bold hover:bg-[var(--pw-petroleo)]/15">
+                <button type="button" onClick={() => setOpen(true)} className="mt-4 inline-flex items-center gap-2 px-4 py-2 border-l-[3px] border-l-[#5B8DEF] bg-[#5B8DEF]/10 text-[#5B8DEF] text-sm font-bold hover:bg-[#5B8DEF]/15">
                   <UserPlus className="w-4 h-4" /> Cadastrar o Primeiro
                 </button>
               )}
             </div>
           ) : (
-            <div className="divide-y divide-[var(--pw-marfim)]">
+            <div className="divide-y divide-slate-800">
               {pacientes?.map((paciente) => {
                 const cor = corDoNome(paciente.nome);
                 const ini = iniciaisDoNome(paciente.nome);
                 return (
                   <Link
                     key={paciente.id}
-                    href={`/pacientes/${paciente.id}`}
-                    className="group grid grid-cols-[1fr_140px_160px_100px_44px] gap-3 items-center px-4 py-2.5 border-l-[3px] border-l-transparent hover:bg-[var(--pw-marfim)]/25 hover:border-l-[var(--pw-petroleo)] transition-all"
+                    href={modoCockpit ? `/pacientes/${paciente.id}/cockpit` : `/pacientes/${paciente.id}`}
+                    className="group grid grid-cols-[1fr_140px_160px_100px_44px] gap-3 items-center px-4 py-2.5 border-l-[3px] border-l-transparent hover:bg-slate-800/40 hover:border-l-[#5B8DEF] transition-all"
                     data-testid={`paciente-row-${paciente.id}`}
                   >
                     {/* Coluna 1: avatar + nome + email */}
@@ -718,38 +960,38 @@ export default function Pacientes() {
                         {ini}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-[13px] font-semibold text-[var(--pw-grafite)] truncate group-hover:text-[var(--pw-petroleo)] transition-colors">
+                        <span className="text-[13px] font-semibold text-slate-100 truncate group-hover:text-[#5B8DEF] transition-colors">
                           {paciente.nome}
                         </span>
                         {paciente.email && (
-                          <span className="text-[10px] text-[var(--pw-cinza-bruma)] truncate flex items-center gap-1">
+                          <span className="text-[10px] text-slate-500 truncate flex items-center gap-1">
                             <AtSign className="w-2.5 h-2.5" /> {paciente.email}
                           </span>
                         )}
                       </div>
                     </div>
                     {/* Coluna 2: CPF */}
-                    <span className="text-[12px] font-mono text-[var(--pw-tinta)] tabular-nums truncate">
-                      {paciente.cpf || <span className="text-[var(--pw-cinza-bruma)]">—</span>}
+                    <span className="text-[12px] font-mono text-slate-400 tabular-nums truncate">
+                      {paciente.cpf || <span className="text-slate-500">—</span>}
                     </span>
                     {/* Coluna 3: Celular com ícone */}
-                    <span className="text-[12px] font-mono text-[var(--pw-tinta)] tabular-nums truncate flex items-center gap-1.5">
+                    <span className="text-[12px] font-mono text-slate-400 tabular-nums truncate flex items-center gap-1.5">
                       <Phone className="w-3 h-3 text-[#7BC79E]" /> {paciente.telefone}
                     </span>
                     {/* Coluna 4: status badge */}
                     <span>
                       {paciente.statusAtivo ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest border-l-[3px] border-l-[var(--pw-saude)] bg-[var(--pw-saude)]/10 text-[var(--pw-saude)]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--pw-saude)] animate-pulse" /> Ativo
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest border-l-[3px] border-l-[#7BC79E] bg-[#7BC79E]/10 text-[#7BC79E]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#7BC79E] animate-pulse" /> Ativo
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest border-l-[3px] border-l-[var(--pw-critico)] bg-[var(--pw-critico)]/10 text-[var(--pw-critico)]">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest border-l-[3px] border-l-[#E07A5F] bg-[#E07A5F]/10 text-[#E07A5F]">
                           Inativo
                         </span>
                       )}
                     </span>
                     {/* Coluna 5: seta */}
-                    <ChevronRightIcon className="w-4 h-4 text-[var(--pw-cinza-bruma)] group-hover:text-[var(--pw-petroleo)] group-hover:translate-x-0.5 transition-all justify-self-end" />
+                    <ChevronRightIcon className="w-4 h-4 text-slate-500 group-hover:text-[#5B8DEF] group-hover:translate-x-0.5 transition-all justify-self-end" />
                   </Link>
                 );
               })}
