@@ -4,11 +4,16 @@ import { useClinic } from "@/contexts/ClinicContext";
 import {
   AlertTriangle, Activity, Syringe, MessageSquareWarning,
   CalendarClock, FileText, DollarSign, Mountain, ShieldAlert,
-  Bell,
+  Bell, Gauge, TrendingUp,
 } from "lucide-react";
 import { Link } from "wouter";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import { apiFetch } from "@/lib/api-fetch";
+import {
+  RelogioPercentual,
+  BarraSinaptica,
+  BlocoExpansivel,
+} from "@/components/sinaptico";
 
 interface MetricasJanela {
   desde: string;
@@ -22,6 +27,14 @@ interface LembreteMetricas {
   geradoEm: string;
   janelas: { ultimas24h: MetricasJanela; ultimos7d: MetricasJanela };
 }
+
+const JANELA_VAZIA: MetricasJanela = {
+  desde: "",
+  ENVIADO: 0,
+  FALHOU: 0,
+  PENDENTE: 0,
+  total: 0,
+};
 
 const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
@@ -80,6 +93,25 @@ export default function DashboardLocalPage() {
   const alertasCriticos = Number(local?.alertasCriticos ?? 0);
   const ultimaAtualizacao = local?.atualizadoEm ? new Date(local.atualizadoEm) : null;
 
+  // Wave Sináptica — guards defensivos pra evitar crash quando API responde shape vazio/erro
+  const janela24h: MetricasJanela = lembreteMetricas?.janelas?.ultimas24h ?? JANELA_VAZIA;
+  const janela7d: MetricasJanela = lembreteMetricas?.janelas?.ultimos7d ?? JANELA_VAZIA;
+
+  const taxaEntrega24h = janela24h.total > 0
+    ? Math.round((janela24h.ENVIADO / janela24h.total) * 100)
+    : 0;
+  const taxaEntrega7d = janela7d.total > 0
+    ? Math.round((janela7d.ENVIADO / janela7d.total) * 100)
+    : 0;
+
+  // Saúde geral do motor — composição: peso 50% entrega 24h + 30% entrega 7d + 20% (100 - %alertas)
+  const totalCards = cards.reduce((acc, c) => acc + Number(c.valor ?? 0), 0);
+  const pctSemAlerta = totalCards > 0
+    ? Math.max(0, 100 - Math.round((alertasCriticos / totalCards) * 100))
+    : 100;
+  const saudeMotor = Math.round(taxaEntrega24h * 0.5 + taxaEntrega7d * 0.3 + pctSemAlerta * 0.2);
+  const corSaude = saudeMotor >= 80 ? "#27AE60" : saudeMotor >= 50 ? "#E67E22" : "#C0392B";
+
   return (
     <div className="space-y-4">
       <BotaoImprimirFlutuante titulo={`Dashboard Local · ${nomeUnidadeSelecionada ?? ""}`} />
@@ -100,14 +132,44 @@ export default function DashboardLocalPage() {
         )}
       </header>
 
-      <Card className="p-4 bg-gradient-to-r from-[#B8941F]/10 to-transparent">
-        <div className="flex items-center gap-3">
-          <DollarSign className="w-8 h-8 text-[#B8941F]" />
-          <div className="flex-1">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Consumo PADCON · {competencia}</div>
-            <div className="text-3xl font-mono font-bold text-[#1F4E5F]">{fmt(totalLocal)}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              Módulos: {fmt(meuFat?.total_modulos)} · Eventos: {fmt(meuFat?.total_eventos)}
+      {/* SINAPSE 1 — Relógios sinápticos: visão tátil em 3 segundos */}
+      <Card
+        className="p-5"
+        style={{
+          borderLeft: `3px solid ${corSaude}`,
+          background: `linear-gradient(135deg, ${corSaude}08 0%, transparent 60%)`,
+        }}
+      >
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+          <RelogioPercentual
+            valor={saudeMotor}
+            label="Saúde do Motor"
+            sublabel="composto"
+            cor={corSaude}
+            tamanho={110}
+          />
+          <RelogioPercentual
+            valor={taxaEntrega24h}
+            label="Entrega WhatsApp 24h"
+            sublabel={`${janela24h.ENVIADO}/${janela24h.total || "—"}`}
+            cor="#5EE6E6"
+          />
+          <RelogioPercentual
+            valor={taxaEntrega7d}
+            label="Entrega 7 dias"
+            sublabel={`${janela7d.ENVIADO}/${janela7d.total || "—"}`}
+            cor="#2980B9"
+          />
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-7 h-7 text-[#B8941F]" />
+              <div>
+                <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold">PADCON · {competencia}</div>
+                <div className="text-xl font-mono font-bold text-[#B8941F]">{fmt(totalLocal)}</div>
+              </div>
+            </div>
+            <div className="text-[10px] text-muted-foreground text-center">
+              {fmt(meuFat?.total_modulos)} mód · {fmt(meuFat?.total_eventos)} ev
             </div>
           </div>
         </div>
@@ -119,62 +181,110 @@ export default function DashboardLocalPage() {
         </Card>
       )}
 
-      <Card className="p-4" data-testid="card-lembretes-metricas">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1">
-            <Bell className="w-6 h-6 text-[#2980B9] mt-0.5" />
-            <div className="flex-1">
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                Lembretes de prescrição · saúde do motor
-              </div>
-              {loadingLembretes || !lembreteMetricas ? (
-                <div className="text-sm text-muted-foreground mt-1">Carregando...</div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  {([
-                    { label: "Últimas 24h", j: lembreteMetricas.janelas.ultimas24h },
-                    { label: "Últimos 7 dias", j: lembreteMetricas.janelas.ultimos7d },
-                  ] as const).map(({ label, j }) => (
-                    <div key={label}>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{label}</div>
-                      <div className="flex gap-3 text-xs font-mono">
-                        <span className="text-[#27AE60]" title="Entregues">✓ {j.ENVIADO}</span>
-                        <span className="text-[#C0392B]" title="Falharam">✗ {j.FALHOU}</span>
-                        <span className="text-[#E67E22]" title="Pendentes">⏳ {j.PENDENTE}</span>
-                        <span className="text-muted-foreground">total {j.total}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+      {/* SINAPSE 2 — Bloco expansível: lembretes (corrigido o crash do undefined) */}
+      <BlocoExpansivel
+        titulo="Lembretes de Prescrição"
+        subtitulo="Saúde do motor de WhatsApp · janelas 24h e 7 dias"
+        icone={<Bell className="w-4 h-4" />}
+        cor="#5EE6E6"
+        badge={loadingLembretes ? "..." : `${janela24h.total + janela7d.total} envios`}
+        conteudoExpandido={
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-6">
+              <RelogioPercentual valor={taxaEntrega24h} label="Taxa entrega 24h" cor="#5EE6E6" tamanho={140} />
+              <RelogioPercentual valor={taxaEntrega7d} label="Taxa entrega 7d" cor="#2980B9" tamanho={140} />
             </div>
+            <div className="grid grid-cols-2 gap-6">
+              {[
+                { titulo: "Últimas 24 horas", j: janela24h, cor: "#5EE6E6" },
+                { titulo: "Últimos 7 dias", j: janela7d, cor: "#2980B9" },
+              ].map(({ titulo, j, cor }) => (
+                <div key={titulo} className="space-y-2">
+                  <h4 className="text-[10px] uppercase tracking-[0.2em] font-mono font-bold" style={{ color: cor }}>{titulo}</h4>
+                  <BarraSinaptica label="Entregues" valor={j.ENVIADO} total={Math.max(1, j.total)} cor="#27AE60" destaque={String(j.total)} />
+                  <BarraSinaptica label="Pendentes" valor={j.PENDENTE} total={Math.max(1, j.total)} cor="#E67E22" destaque={String(j.total)} />
+                  <BarraSinaptica label="Falharam" valor={j.FALHOU} total={Math.max(1, j.total)} cor="#C0392B" destaque={String(j.total)} />
+                </div>
+              ))}
+            </div>
+            <Link href="/prescricoes-lembrete" className="block text-center text-xs text-[#5EE6E6] hover:underline pt-2 border-t border-white/[0.05]">
+              Abrir painel completo de lembretes →
+            </Link>
           </div>
-          <Link href="/prescricoes-lembrete" className="text-xs text-[#2980B9] hover:underline whitespace-nowrap">
-            Ver lembretes →
-          </Link>
-        </div>
-      </Card>
+        }
+      >
+        {loadingLembretes ? (
+          <div className="text-xs text-muted-foreground py-2">Carregando métricas...</div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            {[
+              { titulo: "Últimas 24h", j: janela24h, cor: "#5EE6E6" },
+              { titulo: "Últimos 7 dias", j: janela7d, cor: "#2980B9" },
+            ].map(({ titulo, j, cor }) => (
+              <div key={titulo} className="space-y-2">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{titulo}</div>
+                <BarraSinaptica label="Entregues" valor={j.ENVIADO} total={Math.max(1, j.total)} cor="#27AE60" destaque={String(j.total)} />
+                <BarraSinaptica label="Pendentes" valor={j.PENDENTE} total={Math.max(1, j.total)} cor="#E67E22" destaque={String(j.total)} />
+                <BarraSinaptica label="Falharam" valor={j.FALHOU} total={Math.max(1, j.total)} cor="#C0392B" destaque={String(j.total)} />
+              </div>
+            ))}
+          </div>
+        )}
+      </BlocoExpansivel>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {cards.map((c, i) => {
-          const Icon = c.icon;
-          const valorRender = loadingLocal ? "—" : Number(c.valor ?? 0).toLocaleString("pt-BR");
-          return (
-            <Card key={i} className="p-4 hover:shadow-md transition-shadow" data-testid={`local-card-${i}`}>
-              <div className="flex items-start justify-between">
+      {/* SINAPSE 3 — Bloco expansível: filas operacionais */}
+      <BlocoExpansivel
+        titulo="Filas Operacionais"
+        subtitulo="Demandas vivas dentro da clínica"
+        icone={<Gauge className="w-4 h-4" />}
+        cor="#2980B9"
+        badge={`${totalCards} ativos`}
+        conteudoExpandido={
+          <div className="space-y-3">
+            {cards.map((c, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 border-l-2" style={{ borderColor: c.cor }}>
+                <c.icon className="w-5 h-5" style={{ color: c.cor }} />
                 <div className="flex-1">
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">{c.titulo}</div>
-                  <div className="text-3xl font-mono font-bold mt-1" style={{ color: c.cor }}>{valorRender}</div>
+                  <BarraSinaptica
+                    label="participação na carga total"
+                    valor={Number(c.valor ?? 0)}
+                    total={Math.max(1, totalCards)}
+                    cor={c.cor}
+                    sufixo="itens"
+                  />
                 </div>
-                <Icon className="w-6 h-6 opacity-60" style={{ color: c.cor }} />
+                <div className="text-2xl font-mono font-bold" style={{ color: c.cor }}>
+                  {Number(c.valor ?? 0).toLocaleString("pt-BR")}
+                </div>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-2">
-                {loadingLocal ? "Carregando..." : "Dados ao vivo · refresh a cada 30s"}
-              </p>
-            </Card>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+          {cards.map((c, i) => {
+            const Icon = c.icon;
+            const valorRender = loadingLocal ? "—" : Number(c.valor ?? 0).toLocaleString("pt-BR");
+            return (
+              <Card
+                key={i}
+                className="p-3 hover:shadow-md transition-all hover:scale-[1.02] cursor-default"
+                style={{ borderLeft: `2px solid ${c.cor}` }}
+                data-testid={`local-card-${i}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold">{c.titulo}</div>
+                    <div className="text-2xl font-mono font-bold mt-1" style={{ color: c.cor }}>{valorRender}</div>
+                  </div>
+                  <Icon className="w-5 h-5 opacity-60" style={{ color: c.cor }} />
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </BlocoExpansivel>
     </div>
   );
 }
