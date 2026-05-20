@@ -16,6 +16,7 @@ import AnamneseDetalhe from "@/pages/anamnese/[id]";
 import Validacao from "@/pages/validacao";
 import Filas from "@/pages/filas";
 import Pacientes from "@/pages/pacientes";
+import PrescricaoRapida from "@/pages/prescricao-rapida";
 import ExamesGrafico from "@/pages/pacientes/exames-grafico";
 import LaboratorioValidacao from "@/pages/laboratorio-validacao";
 import PacienteDetalhe from "@/pages/pacientes/[id]";
@@ -180,6 +181,7 @@ function Router() {
       <Route path="/validacao" component={Validacao} />
       <Route path="/filas" component={Filas} />
       <Route path="/pacientes" component={Pacientes} />
+      <Route path="/prescricao-rapida" component={PrescricaoRapida} />
       <Route path="/pacientes/:id/questionario" component={QuestionarioPaciente} />
       <Route path="/pacientes/:id/exames-grafico" component={ExamesGrafico} />
       {/* EXAMES-2 — vitrine ANTES do dashboard (rota mais especifica primeiro) */}

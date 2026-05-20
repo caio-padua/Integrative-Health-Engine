@@ -1,0 +1,54 @@
+Auditoria de 2 walking deads encontrados no sistema PAWARDS hoje à noite.
+
+CONTEXTO: Caio (CEO) tentou operar o sistema via preview Replit. Login OK, dashboard Cockpit OK, mas encontrou 2 problemas que indicam dados/rotas mal conectados.
+
+BUG 1 — Pacientes com nomes "TESTE MOTOR"
+- Tela /pacientes mostra 3.877 pacientes
+- Nomes aparecem como "PACIENTE TESTE MOTOR 2026-05-14-12-06-27", "2026-05-14-12-05-53" etc
+- CPF aparece como 999.888.777-XX (sequencial)
+- Celular todos +5511987654321 (mesmo)
+- Inventário PAWARDS afirma 5.408 pacientes reais migrados da Wave Cadastro Pádua em 13/05 (unidade_id=15)
+
+INVESTIGAR:
+a) Tabela pacientes — quantos registros totais? Quantos com nome contendo "TESTE MOTOR"?
+b) Existem pacientes reais separados desses TESTE? Como filtrar pra ver só reais?
+c) A tela /pacientes está com filtro errado mostrando só os teste?
+d) Os 5.408 pacientes da Wave Cadastro Pádua estão em outra tabela ou em outra unidade_id?
+
+BUG 2 — PDF Pedido de Exame retorna 401
+- URL: /api/pedidos-exame/63/pdf/solicitacao
+- Erro: {"error":"Autenticacao necessaria (Bearer token ausente)"}
+- Usuário está logado no /dashboard (sessão ativa do navegador)
+- Por que a rota PDF não reconhece a sessão?
+
+ARQUIVOS A LER:
+1. artifacts/api-server/src/routes/pedidosExame.ts (ou similar)
+2. artifacts/api-server/src/middleware/auth.ts (ou requireAuth)
+3. artifacts/clinica-motor/src/pages/exames/ (ou pedidos-exame)
+4. artifacts/api-server/src/db/migrations/ (qualquer migration relacionada a pacientes_reais ou wave_cadastro_padua)
+
+DEVOLVA RELATÓRIO EM 4 SEÇÕES:
+
+1. BUG 1 — DIAGNÓSTICO COMPLETO
+- Origem dos pacientes TESTE MOTOR (qual processo criou?)
+- Localização dos 5.408 reais (qual filtro pega eles?)
+- Por que a tela /pacientes mostra os teste em vez dos reais?
+
+2. BUG 2 — DIAGNÓSTICO COMPLETO
+- Como funciona o auth na rota /api/pedidos-exame/:id/pdf/solicitacao?
+- A rota usa Bearer token JWT ou cookie de sessão?
+- Por que abrir a URL no navegador (cookie) não autentica?
+- A página deveria abrir PDF via window.open() com token na query string ou via blob download autenticado?
+
+3. CORREÇÃO SUGERIDA (sem tocar em código)
+- Bug 1: query SQL pra confirmar o estado, e mudança de filtro na tela
+- Bug 2: arquitetura correta de auth pra rotas que servem arquivo
+
+4. PRIORIDADE
+- Qual desses 2 bugs trava o Caio operar amanhã?
+- Qual pode esperar?
+
+REGRAS:
+- Pode rodar SQL contra banco (SELECT apenas)
+- NÃO toque em código (só investigação e relatório)
+- Seja direto. Caio está cansado mas determinado a entender HOJE
