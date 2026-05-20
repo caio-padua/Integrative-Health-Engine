@@ -253,7 +253,7 @@ export default function PacienteDetalhe() {
               </div>
 
               <div className="flex gap-2">
-                <Link href={`${BASE_URL}pacientes/${id}/cockpit`}>
+                <Link href={`/pacientes/${id}/cockpit`}>
                   <Button
                     className="font-mono text-xs tracking-widest"
                     style={{

@@ -21,7 +21,7 @@ export default function PacienteCockpitPage() {
     return (
       <div style={{ minHeight: "100vh", background: "#0B1220", color: "#FF6B6B", fontFamily: "JetBrains Mono, monospace", padding: 40, fontSize: 12 }}>
         <div>ERRO AO CARREGAR PACIENTE #{id}</div>
-        <Link href={`${BASE_URL}pacientes/${id}`} style={{ color: "#5EE6E6", marginTop: 16, display: "inline-block" }}>
+        <Link href={`/pacientes/${id}`} style={{ color: "#5EE6E6", marginTop: 16, display: "inline-block" }}>
           ← VOLTAR PRO LAYOUT CLÁSSICO
         </Link>
       </div>
@@ -46,14 +46,14 @@ export default function PacienteCockpitPage() {
   return (
     <div style={{ position: "relative" }}>
       <div style={{ position: "fixed", top: 8, right: 8, zIndex: 100, display: "flex", gap: 6 }}>
-        <Link href={`${BASE_URL}pacientes/${id}`} style={{
+        <Link href={`/pacientes/${id}`} style={{
           fontFamily: "JetBrains Mono, monospace", fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
           padding: "6px 10px", color: "#94A3B8", background: "#0B1220", border: "1px solid #1E293B",
           textDecoration: "none",
         }}>
           ← LAYOUT CLÁSSICO
         </Link>
-        <Link href={`${BASE_URL}pacientes`} style={{
+        <Link href="/pacientes" style={{
           fontFamily: "JetBrains Mono, monospace", fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
           padding: "6px 10px", color: "#5EE6E6", background: "#0B1220", border: "1px solid #5EE6E6",
           textDecoration: "none",
