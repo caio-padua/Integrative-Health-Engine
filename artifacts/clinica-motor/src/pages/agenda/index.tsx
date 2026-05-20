@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { apiFetch, abrirPdfAutenticado } from "@/lib/api-fetch";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuTrigger, DropdownMenuSeparator
@@ -164,7 +164,7 @@ function SessaoCard({ sessao, onConfirm, onEdit }: {
 
   const handleIcsDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    abrirPdfAutenticado(`/api/sessoes/${sessao.sessao.id}/ics`);
+    window.open(`/api/sessoes/${sessao.sessao.id}/ics`, "_blank");
   };
 
   const handleWhatsApp = async (e: React.MouseEvent) => {
@@ -393,7 +393,7 @@ export default function AgendaSemanal() {
   const today = new Date().toISOString().split("T")[0];
 
   const handleIcsSemana = () => {
-    abrirPdfAutenticado(`/api/sessoes/ics-semana?dataFrom=${week.from}&dataTo=${week.to}`);
+    window.open(`/api/sessoes/ics-semana?dataFrom=${week.from}&dataTo=${week.to}`, "_blank");
   };
 
   return (

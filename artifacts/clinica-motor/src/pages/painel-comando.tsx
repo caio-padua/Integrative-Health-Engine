@@ -17,7 +17,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCont
 import { useClinic } from "@/contexts/ClinicContext";
 import { FEATURE_PARQ_BANNER_CEO, FEATURE_ASSINATURAS_RESUMO_CEO, FEATURE_SEGURANCA_2FA_EXPIRADOS_CEO } from "@/lib/feature-flags";
 
-import { apiFetch, abrirPdfAutenticado } from "@/lib/api-fetch";
+import { apiFetch } from "@/lib/api-fetch";
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 interface SubstanciaResumo {
@@ -1824,7 +1824,7 @@ export default function PainelComando() {
               onClick={() => {
                 const hoje = new Date().toISOString().slice(0, 10);
                 const u = unidadeSelecionada ? `&unidadeId=${unidadeSelecionada}` : "";
-                abrirPdfAutenticado(`/api/relatorios/operacional-dia/pdf?data=${hoje}${u}`);
+                window.open(`/api/relatorios/operacional-dia/pdf?data=${hoje}${u}`, "_blank");
               }}
             >
               <FileDown className="w-4 h-4 mr-2" />

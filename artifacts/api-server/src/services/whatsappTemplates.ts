@@ -227,36 +227,6 @@ export function templateLembretePrescricaoRevo(dados: LembretePrescricaoDados): 
   return linhas.join("\n");
 }
 
-export interface TemplateApresentacaoInicialDados {
-  pacienteNome: string;
-  pacienteGenero?: Genero;
-  unidade: string;
-  enfermeiraNome: string;
-  medicoNome: string;
-  primeiraConsultaData?: string;
-  primeiraConsultaHora?: string;
-}
-
-export interface TemplateEnvioRasPdfDados {
-  pacienteNome: string;
-  pacienteGenero?: Genero;
-  codigoSemantico: string;
-  unidade: string;
-  protocoloResumo: string;
-  driveUrl: string;
-  hashSha256Curto: string;
-}
-
-export interface TemplateEnvioRacjAssinaturaDados {
-  pacienteNome: string;
-  pacienteGenero?: Genero;
-  unidade: string;
-  termoTitulo: string;
-  termoVersao: string;
-  zapsignUrl: string;
-  validadeDias: number;
-}
-
 export interface TemplateDadosMap {
   LEMBRETE_SESSAO: TemplateDados;
   CODIGO_VALIDACAO: TemplateDados;
@@ -265,9 +235,6 @@ export interface TemplateDadosMap {
   ALERTA_CLINICO_URGENTE: TemplateDados;
   CONFIRMACAO_AGENDAMENTO: TemplateDados;
   LEMBRETE_PRESCRICAO_REVO: LembretePrescricaoDados;
-  APRESENTACAO_INICIAL_PACIENTE: TemplateApresentacaoInicialDados;
-  ENVIO_RAS_PDF: TemplateEnvioRasPdfDados;
-  ENVIO_RACJ_ASSINATURA: TemplateEnvioRacjAssinaturaDados;
 }
 
 export type TemplateNome = keyof TemplateDadosMap;
@@ -287,80 +254,6 @@ function defineTemplate<N extends TemplateNome>(
   return { nome, descricao, fn };
 }
 
-export function templateApresentacaoInicialPaciente(d: TemplateApresentacaoInicialDados): string {
-  const saudacao = montarSaudacao(d.pacienteNome, d.pacienteGenero);
-  const linhas = [
-    saudacao,
-    "",
-    `Sou a enfermeira *${d.enfermeiraNome}*, da equipe do *${d.medicoNome}* no *${d.unidade}*.`,
-    "",
-    `E uma honra receber voce na nossa clinica. Sera responsabilidade da nossa equipe acompanha-lo(a) com seguranca, escuta e atencao integral em cada etapa do tratamento.`,
-  ];
-  if (d.primeiraConsultaData && d.primeiraConsultaHora) {
-    linhas.push("");
-    linhas.push(`Sua primeira consulta esta agendada para:`);
-    linhas.push(`📅 *${d.primeiraConsultaData}* as *${d.primeiraConsultaHora}*`);
-  }
-  linhas.push("");
-  linhas.push("Por aqui voce recebera lembretes, orientacoes pre-consulta e os documentos clinicos. Pode contar comigo a qualquer momento.");
-  linhas.push("");
-  linhas.push(`Com cuidado,`);
-  linhas.push(`*${d.enfermeiraNome}*`);
-  linhas.push(`${d.unidade}`);
-  linhas.push("");
-  linhas.push("_Developed by Pawards MedCore_");
-  return linhas.join("\n");
-}
-
-export function templateEnvioRasPdf(d: TemplateEnvioRasPdfDados): string {
-  const saudacao = montarSaudacao(d.pacienteNome, d.pacienteGenero);
-  return [
-    saudacao,
-    "",
-    "Segue o seu *Relatorio de Atendimento e Suplementacao (RAS)*, documento clinico oficial do seu protocolo personalizado.",
-    "",
-    `📄 *Codigo do paciente:* ${d.codigoSemantico}`,
-    `🏥 *Unidade:* ${d.unidade}`,
-    "",
-    `*Protocolo:*`,
-    d.protocoloResumo,
-    "",
-    `🔗 Acesso ao PDF assinado:`,
-    d.driveUrl,
-    "",
-    `🔒 Validacao de integridade (SHA-256): ${d.hashSha256Curto}...`,
-    "",
-    "Recomendamos guardar este documento. Em caso de duvidas, responda esta mensagem.",
-    "",
-    `${d.unidade}`,
-    "",
-    "_Developed by Pawards MedCore_",
-  ].join("\n");
-}
-
-export function templateEnvioRacjAssinatura(d: TemplateEnvioRacjAssinaturaDados): string {
-  const saudacao = montarSaudacao(d.pacienteNome, d.pacienteGenero);
-  return [
-    saudacao,
-    "",
-    "Antes da sua primeira consulta, precisamos da sua *assinatura digital* no Termo de Consentimento Juridico (RACJ) abaixo. E rapido (1 min) e tem validade ICP-Brasil.",
-    "",
-    `📜 *Documento:* ${d.termoTitulo}`,
-    `🆔 *Versao:* ${d.termoVersao}`,
-    `🏥 *Unidade:* ${d.unidade}`,
-    `⏳ *Validade do link:* ${d.validadeDias} dias`,
-    "",
-    `🔗 Assinar agora (ZapSign / ICP-Brasil):`,
-    d.zapsignUrl,
-    "",
-    "Apos a assinatura, voce recebe uma copia automatica do documento por aqui e por e-mail.",
-    "",
-    `${d.unidade}`,
-    "",
-    "_Developed by Pawards MedCore_",
-  ].join("\n");
-}
-
 export const TEMPLATES_DISPONIVEIS = [
   defineTemplate("LEMBRETE_SESSAO", "Lembrete de sessao agendada", templateLembreteSessao),
   defineTemplate("CODIGO_VALIDACAO", "Codigo de validacao para enfermeira", templateCodigoValidacao),
@@ -369,9 +262,6 @@ export const TEMPLATES_DISPONIVEIS = [
   defineTemplate("ALERTA_CLINICO_URGENTE", "Alerta clinico urgente", templateAlertaClinicoUrgente),
   defineTemplate("CONFIRMACAO_AGENDAMENTO", "Confirmacao de agendamento", templateConfirmacaoAgendamento),
   defineTemplate("LEMBRETE_PRESCRICAO_REVO", "Lembrete de prescrição personalizada", templateLembretePrescricaoRevo),
-  defineTemplate("APRESENTACAO_INICIAL_PACIENTE", "Boas-vindas institucional da enfermeira (1o contato)", templateApresentacaoInicialPaciente),
-  defineTemplate("ENVIO_RAS_PDF", "Envio do PDF do RAS clinico oficial", templateEnvioRasPdf),
-  defineTemplate("ENVIO_RACJ_ASSINATURA", "Envio do link ZapSign do RACJ juridico", templateEnvioRacjAssinatura),
 ] as const;
 
 export function renderTemplate<N extends TemplateNome>(

@@ -23,7 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-import { apiFetch, abrirPdfAutenticado } from "@/lib/api-fetch";
+import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 function formatCpf(value: string): string {
@@ -253,25 +253,11 @@ export default function PacienteDetalhe() {
               </div>
 
               <div className="flex gap-2">
-                <Link href={`/pacientes/${id}/cockpit`}>
-                  <Button
-                    className="font-mono text-xs tracking-widest"
-                    style={{
-                      background: "#0B1220",
-                      color: "#5EE6E6",
-                      border: "1px solid #5EE6E6",
-                      boxShadow: "0 0 12px rgba(94, 230, 230, 0.4)",
-                      borderRadius: 0,
-                    }}
-                    data-testid="button-abrir-cockpit"
-                  >
-                    ★ ABRIR COCKPIT
-                  </Button>
-                </Link>
                 <Button
                   variant="outline"
                   onClick={() => {
-                    abrirPdfAutenticado(`/api/ras/pdf/paciente/${id}`);
+                    const apiBase = `/api/ras/pdf/paciente/${id}`;
+                    window.open(apiBase, "_blank");
                   }}
                 >
                   <FileText className="w-4 h-4 mr-2" />

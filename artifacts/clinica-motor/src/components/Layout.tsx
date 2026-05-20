@@ -10,7 +10,7 @@ import {
   FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
   ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
   ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign, Stethoscope,
-  Volume2, VolumeX, Command as CommandIcon, Bell, Zap,
+  Volume2, VolumeX, Command as CommandIcon, Bell,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { CommandPalette } from "./CommandPalette";
@@ -123,85 +123,30 @@ function ClinicSwitcher() {
   const genesis = unidadesDisponiveis.find((u) => u.unidadeId === 14);
   const outras = unidadesDisponiveis.filter((u) => u.unidadeId !== 14 && u.unidadeId !== 15);
 
-  // TOP-LEVEL: 2 botões PILL grandes lado a lado — GLOBAL vs LOCAL.
-  // Caio (Asperger/TDAH/TOC) pediu seletor mais visual e instantâneo.
-  // Click "GLOBAL" zera unidadeSelecionada; click "LOCAL" abre dropdown
-  // de unidades (ou usa a última selecionada se houver).
-  const escolherLocal = () => {
-    if (!canSwitch && unidadesDisponiveis.length === 1) {
-      setUnidadeSelecionada(unidadesDisponiveis[0].unidadeId);
-      return;
-    }
-    // Se já tá em local, abre dropdown pra trocar. Se tá em global,
-    // muda pra última usada (ou Pádua como default) E abre dropdown.
-    if (isTodasClinicas) {
-      setUnidadeSelecionada(padua?.unidadeId ?? unidadesDisponiveis[0].unidadeId);
-    }
-    if (canSwitch) setOpen(true);
+  const decorarNome = (uid: number, nome: string) => {
+    if (uid === 15) return `⭐ ${nome}`;
+    if (uid === 14) return `🧬 ${nome}`;
+    return nome;
   };
 
   return (
-    <div ref={ref} className="px-3 py-3 border-b border-border relative">
-      {/* 2 botões PILL gigantes — GLOBAL | LOCAL.
-          Ambos gateados por canSwitch: perfis sem permissão de trocar
-          (ex: consultor_campo com 1 unidade) só veem visual mas não conseguem
-          forçar mudança. Mantém invariante de acesso anterior ao redesign. */}
-      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Escopo de visualização da clínica">
-        <button
-          type="button"
-          onClick={() => { if (canSwitch) { setUnidadeSelecionada(null); setOpen(false); } }}
-          disabled={!canSwitch}
-          aria-pressed={isTodasClinicas}
-          aria-label="Visão global — todas as clínicas"
-          className={`flex flex-col items-center justify-center gap-1 py-2.5 px-2 border-l-[3px] transition-all ${
-            isTodasClinicas
-              ? "bg-[#5B8DEF]/15 border-l-[#5B8DEF] text-[#A8C7FA] shadow-[inset_0_0_0_1px_rgba(91,141,239,0.3)]"
-              : "border-l-transparent text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-          } disabled:opacity-30 disabled:cursor-not-allowed`}
-          data-testid="clinic-switcher-global"
-          title={canSwitch ? "Ver TODAS as clínicas (consolidado)" : "Sem permissão para visão global"}
-        >
-          <Globe className="w-5 h-5" />
-          <span className="text-[10px] uppercase tracking-widest font-bold">Global</span>
-        </button>
-        <button
-          type="button"
-          onClick={escolherLocal}
-          aria-pressed={!isTodasClinicas}
-          aria-label={`Visão local — ${isTodasClinicas ? "selecionar uma clínica" : nomeUnidadeSelecionada}`}
-          className={`flex flex-col items-center justify-center gap-1 py-2.5 px-2 border-l-[3px] transition-all ${
-            !isTodasClinicas
-              ? "text-sidebar-foreground shadow-[inset_0_0_0_1px_rgba(168,199,250,0.2)]"
-              : "border-l-transparent text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-          }`}
-          style={!isTodasClinicas ? { backgroundColor: `${corUnidadeSelecionada || "#A78B5F"}22`, borderLeftColor: corUnidadeSelecionada || "#A78B5F" } : undefined}
-          data-testid="clinic-switcher-local"
-          title="Ver apenas UMA clínica"
-        >
-          <Mountain className="w-5 h-5" />
-          <span className="text-[10px] uppercase tracking-widest font-bold">Local</span>
-        </button>
-      </div>
-      {/* Nome da clínica selecionada — bem grande, fácil de bater o olho */}
-      <div className="mt-2 flex items-center gap-2 px-1">
-        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: isTodasClinicas ? "#5B8DEF" : (corUnidadeSelecionada || "#6B7280") }} />
-        <span className="text-[13px] font-semibold text-sidebar-foreground truncate flex-1">
-          {isTodasClinicas ? "Todas as Clínicas" : (unidadeSelecionada === 15 ? `⭐ ${nomeUnidadeSelecionada}` : unidadeSelecionada === 14 ? `🧬 ${nomeUnidadeSelecionada}` : nomeUnidadeSelecionada)}
-        </span>
-        {canSwitch && !isTodasClinicas && (
-          <button
-            type="button"
-            onClick={() => setOpen(!open)}
-            className="text-muted-foreground hover:text-foreground"
-            title="Trocar clínica"
-            aria-label="Trocar clínica selecionada"
-            aria-expanded={open}
-            aria-haspopup="listbox"
-          >
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-          </button>
-        )}
-      </div>
+    <div ref={ref} className="px-3 py-2 border-b border-border relative">
+      <button
+        onClick={() => canSwitch && setOpen(!open)}
+        className={`w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors rounded ${canSwitch ? "hover:bg-sidebar-accent/50 cursor-pointer" : "cursor-default"}`}
+        data-testid="clinic-switcher-toggle"
+      >
+        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: corUnidadeSelecionada || "hsl(210, 45%, 65%)" }} />
+        <div className="flex-1 min-w-0">
+          <span className="text-[12px] font-medium text-sidebar-foreground truncate block">
+            {unidadeSelecionada ? decorarNome(unidadeSelecionada, nomeUnidadeSelecionada) : nomeUnidadeSelecionada}
+          </span>
+          <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: isTodasClinicas ? "hsl(210, 45%, 65%)" : corUnidadeSelecionada || "#6B7280" }}>
+            {isTodasClinicas ? "Visao Global" : "Visao Local"}
+          </span>
+        </div>
+        {canSwitch && <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />}
+      </button>
       {open && (
         <div className="absolute left-2 right-2 top-full mt-1 bg-card border border-border rounded shadow-lg z-50 py-1 max-h-72 overflow-y-auto">
           {(escopo === "consultoria_master" || escopo === "consultor_campo") && (
@@ -381,7 +326,6 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Validação", path: "/validacao", icon: CheckSquare, slug: "validacao" },
         { name: "Filas", path: "/filas", icon: ListOrdered, slug: "filas" },
         { name: "Pacientes", path: "/pacientes", icon: Users, slug: "pacientes" },
-        { name: "Prescrição Rápida", path: "/prescricao-rapida", icon: FileText, slug: "prescricao-rapida" },
         { name: "Pedidos de Exame", path: "/pedidos-exame", icon: FileText, slug: "pedidos-exame" },
         { name: "RAS", path: "/ras", icon: FileCheck, slug: "ras" },
         { name: "RAS Evolutivo", path: "/ras-evolutivo", icon: BarChart3, slug: "ras-evolutivo" },
@@ -441,7 +385,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="w-72 border-r border-border bg-sidebar flex flex-col">
+      <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
         <div className="h-16 flex items-center px-5 border-b border-border">
           <div className="w-9 h-9 flex items-center justify-center bg-white/90 border border-border mr-3 p-1">
             <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain invert-0" />
@@ -470,124 +414,25 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
         </div>
         <ClinicSwitcher />
-
-        {/* ⚡ PINS — atalhos fixos pras 4 ações que o Caio mais usa.
-            Grade 2x2 de botões grandes com ícone+nome. Sempre visíveis,
-            não dependem de grupo colapsado. Foco TDAH: bate o olho e clica. */}
-        {(() => {
-          const PINS: Array<{ slug: string; name: string; path: string; icon: any; cor: string }> = [
-            { slug: "prescricao-rapida", name: "Prescrição", path: "/prescricao-rapida", icon: Zap, cor: "#5B8DEF" },
-            { slug: "anamnese", name: "Anamnese", path: "/anamnese", icon: ClipboardList, cor: "#7BC79E" },
-            { slug: "pacientes", name: "Pacientes", path: "/pacientes", icon: Users, cor: "#F5B946" },
-            { slug: "agenda", name: "Agenda", path: "/agenda", icon: CalendarDays, cor: "#E07A5F" },
-          ].filter((p) => modulosPermitidos.includes(p.slug));
-          if (PINS.length === 0) return null;
-          return (
-            <div className="px-3 py-3 border-b border-border">
-              <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 px-1 flex items-center gap-1.5">
-                <Zap className="w-3 h-3 text-[#5B8DEF]" /> Atalhos
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {PINS.map((p) => {
-                  const Icon = p.icon;
-                  const isActive = location === p.path || location.startsWith(p.path + "/");
-                  return (
-                    <Link
-                      key={p.slug}
-                      href={p.path}
-                      className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 border-l-[3px] transition-all ${
-                        isActive
-                          ? "text-sidebar-foreground font-semibold"
-                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-                      }`}
-                      style={isActive
-                        ? { backgroundColor: `${p.cor}22`, borderLeftColor: p.cor, boxShadow: `inset 0 0 0 1px ${p.cor}55` }
-                        : { borderLeftColor: `${p.cor}55` }}
-                      data-testid={`pin-${p.slug}`}
-                      title={p.name}
-                    >
-                      <Icon className="w-5 h-5" style={{ color: p.cor }} />
-                      <span className="text-[10px] uppercase tracking-wider font-bold leading-none">{p.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 🩺 COCKPIT — atalho destacado pro painel tático do paciente.
-            Vive embaixo dos PINS com tamanho maior e cor única (ciano neon
-            da mensageria), pra Caio bater o olho e abrir o modo
-            "painel de guerra" do paciente sem precisar caçar no menu. */}
-        {modulosPermitidos.includes("pacientes") && (
-          <div className="px-3 py-3 border-b border-border">
-            <Link
-              href="/pacientes?modo=cockpit"
-              className={`group relative flex items-center gap-3 px-3 py-3 border-l-[3px] transition-all overflow-hidden ${
-                // Wouter useLocation devolve só o pathname — leio search direto
-                // do window pra detectar ?modo=cockpit. /pacientes/:id/cockpit
-                // (path-based) também ativa o destaque pra coerência visual.
-                (typeof window !== "undefined" && location.startsWith("/pacientes") && (window.location.search.includes("modo=cockpit") || location.includes("/cockpit")))
-                  ? "bg-[#5EE6E6]/15 text-sidebar-foreground"
-                  : "hover:bg-[#5EE6E6]/8 text-sidebar-foreground/85 hover:text-sidebar-foreground"
-              }`}
-              style={{ borderLeftColor: "#5EE6E6", boxShadow: "inset 0 0 0 1px rgba(94,230,230,0.35)" }}
-              data-testid="atalho-cockpit"
-              title="Modo COCKPIT — painel tático do paciente"
-            >
-              <span
-                className="w-10 h-10 flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: "rgba(94,230,230,0.18)", color: "#5EE6E6" }}
-              >
-                <Stethoscope className="w-5 h-5" />
-              </span>
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[9px] uppercase tracking-[0.2em] font-mono font-bold leading-none" style={{ color: "#5EE6E6" }}>
-                  Painel Tático
-                </span>
-                <span className="text-[13px] font-bold uppercase tracking-wider leading-tight mt-0.5">
-                  Cockpit Paciente
-                </span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#5EE6E6] group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
-        )}
-
         <nav className="flex-1 overflow-y-auto py-2 px-1">
-          {grupos.map((g, idx) => {
+          {grupos.map((g) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             if (items.length === 0) return null;
             const colapsado = !!colapsados[g.id];
             const GIcon = g.icon;
-            const numero = String(idx + 1).padStart(2, "0");
             return (
-              <div key={g.id} className="mb-2">
-                {/* HEADER do grupo: numeração TOC + ícone grande colorido + barra esquerda */}
+              <div key={g.id} className="mb-1.5">
                 <button
                   onClick={() => toggleGrupo(g.id)}
-                  className="w-full flex items-center gap-2.5 pl-3 pr-2 py-2 border-l-[3px] hover:bg-sidebar-accent/30 transition-all group/grupo"
-                  style={{ borderLeftColor: g.cor ?? "#444" }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground transition-colors"
                   data-testid={`grupo-toggle-${g.id}`}
                 >
-                  <span
-                    className="w-7 h-7 flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${g.cor ?? "#444"}22`, color: g.cor ?? "#fff" }}
-                  >
-                    <GIcon className="w-4 h-4" />
-                  </span>
-                  <span className="text-[9px] font-mono font-bold tracking-widest" style={{ color: g.cor ?? "#888" }}>
-                    {numero}
-                  </span>
-                  <span className="flex-1 text-left text-[11px] uppercase tracking-widest font-bold text-sidebar-foreground/85 group-hover/grupo:text-sidebar-foreground transition-colors">
-                    {g.nome}
-                  </span>
-                  <span className="text-[9px] font-mono text-muted-foreground tabular-nums">{items.length}</span>
-                  <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${colapsado ? "" : "rotate-90"}`} />
+                  <GIcon className="w-3 h-3" style={{ color: g.cor }} />
+                  <span className="flex-1 text-left">{g.nome}</span>
+                  <ChevronRight className={`w-3 h-3 transition-transform ${colapsado ? "" : "rotate-90"}`} />
                 </button>
                 {!colapsado && (
-                  <div className="space-y-px mt-1">
+                  <div className="space-y-0.5">
                     {items.map((item) => {
                       const Icon = item.icon;
                       const isActive = location === item.path || location.startsWith(item.path + "/");
@@ -595,19 +440,18 @@ export function Layout({ children }: { children: ReactNode }) {
                         <Link
                           key={item.path}
                           href={item.path}
-                          className={`flex items-center pl-6 pr-3 py-2 text-[12.5px] transition-all border-l-[3px] ${
+                          className={`flex items-center px-3 py-1.5 text-[12px] transition-colors border-l-2 ${
                             isActive
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-                              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-l-primary"
+                              : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground border-l-transparent"
                           }`}
-                          style={{ borderLeftColor: isActive ? (g.cor ?? "var(--primary)") : "transparent" }}
                           data-testid={`menu-${item.slug}`}
                         >
-                          <Icon className="mr-2.5 h-4 w-4 flex-shrink-0" style={isActive ? { color: g.cor ?? undefined } : undefined} />
+                          <Icon className="mr-2.5 h-3.5 w-3.5 flex-shrink-0" />
                           <span className="flex-1 truncate">{item.name}</span>
                           {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
                             <span data-testid="badge-lembretes-falhas"
-                              className="ml-2 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none animate-pulse">
+                              className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-600 text-white text-[10px] font-semibold leading-none">
                               {falhasLembrete > 99 ? "99+" : falhasLembrete}
                             </span>
                           ) : null}

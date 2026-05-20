@@ -10,9 +10,9 @@
 
 ## 0. Volumetria geral
 
-| Métrica | Valor atual no banco (snapshot 2026-05-19, com diff vs 2026-04-23 quando relevante) |
+| Métrica | Valor real (banco em 2026-04-23) |
 |---|---|
-| Tabelas totais | **304** (era 264 em 2026-04-23; +40 nas Waves V13/V25/V46/V72 + Cadastro Pádua + Sprint 1 Motor V4 + auditoria/agentes) |
+| Tabelas totais | **264** |
 | Tabelas com 0 linhas (esqueleto) | **~50** (vazias por motivos válidos OU walking dead) |
 | Pacientes | 1.557 |
 | Anamneses | 39 |
@@ -21,35 +21,15 @@
 | Fórmulas | 54 |
 | Eventos clínicos | 19 |
 | Exames evolução | 17 |
-| **Receitas PARMAVAULT** | **8.728** ← ⚠️ POTENCIAL ESTIMADO de fichas históricas (NÃO é caixa). Ver disclaimer abaixo. |
+| **Receitas PARMAVAULT** | **8.725** ← coração financeiro real |
 | Farmácias parceiras | 8 |
 | Parâmetros referência global (PRG) | 80 (67/67 EXAME mapeados V4) |
 | Analitos catálogo | 304 |
 | Códigos semânticos V4 | 521 |
 
 **Conclusão de volumetria:** o sistema *tem sangue de verdade* na parte clínica
-(pacientes/exames/PRGs). O PARMAVAULT tem **esqueleto** com 8.728 fichas
-migradas de planilha histórica (ver disclaimer abaixo — **NÃO é caixa real**).
-O resto está em vários estados — alguns esqueleto vazio aguardando ativação,
-outros zumbis a sepultar.
-
----
-
-## ⚠️ DISCLAIMER PARMAVAULT (regra de ferro 2026-05-13)
-
-Caio (CEO) explicitou em 13/mai/2026: os números **"8.728 receitas"** e
-**"R$ 2.736.536,10"** que aparecem em painéis PARMAVAULT, briefings e neste
-inventário **NÃO são receitas emitidas pelo sistema nem caixa real**. São
-**projeção de potencial** calculada a partir das fichas históricas migradas
-de planilhas (Wave 9 PARQ + Wave Cadastro Pádua, 13/mai). Caio ainda **NÃO
-emitiu nenhuma receita produtiva pelo sistema** — toda a contagem
-`parmavault_receitas` vem de backfill, não de emissão real.
-
-**Regra:** sempre que precisar citar esses números, escrever
-"potencial estimado a partir de fichas históricas". Triggers do banco que
-protegem essas linhas continuam invariantes técnicas e **não devem ser
-dropados**. Espelhado em `replit.md` (seção homônima) e em
-`docs/dr-claude/00_BRIEFING_PAINEL_CEO_PARA_DR_CLAUDE.md`.
+(pacientes/exames/PRGs) e no PARMAVAULT (8.725 receitas). O resto está em vários
+estados — alguns esqueleto vazio aguardando ativação, outros zumbis a sepultar.
 
 ---
 
@@ -60,8 +40,8 @@ dropados**. Espelhado em `replit.md` (seção homônima) e em
 | Bloco | Brief Dr. Claude | replit.md dizia | Estado REAL no banco/código | Diagnóstico |
 |---|---|---|---|---|
 | **B0** Migrations 021+022 (4 tabelas + comissao_estimada NULL) | ✅ | ✅ feito | ✅ **REAL** — 4 tabelas + FKs + indexes presentes | OK |
-| **B1** Hook A2 warning emissão sem contrato | ✅ | ✅ feito | ⚠️ **PARCIAL (2026-05-19: duplicidade RESOLVIDA — ver §6)** — `verificarUnidadeTemContrato` agora é ÚNICA implementação em `lib/contratos/verificarUnidadeTemContrato.ts`; `lib/contratoFarmacia.ts` foi REMOVIDO; chamado em `emitirPrescricaoService.ts:136`. **MAS `parmavault_emissao_warnings` = 0 linhas**, e `farmacias_unidades_contrato = 0` (sem nenhum contrato cadastrado, então TODA emissão deveria estar disparando warning — silêncio suspeito) | **Verificar se hook efetivamente roda (duplicidade já matada)** |
-| **B2** Endpoint POST recalcular comissão das 8.728 fichas (potencial histórico — ver disclaimer) | ✅ | ✅ feito, "8725/8725" | ❌ **WALKING DEAD CONFIRMADO** — endpoint `comissao-estimada/recalcular` **NÃO EXISTE**; as 8.728 receitas (potencial histórico) TODAS com `comissao_estimada = 0` | **Criar endpoint + rodar** |
+| **B1** Hook A2 warning emissão sem contrato | ✅ | ✅ feito | ⚠️ **PARCIAL** — `validarContratoFarmaciaUnidade` existe **2x duplicado** (`lib/contratoFarmacia.ts` + `lib/contratos/verificarUnidadeTemContrato.ts`); chamado em `emitirPrescricaoService.ts:132`; **MAS `parmavault_emissao_warnings` = 0 linhas**, e `farmacias_unidades_contrato = 0` (sem nenhum contrato cadastrado, então TODA emissão deveria estar disparando warning — silêncio suspeito) | **Verificar se hook efetivamente roda + matar duplicidade** |
+| **B2** Endpoint POST recalcular comissão dos 8725 | ✅ | ✅ feito, "8725/8725" | ❌ **WALKING DEAD CONFIRMADO** — endpoint `comissao-estimada/recalcular` **NÃO EXISTE**; 8725 receitas TODAS com `comissao_estimada = 0` | **Criar endpoint + rodar** |
 | **B3** Hook nova emissão calcula comissão | ✅ | ✅ feito | ❌ **WALKING DEAD CONFIRMADO** — zero trigger SQL em `parmavault_receitas`, zero hook TS encontrado | **Criar trigger SQL OU hook TS** |
 | **B4** Portal CSV + manual master | ✅ | ✅ feito | ⚠️ **PARCIAL** — endpoints `POST/GET /admin/parmavault/declaracoes` provavelmente existem em `parmavaultReconciliacao.ts` MAS `parmavault_declaracoes_farmacia = 0` (nunca foi chamado) | **Validar end-to-end com 1 declaração teste** |
 | **B5** Painel CEO Previsto×Declarado×Recebido×Gap | ✅ | ✅ feito | ⚠️ **PARCIAL** — página `admin-parmavault-reconciliacao.tsx` existe + endpoint `matriz` no router; mas painel renderiza COM DADOS VAZIOS hoje (porque B2/B3/B4 não rodaram) | **Validar após B2/B3/B4** |
@@ -70,8 +50,8 @@ dropados**. Espelhado em `replit.md` (seção homônima) e em
 
 ### Fluxo de transmutação (anti-walking-dead) — proposta concreta
 
-1. ~~**Matar duplicidade B1**~~ — ✅ **RESOLVIDO 2026-05-19** (ver §6): `lib/contratoFarmacia.ts` já foi removido, só sobrou `lib/contratos/verificarUnidadeTemContrato.ts`. Passo concluído antes da Wave Dr. Replit, sem ação adicional.
-2. **Criar endpoint B2** `POST /api/admin/parmavault/comissao-estimada/recalcular` (idempotente, master-only) + rodar nas 8.728 fichas (potencial histórico) → preencher `comissao_estimada` real.
+1. **Matar duplicidade B1** — escolher 1 das 2 impls de `validarContratoFarmaciaUnidade`, deletar a outra, importar a sobrevivente em todos os calls.
+2. **Criar endpoint B2** `POST /api/admin/parmavault/comissao-estimada/recalcular` (idempotente, master-only) + rodar nos 8725 → preencher `comissao_estimada` real.
 3. **Criar trigger B3** `BEFORE INSERT ON parmavault_receitas` que calcula comissão estimada com a mesma fórmula do B2 (ou hook TS na rota que insere — o que o Caio achar menos invasivo).
 4. **Smoke teste B1** — emitir 1 prescrição teste em unidade sem contrato → verificar warning vai pra `parmavault_emissao_warnings` → ROLLBACK.
 5. **Smoke teste B4** — postar 1 declaração manual + 1 CSV pequeno → verificar linhas em `parmavault_declaracoes_farmacia` → cleanup.
@@ -96,10 +76,10 @@ dropados**. Espelhado em `replit.md` (seção homônima) e em
 - **Status:** ✅ vivo, com sangue real. Falta nominação como "MEDCORE" no UI.
 
 ### PARMAVAULT — receitas · integração farmácia · comissões · recorrência ✅ NOMINADO
-- **Tabelas:** `parmavault_receitas` (8.728 — ⚠️ potencial histórico, ver disclaimer), `farmacias_parmavault` (8), `farmacias_unidades_contrato` (0), `parmavault_emissao_warnings` (0), `parmavault_declaracoes_farmacia` (0), `parmavault_repasses` (0), `parmavault_relatorios_gerados` (0), `farmacias_emissao_metricas_mes`, `farmacias_parceiras`, `comissoes_config`, `commission_events`, `comissao` (rota), `remedios_farmacia`, `remedios_farmacia_componentes`
+- **Tabelas:** `parmavault_receitas` (8725), `farmacias_parmavault` (8), `farmacias_unidades_contrato` (0), `parmavault_emissao_warnings` (0), `parmavault_declaracoes_farmacia` (0), `parmavault_repasses` (0), `parmavault_relatorios_gerados` (0), `farmacias_emissao_metricas_mes`, `farmacias_parceiras`, `comissoes_config`, `commission_events`, `comissao` (rota), `remedios_farmacia`, `remedios_farmacia_componentes`
 - **Rotas:** `parmavaultReconciliacao.ts`, `contratosFarmacia.ts`, `relatoriosPdf.ts`, `comissao.ts`
 - **Páginas:** `admin-parmavault-reconciliacao.tsx`, `farmacias-parmavault.tsx`, `admin-contratos-farmacia.tsx`, `admin-farmacias-roteamento.tsx`, `comissao.tsx`
-- **Status:** ⚠️ esqueleto pronto, sangue NÃO corre ainda — as 8.728 "receitas" são potencial histórico migrado, não emissão real (ver disclaimer no topo); ver §1 acima.
+- **Status:** ⚠️ esqueleto pronto, sangue só nas 8725 receitas; ver §1 acima.
 
 ### PAREXAM — OCR · padronização · conversão unidades · 5 zonas
 - **Tabelas:** `parametros_referencia_global` (80, 67/67 mapeados V4), `analitos_catalogo` (304), `codigos_semanticos` (521), `analitos_referencia_laboratorio`, `analitos_validacoes_log`, `exames_evolucao` (17), `exames_base`, `arquivos_exames`, `direcao_favoravel_exame`, `mapa_bloco_exame`
@@ -152,7 +132,7 @@ São pontos onde 2 módulos PAWARDS deveriam conversar em produção e hoje **n�
 
 | # | Origem → Destino | Anastomose esperada | Estado hoje |
 |---|---|---|---|
-| 1 | **MEDCORE → PARMAVAULT** | Toda nova prescrição com bloco-fórmula deve disparar (a) cálculo `comissao_estimada` em `parmavault_receitas`, (b) warning `parmavault_emissao_warnings` se contrato ausente | ⚠️ B1 parcial (warning não acionou em 0 inserts), B2/B3 zumbis (8.728 fichas potencial histórico com comissao=0) |
+| 1 | **MEDCORE → PARMAVAULT** | Toda nova prescrição com bloco-fórmula deve disparar (a) cálculo `comissao_estimada` em `parmavault_receitas`, (b) warning `parmavault_emissao_warnings` se contrato ausente | ⚠️ B1 parcial (warning não acionou em 0 inserts), B2/B3 zumbis (8725 receitas com comissao=0) |
 | 2 | **PAREXAM → PAWVISION** | Resultado de exame com classificação 5 zonas deve aparecer no modo vitrine paciente | ✅ **acabou de ser criada** com EXAMES-2 (`/atendimento/exames/:id/vitrine`) |
 | 3 | **PAWTRACK → MEDCORE** | Resposta do questionário diário deve gerar `eventos_clinicos` ou alimentar `mapa_aderencia_celular` que entra na anamnese da próxima consulta | ❌ não vejo o link; PAWTRACK schema parece zumbi/nominação errada |
 | 4 | **PARMAVAULT → PADTEAM** | Cobrança não-paga ou comissão atrasada deve gerar `task_cards` automático pra equipe | ❌ não vejo |
@@ -165,7 +145,7 @@ São pontos onde 2 módulos PAWARDS deveriam conversar em produção e hoje **n�
 ## 4. WALKING DEAD candidatos (sepultar com aprovação Caio)
 
 ### Walking dead **CONFIRMADO**:
-- ~~`validarContratoFarmaciaUnidade` duplicada~~ — **RESOLVIDO 2026-05-19**: `lib/contratoFarmacia.ts` foi REMOVIDO; só sobrou `lib/contratos/verificarUnidadeTemContrato.ts`, usada em `emitirPrescricaoService.ts:136`. Ver §6.
+- `validarContratoFarmaciaUnidade` está **duplicada** em `lib/contratoFarmacia.ts` + `lib/contratos/verificarUnidadeTemContrato.ts`. **Matar uma.**
 - `motor_decisao_clinica` (tabela vazia, sem rota visível) — provável esqueleto não-implementado.
 - `anastomoses_pendentes` (tabela vazia) — usar OU sepultar; ironicamente é a metáfora do Caio.
 
@@ -183,7 +163,7 @@ São pontos onde 2 módulos PAWARDS deveriam conversar em produção e hoje **n�
 
 ### Opção A — TRANSMUTAÇÃO Wave 5 (foco: abrir as barragens já construídas)
 - Tempo: 2-3h
-- Faz: B2 endpoint + roda nas 8.728 fichas potencial / B3 trigger / smoke B1 / smoke B4 / smoke B5 / smoke B6 / B7 wrap-up
+- Faz: B2 endpoint + roda 8725 / B3 trigger / smoke B1 / smoke B4 / smoke B5 / smoke B6 / B7 wrap-up
 - Risco: zero (tudo aditivo, idempotente, com smoke teste)
 - Benefício: **Wave 5 deixa de ser walking dead, vira sangue corrente**, painel CEO reúne dados reais, PDF gera de verdade pra reunião com farmácia
 
@@ -211,85 +191,3 @@ e PAREXAM→protocolos). Opção B fica pra depois — é cosmético comparado �
 ---
 
 > **Próximo passo:** aguardo decisão Caio. Sem inventar moda. Sem walking dead.
-
----
-
-## 6. Estado real Stripe / Asaas / Resend / Supabase + investigação duplicidade contrato farmácia
-
-> **Atualização Dr. Replit 2026-05-19 (pós Wave consertar workflow `test` / Task #166).**
-> Caio pediu confirmação explícita destes 4 pontos antes de fechar a wave.
-
-### (a) Disclaimer PARMAVAULT → ver bloco no topo do documento (logo após §0).
-
-### (b) Estado Stripe / Asaas / Resend / Supabase
-
-| Serviço | Estado no código real (2026-05-19) | Secret configurada? | Ação recomendada |
-|---|---|---|---|
-| **Stripe** | Citado em `replit.md` como adapter pattern. **Não auditado nesta wave** — fora do escopo da Task #166. | Não checado | Auditar em wave dedicada de pagamentos. |
-| **Asaas** | Citado em `replit.md` como adapter pattern. Secret `ASAAS_API_KEY` **NÃO configurada** (listada em `<missing_secrets>`). | ❌ ausente | Caio decide se quer ativar Asaas agora ou adiar. |
-| **Resend** | **ZERO** referências reais a Resend (transactional email). As 3 ocorrências da string "resend" em `artifacts/api-server/src/routes/assinaturas.ts`, `artifacts/api-server/src/lib/assinatura/adapters.ts` e `artifacts/clinica-motor/src/pages/assinaturas-uploads-falhos.tsx` são todas URLs ZapSign `/resend-webhooks/` (POST pra reentregar webhook caído), **NÃO** o provedor Resend.com. | ❌ não usado | Nenhuma — Resend.com não é dependência do sistema. |
-| **Supabase** | **ZERO** referências em todo o monorepo (`rg -lni supabase artifacts/ scripts/ lib/`). | ❌ não usado | Nenhuma — Supabase não é dependência do sistema. |
-
-**Conclusão:** Resend e Supabase NÃO existem como integrações reais; eram
-falsos positivos em conversas anteriores. Asaas tem placeholder no código
-mas secret ausente. Stripe não foi auditado (escopo).
-
-### (c) Investigação duplicidade `validarContratoFarmaciaUnidade`
-
-**Resultado: NÃO HÁ duplicidade.** A inspeção `rg -n "validarContratoFarmaciaUnidade|verificarUnidadeTemContrato" artifacts/api-server/src --type ts` em 2026-05-19 mostrou:
-
-```
-artifacts/api-server/src/lib/contratos/verificarUnidadeTemContrato.ts:22:  export async function verificarUnidadeTemContrato(...)
-artifacts/api-server/src/services/emitirPrescricaoService.ts:21:  verificarUnidadeTemContrato,
-artifacts/api-server/src/services/emitirPrescricaoService.ts:23:} from "../lib/contratos/verificarUnidadeTemContrato";
-artifacts/api-server/src/services/emitirPrescricaoService.ts:136:  const checkContrato = await verificarUnidadeTemContrato(prescricao.unidade_id ?? null);
-```
-
-O arquivo `artifacts/api-server/src/lib/contratoFarmacia.ts` **não existe
-mais** (foi removido em algum wave entre 2026-04-23 e hoje). Só sobrou a
-implementação canônica em `lib/contratos/verificarUnidadeTemContrato.ts`,
-usada num único call-site (`emitirPrescricaoService.ts:136`). §1 B1 e §4
-foram atualizados acima refletindo essa resolução.
-
-### (d) Mudança 264 → 304 tabelas
-
-Confirmado por `SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'` em 2026-05-19: **304 tabelas**, vs 264 do snapshot original (2026-04-23). Delta de +40. §0 atualizado. **Origem provável das +40:** Migration 040/042 (campos Cadastro Pádua), Migration 072 (ponte aditiva V13→V4), tabelas de retenção/auditoria do Painel PAWARDS (V232), envelope/webhook ZapSign (Wave 10 + V479-V483), `painel_pawards_auditoria`, `agentes_*`, `auditor_*`. Auditoria fina por tabela é trabalho fora do escopo da Task #166 — pode virar wave própria se Caio quiser.
-
----
-
-## 7. Wave Dr. Replit (consertar workflow `test` / Task #166) — fechamento 2026-05-19
-
-**Resultado:** ✅ workflow `test` agora 100% verde (150/150 passando, era 148/150).
-
-**Causa raiz dos 2 testes vermelhos:** contaminação de DB compartilhado. A
-suite `alertaBruteForceTotp.test.ts` (suite "canal WhatsApp defensivo")
-assumia que só o validador criado pelo próprio teste tinha telefone
-cadastrado entre os usuários elegíveis (`perfil_plataforma=platform_owner
-OR perfil=validador_mestre AND ativo=true`). Mas em prod o id=1 (Dr Caio
-Padua) é validador_mestre + platform_owner ATIVO + telefone real
-`5511977154000` cadastrado pela Wave V46 — entrava no resultado da query
-do helper e contaminava 2 asserts:
-
-- `(a-strict)` esperava `wppCalls.length === 1`, recebia 2 (Caio + validador de teste).
-- `(c) fallback CEO_WHATSAPP` esperava `5511999991111` mas recebia `5511977154000` (telefone real do Caio "vencia" o fallback).
-
-**Fix aplicado (sem mexer em comportamento de produção):** seguindo o
-padrão já estabelecido no helper (`_setGmailClientFactoryParaTestes`,
-`_setEnviarWhatsappParaTestes`), adicionei um terceiro seam de injeção
-`_setResolverDestinatariosParaTestes`. A query SQL de destinatários foi
-encapsulada em uma função (`resolverDestinatariosOwnersReal`), e a suite
-Task #166 injeta um resolvedor fake que ainda CONSULTA o DB (respeita
-`UPDATE telefone=NULL` que o teste (c) faz) mas restringe o universo aos
-2 usuários criados pela própria suite (`validadorAtivoId` +
-`validadorComTelefoneId`). Em produção, o comportamento é idêntico ao
-anterior — a função real é chamada via injetor default.
-
-Arquivos tocados:
-- `artifacts/api-server/src/lib/auth/alertaBruteForceTotp.ts` (+~30 linhas: seam + extração da query)
-- `artifacts/api-server/src/lib/auth/alertaBruteForceTotp.test.ts` (+~20 linhas: import do seam + uso no `before`/`after` da suite Task #166)
-
-**Por que essa abordagem:** alternativas consideradas e rejeitadas —
-(i) UPDATE+restore de telefones reais no DB compartilhado é arriscado
-(se o teste crashar entre `before` e `after`, o WhatsApp do CEO fica mudo
-em prod); (ii) mockar via `node:test` mock de módulo é mais frágil entre
-versões. O seam segue padrão já presente, é 100% aditivo e isolado.

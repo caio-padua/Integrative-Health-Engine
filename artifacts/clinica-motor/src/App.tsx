@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,18 +9,15 @@ import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
-import DashboardCockpit from "@/pages/dashboard-cockpit";
 import Anamneses from "@/pages/anamnese";
 import NovaAnamnese from "@/pages/anamnese/nova";
 import AnamneseDetalhe from "@/pages/anamnese/[id]";
 import Validacao from "@/pages/validacao";
 import Filas from "@/pages/filas";
 import Pacientes from "@/pages/pacientes";
-import PrescricaoRapida from "@/pages/prescricao-rapida";
 import ExamesGrafico from "@/pages/pacientes/exames-grafico";
 import LaboratorioValidacao from "@/pages/laboratorio-validacao";
 import PacienteDetalhe from "@/pages/pacientes/[id]";
-import PacienteCockpitPage from "@/pages/pacientes/cockpit";
 import ItensTerapeuticos from "@/pages/itens-terapeuticos";
 import Protocolos from "@/pages/protocolos";
 import Followup from "@/pages/followup";
@@ -143,9 +140,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Login} />
-      <Route path="/dashboard" component={DashboardCockpit} />
-      <Route path="/dashboard-cockpit" component={DashboardCockpit} />
-      <Route path="/dashboard-legado" component={Dashboard} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard-global" component={DashboardGlobal} />
       <Route path="/admin/farmacias" component={FarmaciasParmavault} />
@@ -181,14 +176,12 @@ function Router() {
       <Route path="/validacao" component={Validacao} />
       <Route path="/filas" component={Filas} />
       <Route path="/pacientes" component={Pacientes} />
-      <Route path="/prescricao-rapida" component={PrescricaoRapida} />
       <Route path="/pacientes/:id/questionario" component={QuestionarioPaciente} />
       <Route path="/pacientes/:id/exames-grafico" component={ExamesGrafico} />
       {/* EXAMES-2 — vitrine ANTES do dashboard (rota mais especifica primeiro) */}
       <Route path="/atendimento/exames/:pacienteId/vitrine" component={ExamesVitrinePaciente} />
       <Route path="/atendimento/exames/:pacienteId" component={ExamesDashboardMedico} />
       <Route path="/laboratorio/validacao" component={LaboratorioValidacao} />
-      <Route path="/pacientes/:id/cockpit" component={PacienteCockpitPage} />
       <Route path="/pacientes/:id" component={PacienteDetalhe} />
       <Route path="/itens-terapeuticos" component={ItensTerapeuticos} />
       <Route path="/protocolos" component={Protocolos} />
@@ -279,9 +272,7 @@ function App() {
         <AuthProvider>
           <ClinicProvider>
             <Reverificacao2faProvider>
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                <Router />
-              </WouterRouter>
+              <Router />
               <Toaster />
             </Reverificacao2faProvider>
           </ClinicProvider>

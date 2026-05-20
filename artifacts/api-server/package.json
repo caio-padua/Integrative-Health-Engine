@@ -34,8 +34,7 @@
     "qrcode": "1.5.4",
     "stripe": "^22.0.1",
     "twilio": "^5.13.1",
-    "zod": "catalog:",
-    "@workspace/mensageria-core": "workspace:*"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

@@ -112,27 +112,6 @@ async function executarFetchInterno(
   return fetch(input, { ...init, headers: incoming, credentials });
 }
 
-// Abre um endpoint de PDF do backend em nova aba passando JWT.
-// window.open() direto nao envia Authorization, entao o backend
-// devolve 401. Este helper baixa via fetch autenticado, vira blob
-// URL e abre — fluxo invisivel pro usuario.
-export async function abrirPdfAutenticado(url: string): Promise<void> {
-  try {
-    const r = await apiFetch(url);
-    if (!r.ok) {
-      const txt = await r.text().catch(() => "");
-      alert(`Erro ${r.status} ao abrir PDF: ${txt.slice(0, 200)}`);
-      return;
-    }
-    const blob = await r.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    window.open(blobUrl, "_blank");
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-  } catch (e) {
-    alert(`Falha ao abrir PDF: ${(e as Error).message}`);
-  }
-}
-
 export async function apiFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
