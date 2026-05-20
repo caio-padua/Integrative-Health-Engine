@@ -127,7 +127,7 @@ export default function DashboardLocalPage() {
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                 Lembretes de prescrição · saúde do motor
               </div>
-              {loadingLembretes || !lembreteMetricas ? (
+              {loadingLembretes || !lembreteMetricas || !lembreteMetricas.janelas ? (
                 <div className="text-sm text-muted-foreground mt-1">Carregando...</div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 mt-2">

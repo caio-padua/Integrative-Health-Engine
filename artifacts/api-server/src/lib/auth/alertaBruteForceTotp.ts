@@ -63,6 +63,37 @@ export function _resetEnviarWhatsappParaTestes(): void {
   enviarWhatsappImpl = enviarWhatsapp;
 }
 
+// Task #166 follow-up (2026-05-18) — seam de injecao pra resolver os
+// destinatarios platform_owner/validador_mestre ativos. Por que: o DB de
+// teste e o mesmo de producao (Replit Postgres compartilhado); o Caio
+// (id=1, validador_mestre + platform_owner + telefone real cadastrado
+// pela Wave V46) contaminava as assercoes de contagem `wppCalls.length ==
+// 1` e do telefone de fallback CEO_WHATSAPP. Em vez de mexer em telefones
+// reais do CEO (UPDATE/restore em DB compartilhado e arriscado: se o teste
+// crashar entre before e after, o canal WhatsApp do CEO fica mudo em prod),
+// injetamos um resolvedor fake que devolve so os destinatarios criados
+// pelo proprio teste. Mesmo padrao dos 2 seams acima.
+export type OwnerDestinatarioRow = {
+  email: string | null;
+  telefone: string | null;
+};
+type ResolverDestinatariosFn = () => Promise<OwnerDestinatarioRow[]>;
+async function resolverDestinatariosOwnersReal(): Promise<OwnerDestinatarioRow[]> {
+  const r = await db.execute<OwnerDestinatarioRow>(sql`
+    SELECT email, telefone FROM usuarios
+    WHERE ativo = true
+      AND (perfil_plataforma = 'platform_owner' OR perfil = 'validador_mestre')
+  `);
+  return r.rows ?? [];
+}
+let resolverDestinatariosImpl: ResolverDestinatariosFn = resolverDestinatariosOwnersReal;
+export function _setResolverDestinatariosParaTestes(f: ResolverDestinatariosFn): void {
+  resolverDestinatariosImpl = f;
+}
+export function _resetResolverDestinatariosParaTestes(): void {
+  resolverDestinatariosImpl = resolverDestinatariosOwnersReal;
+}
+
 const FROM_LABEL = "PAWARDS - Seguranca";
 const FROM_ADDR =
   process.env["PAWARDS_EMAIL_FROM"] || "clinica.padua.agenda@gmail.com";
@@ -182,17 +213,13 @@ export async function dispararAlertaBruteForceTotp(
     //    upload PDF esgotado em pdfRetryUpload.ts).
     //    Task #162: na MESMA query ja trazemos `telefone` pra resolver os
     //    destinatarios do canal WhatsApp em paralelo (sem 2a viagem ao DB).
-    const ownerRows = await db.execute<{
-      email: string | null;
-      telefone: string | null;
-    }>(sql`
-      SELECT email, telefone FROM usuarios
-      WHERE ativo = true
-        AND (perfil_plataforma = 'platform_owner' OR perfil = 'validador_mestre')
-    `);
+    //    Task #166 follow-up (2026-05-18): query encapsulada em
+    //    `resolverDestinatariosImpl` (seam) pra que a suite consiga isolar
+    //    o teste dos dados reais do CEO sem mexer em telefones cadastrados.
+    const ownerRows = await resolverDestinatariosImpl();
     const destinatarios = Array.from(
       new Set(
-        (ownerRows.rows ?? [])
+        ownerRows
           .map((r) => (r.email ?? "").trim().toLowerCase())
           .filter((e) => e.includes("@")),
       ),
@@ -203,7 +230,7 @@ export async function dispararAlertaBruteForceTotp(
     // (transicao ate a Task de cadastro estruturado completar).
     const destinatariosWpp = Array.from(
       new Set(
-        (ownerRows.rows ?? [])
+        ownerRows
           .map((r) => (r.telefone ?? "").replace(/\D/g, ""))
           .filter((t) => t.length >= 10),
       ),
