@@ -523,12 +523,14 @@ export function Layout({ children }: { children: ReactNode }) {
         {modulosPermitidos.includes("pacientes") && (
           <div className="px-3 py-3 border-b border-border">
             <Link
-              href="/pacientes?modo=cockpit"
+              href="/cockpit"
               className={`group relative flex items-center gap-3 px-3 py-3 border-l-[3px] transition-all overflow-hidden ${
-                // Wouter useLocation devolve só o pathname — leio search direto
-                // do window pra detectar ?modo=cockpit. /pacientes/:id/cockpit
-                // (path-based) também ativa o destaque pra coerência visual.
-                (typeof window !== "undefined" && location.startsWith("/pacientes") && (window.location.search.includes("modo=cockpit") || location.includes("/cockpit")))
+                // Wave Cockpit Premium 20/mai/2026: agora aponta pra /cockpit
+                // (página dedicada de seletor), não mais pra /pacientes?modo=
+                // cockpit (lista genérica). Destaque ativa quando estiver no
+                // seletor OU no path-based /pacientes/:id/cockpit, mantendo
+                // coerência visual da jornada.
+                (typeof window !== "undefined" && (location === "/cockpit" || location.includes("/cockpit")))
                   ? "bg-[#5EE6E6]/15 text-sidebar-foreground"
                   : "hover:bg-[#5EE6E6]/8 text-sidebar-foreground/85 hover:text-sidebar-foreground"
               }`}

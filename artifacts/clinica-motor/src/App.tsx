@@ -19,6 +19,7 @@ import ExamesGrafico from "@/pages/pacientes/exames-grafico";
 import LaboratorioValidacao from "@/pages/laboratorio-validacao";
 import PacienteDetalhe from "@/pages/pacientes/[id]";
 import PacienteCockpitPage from "@/pages/pacientes/cockpit";
+import CockpitSeletorPage from "@/pages/cockpit";
 import PrescricaoRapidaPage from "@/pages/prescricao-rapida";
 import ItensTerapeuticos from "@/pages/itens-terapeuticos";
 import Protocolos from "@/pages/protocolos";
@@ -178,6 +179,10 @@ function Router() {
       <Route path="/validacao" component={Validacao} />
       <Route path="/filas" component={Filas} />
       <Route path="/pacientes" component={Pacientes} />
+      {/* Wave Cockpit Seletor — /cockpit (sem :id) abre seletor de paciente.
+          Wave Cockpit Premium 20/mai/2026: o atalho COCKPIT PACIENTE do menu
+          aponta pra esta rota dedicada em vez da lista genérica de pacientes. */}
+      <Route path="/cockpit" component={CockpitSeletorPage} />
       <Route path="/pacientes/:id/cockpit" component={PacienteCockpitPage} />
       <Route path="/pacientes/:id/questionario" component={QuestionarioPaciente} />
       <Route path="/prescricao-rapida" component={PrescricaoRapidaPage} />
