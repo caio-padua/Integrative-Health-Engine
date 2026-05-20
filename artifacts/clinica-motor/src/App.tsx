@@ -9,6 +9,7 @@ import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
+import DashboardCockpit from "@/pages/dashboard-cockpit";
 import Anamneses from "@/pages/anamnese";
 import NovaAnamnese from "@/pages/anamnese/nova";
 import AnamneseDetalhe from "@/pages/anamnese/[id]";
@@ -141,6 +142,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Login} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/dashboard-cockpit" component={DashboardCockpit} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard-global" component={DashboardGlobal} />
       <Route path="/admin/farmacias" component={FarmaciasParmavault} />
