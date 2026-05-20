@@ -281,6 +281,15 @@ interface RasxPdfData {
   tituloRelatorio?: string;       // ex: "RAS APRESENTACAO INICIAL" / "RAS EVOLUCAO SEMANA 3"
   subtituloRelatorio?: string;    // ex: "Snapshot D0" / "Comparativo D0 vs D21"
   kpis?: KpiPill[];               // exibidos na capa HEST logo abaixo do bloco paciente
+  // ─────────────────────────────────────────────────────────────────────────
+  // SELOS SINAPTICOS PADCON — 3 mini donuts gold-on-navy na capa do RAS
+  // (Wave Cockpit + Sinapses Premium, 20/mai/2026). Quando nenhum dos 3
+  // valores e fornecido, a faixa de selos NAO e desenhada e a capa preserva
+  // exatamente o layout V481 anterior. Cada valor e um percentual 0..100.
+  // ─────────────────────────────────────────────────────────────────────────
+  scoreSaudeSinaptico?: number;   // saude global do paciente (0..100)
+  scoreEvolucaoPadcon?: number;   // evolucao do protocolo PADCON (0..100)
+  scoreAderenciaPaciente?: number; // aderencia do paciente as orientacoes (0..100)
 }
 
 function calcIdade(dataNasc: string): number {
@@ -445,6 +454,22 @@ function drawCapa(doc: PDFKit.PDFDocument, data: RasxPdfData) {
   doc.fontSize(8).font("Helvetica").fillColor(CORES.offWhite)
     .text(`${data.unidade}   ·   Data-base ${data.dataBase}`, 60, emitY + 25, { width: width - 120, align: "center" });
 
+  // ===== Selos Sinapticos PADCON (3 mini donuts) =====
+  // Wave Cockpit + Sinapses Premium 20/mai/2026: indicadores sinapticos
+  // da capa. Render condicional — se nenhum dos 3 scores existir, pula.
+  const temAlgumSelo =
+    typeof data.scoreSaudeSinaptico === "number" ||
+    typeof data.scoreEvolucaoPadcon === "number" ||
+    typeof data.scoreAderenciaPaciente === "number";
+  if (temAlgumSelo) {
+    const selosY = emitY + 50;
+    drawSelosSinapticosCapa(doc, selosY, width, {
+      saude: data.scoreSaudeSinaptico,
+      evolucao: data.scoreEvolucaoPadcon,
+      aderencia: data.scoreAderenciaPaciente,
+    });
+  }
+
   // ===== Rodape capa: assinatura institucional + selo confidencial =====
   const ctx = getCtx(doc);
   // Faixa gold inferior fina
@@ -461,6 +486,77 @@ function drawCapa(doc: PDFKit.PDFDocument, data: RasxPdfData) {
     bottomY: height - 18,
     theme: "navy-gold",
     variant: "completa",
+  });
+}
+
+// ============================================================================
+// SELOS SINAPTICOS PADCON — 3 mini donuts gold-on-navy na capa do RAS
+// (Wave Cockpit + Sinapses Premium 20/mai/2026). Espelham a estetica do
+// PainelSinapticoBanner do front (deep navy + neon ciano + JetBrains Mono
+// uppercase + donut com glow), adaptada pra paleta navy-gold do RAS PDF.
+// Cada donut: aro gold fino + arco preenchido proporcional ao percentual +
+// numero gold grande no centro + label uppercase abaixo. Render condicional:
+// scores ausentes nao desenham aquele donut, e o bloco inteiro so aparece
+// se ao menos um dos 3 scores foi fornecido (checagem feita pelo caller).
+// ============================================================================
+function drawSelosSinapticosCapa(
+  doc: PDFKit.PDFDocument,
+  y: number,
+  pageWidth: number,
+  scores: { saude?: number; evolucao?: number; aderencia?: number },
+): void {
+  const itens: Array<{ valor: number; label: string }> = [];
+  if (typeof scores.saude === "number") itens.push({ valor: scores.saude, label: "SAUDE SINAPTICA" });
+  if (typeof scores.evolucao === "number") itens.push({ valor: scores.evolucao, label: "EVOLUCAO PADCON" });
+  if (typeof scores.aderencia === "number") itens.push({ valor: scores.aderencia, label: "ADERENCIA" });
+  if (itens.length === 0) return;
+
+  // Header gold "PAINEL SINAPTICO" (espelha o PainelSinapticoBanner do front)
+  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+    .text("PAINEL SINAPTICO PADCON", 40, y, { width: pageWidth - 80, align: "center", characterSpacing: 2.5 });
+  doc.moveTo(pageWidth / 2 - 40, y + 11).lineTo(pageWidth / 2 + 40, y + 11)
+    .lineWidth(0.4).stroke(CORES.douradoQueimado);
+
+  // Distribui os donuts horizontalmente
+  const donutY = y + 22;
+  const raio = 22;
+  const espacoTotal = pageWidth - 120;
+  const passo = espacoTotal / itens.length;
+  itens.forEach((it, i) => {
+    const cx = 60 + passo * (i + 0.5);
+    const cy = donutY + raio;
+    const pct = Math.max(0, Math.min(100, it.valor));
+    // Aro de fundo (gold quase invisivel — backdrop)
+    doc.circle(cx, cy, raio).lineWidth(2.2).strokeOpacity(0.18).stroke(CORES.douradoQueimado).strokeOpacity(1);
+    // Arco preenchido proporcional (gold) — PDFkit nao tem arco nativo,
+    // entao desenhamos com path Bezier aproximando setores de 6 graus.
+    if (pct > 0) {
+      const passos = Math.max(2, Math.round((pct / 100) * 60)); // 60 segmentos = 360deg
+      const angIni = -Math.PI / 2; // topo (12h)
+      const angTot = (pct / 100) * Math.PI * 2;
+      doc.save();
+      doc.lineWidth(2.4).strokeColor(CORES.douradoQueimado);
+      for (let s = 0; s < passos; s++) {
+        const a1 = angIni + (angTot * s) / passos;
+        const a2 = angIni + (angTot * (s + 1)) / passos;
+        const x1 = cx + Math.cos(a1) * raio;
+        const y1 = cy + Math.sin(a1) * raio;
+        const x2 = cx + Math.cos(a2) * raio;
+        const y2 = cy + Math.sin(a2) * raio;
+        doc.moveTo(x1, y1).lineTo(x2, y2).stroke();
+      }
+      doc.restore();
+    }
+    // Numero gold grande centralizado no donut
+    const numTxt = `${Math.round(pct)}`;
+    doc.fontSize(13).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+      .text(numTxt, cx - raio, cy - 7, { width: raio * 2, align: "center" });
+    // Sufixo "%" pequeno abaixo do numero
+    doc.fontSize(6).font("Helvetica").fillColor(CORES.cinzaClaro)
+      .text("%", cx - raio, cy + 6, { width: raio * 2, align: "center" });
+    // Label uppercase off-white abaixo do donut
+    doc.fontSize(5.8).font("Helvetica-Bold").fillColor(CORES.offWhite)
+      .text(it.label, cx - 50, cy + raio + 5, { width: 100, align: "center", characterSpacing: 1.2 });
   });
 }
 
