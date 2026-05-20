@@ -1,13 +1,16 @@
 import { Router } from "express";
 import { db, pagamentosTable, pacientesTable, tratamentosTable, tratamentoItensTable, substanciasTable } from "@workspace/db";
 import { eq, sql, and, inArray } from "drizzle-orm";
+import { resolverFiltroTenant } from "../lib/auth/filtroTenant";
 
 const router = Router();
 
 router.get("/financeiro/pagamentos", async (req, res): Promise<void> => {
   const pacienteId = req.query.pacienteId ? parseInt(req.query.pacienteId as string, 10) : undefined;
   const status = req.query.status as string | undefined;
-  const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : undefined;
+  // Wave 13 F2 — tenant isolation enforced
+  const { unidadeId: unidadeIdTenant } = resolverFiltroTenant(req);
+  const unidadeId = unidadeIdTenant !== null ? unidadeIdTenant : undefined;
   const tratamentoId = req.query.tratamentoId ? parseInt(req.query.tratamentoId as string, 10) : undefined;
 
   const pagamentos = await db

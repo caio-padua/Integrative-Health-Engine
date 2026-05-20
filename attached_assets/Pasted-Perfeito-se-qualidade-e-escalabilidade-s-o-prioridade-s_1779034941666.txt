@@ -1,0 +1,41 @@
+Perfeito — se qualidade e escalabilidade são prioridade sobre custo, a decisão fica ainda mais clara.
+
+## Decisão final: Fly.io GRU + Managed Postgres Starter
+
+**~US$ 80-90/mês (~R$ 450-500/mês)**
+
+Por que Starter e não Basic: o Starter (US$ 72/mês) te dá **HA com failover automático**, backups point-in-time, e suporte prioritário. Pra um sistema médico com 5.408 pacientes e dados clínicos reais, failover automático não é luxo — é obrigação. Compute dedicado (performance-2x, ~US$ 14/mês) em vez de shared elimina qualquer variação de performance durante pico de consultas. IPv4 dedicado (US$ 2) garante URL fixa pro ZapSign.
+
+O que isso te dá pro futuro:
+
+🩺 **Expansão multi-clínica**: Fly.io escala horizontal — cada clínica nova é só mais um tenant, mesma infra. Quando chegar a 10 clínicas, sobe uma segunda máquina em GRU com 1 comando.
+
+💰 **Farmácias de manipulação**: webhook ZapSign com URL fixa e estável. Farmácia assina, webhook chega, comissão dispara. Sem o problema do domínio Replit que mudava.
+
+📈 **Multi-empresa**: o RBAC que estamos construindo (Wave 13) já é multi-tenant. Fly.io suporta isso nativamente — cada empresa é um tenant isolado no mesmo banco.
+
+🛡️ **LGPD blindado**: compute E banco em São Paulo. Sem transferência internacional, sem SCC, sem papelada ANPD. Dado do paciente nunca sai do Brasil.
+
+## Plano de ação concreto
+
+Cola pro Dr. Replit:
+
+> **Dr. Claude decidiu: Fly.io GRU + Managed Postgres Starter.**
+>
+> Orçamento aprovado: ~US$ 80-90/mês. Qualidade > economia.
+>
+> Quando executar: assim que Wave 13 F2 (middleware RBAC) estiver merged. Não faz sentido deployar em produção nova sem tenant isolation.
+>
+> Ordem:
+> 1. Terminar Wave 13 F2 (middleware enforcement)
+> 2. Preparar Dockerfile + fly.toml pra deploy em GRU
+> 3. Provisionar Managed Postgres Starter em GRU
+> 4. Migrar banco (pg_dump do Replit → pg_restore no Fly)
+> 5. Apontar `webhooks.pawards.com.br` pro IP fixo do Fly
+> 6. Smoke test completo + tag `v031-zapsign-rbac-launch`
+>
+> Estimativa total: F2 (1-2 dias) + migração Fly (2-3 dias) = ~1 semana.
+
+Enquanto isso, **resolve o billing do Replit** (email pra `support@replit.com`) pra garantir que o ambiente de dev não expira nos próximos 30 dias. Dev continua no Replit, produção vai pro Fly.io.
+
+Quer que o Dr. Replit comece o F2 agora?

@@ -395,3 +395,33 @@ id = "8xO1g8Hfoo6SwAWPOGv9J"
 uri = "file://attached_assets/planilha_blocos_csv/13_dicionario_nicks_b4.csv"
 type = "table"
 title = "DICIONARIO NICKS B4 (375 entradas - alfabetico nick->nome real)"
+
+[[outputs]]
+id = "MjbQprtgofbTiu6xuZc_u"
+uri = "file://docs/dr-claude/08_IGNICAO_MOTOR_E_SINAPSES.md"
+type = "text"
+title = "08 — Ignição do Motor PADCOM + Sinapses (anamnese → sugestões)"
+
+[[outputs]]
+id = "0iw_XIFxhQAsaSCxD-fi_"
+uri = "file://docs/dr-claude/09_CATALOGO_CLINICO_ESTRATIFICADO.md"
+type = "text"
+title = "09 — Catálogo Clínico Estratificado (2 visões + domínios completos)"
+
+[[outputs]]
+id = "6bIfwm6V0tgCIM1MN56yW"
+uri = "file://docs/dr-claude/10_INJETAVEIS_IM_EV_E_IMPLANTES.md"
+type = "text"
+title = "10 — Catálogo Parenteral Completo: 162 injetáveis IM/EV + 11 soros + 32 implantes"
+
+[[outputs]]
+id = "XTdXHteqG5GmH60LqdH9h"
+uri = "file://docs/dr-claude/11_ANALISE_ENCOMENDA_01_80_FORMULAS.md"
+type = "text"
+title = "11 — Análise da Encomenda 01: 80 fórmulas Dr. Claude (auditoria + 3 blockers + 8 perguntas)"
+
+[[outputs]]
+id = "XuCcaX-9oqTf8FFvqOqLh"
+uri = "file://docs/dr-claude/12_ANALISE_ENCOMENDA_02_SINAPSES_E_CRANIOTOMIA.md"
+type = "text"
+title = "12 — Análise da Encomenda 02: 83 sinapses + Craniotomia (9 blockers + matriz Hipótese A/B + plano 12 sprints)"

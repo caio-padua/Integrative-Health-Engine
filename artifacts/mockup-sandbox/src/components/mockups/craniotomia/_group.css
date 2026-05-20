@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&display=swap');
+
+/* Paleta semantica V4 — Craniotomia Pawards
+   Cores FIXAS por bloco B1 (genotipo). Mesmo significado em qualquer variante.
+   Caio (CEO) confirmou: TDAH/TOC-friendly, requintada, austera, densidade objetiva,
+   0px border-radius, JetBrains Mono. */
+
+.craniotomia-root {
+  /* base — documento juridico bem formatado */
+  --crn-bg: #0b1426;            /* deep navy */
+  --crn-bg-panel: #0f1b30;
+  --crn-bg-row: #131f36;
+  --crn-bg-row-alt: #0d1729;
+  --crn-bg-row-hover: #1a2742;
+  --crn-fg: #e6ecf5;            /* texto principal */
+  --crn-fg-muted: #8a98b3;
+  --crn-fg-dim: #5b6a87;
+  --crn-border: #1e2c47;
+  --crn-border-strong: #2a3d63;
+  --crn-accent: #93b8e8;        /* pastel blue */
+  --crn-accent-strong: #5b8dd1;
+
+  /* B1 — blocos de anamnese (genotipo). Cores SEMANTICAS fixas. */
+  --crn-b1-qsnt: #7c3aed;       /* SINTOMAS — roxo */
+  --crn-b1-qdgn: #b91c1c;       /* DIAGNOSTICOS — vermelho tijolo */
+  --crn-b1-qcir: #78350f;       /* CIRURGIAS — marrom */
+  --crn-b1-qfam: #d97706;       /* FAMILIAR — laranja */
+  --crn-b1-qhab: #4d7c0f;       /* HABITOS — verde musgo */
+  --crn-b1-qsex: #155e75;       /* SEXUAL — azul petroleo */
+  --crn-b1-qpsi: #c084fc;       /* PSIQUICO — lilas */
+  --crn-b1-qprf: #b8860b;       /* PROFISSIONAL — dourado */
+  --crn-b1-qvit: #64748b;       /* VITAIS — cinza azulado */
+  --crn-b1-qhda: #a8a29e;       /* HDA — bege */
+
+  /* Tipo de fenotipo (acao). Icones lucide, nao emoji. */
+  --crn-tipo-form: #34d399;     /* FORMULA — verde */
+  --crn-tipo-inje: #fb923c;     /* INJETAVEL — laranja claro */
+  --crn-tipo-impl: #67e8f9;     /* IMPLANTE — ciano */
+  --crn-tipo-exam: #facc15;     /* EXAME — amarelo */
+  --crn-tipo-prot: #a78bfa;     /* PROTOCOLO — violeta */
+
+  /* Estado da regra */
+  --crn-estado-ativo: #22c55e;
+  --crn-estado-pausado: #94a3b8;
+  --crn-estado-bloqueado: #7d1d2e;
+  --crn-estado-validacao: #eab308;
+
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--crn-bg);
+  color: var(--crn-fg);
+}
+
+.craniotomia-root *,
+.craniotomia-root *::before,
+.craniotomia-root *::after {
+  border-radius: 0 !important; /* regra ferro Caio */
+}
+
+.craniotomia-serif { font-family: 'IBM Plex Serif', Georgia, serif; }
