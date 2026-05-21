@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
+import { LoaderPreview } from "@/components/LoaderPreview";
 
 /**
  * /identidade-visual — Manual de Identidade Visual Pawards Medcore.
@@ -388,6 +389,19 @@ export default function IdentidadeVisual() {
               </ul>
             </div>
           </div>
+        </Secao>
+
+        {/* 07 INDICADORES DE CARREGAMENTO — preview com PLAY */}
+        <Secao numero="07" titulo="Indicadores de Carregamento (Preview)">
+          <p
+            className="text-[11px] uppercase tracking-[0.2em] mb-4"
+            style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            Aperte ▶ em cada caixa pra ver a animação em câmera lenta.
+            A · barra fina dourada do topo · B · círculo com % pra cargas longas ·
+            C · spinner quando não há porcentagem.
+          </p>
+          <LoaderPreview />
         </Secao>
 
         {/* 06 ASSINATURA */}
