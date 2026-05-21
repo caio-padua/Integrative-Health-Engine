@@ -480,21 +480,38 @@ export default function PreviewParametrizacaoExames() {
         padding: "24px 28px 60px",
       }}
     >
-      {/* HEADER */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18 }}>
-        <div>
-          <div style={{ color: MUTED, fontSize: 10, letterSpacing: 1.2, marginBottom: 4 }}>
-            PAWARDS MEDCORE® · MOTOR CLÍNICO · PARAMETRIZAÇÃO INDIVIDUAL
+      {/* FAIXA SUPERIOR INSTITUCIONAL */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+          padding: "12px 18px",
+          background: NAVY_2,
+          border: `1px solid ${NAVY_3}`,
+          borderLeft: `3px solid ${GOLD}`,
+          marginBottom: 16,
+        }}
+      >
+        <img
+          src="/logo-pawards-medcore-transparent.png"
+          alt="PAWARDS MEDCORE"
+          style={{ height: 56, width: "auto", display: "block" }}
+        />
+        <div style={{ flex: 1, borderLeft: `1px solid ${NAVY_3}`, paddingLeft: 18 }}>
+          <div style={{ color: MUTED, fontSize: 10, letterSpacing: 1.4, marginBottom: 2 }}>
+            PAWARDS MEDCORE<span style={{ color: GOLD }}>®</span> · PADCON PLATFORM
+            <span style={{ color: GOLD }}>®</span> · MOTOR CLÍNICO
           </div>
-          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 1.2, color: TEXT }}>
-            EXAMES E BIOMARCADORES — PAINEL DE PARAMETRIZAÇÃO
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: 1.2, color: TEXT }}>
+            EXAMES E BIOMARCADORES — PAINEL DE PARAMETRIZAÇÃO INDIVIDUAL
           </div>
-          <div style={{ color: MUTED, fontSize: 11, marginTop: 4, letterSpacing: 0.6 }}>
+          <div style={{ color: MUTED, fontSize: 10, marginTop: 3, letterSpacing: 0.6 }}>
             PACIENTE EXEMPLO ·{" "}
             <span style={{ color: GOLD }}>CYLLAS SALERNO ELIA JUNIOR</span> · 46 ANOS · ÚLTIMA COLETA 21/05/2026
           </div>
         </div>
-        <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <KPI label="CRÍTICOS" valor={stats.critico} cor="#FF4D4D" />
           <KPI label="ATENÇÃO" valor={stats.atencao} cor={GOLD} />
           <KPI label="ÓTIMOS" valor={stats.otimo} cor={CYAN} />
