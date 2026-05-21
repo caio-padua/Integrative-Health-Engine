@@ -81,6 +81,33 @@ export default function LembretePrescricaoPanel({ pacienteId, unidadeId }: { pac
     enabled: !!prescricao,
   });
 
+  // Tarefa #228 — botao "voltar pro padrao da unidade" reseta
+  // horariosEnvio = [] na prescricao, fazendo o worker herdar
+  // novamente a janela configurada na unidade.
+  //
+  // BUG FIX: useMutation precisa ser chamado ANTES do early return
+  // `if (isLoading)`. Senao o numero de hooks muda entre renders quando
+  // isLoading transiciona true->false, e o React aborta com
+  // "Rendered more hooks than during the previous render".
+  const voltarParaPadraoMutation = useMutation({
+    mutationFn: async () => {
+      if (!prescricao) throw new Error("sem prescricao");
+      const r = await apiFetch(`/api/prescricoes-lembrete/${prescricao.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ horariosEnvio: [] }),
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => "");
+        throw new Error(txt || "Erro ao voltar pro padrao");
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prescricoes-lembrete"] });
+    },
+  });
+
   if (isLoading) {
     return (
       <Card className="bg-card border-border/50">
@@ -106,28 +133,6 @@ export default function LembretePrescricaoPanel({ pacienteId, unidadeId }: { pac
   // override por prescricao no schema atual). Fallback 5 min replica o
   // default do worker quando a unidade nao tem o campo configurado.
   const toleranciaEfetiva = unidade?.lembreteToleranciaMinutos ?? 5;
-
-  // Tarefa #228 — botao "voltar pro padrao da unidade" reseta
-  // horariosEnvio = [] na prescricao, fazendo o worker herdar
-  // novamente a janela configurada na unidade.
-  const voltarParaPadraoMutation = useMutation({
-    mutationFn: async () => {
-      if (!prescricao) throw new Error("sem prescricao");
-      const r = await apiFetch(`/api/prescricoes-lembrete/${prescricao.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ horariosEnvio: [] }),
-      });
-      if (!r.ok) {
-        const txt = await r.text().catch(() => "");
-        throw new Error(txt || "Erro ao voltar pro padrao");
-      }
-      return r.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prescricoes-lembrete"] });
-    },
-  });
 
   const totalPaginas = Math.max(1, Math.ceil(envios.length / PAGE_SIZE));
   const enviosPagina = envios.slice(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE);
