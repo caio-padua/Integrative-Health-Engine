@@ -472,12 +472,29 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex bg-background">
       <TopProgressBar />
       <aside className="w-72 border-r border-border bg-sidebar flex flex-col">
-        <div className="h-16 flex items-center px-5 border-b border-border">
-          <div className="w-9 h-9 flex items-center justify-center bg-white/90 border border-border mr-3 p-1">
-            <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain invert-0" />
-          </div>
+        <div className="h-20 flex items-center px-5 border-b border-border gap-3">
+          <div
+            aria-label="Símbolo PAWARDS"
+            title="PAWARDS MEDCORE"
+            style={{
+              width: 44,
+              height: 52,
+              background: "#D4AF37",
+              WebkitMaskImage: `url(${import.meta.env.BASE_URL}logo-dp.png)`,
+              maskImage: `url(${import.meta.env.BASE_URL}logo-dp.png)`,
+              WebkitMaskRepeat: "no-repeat",
+              maskRepeat: "no-repeat",
+              WebkitMaskPosition: "center",
+              maskPosition: "center",
+              WebkitMaskSize: "contain",
+              maskSize: "contain",
+              flexShrink: 0,
+              filter: "drop-shadow(0 0 6px rgba(212,175,55,0.35))",
+            }}
+            data-testid="sidebar-symbol-d"
+          />
           <div className="flex-1 min-w-0">
-            <span className="font-bold text-sm text-sidebar-foreground tracking-tight uppercase">Pawards</span>
+            <span className="font-bold text-base text-sidebar-foreground tracking-tight uppercase">Pawards</span>
             <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">Developed by Pawards MedCore</span>
           </div>
           <CampainhaAlertasSeguranca />
@@ -803,7 +820,7 @@ export function Layout({ children }: { children: ReactNode }) {
             autenticadas. JetBrains Mono UPPERCASE, deep navy, neon ciano
             como sotaque nas barras laterais. */}
         <footer
-          className="h-12 flex items-stretch border-t text-[10px] uppercase tracking-[0.2em]"
+          className="h-16 flex items-stretch border-t text-[12px] uppercase tracking-[0.18em]"
           style={{
             background: "#0B1220",
             borderColor: "#1F2937",
@@ -814,45 +831,47 @@ export function Layout({ children }: { children: ReactNode }) {
         >
           {/* Esquerda: operador */}
           <div
-            className="flex-1 flex items-center gap-2 px-4 border-l-[3px] min-w-0"
+            className="flex-1 flex items-center gap-2.5 px-5 border-l-[3px] min-w-0"
             style={{ borderLeftColor: "#5EE6E6" }}
           >
-            <UserCheck className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#5EE6E6" }} />
-            <span className="font-bold truncate" style={{ color: "#E5E7EB" }} data-testid="rodape-operador">
-              {user.nome}
-            </span>
-            <span className="text-[9px] tracking-widest truncate" style={{ color: "#6B7280" }}>
-              · {user.perfil.replace(/_/g, " ")}
-            </span>
+            <UserCheck className="w-5 h-5 flex-shrink-0" style={{ color: "#5EE6E6" }} />
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-[14px] truncate leading-tight" style={{ color: "#E5E7EB", letterSpacing: "0.12em" }} data-testid="rodape-operador">
+                {user.nome}
+              </span>
+              <span className="text-[11px] tracking-widest truncate leading-tight" style={{ color: "#9CA3AF" }}>
+                {user.perfil.replace(/_/g, " ")}
+              </span>
+            </div>
           </div>
 
           {/* Centro: nome da tela */}
           <div
-            className="flex-1 flex items-center justify-center px-2 border-x truncate"
+            className="flex-1 flex items-center justify-center px-3 border-x truncate"
             style={{ borderColor: "#1F2937" }}
           >
-            <span className="font-bold truncate" style={{ color: "#E5E7EB" }} data-testid="rodape-tela">
+            <span className="font-bold text-[15px] truncate" style={{ color: "#D4AF37", letterSpacing: "0.22em" }} data-testid="rodape-tela">
               {tituloTela}
             </span>
           </div>
 
           {/* Direita: PAWARDS® · mensagem · PADCON · mensagem */}
           <div
-            className="flex-1 flex items-center justify-end gap-3 px-4 border-r-[3px]"
+            className="flex-1 flex items-center justify-end gap-4 px-5 border-r-[3px]"
             style={{ borderRightColor: "#5EE6E6" }}
           >
-            <span className="flex items-center gap-1 truncate">
-              <span className="font-bold" style={{ color: "#E5E7EB" }}>PAWARDS</span>
-              <sup className="text-[8px]" style={{ color: "#5EE6E6" }}>®</sup>
-              <span className="hidden md:inline text-[9px]" style={{ color: "#6B7280" }}>
+            <span className="flex items-center gap-1.5 truncate">
+              <span className="font-bold text-[14px]" style={{ color: "#E5E7EB", letterSpacing: "0.14em" }}>PAWARDS</span>
+              <sup className="text-[10px]" style={{ color: "#D4AF37" }}>®</sup>
+              <span className="hidden md:inline text-[11px]" style={{ color: "#9CA3AF" }}>
                 · MEDCORE INTEGRATIVA
               </span>
             </span>
             <span style={{ color: "#1F2937" }}>|</span>
-            <span className="flex items-center gap-1 truncate">
-              <span className="font-bold" style={{ color: "#E5E7EB" }}>PADCON</span>
-              <sup className="text-[8px]" style={{ color: "#5EE6E6" }}>®</sup>
-              <span className="hidden md:inline text-[9px]" style={{ color: "#6B7280" }}>
+            <span className="flex items-center gap-1.5 truncate">
+              <span className="font-bold text-[14px]" style={{ color: "#E5E7EB", letterSpacing: "0.14em" }}>PADCON</span>
+              <sup className="text-[10px]" style={{ color: "#D4AF37" }}>®</sup>
+              <span className="hidden md:inline text-[11px]" style={{ color: "#9CA3AF" }}>
                 · CONSULTORIA INVISÍVEL
               </span>
             </span>
