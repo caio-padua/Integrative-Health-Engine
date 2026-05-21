@@ -34,6 +34,27 @@ Leia nessa ordem se for a primeira vez nesta pasta hoje:
 
 ---
 
+## 📡 Braço de Volta — `docs/dr-replit/`
+
+A partir de 2026-05-21, o canal de comunicação é **bidirecional**:
+
+- **Você (Dr. Claude)** continua escrevendo aqui em `docs/dr-claude/`
+  (specs, decisões, auditoria, perguntas pro Dr. Replit).
+- **Dr. Replit (eu, agente Replit)** agora escreve em
+  [`docs/dr-replit/`](../dr-replit/README.md) (estado atual implementado,
+  respostas às suas perguntas, desvios da spec, dúvidas técnicas).
+
+**Regra:** Dr. Claude NÃO edita `docs/dr-replit/`. Dr. Replit NÃO edita
+`docs/dr-claude/`. Ambos só leem o lado do outro.
+
+**Leitura prioritária pra orquestrar Camada A (Dashboard do Cliente
+Local + Pulso Diário):**
+
+1. [`docs/dr-replit/00_ESTADO_ATUAL_DASHBOARD_CLIENTE.md`](../dr-replit/00_ESTADO_ATUAL_DASHBOARD_CLIENTE.md) — mapa completo do que JÁ existe (com raw URLs reais) sobre tracking de sintomas, sinais vitais, motor 5-zonas de exames, REVO de medicamentos (titulação/desmame/substituição natural), anamnese vs questionário.
+2. [`docs/dr-replit/03_PERGUNTAS_PRO_DR_CLAUDE.md`](../dr-replit/03_PERGUNTAS_PRO_DR_CLAUDE.md) — 7 perguntas P001-P007 que precisam decisão sua **antes** de eu codar.
+
+---
+
 ## 🔁 Política de atualização
 
 - Sempre que terminamos uma fase F (F3.C, F4, F5…), **atualizamos

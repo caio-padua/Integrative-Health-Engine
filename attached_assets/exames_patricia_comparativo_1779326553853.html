@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exames Patricia — Tabela Comparativa</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f0ff;
+    color: #1a1a2e;
+    padding: 24px 16px;
+    font-size: 15px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1a1a2e;
+    margin-bottom: 2px;
+  }
+  .subtitle {
+    color: #777;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  /* FILTROS */
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .filter-btn {
+    padding: 7px 16px;
+    border: 2px solid #ddd;
+    border-radius: 30px;
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: #555;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: #aaa; }
+  .filter-btn.active { color: white; border-color: transparent; }
+  .filter-btn[data-filter="all"].active { background: #1a1a2e; }
+  .filter-btn[data-filter="ruim"].active { background: #e74c3c; }
+  .filter-btn[data-filter="atencao"].active { background: #e67e22; }
+  .filter-btn[data-filter="ok"].active { background: #27ae60; }
+
+  /* TABELA */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 16px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    min-width: 680px;
+  }
+  thead tr {
+    background: #1a1a2e;
+    color: white;
+  }
+  thead th {
+    padding: 14px 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; padding-left: 20px; width: 220px; }
+
+  /* GRUPOS */
+  .group-header td {
+    background: #f0ecff;
+    color: #5b21b6;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    border-top: 2px solid #d8b4fe;
+  }
+
+  tbody tr:not(.group-header) {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.1s;
+  }
+  tbody tr:not(.group-header):hover { background: #fdfbff; }
+
+  td {
+    padding: 12px 12px;
+    text-align: center;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  td:first-child {
+    text-align: left;
+    padding-left: 20px;
+    font-weight: 600;
+    color: #333;
+  }
+  .ref-col {
+    font-size: 11px;
+    color: #aaa;
+    font-weight: 400;
+  }
+
+  /* CHIPS DE STATUS */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .chip-red    { background: #fde8e8; color: #c0392b; }
+  .chip-orange { background: #fff3e0; color: #bf6900; }
+  .chip-green  { background: #e6f9f0; color: #1b7a4a; }
+  .chip-gray   { background: #f0f0f0; color: #999; font-weight: 400; font-size: 12px; }
+  .chip-blue   { background: #e3f2fd; color: #1565c0; }
+
+  /* ESCONDER LINHAS FILTRADAS */
+  tr.hidden { display: none; }
+
+  /* LEGENDA */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 20px;
+    font-size: 12px;
+    color: #666;
+    align-items: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* NOTA */
+  .nota {
+    margin-top: 20px;
+    font-size: 11.5px;
+    color: #999;
+    line-height: 1.6;
+    padding: 12px 16px;
+    background: white;
+    border-radius: 10px;
+    border-left: 3px solid #d8b4fe;
+  }
+
+  /* HIGHLIGHT LINHA */
+  tr.destaque td:first-child::before {
+    content: "★ ";
+    color: #e74c3c;
+  }
+</style>
+</head>
+<body>
+
+<h1>📋 Patricia S. O. Maia — Exames Comparativos</h1>
+<p class="subtitle">38 anos · Feminino · Coletas: ago/2025 · nov/2025 · abr/2026</p>
+
+<div class="filters">
+  <button class="filter-btn active" data-filter="all" onclick="filtrar(this,'all')">Todos</button>
+  <button class="filter-btn" data-filter="ruim" onclick="filtrar(this,'ruim')">🔴 Alterados</button>
+  <button class="filter-btn" data-filter="atencao" onclick="filtrar(this,'atencao')">🟠 Atenção</button>
+  <button class="filter-btn" data-filter="ok" onclick="filtrar(this,'ok')">🟢 Normais</button>
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Exame</th>
+      <th>Ago/2025</th>
+      <th>Nov/2025</th>
+      <th>Abr/2026</th>
+      <th>Referência (F)</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- HORMÔNIOS -->
+    <tr class="group-header"><td colspan="5">🔬 Hormônios</td></tr>
+
+    <tr class="destaque" data-status="ruim">
+      <td>Prolactina</td>
+      <td><span class="chip chip-red">46,96 ng/mL ↑↑</span></td>
+      <td><span class="chip chip-red">30,78 ng/mL ↑</span></td>
+      <td><span class="chip chip-red">40,2 ng/mL ↑↑</span></td>
+      <td class="ref-col">2,8 – 29,2 ng/mL</td>
+    </tr>
+
+    <tr class="destaque" data-status="ruim">
+      <td>Testosterona Total</td>
+      <td><span class="chip chip-green">15,64 ng/dL ✓</span></td>
+      <td><span class="chip chip-red">121,62 ng/dL ↑↑↑</span></td>
+      <td><span class="chip chip-green">13 ng/dL ✓</span></td>
+      <td class="ref-col">12,09 – 59,46 ng/dL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>FSH</td>
+      <td><span class="chip chip-green">8,9 mUI/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">5,14 mUI/mL ✓</span></td>
+      <td class="ref-col">Folicular: 2,5 – 10,2</td>
+    </tr>
+
+    <tr data-status="atencao">
+      <td>LH</td>
+      <td><span class="chip chip-green">16,8 mUI/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-orange">1,24 mUI/mL ↓</span></td>
+      <td class="ref-col">Folicular: 1,8 – 11,8</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Estradiol</td>
+      <td><span class="chip chip-green">143,8 pg/mL ✓</span></td>
+      <td><span class="chip chip-green">76,6 pg/mL ✓</span></td>
+      <td><span class="chip chip-green">23 pg/mL ✓</span></td>
+      <td class="ref-col">Folicular: 19,5 – 144,2</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Progesterona</td>
+      <td><span class="chip chip-green">0,25 ng/mL ✓</span></td>
+      <td><span class="chip chip-green">&lt;0,21 ng/mL ✓</span></td>
+      <td><span class="chip chip-green">1,0 ng/mL ✓</span></td>
+      <td class="ref-col">Folicular: ≤ 1,40</td>
+    </tr>
+
+    <tr data-status="atencao">
+      <td>SHBG</td>
+      <td><span class="chip chip-orange">16,9 nmol/L ↓</span></td>
+      <td><span class="chip chip-green">22,6 nmol/L ✓</span></td>
+      <td><span class="chip chip-green">30,1 nmol/L ✓</span></td>
+      <td class="ref-col">18 – 144 nmol/L</td>
+    </tr>
+
+    <!-- TIREOIDE -->
+    <tr class="group-header"><td colspan="5">🦋 Tireoide</td></tr>
+
+    <tr data-status="ok">
+      <td>TSH</td>
+      <td><span class="chip chip-green">1,85 µUI/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">1,40 µUI/mL ✓</span></td>
+      <td class="ref-col">0,35 – 4,94 µUI/mL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>T4 Livre</td>
+      <td><span class="chip chip-green">1,18 ng/dL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">1,02 ng/dL ✓</span></td>
+      <td class="ref-col">0,75 – 1,22 ng/dL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>T3 Livre</td>
+      <td><span class="chip chip-green">3,60 pg/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">2,85 pg/mL ✓</span></td>
+      <td class="ref-col">2,30 – 4,20 pg/mL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Anti-TPO</td>
+      <td><span class="chip chip-green">Negativo ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">0,21 UI/mL ✓</span></td>
+      <td class="ref-col">≤ 5,61 – 13,8 UI/mL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Anti-Tireoglobulina</td>
+      <td><span class="chip chip-green">Negativo ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">2,77 UI/mL ✓</span></td>
+      <td class="ref-col">≤ 4,11 – 4,5 UI/mL</td>
+    </tr>
+
+    <!-- FERRO E VITAMINAS -->
+    <tr class="group-header"><td colspan="5">💊 Ferro, Vitaminas e Minerais</td></tr>
+
+    <tr class="destaque" data-status="ruim">
+      <td>Ferro Sérico</td>
+      <td><span class="chip chip-orange">51 µg/dL</span></td>
+      <td><span class="chip chip-red">35 µg/dL ↓</span></td>
+      <td><span class="chip chip-green">65 µg/dL ✓</span></td>
+      <td class="ref-col">50 – 170 µg/dL</td>
+    </tr>
+
+    <tr data-status="atencao">
+      <td>Ferritina</td>
+      <td><span class="chip chip-orange">32,0 ng/mL</span></td>
+      <td><span class="chip chip-orange">23,0 ng/mL</span></td>
+      <td><span class="chip chip-green">135,9 ng/mL ✓*</span></td>
+      <td class="ref-col">20 – 300 ng/mL</td>
+    </tr>
+
+    <tr class="destaque" data-status="ruim">
+      <td>Vitamina B12</td>
+      <td><span class="chip chip-green">467 pg/mL ✓</span></td>
+      <td><span class="chip chip-red">&gt; 2.000 pg/mL ↑↑↑</span></td>
+      <td><span class="chip chip-green">656 pg/mL ✓</span></td>
+      <td class="ref-col">181 – 906 pg/mL</td>
+    </tr>
+
+    <tr data-status="atencao">
+      <td>Vitamina D</td>
+      <td><span class="chip chip-green">44,91 ng/mL ✓</span></td>
+      <td><span class="chip chip-orange">72,90 ng/mL ↑</span></td>
+      <td><span class="chip chip-green">61,0 ng/mL ✓</span></td>
+      <td class="ref-col">&gt; 20 ng/mL (risco: &gt; 100)</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Homocisteína</td>
+      <td><span class="chip chip-green">8,5 µmol/L ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">6,10 µmol/L ✓</span></td>
+      <td class="ref-col">4,44 – 13,56 µmol/L</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>PTH</td>
+      <td><span class="chip chip-green">33,2 pg/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">64 pg/mL ✓</span></td>
+      <td class="ref-col">18 – 94 pg/mL</td>
+    </tr>
+
+    <tr data-status="atencao">
+      <td>Zinco</td>
+      <td><span class="chip chip-red">61,62 µg/dL ↓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-orange">68,6 µg/dL</span></td>
+      <td class="ref-col">60 – 120 µg/dL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Cobre</td>
+      <td><span class="chip chip-green">118,2 µg/dL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">94,4 µg/dL ✓</span></td>
+      <td class="ref-col">80 – 155 µg/dL</td>
+    </tr>
+
+    <!-- INFLAMAÇÃO E METABÓLICO -->
+    <tr class="group-header"><td colspan="5">🩸 Inflamação e Metabólico</td></tr>
+
+    <tr class="destaque" data-status="ruim">
+      <td>PCR ultra-sensível</td>
+      <td><span class="chip chip-red">4,4 mg/L ↑</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-orange">1,97 mg/L</span></td>
+      <td class="ref-col">Baixo risco: &lt; 1,0 mg/L</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>HbA1c</td>
+      <td><span class="chip chip-green">5,6% ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">4,8% ✓</span></td>
+      <td class="ref-col">&lt; 5,7%</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Colesterol Total</td>
+      <td><span class="chip chip-green">175 mg/dL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">140 mg/dL ✓</span></td>
+      <td class="ref-col">&lt; 190 mg/dL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>LDL</td>
+      <td><span class="chip chip-green">107 mg/dL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">87 mg/dL ✓ ↓</span></td>
+      <td class="ref-col">&lt; 115 (baixo risco)</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>HDL</td>
+      <td><span class="chip chip-green">51 mg/dL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-orange">41 mg/dL</span></td>
+      <td class="ref-col">&gt; 40 mg/dL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Triglicérides</td>
+      <td><span class="chip chip-green">82 mg/dL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td class="ref-col">&lt; 150 mg/dL</td>
+    </tr>
+
+    <!-- RENAL E HEPÁTICO -->
+    <tr class="group-header"><td colspan="5">🫀 Função Renal e Hepática</td></tr>
+
+    <tr data-status="ok">
+      <td>Creatinina</td>
+      <td><span class="chip chip-green">0,63 mg/dL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">0,69 mg/dL ✓</span></td>
+      <td class="ref-col">0,50 – 1,10 mg/dL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>TFG estimada</td>
+      <td><span class="chip chip-green">&gt; 90 mL/min ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">&gt; 90 mL/min ✓</span></td>
+      <td class="ref-col">&gt; 60 mL/min</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>TGO (AST)</td>
+      <td><span class="chip chip-green">15 U/L ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">14 U/L ✓</span></td>
+      <td class="ref-col">≤ 33 U/L</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>TGP (ALT)</td>
+      <td><span class="chip chip-green">22 U/L ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">17 U/L ✓</span></td>
+      <td class="ref-col">≤ 34 U/L</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>GGT</td>
+      <td><span class="chip chip-green">13 U/L ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">10 U/L ✓</span></td>
+      <td class="ref-col">&lt; 38 U/L</td>
+    </tr>
+
+    <!-- MARCADORES TUMORAIS -->
+    <tr class="group-header"><td colspan="5">🔵 Marcadores Tumorais</td></tr>
+
+    <tr data-status="ok">
+      <td>CEA</td>
+      <td><span class="chip chip-green">2,2 ng/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">3,0 ng/mL ✓</span></td>
+      <td class="ref-col">≤ 5,0 ng/mL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>CA 125</td>
+      <td><span class="chip chip-green">16,7 U/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">20,7 U/mL ✓</span></td>
+      <td class="ref-col">≤ 35,0 U/mL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>CA 15-3</td>
+      <td><span class="chip chip-green">13,0 U/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">10,9 U/mL ✓</span></td>
+      <td class="ref-col">≤ 31–32 U/mL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>CA 19-9</td>
+      <td><span class="chip chip-green">19,1 U/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">8 U/mL ✓</span></td>
+      <td class="ref-col">≤ 37,0 U/mL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>CA 72-4</td>
+      <td><span class="chip chip-green">1,2 U/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">5,3 U/mL ✓</span></td>
+      <td class="ref-col">≤ 6,9 – 8,2 U/mL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Alfa-fetoproteína</td>
+      <td><span class="chip chip-green">&lt;1,3 ng/mL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">2,0 ng/mL ✓</span></td>
+      <td class="ref-col">≤ 8,78 ng/mL</td>
+    </tr>
+
+    <!-- HEMOGRAMA -->
+    <tr class="group-header"><td colspan="5">🩸 Hemograma (Abr/2026)</td></tr>
+
+    <tr data-status="ok">
+      <td>Hemoglobina</td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">12,7 g/dL ✓</span></td>
+      <td class="ref-col">12,0 – 16,0 g/dL</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Leucócitos</td>
+      <td><span class="chip chip-green">6.670/µL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">6.020/mm³ ✓</span></td>
+      <td class="ref-col">4.000 – 11.000</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Plaquetas</td>
+      <td><span class="chip chip-green">293.000/µL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">234.000/mm³ ✓</span></td>
+      <td class="ref-col">150.000 – 450.000</td>
+    </tr>
+
+    <!-- METAIS PESADOS -->
+    <tr class="group-header"><td colspan="5">⚗️ Metais Pesados</td></tr>
+
+    <tr data-status="ok">
+      <td>Alumínio</td>
+      <td><span class="chip chip-green">2,0 µg/L ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">&lt;1,0 µg/L ✓</span></td>
+      <td class="ref-col">≤ 10,0 µg/L</td>
+    </tr>
+
+    <tr data-status="ok">
+      <td>Chumbo</td>
+      <td><span class="chip chip-green">0,43 µg/dL ✓</span></td>
+      <td><span class="chip chip-gray">—</span></td>
+      <td><span class="chip chip-green">&lt;0,5 µg/dL ✓</span></td>
+      <td class="ref-col">≤ 40,0 µg/dL</td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+<div class="legend">
+  <span style="font-weight:700;color:#555;">Legenda:</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#fde8e8;border:2px solid #c0392b;"></span>🔴 Alterado</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#fff3e0;border:2px solid #e67e22;"></span>🟠 Atenção / borderline</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#e6f9f0;border:2px solid #27ae60;"></span>🟢 Normal</span>
+  <span class="legend-item"><span style="color:#aaa;font-size:13px;">★</span> Ponto prioritário de atenção</span>
+  <span class="legend-item"><span style="color:#aaa;font-size:13px;">—</span> Não coletado nessa data</span>
+</div>
+
+<div class="nota">
+  * Ferritina abr/2026: novo kit do laboratório (~83% mais alto que o anterior). Não comparar diretamente com ago e nov/2025.<br>
+  ⚠️ Esta tabela é um suporte informativo. A conclusão diagnóstica é responsabilidade do médico assistente.
+</div>
+
+<script>
+function filtrar(btn, filtro) {
+  // atualiza botões
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  // aplica filtro nas linhas de dados
+  document.querySelectorAll('tbody tr:not(.group-header)').forEach(tr => {
+    if (filtro === 'all') {
+      tr.classList.remove('hidden');
+    } else {
+      const status = tr.getAttribute('data-status');
+      if (status === filtro) {
+        tr.classList.remove('hidden');
+      } else {
+        tr.classList.add('hidden');
+      }
+    }
+  });
+
+  // oculta grupos sem itens visíveis
+  document.querySelectorAll('.group-header').forEach(gh => {
+    let next = gh.nextElementSibling;
+    let temVisivel = false;
+    while (next && !next.classList.contains('group-header')) {
+      if (!next.classList.contains('hidden')) temVisivel = true;
+      next = next.nextElementSibling;
+    }
+    gh.style.display = temVisivel ? '' : 'none';
+  });
+}
+</script>
+
+</body>
+</html>
