@@ -117,19 +117,22 @@ export default function Login() {
         }}
       />
 
-      {/* Marca d'água canto superior esquerdo — selo institucional */}
+      {/* Assinaturas institucionais — réplica fiel do rodapé WhatsApp.
+          Esquerda: PAWARDS MedCore® · Clinical Intelligence System
+          Direita: PADCON Platform® · Advanced Systems Architecture
+          Sem moldura, sem caixa — texto puro, respiração total. */}
       <div className="absolute top-6 left-8 z-10 hidden md:block">
         <div
           className="text-[9px] font-bold uppercase tracking-[0.4em]"
           style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
         >
-          PAWARDS<sup style={{ color: CYAN, fontSize: "7px" }}>®</sup>
+          PAWARDS MedCore<sup style={{ color: CYAN, fontSize: "7px" }}>®</sup>
         </div>
         <div
-          className="text-[8px] mt-0.5 tracking-[0.3em] uppercase"
+          className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
           style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
         >
-          Medcore Integrativa
+          Clinical Intelligence System
         </div>
       </div>
       <div className="absolute top-6 right-8 z-10 hidden md:block text-right">
@@ -137,13 +140,13 @@ export default function Login() {
           className="text-[9px] font-bold uppercase tracking-[0.4em]"
           style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
         >
-          Padcon<sup style={{ color: CYAN, fontSize: "7px" }}>®</sup>
+          PADCON Platform<sup style={{ color: CYAN, fontSize: "7px" }}>®</sup>
         </div>
         <div
-          className="text-[8px] mt-0.5 tracking-[0.3em] uppercase"
+          className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
           style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
         >
-          Consultoria Invisível
+          Advanced Systems Architecture
         </div>
       </div>
 
@@ -176,28 +179,21 @@ export default function Login() {
             </div>
 
             <div className="px-10 pt-10 pb-8">
-              {/* LOGO INSTITUCIONAL — protagonista da tela */}
+              {/* LOGO INSTITUCIONAL — contínuo, sem moldura.
+                  Símbolo flutua direto no cartão com halo dourado sutil
+                  que se funde no fundo navy. Sem borda, sem cantos,
+                  sem caixa — elegância pela ausência. */}
               <div className="flex flex-col items-center mb-6">
-                <div
-                  className="relative p-4 mb-4"
-                  style={{
-                    background: `radial-gradient(circle, ${NAVY_SOFT} 0%, ${NAVY} 100%)`,
-                    border: `1px solid ${GOLD}44`,
-                    boxShadow: `0 0 40px rgba(212,175,55,0.15), inset 0 0 20px rgba(212,175,55,0.05)`,
-                  }}
-                >
+                <div className="relative mb-4">
                   <img
-                    src={`${import.meta.env.BASE_URL}logo-pawards-medcore.png`}
-                    alt="PAWARDS MEDCORE"
-                    className="h-32 w-auto object-contain"
-                    style={{ filter: "drop-shadow(0 0 12px rgba(212,175,55,0.35))" }}
+                    src={`${import.meta.env.BASE_URL}logo-pawards-medcore-transparent.png`}
+                    alt="PAWARDS MedCore"
+                    className="h-40 w-auto object-contain"
+                    style={{
+                      filter: "drop-shadow(0 0 28px rgba(212,175,55,0.35)) drop-shadow(0 0 10px rgba(212,175,55,0.2))",
+                    }}
                     data-testid="login-logo-principal"
                   />
-                  {/* Cantos decorativos — referência a moldura de certificado */}
-                  <div className="absolute top-0 left-0 w-3 h-3 border-l border-t" style={{ borderColor: GOLD }} />
-                  <div className="absolute top-0 right-0 w-3 h-3 border-r border-t" style={{ borderColor: GOLD }} />
-                  <div className="absolute bottom-0 left-0 w-3 h-3 border-l border-b" style={{ borderColor: GOLD }} />
-                  <div className="absolute bottom-0 right-0 w-3 h-3 border-r border-b" style={{ borderColor: GOLD }} />
                 </div>
 
                 {linhaDourada}
@@ -490,12 +486,15 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Rodapé externo — assinatura institucional */}
+        {/* Rodapé externo — assinatura institucional dupla
+            espelhando o rodapé do WhatsApp oficial. */}
         <div
-          className="text-center mt-6 text-[9px] uppercase tracking-[0.4em]"
+          className="mt-6 flex items-center justify-center gap-4 text-[8px] uppercase tracking-[0.35em]"
           style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
         >
-          PAWARDS MEDCORE INTEGRATIVA
+          <span style={{ color: GOLD }}>PAWARDS MedCore<sup style={{ color: CYAN, fontSize: "6px" }}>®</sup></span>
+          <span style={{ color: HAIRLINE }}>│</span>
+          <span style={{ color: GOLD }}>PADCON Platform<sup style={{ color: CYAN, fontSize: "6px" }}>®</sup></span>
         </div>
       </div>
     </div>
