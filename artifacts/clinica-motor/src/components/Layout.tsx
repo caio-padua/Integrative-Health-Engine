@@ -469,9 +469,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const escopoLabel = escopo === "consultoria_master" ? "Master" : escopo === "consultor_campo" ? "Consultor" : escopo.replace("clinica_", "").replace("_", " ");
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="h-screen flex bg-background overflow-hidden">
       <TopProgressBar />
-      <aside className="w-72 border-r border-border bg-sidebar flex flex-col">
+      <aside className="w-72 border-r border-border bg-sidebar flex flex-col h-screen flex-shrink-0">
         <div className="h-24 flex items-center px-5 border-b border-border gap-3">
           <div
             aria-label="Símbolo PAWARDS"
