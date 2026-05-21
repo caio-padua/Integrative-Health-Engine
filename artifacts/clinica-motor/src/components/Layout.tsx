@@ -608,63 +608,66 @@ export function Layout({ children }: { children: ReactNode }) {
           {grupos.map((g, idx) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             if (items.length === 0) return null;
-            const colapsado = !!colapsados[g.id];
             const GIcon = g.icon;
             const numero = String(idx + 1).padStart(2, "0");
             return (
-              <div key={g.id} className="mb-2">
-                {/* HEADER do grupo: numeração TOC + ícone grande colorido + barra esquerda */}
-                <button
-                  onClick={() => toggleGrupo(g.id)}
-                  className="w-full flex items-center gap-2.5 pl-3 pr-2 py-2 border-l-[3px] hover:bg-sidebar-accent/30 transition-all group/grupo"
-                  style={{ borderLeftColor: g.cor ?? "#444" }}
-                  data-testid={`grupo-toggle-${g.id}`}
+              <div key={g.id} className="mb-3">
+                {/* HEADER do grupo: faixa categórica fina, NÃO clicável,
+                    sem dropdown. Cor da barra esquerda + ícone pequeno +
+                    numeração TOC + nome. Items sempre visíveis abaixo. */}
+                <div
+                  className="flex items-center gap-2 pl-3 pr-2 py-1.5 border-l-[3px]"
+                  style={{
+                    borderLeftColor: g.cor ?? "#444",
+                    background: `${g.cor ?? "#444"}0F`,
+                  }}
+                  data-testid={`grupo-header-${g.id}`}
                 >
+                  <GIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: g.cor ?? "#888" }} />
                   <span
-                    className="w-7 h-7 flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${g.cor ?? "#444"}22`, color: g.cor ?? "#fff" }}
+                    className="text-[9px] font-mono font-bold tracking-widest"
+                    style={{ color: g.cor ?? "#888" }}
                   >
-                    <GIcon className="w-4 h-4" />
-                  </span>
-                  <span className="text-[9px] font-mono font-bold tracking-widest" style={{ color: g.cor ?? "#888" }}>
                     {numero}
                   </span>
-                  <span className="flex-1 text-left text-[11px] uppercase tracking-widest font-bold text-sidebar-foreground/85 group-hover/grupo:text-sidebar-foreground transition-colors">
+                  <span
+                    className="flex-1 text-left text-[10px] uppercase tracking-[0.22em] font-bold"
+                    style={{ color: g.cor ?? "#aaa" }}
+                  >
                     {g.nome}
                   </span>
-                  <span className="text-[9px] font-mono text-muted-foreground tabular-nums">{items.length}</span>
-                  <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${colapsado ? "" : "rotate-90"}`} />
-                </button>
-                {!colapsado && (
-                  <div className="space-y-px mt-1">
-                    {items.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = location === item.path || location.startsWith(item.path + "/");
-                      return (
-                        <Link
-                          key={item.path}
-                          href={item.path}
-                          className={`flex items-center pl-6 pr-3 py-2 text-[12.5px] transition-all border-l-[3px] ${
-                            isActive
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-                              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                          }`}
-                          style={{ borderLeftColor: isActive ? (g.cor ?? "var(--primary)") : "transparent" }}
-                          data-testid={`menu-${item.slug}`}
-                        >
-                          <Icon className="mr-2.5 h-4 w-4 flex-shrink-0" style={isActive ? { color: g.cor ?? undefined } : undefined} />
-                          <span className="flex-1 truncate">{item.name}</span>
-                          {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
-                            <span data-testid="badge-lembretes-falhas"
-                              className="ml-2 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none animate-pulse">
-                              {falhasLembrete > 99 ? "99+" : falhasLembrete}
-                            </span>
-                          ) : null}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
+                  <span className="text-[9px] font-mono text-muted-foreground tabular-nums opacity-60">
+                    {items.length}
+                  </span>
+                </div>
+                <div className="space-y-px mt-1">
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location === item.path || location.startsWith(item.path + "/");
+                    return (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        className={`flex items-center pl-6 pr-3 py-2 text-[12.5px] transition-all border-l-[3px] ${
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                        }`}
+                        style={{ borderLeftColor: isActive ? (g.cor ?? "var(--primary)") : "transparent" }}
+                        data-testid={`menu-${item.slug}`}
+                      >
+                        <Icon className="mr-2.5 h-4 w-4 flex-shrink-0" style={isActive ? { color: g.cor ?? undefined } : undefined} />
+                        <span className="flex-1 truncate">{item.name}</span>
+                        {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
+                          <span data-testid="badge-lembretes-falhas"
+                            className="ml-2 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none animate-pulse">
+                            {falhasLembrete > 99 ? "99+" : falhasLembrete}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
