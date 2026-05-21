@@ -493,10 +493,22 @@ export default function PreviewParametrizacaoExames() {
           marginBottom: 16,
         }}
       >
-        <img
-          src="/logo-pawards-medcore-transparent.png"
-          alt="PAWARDS MEDCORE"
-          style={{ height: 56, width: "auto", display: "block" }}
+        <div
+          aria-label="Símbolo PAWARDS"
+          style={{
+            width: 38,
+            height: 44,
+            background: GOLD,
+            WebkitMaskImage: "url(/logo-dp.png)",
+            maskImage: "url(/logo-dp.png)",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            flexShrink: 0,
+          }}
         />
         <div style={{ flex: 1, borderLeft: `1px solid ${NAVY_3}`, paddingLeft: 18 }}>
           <div style={{ color: MUTED, fontSize: 10, letterSpacing: 1.4, marginBottom: 2 }}>
