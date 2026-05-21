@@ -753,7 +753,7 @@ export function Layout({ children }: { children: ReactNode }) {
           >
             {tituloTela}
           </div>
-          <div className="flex-1 flex items-center justify-end gap-2">
+          <div className="flex-1 flex items-center justify-end gap-3">
             {(() => {
               // Task #269: indicador 2FA segue só pra platform_owner em /plataforma/*
               const perfilPlataforma = (user as Usuario & {
@@ -770,6 +770,24 @@ export function Layout({ children }: { children: ReactNode }) {
                 />
               );
             })()}
+            {/* LOGO institucional no canto superior direito — pedido Caio
+                21/mai/2026. Versão dourada PAWARDS MEDCORE, vai pra raiz
+                ao clicar (atalho casa). border-l ciano pra alinhar com a
+                gramática visual do header (borda colorida = ação). */}
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 pl-2.5 pr-1 py-0.5 border-l-[3px] hover:bg-white/5 transition-colors"
+              style={{ borderLeftColor: "#D4AF37" }}
+              title="PAWARDS MEDCORE — voltar pra Visão Geral"
+              data-testid="logo-header-global"
+            >
+              <img
+                src={`${import.meta.env.BASE_URL}logo-pawards-medcore.png`}
+                alt="PAWARDS MEDCORE"
+                className="h-8 w-auto object-contain"
+                style={{ filter: "drop-shadow(0 0 4px rgba(212,175,55,0.25))" }}
+              />
+            </Link>
           </div>
         </div>
 

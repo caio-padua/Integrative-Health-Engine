@@ -3,13 +3,12 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Activity, Sparkles, ShieldCheck, Loader2, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Activity, ShieldCheck, Loader2, AlertTriangle, Eye, EyeOff, KeyRound, Mail } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "E-mail inválido" }),
@@ -18,17 +17,27 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+// Paleta institucional Pawards — deep navy + dourado + neon ciano de sotaque.
+// Estética luxuosa clássica (Cartier/Patek), JetBrains Mono UPPERCASE,
+// 0px radius em tudo. Pedido Caio 21/mai/2026: "mais elegante, formal e
+// clássica, surpreenda com o que há de mais moderno".
+const NAVY = "#0B1220";
+const NAVY_DEEP = "#070C16";
+const NAVY_SOFT = "#111A2E";
+const GOLD = "#D4AF37";
+const GOLD_BRIGHT = "#F0CE5A";
+const CYAN = "#5EE6E6";
+const INK = "#E5E7EB";
+const INK_MUTED = "#9CA3AF";
+const HAIRLINE = "#1F2937";
+
 export default function Login() {
   const { user, login, isLoading, pendingTwoFactor, cancelTwoFactor, verifyTwoFactor } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [codigo2fa, setCodigo2fa] = useState("");
   const [verificando2fa, setVerificando2fa] = useState(false);
-  // Task — olhinho mostrar/ocultar senha pra Caio conferir o que digitou.
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  // Task #222 — quando o login aceita codigo de recuperacao, segura o
-  // redirecionamento e mostra banner amarelo na propria tela de login.
-  // O dono so prossegue depois de clicar "Entendi, continuar".
   const [avisoRecuperacao, setAvisoRecuperacao] = useState<{
     restantes: number;
     total: number;
@@ -36,28 +45,15 @@ export default function Login() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      senha: "",
-    },
+    defaultValues: { email: "", senha: "" },
   });
 
   useEffect(() => {
-    // Task #222 — segura o redirect enquanto o banner de codigo de
-    // recuperacao estiver visivel; navega so quando o dono clicar
-    // "Entendi, continuar" (que zera `avisoRecuperacao`).
-    if (user && !avisoRecuperacao) {
-      setLocation("/dashboard");
-    }
+    if (user && !avisoRecuperacao) setLocation("/dashboard");
   }, [user, avisoRecuperacao, setLocation]);
 
-  const onSubmit = (data: LoginFormValues) => {
-    login(data);
-  };
+  const onSubmit = (data: LoginFormValues) => login(data);
 
-  // Task #122 — segunda etapa do login: usuario digitou o codigo do app
-  // autenticador OU um codigo de recuperacao (Task #203 — XXXX-XXXX).
-  // Troca challenge+codigo pelo JWT real via AuthContext.
   const onSubmit2fa = async () => {
     const codigo = codigo2fa.trim();
     if (codigo.length < 6) {
@@ -68,280 +64,372 @@ export default function Login() {
     const r = await verifyTwoFactor(codigo);
     setVerificando2fa(false);
     if (!r.ok) {
-      toast({
-        title: "Codigo invalido",
-        description: r.error,
-        variant: "destructive",
-      });
+      toast({ title: "Codigo invalido", description: r.error, variant: "destructive" });
       setCodigo2fa("");
       return;
     }
-    // Task #222 — login aceitou codigo de recuperacao: ativa o banner
-    // amarelo na tela de login. O useEffect acima nao redireciona
-    // enquanto `avisoRecuperacao` for != null.
     if (r.usouCodigoRecuperacao) {
       setAvisoRecuperacao({
-        restantes:
-          typeof r.codigosRecuperacao2faRestantes === "number"
-            ? r.codigosRecuperacao2faRestantes
-            : 0,
-        total:
-          typeof r.codigosRecuperacao2faTotal === "number"
-            ? r.codigosRecuperacao2faTotal
-            : 0,
+        restantes: typeof r.codigosRecuperacao2faRestantes === "number" ? r.codigosRecuperacao2faRestantes : 0,
+        total: typeof r.codigosRecuperacao2faTotal === "number" ? r.codigosRecuperacao2faTotal : 0,
       });
     }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--pw-pergaminho)]">
-        <Activity className="animate-spin text-[var(--pw-petroleo)] w-10 h-10" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: NAVY_DEEP }}>
+        <Activity className="animate-spin w-10 h-10" style={{ color: GOLD }} />
       </div>
     );
   }
 
+  // Letterhead — fina linha dourada decorativa, igual a brasão de cabeçalho clássico.
+  const linhaDourada = (
+    <div className="flex items-center gap-2 w-full">
+      <div className="flex-1 h-px" style={{ background: `linear-gradient(to right, transparent, ${GOLD}88, transparent)` }} />
+      <div className="w-1 h-1 rotate-45" style={{ background: GOLD }} />
+      <div className="flex-1 h-px" style={{ background: `linear-gradient(to right, transparent, ${GOLD}88, transparent)` }} />
+    </div>
+  );
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[var(--pw-pergaminho)]">
-      {/* Padrão sutil de pergaminho — gradiente diagonal */}
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{
+        background: `radial-gradient(circle at 20% 20%, ${NAVY_SOFT} 0%, ${NAVY} 40%, ${NAVY_DEEP} 100%)`,
+        fontFamily: "'Inter', system-ui, sans-serif",
+      }}
+    >
+      {/* Vinheta dourada sutil — efeito de "papel timbrado iluminado" */}
       <div
-        className="absolute inset-0 opacity-40 pointer-events-none"
+        className="absolute inset-0 pointer-events-none opacity-30"
         style={{
-          backgroundImage: `radial-gradient(circle at 20% 30%, var(--pw-marfim) 0%, transparent 40%),
-                            radial-gradient(circle at 80% 70%, var(--pw-dourado-suave) 0%, transparent 50%)`,
+          backgroundImage: `radial-gradient(ellipse at center, transparent 30%, ${NAVY_DEEP} 80%)`,
+        }}
+      />
+      {/* Grid técnico de fundo — referência sutil ao "GRID/SISTEMA" da logo */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.04]"
+        style={{
+          backgroundImage: `linear-gradient(${CYAN} 1px, transparent 1px), linear-gradient(90deg, ${CYAN} 1px, transparent 1px)`,
+          backgroundSize: "60px 60px",
         }}
       />
 
-      <Card className="w-full max-w-md relative z-10 pw-card rounded-none border-2 border-[var(--pw-marfim)] bg-[var(--pw-offwhite)]">
-        {/* Borda dourada superior */}
-        <div className="h-1 bg-gradient-to-r from-[var(--pw-dourado)] via-[var(--pw-dourado-vivo)] to-[var(--pw-dourado)]" />
+      {/* Marca d'água canto superior esquerdo — selo institucional */}
+      <div className="absolute top-6 left-8 z-10 hidden md:block">
+        <div
+          className="text-[9px] font-bold uppercase tracking-[0.4em]"
+          style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          PAWARDS<sup style={{ color: CYAN, fontSize: "7px" }}>®</sup>
+        </div>
+        <div
+          className="text-[8px] mt-0.5 tracking-[0.3em] uppercase"
+          style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          Medcore Integrativa
+        </div>
+      </div>
+      <div className="absolute top-6 right-8 z-10 hidden md:block text-right">
+        <div
+          className="text-[9px] font-bold uppercase tracking-[0.4em]"
+          style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          Padcon<sup style={{ color: CYAN, fontSize: "7px" }}>®</sup>
+        </div>
+        <div
+          className="text-[8px] mt-0.5 tracking-[0.3em] uppercase"
+          style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          Consultoria Invisível
+        </div>
+      </div>
 
-        <CardHeader className="space-y-3 text-center pb-6 border-b border-[var(--pw-marfim)] pt-8">
-          <div className="flex justify-center mb-2">
-            <div className="w-20 h-20 flex items-center justify-center border-2 border-[var(--pw-dourado)] bg-white p-2 rounded-none">
-              <img src={`${import.meta.env.BASE_URL}logo-dp.png`} alt="DP" className="w-full h-full object-contain" />
-            </div>
-          </div>
-          <CardTitle className="pw-titulo-manifesto text-3xl text-[var(--pw-petroleo)] uppercase">
-            PAWARDS
-          </CardTitle>
-          <span className="pw-selo-dourado px-3 py-1 inline-block mx-auto text-[10px] tracking-[0.3em]">
-            <Sparkles className="w-3 h-3 inline mr-1 mb-[2px]" />
-            PADCON · MEDCORE
-          </span>
-          <p className="text-xs text-[var(--pw-cinza-bruma)] tracking-[0.2em] uppercase pt-1">
-            Onde o caos vira fluxo
-          </p>
-        </CardHeader>
-
-        <CardContent className="pt-6 pb-8 px-8">
-          {avisoRecuperacao ? (
-            <div className="space-y-5" data-testid="banner-recuperacao-2fa">
-              <div
-                className="border-2 border-[#d97a3c] bg-[#fff7e6] p-5 space-y-3"
-                role="alert"
+      {/* CARTÃO PRINCIPAL — frame dourado externo + frame ciano interno,
+          referência direta a "ex libris" de livro raro / certificado bancário */}
+      <div className="relative z-20 w-full max-w-[440px]">
+        {/* Frame externo dourado */}
+        <div className="p-[2px]" style={{ background: `linear-gradient(135deg, ${GOLD} 0%, ${GOLD_BRIGHT} 50%, ${GOLD} 100%)` }}>
+          {/* Frame interno escuro */}
+          <div
+            className="relative"
+            style={{
+              background: `linear-gradient(180deg, ${NAVY} 0%, ${NAVY_DEEP} 100%)`,
+              boxShadow: `0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px ${HAIRLINE} inset`,
+            }}
+          >
+            {/* Faixa superior — chancela */}
+            <div
+              className="flex items-center justify-center gap-2 py-2"
+              style={{ background: NAVY_DEEP, borderBottom: `1px solid ${GOLD}44` }}
+            >
+              <div className="w-1 h-1" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
+              <span
+                className="text-[9px] font-bold uppercase tracking-[0.5em]"
+                style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-[#d97a3c] flex-shrink-0 mt-0.5" />
-                  <div className="space-y-2">
-                    <div className="font-semibold text-[var(--pw-tinta)] uppercase tracking-[0.15em] text-sm">
-                      Voce entrou com codigo de recuperacao
+                Acesso Restrito
+              </span>
+              <div className="w-1 h-1" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
+            </div>
+
+            <div className="px-10 pt-10 pb-8">
+              {/* LOGO INSTITUCIONAL — protagonista da tela */}
+              <div className="flex flex-col items-center mb-6">
+                <div
+                  className="relative p-4 mb-4"
+                  style={{
+                    background: `radial-gradient(circle, ${NAVY_SOFT} 0%, ${NAVY} 100%)`,
+                    border: `1px solid ${GOLD}44`,
+                    boxShadow: `0 0 40px rgba(212,175,55,0.15), inset 0 0 20px rgba(212,175,55,0.05)`,
+                  }}
+                >
+                  <img
+                    src={`${import.meta.env.BASE_URL}logo-pawards-medcore.png`}
+                    alt="PAWARDS MEDCORE"
+                    className="h-32 w-auto object-contain"
+                    style={{ filter: "drop-shadow(0 0 12px rgba(212,175,55,0.35))" }}
+                    data-testid="login-logo-principal"
+                  />
+                  {/* Cantos decorativos — referência a moldura de certificado */}
+                  <div className="absolute top-0 left-0 w-3 h-3 border-l border-t" style={{ borderColor: GOLD }} />
+                  <div className="absolute top-0 right-0 w-3 h-3 border-r border-t" style={{ borderColor: GOLD }} />
+                  <div className="absolute bottom-0 left-0 w-3 h-3 border-l border-b" style={{ borderColor: GOLD }} />
+                  <div className="absolute bottom-0 right-0 w-3 h-3 border-r border-b" style={{ borderColor: GOLD }} />
+                </div>
+
+                {linhaDourada}
+
+                <div
+                  className="mt-3 text-[10px] uppercase tracking-[0.4em] text-center"
+                  style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Motor Clínico Integrativo
+                </div>
+              </div>
+
+              {avisoRecuperacao ? (
+                <div className="space-y-5" data-testid="banner-recuperacao-2fa">
+                  <div className="p-4 border-l-[3px]" style={{ background: "rgba(245,185,70,0.08)", borderLeftColor: "#F5B946" }} role="alert">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#F5B946" }} />
+                      <div className="space-y-2">
+                        <div className="font-bold uppercase tracking-[0.2em] text-xs" style={{ color: "#F5B946", fontFamily: "'JetBrains Mono', monospace" }}>
+                          Login via código de recuperação
+                        </div>
+                        <div className="text-xs leading-relaxed" style={{ color: INK }}>
+                          Restam <span className="font-mono font-bold" style={{ color: GOLD }}>{avisoRecuperacao.restantes}</span>
+                          {avisoRecuperacao.total > 0 && (<> de <span className="font-mono font-bold" style={{ color: GOLD }}>{avisoRecuperacao.total}</span></>)} códigos. Recupere acesso ao app autenticador o quanto antes.
+                        </div>
+                        {avisoRecuperacao.restantes <= 2 && (
+                          <div className="text-xs font-semibold pt-2 mt-2 border-t" style={{ color: "#E07A5F", borderColor: "#F5B94644" }}>
+                            Restam apenas {avisoRecuperacao.restantes} códigos — regere agora.
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-[var(--pw-tinta)] leading-relaxed">
-                      Restam{" "}
-                      <span className="font-mono font-bold">
-                        {avisoRecuperacao.restantes}
-                      </span>
-                      {avisoRecuperacao.total > 0 ? (
-                        <>
-                          {" de "}
-                          <span className="font-mono font-bold">
-                            {avisoRecuperacao.total}
-                          </span>
-                        </>
-                      ) : null}{" "}
-                      codigos de recuperacao na sua conta. Recupere acesso ao
-                      app autenticador (Google Authenticator / Authy /
-                      1Password) o quanto antes — codigos sao um atalho de
-                      emergencia, nao a forma normal de entrar.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAvisoRecuperacao(null)}
+                    className="w-full h-12 font-bold uppercase tracking-[0.25em] text-xs transition-all relative overflow-hidden group"
+                    style={{ background: GOLD, color: NAVY_DEEP, fontFamily: "'JetBrains Mono', monospace" }}
+                    data-testid="button-prosseguir-recuperacao"
+                  >
+                    <span className="relative z-10">Entendi, continuar</span>
+                  </button>
+                </div>
+              ) : pendingTwoFactor ? (
+                <div className="space-y-5" data-testid="form-2fa">
+                  <div className="text-center space-y-3">
+                    <div className="inline-flex items-center justify-center w-12 h-12 mx-auto" style={{ background: `${CYAN}15`, border: `1px solid ${CYAN}44` }}>
+                      <ShieldCheck className="w-6 h-6" style={{ color: CYAN }} />
                     </div>
-                    <div className="text-xs text-[var(--pw-tinta)] leading-relaxed">
-                      Enviamos um aviso por email e WhatsApp pra voce
-                      confirmar que o login foi seu. Se nao foi, troque a
-                      senha + regere os codigos imediatamente.
+                    <div className="text-sm font-bold uppercase tracking-[0.2em]" style={{ color: INK, fontFamily: "'JetBrains Mono', monospace" }}>
+                      Verificação em duas etapas
                     </div>
-                    {avisoRecuperacao.restantes <= 2 && (
-                      <div className="text-xs text-[#7d1d2e] font-semibold border-t border-[#d97a3c] pt-2 mt-2">
-                        Atencao: restam apenas {avisoRecuperacao.restantes}{" "}
-                        codigos. Considere regerar agora pra nao ficar sem
-                        acesso de emergencia.
+                    <div className="text-xs leading-relaxed" style={{ color: INK_MUTED }}>
+                      Digite o código de 6 dígitos do seu app autenticador. Sem o celular? Use um código de recuperação <span className="font-mono" style={{ color: GOLD }}>XXXX-XXXX</span>.
+                    </div>
+                    {pendingTwoFactor.email && (
+                      <div className="text-[10px] uppercase tracking-[0.3em] pt-1" style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {pendingTwoFactor.email}
                       </div>
                     )}
                   </div>
+                  <Input
+                    autoFocus
+                    value={codigo2fa}
+                    onChange={(e) => setCodigo2fa(e.target.value.toUpperCase().replace(/[^0-9A-Z-]/g, "").slice(0, 9))}
+                    maxLength={9}
+                    onKeyDown={(e) => { if (e.key === "Enter") void onSubmit2fa(); }}
+                    autoComplete="one-time-code"
+                    placeholder="000000 ou XXXX-XXXX"
+                    disabled={verificando2fa}
+                    className="rounded-none h-14 text-center text-xl tracking-[0.4em] font-mono border-2"
+                    style={{
+                      background: NAVY_DEEP,
+                      borderColor: HAIRLINE,
+                      color: GOLD_BRIGHT,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                    data-testid="input-codigo-2fa"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void onSubmit2fa()}
+                    disabled={verificando2fa || codigo2fa.trim().length < 6}
+                    className="w-full h-12 font-bold uppercase tracking-[0.25em] text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                    style={{ background: GOLD, color: NAVY_DEEP, fontFamily: "'JetBrains Mono', monospace" }}
+                    data-testid="button-verificar-2fa"
+                  >
+                    {verificando2fa ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                    Confirmar e entrar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { cancelTwoFactor(); setCodigo2fa(""); }}
+                    disabled={verificando2fa}
+                    className="w-full text-[10px] uppercase tracking-[0.3em] py-2 transition-colors"
+                    style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+                    data-testid="button-cancelar-2fa"
+                  >
+                    ← Voltar e usar outra conta
+                  </button>
                 </div>
-              </div>
-              <Button
-                type="button"
-                onClick={() => setAvisoRecuperacao(null)}
-                className="w-full h-12 font-semibold uppercase tracking-[0.2em] rounded-none bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white text-sm transition-all"
-                data-testid="button-prosseguir-recuperacao"
-              >
-                Entendi, continuar
-              </Button>
-            </div>
-          ) : pendingTwoFactor ? (
-            <div className="space-y-5" data-testid="form-2fa">
-              <div className="text-center space-y-2">
-                <ShieldCheck className="w-10 h-10 mx-auto text-[var(--pw-petroleo)]" />
-                <div className="text-sm font-semibold text-[var(--pw-tinta)]">
-                  Verificacao em duas etapas
-                </div>
-                <div className="text-xs text-[var(--pw-cinza-bruma)]">
-                  Sua conta tem 2FA ativo. Digite o codigo atual de 6 digitos
-                  do seu app autenticador (Google Authenticator / Authy /
-                  1Password) pra concluir o login. Sem o celular? Use um dos
-                  seus codigos de recuperacao no formato{" "}
-                  <span className="font-mono">XXXX-XXXX</span>.
-                </div>
-                {pendingTwoFactor.email && (
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--pw-cinza-bruma)]">
-                    Conta: {pendingTwoFactor.email}
-                  </div>
-                )}
-              </div>
-              {/* Task #203 — aceita TOTP (6 digitos) OU codigo de
-                  recuperacao (XXXX-XXXX, charset alfanumerico sem 0/O/1/I/L).
-                  Permitimos digitos, letras A-Z e hifen. Limite 9 chars
-                  cobre o formato XXXX-XXXX; o backend normaliza e decide. */}
-              <Input
-                autoFocus
-                value={codigo2fa}
-                onChange={(e) =>
-                  setCodigo2fa(
-                    e.target.value
-                      .toUpperCase()
-                      .replace(/[^0-9A-Z-]/g, "")
-                      .slice(0, 9),
-                  )
-                }
-                maxLength={9}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void onSubmit2fa();
-                }}
-                autoComplete="one-time-code"
-                placeholder="000000 ou XXXX-XXXX"
-                disabled={verificando2fa}
-                className="bg-white border-[var(--pw-marfim)] rounded-none h-14 focus:border-[var(--pw-petroleo)] text-[var(--pw-grafite)] text-center text-xl tracking-[0.3em] font-mono"
-                data-testid="input-codigo-2fa"
-              />
-              <Button
-                type="button"
-                onClick={() => void onSubmit2fa()}
-                disabled={verificando2fa || codigo2fa.trim().length < 6}
-                className="w-full h-12 font-semibold uppercase tracking-[0.2em] rounded-none bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white text-sm transition-all"
-                data-testid="button-verificar-2fa"
-              >
-                {verificando2fa ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                )}
-                Confirmar e entrar
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  cancelTwoFactor();
-                  setCodigo2fa("");
-                }}
-                disabled={verificando2fa}
-                className="w-full text-xs text-[var(--pw-cinza-bruma)] hover:text-[var(--pw-tinta)]"
-                data-testid="button-cancelar-2fa"
-              >
-                Voltar e usar outra conta
-              </Button>
-            </div>
-          ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] uppercase tracking-[0.2em] text-[var(--pw-tinta)] font-semibold">
-                      E-mail
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="usuario@pawards.com.br"
-                        {...field}
-                        className="bg-white border-[var(--pw-marfim)] rounded-none h-11 focus:border-[var(--pw-petroleo)] text-[var(--pw-grafite)]"
-                        data-testid="input-email"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="senha"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] uppercase tracking-[0.2em] text-[var(--pw-tinta)] font-semibold">
-                      Senha
-                    </FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={mostrarSenha ? "text" : "password"}
-                          placeholder="••••••••"
-                          {...field}
-                          className="bg-white border-[var(--pw-marfim)] rounded-none h-11 pr-11 focus:border-[var(--pw-petroleo)] text-[var(--pw-grafite)]"
-                          data-testid="input-senha"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setMostrarSenha((v) => !v)}
-                          aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
-                          aria-pressed={mostrarSenha}
-                          tabIndex={-1}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-[var(--pw-cinza-bruma)] hover:text-[var(--pw-petroleo)] transition-colors"
-                          data-testid="button-mostrar-senha"
-                        >
-                          {mostrarSenha ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button
-                type="submit"
-                className="w-full h-12 mt-6 font-semibold uppercase tracking-[0.2em] rounded-none bg-[var(--pw-petroleo)] hover:bg-[var(--pw-petroleo-escuro)] text-white text-sm transition-all"
-                data-testid="button-login"
-              >
-                Entrar no Motor
-              </Button>
-            </form>
-          </Form>
-          )}
+              ) : (
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel
+                            className="text-[10px] uppercase tracking-[0.3em] font-bold flex items-center gap-1.5"
+                            style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            <Mail className="w-3 h-3" /> Identificação
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="usuario@pawards.com.br"
+                              {...field}
+                              className="rounded-none h-12 border-2 text-sm"
+                              style={{
+                                background: NAVY_DEEP,
+                                borderColor: HAIRLINE,
+                                color: INK,
+                                fontFamily: "'JetBrains Mono', monospace",
+                                letterSpacing: "0.05em",
+                              }}
+                              data-testid="input-email"
+                            />
+                          </FormControl>
+                          <FormMessage style={{ color: "#E07A5F" }} />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="senha"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel
+                            className="text-[10px] uppercase tracking-[0.3em] font-bold flex items-center gap-1.5"
+                            style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            <KeyRound className="w-3 h-3" /> Chave de Acesso
+                          </FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                type={mostrarSenha ? "text" : "password"}
+                                placeholder="••••••••••"
+                                {...field}
+                                className="rounded-none h-12 pr-11 border-2 text-sm"
+                                style={{
+                                  background: NAVY_DEEP,
+                                  borderColor: HAIRLINE,
+                                  color: INK,
+                                  fontFamily: "'JetBrains Mono', monospace",
+                                  letterSpacing: "0.15em",
+                                }}
+                                data-testid="input-senha"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setMostrarSenha((v) => !v)}
+                                aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                                tabIndex={-1}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 transition-colors"
+                                style={{ color: INK_MUTED }}
+                                data-testid="button-mostrar-senha"
+                              >
+                                {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </FormControl>
+                          <FormMessage style={{ color: "#E07A5F" }} />
+                        </FormItem>
+                      )}
+                    />
 
-          <p className="text-center text-[10px] text-[var(--pw-cinza-bruma)] mt-6 italic font-serif">
-            "A excelência clínica começa pela consciência operacional."
-          </p>
-        </CardContent>
+                    {/* Botão de entrada — gold sólido com glow sutil */}
+                    <Button
+                      type="submit"
+                      className="w-full h-12 mt-6 font-bold uppercase tracking-[0.3em] rounded-none text-xs border-2 transition-all relative overflow-hidden group"
+                      style={{
+                        background: GOLD,
+                        color: NAVY_DEEP,
+                        borderColor: GOLD_BRIGHT,
+                        boxShadow: `0 0 20px rgba(212,175,55,0.3), inset 0 0 0 1px rgba(255,255,255,0.15)`,
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}
+                      data-testid="button-login"
+                    >
+                      <span className="relative z-10 flex items-center justify-center gap-2">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Entrar no Motor
+                      </span>
+                    </Button>
+                  </form>
+                </Form>
+              )}
 
-        {/* Borda dourada inferior */}
-        <div className="h-1 bg-gradient-to-r from-[var(--pw-dourado)] via-[var(--pw-dourado-vivo)] to-[var(--pw-dourado)]" />
-      </Card>
+              <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
+                {linhaDourada}
+                <p
+                  className="text-center text-[10px] mt-3 italic"
+                  style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}
+                >
+                  "A excelência clínica começa pela consciência operacional."
+                </p>
+              </div>
+            </div>
+
+            {/* Rodapé do cartão — apenas marca temporal de prestígio */}
+            <div
+              className="flex items-center justify-center gap-2 px-6 py-2.5 text-[8px] uppercase tracking-[0.4em] border-t"
+              style={{ background: NAVY_DEEP, borderColor: `${GOLD}22`, color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <div className="w-1 h-1 rounded-full" style={{ background: GOLD }} />
+              <span>Acesso seguro · ICP-Brasil</span>
+              <div className="w-1 h-1 rounded-full" style={{ background: GOLD }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Rodapé externo — assinatura institucional */}
+        <div
+          className="text-center mt-6 text-[9px] uppercase tracking-[0.4em]"
+          style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          PAWARDS MEDCORE INTEGRATIVA
+        </div>
+      </div>
     </div>
   );
 }

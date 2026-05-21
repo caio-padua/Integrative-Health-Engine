@@ -275,6 +275,18 @@ export default function Pacientes() {
   }, [form]);
 
   const onSubmit = (values: z.infer<typeof pacienteSchema>) => {
+    // Bug #5 (21/mai/2026 — descoberto via e2e): se o usuário apertar Enter
+    // dentro de qualquer input do wizard estando em step < 5, o navegador
+    // dispara o submit nativo do <form>, RHF roda handleSubmit, onSubmit
+    // executa e o POST /pacientes cria o paciente antes da hora (chegou no
+    // 201, depois modal fecha sozinho e o botão "Próximo →" some, dando
+    // timeout no clique). Gate explícito: só efetiva o submit quando estiver
+    // realmente no último step. Se não tiver, avança um step (UX coerente
+    // com a intenção do Enter = "próximo").
+    if (step < TOTAL_STEPS) {
+      void irProximoStep();
+      return;
+    }
     const payload: any = { ...values };
     if (payload.alturaCm === undefined || payload.alturaCm === null || (payload.alturaCm as any) === "") delete payload.alturaCm;
     if (payload.pesoKg === undefined || payload.pesoKg === null || (payload.pesoKg as any) === "") delete payload.pesoKg;
