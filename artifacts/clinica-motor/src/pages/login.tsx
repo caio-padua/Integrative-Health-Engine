@@ -150,62 +150,97 @@ export default function Login() {
         </div>
       </div>
 
-      {/* CARTÃO PRINCIPAL — frame dourado externo + frame ciano interno,
-          referência direta a "ex libris" de livro raro / certificado bancário */}
-      <div className="relative z-20 w-full max-w-[440px]">
-        {/* Frame externo dourado */}
-        <div className="p-[2px]" style={{ background: `linear-gradient(135deg, ${GOLD} 0%, ${GOLD_BRIGHT} 50%, ${GOLD} 100%)` }}>
-          {/* Frame interno escuro */}
+      {/* PAINEL HORIZONTAL — sem moldura externa dourada.
+          Layout 2 colunas: esquerda (logo + branding + citação) /
+          direita (formulário). Selos de segurança em rodapé full-width.
+          Ritmo TDAH/TOC: tudo respira no mesmo grid, sem caixas
+          aninhadas. Elegância pela ausência de adornos. */}
+      <div className="relative z-20 w-full max-w-[980px]">
+        <div
+          className="relative grid grid-cols-1 md:grid-cols-[1.1fr_1fr]"
+          style={{
+            background: `linear-gradient(180deg, ${NAVY} 0%, ${NAVY_DEEP} 100%)`,
+            boxShadow: `0 30px 80px rgba(0,0,0,0.6)`,
+            borderTop: `1px solid ${GOLD}66`,
+            borderBottom: `1px solid ${GOLD}66`,
+          }}
+        >
+          {/* ============ COLUNA ESQUERDA — IDENTIDADE ============ */}
           <div
-            className="relative"
-            style={{
-              background: `linear-gradient(180deg, ${NAVY} 0%, ${NAVY_DEEP} 100%)`,
-              boxShadow: `0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px ${HAIRLINE} inset`,
-            }}
+            className="relative flex flex-col justify-between px-10 py-12 md:border-r"
+            style={{ borderColor: `${GOLD}22` }}
           >
-            {/* Faixa superior — chancela */}
+            {/* Selo discreto canto sup esq */}
             <div
-              className="flex items-center justify-center gap-2 py-2"
-              style={{ background: NAVY_DEEP, borderBottom: `1px solid ${GOLD}44` }}
+              className="text-[9px] font-bold uppercase tracking-[0.5em] mb-8"
+              style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
             >
-              <div className="w-1 h-1" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
-              <span
-                className="text-[9px] font-bold uppercase tracking-[0.5em]"
-                style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                Acesso Restrito
-              </span>
-              <div className="w-1 h-1" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
+              <span className="inline-block w-2 h-2 mr-2 align-middle" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
+              Acesso Restrito
             </div>
 
-            <div className="px-10 pt-10 pb-8">
-              {/* LOGO INSTITUCIONAL — contínuo, sem moldura.
-                  Símbolo flutua direto no cartão com halo dourado sutil
-                  que se funde no fundo navy. Sem borda, sem cantos,
-                  sem caixa — elegância pela ausência. */}
-              <div className="flex flex-col items-center mb-6">
-                <div className="relative mb-4">
-                  <img
-                    src={`${import.meta.env.BASE_URL}logo-pawards-medcore-transparent.png`}
-                    alt="PAWARDS MedCore"
-                    className="h-40 w-auto object-contain"
-                    style={{
-                      filter: "drop-shadow(0 0 28px rgba(212,175,55,0.35)) drop-shadow(0 0 10px rgba(212,175,55,0.2))",
-                    }}
-                    data-testid="login-logo-principal"
-                  />
-                </div>
-
-                {linhaDourada}
-
-                <div
-                  className="mt-3 text-[10px] uppercase tracking-[0.4em] text-center"
-                  style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  Motor Clínico Integrativo
-                </div>
+            {/* Logo grande, alinhado à esquerda, sem moldura */}
+            <div className="flex-1 flex flex-col justify-center">
+              <img
+                src={`${import.meta.env.BASE_URL}logo-pawards-medcore-transparent.png`}
+                alt="PAWARDS MedCore"
+                className="h-48 w-auto object-contain object-left"
+                style={{
+                  filter: "drop-shadow(0 0 32px rgba(212,175,55,0.4)) drop-shadow(0 0 12px rgba(212,175,55,0.22))",
+                }}
+                data-testid="login-logo-principal"
+              />
+              <div
+                className="mt-5 text-[10px] uppercase tracking-[0.4em]"
+                style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Motor Clínico Integrativo
               </div>
+            </div>
 
+            {/* CITAÇÃO INTEGRADA — conectada visualmente ao logo
+                via barra dourada vertical à esquerda. Nome do fundador
+                fica na MESMA linha-base da frase (não solto embaixo),
+                garantindo coesão TDAH-friendly. */}
+            <figure
+              className="mt-10 pl-5 relative"
+              data-testid="login-citacao"
+              style={{ borderLeft: `2px solid ${GOLD}` }}
+            >
+              <blockquote
+                className="text-[13px] italic leading-relaxed"
+                style={{
+                  color: INK,
+                  fontFamily: "'Georgia', serif",
+                  letterSpacing: "0.01em",
+                }}
+              >
+                A excelência clínica começa pela consciência operacional.
+              </blockquote>
+              <figcaption
+                className="mt-3 text-[9px] uppercase tracking-[0.4em] flex items-center gap-2"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                <span style={{ color: GOLD }}>Caio Pádua</span>
+                <span style={{ color: `${GOLD}66` }}>—</span>
+                <span style={{ color: INK_MUTED }}>Fundador, Pawards Medcore</span>
+              </figcaption>
+            </figure>
+          </div>
+
+          {/* ============ COLUNA DIREITA — FORMULÁRIO ============ */}
+          <div className="relative flex flex-col justify-center px-10 py-12">
+            {/* Selo discreto canto sup dir */}
+            <div
+              className="text-[9px] font-bold uppercase tracking-[0.5em] mb-8 text-right"
+              style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              Entrada Segura
+              <span className="inline-block w-2 h-2 ml-2 align-middle" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
+            </div>
+
+            {/* CONTEÚDO DINÂMICO — mantém os 3 estados originais */}
+            <div className="flex-1 flex flex-col justify-center">
               {avisoRecuperacao ? (
                 <div className="space-y-5" data-testid="banner-recuperacao-2fa">
                   <div className="p-4 border-l-[3px]" style={{ background: "rgba(245,185,70,0.08)", borderLeftColor: "#F5B946" }} role="alert">
@@ -394,96 +429,42 @@ export default function Login() {
                   </form>
                 </Form>
               )}
-
-              {/* CITAÇÃO INSTITUCIONAL — Caio, fundador.
-                  Aspas tipográficas douradas, frase em itálico Inter,
-                  assinatura monospace dourada. Alinhamento à esquerda
-                  pra leitura natural TDAH (ancorada no canto). */}
-              <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
-                {linhaDourada}
-                <figure className="mt-4 flex items-start gap-3" data-testid="login-citacao">
-                  <span
-                    aria-hidden="true"
-                    className="leading-none select-none"
-                    style={{
-                      fontFamily: "'Georgia', serif",
-                      fontSize: "32px",
-                      color: GOLD,
-                      lineHeight: 0.8,
-                      marginTop: "-2px",
-                    }}
-                  >
-                    “
-                  </span>
-                  <div className="flex-1">
-                    <blockquote
-                      className="text-[11px] italic leading-snug"
-                      style={{
-                        color: INK,
-                        fontFamily: "'Georgia', serif",
-                        letterSpacing: "0.01em",
-                      }}
-                    >
-                      A excelência clínica começa pela consciência operacional.
-                    </blockquote>
-                    <figcaption
-                      className="mt-2 flex items-center gap-2 text-[9px] uppercase tracking-[0.3em]"
-                      style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      <span className="inline-block w-3 h-px" style={{ background: GOLD }} />
-                      Caio Pádua
-                      <span style={{ color: INK_MUTED }}>·</span>
-                      <span style={{ color: INK_MUTED }}>Fundador</span>
-                    </figcaption>
-                  </div>
-                </figure>
-              </div>
-            </div>
-
-            {/* RÉGUA DE SELOS DE SEGURANÇA — 6 certificações reais do sistema.
-                Distribuídas em linha, igualmente espaçadas (TDAH/TOC: ritmo
-                visual previsível). Cada selo = ícone ciano + label dourada
-                monospace. Hover discreto sem mover layout. */}
-            <div
-              className="grid grid-cols-6 border-t"
-              style={{ background: NAVY_DEEP, borderColor: `${GOLD}22` }}
-              data-testid="login-selos-seguranca"
-            >
-              {[
-                { icone: Scale, label: "LGPD", titulo: "Lei Geral de Proteção de Dados — auditoria + retenção 12 meses" },
-                { icone: FileSignature, label: "ICP-BR", titulo: "Assinatura digital ICP-Brasil via ZapSign" },
-                { icone: Fingerprint, label: "2FA", titulo: "Autenticação em duas etapas (TOTP)" },
-                { icone: KeySquare, label: "JWT", titulo: "Sessão blindada com JSON Web Token + refresh seguro" },
-                { icone: Lock, label: "AUDIT", titulo: "Auditoria cascata em todas as operações sensíveis" },
-                { icone: Network, label: "mTLS", titulo: "Mutual TLS no perímetro de rede" },
-              ].map(({ icone: Icone, label, titulo }) => (
-                <div
-                  key={label}
-                  title={titulo}
-                  className="flex flex-col items-center justify-center gap-1 py-2.5 border-r last:border-r-0"
-                  style={{ borderColor: `${GOLD}11` }}
-                >
-                  <Icone className="w-3 h-3" style={{ color: CYAN, opacity: 0.85 }} strokeWidth={1.5} />
-                  <span
-                    className="text-[7px] font-bold uppercase tracking-[0.25em]"
-                    style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-                  >
-                    {label}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Rodapé do cartão — chancela institucional */}
-            <div
-              className="flex items-center justify-center gap-2 px-6 py-2 text-[8px] uppercase tracking-[0.4em] border-t"
-              style={{ background: NAVY, borderColor: `${GOLD}22`, color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              <div className="w-1 h-1 rounded-full" style={{ background: GOLD }} />
-              <span>Acesso seguro · Pawards Medcore</span>
-              <div className="w-1 h-1 rounded-full" style={{ background: GOLD }} />
             </div>
           </div>
+          {/* fim grid 2 colunas */}
+        </div>
+
+        {/* RÉGUA DE SELOS DE SEGURANÇA — full-width abaixo do painel.
+            6 certificações reais, espaçadas igualmente (TDAH/TOC).
+            Hover mostra tooltip sem mover layout. */}
+        <div
+          className="grid grid-cols-6"
+          style={{ background: NAVY_DEEP, borderTop: `1px solid ${GOLD}33`, borderBottom: `1px solid ${GOLD}33` }}
+          data-testid="login-selos-seguranca"
+        >
+          {[
+            { icone: Scale, label: "LGPD", titulo: "Lei Geral de Proteção de Dados — auditoria + retenção 12 meses" },
+            { icone: FileSignature, label: "ICP-BR", titulo: "Assinatura digital ICP-Brasil via ZapSign" },
+            { icone: Fingerprint, label: "2FA", titulo: "Autenticação em duas etapas (TOTP)" },
+            { icone: KeySquare, label: "JWT", titulo: "Sessão blindada com JSON Web Token + refresh seguro" },
+            { icone: Lock, label: "AUDIT", titulo: "Auditoria cascata em todas as operações sensíveis" },
+            { icone: Network, label: "mTLS", titulo: "Mutual TLS no perímetro de rede" },
+          ].map(({ icone: Icone, label, titulo }) => (
+            <div
+              key={label}
+              title={titulo}
+              className="flex items-center justify-center gap-2 py-3 border-r last:border-r-0"
+              style={{ borderColor: `${GOLD}15` }}
+            >
+              <Icone className="w-3 h-3" style={{ color: CYAN, opacity: 0.85 }} strokeWidth={1.5} />
+              <span
+                className="text-[8px] font-bold uppercase tracking-[0.3em]"
+                style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {label}
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* Rodapé externo — assinatura institucional dupla
