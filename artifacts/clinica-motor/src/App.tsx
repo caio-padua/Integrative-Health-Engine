@@ -101,6 +101,7 @@ import AdminAlertasDigestPreferencias from "@/pages/admin-alertas-digest-prefere
 import AdminLogin from "@/pages/admin-login";
 import IdentidadeVisual from "@/pages/identidade-visual";
 import PreviewParametrizacaoExames from "@/pages/preview-parametrizacao-exames";
+import PreviewExamesGrafico from "@/pages/preview-exames-grafico";
 // PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
 import PadcomPaciente from "@/pages/padcom/paciente";
 import PadcomConcluido from "@/pages/padcom/concluido";
@@ -148,6 +149,7 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/identidade-visual" component={IdentidadeVisual} />
       <Route path="/preview-parametrizacao-exames" component={PreviewParametrizacaoExames} />
+      <Route path="/preview-exames-grafico" component={PreviewExamesGrafico} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard-global" component={DashboardGlobal} />
       <Route path="/admin/farmacias" component={FarmaciasParmavault} />
