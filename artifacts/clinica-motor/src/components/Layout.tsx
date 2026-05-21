@@ -10,7 +10,7 @@ import {
   FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
   ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
   ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign, Stethoscope,
-  Volume2, VolumeX, Command as CommandIcon, Bell, Zap, ArrowLeft, Search, Clock, X as XIcon,
+  Volume2, VolumeX, Command as CommandIcon, Bell, Zap, ArrowLeft,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { CommandPalette } from "./CommandPalette";
@@ -285,44 +285,6 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   }, [unidadesDisponiveis, unidadeSelecionada, setUnidadeSelecionada]);
 
-  // === MENU TDAH/TOC/ASPERGER FRIENDLY ===
-  // 1. Busca instantânea inline (filtro plano dos items)
-  // 2. RECENTES auto-tracking dos 3 últimos paths visitados
-  // 3. Hotkey "/" foca busca, Esc limpa
-  const [filtroMenu, setFiltroMenu] = useState("");
-  const buscaMenuRef = useRef<HTMLInputElement | null>(null);
-  const [recentes, setRecentes] = useState<string[]>(() => {
-    try {
-      const raw = localStorage.getItem("layout_recentes");
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  });
-  useEffect(() => {
-    // Só registra rotas reais (não vazio/raiz)
-    if (!location || location === "/" || location === "/dashboard") return;
-    setRecentes((prev) => {
-      const filtrado = prev.filter((p) => p !== location);
-      const novo = [location, ...filtrado].slice(0, 3);
-      localStorage.setItem("layout_recentes", JSON.stringify(novo));
-      return novo;
-    });
-  }, [location]);
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const ativo = document.activeElement as HTMLElement | null;
-      const ehInput = ativo && (ativo.tagName === "INPUT" || ativo.tagName === "TEXTAREA" || ativo.isContentEditable);
-      if (e.key === "/" && !ehInput) {
-        e.preventDefault();
-        buscaMenuRef.current?.focus();
-        buscaMenuRef.current?.select();
-      } else if (e.key === "Escape" && ativo === buscaMenuRef.current) {
-        setFiltroMenu("");
-        buscaMenuRef.current?.blur();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
 
   const sound = useSound();
 
@@ -629,154 +591,14 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {/* === BUSCA INSTANTÂNEA DO MENU ===
-            TDAH friendly: digita 2-3 letras e os 50+ itens viram lista plana
-            ordenada. Tecla "/" foca de qualquer lugar, Esc limpa. */}
-        <div className="px-3 py-2 border-b border-border">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <input
-              ref={buscaMenuRef}
-              type="text"
-              value={filtroMenu}
-              onChange={(e) => setFiltroMenu(e.target.value)}
-              placeholder="Filtrar menu…"
-              className="w-full pl-7 pr-12 py-1.5 bg-sidebar-accent/30 border border-sidebar-border text-[11px] uppercase tracking-wider font-mono text-sidebar-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary/60 focus:bg-sidebar-accent/50"
-              data-testid="input-filtro-menu"
-              aria-label="Filtrar itens do menu"
-            />
-            {filtroMenu ? (
-              <button
-                onClick={() => { setFiltroMenu(""); buscaMenuRef.current?.focus(); }}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-sidebar-foreground"
-                aria-label="Limpar filtro"
-                data-testid="btn-limpar-filtro-menu"
-              >
-                <XIcon className="w-3.5 h-3.5" />
-              </button>
-            ) : (
-              <kbd className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-mono text-muted-foreground border border-sidebar-border px-1 py-0.5 pointer-events-none">
-                /
-              </kbd>
-            )}
-          </div>
-        </div>
-
         <nav className="flex-1 overflow-y-auto py-2 px-1">
-          {(() => {
-            // === MODO BUSCA: lista plana ordenada ===
-            const q = filtroMenu.trim().toLowerCase();
-            if (q.length > 0) {
-              const matches: Array<{ item: typeof grupos[number]["items"][number]; grupo: typeof grupos[number] }> = [];
-              for (const g of grupos) {
-                for (const it of g.items) {
-                  if (!modulosPermitidos.includes(it.slug)) continue;
-                  const alvo = `${it.name} ${it.slug}`.toLowerCase();
-                  if (alvo.includes(q)) matches.push({ item: it, grupo: g });
-                }
-              }
-              if (matches.length === 0) {
-                return (
-                  <div className="px-4 py-6 text-center text-[11px] uppercase tracking-widest text-muted-foreground font-mono">
-                    Sem resultados pra "<span className="text-sidebar-foreground">{filtroMenu}</span>"
-                  </div>
-                );
-              }
-              return (
-                <div>
-                  <div className="px-3 pt-1 pb-2 text-[9px] uppercase tracking-[0.22em] font-bold text-muted-foreground font-mono flex items-center justify-between">
-                    <span className="flex items-center gap-1.5"><Search className="w-3 h-3" /> Resultados</span>
-                    <span className="tabular-nums opacity-70">{matches.length}</span>
-                  </div>
-                  <div className="space-y-px">
-                    {matches.map(({ item, grupo }) => {
-                      const Icon = item.icon;
-                      const isActive = location === item.path || location.startsWith(item.path + "/");
-                      return (
-                        <Link
-                          key={item.path}
-                          href={item.path}
-                          onClick={() => setFiltroMenu("")}
-                          className={`flex items-center gap-2 pl-3 pr-3 py-2 text-[12.5px] border-l-[3px] transition-all ${
-                            isActive
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-                              : "text-sidebar-foreground/80 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                          }`}
-                          style={{ borderLeftColor: grupo.cor ?? "transparent" }}
-                          data-testid={`menu-filtrado-${item.slug}`}
-                        >
-                          <Icon className="h-4 w-4 flex-shrink-0" style={{ color: grupo.cor ?? undefined }} />
-                          <span className="flex-1 truncate">{item.name}</span>
-                          <span className="text-[8px] uppercase tracking-widest font-mono opacity-60" style={{ color: grupo.cor ?? undefined }}>
-                            {grupo.nome.split(" ")[0]}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            }
-
-            // === MODO NORMAL: RECENTES + grupos numerados ===
-            // Mapa de todos os items permitidos pra resolver recentes
-            const todosItems: Array<{ path: string; name: string; icon: any; cor: string; slug: string }> = [];
-            for (const g of grupos) {
-              for (const it of g.items) {
-                if (modulosPermitidos.includes(it.slug)) {
-                  todosItems.push({ path: it.path, name: it.name, icon: it.icon, cor: g.cor ?? "#888", slug: it.slug });
-                }
-              }
-            }
-            const recentesResolvidos = recentes
-              .map((p) => todosItems.find((i) => i.path === p || p.startsWith(i.path + "/")))
-              .filter((x): x is NonNullable<typeof x> => !!x)
-              .filter((x, i, arr) => arr.findIndex((y) => y.path === x.path) === i)
-              .slice(0, 3);
-
+          {grupos.map((g, idx) => {
+            const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
+            if (items.length === 0) return null;
+            const GIcon = g.icon;
+            const numero = String(idx + 1).padStart(2, "0");
             return (
-              <>
-                {recentesResolvidos.length > 0 && (
-                  <div className="mb-3" data-testid="bloco-recentes">
-                    <div className="flex items-center gap-2 pl-3 pr-2 py-1.5 border-l-[3px]" style={{ borderLeftColor: "#5EE6E6", background: "#5EE6E60F" }}>
-                      <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#5EE6E6" }} />
-                      <span className="text-[9px] font-mono font-bold tracking-widest" style={{ color: "#5EE6E6" }}>★★</span>
-                      <span className="flex-1 text-left text-[10px] uppercase tracking-[0.22em] font-bold" style={{ color: "#5EE6E6" }}>
-                        Recentes
-                      </span>
-                      <span className="text-[9px] font-mono text-muted-foreground tabular-nums opacity-60">{recentesResolvidos.length}</span>
-                    </div>
-                    <div className="space-y-px mt-1">
-                      {recentesResolvidos.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = location === item.path || location.startsWith(item.path + "/");
-                        return (
-                          <Link
-                            key={`rec-${item.path}`}
-                            href={item.path}
-                            className={`flex items-center pl-6 pr-3 py-2 text-[12.5px] transition-all border-l-[3px] ${
-                              isActive
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                            }`}
-                            style={{ borderLeftColor: isActive ? item.cor : "transparent" }}
-                            data-testid={`recente-${item.slug}`}
-                          >
-                            <Icon className="mr-2.5 h-4 w-4 flex-shrink-0" style={isActive ? { color: item.cor } : undefined} />
-                            <span className="flex-1 truncate">{item.name}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {grupos.map((g, idx) => {
-                  const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
-                  if (items.length === 0) return null;
-                  const GIcon = g.icon;
-                  const numero = String(idx + 1).padStart(2, "0");
-                  return (
-                    <div key={g.id} className="mb-3">
+              <div key={g.id} className="mb-3">
                 {/* HEADER do grupo: faixa categórica fina, NÃO clicável,
                     sem dropdown. Cor da barra esquerda + ícone pequeno +
                     numeração TOC + nome. Items sempre visíveis abaixo. */}
@@ -836,9 +658,6 @@ export function Layout({ children }: { children: ReactNode }) {
               </div>
             );
           })}
-              </>
-            );
-          })()}
         </nav>
         <div className="px-4 py-3 border-t border-border space-y-1">
           {(location.startsWith("/plataforma") ||
