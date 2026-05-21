@@ -597,37 +597,56 @@ export function Layout({ children }: { children: ReactNode }) {
             if (items.length === 0) return null;
             const GIcon = g.icon;
             const numero = String(idx + 1).padStart(2, "0");
+            const cor = g.cor ?? "#888";
             return (
-              <div key={g.id} className="mb-3">
-                {/* HEADER do grupo: faixa categórica fina, NÃO clicável,
-                    sem dropdown. Cor da barra esquerda + ícone pequeno +
-                    numeração TOC + nome. Items sempre visíveis abaixo. */}
+              <div key={g.id} className="mb-4" data-testid={`grupo-${g.id}`}>
+                {/* HEADER do grupo: faixa LARGA com fundo sólido cor do
+                    grupo (~20% opacity), ícone num quadrado de cor cheia +
+                    número TOC + nome em alto contraste. Bate o olho e
+                    sabe a que grupo a fileira abaixo pertence. */}
                 <div
-                  className="flex items-center gap-2 pl-3 pr-2 py-1.5 border-l-[3px]"
+                  className="flex items-center gap-2 pr-2 py-0 mb-1 border-l-[5px]"
                   style={{
-                    borderLeftColor: g.cor ?? "#444",
-                    background: `${g.cor ?? "#444"}0F`,
+                    borderLeftColor: cor,
+                    background: `linear-gradient(90deg, ${cor}33 0%, ${cor}10 60%, transparent 100%)`,
                   }}
                   data-testid={`grupo-header-${g.id}`}
                 >
-                  <GIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: g.cor ?? "#888" }} />
+                  <div
+                    className="w-7 h-7 flex items-center justify-center flex-shrink-0"
+                    style={{ background: cor, color: "#0B1220" }}
+                  >
+                    <GIcon className="w-4 h-4" />
+                  </div>
                   <span
-                    className="text-[9px] font-mono font-bold tracking-widest"
-                    style={{ color: g.cor ?? "#888" }}
+                    className="text-[10px] font-mono font-bold tracking-[0.15em] tabular-nums"
+                    style={{ color: cor }}
                   >
                     {numero}
                   </span>
                   <span
-                    className="flex-1 text-left text-[10px] uppercase tracking-[0.22em] font-bold"
-                    style={{ color: g.cor ?? "#aaa" }}
+                    className="flex-1 text-left text-[11px] uppercase tracking-[0.18em] font-bold leading-tight"
+                    style={{ color: cor }}
                   >
                     {g.nome}
                   </span>
-                  <span className="text-[9px] font-mono text-muted-foreground tabular-nums opacity-60">
+                  <span
+                    className="text-[10px] font-mono font-bold tabular-nums px-1.5 py-0.5"
+                    style={{ color: cor, background: `${cor}22` }}
+                  >
                     {items.length}
                   </span>
                 </div>
-                <div className="space-y-px mt-1">
+                {/* TRILHA vertical contínua na cor do grupo + items.
+                    A trilha amarra visualmente todos os items ao seu grupo. */}
+                <div
+                  className="space-y-px"
+                  style={{
+                    borderLeft: `2px solid ${cor}55`,
+                    marginLeft: "13px",
+                    paddingLeft: "0",
+                  }}
+                >
                   {items.map((item) => {
                     const Icon = item.icon;
                     const isActive = location === item.path || location.startsWith(item.path + "/");
@@ -635,15 +654,23 @@ export function Layout({ children }: { children: ReactNode }) {
                       <Link
                         key={item.path}
                         href={item.path}
-                        className={`flex items-center pl-6 pr-3 py-2 text-[12.5px] transition-all border-l-[3px] ${
+                        className={`flex items-center pl-3 pr-3 py-2 text-[13px] transition-all border-l-[3px] -ml-[2px] ${
                           isActive
                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
                         }`}
-                        style={{ borderLeftColor: isActive ? (g.cor ?? "var(--primary)") : "transparent" }}
+                        style={{
+                          borderLeftColor: isActive ? cor : "transparent",
+                          ...(isActive ? { boxShadow: `inset 4px 0 0 ${cor}` } : {}),
+                        }}
                         data-testid={`menu-${item.slug}`}
                       >
-                        <Icon className="mr-2.5 h-4 w-4 flex-shrink-0" style={isActive ? { color: g.cor ?? undefined } : undefined} />
+                        {/* Ícone do item SEMPRE colorido com a cor do grupo —
+                            assim a "fileira de cor" é óbvia mesmo no item inativo */}
+                        <Icon
+                          className="mr-2.5 h-[18px] w-[18px] flex-shrink-0"
+                          style={{ color: isActive ? cor : `${cor}DD` }}
+                        />
                         <span className="flex-1 truncate">{item.name}</span>
                         {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
                           <span data-testid="badge-lembretes-falhas"
