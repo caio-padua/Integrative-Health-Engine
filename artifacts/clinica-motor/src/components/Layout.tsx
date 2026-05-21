@@ -10,7 +10,7 @@ import {
   FileCheck, KeyRound, Package, ClipboardCheck, AlertTriangle, BarChart3, Shield, Lock, Radar, Send,
   ChevronDown, ChevronRight, Globe, Diamond, DollarSign, TrendingUp, Scale, Grid3X3, UserCheck, Bot, Apple, Brain,
   ClipboardList as ClipboardListIcon, Building, FileSignature, BellRing, MessageSquareText, Cloud, Mountain, Heart, MessageCircle, AtSign, Stethoscope,
-  Volume2, VolumeX, Command as CommandIcon, Bell, Zap,
+  Volume2, VolumeX, Command as CommandIcon, Bell, Zap, ArrowLeft,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { CommandPalette } from "./CommandPalette";
@@ -437,6 +437,33 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const escopo = (user as any).escopo || "consultoria_master";
   const modulosPermitidos = VISIBILIDADE_POR_ESCOPO[escopo] || VISIBILIDADE_POR_ESCOPO.consultoria_master;
+
+  // Resolve nome da tela atual procurando match no menu (mais específico
+  // primeiro). Fallback usa o último segmento da URL formatado. Centraliza
+  // a lógica pra header e footer mostrarem o mesmo título.
+  const resolverTituloTela = (path: string): string => {
+    let melhorMatch: { item: Item; tamanho: number } | null = null;
+    for (const g of grupos) {
+      for (const item of g.items) {
+        if (path === item.path || path.startsWith(item.path + "/")) {
+          if (!melhorMatch || item.path.length > melhorMatch.tamanho) {
+            melhorMatch = { item, tamanho: item.path.length };
+          }
+        }
+      }
+    }
+    if (melhorMatch) {
+      // remove emojis decorativos do nome de menu pro header ficar limpo
+      return melhorMatch.item.name.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+    }
+    // fallback: pega último segmento e formata
+    const seg = path.split("/").filter(Boolean).pop() || "início";
+    return seg.replace(/-/g, " ").toUpperCase();
+  };
+  const tituloTela = resolverTituloTela(location);
+  // raiz não tem pra onde voltar — esconde a setinha em /, /dashboard,
+  // /painel-comando (telas-raiz típicas).
+  const ehRaiz = location === "/" || location === "/dashboard" || location === "/painel-comando";
   const escopoLabel = escopo === "consultoria_master" ? "Master" : escopo === "consultor_campo" ? "Consultor" : escopo.replace("clinica_", "").replace("_", " ");
 
   return (
@@ -684,31 +711,132 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {(() => {
-          // Task #269: header bar so renderiza pra platform_owner em /plataforma/*.
-          // Mesmo gating que o componente faz internamente — duplicado aqui pra
-          // evitar deixar uma faixa vazia no topo pra perfis nao-elegiveis.
-          const perfilPlataforma = (user as Usuario & {
-            perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user" | null;
-          } | null)?.perfilPlataforma;
-          if (!location.startsWith("/plataforma") || perfilPlataforma !== "platform_owner") return null;
-          return (
-            <div className="h-10 flex items-center justify-end gap-2 px-4 border-b border-border bg-background/60">
-              <Platform2faHeaderIndicator
-                onRenovar={() =>
-                  openStepUp2fa(() => {
-                    void queryClient.invalidateQueries({
-                      queryKey: ["/usuarios/perfil-atual"],
-                    });
-                  })
-                }
-              />
-            </div>
-          );
-        })()}
+        {/* HEADER GLOBAL — setinha de voltar (top-left, padrão navegador) +
+            título da tela centralizado. Aparece em todas as telas exceto
+            raiz. Decisão Caio 21/mai/2026: top-left é melhor que bottom-left
+            porque é onde o olho já procura por instinto (browser nativo). */}
+        <div
+          className="h-11 flex items-center px-3 border-b"
+          style={{
+            background: "#0B1220",
+            borderColor: "#1F2937",
+          }}
+        >
+          <div className="flex-1 flex items-center min-w-0">
+            {!ehRaiz && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.history.length > 1) window.history.back();
+                  else setLocation("/dashboard");
+                }}
+                className="flex items-center gap-1.5 px-2 py-1 border-l-[3px] hover:bg-white/5 transition-colors"
+                style={{ borderLeftColor: "#5EE6E6", color: "#5EE6E6", borderRadius: 0 }}
+                title="Voltar pra tela anterior"
+                aria-label="Voltar pra tela anterior"
+                data-testid="btn-voltar-global"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span
+                  className="text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{ fontFamily: "JetBrains Mono, monospace" }}
+                >
+                  Voltar
+                </span>
+              </button>
+            )}
+          </div>
+          <div
+            className="flex-1 text-center text-[11px] font-bold uppercase tracking-[0.25em] truncate px-2"
+            style={{ color: "#E5E7EB", fontFamily: "JetBrains Mono, monospace" }}
+            data-testid="titulo-tela-global"
+          >
+            {tituloTela}
+          </div>
+          <div className="flex-1 flex items-center justify-end gap-2">
+            {(() => {
+              // Task #269: indicador 2FA segue só pra platform_owner em /plataforma/*
+              const perfilPlataforma = (user as Usuario & {
+                perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user" | null;
+              } | null)?.perfilPlataforma;
+              if (!location.startsWith("/plataforma") || perfilPlataforma !== "platform_owner") return null;
+              return (
+                <Platform2faHeaderIndicator
+                  onRenovar={() =>
+                    openStepUp2fa(() => {
+                      void queryClient.invalidateQueries({ queryKey: ["/usuarios/perfil-atual"] });
+                    })
+                  }
+                />
+              );
+            })()}
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
           <div className="max-w-7xl mx-auto">{children}</div>
         </div>
+
+        {/* RODAPÉ INSTITUCIONAL — operador (esq) | tela (centro) |
+            Pawards® + PADCON com mensagens (dir). Global, 100% das telas
+            autenticadas. JetBrains Mono UPPERCASE, deep navy, neon ciano
+            como sotaque nas barras laterais. */}
+        <footer
+          className="h-12 flex items-stretch border-t text-[10px] uppercase tracking-[0.2em]"
+          style={{
+            background: "#0B1220",
+            borderColor: "#1F2937",
+            color: "#9CA3AF",
+            fontFamily: "JetBrains Mono, monospace",
+          }}
+          data-testid="rodape-global"
+        >
+          {/* Esquerda: operador */}
+          <div
+            className="flex-1 flex items-center gap-2 px-4 border-l-[3px] min-w-0"
+            style={{ borderLeftColor: "#5EE6E6" }}
+          >
+            <UserCheck className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#5EE6E6" }} />
+            <span className="font-bold truncate" style={{ color: "#E5E7EB" }} data-testid="rodape-operador">
+              {user.nome}
+            </span>
+            <span className="text-[9px] tracking-widest truncate" style={{ color: "#6B7280" }}>
+              · {user.perfil.replace(/_/g, " ")}
+            </span>
+          </div>
+
+          {/* Centro: nome da tela */}
+          <div
+            className="flex-1 flex items-center justify-center px-2 border-x truncate"
+            style={{ borderColor: "#1F2937" }}
+          >
+            <span className="font-bold truncate" style={{ color: "#E5E7EB" }} data-testid="rodape-tela">
+              {tituloTela}
+            </span>
+          </div>
+
+          {/* Direita: PAWARDS® · mensagem · PADCON · mensagem */}
+          <div
+            className="flex-1 flex items-center justify-end gap-3 px-4 border-r-[3px]"
+            style={{ borderRightColor: "#5EE6E6" }}
+          >
+            <span className="flex items-center gap-1 truncate">
+              <span className="font-bold" style={{ color: "#E5E7EB" }}>PAWARDS</span>
+              <sup className="text-[8px]" style={{ color: "#5EE6E6" }}>®</sup>
+              <span className="hidden md:inline text-[9px]" style={{ color: "#6B7280" }}>
+                · MEDCORE INTEGRATIVA
+              </span>
+            </span>
+            <span style={{ color: "#1F2937" }}>|</span>
+            <span className="flex items-center gap-1 truncate">
+              <span className="font-bold" style={{ color: "#E5E7EB" }}>PADCON</span>
+              <sup className="text-[8px]" style={{ color: "#5EE6E6" }}>®</sup>
+              <span className="hidden md:inline text-[9px]" style={{ color: "#6B7280" }}>
+                · CONSULTORIA INVISÍVEL
+              </span>
+            </span>
+          </div>
+        </footer>
       </main>
       <CommandPalette />
       {/* Task #157: modal TOTP de step-up compartilhado — disparado pelo
