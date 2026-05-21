@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Activity, ShieldCheck, Loader2, AlertTriangle, Eye, EyeOff, KeyRound, Mail } from "lucide-react";
+import { Activity, ShieldCheck, Loader2, AlertTriangle, Eye, EyeOff, KeyRound, Mail, Lock, FileSignature, KeySquare, Fingerprint, Scale, Network } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "E-mail inválido" }),
@@ -399,24 +399,92 @@ export default function Login() {
                 </Form>
               )}
 
+              {/* CITAÇÃO INSTITUCIONAL — Caio, fundador.
+                  Aspas tipográficas douradas, frase em itálico Inter,
+                  assinatura monospace dourada. Alinhamento à esquerda
+                  pra leitura natural TDAH (ancorada no canto). */}
               <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
                 {linhaDourada}
-                <p
-                  className="text-center text-[10px] mt-3 italic"
-                  style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}
-                >
-                  "A excelência clínica começa pela consciência operacional."
-                </p>
+                <figure className="mt-4 flex items-start gap-3" data-testid="login-citacao">
+                  <span
+                    aria-hidden="true"
+                    className="leading-none select-none"
+                    style={{
+                      fontFamily: "'Georgia', serif",
+                      fontSize: "32px",
+                      color: GOLD,
+                      lineHeight: 0.8,
+                      marginTop: "-2px",
+                    }}
+                  >
+                    “
+                  </span>
+                  <div className="flex-1">
+                    <blockquote
+                      className="text-[11px] italic leading-snug"
+                      style={{
+                        color: INK,
+                        fontFamily: "'Georgia', serif",
+                        letterSpacing: "0.01em",
+                      }}
+                    >
+                      A excelência clínica começa pela consciência operacional.
+                    </blockquote>
+                    <figcaption
+                      className="mt-2 flex items-center gap-2 text-[9px] uppercase tracking-[0.3em]"
+                      style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      <span className="inline-block w-3 h-px" style={{ background: GOLD }} />
+                      Caio Pádua
+                      <span style={{ color: INK_MUTED }}>·</span>
+                      <span style={{ color: INK_MUTED }}>Fundador</span>
+                    </figcaption>
+                  </div>
+                </figure>
               </div>
             </div>
 
-            {/* Rodapé do cartão — apenas marca temporal de prestígio */}
+            {/* RÉGUA DE SELOS DE SEGURANÇA — 6 certificações reais do sistema.
+                Distribuídas em linha, igualmente espaçadas (TDAH/TOC: ritmo
+                visual previsível). Cada selo = ícone ciano + label dourada
+                monospace. Hover discreto sem mover layout. */}
             <div
-              className="flex items-center justify-center gap-2 px-6 py-2.5 text-[8px] uppercase tracking-[0.4em] border-t"
-              style={{ background: NAVY_DEEP, borderColor: `${GOLD}22`, color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+              className="grid grid-cols-6 border-t"
+              style={{ background: NAVY_DEEP, borderColor: `${GOLD}22` }}
+              data-testid="login-selos-seguranca"
+            >
+              {[
+                { icone: Scale, label: "LGPD", titulo: "Lei Geral de Proteção de Dados — auditoria + retenção 12 meses" },
+                { icone: FileSignature, label: "ICP-BR", titulo: "Assinatura digital ICP-Brasil via ZapSign" },
+                { icone: Fingerprint, label: "2FA", titulo: "Autenticação em duas etapas (TOTP)" },
+                { icone: KeySquare, label: "JWT", titulo: "Sessão blindada com JSON Web Token + refresh seguro" },
+                { icone: Lock, label: "AUDIT", titulo: "Auditoria cascata em todas as operações sensíveis" },
+                { icone: Network, label: "mTLS", titulo: "Mutual TLS no perímetro de rede" },
+              ].map(({ icone: Icone, label, titulo }) => (
+                <div
+                  key={label}
+                  title={titulo}
+                  className="flex flex-col items-center justify-center gap-1 py-2.5 border-r last:border-r-0"
+                  style={{ borderColor: `${GOLD}11` }}
+                >
+                  <Icone className="w-3 h-3" style={{ color: CYAN, opacity: 0.85 }} strokeWidth={1.5} />
+                  <span
+                    className="text-[7px] font-bold uppercase tracking-[0.25em]"
+                    style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Rodapé do cartão — chancela institucional */}
+            <div
+              className="flex items-center justify-center gap-2 px-6 py-2 text-[8px] uppercase tracking-[0.4em] border-t"
+              style={{ background: NAVY, borderColor: `${GOLD}22`, color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
             >
               <div className="w-1 h-1 rounded-full" style={{ background: GOLD }} />
-              <span>Acesso seguro · ICP-Brasil</span>
+              <span>Acesso seguro · Pawards Medcore</span>
               <div className="w-1 h-1 rounded-full" style={{ background: GOLD }} />
             </div>
           </div>
