@@ -13,7 +13,8 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { Loader2, Search, X, FlaskConical, Activity, Network } from "lucide-react";
+import { Loader2, Search, X, FlaskConical, Activity, Network, Pencil } from "lucide-react";
+import AnalitoEditorModal, { type AnalitoEditavel } from "@/components/exames-dash/AnalitoEditorModal";
 
 import { apiFetch } from "@/lib/api-fetch";
 const API = (import.meta as any).env.VITE_API_URL || "/api";
@@ -52,6 +53,8 @@ export default function ExamesPage() {
   const [filtroGrupo, setFiltroGrupo] = useState<string>("");
   const [selecionado, setSelecionado] = useState<Analito | null>(null);
   const [anastomose, setAnastomose] = useState<any>(null);
+  const [editando, setEditando] = useState<AnalitoEditavel | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setLoading(true);
@@ -64,7 +67,7 @@ export default function ExamesPage() {
         setBlocos(blk.blocos || []);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   const grupos = useMemo(
     () => Array.from(new Set(analitos.map((a) => a.grupo))).sort(),
@@ -169,13 +172,35 @@ export default function ExamesPage() {
                 {filtrados.map((a) => {
                   const c = TERCO_COLOR[a.terco_excelente] || TERCO_COLOR.SUPERIOR;
                   return (
-                    <button
+                    <div
                       key={a.codigo}
+                      className={`relative text-left rounded-lg border ${c.border} ${c.bg} p-4 hover:scale-[1.02] transition cursor-pointer`}
                       onClick={() => abrirAnastomose(a)}
-                      className={`text-left rounded-lg border ${c.border} ${c.bg} p-4 hover:scale-[1.02] transition`}
                       data-testid={`card-analito-${a.codigo}`}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditando({
+                            codigo: a.codigo,
+                            nome: a.nome,
+                            grupo: a.grupo,
+                            unidade: a.unidade,
+                            terco_excelente: a.terco_excelente,
+                            observacao_clinica: a.observacao_clinica,
+                            faixas: (a.faixas || []).map(f => ({
+                              laboratorio: f.laboratorio, min: f.min, max: f.max, unidade: f.unidade,
+                            })),
+                          });
+                        }}
+                        className="absolute top-2 right-2 p-1.5 rounded border border-white/10 bg-black/30 hover:bg-amber-500/20 hover:border-amber-300/60 text-white/60 hover:text-amber-200 transition"
+                        title="Editar analito"
+                        data-testid={`btn-editar-analito-${a.codigo}`}
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <div className="flex items-start justify-between gap-2 pr-8">
                         <div>
                           <div className="font-semibold text-white">{a.nome}</div>
                           <div className="text-[10px] text-white/40 font-mono mt-0.5">{a.codigo}</div>
@@ -197,7 +222,7 @@ export default function ExamesPage() {
                       {a.observacao_clinica && (
                         <div className="text-[11px] text-white/50 mt-2 italic line-clamp-2">{a.observacao_clinica}</div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -223,6 +248,17 @@ export default function ExamesPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de edição de analito */}
+      <AnalitoEditorModal
+        analito={editando}
+        aberto={!!editando}
+        onClose={() => setEditando(null)}
+        onSalvo={() => {
+          setEditando(null);
+          setRefreshKey(k => k + 1);
+        }}
+      />
     </Layout>
   );
 }

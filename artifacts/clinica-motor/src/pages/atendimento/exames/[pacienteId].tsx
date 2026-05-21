@@ -21,6 +21,9 @@ import {
   RadialBarChart, RadialBar, PolarAngleAxis,
 } from "recharts";
 import { PAWARDS } from "@/lib/pawards-tokens";
+import FiltroZonasButtons, { type ZonaSlug, ZONA_META, zonaIdxParaSlug, contarZonas } from "@/components/exames-dash/FiltroZonasButtons";
+import GraficosAnalitos from "@/components/exames-dash/GraficosAnalitos";
+import GraficosPorCategoria from "@/components/exames-dash/GraficosPorCategoria";
 
 import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -197,6 +200,8 @@ export default function ExamesDashboardMedico() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
+  const [filtroZona, setFiltroZona] = useState<ZonaSlug>("TODAS");
+  const [mostrarGraficosPorCategoria, setMostrarGraficosPorCategoria] = useState<boolean>(true);
   const [ordenar, setOrdenar] = useState<"prioridade" | "nome" | "data">("prioridade");
   const [exameFoco, setExameFoco] = useState<ExameDash | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -254,6 +259,17 @@ export default function ExamesDashboardMedico() {
     if (filtroCategoria !== "todas") {
       arr = arr.filter(e => e.categoria === filtroCategoria);
     }
+    if (filtroZona !== "TODAS") {
+      if (filtroZona === "FORA_DO_IDEAL") {
+        arr = arr.filter(e => {
+          const ideal = (e.direcao_favoravel || "MEDIO").toUpperCase();
+          const idealIdx = ideal === "SUPERIOR" ? 3 : ideal === "INFERIOR" ? 1 : 2;
+          return e.zona_idx !== idealIdx;
+        });
+      } else {
+        arr = arr.filter(e => zonaIdxParaSlug(e.zona_idx) === filtroZona);
+      }
+    }
     if (ordenar === "nome") arr.sort((a, b) => a.nome_exame.localeCompare(b.nome_exame));
     else if (ordenar === "data") arr.sort((a, b) => (b.data_coleta || "").localeCompare(a.data_coleta || ""));
     else {
@@ -262,9 +278,13 @@ export default function ExamesDashboardMedico() {
       arr.sort((a, b) => peso[a.cor_final] - peso[b.cor_final]);
     }
     return arr;
-  }, [exames, busca, filtroCategoria, ordenar]);
+  }, [exames, busca, filtroCategoria, filtroZona, ordenar]);
 
   const resumo = dash?.resumo || { verdes: 0, amarelos: 0, alertas: 0, vermelhos: 0, total: 0 };
+
+  // Contagem por ZONA (5 zonas oficiais) — calculada sobre TODOS os exames,
+  // não respeita filtros, pra os botões sempre mostrarem o total real.
+  const contagemZonas = useMemo(() => contarZonas(exames as any), [exames]);
 
   return (
     <Layout>
@@ -341,6 +361,56 @@ export default function ExamesDashboardMedico() {
               </div>
             ))}
           </div>
+
+          {/* FILTRO POR ZONA — 5 zonas oficiais (Wave Caio) + Fora do Ideal */}
+          <div
+            className="mb-4 border p-3"
+            style={{
+              background: PAWARDS.colors.bg.panel,
+              borderColor: PAWARDS.colors.gold[700] + "44",
+              borderRadius: 0,
+            }}
+          >
+            <FiltroZonasButtons
+              zonaSelecionada={filtroZona}
+              onChange={setFiltroZona}
+              contagem={contagemZonas}
+            />
+          </div>
+
+          {/* PAINEL DE GRÁFICOS — múltiplas visualizações trocáveis */}
+          {dash && exames.length > 0 && (
+            <div className="mb-4">
+              <GraficosAnalitos exames={exames as any} />
+            </div>
+          )}
+
+          {/* GRÁFICOS POR CATEGORIA — um mini-card de barras por categoria */}
+          {dash && exames.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <div
+                  className="text-[10px] uppercase tracking-wider font-bold"
+                  style={{ color: PAWARDS.colors.gold[300], fontFamily: "JetBrains Mono, monospace" }}
+                >
+                  Gráficos por Categoria · 5 Zonas
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setMostrarGraficosPorCategoria(v => !v)}
+                  className="h-7 text-[10px] uppercase tracking-wider"
+                  style={{ borderRadius: 0, fontFamily: "JetBrains Mono, monospace" }}
+                  data-testid="btn-toggle-graficos-categoria"
+                >
+                  {mostrarGraficosPorCategoria ? "Ocultar" : "Mostrar"}
+                </Button>
+              </div>
+              {mostrarGraficosPorCategoria && (
+                <GraficosPorCategoria exames={exames as any} />
+              )}
+            </div>
+          )}
 
           {/* Filtros */}
           <div className="flex flex-wrap gap-3 mb-4 items-center">

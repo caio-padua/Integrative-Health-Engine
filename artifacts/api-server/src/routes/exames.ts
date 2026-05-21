@@ -138,23 +138,93 @@ router.get("/exames/anastomose/:codigo", async (req, res) => {
   }
 });
 
+/**
+ * PUT /exames/catalogo/:codigo — Edita um analito do catálogo.
+ *
+ * Body opcional (todos COALESCE — só atualiza o que vier):
+ *   - nome                          (string)
+ *   - grupo                         (string)
+ *   - terco_excelente               ('SUPERIOR'|'MEDIO'|'INFERIOR')
+ *   - observacao_clinica            (string|null)
+ *   - unidade_padrao_integrativa    (string)
+ *   - ativo                         (boolean)
+ *   - faixa_padrao                  ({ min: number, max: number, unidade?: string })
+ *       → upsert na tabela analitos_referencia_laboratorio com
+ *         laboratorio='PADRAO_INTEGRATIVA' (a "faixa do Caio").
+ */
 router.put("/exames/catalogo/:codigo", async (req, res) => {
   try {
     const { codigo } = req.params;
-    const { terco_excelente, observacao_clinica, unidade_padrao_integrativa, ativo } = req.body;
-    await db.execute(sql`
-      UPDATE analitos_catalogo
-      SET
-        terco_excelente = COALESCE(${terco_excelente}, terco_excelente),
-        observacao_clinica = COALESCE(${observacao_clinica}, observacao_clinica),
-        unidade_padrao_integrativa = COALESCE(${unidade_padrao_integrativa}, unidade_padrao_integrativa),
-        ativo = COALESCE(${ativo}, ativo)
-      WHERE UPPER(codigo) = UPPER(${codigo})
+    const {
+      nome,
+      grupo,
+      terco_excelente,
+      observacao_clinica,
+      unidade_padrao_integrativa,
+      ativo,
+      faixa_padrao,
+    } = req.body || {};
+
+    if (terco_excelente && !["SUPERIOR", "MEDIO", "INFERIOR"].includes(terco_excelente)) {
+      return res.status(400).json({ erro: "terco_excelente deve ser SUPERIOR, MEDIO ou INFERIOR" });
+    }
+
+    const existe = await db.execute(sql`
+      SELECT codigo FROM analitos_catalogo WHERE UPPER(codigo) = UPPER(${codigo}) LIMIT 1
     `);
-    res.json({ ok: true });
+    if ((((existe as any).rows ?? existe) as any[]).length === 0) {
+      return res.status(404).json({ erro: "Analito não encontrado" });
+    }
+
+    // Tudo dentro de uma transação explícita: UPDATE catálogo + (opcional)
+    // DELETE+INSERT da faixa padrão. Se qualquer passo falhar, ROLLBACK
+    // garante que catálogo e faixa não fiquem inconsistentes. Lock por
+    // advisory (hashtext do código) serializa upserts concorrentes do mesmo
+    // analito sem trancar tabela inteira.
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"analito:" + codigo}))`);
+
+      await tx.execute(sql`
+        UPDATE analitos_catalogo
+        SET
+          nome = COALESCE(${nome ?? null}, nome),
+          grupo = COALESCE(${grupo ?? null}, grupo),
+          terco_excelente = COALESCE(${terco_excelente ?? null}, terco_excelente),
+          observacao_clinica = COALESCE(${observacao_clinica === undefined ? null : observacao_clinica}, observacao_clinica),
+          unidade_padrao_integrativa = COALESCE(${unidade_padrao_integrativa ?? null}, unidade_padrao_integrativa),
+          ativo = COALESCE(${typeof ativo === "boolean" ? ativo : null}, ativo)
+        WHERE UPPER(codigo) = UPPER(${codigo})
+      `);
+
+      if (faixa_padrao && typeof faixa_padrao === "object") {
+        const min = Number(faixa_padrao.min);
+        const max = Number(faixa_padrao.max);
+        const un = String(faixa_padrao.unidade ?? unidade_padrao_integrativa ?? "");
+        if (Number.isFinite(min) && Number.isFinite(max) && min <= max) {
+          // A unique key da tabela inclui faixa_etaria_min/max (nullable) → NULL!=NULL,
+          // então ON CONFLICT não dispara com NULLs. DELETE+INSERT dentro da transação
+          // + advisory lock = upsert idempotente e safe contra race.
+          await tx.execute(sql`
+            DELETE FROM analitos_referencia_laboratorio
+            WHERE analito_codigo = ${codigo}
+              AND laboratorio = 'PADRAO_INTEGRATIVA'
+              AND sexo = 'AMBOS'
+              AND faixa_etaria_min IS NULL
+              AND faixa_etaria_max IS NULL
+          `);
+          await tx.execute(sql`
+            INSERT INTO analitos_referencia_laboratorio
+              (analito_codigo, laboratorio, sexo, valor_min_ref, valor_max_ref, unidade_origem)
+            VALUES (${codigo}, 'PADRAO_INTEGRATIVA', 'AMBOS', ${min}, ${max}, ${un})
+          `);
+        }
+      }
+    });
+
+    return res.json({ ok: true });
   } catch (err: any) {
     console.error("Erro exames/catalogo PUT:", err);
-    res.status(500).json({ erro: "Erro interno" });
+    return res.status(500).json({ erro: "Erro interno", detalhe: err.message });
   }
 });
 
