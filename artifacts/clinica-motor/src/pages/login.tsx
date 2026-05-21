@@ -101,6 +101,21 @@ export default function Login() {
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
+      {/* Keyframes locais — pulso "ATIVO" das bolinhas de status e
+          dos selos de segurança. Velocidade lenta (2.4s) pra não
+          virar ruído visual TDAH. */}
+      <style>{`
+        @keyframes pulseStatus {
+          0%, 100% { opacity: 1; box-shadow: 0 0 4px ${CYAN}, 0 0 0 0 ${CYAN}66; }
+          50%      { opacity: 0.45; box-shadow: 0 0 12px ${CYAN}, 0 0 0 6px ${CYAN}11; }
+        }
+        @keyframes pulseSeal {
+          0%, 100% { box-shadow: inset 0 0 0 1px ${GOLD}66, 0 0 0 0 ${CYAN}00; }
+          50%      { box-shadow: inset 0 0 0 1px ${GOLD}AA, 0 0 8px ${CYAN}55; }
+        }
+        .pulse-status { animation: pulseStatus 2.4s ease-in-out infinite; }
+        .pulse-seal   { animation: pulseSeal 3.2s ease-in-out infinite; }
+      `}</style>
       {/* Vinheta dourada sutil — efeito de "papel timbrado iluminado" */}
       <div
         className="absolute inset-0 pointer-events-none opacity-30"
@@ -136,59 +151,28 @@ export default function Login() {
           }}
         >
           {/* ============ COLUNA ESQUERDA — IDENTIDADE ============
-              Padding-top idêntico à direita pra que o TOPO do símbolo
-              fique alinhado com o label "IDENTIFICAÇÃO" do formulário.
-              Logo h-52 (~208px) garante que a base do wordmark
-              "PAWARDS MEDCORE" fique na mesma linha do BOTÃO Entrar. */}
+              Logo único (símbolo D + wordmark PAWARDS MEDCORE) ocupa
+              a coluna inteira. Centrado verticalmente pra que:
+              · TOPO do símbolo fique alinhado com label IDENTIFICAÇÃO
+              · BASE do wordmark fique alinhada com base do BOTÃO. */}
           <div
-            className="relative flex flex-col px-10 pt-12 pb-8 md:border-r"
+            className="relative flex flex-col justify-center px-10 py-12 md:border-r"
             style={{ borderColor: `${GOLD}22` }}
           >
-            {/* Selo discreto canto sup esq — define linha-base do topo */}
-            <div
-              className="text-[10px] font-bold uppercase tracking-[0.5em] mb-7 flex items-center gap-2"
-              style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              <span className="inline-block w-2 h-2" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
-              Acesso Restrito
-            </div>
-
-            {/* Logo grande, alinhado à esquerda, sem moldura.
-                Container fixo h-52 espelhando altura combinada dos 2
-                inputs + botão à direita (label+input+gap+label+input+
-                gap+botão ≈ 208px). */}
-            <div className="flex flex-col items-start">
-              <img
-                src={`${import.meta.env.BASE_URL}logo-pawards-medcore-transparent.png`}
-                alt="PAWARDS MedCore"
-                className="h-52 w-auto object-contain object-left"
-                style={{
-                  filter: "drop-shadow(0 0 32px rgba(212,175,55,0.4)) drop-shadow(0 0 12px rgba(212,175,55,0.22))",
-                }}
-                data-testid="login-logo-principal"
-              />
-              <div
-                className="mt-4 text-[10px] uppercase tracking-[0.4em]"
-                style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                Motor Clínico Integrativo
-              </div>
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}logo-pawards-medcore-transparent.png`}
+              alt="PAWARDS MedCore"
+              className="h-64 w-auto object-contain object-left"
+              style={{
+                filter: "drop-shadow(0 0 32px rgba(212,175,55,0.4)) drop-shadow(0 0 12px rgba(212,175,55,0.22))",
+              }}
+              data-testid="login-logo-principal"
+            />
           </div>
 
           {/* ============ COLUNA DIREITA — FORMULÁRIO ============ */}
-          <div className="relative flex flex-col px-10 pt-12 pb-8">
-            {/* Selo discreto canto sup dir — espelha "Acesso Restrito" */}
-            <div
-              className="text-[10px] font-bold uppercase tracking-[0.5em] mb-7 flex items-center gap-2 justify-end"
-              style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              Entrada Segura
-              <span className="inline-block w-2 h-2" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
-            </div>
-
-            {/* CONTEÚDO DINÂMICO — mantém os 3 estados originais */}
-            <div className="flex-1 flex flex-col">
+          <div className="relative flex flex-col justify-center px-10 py-12">
+            <div className="flex flex-col">
               {avisoRecuperacao ? (
                 <div className="space-y-5" data-testid="banner-recuperacao-2fa">
                   <div className="p-4 border-l-[3px]" style={{ background: "rgba(245,185,70,0.08)", borderLeftColor: "#F5B946" }} role="alert">
@@ -397,9 +381,11 @@ export default function Login() {
           {/* Coluna esquerda — spacer (mantém centro óptico) */}
           <div />
 
-          {/* Citação centralizada */}
+          {/* Citação centralizada — nome do fundador na MESMA fonte
+              e cor da frase (Georgia/INK) por pedido Caio. Hierarquia
+              mantida: frase em itálico, nome em redondo. */}
           <figure
-            className="text-center max-w-[520px] mx-auto"
+            className="text-center max-w-[560px] mx-auto"
             data-testid="login-citacao"
           >
             <blockquote
@@ -413,60 +399,100 @@ export default function Login() {
               “A excelência clínica começa pela consciência operacional.”
             </blockquote>
             <figcaption
-              className="mt-2 text-[9px] uppercase tracking-[0.4em] flex items-center justify-center gap-2"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              className="mt-3 flex items-center justify-center gap-3"
+              style={{
+                fontFamily: "'Georgia', serif",
+                color: INK,
+              }}
             >
-              <span className="inline-block w-4 h-px" style={{ background: GOLD }} />
-              <span style={{ color: GOLD }}>Caio Pádua</span>
-              <span style={{ color: `${GOLD}66` }}>—</span>
-              <span style={{ color: INK_MUTED }}>Fundador, Pawards Medcore</span>
-              <span className="inline-block w-4 h-px" style={{ background: GOLD }} />
+              <span className="inline-block w-6 h-px" style={{ background: GOLD }} />
+              <span className="text-[13px]">Dr. Caio Henrique Fernandes Pádua</span>
+              <span className="inline-block w-6 h-px" style={{ background: GOLD }} />
             </figcaption>
+            <div
+              className="mt-1 text-[9px] uppercase tracking-[0.4em]"
+              style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              Fundador · Pawards Medcore
+            </div>
           </figure>
 
-          {/* BLOCO ASSINATURAS — canto inferior direito.
-              PAWARDS MedCore® e PADCON Platform® empilhados,
-              tamanho aumentado (text-xs / tracking maior), separados
-              por filete dourado. Réplica fiel do rodapé WhatsApp. */}
+          {/* BLOCO ASSINATURAS + STATUS — canto inferior direito.
+              Topo: PAWARDS MedCore® + PADCON Platform® com ® em
+              DOURADO (mesma cor da marca) e linhas delimitando
+              acima e abaixo de cada marca.
+              Base: 2 indicadores "ATIVO" com bolinhas ciano pulsando
+              — resumo das ferramentas de segurança em uso. */}
           <div
             className="justify-self-end text-right pl-6"
             style={{ borderLeft: `1px solid ${GOLD}33` }}
             data-testid="login-assinaturas"
           >
-            <div
-              className="text-[12px] font-bold uppercase tracking-[0.35em]"
-              style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              PAWARDS MedCore<sup style={{ color: CYAN, fontSize: "8px" }}>®</sup>
+            {/* PAWARDS */}
+            <div className="h-px w-full" style={{ background: `${GOLD}44` }} />
+            <div className="py-2">
+              <div
+                className="text-[13px] font-bold uppercase tracking-[0.35em]"
+                style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                PAWARDS MedCore<sup style={{ color: GOLD, fontSize: "9px" }}>®</sup>
+              </div>
+              <div
+                className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
+                style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Clinical Intelligence System
+              </div>
             </div>
-            <div
-              className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
-              style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              Clinical Intelligence System
+            <div className="h-px w-full" style={{ background: `${GOLD}44` }} />
+
+            {/* PADCON */}
+            <div className="py-2">
+              <div
+                className="text-[13px] font-bold uppercase tracking-[0.35em]"
+                style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                PADCON Platform<sup style={{ color: GOLD, fontSize: "9px" }}>®</sup>
+              </div>
+              <div
+                className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
+                style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Advanced Systems Architecture
+              </div>
             </div>
-            <div
-              className="my-2 h-px"
-              style={{ background: `${GOLD}44` }}
-            />
-            <div
-              className="text-[12px] font-bold uppercase tracking-[0.35em]"
-              style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              PADCON Platform<sup style={{ color: CYAN, fontSize: "8px" }}>®</sup>
-            </div>
-            <div
-              className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
-              style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              Advanced Systems Architecture
+            <div className="h-px w-full" style={{ background: `${GOLD}44` }} />
+
+            {/* INDICADORES DE STATUS — bolinhas ciano pulsando lento.
+                Funcionam como "resumo executivo" dos 6 selos abaixo:
+                "tudo isto está ATIVO neste momento". */}
+            <div className="pt-3 flex flex-col items-end gap-1.5">
+              {[
+                { label: "Acesso Restrito" },
+                { label: "Entrada Segura" },
+              ].map(({ label }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span
+                    className="text-[9px] uppercase tracking-[0.35em] font-bold"
+                    style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {label}
+                  </span>
+                  <span
+                    className="pulse-status inline-block w-2 h-2 rounded-full"
+                    style={{ background: CYAN }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
         {/* RÉGUA DE SELOS DE SEGURANÇA — full-width abaixo do painel.
-            6 certificações reais, ícones MAIORES (w-4) e label legível
-            (text-[10px]) pra ganhar peso visual conforme pedido. */}
+            Cada ícone agora vive numa CAIXA com borda dourada que
+            pulsa lentamente (efeito "ativação"). Ícone ciano maior
+            e label dourada legível. Aproxima a estética de um painel
+            técnico militar/aeronáutico ativo. */}
         <div
           className="grid grid-cols-6"
           style={{ background: NAVY_DEEP, borderTop: `1px solid ${GOLD}33`, borderBottom: `1px solid ${GOLD}33` }}
@@ -479,14 +505,19 @@ export default function Login() {
             { icone: KeySquare, label: "JWT", titulo: "Sessão blindada com JSON Web Token + refresh seguro" },
             { icone: Lock, label: "AUDIT", titulo: "Auditoria cascata em todas as operações sensíveis" },
             { icone: Network, label: "mTLS", titulo: "Mutual TLS no perímetro de rede" },
-          ].map(({ icone: Icone, label, titulo }) => (
+          ].map(({ icone: Icone, label, titulo }, idx) => (
             <div
               key={label}
               title={titulo}
               className="flex items-center justify-center gap-3 py-4 border-r last:border-r-0"
               style={{ borderColor: `${GOLD}15` }}
             >
-              <Icone className="w-5 h-5" style={{ color: CYAN, opacity: 0.9 }} strokeWidth={1.5} />
+              <div
+                className="pulse-seal flex items-center justify-center w-9 h-9"
+                style={{ background: `${CYAN}10`, animationDelay: `${idx * 0.35}s` }}
+              >
+                <Icone className="w-5 h-5" style={{ color: CYAN }} strokeWidth={1.8} />
+              </div>
               <span
                 className="text-[10px] font-bold uppercase tracking-[0.35em]"
                 style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
