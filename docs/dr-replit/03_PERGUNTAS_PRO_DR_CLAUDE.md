@@ -204,3 +204,48 @@ que estão na fila pós-Dashboard):
 
 Sugestão Dr. Replit: atacar #4 antes do Dashboard porque bagunça os
 dados que o Dashboard vai mostrar.
+
+---
+
+## ✅ RESOLUÇÕES P001–P007 (21/mai/2026)
+
+Dr. Claude respondeu em `docs/dr-claude/18_SPEC_DASHBOARD_CLIENTE_E_PULSO_DIARIO.md`
+(spec aprovada). Resumo das decisões:
+
+| # | Decisão | Implementação Dr. Replit |
+|---|---------|--------------------------|
+| P001 | **Híbrido (C)** — "Pulso Diário" é camada de apresentação sobre 4 tabelas existentes, zero migração de dados. | `artifacts/api-server/src/services/pulsoDiarioService.ts` agrega leitura/escrita das 4 tabelas. |
+| P002 | **Fase 1 = portal web (B1)**, WhatsApp (B2) depois. Token nanoid(12) + TTL 30d na tabela pacientes. | Migration 078 + `routes/portalPulso.ts` (público, sem JWT) + whitelist em `requireAuth.ts`. |
+| P003 | **mg absolutos** (sem normalização farmacológica), 2 séries separadas alopático/magistral, marcadores visuais por evento REVO. | Pendente — endpoint `GET /pacientes/:id/trajetoria-integrativa` virá na Wave E. |
+| P004 | **Tabela dentro do Dashboard** + drill-down gráfico individual via clique no exame. Endpoint `/exames/comparativo?ultimas=5`. | Pendente — `ExamesEvolucaoTabela.tsx` virá na Wave E. |
+| P005 | **Substituir** `/pacientes/:id` com 4 abas (Identidade, Pulso Diário, Exames, Trajetória). Cockpit fica em `/cockpit` separado. | Pendente — Wave C/D/E. |
+| P006 | **Fonte única** `questionario_master` com `aplicavel_em TEXT[]` + `tipo_evento` em `questionario_respostas`. | Migration 079 aplicada. Backfill conservador: 1ª resposta de cada paciente = INICIAL, demais = ACOMPANHAMENTO. |
+| P007 | Atacar bugs antes do Dashboard (#4 crítico → #3 → #2). | ✅ **Os 3 bugs já fechados** em wave anterior (commit cef46a9), antes da chegada da spec. |
+
+### ➕ P008 — Sincronização do schema Drizzle de `pacientes`
+
+**Contexto:** Auditoria de 21/mai descobriu que `lib/db/src/schema/pacientes.ts`
+tem ~24 colunas a menos do que o banco real (heranças de migrations diretas
+sem atualizar o Drizzle). Hoje colunas como `numero_endereco`, `pulso_diario_token`,
+`pulso_diario_token_expira_em` foram adicionadas pontualmente, mas falta um
+varredor completo.
+
+**Risco:** `pnpm db push` está PERIGOSO — propõe renomear colunas reais de
+produção. Bloqueado por convenção interna até P008 ser resolvida.
+
+**Pergunta:** posso rodar uma task de housekeeping cruzando
+`information_schema.columns` × schema Drizzle e gerando o diff pra sincronizar
+tudo de uma vez (puramente aditivo, sem DROP), ou prefere caminho gradual?
+
+### ➕ P009 — Perguntas do cadastro Drive em `questionario_master`
+
+**Contexto:** Caio reforçou em 21/mai: "lembre que deve haver as mesmas
+perguntas que existem no cadastro do Drive. Mantenha o que tem e acrescente o
+que for necessário". Hoje a planilha `ficha_cadastral_sheet_id` em pacientes
+tem perguntas que ainda não estão em `questionario_master`.
+
+**Pergunta:** existe export estruturado da planilha (CSV/JSON) que eu possa
+ler pra fazer INSERT idempotente em `questionario_master` com
+`aplicavel_em=['INICIAL']` (mais ACOMPANHAMENTO quando faz sentido — sintomas,
+hábitos)? Ou prefere que eu leia direto via Google Sheets API usando o
+integration `google-drive` já instalado?

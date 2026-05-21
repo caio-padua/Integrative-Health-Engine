@@ -51,6 +51,23 @@ A ponte oficial pro Dr. Claude ler tudo via raw GitHub é a pasta
   ativa, botão PAINEL TÁTICO no header do paciente, `abrirPdfAutenticado` com JWT,
   `PainelSinapticoBanner` plugado nos 6 dashboards premium (deep navy + border-left
   3px neon ciano + JetBrains Mono uppercase + donut SVG com glow).
+- **Wave Dashboard Local + Pulso Diário — A+B backend** (21/mai) — Spec 18
+  Dr. Claude (`docs/dr-claude/18_SPEC_DASHBOARD_CLIENTE_E_PULSO_DIARIO.md`)
+  decisões P001-P007. Migration 078 (`pulso_diario_token` + TTL em pacientes,
+  índice parcial), migration 079 (`aplicavel_em TEXT[]` em `questionario_master`
+  + `tipo_evento` com CHECK em `questionario_respostas`, backfill 1ª resposta
+  = INICIAL). Service `pulsoDiarioService.ts` agrega 4 tabelas (tracking_sintomas
+  + monitoramento_sinais_vitais + acompanhamento_formula + alerta_paciente) num
+  DTO único — decisão híbrida P001-C, zero migração de dados. Rotas autenticadas
+  `GET/POST /pacientes/:id/pulso-diario` + `POST /pacientes/:id/pulso-diario/gerar-token`
+  com `autorizarAcessoPaciente` fechando IDOR cross-unidade. Rotas públicas
+  `GET/POST /portal-paciente/pulso/:token` (whitelist em `requireAuth.ts`,
+  validação por token nanoid(9 bytes base64url → 12 chars) + TTL 30d, grava
+  com `origem='PACIENTE'`). Schema Drizzle ganhou `pulsoDiarioToken` e
+  `pulsoDiarioTokenExpiraEm`. Próximas waves: C (shell 4 abas), D (Pulso UI +
+  portal frontend), E (Exames Evolução tabela + Trajetória Integrativa).
+  Bloqueios: P008 (sync schema Drizzle ~24 colunas), P009 (importar perguntas
+  da planilha Drive pro `questionario_master`).
 - **Wave Bugs Cadastro Paciente #2/#3/#4** (21/mai) — Bug #2: campo NÚMERO
   separado do logradouro (reaproveita coluna `pacientes.numero_endereco` que já
   existia no banco, mapeada como `numeroEndereco` no schema Drizzle/OpenAPI/Zod;

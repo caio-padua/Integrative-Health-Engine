@@ -41,6 +41,11 @@ export const pacientesTable = pgTable("pacientes", {
   gestante: boolean("gestante").notNull().default(false),
   fototipoFitzpatrick: text("fototipo_fitzpatrick", { enum: ["I", "II", "III", "IV", "V", "VI"] }),
   atividadeFisica: text("atividade_fisica", { enum: ["sedentario", "leve", "moderado", "intenso", "atleta"] }),
+  // Wave Dashboard Local + Pulso Diário (21/mai/2026) · migration 078.
+  // Token nanoid(12) + TTL pra portal web do paciente acessar sem JWT.
+  // Spec: docs/dr-claude/18_SPEC_DASHBOARD_CLIENTE_E_PULSO_DIARIO.md (P002).
+  pulsoDiarioToken: text("pulso_diario_token"),
+  pulsoDiarioTokenExpiraEm: timestamp("pulso_diario_token_expira_em", { withTimezone: true }),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

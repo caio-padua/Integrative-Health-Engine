@@ -50,6 +50,10 @@ const PUBLIC_PREFIXES = [
   "/parq/verificar-hash/",
   "/parq/assinar-farmacia-",
   "/parq/status-farmacia/",
+  // Wave Dashboard Local + Pulso Diário (21/mai/2026) · paciente acessa
+  // formulário do Pulso Diário via link curto (nanoid 12 + TTL), sem JWT.
+  // Validação fica no service `validarTokenPortalPulso` (token + expiração).
+  "/portal-paciente/pulso/",
 ];
 
 function isPublic(path: string): boolean {
