@@ -117,38 +117,8 @@ export default function Login() {
         }}
       />
 
-      {/* Assinaturas institucionais — réplica fiel do rodapé WhatsApp.
-          Esquerda: PAWARDS MedCore® · Clinical Intelligence System
-          Direita: PADCON Platform® · Advanced Systems Architecture
-          Sem moldura, sem caixa — texto puro, respiração total. */}
-      <div className="absolute top-6 left-8 z-10 hidden md:block">
-        <div
-          className="text-[9px] font-bold uppercase tracking-[0.4em]"
-          style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          PAWARDS MedCore<sup style={{ color: CYAN, fontSize: "7px" }}>®</sup>
-        </div>
-        <div
-          className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
-          style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          Clinical Intelligence System
-        </div>
-      </div>
-      <div className="absolute top-6 right-8 z-10 hidden md:block text-right">
-        <div
-          className="text-[9px] font-bold uppercase tracking-[0.4em]"
-          style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          PADCON Platform<sup style={{ color: CYAN, fontSize: "7px" }}>®</sup>
-        </div>
-        <div
-          className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
-          style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          Advanced Systems Architecture
-        </div>
-      </div>
+      {/* As assinaturas PAWARDS / PADCON foram movidas pro canto
+          inferior direito do painel (maiores e em bloco coeso). */}
 
       {/* PAINEL HORIZONTAL — sem moldura externa dourada.
           Layout 2 colunas: esquerda (logo + branding + citação) /
@@ -165,82 +135,60 @@ export default function Login() {
             borderBottom: `1px solid ${GOLD}66`,
           }}
         >
-          {/* ============ COLUNA ESQUERDA — IDENTIDADE ============ */}
+          {/* ============ COLUNA ESQUERDA — IDENTIDADE ============
+              Padding-top idêntico à direita pra que o TOPO do símbolo
+              fique alinhado com o label "IDENTIFICAÇÃO" do formulário.
+              Logo h-52 (~208px) garante que a base do wordmark
+              "PAWARDS MEDCORE" fique na mesma linha do BOTÃO Entrar. */}
           <div
-            className="relative flex flex-col justify-between px-10 py-12 md:border-r"
+            className="relative flex flex-col px-10 pt-12 pb-8 md:border-r"
             style={{ borderColor: `${GOLD}22` }}
           >
-            {/* Selo discreto canto sup esq */}
+            {/* Selo discreto canto sup esq — define linha-base do topo */}
             <div
-              className="text-[9px] font-bold uppercase tracking-[0.5em] mb-8"
+              className="text-[10px] font-bold uppercase tracking-[0.5em] mb-7 flex items-center gap-2"
               style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
             >
-              <span className="inline-block w-2 h-2 mr-2 align-middle" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
+              <span className="inline-block w-2 h-2" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
               Acesso Restrito
             </div>
 
-            {/* Logo grande, alinhado à esquerda, sem moldura */}
-            <div className="flex-1 flex flex-col justify-center">
+            {/* Logo grande, alinhado à esquerda, sem moldura.
+                Container fixo h-52 espelhando altura combinada dos 2
+                inputs + botão à direita (label+input+gap+label+input+
+                gap+botão ≈ 208px). */}
+            <div className="flex flex-col items-start">
               <img
                 src={`${import.meta.env.BASE_URL}logo-pawards-medcore-transparent.png`}
                 alt="PAWARDS MedCore"
-                className="h-48 w-auto object-contain object-left"
+                className="h-52 w-auto object-contain object-left"
                 style={{
                   filter: "drop-shadow(0 0 32px rgba(212,175,55,0.4)) drop-shadow(0 0 12px rgba(212,175,55,0.22))",
                 }}
                 data-testid="login-logo-principal"
               />
               <div
-                className="mt-5 text-[10px] uppercase tracking-[0.4em]"
+                className="mt-4 text-[10px] uppercase tracking-[0.4em]"
                 style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
               >
                 Motor Clínico Integrativo
               </div>
             </div>
-
-            {/* CITAÇÃO INTEGRADA — conectada visualmente ao logo
-                via barra dourada vertical à esquerda. Nome do fundador
-                fica na MESMA linha-base da frase (não solto embaixo),
-                garantindo coesão TDAH-friendly. */}
-            <figure
-              className="mt-10 pl-5 relative"
-              data-testid="login-citacao"
-              style={{ borderLeft: `2px solid ${GOLD}` }}
-            >
-              <blockquote
-                className="text-[13px] italic leading-relaxed"
-                style={{
-                  color: INK,
-                  fontFamily: "'Georgia', serif",
-                  letterSpacing: "0.01em",
-                }}
-              >
-                A excelência clínica começa pela consciência operacional.
-              </blockquote>
-              <figcaption
-                className="mt-3 text-[9px] uppercase tracking-[0.4em] flex items-center gap-2"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                <span style={{ color: GOLD }}>Caio Pádua</span>
-                <span style={{ color: `${GOLD}66` }}>—</span>
-                <span style={{ color: INK_MUTED }}>Fundador, Pawards Medcore</span>
-              </figcaption>
-            </figure>
           </div>
 
           {/* ============ COLUNA DIREITA — FORMULÁRIO ============ */}
-          <div className="relative flex flex-col justify-center px-10 py-12">
-            {/* Selo discreto canto sup dir */}
+          <div className="relative flex flex-col px-10 pt-12 pb-8">
+            {/* Selo discreto canto sup dir — espelha "Acesso Restrito" */}
             <div
-              className="text-[9px] font-bold uppercase tracking-[0.5em] mb-8 text-right"
+              className="text-[10px] font-bold uppercase tracking-[0.5em] mb-7 flex items-center gap-2 justify-end"
               style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
             >
               Entrada Segura
-              <span className="inline-block w-2 h-2 ml-2 align-middle" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
+              <span className="inline-block w-2 h-2" style={{ background: CYAN, boxShadow: `0 0 6px ${CYAN}` }} />
             </div>
 
             {/* CONTEÚDO DINÂMICO — mantém os 3 estados originais */}
-            <div className="flex-1 flex flex-col justify-center">
+            <div className="flex-1 flex flex-col">
               {avisoRecuperacao ? (
                 <div className="space-y-5" data-testid="banner-recuperacao-2fa">
                   <div className="p-4 border-l-[3px]" style={{ background: "rgba(245,185,70,0.08)", borderLeftColor: "#F5B946" }} role="alert">
@@ -434,9 +382,91 @@ export default function Login() {
           {/* fim grid 2 colunas */}
         </div>
 
+        {/* FAIXA INFERIOR — citação institucional centralizada
+            (alinhada visualmente entre a coluna do logo e a coluna
+            dos inputs) + bloco de assinaturas PAWARDS / PADCON no
+            canto inferior direito, maiores e em bloco coeso.
+            Grid 3 colunas: spacer-esquerdo / citação centro /
+            assinaturas direita. Garante que a citação fique
+            opticamente centrada entre o eixo do logo e o eixo
+            dos campos de entrada. */}
+        <div
+          className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 px-10 py-6"
+          style={{ background: NAVY_DEEP, borderTop: `1px solid ${GOLD}33` }}
+        >
+          {/* Coluna esquerda — spacer (mantém centro óptico) */}
+          <div />
+
+          {/* Citação centralizada */}
+          <figure
+            className="text-center max-w-[520px] mx-auto"
+            data-testid="login-citacao"
+          >
+            <blockquote
+              className="text-[13px] italic leading-relaxed"
+              style={{
+                color: INK,
+                fontFamily: "'Georgia', serif",
+                letterSpacing: "0.01em",
+              }}
+            >
+              “A excelência clínica começa pela consciência operacional.”
+            </blockquote>
+            <figcaption
+              className="mt-2 text-[9px] uppercase tracking-[0.4em] flex items-center justify-center gap-2"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <span className="inline-block w-4 h-px" style={{ background: GOLD }} />
+              <span style={{ color: GOLD }}>Caio Pádua</span>
+              <span style={{ color: `${GOLD}66` }}>—</span>
+              <span style={{ color: INK_MUTED }}>Fundador, Pawards Medcore</span>
+              <span className="inline-block w-4 h-px" style={{ background: GOLD }} />
+            </figcaption>
+          </figure>
+
+          {/* BLOCO ASSINATURAS — canto inferior direito.
+              PAWARDS MedCore® e PADCON Platform® empilhados,
+              tamanho aumentado (text-xs / tracking maior), separados
+              por filete dourado. Réplica fiel do rodapé WhatsApp. */}
+          <div
+            className="justify-self-end text-right pl-6"
+            style={{ borderLeft: `1px solid ${GOLD}33` }}
+            data-testid="login-assinaturas"
+          >
+            <div
+              className="text-[12px] font-bold uppercase tracking-[0.35em]"
+              style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              PAWARDS MedCore<sup style={{ color: CYAN, fontSize: "8px" }}>®</sup>
+            </div>
+            <div
+              className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
+              style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              Clinical Intelligence System
+            </div>
+            <div
+              className="my-2 h-px"
+              style={{ background: `${GOLD}44` }}
+            />
+            <div
+              className="text-[12px] font-bold uppercase tracking-[0.35em]"
+              style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              PADCON Platform<sup style={{ color: CYAN, fontSize: "8px" }}>®</sup>
+            </div>
+            <div
+              className="text-[8px] mt-0.5 tracking-[0.3em] uppercase italic"
+              style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              Advanced Systems Architecture
+            </div>
+          </div>
+        </div>
+
         {/* RÉGUA DE SELOS DE SEGURANÇA — full-width abaixo do painel.
-            6 certificações reais, espaçadas igualmente (TDAH/TOC).
-            Hover mostra tooltip sem mover layout. */}
+            6 certificações reais, ícones MAIORES (w-4) e label legível
+            (text-[10px]) pra ganhar peso visual conforme pedido. */}
         <div
           className="grid grid-cols-6"
           style={{ background: NAVY_DEEP, borderTop: `1px solid ${GOLD}33`, borderBottom: `1px solid ${GOLD}33` }}
@@ -453,29 +483,18 @@ export default function Login() {
             <div
               key={label}
               title={titulo}
-              className="flex items-center justify-center gap-2 py-3 border-r last:border-r-0"
+              className="flex items-center justify-center gap-3 py-4 border-r last:border-r-0"
               style={{ borderColor: `${GOLD}15` }}
             >
-              <Icone className="w-3 h-3" style={{ color: CYAN, opacity: 0.85 }} strokeWidth={1.5} />
+              <Icone className="w-5 h-5" style={{ color: CYAN, opacity: 0.9 }} strokeWidth={1.5} />
               <span
-                className="text-[8px] font-bold uppercase tracking-[0.3em]"
+                className="text-[10px] font-bold uppercase tracking-[0.35em]"
                 style={{ color: GOLD, fontFamily: "'JetBrains Mono', monospace" }}
               >
                 {label}
               </span>
             </div>
           ))}
-        </div>
-
-        {/* Rodapé externo — assinatura institucional dupla
-            espelhando o rodapé do WhatsApp oficial. */}
-        <div
-          className="mt-6 flex items-center justify-center gap-4 text-[8px] uppercase tracking-[0.35em]"
-          style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          <span style={{ color: GOLD }}>PAWARDS MedCore<sup style={{ color: CYAN, fontSize: "6px" }}>®</sup></span>
-          <span style={{ color: HAIRLINE }}>│</span>
-          <span style={{ color: GOLD }}>PADCON Platform<sup style={{ color: CYAN, fontSize: "6px" }}>®</sup></span>
         </div>
       </div>
     </div>
