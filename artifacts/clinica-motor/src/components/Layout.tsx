@@ -303,7 +303,7 @@ export function Layout({ children }: { children: ReactNode }) {
       "dietas", "psicologia", "questionario-master", "consultorias", "contratos", "lembretes-falhas", "mensagens",
       "exames", "inundacao", "blueprint", "agendas", "governanca-matrix",
       "painel-nfe", "gateways-pagamento", "credenciais-nfe", "identidade-emails",
-      "craniotomia",
+      "craniotomia", "galeria-mockups",
     ],
     consultor_campo: [
       "delegacao", "colaboradores", "pacientes", "anamnese", "followup", "agenda",
@@ -332,6 +332,7 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "🏛️ Blueprint Arquitetura", path: "/blueprint", icon: Building, slug: "blueprint" },
         { name: "💧 Inundação Genesis", path: "/inundacao", icon: Database, slug: "inundacao" },
         { name: "🧠 Craniotomia (Motor)", path: "/craniotomia", icon: Brain, slug: "craniotomia" },
+        { name: "🖼️ Galeria de Mockups", path: "/galeria-mockups", icon: Grid3X3, slug: "galeria-mockups" },
       ],
     },
     {

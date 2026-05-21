@@ -104,6 +104,7 @@ import PreviewParametrizacaoExames from "@/pages/preview-parametrizacao-exames";
 import PreviewExamesGrafico from "@/pages/preview-exames-grafico";
 import PreviewMenu from "@/pages/preview-menu";
 import CraniotomiaPage from "@/pages/craniotomia";
+import GaleriaMockupsPage from "@/pages/galeria-mockups";
 // PADCOM V15 — Anamnese Integrativa Estruturada (Manus Bundle)
 import PadcomPaciente from "@/pages/padcom/paciente";
 import PadcomConcluido from "@/pages/padcom/concluido";
@@ -154,6 +155,7 @@ function Router() {
       <Route path="/preview-exames-grafico" component={PreviewExamesGrafico} />
       <Route path="/preview-menu" component={PreviewMenu} />
       <Route path="/craniotomia" component={CraniotomiaPage} />
+      <Route path="/galeria-mockups" component={GaleriaMockupsPage} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard-global" component={DashboardGlobal} />
       <Route path="/admin/farmacias" component={FarmaciasParmavault} />
