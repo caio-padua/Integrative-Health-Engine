@@ -20,6 +20,7 @@ import { Platform2faHeaderIndicator } from "@/lib/Platform2faHeaderIndicator";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-fetch";
+import { TopProgressBar } from "./TopProgressBar";
 
 // Task #168 — campainha global de alertas de seguranca (2FA brute-force)
 // pendentes. Polla o endpoint leve /contagem a cada 60s. Endpoint exige
@@ -300,12 +301,12 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const sound = useSound();
 
-  if (!user) return <>{children}</>;
+  if (!user) return <><TopProgressBar />{children}</>;
 
   const VISIBILIDADE_POR_ESCOPO: Record<string, string[]> = {
     consultoria_master: [
       "dashboard", "dashboard-local", "monetizar", "demandas-resolucao",
-      "painel-comando", "governanca", "justificativas", "matriz-analitica",
+      "painel-comando", "governanca", "justificativas", "matriz-analitica", "identidade-visual",
       "agenda-motor", "anamnese", "validacao",
       "filas", "pacientes", "itens-terapeuticos", "protocolos", "followup",
       "financeiro", "unidades", "fluxos", "pedidos-exame", "substancias",
@@ -427,6 +428,7 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Gateways Pagto", path: "/gateways-pagamento", icon: CreditCard, slug: "gateways-pagamento" },
         { name: "Credenciais NFe & Logo", path: "/credenciais-nfe", icon: KeyRound, slug: "credenciais-nfe" },
         { name: "Identidade de E-mails", path: "/identidade-emails", icon: AtSign, slug: "identidade-emails" },
+        { name: "Identidade Visual", path: "/identidade-visual", icon: Diamond, slug: "identidade-visual" },
         { name: "Fluxos Aprovação", path: "/fluxos", icon: GitBranch, slug: "fluxos" },
         { name: "Permissões", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
         { name: "Segurança", path: "/seguranca", icon: Lock, slug: "seguranca" },
@@ -468,6 +470,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
+      <TopProgressBar />
       <aside className="w-72 border-r border-border bg-sidebar flex flex-col">
         <div className="h-16 flex items-center px-5 border-b border-border">
           <div className="w-9 h-9 flex items-center justify-center bg-white/90 border border-border mr-3 p-1">
