@@ -18,6 +18,7 @@ export interface Paciente {
   email?: string;
   cep?: string;
   endereco?: string;
+  numeroEndereco?: string | null;
   complemento?: string;
   bairro?: string;
   cidade?: string;

@@ -1280,6 +1280,9 @@ components:
           type: string
         endereco:
           type: string
+        numeroEndereco:
+          type: string
+          nullable: true
         complemento:
           type: string
         bairro:
@@ -1354,6 +1357,8 @@ components:
         cep:
           type: string
         endereco:
+          type: string
+        numeroEndereco:
           type: string
         complemento:
           type: string

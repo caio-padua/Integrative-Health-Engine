@@ -39,6 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useSearch } from "wouter";
 import { useClinic } from "@/contexts/ClinicContext";
+import { useToast } from "@/hooks/use-toast";
 
 import { apiFetch } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
@@ -87,6 +88,11 @@ const pacienteSchema = z.object({
   email: z.string().email("E-mail invalido").optional().or(z.literal("")),
   cep: z.string().optional(),
   endereco: z.string().optional(),
+  // Bug #2 (21/mai/2026): coluna `numero_endereco` (camelCase
+  // `numeroEndereco`) JÁ EXISTIA no banco — só faltava plugar no schema
+  // Drizzle + Zod + JSX. ViaCEP não devolve número → input manual,
+  // opcional no schema porque alguns endereços (sítio, fazenda) não têm.
+  numeroEndereco: z.string().optional(),
   complemento: z.string().optional(),
   bairro: z.string().optional(),
   cidade: z.string().optional(),
@@ -147,7 +153,7 @@ const URL_TO_ORDENACAO_PAC: Record<string, OrdenacaoPaciente> = (() => {
 // igual, pra preservar memoria ja gravada nas contas dos usuarios).
 
 export default function Pacientes() {
-  const { unidadeSelecionada } = useClinic();
+  const { unidadeSelecionada, unidadesDisponiveis } = useClinic();
   const { user } = useAuth();
   const [busca, setBusca] = useState("");
   // Task #98 — estado de ordenacao multi-coluna.
@@ -194,16 +200,20 @@ export default function Pacientes() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const criarPaciente = useCriarPaciente();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof pacienteSchema>>({
     resolver: zodResolver(pacienteSchema),
     defaultValues: {
       nome: "", cpf: "", telefone: "", email: "",
-      cep: "", endereco: "", complemento: "", bairro: "", cidade: "", estado: "", pais: "Brasil",
-      // Default usa unidade selecionada no switcher (TDAH: respeita contexto).
-      // Cai pra 1 quando em "Visão Global" ou sem unidade — usuário deve
-      // trocar manualmente se 1 não for o destino certo.
-      unidadeId: unidadeSelecionada ?? 1,
+      cep: "", endereco: "", numeroEndereco: "", complemento: "", bairro: "", cidade: "", estado: "", pais: "Brasil",
+      // Bug #4 (21/mai/2026): NÃO existe mais fallback `?? 1`. Antes,
+      // quando o usuário estava em "Visão Global" (unidadeSelecionada=null)
+      // o paciente nascia órfão na unidade 1 (que pode não ser nem clínica
+      // ativa). Agora deixamos 0 e o Zod min(1) bloqueia avanço do step 1
+      // até o usuário escolher uma unidade no SELECT que aparece quando
+      // contexto é Global. Backend valida de novo (defesa em profundidade).
+      unidadeId: unidadeSelecionada ?? 0,
       genero: "nao_informado",
       gestante: false,
     }
@@ -233,7 +243,7 @@ export default function Pacientes() {
   const camposPorStep: Record<StepN, (keyof z.infer<typeof pacienteSchema>)[]> = {
     1: ["nome", "telefone", "cpf", "email", "genero", "unidadeId"],
     2: ["alturaCm", "pesoKg", "fototipoFitzpatrick", "atividadeFisica", "gestante", "alergias", "condicoesClinicas", "medicamentosContinuos"],
-    3: ["cep", "endereco", "complemento", "bairro", "cidade", "estado", "pais"],
+    3: ["cep", "endereco", "numeroEndereco", "complemento", "bairro", "cidade", "estado", "pais"],
     4: ["fotoRosto", "fotoCorpo", "googleDriveFolderId", "planoAcompanhamento"],
     5: ["pagamentoTitularNome", "pagamentoCartaoUltimos4Digitos", "pagamentoCartaoBandeira", "notaFiscalCnpj", "notaFiscalRazaoSocial"],
   };
@@ -289,7 +299,58 @@ export default function Pacientes() {
         queryClient.invalidateQueries({ queryKey: getListarPacientesQueryKey() });
         setOpen(false);
         form.reset();
-      }
+        toast({ title: "Paciente cadastrado", description: `${values.nome} foi adicionado com sucesso.` });
+      },
+      // Bug #3 (21/mai/2026): antes do fix, falha no POST /pacientes (400/500)
+      // ficava engolida pelo useMutation sem feedback visual — modal travava
+      // mostrando "Salvando…" indefinidamente. Agora extraímos a mensagem
+      // do backend (ex.: "Unidade ID 99 não existe…") e mostramos toast.
+      onError: (err: unknown) => {
+        const mensagem = (() => {
+          const e = err as { response?: { data?: { error?: string } }; message?: string };
+          return e?.response?.data?.error || e?.message || "Erro desconhecido ao cadastrar paciente.";
+        })();
+        toast({
+          title: "Falha ao cadastrar paciente",
+          description: mensagem,
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
+  // Bug #4 hardening (code review architect 21/mai): quando o modal abre,
+  // ressincroniza o unidadeId com o contexto atual do switcher. Sem isso,
+  // se o usuário troca de unidade no switcher DEPOIS do mount mas ANTES
+  // de abrir o modal, o defaultValue do form ficaria stale na unidade
+  // antiga e o paciente poderia ir pro lugar errado.
+  useEffect(() => {
+    if (open) {
+      form.setValue("unidadeId", unidadeSelecionada ?? 0);
+    }
+  }, [open, unidadeSelecionada, form]);
+
+  // Bug #3 (21/mai/2026): handler explícito de validação inválida. Antes,
+  // se o usuário avançava pra etapa 5 com algum campo de etapa anterior
+  // inválido (ex.: e-mail mal formatado em step 1, URL de foto quebrada
+  // em step 4), o click em "Cadastrar Paciente" disparava handleSubmit que
+  // chamava só onValid — onSubmit nunca rodava e nada acontecia visualmente
+  // ("modal trava"). Agora detectamos qual etapa tem o erro e voltamos
+  // automaticamente pra lá + toast claro.
+  const onSubmitInvalido = (errors: Record<string, unknown>) => {
+    const camposComErro = Object.keys(errors);
+    if (camposComErro.length === 0) return;
+    const etapaComErro = ([1, 2, 3, 4, 5] as StepN[]).find((n) =>
+      camposPorStep[n].some((c) => camposComErro.includes(c as string))
+    );
+    if (etapaComErro && etapaComErro !== step) {
+      setStep(etapaComErro);
+    }
+    const labelEtapa = etapaComErro ? STEPS[etapaComErro - 1].label : "anterior";
+    toast({
+      title: `Corrija a etapa "${labelEtapa}"`,
+      description: `Campos com problema: ${camposComErro.join(", ")}.`,
+      variant: "destructive",
     });
   };
 
@@ -385,7 +446,7 @@ export default function Pacientes() {
               </DialogHeader>
 
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[calc(92vh-180px)]">
+                <form onSubmit={form.handleSubmit(onSubmit, onSubmitInvalido)} className="flex flex-col max-h-[calc(92vh-180px)]">
                   <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
                     {/* ━━━━━━━━ STEP 1: IDENTIDADE ━━━━━━━━ */}
@@ -429,6 +490,42 @@ export default function Pacientes() {
                           <FormItem>
                             <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1"><AtSign className="w-3 h-3" /> E-mail</FormLabel>
                             <FormControl><Input type="email" {...field} placeholder="paciente@exemplo.com" className="rounded-none border-slate-800 focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+
+                        {/* Bug #4 (21/mai/2026): SELECT de Unidade aparece SEMPRE em
+                            "Visão Global" pra forçar escolha explícita. Quando o
+                            usuário já tem unidade selecionada no switcher do header,
+                            usamos esse valor como default mas ainda mostramos como
+                            chip "travado" pra ele saber onde vai cair o cadastro. */}
+                        <FormField control={form.control} name="unidadeId" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                              🏥 Unidade Destino *
+                              {unidadeSelecionada === null && (
+                                <span className="ml-2 text-[10px] text-[#E07A5F] font-normal normal-case tracking-normal italic">
+                                  Visão Global ativa — escolha manualmente
+                                </span>
+                              )}
+                            </FormLabel>
+                            <Select
+                              value={field.value && field.value > 0 ? String(field.value) : ""}
+                              onValueChange={(v) => field.onChange(Number(v))}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="rounded-none border-slate-800 focus:border-[#5B8DEF] focus:ring-[#5B8DEF]/20" data-testid="select-unidade-destino">
+                                  <SelectValue placeholder="Selecione a unidade que vai receber este paciente" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {unidadesDisponiveis.map((u) => (
+                                  <SelectItem key={u.unidadeId} value={String(u.unidadeId)}>
+                                    {u.unidadeNome}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -583,30 +680,43 @@ export default function Pacientes() {
                           <div className="col-span-2">
                             <FormField control={form.control} name="endereco" render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Endereço</FormLabel>
-                                <FormControl><Input {...field} placeholder="Rua, número" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
+                                <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Logradouro</FormLabel>
+                                <FormControl><Input {...field} placeholder="Rua / Avenida / Travessa" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )} />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <FormField control={form.control} name="complemento" render={({ field }) => (
+                        {/* Bug #2 (21/mai/2026): NÚMERO em campo próprio. Antes,
+                            ViaCEP só devolve logradouro e o número ia concatenado
+                            na string da rua — impossível filtrar/imprimir separado. */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <FormField control={form.control} name="numeroEndereco" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Número</FormLabel>
+                              <FormControl><Input {...field} placeholder="123 / S/N" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20 font-mono" data-testid="input-numero-endereco" /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <div className="col-span-2">
+                            <FormField control={form.control} name="complemento" render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Complemento</FormLabel>
                               <FormControl><Input {...field} placeholder="Apto, Sala, Bloco…" className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )} />
-                          <FormField control={form.control} name="bairro" render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Bairro</FormLabel>
-                              <FormControl><Input {...field} className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
+                          </div>
                         </div>
+
+                        <FormField control={form.control} name="bairro" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Bairro</FormLabel>
+                            <FormControl><Input {...field} className="rounded-none border-slate-800 focus:border-[#F5B946] focus:ring-[#F5B946]/20" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
 
                         <div className="grid grid-cols-3 gap-3">
                           <FormField control={form.control} name="cidade" render={({ field }) => (

@@ -51,6 +51,18 @@ A ponte oficial pro Dr. Claude ler tudo via raw GitHub é a pasta
   ativa, botão PAINEL TÁTICO no header do paciente, `abrirPdfAutenticado` com JWT,
   `PainelSinapticoBanner` plugado nos 6 dashboards premium (deep navy + border-left
   3px neon ciano + JetBrains Mono uppercase + donut SVG com glow).
+- **Wave Bugs Cadastro Paciente #2/#3/#4** (21/mai) — Bug #2: campo NÚMERO
+  separado do logradouro (reaproveita coluna `pacientes.numero_endereco` que já
+  existia no banco, mapeada como `numeroEndereco` no schema Drizzle/OpenAPI/Zod;
+  sem migration nova). Bug #3: modal não trava mais na etapa 5 — `useToast` +
+  `handleSubmit(onValid, onSubmitInvalido)` detecta etapa com erro, volta automático
+  e mostra toast claro; `onError` do `useMutation` extrai mensagem do backend.
+  Bug #4: removido fallback órfão `unidadeSelecionada ?? 1` (agora `?? 0` bloqueado
+  por Zod `min(1)`); SELECT "Unidade Destino" sempre presente no step 1 com badge
+  laranja "Visão Global ativa — escolha manualmente"; backend valida existência
+  da unidade e devolve 400 com mensagem. Desvio D001 + D002 em `docs/dr-replit/`.
+  Dívida técnica: schema Drizzle de `pacientes` está dessincronizado em ~24
+  colunas vs banco real — `pnpm db push` é PERIGOSO até sincronizar (P008).
 
 ## User Preferences
 

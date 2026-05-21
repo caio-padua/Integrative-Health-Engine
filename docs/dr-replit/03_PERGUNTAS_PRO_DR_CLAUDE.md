@@ -112,6 +112,43 @@ Recharts (linha do tempo), não tabela comparativa.
 gráfico atual fica como "drill-down" (clica no exame da tabela → abre
 gráfico individual com tendência).
 
+### P004.1 — 5 zonas clicáveis como filtros independentes (refinamento Caio 21/mai)
+
+O mockup HTML enviado pelo Caio (`exames_patricia_comparativo`) usa 4
+botões pill agregados: `Todos / 🔴 Alterados / 🟠 Atenção / 🟢 Normais`.
+
+**Caio explicitou em 21/mai/2026:** quer que as **5 zonas individuais
+do motor 5-zonas** sejam botões clicáveis também, não só agregados:
+
+| Zona | Cor sugerida | Significado |
+|---|---|---|
+| 🟣 PREOCUPANTE | Roxo | Abaixo do mínimo de referência (`ALERTA <min`) |
+| 🟡 BAIXO | Amarelo | Dentro da faixa, terço 1 (`INFERIOR`) |
+| 🟢 MEDIANO | Verde | Dentro da faixa, terço 2 (`MEDIO`) |
+| 🔵 ÓTIMO | Azul | Dentro da faixa, terço 3 (`SUPERIOR`) |
+| 🔴 ALERTA | Vermelho | Acima do máximo de referência (`ATENCAO`) |
+
+Comportamento desejado:
+- **Modo agregado (4 botões):** Todos / 🔴Alterados (=PREOCUPANTE+ALERTA) /
+  🟠Atenção (=BAIXO+ÓTIMO, faixas extremas dentro do normal) / 🟢Normais
+  (=MEDIANO).
+- **Modo zona (5 botões):** filtra apenas exames classificados naquela
+  zona específica.
+- **Combinável:** clicar em múltiplas zonas faz OR. Ex.: clica
+  PREOCUPANTE + ALERTA → mostra só fora da faixa de referência.
+- **Estado visual:** botão clicado fica preenchido com a cor da zona,
+  os demais ficam outline.
+- **Atenção semântica:** quando o analito tem `terco_excelente=SUPERIOR`
+  (ex.: testosterona), o azul (terço 3) é DESEJÁVEL; quando
+  `terco_excelente=INFERIOR` (ex.: PCR), o azul é INDESEJÁVEL. O filtro
+  deve respeitar isso na coluna "Interpretação Curta" mas o botão de
+  zona em si filtra pelo terço bruto.
+
+Sua spec deve definir se os 4 botões agregados e os 5 botões de zona
+ficam em **duas linhas separadas** (recomendação Dr. Replit) ou em uma
+única linha com 9 botões. Backend não muda — `motorClassificacaoIntegrativa.ts`
+já retorna a zona, basta o frontend filtrar.
+
 ---
 
 ## P005 — Dashboard Local: rota nova OU aba dentro do Cockpit?

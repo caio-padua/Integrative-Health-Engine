@@ -12,6 +12,13 @@ export const pacientesTable = pgTable("pacientes", {
   email: text("email"),
   cep: text("cep"),
   endereco: text("endereco"),
+  // Bug #2 (21/mai/2026): coluna `numero_endereco` JÁ EXISTE no banco
+  // (criada por wave anterior, descoberta na auditoria information_schema
+  // de 21/mai). Só faltava expor no schema Drizzle pra TypeScript +
+  // formulário usarem. Nenhuma migration necessária. Antes vinha tudo
+  // concatenado em `endereco` ("Rua, número") porque ViaCEP não retorna
+  // número e o campo separado existia mas não estava plugado.
+  numeroEndereco: text("numero_endereco"),
   complemento: text("complemento"),
   bairro: text("bairro"),
   cidade: text("cidade"),

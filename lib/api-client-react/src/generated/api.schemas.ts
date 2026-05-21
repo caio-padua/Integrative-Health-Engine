@@ -53,6 +53,7 @@ export interface Paciente {
   email?: string;
   cep?: string;
   endereco?: string;
+  numeroEndereco?: string | null;
   complemento?: string;
   bairro?: string;
   cidade?: string;
@@ -116,6 +117,7 @@ export interface CriarPacienteBody {
   email?: string;
   cep?: string;
   endereco?: string;
+  numeroEndereco?: string;
   complemento?: string;
   bairro?: string;
   cidade?: string;

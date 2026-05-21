@@ -111,6 +111,45 @@ router.post("/pacientes", async (req, res): Promise<void> => {
     return;
   }
 
+  // Bug #4 (21/mai/2026): valida que unidadeId aponta pra unidade EXISTENTE
+  // antes do INSERT. Antes do fix, frontend caía pro fallback `?? 1` quando
+  // o usuário estava em "Visão Global" e o paciente nascia órfão se a
+  // unidade 1 não fosse o destino real. Agora bloqueamos no backend também
+  // como defesa em profundidade (FK no schema já protege contra ID
+  // inexistente, mas devolvia erro genérico 500 — aqui devolvemos 400 com
+  // mensagem clara).
+  const unidadeIdEntrada = (parsed.data as { unidadeId?: number }).unidadeId;
+  if (!unidadeIdEntrada || !Number.isFinite(unidadeIdEntrada) || unidadeIdEntrada < 1) {
+    res.status(400).json({
+      error: "Unidade é obrigatória. Selecione uma unidade específica (não Visão Global) antes de cadastrar o paciente.",
+    });
+    return;
+  }
+  // Bug #4 hardening (21/mai/2026, code review do architect): além de
+  // validar EXISTÊNCIA da unidade, validamos AUTORIZAÇÃO de escopo —
+  // mesma política do GET /pacientes. Tenant com `unidadeId` no JWT só
+  // pode criar paciente NA SUA unidade; tentar criar cross-tenant
+  // devolve 403 (IDOR de unidade fechado). platform_owner (sem
+  // unidadeId no JWT) continua livre pra criar em qualquer unidade
+  // existente — comportamento intencional pra onboarding/migração.
+  const { unidadeId: unidadeIdTenant } = resolverFiltroTenant(req);
+  if (unidadeIdTenant !== null && Number.isFinite(unidadeIdTenant) && unidadeIdTenant !== unidadeIdEntrada) {
+    res.status(403).json({
+      error: `Sem permissão para cadastrar paciente na unidade ${unidadeIdEntrada}. Seu acesso está restrito à sua unidade de origem.`,
+    });
+    return;
+  }
+  const [unidadeExiste] = await db
+    .select({ id: unidadesTable.id })
+    .from(unidadesTable)
+    .where(eq(unidadesTable.id, unidadeIdEntrada));
+  if (!unidadeExiste) {
+    res.status(400).json({
+      error: `Unidade ID ${unidadeIdEntrada} não existe. Recarregue a página e selecione uma unidade válida.`,
+    });
+    return;
+  }
+
   // Wave Cadastro Pádua (13/mai/2026): canonicaliza CPF/tel/email/CEP antes
   // do INSERT pra garantir consistência interna. UI/integrações formatam na
   // hora de exibir/exportar (ver lib/format/canonico.ts).
@@ -199,7 +238,7 @@ router.put("/pacientes/:id", async (req, res): Promise<void> => {
     if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalido" }); return; }
     const body = req.body;
     const allowed: Record<string, any> = {};
-    const whitelist = ["nome", "cpf", "telefone", "email", "cep", "endereco", "complemento", "bairro", "cidade", "estado", "pais", "unidadeId", "dataNascimento", "statusAtivo", "planoAcompanhamento", "googleDriveFolderId", "genero", "alturaCm", "pesoKg", "alergias", "condicoesClinicas", "medicamentosContinuos", "gestante", "fototipoFitzpatrick", "atividadeFisica"];
+    const whitelist = ["nome", "cpf", "telefone", "email", "cep", "endereco", "numeroEndereco", "complemento", "bairro", "cidade", "estado", "pais", "unidadeId", "dataNascimento", "statusAtivo", "planoAcompanhamento", "googleDriveFolderId", "genero", "alturaCm", "pesoKg", "alergias", "condicoesClinicas", "medicamentosContinuos", "gestante", "fototipoFitzpatrick", "atividadeFisica"];
     for (const k of whitelist) {
       if (body[k] !== undefined) allowed[k] = body[k];
     }
