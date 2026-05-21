@@ -21,9 +21,9 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 // Estética luxuosa clássica (Cartier/Patek), JetBrains Mono UPPERCASE,
 // 0px radius em tudo. Pedido Caio 21/mai/2026: "mais elegante, formal e
 // clássica, surpreenda com o que há de mais moderno".
-const NAVY = "#0B1220";
-const NAVY_DEEP = "#070C16";
-const NAVY_SOFT = "#111A2E";
+const NAVY = "#000000";
+const NAVY_DEEP = "#000000";
+const NAVY_SOFT = "#000000";
 const GOLD = "#D4AF37";
 const GOLD_BRIGHT = "#F0CE5A";
 const CYAN = "#5EE6E6";
@@ -97,7 +97,7 @@ export default function Login() {
     <div
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
-        background: `radial-gradient(circle at 20% 20%, ${NAVY_SOFT} 0%, ${NAVY} 40%, ${NAVY_DEEP} 100%)`,
+        background: "#000000",
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
@@ -116,21 +116,8 @@ export default function Login() {
         .pulse-status { animation: pulseStatus 2.4s ease-in-out infinite; }
         .pulse-seal   { animation: pulseSeal 3.2s ease-in-out infinite; }
       `}</style>
-      {/* Vinheta dourada sutil — efeito de "papel timbrado iluminado" */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-30"
-        style={{
-          backgroundImage: `radial-gradient(ellipse at center, transparent 30%, ${NAVY_DEEP} 80%)`,
-        }}
-      />
-      {/* Grid técnico de fundo — referência sutil ao "GRID/SISTEMA" da logo */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.04]"
-        style={{
-          backgroundImage: `linear-gradient(${CYAN} 1px, transparent 1px), linear-gradient(90deg, ${CYAN} 1px, transparent 1px)`,
-          backgroundSize: "60px 60px",
-        }}
-      />
+      {/* Sem vinheta, sem grid técnico — pedido Caio 21/mai/2026:
+          fundo PRETO PURO, nada de linhas horizontais/verticais. */}
 
       {/* As assinaturas PAWARDS / PADCON foram movidas pro canto
           inferior direito do painel (maiores e em bloco coeso). */}
@@ -152,17 +139,18 @@ export default function Login() {
         >
           {/* ============ COLUNA ESQUERDA — IDENTIDADE ============
               Logo único (símbolo D + wordmark PAWARDS MEDCORE) ocupa
-              a coluna inteira. Centrado verticalmente pra que:
-              · TOPO do símbolo fique alinhado com label IDENTIFICAÇÃO
-              · BASE do wordmark fique alinhada com base do BOTÃO. */}
+              a coluna inteira. Ambas as colunas com a MESMA altura
+              (min-h-[380px]) + padding idêntico (py-12) pra que:
+              · TOPO do símbolo se alinhe com label IDENTIFICAÇÃO
+              · BASE do wordmark se alinhe com base do BOTÃO ENTRAR. */}
           <div
-            className="relative flex flex-col justify-center px-10 py-12 md:border-r"
+            className="relative flex flex-col items-start px-10 py-12 md:border-r min-h-[380px]"
             style={{ borderColor: `${GOLD}22` }}
           >
             <img
               src={`${import.meta.env.BASE_URL}logo-pawards-medcore-transparent.png`}
               alt="PAWARDS MedCore"
-              className="h-64 w-auto object-contain object-left"
+              className="h-full w-auto object-contain object-left"
               style={{
                 filter: "drop-shadow(0 0 32px rgba(212,175,55,0.4)) drop-shadow(0 0 12px rgba(212,175,55,0.22))",
               }}
@@ -171,7 +159,7 @@ export default function Login() {
           </div>
 
           {/* ============ COLUNA DIREITA — FORMULÁRIO ============ */}
-          <div className="relative flex flex-col justify-center px-10 py-12">
+          <div className="relative flex flex-col justify-center px-10 py-12 min-h-[380px]">
             <div className="flex flex-col">
               {avisoRecuperacao ? (
                 <div className="space-y-5" data-testid="banner-recuperacao-2fa">
@@ -405,16 +393,8 @@ export default function Login() {
                 color: INK,
               }}
             >
-              <span className="inline-block w-6 h-px" style={{ background: GOLD }} />
               <span className="text-[13px]">Dr. Caio Henrique Fernandes Pádua</span>
-              <span className="inline-block w-6 h-px" style={{ background: GOLD }} />
             </figcaption>
-            <div
-              className="mt-1 text-[9px] uppercase tracking-[0.4em]"
-              style={{ color: INK_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              Fundador · Pawards Medcore
-            </div>
           </figure>
 
           {/* BLOCO ASSINATURAS + STATUS — canto inferior direito.
@@ -428,8 +408,7 @@ export default function Login() {
             style={{ borderLeft: `1px solid ${GOLD}33` }}
             data-testid="login-assinaturas"
           >
-            {/* PAWARDS */}
-            <div className="h-px w-full" style={{ background: `${GOLD}44` }} />
+            {/* PAWARDS — sem linhas horizontais (pedido Caio) */}
             <div className="py-2">
               <div
                 className="text-[13px] font-bold uppercase tracking-[0.35em]"
@@ -444,9 +423,8 @@ export default function Login() {
                 Clinical Intelligence System
               </div>
             </div>
-            <div className="h-px w-full" style={{ background: `${GOLD}44` }} />
 
-            {/* PADCON */}
+            {/* PADCON — sem linhas horizontais */}
             <div className="py-2">
               <div
                 className="text-[13px] font-bold uppercase tracking-[0.35em]"
@@ -461,7 +439,6 @@ export default function Login() {
                 Advanced Systems Architecture
               </div>
             </div>
-            <div className="h-px w-full" style={{ background: `${GOLD}44` }} />
 
             {/* INDICADORES DE STATUS — bolinhas ciano pulsando lento.
                 Funcionam como "resumo executivo" dos 6 selos abaixo:
