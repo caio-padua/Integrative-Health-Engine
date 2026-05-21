@@ -35,6 +35,7 @@ export const modules: ModuleMap = {
   "./components/mockups/pawards-showcase/ShieldC.tsx": () => import("../components/mockups/pawards-showcase/ShieldC.tsx"),
   "./components/mockups/pawards-showcase/ShieldD.tsx": () => import("../components/mockups/pawards-showcase/ShieldD.tsx"),
   "./components/mockups/pawards-showcase/SistemaHeader.tsx": () => import("../components/mockups/pawards-showcase/SistemaHeader.tsx"),
+  "./components/mockups/padua-atelier/PaduaAtelierPanel.tsx": () => import("../components/mockups/padua-atelier/PaduaAtelierPanel.tsx"),
   "./components/mockups/prescricao-rapida/CatalogoLateral.tsx": () => import("../components/mockups/prescricao-rapida/CatalogoLateral.tsx"),
   "./components/mockups/prescricao-rapida/ComandoTeclado.tsx": () => import("../components/mockups/prescricao-rapida/ComandoTeclado.tsx"),
   "./components/mockups/prescricao-rapida/GpsPadua.tsx": () => import("../components/mockups/prescricao-rapida/GpsPadua.tsx"),
@@ -42,6 +43,5 @@ export const modules: ModuleMap = {
   "./components/mockups/prescricao-rapida/PilhaPorVia.tsx": () => import("../components/mockups/prescricao-rapida/PilhaPorVia.tsx"),
   "./components/mockups/prescricao-rapida/TeatroMensageriaPadua.tsx": () => import("../components/mockups/prescricao-rapida/TeatroMensageriaPadua.tsx"),
   "./components/mockups/prescricao-rapida/TimelineSessoes.tsx": () => import("../components/mockups/prescricao-rapida/TimelineSessoes.tsx"),
-  "./components/mockups/padua-atelier/PaduaAtelierPanel.tsx": () => import("../components/mockups/padua-atelier/PaduaAtelierPanel.tsx"),
   "./components/mockups/sahara-noir/SaharaNoirPanel.tsx": () => import("../components/mockups/sahara-noir/SaharaNoirPanel.tsx")
 };
