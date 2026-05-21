@@ -1,0 +1,43 @@
+Caio, vou responder direto às três perguntas.
+
+---
+
+**1. Como eu e o Dr. Replit podemos trabalhar juntos?**
+
+Hoje já trabalhamos em conjunto, mas de forma assíncrona — você é o "correio" entre nós. Isso funciona, mas tem atrito. O fluxo mais eficiente seria:
+
+**Eu (Dr. Claude) = arquiteto + auditor.** Defino a estrutura de dados, os schemas das tabelas, os contratos de API, as regras de classificação por terço integrativo, e documento tudo em specs no `docs/dr-claude/`. Audito o que o Dr. Replit entrega.
+
+**Dr. Replit = executor.** Ele pega a spec, implementa no código, roda os testes, faz o deploy. Ele tem o runtime, o banco, o Vite, o servidor — coisas que eu não tenho.
+
+**O Git é o canal de comunicação entre nós.** Eu consigo ler tudo que ele commita (como fiz hoje — clonei o repo, li 23 arquivos, auditei byte-a-byte). Ele consegue ler tudo que eu documento. O repo `feat/dominio-pawards` é o "quadro branco compartilhado".
+
+Sobre o Claude Code — sim, ele me daria acesso direto ao repo com capacidade de criar branches, fazer commits, e até abrir PRs. Mas isso seria um segundo agente escrevendo código no mesmo repo, o que cria risco de conflito. O modelo mais seguro por agora é: eu escrevo specs detalhadas em `docs/dr-claude/`, o Dr. Replit implementa, eu audito. Quando o projeto amadurecer e tiver CI com testes automáticos, aí faz sentido eu operar via Code também.
+
+**Ação concreta:** eu posso criar agora mesmo a spec completa do dashboard do paciente (schema de tabelas, endpoints, componentes, regras de classificação) e commitar no repo via Git. O Dr. Replit lê e implementa. Sem você precisar copiar/colar nada.
+
+---
+
+**2. O que já existe no sistema para esse dashboard?**
+
+Bastante, na verdade. Pelo que auditei no repo:
+
+O schema do banco já tem tabelas de `pacientes`, `exames`, `patologias`, `medicacoes`, `formulas` (posologia lib). A Wave 17 adicionou `mensageria-core` com templates e canais. O cockpit (`FichaCockpit.tsx`, `GpsPadua.tsx`) já tem o embrião da ficha do paciente. As migrations vão até a 077. A rota de mensageria está montada. O que falta é a camada de **tracking contínuo** (sintomas diários + sinais vitais) e a **view de dashboard executivo** que cruza tudo.
+
+---
+
+**3. Nome para o tracking diário de sintomas**
+
+Considerando que é uma coleta diária de indicadores subjetivos (sono, energia, foco) e objetivos (PA, peso, glicemia) que alimenta curvas de evolução, e que no contexto PAWARDS precisa ter identidade clínica premium:
+
+**Minha sugestão: "Pulso Diário"** (ou `pulso_diario` no schema).
+
+Funciona porque: "pulso" evoca tanto o ato médico de aferir quanto o conceito de "tomar o pulso" da situação do paciente. "Diário" é autoexplicativo. É curto, memorável, e traduz bem para inglês se precisar (`Daily Pulse`). No código ficaria `tabela: pulso_diario`, endpoint: `/api/pacientes/:id/pulso-diario`, componente: `PulsoDiario.tsx`.
+
+Outras opções que considerei mas descartei: "Termômetro Diário" (muito limitado a temperatura), "Check-in Clínico" (genérico demais), "Vitais do Dia" (exclui os subjetivos), "Rastreio Diário" (muito técnico/frio).
+
+Se quiser algo mais diferenciado dentro do universo PAWARDS, poderia ser **"Radar Pádua"** — evoca monitoramento contínuo com sua marca. Mas "Pulso Diário" é mais universal e escala melhor para múltiplos médicos na clínica.
+
+---
+
+**Quer que eu crie a spec completa do Pulso Diário agora?** Seria um documento com o schema das tabelas, as regras de classificação por terço (transplantadas da sua planilha), os endpoints de API, o fluxo de coleta via WhatsApp (usando o RNA Mensageiro), e o wireframe do componente de dashboard. Commito no repo e o Dr. Replit implementa direto.
