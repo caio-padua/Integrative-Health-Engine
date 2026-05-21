@@ -472,13 +472,13 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex bg-background">
       <TopProgressBar />
       <aside className="w-72 border-r border-border bg-sidebar flex flex-col">
-        <div className="h-20 flex items-center px-5 border-b border-border gap-3">
+        <div className="h-24 flex items-center px-5 border-b border-border gap-3">
           <div
             aria-label="Símbolo PAWARDS"
             title="PAWARDS MEDCORE"
             style={{
-              width: 44,
-              height: 52,
+              width: 58,
+              height: 68,
               background: "#D4AF37",
               WebkitMaskImage: `url(${import.meta.env.BASE_URL}logo-dp.png)`,
               maskImage: `url(${import.meta.env.BASE_URL}logo-dp.png)`,
@@ -489,7 +489,7 @@ export function Layout({ children }: { children: ReactNode }) {
               WebkitMaskSize: "contain",
               maskSize: "contain",
               flexShrink: 0,
-              filter: "drop-shadow(0 0 6px rgba(212,175,55,0.35))",
+              filter: "drop-shadow(0 0 8px rgba(212,175,55,0.45))",
             }}
             data-testid="sidebar-symbol-d"
           />
@@ -796,17 +796,53 @@ export function Layout({ children }: { children: ReactNode }) {
                 gramática visual do header (borda colorida = ação). */}
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 pl-2.5 pr-1 py-0.5 border-l-[3px] hover:bg-white/5 transition-colors"
+              className="flex items-center gap-3 pl-3 pr-2 py-1 border-l-[3px] hover:bg-white/5 transition-colors"
               style={{ borderLeftColor: "#D4AF37" }}
               title="PAWARDS MEDCORE — voltar pra Visão Geral"
               data-testid="logo-header-global"
             >
-              <img
-                src={`${import.meta.env.BASE_URL}logo-pawards-medcore.png`}
-                alt="PAWARDS MEDCORE"
-                className="h-8 w-auto object-contain"
-                style={{ filter: "drop-shadow(0 0 4px rgba(212,175,55,0.25))" }}
+              <div
+                aria-label="Símbolo PAWARDS"
+                style={{
+                  width: 38,
+                  height: 44,
+                  background: "#D4AF37",
+                  WebkitMaskImage: `url(${import.meta.env.BASE_URL}logo-dp.png)`,
+                  maskImage: `url(${import.meta.env.BASE_URL}logo-dp.png)`,
+                  WebkitMaskRepeat: "no-repeat",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskPosition: "center",
+                  maskPosition: "center",
+                  WebkitMaskSize: "contain",
+                  maskSize: "contain",
+                  flexShrink: 0,
+                  filter: "drop-shadow(0 0 6px rgba(212,175,55,0.4))",
+                }}
               />
+              <div className="flex flex-col leading-tight">
+                <span
+                  className="font-bold uppercase"
+                  style={{
+                    color: "#D4AF37",
+                    fontSize: 13,
+                    letterSpacing: "0.22em",
+                    fontFamily: "JetBrains Mono, monospace",
+                  }}
+                >
+                  PAWARDS<sup style={{ fontSize: 9, color: "#D4AF37" }}>®</sup>
+                </span>
+                <span
+                  className="uppercase italic"
+                  style={{
+                    color: "#9CA3AF",
+                    fontSize: 9,
+                    letterSpacing: "0.28em",
+                    fontFamily: "JetBrains Mono, monospace",
+                  }}
+                >
+                  Clinical Intelligence System
+                </span>
+              </div>
             </Link>
           </div>
         </div>
@@ -861,18 +897,18 @@ export function Layout({ children }: { children: ReactNode }) {
             style={{ borderRightColor: "#5EE6E6" }}
           >
             <span className="flex items-center gap-1.5 truncate">
-              <span className="font-bold text-[14px]" style={{ color: "#E5E7EB", letterSpacing: "0.14em" }}>PAWARDS</span>
+              <span className="font-bold text-[14px]" style={{ color: "#D4AF37", letterSpacing: "0.16em" }}>PAWARDS MedCore</span>
               <sup className="text-[10px]" style={{ color: "#D4AF37" }}>®</sup>
-              <span className="hidden md:inline text-[11px]" style={{ color: "#9CA3AF" }}>
-                · MEDCORE INTEGRATIVA
+              <span className="hidden md:inline text-[11px] italic normal-case" style={{ color: "#9CA3AF", letterSpacing: "0.18em" }}>
+                Clinical Intelligence System
               </span>
             </span>
             <span style={{ color: "#1F2937" }}>|</span>
             <span className="flex items-center gap-1.5 truncate">
-              <span className="font-bold text-[14px]" style={{ color: "#E5E7EB", letterSpacing: "0.14em" }}>PADCON</span>
+              <span className="font-bold text-[14px]" style={{ color: "#D4AF37", letterSpacing: "0.16em" }}>PADCON Platform</span>
               <sup className="text-[10px]" style={{ color: "#D4AF37" }}>®</sup>
-              <span className="hidden md:inline text-[11px]" style={{ color: "#9CA3AF" }}>
-                · CONSULTORIA INVISÍVEL
+              <span className="hidden md:inline text-[11px] italic normal-case" style={{ color: "#9CA3AF", letterSpacing: "0.18em" }}>
+                Advanced Systems Architecture
               </span>
             </span>
           </div>
