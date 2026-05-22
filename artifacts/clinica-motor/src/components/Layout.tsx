@@ -639,8 +639,10 @@ export function Layout({ children }: { children: ReactNode }) {
                     {items.length}
                   </span>
                 </div>
-                {/* TRILHA vertical na cor do grupo + items compactos */}
-                <div style={{ borderLeft: `2px solid ${cor}55`, marginLeft: "7px" }}>
+                {/* TRILHA vertical na cor do grupo + items como BOTÕES
+                    arredondados. Item ativo recebe pulso neon lento (4s)
+                    na cor do grupo via classe `pulso-neon-menu`. */}
+                <div className="space-y-px pt-0.5" style={{ borderLeft: `2px solid ${cor}55`, marginLeft: "7px", paddingLeft: "4px" }}>
                   {items.map((item) => {
                     const Icon = item.icon;
                     const isActive = location === item.path || location.startsWith(item.path + "/");
@@ -648,12 +650,19 @@ export function Layout({ children }: { children: ReactNode }) {
                       <Link
                         key={item.path}
                         href={item.path}
-                        className={`flex items-center pl-2 pr-2 py-0.5 text-[11px] transition-colors border-l-[3px] -ml-[2px] leading-tight ${
+                        className={`flex items-center px-2 py-1 text-[11px] transition-all leading-tight rounded-md ${
                           isActive
-                            ? "bg-sidebar-accent/50 text-sidebar-foreground font-semibold"
-                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
+                            ? "pulso-neon-menu text-sidebar-foreground font-semibold"
+                            : "text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
                         }`}
-                        style={{ borderLeftColor: isActive ? cor : "transparent" }}
+                        style={isActive
+                          ? ({
+                              backgroundColor: `${cor}1A`,
+                              ["--cor-neon" as string]: cor,
+                              ["--cor-neon-fraca" as string]: `${cor}15`,
+                              ["--cor-neon-forte" as string]: `${cor}38`,
+                            } as React.CSSProperties)
+                          : undefined}
                         data-testid={`menu-${item.slug}`}
                       >
                         <Icon

@@ -174,3 +174,21 @@
     display: none;
   }
 }
+
+/* Pulso neon lento — usado no item ativo do menu lateral pra dar
+   sinalização TDAH-friendly de "voce esta aqui". Acende e apaga em
+   4s pra ser perceptivel mas nao agressivo. A variavel --cor-neon eh
+   definida inline no elemento (cor do grupo). */
+@keyframes pulso-neon-menu {
+  0%, 100% {
+    box-shadow: 0 0 0 1px var(--cor-neon, #5EE6E6),
+                inset 0 0 8px var(--cor-neon-fraca, rgba(94, 230, 230, 0.08));
+  }
+  50% {
+    box-shadow: 0 0 12px 2px var(--cor-neon, #5EE6E6),
+                inset 0 0 14px var(--cor-neon-forte, rgba(94, 230, 230, 0.22));
+  }
+}
+.pulso-neon-menu {
+  animation: pulso-neon-menu 4s ease-in-out infinite;
+}
