@@ -594,94 +594,43 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide py-2 px-1">
-          {grupos.map((g, idx) => {
+        <nav ref={navRef} className="flex-1 overflow-hidden px-4 py-1 space-y-0">
+          {/* LISTA PLANA: todos os items dos grupos visíveis renderizados
+              um embaixo do outro, MESMA superfície/estilo do rodapé
+              (Som ligado / Segurança · 2FA / Sair). A identidade do
+              grupo é preservada SÓ pela cor do ícone — sem header de
+              grupo, sem trilha lateral, sem badge. */}
+          {grupos.flatMap((g) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
-            if (items.length === 0) return null;
-            const GIcon = g.icon;
-            const numero = String(idx + 1).padStart(2, "0");
             const cor = g.cor ?? "#888";
-            return (
-              <div key={g.id} className="mb-1" data-testid={`grupo-${g.id}`}>
-                {/* HEADER compacto do grupo: faixa fina cor do grupo,
-                    ícone pequeno + número TOC + nome. Tudo otimizado
-                    pra caber TODO o menu sem rolagem. */}
-                <div
-                  className="flex items-center gap-1.5 pr-1.5 py-0 border-l-[4px]"
-                  style={{
-                    borderLeftColor: cor,
-                    background: `linear-gradient(90deg, ${cor}33 0%, ${cor}10 60%, transparent 100%)`,
-                  }}
-                  data-testid={`grupo-header-${g.id}`}
+            return items.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.path || location.startsWith(item.path + "/");
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={`w-full flex items-center px-2 py-0.5 text-xs transition-colors ${
+                    isActive
+                      ? "text-sidebar-foreground font-semibold"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                  }`}
+                  data-testid={`menu-${item.slug}`}
                 >
-                  <div
-                    className="w-4 h-4 flex items-center justify-center flex-shrink-0"
-                    style={{ background: cor, color: "#0B1220" }}
-                  >
-                    <GIcon className="w-3 h-3" />
-                  </div>
-                  <span
-                    className="text-[9px] font-mono font-bold tracking-[0.1em] tabular-nums"
-                    style={{ color: cor }}
-                  >
-                    {numero}
-                  </span>
-                  <span
-                    className="flex-1 text-left text-[10px] uppercase tracking-[0.14em] font-bold leading-none truncate"
-                    style={{ color: cor }}
-                  >
-                    {g.nome}
-                  </span>
-                  <span
-                    className="text-[9px] font-mono font-bold tabular-nums px-1"
-                    style={{ color: cor, background: `${cor}22` }}
-                  >
-                    {items.length}
-                  </span>
-                </div>
-                {/* TRILHA vertical contínua na cor do grupo + items compactos. */}
-                <div
-                  style={{
-                    borderLeft: `2px solid ${cor}55`,
-                    marginLeft: "7px",
-                    paddingLeft: "0",
-                  }}
-                >
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location === item.path || location.startsWith(item.path + "/");
-                    return (
-                      <Link
-                        key={item.path}
-                        href={item.path}
-                        className={`flex items-center pl-2 pr-2 py-0.5 text-[11px] transition-all border-l-[3px] -ml-[2px] leading-tight ${
-                          isActive
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                        }`}
-                        style={{
-                          borderLeftColor: isActive ? cor : "transparent",
-                          ...(isActive ? { boxShadow: `inset 4px 0 0 ${cor}` } : {}),
-                        }}
-                        data-testid={`menu-${item.slug}`}
-                      >
-                        <Icon
-                          className="mr-1.5 h-3 w-3 flex-shrink-0"
-                          style={{ color: isActive ? cor : `${cor}DD` }}
-                        />
-                        <span className="flex-1 truncate">{item.name}</span>
-                        {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
-                          <span data-testid="badge-lembretes-falhas"
-                            className="ml-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none animate-pulse">
-                            {falhasLembrete > 99 ? "99+" : falhasLembrete}
-                          </span>
-                        ) : null}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            );
+                  <Icon
+                    className="mr-3 h-4 w-4 flex-shrink-0"
+                    style={{ color: isActive ? cor : `${cor}CC` }}
+                  />
+                  <span className="flex-1 truncate">{item.name}</span>
+                  {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
+                    <span data-testid="badge-lembretes-falhas"
+                      className="ml-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none animate-pulse">
+                      {falhasLembrete > 99 ? "99+" : falhasLembrete}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            });
           })}
         </nav>
         <div className="px-4 py-3 border-t border-border space-y-1">
