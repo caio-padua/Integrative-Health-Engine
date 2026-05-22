@@ -594,7 +594,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav className="flex-1 min-h-0 overflow-hidden py-0 px-1">
+        <nav className="flex-1 overflow-y-auto py-2 px-1">
           {grupos.map((g, idx) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             if (items.length === 0) return null;
@@ -602,7 +602,7 @@ export function Layout({ children }: { children: ReactNode }) {
             const numero = String(idx + 1).padStart(2, "0");
             const cor = g.cor ?? "#888";
             return (
-              <div key={g.id} className="mb-1.5" data-testid={`grupo-${g.id}`}>
+              <div key={g.id} className="mb-4" data-testid={`grupo-${g.id}`}>
                 {/* HEADER do grupo: faixa LARGA com fundo sólido cor do
                     grupo (~20% opacity), ícone num quadrado de cor cheia +
                     número TOC + nome em alto contraste. Bate o olho e
@@ -657,7 +657,7 @@ export function Layout({ children }: { children: ReactNode }) {
                       <Link
                         key={item.path}
                         href={item.path}
-                        className={`flex items-center pl-3 pr-3 py-1 text-[12px] transition-all border-l-[3px] -ml-[2px] ${
+                        className={`flex items-center pl-3 pr-3 py-2 text-[13px] transition-all border-l-[3px] -ml-[2px] ${
                           isActive
                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
