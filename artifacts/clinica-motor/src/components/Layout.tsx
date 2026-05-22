@@ -594,42 +594,85 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-1">
-          {/* LISTA PLANA EM 1 COLUNA: todos os items alinhados na MESMA
-              coluna vertical que "Som ligado / Segurança · 2FA / Sair"
-              do rodapé. Mesmo padding, mesma fonte, mesma cor. Rolagem
-              invisível (rodinha do mouse) pra acessar items que sobrarem. */}
-          {grupos.flatMap((g) => {
+        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide py-1 px-1">
+          {/* MENU COMPARTIMENTADO POR CORES: cada grupo (DASHBOARD GLOBAL,
+              DASHBOARD LOCAL, AGENDAS & MOTOR, etc.) tem header colorido
+              fino + trilha vertical na cor do grupo amarrando os items.
+              Items compactos pra caber sem rolagem na maioria das telas;
+              quando passar, rolagem invisível pela rodinha do mouse. */}
+          {grupos.map((g, idx) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
+            if (items.length === 0) return null;
+            const GIcon = g.icon;
+            const numero = String(idx + 1).padStart(2, "0");
             const cor = g.cor ?? "#888";
-            return items.map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.path || location.startsWith(item.path + "/");
-              return (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={`w-full flex items-center px-3 py-1.5 text-xs transition-colors ${
-                    isActive
-                      ? "text-sidebar-foreground font-semibold bg-sidebar-accent/40"
-                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-                  }`}
-                  data-testid={`menu-${item.slug}`}
+            return (
+              <div key={g.id} className="mb-1.5" data-testid={`grupo-${g.id}`}>
+                {/* HEADER colorido fino do grupo */}
+                <div
+                  className="flex items-center gap-1.5 pr-1.5 py-0.5 border-l-[4px]"
+                  style={{
+                    borderLeftColor: cor,
+                    background: `linear-gradient(90deg, ${cor}33 0%, ${cor}10 60%, transparent 100%)`,
+                  }}
+                  data-testid={`grupo-header-${g.id}`}
                 >
-                  <Icon
-                    className="mr-3 h-4 w-4 flex-shrink-0"
-                    style={{ color: isActive ? cor : `${cor}CC` }}
-                  />
-                  <span className="flex-1 truncate">{item.name}</span>
-                  {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
-                    <span data-testid="badge-lembretes-falhas"
-                      className="ml-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none animate-pulse">
-                      {falhasLembrete > 99 ? "99+" : falhasLembrete}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            });
+                  <div
+                    className="w-4 h-4 flex items-center justify-center flex-shrink-0"
+                    style={{ background: cor, color: "#0B1220" }}
+                  >
+                    <GIcon className="w-3 h-3" />
+                  </div>
+                  <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: cor }}>
+                    {numero}
+                  </span>
+                  <span
+                    className="flex-1 text-left text-[10px] uppercase tracking-[0.12em] font-bold leading-none truncate"
+                    style={{ color: cor }}
+                  >
+                    {g.nome}
+                  </span>
+                  <span
+                    className="text-[9px] font-mono font-bold tabular-nums px-1"
+                    style={{ color: cor, background: `${cor}22` }}
+                  >
+                    {items.length}
+                  </span>
+                </div>
+                {/* TRILHA vertical na cor do grupo + items compactos */}
+                <div style={{ borderLeft: `2px solid ${cor}55`, marginLeft: "7px" }}>
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location === item.path || location.startsWith(item.path + "/");
+                    return (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        className={`flex items-center pl-2 pr-2 py-0.5 text-[11px] transition-colors border-l-[3px] -ml-[2px] leading-tight ${
+                          isActive
+                            ? "bg-sidebar-accent/50 text-sidebar-foreground font-semibold"
+                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
+                        }`}
+                        style={{ borderLeftColor: isActive ? cor : "transparent" }}
+                        data-testid={`menu-${item.slug}`}
+                      >
+                        <Icon
+                          className="mr-1.5 h-3 w-3 flex-shrink-0"
+                          style={{ color: isActive ? cor : `${cor}CC` }}
+                        />
+                        <span className="flex-1 truncate">{item.name}</span>
+                        {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
+                          <span data-testid="badge-lembretes-falhas"
+                            className="ml-1 inline-flex items-center justify-center min-w-[12px] h-[12px] px-0.5 rounded-full bg-red-600 text-white text-[8px] font-bold leading-none animate-pulse">
+                            {falhasLembrete > 99 ? "99+" : falhasLembrete}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
           })}
         </nav>
         <div className="px-4 py-3 border-t border-border space-y-1">
