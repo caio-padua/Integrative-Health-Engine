@@ -594,12 +594,15 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-1 space-y-0">
-          {/* LISTA PLANA: todos os items dos grupos visíveis renderizados
-              um embaixo do outro, MESMA superfície/estilo do rodapé
-              (Som ligado / Segurança · 2FA / Sair). A identidade do
-              grupo é preservada SÓ pela cor do ícone — sem header de
-              grupo, sem trilha lateral, sem badge. */}
+        <nav
+          ref={navRef}
+          className="flex-1 overflow-y-auto scrollbar-hide px-2 py-1"
+          style={{ columnCount: 2, columnGap: "4px" }}
+        >
+          {/* LISTA PLANA em 2 COLUNAS: todos os items renderizados como
+              tiles minúsculos (ícone colorido + label curto), distribuídos
+              em 2 colunas verticais pra TUDO caber sem rolagem.
+              Mesma "superfície" visual dos itens do rodapé. */}
           {grupos.flatMap((g) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             const cor = g.cor ?? "#888";
@@ -610,21 +613,23 @@ export function Layout({ children }: { children: ReactNode }) {
                 <Link
                   key={item.path}
                   href={item.path}
-                  className={`w-full flex items-center px-2 py-0.5 text-xs transition-colors ${
+                  className={`flex items-center px-1.5 py-0.5 text-[10px] transition-colors leading-tight ${
                     isActive
-                      ? "text-sidebar-foreground font-semibold"
-                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                      ? "text-sidebar-foreground font-semibold bg-sidebar-accent/40"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
                   }`}
+                  style={{ breakInside: "avoid", WebkitColumnBreakInside: "avoid" }}
                   data-testid={`menu-${item.slug}`}
+                  title={item.name}
                 >
                   <Icon
-                    className="mr-3 h-4 w-4 flex-shrink-0"
+                    className="mr-1.5 h-3 w-3 flex-shrink-0"
                     style={{ color: isActive ? cor : `${cor}CC` }}
                   />
                   <span className="flex-1 truncate">{item.name}</span>
                   {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
                     <span data-testid="badge-lembretes-falhas"
-                      className="ml-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none animate-pulse">
+                      className="ml-0.5 inline-flex items-center justify-center min-w-[12px] h-[12px] px-0.5 rounded-full bg-red-600 text-white text-[8px] font-bold leading-none animate-pulse">
                       {falhasLembrete > 99 ? "99+" : falhasLembrete}
                     </span>
                   ) : null}
