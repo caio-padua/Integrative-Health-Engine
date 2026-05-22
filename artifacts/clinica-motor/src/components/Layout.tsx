@@ -594,7 +594,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav ref={navRef} className="flex-1 overflow-hidden px-4 py-1 space-y-0">
+        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-1 space-y-0">
           {/* LISTA PLANA: todos os items dos grupos visíveis renderizados
               um embaixo do outro, MESMA superfície/estilo do rodapé
               (Som ligado / Segurança · 2FA / Sair). A identidade do
