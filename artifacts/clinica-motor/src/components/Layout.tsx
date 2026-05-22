@@ -286,6 +286,33 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   }, [unidadesDisponiveis, unidadeSelecionada, setUnidadeSelecionada]);
 
+  // Auto-fit do menu: escala a sidebar até TODOS os grupos+items caberem
+  // sem rolagem. Mantém o visual idêntico (cores, trilhas, espaçamentos),
+  // só encolhe proporcionalmente quando precisa.
+  // IMPORTANTE: este hook precisa vir ANTES do early-return de !user
+  // pra não violar a Rule of Hooks (ordem estável entre renders).
+  useEffect(() => {
+    const ajustar = () => {
+      const nav = navRef.current;
+      if (!nav) return;
+      nav.style.transform = "scale(1)";
+      nav.style.width = "100%";
+      const disponivel = nav.clientHeight;
+      const conteudo = nav.scrollHeight;
+      if (conteudo <= disponivel || disponivel === 0) return;
+      const escala = Math.max(0.5, disponivel / conteudo);
+      nav.style.transform = `scale(${escala})`;
+      nav.style.width = `${100 / escala}%`;
+    };
+    ajustar();
+    const ro = new ResizeObserver(ajustar);
+    if (navRef.current) ro.observe(navRef.current);
+    window.addEventListener("resize", ajustar);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", ajustar);
+    };
+  }, [user, location]);
 
   const sound = useSound();
 
@@ -430,33 +457,6 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const escopo = (user as any).escopo || "consultoria_master";
   const modulosPermitidos = VISIBILIDADE_POR_ESCOPO[escopo] || VISIBILIDADE_POR_ESCOPO.consultoria_master;
-
-  // Auto-fit do menu: escala a sidebar até TODOS os grupos+items caberem
-  // sem rolagem. Mantém o visual idêntico (cores, trilhas, espaçamentos),
-  // só encolhe proporcionalmente quando precisa.
-  useEffect(() => {
-    const ajustar = () => {
-      const nav = navRef.current;
-      if (!nav) return;
-      nav.style.transform = "scale(1)";
-      nav.style.width = "100%";
-      const disponivel = nav.clientHeight;
-      // mede altura natural do conteúdo
-      const conteudo = nav.scrollHeight;
-      if (conteudo <= disponivel || disponivel === 0) return;
-      const escala = Math.max(0.5, disponivel / conteudo);
-      nav.style.transform = `scale(${escala})`;
-      nav.style.width = `${100 / escala}%`;
-    };
-    ajustar();
-    const ro = new ResizeObserver(ajustar);
-    if (navRef.current) ro.observe(navRef.current);
-    window.addEventListener("resize", ajustar);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", ajustar);
-    };
-  }, [modulosPermitidos, location]);
 
   // Resolve nome da tela atual procurando match no menu (mais específico
   // primeiro). Fallback usa o último segmento da URL formatado. Centraliza
