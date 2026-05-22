@@ -602,13 +602,12 @@ export function Layout({ children }: { children: ReactNode }) {
             const numero = String(idx + 1).padStart(2, "0");
             const cor = g.cor ?? "#888";
             return (
-              <div key={g.id} className="mb-4" data-testid={`grupo-${g.id}`}>
-                {/* HEADER do grupo: faixa LARGA com fundo sólido cor do
-                    grupo (~20% opacity), ícone num quadrado de cor cheia +
-                    número TOC + nome em alto contraste. Bate o olho e
-                    sabe a que grupo a fileira abaixo pertence. */}
+              <div key={g.id} className="mb-1" data-testid={`grupo-${g.id}`}>
+                {/* HEADER compacto do grupo: faixa fina cor do grupo,
+                    ícone pequeno + número TOC + nome. Tudo otimizado
+                    pra caber TODO o menu sem rolagem. */}
                 <div
-                  className="flex items-center gap-2 pr-2 py-0 mb-1 border-l-[5px]"
+                  className="flex items-center gap-1.5 pr-1.5 py-0 border-l-[4px]"
                   style={{
                     borderLeftColor: cor,
                     background: `linear-gradient(90deg, ${cor}33 0%, ${cor}10 60%, transparent 100%)`,
@@ -616,37 +615,35 @@ export function Layout({ children }: { children: ReactNode }) {
                   data-testid={`grupo-header-${g.id}`}
                 >
                   <div
-                    className="w-7 h-7 flex items-center justify-center flex-shrink-0"
+                    className="w-4 h-4 flex items-center justify-center flex-shrink-0"
                     style={{ background: cor, color: "#0B1220" }}
                   >
-                    <GIcon className="w-4 h-4" />
+                    <GIcon className="w-3 h-3" />
                   </div>
                   <span
-                    className="text-[10px] font-mono font-bold tracking-[0.15em] tabular-nums"
+                    className="text-[9px] font-mono font-bold tracking-[0.1em] tabular-nums"
                     style={{ color: cor }}
                   >
                     {numero}
                   </span>
                   <span
-                    className="flex-1 text-left text-[11px] uppercase tracking-[0.18em] font-bold leading-tight"
+                    className="flex-1 text-left text-[10px] uppercase tracking-[0.14em] font-bold leading-none truncate"
                     style={{ color: cor }}
                   >
                     {g.nome}
                   </span>
                   <span
-                    className="text-[10px] font-mono font-bold tabular-nums px-1.5 py-0.5"
+                    className="text-[9px] font-mono font-bold tabular-nums px-1"
                     style={{ color: cor, background: `${cor}22` }}
                   >
                     {items.length}
                   </span>
                 </div>
-                {/* TRILHA vertical contínua na cor do grupo + items.
-                    A trilha amarra visualmente todos os items ao seu grupo. */}
+                {/* TRILHA vertical contínua na cor do grupo + items compactos. */}
                 <div
-                  className="space-y-px"
                   style={{
                     borderLeft: `2px solid ${cor}55`,
-                    marginLeft: "13px",
+                    marginLeft: "7px",
                     paddingLeft: "0",
                   }}
                 >
@@ -657,7 +654,7 @@ export function Layout({ children }: { children: ReactNode }) {
                       <Link
                         key={item.path}
                         href={item.path}
-                        className={`flex items-center pl-3 pr-3 py-2 text-[13px] transition-all border-l-[3px] -ml-[2px] ${
+                        className={`flex items-center pl-2 pr-2 py-0.5 text-[11px] transition-all border-l-[3px] -ml-[2px] leading-tight ${
                           isActive
                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
@@ -668,16 +665,14 @@ export function Layout({ children }: { children: ReactNode }) {
                         }}
                         data-testid={`menu-${item.slug}`}
                       >
-                        {/* Ícone do item SEMPRE colorido com a cor do grupo —
-                            assim a "fileira de cor" é óbvia mesmo no item inativo */}
                         <Icon
-                          className="mr-2.5 h-[18px] w-[18px] flex-shrink-0"
+                          className="mr-1.5 h-3 w-3 flex-shrink-0"
                           style={{ color: isActive ? cor : `${cor}DD` }}
                         />
                         <span className="flex-1 truncate">{item.name}</span>
                         {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
                           <span data-testid="badge-lembretes-falhas"
-                            className="ml-2 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none animate-pulse">
+                            className="ml-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none animate-pulse">
                             {falhasLembrete > 99 ? "99+" : falhasLembrete}
                           </span>
                         ) : null}
