@@ -594,7 +594,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav className="flex-1 overflow-y-auto scrollbar-hide py-2 px-1">
+        <nav className="flex-1 min-h-0 overflow-hidden py-0 px-1">
           {grupos.map((g, idx) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             if (items.length === 0) return null;
