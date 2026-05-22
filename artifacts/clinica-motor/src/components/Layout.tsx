@@ -272,6 +272,7 @@ export function Layout({ children }: { children: ReactNode }) {
   // platform_owner estiver navegando em /plataforma/*.
   const { openStepUp: openStepUp2fa, modal: modalStepUp2fa } = usePlatformStepUp();
   const queryClient = useQueryClient();
+  const navRef = useRef<HTMLElement>(null);
 
   // Default Pádua APENAS na primeira sessão (não anula escolha "Todas as Clínicas")
   useEffect(() => {
@@ -429,6 +430,33 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const escopo = (user as any).escopo || "consultoria_master";
   const modulosPermitidos = VISIBILIDADE_POR_ESCOPO[escopo] || VISIBILIDADE_POR_ESCOPO.consultoria_master;
+
+  // Auto-fit do menu: escala a sidebar até TODOS os grupos+items caberem
+  // sem rolagem. Mantém o visual idêntico (cores, trilhas, espaçamentos),
+  // só encolhe proporcionalmente quando precisa.
+  useEffect(() => {
+    const ajustar = () => {
+      const nav = navRef.current;
+      if (!nav) return;
+      nav.style.transform = "scale(1)";
+      nav.style.width = "100%";
+      const disponivel = nav.clientHeight;
+      // mede altura natural do conteúdo
+      const conteudo = nav.scrollHeight;
+      if (conteudo <= disponivel || disponivel === 0) return;
+      const escala = Math.max(0.5, disponivel / conteudo);
+      nav.style.transform = `scale(${escala})`;
+      nav.style.width = `${100 / escala}%`;
+    };
+    ajustar();
+    const ro = new ResizeObserver(ajustar);
+    if (navRef.current) ro.observe(navRef.current);
+    window.addEventListener("resize", ajustar);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", ajustar);
+    };
+  }, [modulosPermitidos, location]);
 
   // Resolve nome da tela atual procurando match no menu (mais específico
   // primeiro). Fallback usa o último segmento da URL formatado. Centraliza
@@ -594,7 +622,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav className="flex-1 overflow-y-auto py-2 px-1">
+        <nav ref={navRef} className="flex-1 overflow-hidden py-2 px-1" style={{ transformOrigin: "top left" }}>
           {grupos.map((g, idx) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             if (items.length === 0) return null;
