@@ -286,45 +286,6 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   }, [unidadesDisponiveis, unidadeSelecionada, setUnidadeSelecionada]);
 
-  // Auto-fit do menu: usa CSS `zoom` (Chrome/Edge/Safari) pra encolher
-  // proporcionalmente até TODO o menu caber sem rolagem.
-  // IMPORTANTE: este hook precisa vir ANTES do early-return de !user
-  // pra não violar a Rule of Hooks (ordem estável entre renders).
-  useEffect(() => {
-    const ajustar = () => {
-      const nav = navRef.current;
-      if (!nav) return;
-      // reset zoom pra remedir natural
-      (nav.style as CSSStyleDeclaration & { zoom?: string }).zoom = "1";
-      // espera o browser aplicar o reset antes de medir
-      requestAnimationFrame(() => {
-        const disponivel = nav.clientHeight;
-        const conteudo = nav.scrollHeight;
-        if (disponivel === 0) return;
-        if (conteudo <= disponivel + 1) return;
-        const escala = Math.max(0.5, disponivel / conteudo);
-        (nav.style as CSSStyleDeclaration & { zoom?: string }).zoom = String(escala);
-      });
-    };
-    // ajusta na montagem + retries pra cobrir conteúdo carregando assíncrono
-    ajustar();
-    const t1 = setTimeout(ajustar, 100);
-    const t2 = setTimeout(ajustar, 500);
-    const t3 = setTimeout(ajustar, 1500);
-    const ro = new ResizeObserver(ajustar);
-    if (navRef.current) {
-      ro.observe(navRef.current);
-      // observa também os filhos diretos pra detectar mudanças no conteúdo
-      Array.from(navRef.current.children).forEach((child) => ro.observe(child));
-    }
-    window.addEventListener("resize", ajustar);
-    return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-      ro.disconnect();
-      window.removeEventListener("resize", ajustar);
-    };
-  }, [user, location]);
-
   const sound = useSound();
 
   if (!user) return <><TopProgressBar />{children}</>;
@@ -633,7 +594,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav ref={navRef} className="flex-1 overflow-hidden py-2 px-1" style={{ transformOrigin: "top left" }}>
+        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide py-2 px-1">
           {grupos.map((g, idx) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             if (items.length === 0) return null;
