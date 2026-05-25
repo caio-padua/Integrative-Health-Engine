@@ -392,6 +392,10 @@ export function Layout({ children }: { children: ReactNode }) {
         // ───── DASHBOARDS PÁDUA (mockups validados, plugados em 25/mai) ─────
         { name: "📈 Dashboard Pádua", path: "/mockup-canvas/dashboard-padua/DashboardPadua", icon: LayoutDashboard, slug: "dashboard-padua" },
         { name: "📋 Ficha Cockpit Pádua", path: "/mockup-canvas/dashboard-padua/FichaCockpitPadua", icon: ClipboardList, slug: "ficha-cockpit-padua" },
+        { name: "📊 Dashboard · Variante A", path: "/mockup-canvas/dashboard-padua/VariantA", icon: LayoutDashboard, slug: "dashboard-var-a" },
+        { name: "👑 Dashboard · Var B (Concierge Dourado)", path: "/mockup-canvas/dashboard-padua/VariantB", icon: LayoutDashboard, slug: "dashboard-var-b" },
+        { name: "⚡ Dashboard · Var C (Med-Tech Radiante)", path: "/mockup-canvas/dashboard-padua/VariantC", icon: LayoutDashboard, slug: "dashboard-var-c" },
+        { name: "🔮 Dashboard · Variante D", path: "/mockup-canvas/dashboard-padua/VariantD", icon: LayoutDashboard, slug: "dashboard-var-d" },
       ],
     },
     {
@@ -407,6 +411,7 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Follow-up", path: "/followup", icon: CalendarClock, slug: "followup" },
         // ───── BLUEPRINT MENSAGERIA (mockup validado, plugado em 25/mai) ─────
         { name: "✉️ Blueprint · Emails + Calendar", path: "/mockup-canvas/blueprint-emails/EmailCalendarBlueprint", icon: AtSign, slug: "blueprint-emails" },
+        { name: "🗓️ Google Calendar · Demo", path: "/mockup-canvas/GoogleCalendarDemo", icon: CalendarDays, slug: "gcal-demo" },
       ],
     },
     {
@@ -434,6 +439,15 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "📊 Exames · Tabela de Terços", path: "/mockup-canvas/craniotomia/TercoTablePanel", icon: BarChart3, slug: "exames-tercos" },
         { name: "🩺 Consultório · Cockpit Médico", path: "/mockup-canvas/consultorio/CockpitMedicoV1", icon: Stethoscope, slug: "cockpit-medico" },
         { name: "★ Pacientes Pádua (Sináptico)", path: "/mockup-canvas/pacientes-padua/PacientesPadua", icon: Users, slug: "pacientes-padua" },
+        { name: "🎨 Pádua Atelier · Painel", path: "/mockup-canvas/padua-atelier/PaduaAtelierPanel", icon: Diamond, slug: "padua-atelier" },
+        // ───── PRESCRIÇÃO RÁPIDA · sub-mockups exploratórios ─────
+        { name: "📚 Prescrição · Catálogo Lateral", path: "/mockup-canvas/prescricao-rapida/CatalogoLateral", icon: BookOpen, slug: "presc-catalogo" },
+        { name: "⌨️ Prescrição · Comando de Teclado", path: "/mockup-canvas/prescricao-rapida/ComandoTeclado", icon: FileText, slug: "presc-comando" },
+        { name: "🧭 Prescrição · GPS Pádua", path: "/mockup-canvas/prescricao-rapida/GpsPadua", icon: Radar, slug: "presc-gps" },
+        { name: "📡 Prescrição · Motor Mensageria", path: "/mockup-canvas/prescricao-rapida/MotorMensageriaPadua", icon: MessageSquareText, slug: "presc-motor-msg" },
+        { name: "📦 Prescrição · Pilha por Via", path: "/mockup-canvas/prescricao-rapida/PilhaPorVia", icon: Package, slug: "presc-pilha" },
+        { name: "🎭 Prescrição · Teatro Mensageria", path: "/mockup-canvas/prescricao-rapida/TeatroMensageriaPadua", icon: MessageCircle, slug: "presc-teatro" },
+        { name: "⏱️ Prescrição · Timeline Sessões", path: "/mockup-canvas/prescricao-rapida/TimelineSessoes", icon: CalendarClock, slug: "presc-timeline" },
       ],
     },
     {
@@ -477,6 +491,46 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Permissões", path: "/permissoes", icon: ShieldCheck, slug: "permissoes" },
         { name: "Segurança", path: "/seguranca", icon: Lock, slug: "seguranca" },
         { name: "Configurações", path: "/configuracoes", icon: Settings, slug: "configuracoes" },
+      ],
+    },
+    // ═══════════════════════════════════════════════════════════════════════
+    // SHOWCASE & PDFs — mockups visuais/identidade/documentos plugados em
+    // 25/mai/2026. Mantém TODAS as variantes acessíveis pro Caio operar,
+    // editar, reformar, excluir ou aprimorar. Nenhum mockup se anula.
+    // ═══════════════════════════════════════════════════════════════════════
+    {
+      id: "showcase",
+      nome: "SHOWCASE & PDFs",
+      icon: Diamond,
+      cor: "#6B5BAA",
+      items: [
+        // Showcase Pawards (identidade visual)
+        { name: "🎨 Logo Options", path: "/mockup-canvas/pawards-showcase/LogoOptions", icon: Diamond, slug: "showcase-logos" },
+        { name: "🖼️ Sistema · Header", path: "/mockup-canvas/pawards-showcase/SistemaHeader", icon: LayoutDashboard, slug: "showcase-sistema" },
+        { name: "📄 PDF · Header/Rodapé", path: "/mockup-canvas/pawards-showcase/PdfHeaderFooter", icon: FileText, slug: "showcase-pdf-hf" },
+        { name: "🛡️ Shield A", path: "/mockup-canvas/pawards-showcase/ShieldA", icon: Shield, slug: "showcase-shield-a" },
+        { name: "🛡️ Shield B", path: "/mockup-canvas/pawards-showcase/ShieldB", icon: Shield, slug: "showcase-shield-b" },
+        { name: "🛡️ Shield C", path: "/mockup-canvas/pawards-showcase/ShieldC", icon: Shield, slug: "showcase-shield-c" },
+        { name: "🛡️ Shield D", path: "/mockup-canvas/pawards-showcase/ShieldD", icon: Shield, slug: "showcase-shield-d" },
+        { name: "📋 RAS · H-MED", path: "/mockup-canvas/pawards-showcase/RasHmed", icon: FileCheck, slug: "showcase-ras-hmed" },
+        { name: "💊 Receita · Layout", path: "/mockup-canvas/pawards-showcase/ReceitaLayout", icon: Pill, slug: "showcase-receita" },
+        // Sahara Noir (painel decorativo)
+        { name: "🌑 Sahara Noir · Painel", path: "/mockup-canvas/sahara-noir/SaharaNoirPanel", icon: Diamond, slug: "sahara-noir" },
+        // PDFs operacionais
+        { name: "📑 PDF · Solicitação Exames", path: "/mockup-canvas/PdfSolicitacao", icon: FileText, slug: "pdf-solicitacao" },
+        { name: "📑 PDF · Justificativa", path: "/mockup-canvas/PdfJustificativa", icon: FileText, slug: "pdf-justificativa" },
+        { name: "📑 PDF · Variante A", path: "/mockup-canvas/PdfVarianteA", icon: FileText, slug: "pdf-var-a" },
+        { name: "📑 PDF · Variante B", path: "/mockup-canvas/PdfVarianteB", icon: FileText, slug: "pdf-var-b" },
+        { name: "📑 PDF · Variante C", path: "/mockup-canvas/PdfVarianteC", icon: FileText, slug: "pdf-var-c" },
+        { name: "📑 PDF · Variante D (sem Farmácia)", path: "/mockup-canvas/PdfVarianteD", icon: FileText, slug: "pdf-var-d" },
+        // Receitas variantes
+        { name: "💊 Receita · Variante A", path: "/mockup-canvas/ReceitaVarianteA", icon: Pill, slug: "rec-var-a" },
+        { name: "💊 Receita · Variante B", path: "/mockup-canvas/ReceitaVarianteB", icon: Pill, slug: "rec-var-b" },
+        { name: "💊 Receita · Variante C", path: "/mockup-canvas/ReceitaVarianteC", icon: Pill, slug: "rec-var-c" },
+        { name: "💊 Receita · Variante D", path: "/mockup-canvas/ReceitaVarianteD", icon: Pill, slug: "rec-var-d" },
+        // Galeria mestre + Craniotomia (atalhos diretos)
+        { name: "🖼️ Galeria Completa (todos)", path: "/galeria-mockups", icon: Grid3X3, slug: "galeria-completa" },
+        { name: "🧠 Craniotomia V4 (Split View)", path: "/craniotomia", icon: Brain, slug: "craniotomia-v4" },
       ],
     },
   ];
