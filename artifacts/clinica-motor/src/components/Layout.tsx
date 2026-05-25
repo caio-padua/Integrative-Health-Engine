@@ -389,6 +389,9 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Prescrições (Lembretes)", path: "/prescricoes-lembrete", icon: BellRing, slug: "prescricoes-lembrete" },
         { name: "Mensagens", path: "/mensagens", icon: MessageSquareText, slug: "mensagens" },
         { name: "Acompanhamento", path: "/acompanhamento", icon: Diamond, slug: "acompanhamento" },
+        // ───── DASHBOARDS PÁDUA (mockups validados, plugados em 25/mai) ─────
+        { name: "📈 Dashboard Pádua", path: "/mockup-canvas/dashboard-padua/DashboardPadua", icon: LayoutDashboard, slug: "dashboard-padua" },
+        { name: "📋 Ficha Cockpit Pádua", path: "/mockup-canvas/dashboard-padua/FichaCockpitPadua", icon: ClipboardList, slug: "ficha-cockpit-padua" },
       ],
     },
     {
@@ -402,6 +405,8 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Sessões Clínicas", path: "/sessoes", icon: Stethoscope, slug: "sessoes" },
         { name: "Agenda Semanal", path: "/agenda", icon: CalendarDays, slug: "agenda" },
         { name: "Follow-up", path: "/followup", icon: CalendarClock, slug: "followup" },
+        // ───── BLUEPRINT MENSAGERIA (mockup validado, plugado em 25/mai) ─────
+        { name: "✉️ Blueprint · Emails + Calendar", path: "/mockup-canvas/blueprint-emails/EmailCalendarBlueprint", icon: AtSign, slug: "blueprint-emails" },
       ],
     },
     {
@@ -422,6 +427,13 @@ export function Layout({ children }: { children: ReactNode }) {
         { name: "Task Cards", path: "/task-cards", icon: AlertTriangle, slug: "task-cards" },
         { name: "Dietas", path: "/dietas", icon: Apple, slug: "dietas" },
         { name: "Psicologia", path: "/psicologia", icon: Brain, slug: "psicologia" },
+        // ───── MOTOR SINÁPTICO (mockups validados, plugados em 25/mai) ─────
+        { name: "🧠 Motor · Grafo Sinapses", path: "/mockup-canvas/craniotomia/GrafoSinapses", icon: Brain, slug: "motor-grafo" },
+        { name: "🗂️ Motor · Árvore Dossiê", path: "/mockup-canvas/craniotomia/ArvoreDossier", icon: ClipboardList, slug: "motor-arvore" },
+        { name: "🔲 Motor · Matriz Densa", path: "/mockup-canvas/craniotomia/MatrizDensa", icon: Grid3X3, slug: "motor-matriz" },
+        { name: "📊 Exames · Tabela de Terços", path: "/mockup-canvas/craniotomia/TercoTablePanel", icon: BarChart3, slug: "exames-tercos" },
+        { name: "🩺 Consultório · Cockpit Médico", path: "/mockup-canvas/consultorio/CockpitMedicoV1", icon: Stethoscope, slug: "cockpit-medico" },
+        { name: "★ Pacientes Pádua (Sináptico)", path: "/mockup-canvas/pacientes-padua/PacientesPadua", icon: Users, slug: "pacientes-padua" },
       ],
     },
     {
