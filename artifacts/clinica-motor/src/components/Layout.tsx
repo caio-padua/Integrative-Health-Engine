@@ -263,8 +263,50 @@ type Grupo = { id: string; nome: string; icon: any; cor?: string; items: Item[] 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
-  const { unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis } = useClinic();
+  const {
+    unidadeSelecionada,
+    setUnidadeSelecionada,
+    unidadesDisponiveis,
+    nomeUnidadeSelecionada: clinicNomeSelecionado,
+    corUnidadeSelecionada: clinicCorSelecionada,
+    isTodasClinicas: clinicIsTodas,
+    escopo: clinicEscopo,
+  } = useClinic();
   const { total: falhasLembrete } = useLembretesFalhasContagem(unidadeSelecionada);
+  const clinicUnidadeSelecionada = unidadeSelecionada;
+  const clinicSetUnidade = setUnidadeSelecionada;
+  const clinicCanSwitch = clinicEscopo === "consultoria_master" || (clinicEscopo === "consultor_campo" && unidadesDisponiveis.length > 1);
+  const clinicUnidades = [
+    ...unidadesDisponiveis.filter((u) => u.unidadeId === 15),
+    ...unidadesDisponiveis.filter((u) => u.unidadeId === 14),
+    ...unidadesDisponiveis.filter((u) => u.unidadeId !== 14 && u.unidadeId !== 15),
+  ];
+
+  // Wave Rail-Popover 25/mai/2026 — estado do popover flutuante.
+  // null = fechado. "clinica" = lista de unidades. "grupo-<id>" = items
+  // de um grupo. Click-fora fecha (TDAH-friendly, sem hover anxiety).
+  const [painelAberto, setPainelAberto] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!painelAberto) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (popoverRef.current && popoverRef.current.contains(target)) return;
+      // Não fecha se o click foi num botão do rail (eles já alternam sozinhos)
+      const railEl = (target as HTMLElement).closest?.("[data-testid^='rail-']");
+      if (railEl) return;
+      setPainelAberto(null);
+    };
+    const escHandler = (e: KeyboardEvent) => { if (e.key === "Escape") setPainelAberto(null); };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", escHandler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", escHandler);
+    };
+  }, [painelAberto]);
+  // Fecha popover ao trocar de rota (Wouter location muda)
+  useEffect(() => { setPainelAberto(null); }, [location]);
   // Task #157: hook compartilhado pra abrir o modal TOTP de step-up
   // direto do indicador do rodape (botao "Renovar"). Mesma instancia
   // (`openStepUp` + `modal`) ja usada pelo Platform2faExpiryBanner —
@@ -461,14 +503,25 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="h-screen flex bg-background overflow-hidden">
       <TopProgressBar />
-      <aside className="w-72 border-r border-border bg-sidebar flex flex-col h-screen flex-shrink-0">
-        <div className="h-24 flex items-center px-5 border-b border-border gap-3">
+      {/* ╔══════════════════════════════════════════════════════════════╗
+          ║  RAIL DE ÍCONES + POPOVER (Modelo C, decisão Caio 25/mai)    ║
+          ║  Sidebar 80px com ícones por grupo. Click no ícone abre      ║
+          ║  painel flutuante à direita (260px) com items daquele grupo. ║
+          ║  Hover/ativo: borda neon na cor do grupo + glow.             ║
+          ╚══════════════════════════════════════════════════════════════╝ */}
+      <aside className="w-[80px] border-r border-border bg-sidebar flex flex-col h-screen flex-shrink-0 relative overflow-visible">
+        {/* Logo topo — vai pra raiz */}
+        <Link
+          href="/dashboard"
+          className="h-16 flex items-center justify-center border-b border-border hover:bg-sidebar-accent/30 transition-colors"
+          title="PAWARDS MEDCORE — Visão Geral"
+          data-testid="rail-logo"
+        >
           <div
             aria-label="Símbolo PAWARDS"
-            title="PAWARDS MEDCORE"
             style={{
-              width: 58,
-              height: 68,
+              width: 42,
+              height: 50,
               background: "#D4AF37",
               WebkitMaskImage: `url(${import.meta.env.BASE_URL}logo-dp.png)`,
               maskImage: `url(${import.meta.env.BASE_URL}logo-dp.png)`,
@@ -478,39 +531,61 @@ export function Layout({ children }: { children: ReactNode }) {
               maskPosition: "center",
               WebkitMaskSize: "contain",
               maskSize: "contain",
-              flexShrink: 0,
               filter: "drop-shadow(0 0 8px rgba(212,175,55,0.45))",
             }}
-            data-testid="sidebar-symbol-d"
           />
-          <div className="flex-1 min-w-0">
-            <span className="font-bold text-base text-sidebar-foreground tracking-tight uppercase">Pawards</span>
-            <span className="block text-[10px] text-muted-foreground tracking-widest uppercase">Developed by Pawards MedCore</span>
+        </Link>
+
+        {/* Avatar/perfil (tooltip mostra nome+perfil) */}
+        <div className="px-2 py-2 border-b border-border" title={`${user.nome} · ${user.perfil.replace("_", " ")} · ${escopoLabel}`}>
+          <div className="w-full h-12 flex flex-col items-center justify-center border border-sidebar-border bg-sidebar-accent/30">
+            <span className="text-[9px] font-bold tracking-[0.15em] text-sidebar-foreground leading-none">
+              {(user.nome || "?").split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase()}
+            </span>
+            <span className="text-[7px] uppercase tracking-widest text-muted-foreground mt-0.5 leading-none">
+              {escopoLabel.slice(0, 7)}
+            </span>
           </div>
-          <CampainhaAlertasSeguranca />
         </div>
-        <div className="px-5 py-3 border-b border-border">
-          <div className="text-sm font-semibold text-sidebar-foreground truncate">{user.nome}</div>
-          <div className="text-[11px] text-muted-foreground capitalize tracking-wide">{user.perfil.replace("_", " ")}</div>
-          <div className="text-[9px] text-primary/70 uppercase tracking-widest mt-0.5">{escopoLabel}</div>
+
+        {/* Buscar (CmdK) + Campainha alertas */}
+        <div className="px-2 py-2 border-b border-border flex flex-col gap-1.5 items-center">
           <button
             onClick={() => { sound.open(); window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true })); }}
-            className="mt-2 w-full flex items-center justify-between gap-2 px-2 py-1 border border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent transition-colors group"
-            data-testid="hint-cmdk"
+            className="rail-neon-item w-full h-9 flex items-center justify-center"
+            style={{ ["--cor-rail" as string]: "#9CA3AF" } as React.CSSProperties}
+            data-testid="rail-buscar"
             title="Buscar comandos (Cmd/Ctrl + K)"
           >
-            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground group-hover:text-sidebar-foreground transition-colors">
-              <CommandIcon className="w-3 h-3" />
-              Buscar
-            </span>
-            <kbd className="text-[9px] font-mono text-muted-foreground border border-sidebar-border px-1 py-0.5">⌘K</kbd>
+            <CommandIcon className="w-4 h-4 text-sidebar-foreground/80" />
           </button>
+          <CampainhaAlertasSeguranca />
         </div>
-        <ClinicSwitcher />
 
-        {/* ⚡ PINS — atalhos fixos pras 4 ações que o Caio mais usa.
-            Grade 2x2 de botões grandes com ícone+nome. Sempre visíveis,
-            não dependem de grupo colapsado. Foco TDAH: bate o olho e clica. */}
+        {/* CLÍNICA SWITCHER COMPACTO — GLOBAL / LOCAL como 2 ícones empilhados.
+            Clica → abre popover com lista de unidades. */}
+        {(() => {
+          const aberto = painelAberto === "clinica";
+          const cor = clinicIsTodas ? "#5B8DEF" : (clinicCorSelecionada || "#A78B5F");
+          return (
+            <div className="px-2 py-2 border-b border-border flex flex-col gap-1.5 items-center">
+              <button
+                onClick={() => setPainelAberto(aberto ? null : "clinica")}
+                className={`rail-neon-item w-full h-12 flex flex-col items-center justify-center gap-0.5 ${aberto ? "rail-neon-item--ativo" : ""}`}
+                style={{ ["--cor-rail" as string]: cor } as React.CSSProperties}
+                data-testid="rail-clinica-switcher"
+                title={clinicIsTodas ? "Visão Global — todas as clínicas" : `Local — ${clinicNomeSelecionado}`}
+              >
+                {clinicIsTodas ? <Globe className="w-4 h-4" style={{ color: cor }} /> : <Mountain className="w-4 h-4" style={{ color: cor }} />}
+                <span className="text-[7.5px] uppercase tracking-widest font-bold leading-none" style={{ color: cor }}>
+                  {clinicIsTodas ? "GLOB" : "LOCAL"}
+                </span>
+              </button>
+            </div>
+          );
+        })()}
+
+        {/* ⚡ PINS — ícones empilhados, neon na cor de cada */}
         {(() => {
           const PINS: Array<{ slug: string; name: string; path: string; icon: any; cor: string }> = [
             { slug: "prescricao-rapida", name: "Prescrição", path: "/prescricao-rapida", icon: Zap, cor: "#5B8DEF" },
@@ -520,210 +595,252 @@ export function Layout({ children }: { children: ReactNode }) {
           ].filter((p) => modulosPermitidos.includes(p.slug));
           if (PINS.length === 0) return null;
           return (
-            <div className="px-3 py-3 border-b border-border">
-              <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 px-1 flex items-center gap-1.5">
-                <Zap className="w-3 h-3 text-[#5B8DEF]" /> Atalhos
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {PINS.map((p) => {
-                  const Icon = p.icon;
-                  const isActive = location === p.path || location.startsWith(p.path + "/");
-                  return (
-                    <Link
-                      key={p.slug}
-                      href={p.path}
-                      className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 border-l-[3px] transition-all ${
-                        isActive
-                          ? "text-sidebar-foreground font-semibold"
-                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-                      }`}
-                      style={isActive
-                        ? { backgroundColor: `${p.cor}22`, borderLeftColor: p.cor, boxShadow: `inset 0 0 0 1px ${p.cor}55` }
-                        : { borderLeftColor: `${p.cor}55` }}
-                      data-testid={`pin-${p.slug}`}
-                      title={p.name}
-                    >
-                      <Icon className="w-5 h-5" style={{ color: p.cor }} />
-                      <span className="text-[10px] uppercase tracking-wider font-bold leading-none">{p.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
+            <div className="px-2 py-2 border-b border-border flex flex-col gap-1.5 items-center">
+              {PINS.map((p) => {
+                const Icon = p.icon;
+                const isActive = location === p.path || location.startsWith(p.path + "/");
+                return (
+                  <Link
+                    key={p.slug}
+                    href={p.path}
+                    onClick={() => setPainelAberto(null)}
+                    className={`rail-neon-item w-full h-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "rail-neon-item--ativo" : ""}`}
+                    style={{ ["--cor-rail" as string]: p.cor } as React.CSSProperties}
+                    data-testid={`rail-pin-${p.slug}`}
+                    title={p.name}
+                  >
+                    <Icon className="w-4 h-4" style={{ color: p.cor }} />
+                    <span className="text-[7.5px] uppercase tracking-widest font-bold leading-none" style={{ color: p.cor }}>
+                      {p.name.slice(0, 6)}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           );
         })()}
 
-        {/* 🩺 COCKPIT — atalho destacado pro painel tático do paciente.
-            Vive embaixo dos PINS com tamanho maior e cor única (ciano neon
-            da mensageria), pra Caio bater o olho e abrir o modo
-            "painel de guerra" do paciente sem precisar caçar no menu. */}
-        {modulosPermitidos.includes("pacientes") && (
-          <div className="px-3 py-3 border-b border-border">
-            <Link
-              href="/cockpit"
-              className={`group relative flex items-center gap-3 px-3 py-3 border-l-[3px] transition-all overflow-hidden ${
-                // Wave Cockpit Premium 20/mai/2026: agora aponta pra /cockpit
-                // (página dedicada de seletor), não mais pra /pacientes?modo=
-                // cockpit (lista genérica). Destaque ativa quando estiver no
-                // seletor OU no path-based /pacientes/:id/cockpit, mantendo
-                // coerência visual da jornada.
-                (typeof window !== "undefined" && (location === "/cockpit" || location.includes("/cockpit")))
-                  ? "bg-[#5EE6E6]/15 text-sidebar-foreground"
-                  : "hover:bg-[#5EE6E6]/8 text-sidebar-foreground/85 hover:text-sidebar-foreground"
-              }`}
-              style={{ borderLeftColor: "#5EE6E6", boxShadow: "inset 0 0 0 1px rgba(94,230,230,0.35)" }}
-              data-testid="atalho-cockpit"
-              title="Modo COCKPIT — painel tático do paciente"
-            >
-              <span
-                className="w-10 h-10 flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: "rgba(94,230,230,0.18)", color: "#5EE6E6" }}
+        {/* 🩺 COCKPIT — ícone neon ciano */}
+        {modulosPermitidos.includes("pacientes") && (() => {
+          const isActive = location === "/cockpit" || location.includes("/cockpit");
+          return (
+            <div className="px-2 py-2 border-b border-border flex items-center justify-center">
+              <Link
+                href="/cockpit"
+                onClick={() => setPainelAberto(null)}
+                className={`rail-neon-item w-full h-12 flex flex-col items-center justify-center gap-0.5 ${isActive ? "rail-neon-item--ativo" : ""}`}
+                style={{ ["--cor-rail" as string]: "#5EE6E6" } as React.CSSProperties}
+                data-testid="rail-cockpit"
+                title="Painel Tático — Cockpit do Paciente"
               >
-                <Stethoscope className="w-5 h-5" />
-              </span>
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[9px] uppercase tracking-[0.2em] font-mono font-bold leading-none" style={{ color: "#5EE6E6" }}>
-                  Painel Tático
+                <Stethoscope className="w-5 h-5" style={{ color: "#5EE6E6" }} />
+                <span className="text-[7.5px] uppercase tracking-widest font-bold leading-none" style={{ color: "#5EE6E6" }}>
+                  COCKPIT
                 </span>
-                <span className="text-[13px] font-bold uppercase tracking-wider leading-tight mt-0.5">
-                  Cockpit Paciente
-                </span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#5EE6E6] group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
-        )}
+              </Link>
+            </div>
+          );
+        })()}
 
-        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide py-2 px-3">
-          {/* MENU ESTILO PATRIUM + COMPARTIMENTAÇÃO COLORIDA:
-              - Header de grupo: só texto uppercase tracking-wide na cor do grupo
-              - Faixa vertical fina à esquerda na cor do grupo, delimitando todos
-                os items do bloco visualmente
-              - Items respiráveis: ícone fino + label, cantos arredondados,
-                hover sutil
-              - Item ativo: fundo cheio na cor do grupo + texto contraste +
-                pulso neon lento (4s) na cor do grupo */}
+        {/* GRUPOS — 1 ícone por grupo, click abre popover à direita */}
+        <nav className="flex-1 overflow-y-auto scrollbar-hide py-2 px-2 flex flex-col gap-1.5 items-center">
           {grupos.map((g) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             if (items.length === 0) return null;
             const cor = g.cor ?? "#888";
+            const Icon = g.icon;
+            const grupoAtivo = items.some((it) => location === it.path || location.startsWith(it.path + "/"));
+            const popoverAberto = painelAberto === `grupo-${g.id}`;
             return (
-              <div key={g.id} className="mb-4" data-testid={`grupo-${g.id}`}>
-                {/* HEADER limpo do grupo (estilo Patrium) */}
-                <div
-                  className="text-[10px] uppercase tracking-[0.18em] font-bold mb-1.5 px-2"
-                  style={{ color: cor }}
-                  data-testid={`grupo-header-${g.id}`}
-                >
-                  {g.nome}
-                </div>
-                {/* BLOCO de items com faixa colorida vertical à esquerda */}
-                <div
-                  className="pl-2"
-                  style={{ borderLeft: `2px solid ${cor}55` }}
-                >
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location === item.path || location.startsWith(item.path + "/");
-                    return (
-                      <Link
-                        key={item.path}
-                        href={item.path}
-                        className={`group flex items-center gap-2.5 px-2.5 py-1.5 text-[12px] rounded-md transition-all leading-tight ${
-                          isActive
-                            ? "pulso-neon-menu font-semibold"
-                            : "text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
-                        }`}
-                        style={isActive
-                          ? ({
-                              backgroundColor: cor,
-                              color: "#0B1220",
-                              ["--cor-neon" as string]: cor,
-                              ["--cor-neon-fraca" as string]: `${cor}20`,
-                              ["--cor-neon-forte" as string]: `${cor}55`,
-                            } as React.CSSProperties)
-                          : undefined}
-                        data-testid={`menu-${item.slug}`}
-                      >
-                        <Icon
-                          className="h-4 w-4 flex-shrink-0"
-                          style={isActive ? { color: "#0B1220" } : { color: `${cor}CC` }}
-                        />
-                        <span className="flex-1 truncate">{item.name}</span>
-                        {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
-                          <span data-testid="badge-lembretes-falhas"
-                            className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none animate-pulse">
-                            {falhasLembrete > 99 ? "99+" : falhasLembrete}
-                          </span>
-                        ) : null}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
+              <button
+                key={g.id}
+                onClick={() => setPainelAberto(popoverAberto ? null : `grupo-${g.id}`)}
+                className={`rail-neon-item w-full h-12 flex flex-col items-center justify-center gap-0.5 ${grupoAtivo || popoverAberto ? "rail-neon-item--ativo" : ""}`}
+                style={{ ["--cor-rail" as string]: cor } as React.CSSProperties}
+                data-testid={`rail-grupo-${g.id}`}
+                title={g.nome}
+                aria-expanded={popoverAberto}
+                aria-haspopup="true"
+              >
+                <Icon className="w-4 h-4" style={{ color: cor }} />
+                <span className="text-[7.5px] uppercase tracking-widest font-bold leading-none truncate w-full text-center px-0.5" style={{ color: cor }}>
+                  {g.nome.split(" ")[0].slice(0, 7)}
+                </span>
+              </button>
             );
           })}
         </nav>
-        <div className="px-4 py-3 border-t border-border space-y-1">
+
+        {/* FOOTER ícones — som + 2fa + sair */}
+        <div className="px-2 py-2 border-t border-border flex flex-col gap-1.5 items-center">
+          <button
+            onClick={() => { sound.tap(); sound.toggle(); }}
+            className="rail-neon-item w-full h-9 flex items-center justify-center"
+            style={{ ["--cor-rail" as string]: sound.enabled ? "#7BC79E" : "#6B7280" } as React.CSSProperties}
+            data-testid="rail-toggle-som"
+            title={sound.enabled ? "Som ligado · clique pra silenciar" : "Som silenciado · clique pra ligar"}
+          >
+            {sound.enabled ? <Volume2 className="w-4 h-4 text-sidebar-foreground/80" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
+          </button>
+          {(() => {
+            const perfilPlataforma = (user as Usuario & {
+              perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user" | null;
+            } | null)?.perfilPlataforma;
+            return perfilPlataforma === "platform_owner" || perfilPlataforma === "tenant_admin";
+          })() && (
+            <button
+              onClick={() => setLocation("/perfil/seguranca-2fa")}
+              className="rail-neon-item w-full h-9 flex items-center justify-center"
+              style={{ ["--cor-rail" as string]: "#5EE6E6" } as React.CSSProperties}
+              data-testid="rail-link-2fa"
+              title="Segurança · 2FA TOTP"
+            >
+              <Lock className="w-4 h-4 text-sidebar-foreground/80" />
+            </button>
+          )}
           {(location.startsWith("/plataforma") ||
-            // Task #264: validador_mestre / medico_validador tambem precisam
-            // do indicador permanente quando navegando nas telas onde 2FA
-            // recente eh exigido (assinatura de prescricoes, validacao de
-            // exames, libera RASX). O proprio indicador faz o gate de perfil
-            // — aqui so abrimos o portao de location pra essas rotas extras.
             location.startsWith("/assinaturas") ||
             location.startsWith("/validacao") ||
             location.startsWith("/laboratorio/validacao")) && (
             <Platform2faFooterIndicator
               onRenovar={() =>
                 openStepUp2fa(() => {
-                  // Task #157: apos sucesso, invalida /usuarios/perfil-atual
-                  // pra refrescar `ultimoLogin2faEm` e o indicador re-renderizar
-                  // sozinho com a nova janela de 8h. Mesmo padrao do banner #130.
-                  void queryClient.invalidateQueries({
-                    queryKey: ["/usuarios/perfil-atual"],
-                  });
+                  void queryClient.invalidateQueries({ queryKey: ["/usuarios/perfil-atual"] });
                 })
               }
             />
           )}
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs"
-            onClick={() => { sound.tap(); sound.toggle(); }}
-            data-testid="toggle-som"
-            title={sound.enabled ? "Som curatorial ligado · clique pra silenciar" : "Som curatorial silenciado · clique pra ligar"}
+          <button
+            onClick={logout}
+            className="rail-neon-item w-full h-9 flex items-center justify-center"
+            style={{ ["--cor-rail" as string]: "#F87171" } as React.CSSProperties}
+            data-testid="rail-sair"
+            title="Sair"
           >
-            {sound.enabled
-              ? <Volume2 className="mr-3 h-4 w-4" />
-              : <VolumeX className="mr-3 h-4 w-4" />}
-            {sound.enabled ? "Som ligado" : "Som silenciado"}
-          </Button>
-          {(() => {
-            // Task #122 — perfilPlataforma so eh exposto via /perfil-atual
-            // (estende Usuario do api-client com campo opcional). Tipagem
-            // local pra evitar `any` espalhado pelo Layout.
-            const perfilPlataforma = (user as Usuario & {
-              perfilPlataforma?: "platform_owner" | "tenant_admin" | "tenant_user" | null;
-            } | null)?.perfilPlataforma;
-            return perfilPlataforma === "platform_owner" || perfilPlataforma === "tenant_admin";
-          })() && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs"
-              onClick={() => setLocation("/perfil/seguranca-2fa")}
-              data-testid="link-perfil-seguranca-2fa"
-              title="Configurar verificacao em duas etapas (2FA TOTP)"
-            >
-              <Lock className="mr-3 h-4 w-4" />
-              Seguranca · 2FA
-            </Button>
-          )}
-          <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground text-xs" onClick={logout}>
-            <LogOut className="mr-3 h-4 w-4" />
-            Sair
-          </Button>
+            <LogOut className="w-4 h-4 text-sidebar-foreground/80" />
+          </button>
         </div>
+
+        {/* ═══ POPOVER PANEL ═══ flutuante à direita do rail */}
+        {painelAberto && (
+          <div
+            ref={popoverRef}
+            className="absolute left-full top-0 h-screen w-[260px] bg-sidebar border-r border-border shadow-[8px_0_24px_-4px_rgba(0,0,0,0.5)] z-50 flex flex-col"
+            data-testid="rail-popover"
+          >
+            {/* CONTEÚDO: lista de unidades */}
+            {painelAberto === "clinica" && (() => {
+              const cor = clinicIsTodas ? "#5B8DEF" : (clinicCorSelecionada || "#A78B5F");
+              return (
+                <>
+                  <div
+                    className="px-4 py-3 border-b border-border border-l-[3px] flex items-center justify-between"
+                    style={{ borderLeftColor: cor }}
+                  >
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: cor }}>
+                      Selecionar Clínica
+                    </span>
+                    <button
+                      onClick={() => setPainelAberto(null)}
+                      className="text-muted-foreground hover:text-foreground text-[14px] leading-none px-1"
+                      title="Fechar"
+                      aria-label="Fechar popover"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto py-2">
+                    {clinicCanSwitch && (
+                      <button
+                        onClick={() => { clinicSetUnidade(null); setPainelAberto(null); }}
+                        className={`rail-neon-item w-[calc(100%-1rem)] mx-2 mb-1 h-11 px-3 flex items-center gap-2.5 text-[12px] ${clinicIsTodas ? "rail-neon-item--ativo font-bold" : ""}`}
+                        style={{ ["--cor-rail" as string]: "#5B8DEF" } as React.CSSProperties}
+                        data-testid="rail-clinic-option-todas"
+                      >
+                        <Globe className="w-4 h-4" style={{ color: "#5B8DEF" }} />
+                        <span className="text-sidebar-foreground tracking-wide">Todas as Clínicas</span>
+                      </button>
+                    )}
+                    {clinicUnidades.map((u) => {
+                      const ativa = clinicUnidadeSelecionada === u.unidadeId;
+                      const cor = u.unidadeCor || "#A78B5F";
+                      const isPadua = u.unidadeId === 15;
+                      const isGenesis = u.unidadeId === 14;
+                      return (
+                        <button
+                          key={u.unidadeId}
+                          onClick={() => { clinicSetUnidade(u.unidadeId); setPainelAberto(null); }}
+                          className={`rail-neon-item w-[calc(100%-1rem)] mx-2 mb-1 h-11 px-3 flex items-center gap-2.5 text-[12px] ${ativa ? "rail-neon-item--ativo font-bold" : ""}`}
+                          style={{ ["--cor-rail" as string]: cor } as React.CSSProperties}
+                          data-testid={`rail-clinic-option-${u.unidadeId}`}
+                        >
+                          <span className="text-base flex-shrink-0">{isPadua ? "⭐" : isGenesis ? "🧬" : "●"}</span>
+                          <span className="flex-1 truncate text-sidebar-foreground tracking-wide">{u.unidadeNome}</span>
+                          {isPadua && <span className="text-[8px] uppercase font-bold tracking-widest" style={{ color: cor }}>PRINCIPAL</span>}
+                          {isGenesis && <span className="text-[8px] uppercase font-bold tracking-widest" style={{ color: cor }}>COFRE</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* CONTEÚDO: items de um grupo */}
+            {painelAberto?.startsWith("grupo-") && (() => {
+              const grupoId = painelAberto.replace("grupo-", "");
+              const g = grupos.find((x) => x.id === grupoId);
+              if (!g) return null;
+              const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
+              const cor = g.cor ?? "#888";
+              return (
+                <>
+                  <div
+                    className="px-4 py-3 border-b border-border border-l-[3px] flex items-center justify-between"
+                    style={{ borderLeftColor: cor }}
+                  >
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: cor }}>
+                      {g.nome}
+                    </span>
+                    <button
+                      onClick={() => setPainelAberto(null)}
+                      className="text-muted-foreground hover:text-foreground text-[14px] leading-none px-1"
+                      title="Fechar"
+                      aria-label="Fechar popover"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto py-2">
+                    {items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = location === item.path || location.startsWith(item.path + "/");
+                      return (
+                        <Link
+                          key={item.path}
+                          href={item.path}
+                          onClick={() => setPainelAberto(null)}
+                          className={`rail-neon-item w-[calc(100%-1rem)] mx-2 mb-1 h-10 px-3 flex items-center gap-2.5 text-[12px] leading-tight ${isActive ? "rail-neon-item--ativo font-bold" : ""}`}
+                          style={{ ["--cor-rail" as string]: cor } as React.CSSProperties}
+                          data-testid={`menu-${item.slug}`}
+                        >
+                          <Icon className="h-4 w-4 flex-shrink-0" style={{ color: cor }} />
+                          <span className="flex-1 truncate text-sidebar-foreground tracking-wide">{item.name}</span>
+                          {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
+                            <span data-testid="badge-lembretes-falhas"
+                              className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none animate-pulse">
+                              {falhasLembrete > 99 ? "99+" : falhasLembrete}
+                            </span>
+                          ) : null}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* HEADER GLOBAL — setinha de voltar (top-left, padrão navegador) +
