@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
-import { Layout } from "@/components/Layout";
+import { LayoutTripleFocus as Layout } from "@/components/LayoutTripleFocus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   useObterResumoDashboard, 
