@@ -1,0 +1,83 @@
+Beleza! Já tenho o arquivo aberto (artifacts/patrium/src/components/layout/Shell.tsx). Vou explicar como esse menu funciona, em termos técnicos, pra você poder pedir algo igual em qualquer outro projeto aqui no Replit.
+
+O que é, em uma frase
+É um layout "shell" com sidebar fixa à esquerda + área de conteúdo à direita, montado em React + Tailwind, onde o menu é gerado a partir de uma lista de grupos de navegação (data-driven, não hard-coded item a item no JSX).
+
+Anatomia (4 camadas)
+1. Container raiz — flex horizontal
+
+<div className="flex min-h-[100dvh] w-full">
+   <aside ...sidebar... />
+   <main ...conteúdo... />
+</div>
+
+Tela inteira em flex; sidebar à esquerda, main toma o resto.
+
+2. Sidebar fixa
+
+<aside className="fixed inset-y-0 left-0 w-[260px] border-r bg-sidebar px-4 py-6 flex flex-col">
+
+fixed inset-y-0 left-0 → cola na esquerda, altura total da viewport
+w-[260px] → largura constante (260px)
+flex flex-col por dentro pra empilhar: logo no topo, navegação no meio (flex-1), bloco do usuário no fundo (mt-auto)
+3. Conteúdo principal compensa a sidebar
+
+<main className="flex-1 pl-[260px]">
+   <header className="sticky top-0 h-20 backdrop-blur-md">...</header>
+   <div className="flex-1 p-8">{children}</div>
+</main>
+
+O pl-[260px] empurra o conteúdo pra direita do mesmo valor da largura da sidebar. O header é sticky top-0 com backdrop-blur (efeito vidro fosco quando rola).
+
+4. Menu data-driven
+A parte que dá a "cara organizada" é esta estrutura de dados:
+
+const navGroups = [
+  { title: "VISÃO GERAL", items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/financeiro", label: "Tesouraria", icon: Wallet },
+  ]},
+  { title: "PATRIMÔNIO", items: [...] },
+  { title: "OPERAÇÃO",   items: [...] },
+  { title: "INTELIGÊNCIA", items: [...] },
+];
+
+Aí dois .map() aninhados renderizam: um pra grupos (com o <h4> em caixa-alta tracking-wide cinza), outro pros itens dentro.
+
+As 5 decisões técnicas que dão o "look"
+Item ativo destacado por rota atual — usa useLocation() do wouter (router leve, similar ao react-router). Lógica:
+
+const isActive = location === item.href 
+              || (item.href !== "/" && location.startsWith(item.href));
+
+Match exato pra /, prefix-match pros outros (/contratos/123 ainda destaca "Contratos").
+
+Ícones de linha fina — biblioteca lucide-react (LayoutDashboard, Building2, Wallet, Bell, etc.), tamanho h-4 w-4.
+
+Cores via tokens semânticos do Tailwind — bg-sidebar, text-sidebar-foreground, bg-primary, text-muted-foreground. Esses tokens vêm de variáveis CSS no index.css / tokens.css — então é só trocar a paleta lá e o menu inteiro reage.
+
+Bloco de usuário fixo no rodapé — mt-auto empurra ele pra baseline da sidebar. Avatar é só duas letras iniciais dentro de um círculo (rounded-full), com botão de logout (LogOut ícone) ao lado.
+
+Command Palette ⌘K — botão no header abre um modal de busca/navegação (componente CommandPalette, padrão tipo Linear/Notion). Acelera muito a UX.
+
+Stack mínima pra reproduzir em outro projeto
+Camada	Biblioteca
+Framework	React
+Estilo	Tailwind CSS (tokens semânticos em index.css)
+Roteamento	wouter (ou react-router-dom, equivalente)
+Ícones	lucide-react
+Tipografia	Outfit (sans) + Fraunces (serif) via Google Fonts
+Modal de comandos	cmdk (é o que o shadcn usa por baixo)
+Como pedir pra mim (ou outro agente) recriar isso
+Cole um prompt como este, ajustando nomes/cores:
+
+"Crie um componente Shell (layout wrapper) em React + Tailwind + wouter com:
+
+Sidebar fixa à esquerda, largura 260px, fundo bg-sidebar, borda direita
+Menu data-driven a partir de um array navGroups = [{title, items: [{href, label, icon}]}], com grupos separados por título em caixa-alta tracking-widest
+Item ativo destacado via useLocation() (match exato pra /, prefix-match pros demais)
+Ícones do lucide-react, h-4 w-4
+Logo no topo, navegação no meio (flex-1), bloco usuário+logout no rodapé (mt-auto)
+Main com pl-[260px], header sticky top com backdrop-blur-md, título+subtítulo à esquerda, botão ⌘K à direita
+Use tokens semânticos do Tailwind (bg-sidebar, text-primary, text-muted-foreground) pra cores"
+Se quiser, posso já replicar essa Shell num projeto novo seu — me diga qual projeto (cria uma nova app ou aplica em alguma existente?) e quais itens o menu deve ter.

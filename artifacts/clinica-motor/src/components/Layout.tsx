@@ -594,55 +594,34 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide py-1 px-1">
-          {/* MENU COMPARTIMENTADO POR CORES: cada grupo (DASHBOARD GLOBAL,
-              DASHBOARD LOCAL, AGENDAS & MOTOR, etc.) tem header colorido
-              fino + trilha vertical na cor do grupo amarrando os items.
-              Items compactos pra caber sem rolagem na maioria das telas;
-              quando passar, rolagem invisível pela rodinha do mouse. */}
-          {grupos.map((g, idx) => {
+        <nav ref={navRef} className="flex-1 overflow-y-auto scrollbar-hide py-2 px-3">
+          {/* MENU ESTILO PATRIUM + COMPARTIMENTAÇÃO COLORIDA:
+              - Header de grupo: só texto uppercase tracking-wide na cor do grupo
+              - Faixa vertical fina à esquerda na cor do grupo, delimitando todos
+                os items do bloco visualmente
+              - Items respiráveis: ícone fino + label, cantos arredondados,
+                hover sutil
+              - Item ativo: fundo cheio na cor do grupo + texto contraste +
+                pulso neon lento (4s) na cor do grupo */}
+          {grupos.map((g) => {
             const items = g.items.filter((i) => modulosPermitidos.includes(i.slug));
             if (items.length === 0) return null;
-            const GIcon = g.icon;
-            const numero = String(idx + 1).padStart(2, "0");
             const cor = g.cor ?? "#888";
             return (
-              <div key={g.id} className="mb-1.5" data-testid={`grupo-${g.id}`}>
-                {/* HEADER colorido fino do grupo */}
+              <div key={g.id} className="mb-4" data-testid={`grupo-${g.id}`}>
+                {/* HEADER limpo do grupo (estilo Patrium) */}
                 <div
-                  className="flex items-center gap-1.5 pr-1.5 py-0.5 border-l-[4px]"
-                  style={{
-                    borderLeftColor: cor,
-                    background: `linear-gradient(90deg, ${cor}33 0%, ${cor}10 60%, transparent 100%)`,
-                  }}
+                  className="text-[10px] uppercase tracking-[0.18em] font-bold mb-1.5 px-2"
+                  style={{ color: cor }}
                   data-testid={`grupo-header-${g.id}`}
                 >
-                  <div
-                    className="w-4 h-4 flex items-center justify-center flex-shrink-0"
-                    style={{ background: cor, color: "#0B1220" }}
-                  >
-                    <GIcon className="w-3 h-3" />
-                  </div>
-                  <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: cor }}>
-                    {numero}
-                  </span>
-                  <span
-                    className="flex-1 text-left text-[10px] uppercase tracking-[0.12em] font-bold leading-none truncate"
-                    style={{ color: cor }}
-                  >
-                    {g.nome}
-                  </span>
-                  <span
-                    className="text-[9px] font-mono font-bold tabular-nums px-1"
-                    style={{ color: cor, background: `${cor}22` }}
-                  >
-                    {items.length}
-                  </span>
+                  {g.nome}
                 </div>
-                {/* TRILHA vertical na cor do grupo + items como BOTÕES
-                    arredondados. Item ativo recebe pulso neon lento (4s)
-                    na cor do grupo via classe `pulso-neon-menu`. */}
-                <div className="space-y-px pt-0.5" style={{ borderLeft: `2px solid ${cor}55`, marginLeft: "7px", paddingLeft: "4px" }}>
+                {/* BLOCO de items com faixa colorida vertical à esquerda */}
+                <div
+                  className="pl-2"
+                  style={{ borderLeft: `2px solid ${cor}55` }}
+                >
                   {items.map((item) => {
                     const Icon = item.icon;
                     const isActive = location === item.path || location.startsWith(item.path + "/");
@@ -650,29 +629,30 @@ export function Layout({ children }: { children: ReactNode }) {
                       <Link
                         key={item.path}
                         href={item.path}
-                        className={`flex items-center px-2 py-1 text-[11px] transition-all leading-tight rounded-md ${
+                        className={`group flex items-center gap-2.5 px-2.5 py-1.5 text-[12px] rounded-md transition-all leading-tight ${
                           isActive
-                            ? "pulso-neon-menu text-sidebar-foreground font-semibold"
-                            : "text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                            ? "pulso-neon-menu font-semibold"
+                            : "text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
                         }`}
                         style={isActive
                           ? ({
-                              backgroundColor: `${cor}1A`,
+                              backgroundColor: cor,
+                              color: "#0B1220",
                               ["--cor-neon" as string]: cor,
-                              ["--cor-neon-fraca" as string]: `${cor}15`,
-                              ["--cor-neon-forte" as string]: `${cor}38`,
+                              ["--cor-neon-fraca" as string]: `${cor}20`,
+                              ["--cor-neon-forte" as string]: `${cor}55`,
                             } as React.CSSProperties)
                           : undefined}
                         data-testid={`menu-${item.slug}`}
                       >
                         <Icon
-                          className="mr-1.5 h-3 w-3 flex-shrink-0"
-                          style={{ color: isActive ? cor : `${cor}CC` }}
+                          className="h-4 w-4 flex-shrink-0"
+                          style={isActive ? { color: "#0B1220" } : { color: `${cor}CC` }}
                         />
                         <span className="flex-1 truncate">{item.name}</span>
                         {item.slug === "lembretes-falhas" && falhasLembrete > 0 ? (
                           <span data-testid="badge-lembretes-falhas"
-                            className="ml-1 inline-flex items-center justify-center min-w-[12px] h-[12px] px-0.5 rounded-full bg-red-600 text-white text-[8px] font-bold leading-none animate-pulse">
+                            className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none animate-pulse">
                             {falhasLembrete > 99 ? "99+" : falhasLembrete}
                           </span>
                         ) : null}
