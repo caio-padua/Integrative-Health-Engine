@@ -9,10 +9,19 @@ export function SupportStyleE4Scroll() {
   const [itemAtivo, setItemAtivo] = useState("Pacientes");
   const grupo = GROUPS[grupoIdx];
 
-  const corte = Math.ceil(grupo.items.length / 2);
+  // Demonstração: lista expandida pra forçar overflow e mostrar a scrollbar
+  // viva (numa clínica real cada módulo tem 20-40 atalhos)
+  const extras = [
+    "Importar Planilha", "Exportar CSV", "Filtros Avançados", "Tags & Marcadores",
+    "Histórico de Alterações", "Backup Automático", "Notificações Push",
+    "Integrações", "Webhooks", "Auditoria de Acesso", "Permissões Granulares",
+    "Atalhos de Teclado", "Modo Foco", "Modo Escuro", "Acessibilidade",
+  ].map((label) => ({ label }));
+
   const secoes = [
-    { titulo: "OPERACIONAL", cor: grupo.color, items: grupo.items.slice(0, corte) },
-    { titulo: "CONFIGURAÇÃO", cor: "#94A3B8", items: grupo.items.slice(corte) },
+    { titulo: "OPERACIONAL", cor: grupo.color, items: grupo.items },
+    { titulo: "CONFIGURAÇÃO", cor: "#94A3B8", items: extras.slice(0, 8) },
+    { titulo: "AVANÇADO", cor: "#A78BFA", items: extras.slice(8) },
   ];
 
   return (
@@ -33,10 +42,32 @@ export function SupportStyleE4Scroll() {
       >
         {/* ═══════════════════════════════════════════════════════════════
             SIDEBAR — UM ÚNICO SCROLL teto-ao-chão (NENHUMA região fixa)
+            Scrollbar custom SEMPRE visível (igual Support Clinic)
             ═══════════════════════════════════════════════════════════════ */}
+        <style>{`
+          .sidebar-scroll-literal {
+            scrollbar-gutter: stable;
+          }
+          .sidebar-scroll-literal::-webkit-scrollbar {
+            width: 10px;
+          }
+          .sidebar-scroll-literal::-webkit-scrollbar-track {
+            background: #0F172A;
+            border-left: 1px solid #1F2937;
+          }
+          .sidebar-scroll-literal::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #5EE6E6 0%, #3B82C4 100%);
+            border-radius: 0;
+            box-shadow: inset 0 0 0 1px rgba(94,230,230,0.5),
+                        0 0 8px rgba(94,230,230,0.4);
+          }
+          .sidebar-scroll-literal::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #7BF0F0 0%, #5BA0E0 100%);
+          }
+        `}</style>
         <aside
-          className="w-[230px] flex-shrink-0 border-r border-[#1F2937] overflow-y-auto"
-          style={{ background: "#0B1220" }}
+          className="sidebar-scroll-literal w-[240px] flex-shrink-0 border-r border-[#1F2937]"
+          style={{ background: "#0B1220", overflowY: "scroll" }}
         >
           {/* PINS — agora ROLAM junto */}
           <div
