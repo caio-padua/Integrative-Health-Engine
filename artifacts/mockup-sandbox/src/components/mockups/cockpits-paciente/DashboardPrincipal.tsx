@@ -1,4 +1,5 @@
 import { CockpitShell, BlocoCockpit, Sparkline, ChipStatus, corBloco, p, pasteis, ls, fonte } from "./_pecasCockpit";
+import { OperadorTag } from "./_dashShell";
 
 /**
  * DASHBOARD PRINCIPAL · v3
@@ -419,20 +420,9 @@ function BarraBreadcrumb() {
         </span>
       </div>
 
-      {/* DIREITA · OPERADOR + 2 BOTÕES */}
+      {/* DIREITA · OPERADOR (retângulo dentro de retângulo) + 2 BOTÕES */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 12, borderRight: `1px solid ${p.border}` }}>
-          <div style={{
-            width: 34, height: 34, background: p.navyPanel, border: `1px solid ${p.gold}`,
-            color: p.gold, display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 12, fontWeight: 700, letterSpacing: ls.forte,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 8px ${p.gold}33`,
-          }}>DC</div>
-          <div style={{ lineHeight: 1.3 }}>
-            <div style={{ fontSize: 11, color: p.ink, letterSpacing: ls.forte, fontWeight: 700 }}>DR. CAIO REGISTER</div>
-            <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte }}>CEO · PERFIL MÉDICO MASTER · CRM-SP 142.308</div>
-          </div>
-        </div>
+        <OperadorTag nome="DR. CAIO REGISTER" cargo="MÉDICO" extra="CEO · CRM-SP 142.308" />
         <button className="pwd-btn" style={{ fontSize: 10, padding: "8px 14px" }}>CONFIGURAÇÕES</button>
         <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: "8px 14px" }}>SAIR</button>
       </div>

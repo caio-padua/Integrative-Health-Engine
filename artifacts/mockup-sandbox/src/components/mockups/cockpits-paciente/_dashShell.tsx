@@ -142,6 +142,25 @@ const ESTILOS = `
     border-color: ${VERDE_DOS}66 !important;
   }
 
+  /* ===== OPERADOR · retângulo dentro de retângulo (tsunami v4) ===== */
+  .pwd-op-externo:hover {
+    border-color: ${VERDE_DOS} !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 2px 0 rgba(0,0,0,0.5),
+      0 0 16px rgba(51,255,102,0.5),
+      0 0 32px rgba(51,255,102,0.22) !important;
+    transform: translateY(-1px);
+  }
+  .pwd-op-externo:hover > div:first-child {
+    border-color: ${VERDE_DOS};
+    box-shadow: inset 0 0 10px rgba(51,255,102,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .pwd-op-externo:hover > div:first-child > div:first-child {
+    color: ${VERDE_DOS};
+    text-shadow: 0 0 8px rgba(51,255,102,0.7);
+  }
+
   .pwd-crumb-on {
     padding: 4px 11px;
     border: 1px solid;
@@ -255,21 +274,61 @@ function BarraBreadcrumb({ modeloNome }: { modeloNome: string }) {
         </span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 12, borderRight: `1px solid ${p.border}` }}>
-          <div style={{
-            width: 34, height: 34, background: p.navyPanel, border: `1px solid ${p.gold}`,
-            color: p.gold, display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 12, fontWeight: 700, letterSpacing: ls.forte,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 8px ${p.gold}33`,
-          }}>DC</div>
-          <div style={{ lineHeight: 1.3 }}>
-            <div style={{ fontSize: 11, color: p.ink, letterSpacing: ls.forte, fontWeight: 700 }}>DR. CAIO REGISTER</div>
-            <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte }}>CEO · PERFIL MÉDICO MASTER · CRM-SP 142.308</div>
-          </div>
-        </div>
+        <OperadorTag nome="DR. CAIO REGISTER" cargo="MÉDICO" extra="CEO · CRM-SP 142.308" />
         <button className="pwd-btn" style={{ fontSize: 10, padding: "8px 14px" }}>CONFIGURAÇÕES</button>
         <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: "8px 14px" }}>SAIR</button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * OPERADOR · padrão "retângulo dentro de retângulo" (PADRÃO TSUNAMI v4)
+ *
+ * Layout (do print do CEO):
+ *  ┌─ EXTERNO (navy panel + borda dourada) ──────────────┐
+ *  │ ┌─ INTERNO (navy deep + borda dourada glow) ─┐      │
+ *  │ │  DR. CAIO REGISTER                          │  MÉDICO
+ *  │ └─────────────────────────────────────────────┘      │
+ *  │  CEO · CRM-SP 142.308                                │
+ *  └──────────────────────────────────────────────────────┘
+ */
+export function OperadorTag({ nome, cargo, extra }: { nome: string; cargo: string; extra?: string }) {
+  return (
+    <div
+      className="pwd-op-externo"
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 14,
+        padding: "6px 14px 6px 6px",
+        border: `1.5px solid ${p.gold}`,
+        background: `linear-gradient(180deg, ${p.navyPanel} 0%, ${p.navyDeep} 100%)`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 0 rgba(0,0,0,0.5), 0 0 14px ${p.gold}22`,
+        cursor: "pointer", transition: "all 120ms ease-out",
+        fontFamily: fonte.familia,
+      }}
+    >
+      {/* RETÂNGULO INTERNO · nome */}
+      <div style={{
+        padding: "8px 14px",
+        border: `1px solid ${p.gold}`,
+        background: p.navyDeep,
+        boxShadow: `inset 0 0 8px ${p.gold}33, inset 0 1px 0 rgba(255,255,255,0.05)`,
+      }}>
+        <div style={{
+          fontSize: 12, color: p.gold, letterSpacing: ls.forte, fontWeight: 700,
+          textShadow: `0 0 6px ${p.gold}66`, lineHeight: 1.1,
+        }}>{nome}</div>
+        {extra && (
+          <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte, marginTop: 3, lineHeight: 1.1 }}>
+            {extra}
+          </div>
+        )}
+      </div>
+      {/* CARGO · texto no espaço do externo (à direita do interno) */}
+      <div style={{
+        fontSize: 13, color: p.ink, letterSpacing: ls.forte, fontWeight: 700,
+        textShadow: "0 0 4px rgba(228,233,243,0.3)", paddingRight: 4,
+      }}>{cargo}</div>
     </div>
   );
 }
