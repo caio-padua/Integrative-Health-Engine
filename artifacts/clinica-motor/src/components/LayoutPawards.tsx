@@ -430,7 +430,7 @@ function StripCockpit() {
   });
 
   // Nome real do paciente quando rota /pacientes/:id.
-  const { data: pacienteData } = useObterPaciente(pacienteIdNum, {
+  const { data: pacienteData, isLoading: pacienteCarregando } = useObterPaciente(pacienteIdNum, {
     query: {
       enabled: !!user && pacienteIdNum > 0,
       queryKey: getObterPacienteQueryKey(pacienteIdNum),
@@ -444,9 +444,13 @@ function StripCockpit() {
 
   if (pacienteId) {
     label = "✦ COCKPIT · PAINEL TÁTICO DO PACIENTE";
-    titulo = (pacienteData as { nome?: string } | undefined)?.nome
-      ? String((pacienteData as { nome?: string }).nome).toUpperCase()
-      : `PACIENTE #${pacienteId}`;
+    // Loading state breve enquanto o nome real chega — evita flash do
+    // "PACIENTE #id" pra usuários com rede rápida (architect review).
+    titulo = pacienteData?.nome
+      ? pacienteData.nome.toUpperCase()
+      : pacienteCarregando
+        ? "···"
+        : `PACIENTE #${pacienteId}`;
     subtitulo = "Ficha completa · trajetória integrativa";
   } else if (location === "/agenda" || location === "/agenda-motor" || location.startsWith("/agenda")) {
     label = "✦ AGENDA · MOTOR OPERACIONAL";
@@ -495,7 +499,13 @@ function StripCockpit() {
         <KpiCockpit
           label="ALERTAS"
           valor={typeof alertasContagem === "number" ? String(alertasContagem) : "—"}
-          cor={PW.red}
+          cor={
+            typeof alertasContagem === "number"
+              ? alertasContagem > 0
+                ? PW.red
+                : PW.textDim
+              : PW.textMute
+          }
           title="Alertas de segurança não lidos"
         />
         <KpiCockpit
