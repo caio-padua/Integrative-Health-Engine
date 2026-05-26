@@ -96,6 +96,11 @@ export function ConvencaoColuna() {
               <li>Login Pawards Medcore <span style={{ color: gold }}>(aprovado — não tocar)</span></li>
               <li>Dashboard Global — visão CEO</li>
               <li>Dashboard Local — variantes CEO e médico</li>
+              <li style={{ color: cyan }}>Chrome 1 · Sidebar Árvore Persistente</li>
+              <li style={{ color: cyan }}>Chrome 2 · Breadcrumb Topo Âncora</li>
+              <li style={{ color: cyan }}>Chrome 3 · Header 2 Linhas (placa hospital)</li>
+              <li style={{ color: cyan }}>Chrome 4 · Rodapé Status Persistente</li>
+              <li style={{ color: cyan }}>Chrome 5 · Híbrida 3-Sinais</li>
             </ol>
           </div>
         </div>

@@ -1,0 +1,18 @@
+export const palette = {
+  navy: "#020406",
+  navyDeep: "#000204",
+  navyPanel: "#0a1628",
+  navyPanelAlt: "#0f1e36",
+  border: "#1a2d4f",
+  borderSoft: "#172238",
+  gold: "#C89B3C",
+  goldSoft: "#e6c572",
+  cyan: "#5ee6e6",
+  ink: "#e8eef7",
+  inkDim: "#9fb0c9",
+  inkMute: "#6b7e9e",
+  ok: "#7cc4a0",
+  warn: "#e0b062",
+  danger: "#d08a8a",
+  mono: "'JetBrains Mono', ui-monospace, monospace",
+};
