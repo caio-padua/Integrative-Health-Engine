@@ -9,7 +9,7 @@
 // chegam 24/7. Liga "habilitar janela" pra silenciar ASSINADOS no horario
 // configurado.
 import { useEffect, useState, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import { Clock, Save, ShieldAlert, Mail, MessageSquare, CheckCircle2, BellOff, Zap, RefreshCw, Inbox } from "lucide-react";
 

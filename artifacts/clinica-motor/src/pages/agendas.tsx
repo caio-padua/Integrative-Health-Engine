@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { CalendarDays, MapPin, Wifi, User, Stethoscope, Heart, Coffee } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
