@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Save, RefreshCw, Wallet, Plus, Filter, CheckCircle2, X } from "lucide-react";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import { apiFetch } from "@/lib/api-fetch";

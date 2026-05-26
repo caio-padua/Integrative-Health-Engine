@@ -2,7 +2,7 @@
 // Detalhe completo de uma solicitação: signatários × auditoria × manifesto SHA-256.
 import { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "wouter";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import {
   ArrowLeft,

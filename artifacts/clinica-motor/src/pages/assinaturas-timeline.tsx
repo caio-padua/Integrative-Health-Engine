@@ -3,7 +3,7 @@
 // Master-only no router; backend filtra via cookie pawards.auth.token.
 import { useEffect, useRef, useState, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from "react";
 import { Link } from "wouter";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/api-fetch";
 import { useToast } from "@/hooks/use-toast";
