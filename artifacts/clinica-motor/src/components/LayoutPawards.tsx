@@ -19,6 +19,12 @@
 
 import { ReactNode, useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import {
+  useObterPaciente,
+  getObterPacienteQueryKey,
+} from "@workspace/api-client-react";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Users, ClipboardList, Stethoscope, FlaskConical, FileText, ListChecks,
   CreditCard, FileSignature, TrendingUp, Receipt, Wallet,
@@ -370,12 +376,66 @@ function StripPins() {
 // E4 STRIP 2 — Cockpit mega-header (contextual)
 // ═══════════════════════════════════════════════════════════════════════
 function StripCockpit() {
+  const { user } = useAuth();
   const [location] = useLocation();
-  const { nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, modoLabel } = useClinic();
+  const { nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, modoLabel, unidadeSelecionada } = useClinic();
 
   // Extrai ID do paciente se rota /pacientes/:id...
   const matchPaciente = location.match(/^\/pacientes\/(\d+)/);
   const pacienteId = matchPaciente ? matchPaciente[1] : null;
+  const pacienteIdNum = pacienteId ? Number(pacienteId) : 0;
+
+  // ────────────── KPIs REAIS (Task #483) ──────────────
+  // KPI AGENDA: conta sessões agendadas para HOJE (endpoint /api/agenda/semanal
+  // com janela = hoje..hoje). Respeita unidade selecionada quando aplicável.
+  // Importante: usar data LOCAL do navegador (não UTC). toISOString() devolve
+  // UTC e perto da meia-noite (≈21h-03h BRT) puxaria o dia errado, fazendo o
+  // KPI mostrar agenda de amanhã/ontem (architect review Task #483).
+  const hoje = useMemo(() => {
+    const d = new Date();
+    const ano = d.getFullYear();
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const dia = String(d.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+  }, []);
+  const { data: agendaHoje } = useQuery({
+    queryKey: ["layout-pawards", "agenda-hoje", hoje, unidadeSelecionada ?? null],
+    enabled: !!user,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const params = new URLSearchParams({ dataFrom: hoje, dataTo: hoje });
+      if (unidadeSelecionada) params.set("unidadeId", String(unidadeSelecionada));
+      const res = await apiFetch(`/api/agenda/semanal?${params.toString()}`);
+      if (!res.ok) throw new Error("falha ao carregar agenda");
+      const json = await res.json();
+      // resposta pode vir como { dias: { '2026-05-26': [...] } } ou similar — defensivo.
+      const dias = json?.dias ?? json?.porDia ?? json ?? {};
+      const lista = (dias && typeof dias === "object" && dias[hoje]) || [];
+      return Array.isArray(lista) ? lista.length : 0;
+    },
+  });
+
+  // KPI ALERTAS: endpoint leve já existente (contagem de alertas CEO não lidos).
+  // Retorna 403 pra perfis sem permissão — nesse caso ficamos com "—".
+  const { data: alertasContagem } = useQuery({
+    queryKey: ["layout-pawards", "alertas-contagem"],
+    enabled: !!user,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const res = await apiFetch(`/api/plataforma/alertas-seguranca/contagem`);
+      if (!res.ok) return null; // 403/401 → "—"
+      const json = await res.json();
+      return typeof json?.total === "number" ? json.total : null;
+    },
+  });
+
+  // Nome real do paciente quando rota /pacientes/:id.
+  const { data: pacienteData } = useObterPaciente(pacienteIdNum, {
+    query: {
+      enabled: !!user && pacienteIdNum > 0,
+      queryKey: getObterPacienteQueryKey(pacienteIdNum),
+    },
+  });
 
   // Decide o título contextual
   let titulo = "PAWARDS · PAINEL DA CLÍNICA";
@@ -384,7 +444,9 @@ function StripCockpit() {
 
   if (pacienteId) {
     label = "✦ COCKPIT · PAINEL TÁTICO DO PACIENTE";
-    titulo = `PACIENTE #${pacienteId}`;
+    titulo = (pacienteData as { nome?: string } | undefined)?.nome
+      ? String((pacienteData as { nome?: string }).nome).toUpperCase()
+      : `PACIENTE #${pacienteId}`;
     subtitulo = "Ficha completa · trajetória integrativa";
   } else if (location === "/agenda" || location === "/agenda-motor" || location.startsWith("/agenda")) {
     label = "✦ AGENDA · MOTOR OPERACIONAL";
@@ -424,17 +486,32 @@ function StripCockpit() {
         <div style={{ fontSize: 10, color: corUnidadeSelecionada || PW.textMute, marginTop: 2 }}>{subtitulo}</div>
       </div>
       <div style={{ display: "flex", gap: 18, fontFamily: PW.mono, fontSize: 11 }}>
-        <KpiCockpit label="AGENDA" valor="12" cor={PW.cyan} />
-        <KpiCockpit label="ALERTAS" valor="3" cor={PW.red} />
-        <KpiCockpit label="POTENCIAL" valor="R$ 2,7K" cor={PW.green} />
+        <KpiCockpit
+          label="AGENDA"
+          valor={typeof agendaHoje === "number" ? String(agendaHoje) : "—"}
+          cor={PW.cyan}
+          title="Sessões agendadas hoje (na unidade selecionada)"
+        />
+        <KpiCockpit
+          label="ALERTAS"
+          valor={typeof alertasContagem === "number" ? String(alertasContagem) : "—"}
+          cor={PW.red}
+          title="Alertas de segurança não lidos"
+        />
+        <KpiCockpit
+          label="POTENCIAL"
+          valor="—"
+          cor={PW.green}
+          title="Em apuração — fonte agregada não definida ainda"
+        />
       </div>
     </div>
   );
 }
 
-function KpiCockpit({ label, valor, cor }: { label: string; valor: string; cor: string }) {
+function KpiCockpit({ label, valor, cor, title }: { label: string; valor: string; cor: string; title?: string }) {
   return (
-    <div style={{ textAlign: "center", padding: "4px 14px", borderLeft: `1px solid ${PW.border}` }}>
+    <div title={title} style={{ textAlign: "center", padding: "4px 14px", borderLeft: `1px solid ${PW.border}` }}>
       <div style={{ fontSize: 8, color: PW.textDim, letterSpacing: 1 }}>{label}</div>
       <div style={{ fontSize: 18, color: cor, fontWeight: 700 }}>{valor}</div>
     </div>
