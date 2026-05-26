@@ -99,6 +99,41 @@ export function setReverificacao2faHandler(
   reverificacao2faHandler = handler;
 }
 
+// Task #490: interceptor global pra 401 (sessao expirada). Quando o
+// backend devolve 401 em qualquer chamada via apiFetch, disparamos um
+// CustomEvent("pawards:sessao-expirada") no window — o
+// <SessaoExpiradaProvider/> escuta e mostra um banner sticky no topo
+// com o CTA "Entrar de novo". Nao fazemos redirect automatico pra nao
+// interromper o que o usuario esta fazendo (ex: medico no meio de uma
+// anamnese). O caller continua recebendo a Response 401 original e
+// pode tratar (ou nao) — o objetivo aqui e apenas garantir que o
+// usuario veja a mensagem de sessao expirada em vez de uma tela em
+// branco / lista vazia silenciosa.
+export const EVENTO_SESSAO_EXPIRADA = "pawards:sessao-expirada";
+
+function disparar401Global(): void {
+  try {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(EVENTO_SESSAO_EXPIRADA));
+    }
+  } catch {
+    /* silencioso */
+  }
+}
+
+// Task #490: helper utilitario "garantir array". Recebe qualquer valor
+// (tipicamente o `await res.json()` de um endpoint que normalmente
+// devolve T[]) e devolve T[]. Quando o backend devolve 401, um objeto
+// de erro `{ error: "..." }`, null, undefined ou qualquer coisa que
+// nao seja array, devolve [] em vez de deixar o `.map`/`.filter`
+// estourar TypeError e quebrar a tela inteira com a tela vermelha do
+// Vite. Use sempre que for chamar `.map`/`.filter`/`.length` direto
+// no resultado de um fetch cru — adoptado em ~15 telas listadas no
+// heatmap da auditoria UX 26/mai/2026.
+export function ensureArray<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : [];
+}
+
 async function executarFetchInterno(
   input: RequestInfo | URL,
   init: RequestInit,
@@ -117,6 +152,10 @@ export async function apiFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   const r = await executarFetchInterno(input, init);
+  if (r.status === 401) {
+    disparar401Global();
+    return r;
+  }
   if (r.status !== 403 || !reverificacao2faHandler) return r;
   // Clona pra nao consumir o body — o caller pode precisar ler depois.
   const body = (await r

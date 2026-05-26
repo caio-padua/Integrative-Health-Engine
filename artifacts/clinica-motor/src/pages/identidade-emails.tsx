@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AtSign, Shield, AlertTriangle, CheckCircle2, Power, Sparkles, ListChecks, Eraser, Filter } from "lucide-react";
 
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 const STATUS_COLORS: Record<string, string> = {
   available: "bg-slate-100 text-slate-700",
   selected: "bg-amber-100 text-amber-800",
@@ -26,7 +26,8 @@ export default function IdentidadeEmailsPage() {
 
   const { data: unidades } = useQuery<any[]>({
     queryKey: ["unidades-cadastradas"],
-    queryFn: () => apiFetch("/api/unidades").then((r) => r.json()),
+    // Task #490: ensureArray blinda contra 401 / objeto de erro.
+    queryFn: () => apiFetch("/api/unidades").then((r) => r.json()).then((raw) => ensureArray<any>(raw)),
   });
 
   const { data: providerStatus } = useQuery<any>({

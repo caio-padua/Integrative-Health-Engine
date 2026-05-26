@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 const formaLabels: Record<string, string> = {
@@ -96,7 +96,10 @@ export default function FinanceiroPage() {
 
   const { data: substancias } = useQuery({
     queryKey: ["/api/substancias"],
-    queryFn: () => apiFetch("/api/substancias").then(r => r.json()),
+    // Task #490: ensureArray blinda contra 401 / objeto de erro do backend
+    // — sem isso, substancias?.map abaixo estoura TypeError quando sessao
+    // expira e quebra a tela inteira com a tela vermelha do Vite.
+    queryFn: () => apiFetch("/api/substancias").then(r => r.json()).then((raw) => ensureArray<any>(raw)),
   });
 
   const [expandedId, setExpandedId] = useState<number | null>(null);

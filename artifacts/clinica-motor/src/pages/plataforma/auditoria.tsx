@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";
 import { Scale, RefreshCw, ShieldAlert, Mail, MessageCircle, Send, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, XCircle, Download } from "lucide-react";
@@ -117,7 +117,9 @@ export default function PlataformaAuditoria() {
       setLoading(false);
       return;
     }
-    setEventos(await r.json());
+    // Task #490: ensureArray blinda contra 401 / objeto de erro
+    // — eventos.map mais abaixo estouraria TypeError sem isto.
+    setEventos(ensureArray(await r.json()));
     setLoading(false);
   }, []);
 

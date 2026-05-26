@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 import {
   Plus, Clock, CheckCircle, AlertTriangle, XCircle, ArrowRight,
   User, BarChart3, Star, TrendingUp, MessageSquare, Filter, RefreshCw
@@ -97,12 +97,13 @@ export default function DelegacaoPage() {
       apiFetch(API), apiFetch(`${API}/scoring`), apiFetch(`${API}/feedback`),
       apiFetch(`${API}/feedback/resumo`), apiFetch("/api/usuarios"), apiFetch("/api/unidades"),
     ]);
-    if (dRes.ok) setDelegacoes(await dRes.json());
-    if (sRes.ok) setScoring(await sRes.json());
-    if (fRes.ok) setFeedbacks(await fRes.json());
+    // Task #490: ensureArray blinda contra 401 / objeto de erro.
+    if (dRes.ok) setDelegacoes(ensureArray(await dRes.json()));
+    if (sRes.ok) setScoring(ensureArray(await sRes.json()));
+    if (fRes.ok) setFeedbacks(ensureArray(await fRes.json()));
     if (frRes.ok) setFeedbackResumo(await frRes.json());
-    if (uRes.ok) setUsuarios(await uRes.json());
-    if (unRes.ok) setUnidades(await unRes.json());
+    if (uRes.ok) setUsuarios(ensureArray(await uRes.json()));
+    if (unRes.ok) setUnidades(ensureArray(await unRes.json()));
   }, []);
 
   useEffect(() => {

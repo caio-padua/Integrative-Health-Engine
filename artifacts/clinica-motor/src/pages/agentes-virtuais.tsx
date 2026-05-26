@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useClinic } from "@/contexts/ClinicContext";
 
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 const API = "/api/agentes-virtuais";
 
 const COR_CARGO: Record<string, string> = {
@@ -205,8 +205,9 @@ export default function AgentesVirtuaisPage() {
         apiFetch(`${API}/clinica/${clinicaId}`),
         apiFetch(`${API}/stats`),
       ]);
-      setCatalogo(await catRes.json());
-      setAgentesClinica(await agRes.json());
+      // Task #490: ensureArray blinda contra 401 / objeto de erro.
+      setCatalogo(ensureArray(await catRes.json()));
+      setAgentesClinica(ensureArray(await agRes.json()));
       setStats(await stRes.json());
     } catch (e) {
       console.error(e);
@@ -678,7 +679,7 @@ function NarrativasTab({ catalogo }: { catalogo: CatalogoAgente[] }) {
   async function loadNarrativas(catalogoId: number) {
     setSelectedId(catalogoId);
     const res = await apiFetch(`${API}/narrativas/${catalogoId}`);
-    setNarrativas(await res.json());
+    setNarrativas(ensureArray(await res.json()));
   }
 
   return (
@@ -1122,7 +1123,7 @@ function FrasesTab({ agentesClinica, clinicaId }: { agentesClinica: Agente[]; cl
     setSelectedAgente(ag);
     setMsg("");
     const res = await apiFetch(`${API}/clinica/${clinicaId}/agente/${ag.id}/frases`);
-    setFrases(await res.json());
+    setFrases(ensureArray(await res.json()));
   }
 
   async function adicionarFrase() {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { useClinic } from "@/contexts/ClinicContext";
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -932,7 +932,11 @@ export default function AgendaMotorPage() {
     const params = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
     apiFetch(`${API_BASE}/agenda-motor/sub-agendas${params}`)
       .then(r => r.json())
-      .then((subs: SubAgenda[]) => {
+      .then((raw) => {
+        // Task #490: blindar contra 401 / objeto de erro — backend devolve
+        // `{ error }` ou status 401 quando sessao expira; sem ensureArray,
+        // o .filter abaixo estourava TypeError e quebrava a tela inteira.
+        const subs = ensureArray<SubAgenda>(raw);
         setActiveSubAgendaIds(new Set(subs.filter(s => s.ativa).map(s => s.id)));
         setSubAgendasLoaded(true);
       })

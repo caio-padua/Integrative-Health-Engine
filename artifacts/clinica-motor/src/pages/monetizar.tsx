@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Activity, DollarSign, Calendar, MessageSquare, Sparkles, Cloud, Mountain, Heart } from "lucide-react";
 
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 type Aba = "agenda" | "aplicacao" | "mensageria" | "provisionamento" | "live";
 
 const ABAS: { id: Aba; nome: string; icon: any; cor: string }[] = [
@@ -59,13 +59,15 @@ export default function MonetizarPage() {
 
 function MatrizModulosEventos({ grupo }: { grupo: Exclude<Aba, "live"> }) {
   const qc = useQueryClient();
+  // Task #490: ensureArray blinda contra 401 / objeto de erro
+  // — matriz.filter / eventos.filter abaixo estouram TypeError sem isto.
   const { data: matriz = [], isLoading } = useQuery<any[]>({
     queryKey: ["modulos-padcon-matriz"],
-    queryFn: () => apiFetch("/api/modulos-padcon/matriz").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/modulos-padcon/matriz").then((r) => r.json()).then((raw) => ensureArray<any>(raw)),
   });
   const { data: eventos = [] } = useQuery<any[]>({
     queryKey: ["eventos-cobraveis"],
-    queryFn: () => apiFetch("/api/eventos-cobraveis").then((r) => r.json()),
+    queryFn: () => apiFetch("/api/eventos-cobraveis").then((r) => r.json()).then((raw) => ensureArray<any>(raw)),
   });
 
   const mut = useMutation({

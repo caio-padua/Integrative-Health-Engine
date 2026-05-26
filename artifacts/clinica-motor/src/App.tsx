@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ClinicProvider } from "@/contexts/ClinicContext";
 import { Reverificacao2faProvider } from "@/components/Reverificacao2faProvider";
+import { SessaoExpiradaProvider } from "@/components/SessaoExpiradaProvider";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
@@ -295,8 +296,10 @@ function App() {
         <AuthProvider>
           <ClinicProvider>
             <Reverificacao2faProvider>
-              <Router />
-              <Toaster />
+              <SessaoExpiradaProvider>
+                <Router />
+                <Toaster />
+              </SessaoExpiradaProvider>
             </Reverificacao2faProvider>
           </ClinicProvider>
         </AuthProvider>

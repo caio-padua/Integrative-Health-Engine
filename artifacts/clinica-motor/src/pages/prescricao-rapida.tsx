@@ -19,7 +19,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
-import { apiFetch, abrirPdfAutenticado } from "@/lib/api-fetch";
+import { apiFetch, abrirPdfAutenticado, ensureArray } from "@/lib/api-fetch";
 import { useToast } from "@/hooks/use-toast";
 
 const tk = {
@@ -165,9 +165,10 @@ export default function PrescricaoRapida() {
 
   // Carrega farmácias 1x
   useEffect(() => {
+    // Task #490: ensureArray blinda contra 401 / objeto de erro.
     apiFetch(`/api/farmacias-disponiveis`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((rows: Farmacia[]) => setFarmacias(rows))
+      .then((rows) => setFarmacias(ensureArray<Farmacia>(rows)))
       .catch(() => setFarmacias([]));
   }, []);
 

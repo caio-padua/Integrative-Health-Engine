@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { useClinic } from "@/contexts/ClinicContext";
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 import {
   Users, Shield, TrendingUp, AlertTriangle, Building2, ChevronDown, ChevronRight,
   Mail, Phone, Clock, CheckCircle, XCircle, DollarSign, RefreshCw, Briefcase,
@@ -388,11 +388,12 @@ export default function ColaboradoresPage() {
       apiFetch(`${API}/commissions/resumo${unidadeParam}`),
       apiFetch(`${API}/disciplinary${unidadeParam}`),
     ]);
-    if (mRes.ok) setMembers(await mRes.json());
-    if (pRes.ok) setPositions(await pRes.json());
-    if (cRes.ok) setCommissions(await cRes.json());
+    // Task #490: ensureArray blinda contra 401 / objeto de erro.
+    if (mRes.ok) setMembers(ensureArray(await mRes.json()));
+    if (pRes.ok) setPositions(ensureArray(await pRes.json()));
+    if (cRes.ok) setCommissions(ensureArray(await cRes.json()));
     if (crRes.ok) setCommResumo(await crRes.json());
-    if (dRes.ok) setDisciplinary(await dRes.json());
+    if (dRes.ok) setDisciplinary(ensureArray(await dRes.json()));
   }, [unidadeParam]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

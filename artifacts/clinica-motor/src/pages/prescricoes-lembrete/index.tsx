@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bell, Plus, Pencil, Power, PowerOff, X, Search, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { useClinic } from "@/contexts/ClinicContext";
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 
 const HORARIO_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -376,12 +376,13 @@ export default function PrescricoesLembretePage() {
   const [editando, setEditando] = useState<PrescricaoLembrete | null>(null);
   const [criandoOpen, setCriandoOpen] = useState(false);
 
+  // Task #490: ensureArray blinda contra 401 / objeto de erro do backend.
   const { data: unidades = [] } = useQuery<Unidade[]>({
     queryKey: ["unidades"],
     queryFn: async () => {
       const r = await apiFetch("/api/unidades");
       if (!r.ok) throw new Error("Erro");
-      return r.json();
+      return ensureArray<Unidade>(await r.json());
     },
   });
 
@@ -390,7 +391,7 @@ export default function PrescricoesLembretePage() {
     queryFn: async () => {
       const r = await apiFetch("/api/pacientes");
       if (!r.ok) throw new Error("Erro");
-      return r.json();
+      return ensureArray<Paciente>(await r.json());
     },
   });
 
@@ -399,7 +400,7 @@ export default function PrescricoesLembretePage() {
     queryFn: async () => {
       const r = await apiFetch("/api/prescricoes-lembrete");
       if (!r.ok) throw new Error("Erro");
-      return r.json();
+      return ensureArray<PrescricaoLembrete>(await r.json());
     },
   });
 

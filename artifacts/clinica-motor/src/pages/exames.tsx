@@ -16,7 +16,7 @@ import { Layout } from "@/components/Layout";
 import { Loader2, Search, X, FlaskConical, Activity, Network, Pencil } from "lucide-react";
 import AnalitoEditorModal, { type AnalitoEditavel } from "@/components/exames-dash/AnalitoEditorModal";
 
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 const API = (import.meta as any).env.VITE_API_URL || "/api";
 
 type Faixa = { laboratorio: string; sexo: string; min: number; max: number; unidade: string; idadeMin?: number; idadeMax?: number };
@@ -63,8 +63,10 @@ export default function ExamesPage() {
       apiFetch(`${API}/exames/blocos`).then((r) => r.json()),
     ])
       .then(([cat, blk]) => {
-        setAnalitos(cat.analitos || []);
-        setBlocos(blk.blocos || []);
+        // Task #490: ensureArray blinda contra 401 / objeto de erro
+        // (cat/blk podem vir como `{ error: "..." }` quando sessao expira).
+        setAnalitos(ensureArray(cat?.analitos));
+        setBlocos(ensureArray(blk?.blocos));
       })
       .finally(() => setLoading(false));
   }, [refreshKey]);

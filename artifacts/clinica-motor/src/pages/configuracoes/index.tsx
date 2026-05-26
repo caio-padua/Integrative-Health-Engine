@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ensureArray } from "@/lib/api-fetch";
 const usuarioSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("Email inválido"),
@@ -888,7 +888,8 @@ export default function ConfiguracoesPage() {
   const fetchWaMensagens = async () => {
     try {
       const res = await apiFetch(`${apiBase}/whatsapp/mensagens?limite=10`);
-      if (res.ok) setWaMensagens(await res.json());
+      // Task #490: ensureArray blinda contra 401 / objeto de erro.
+      if (res.ok) setWaMensagens(ensureArray(await res.json()));
     } catch {}
   };
 
