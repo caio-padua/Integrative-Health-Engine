@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Search, Filter, Clock, CheckCircle2, AlertTriangle, User, ChevronRight } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";

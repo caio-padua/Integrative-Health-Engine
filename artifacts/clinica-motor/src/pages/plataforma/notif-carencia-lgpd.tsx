@@ -6,7 +6,7 @@
 //   - destaque vermelho pra linhas VENCIDO_SEM_EXPORT e status='ERRO'
 //   - secao com clinicas EXCLUIDO_PENDENTE que ainda nao receberam aviso
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";

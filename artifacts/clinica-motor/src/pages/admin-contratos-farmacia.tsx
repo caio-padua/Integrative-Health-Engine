@@ -3,7 +3,7 @@
 // pares UNIDADE x FARMACIA_PARMAVAULT manualmente (decisão Dr. Claude:
 // vazia + cadastrar primeiro, semear depois).
 import { useEffect, useState, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { RefreshCw, Plus, Power, Edit2, Save, X } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";

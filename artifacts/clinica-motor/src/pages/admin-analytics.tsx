@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import { apiFetch } from "@/lib/api-fetch";
 import {

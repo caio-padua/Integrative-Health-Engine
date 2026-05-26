@@ -5,7 +5,7 @@
 // Botao "Reenviar hoje" chama POST /painel-pawards/digest/reenviar com
 // forcar:true (origem=MANUAL no service).
 import { useEffect, useState, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import {
   RefreshCw,

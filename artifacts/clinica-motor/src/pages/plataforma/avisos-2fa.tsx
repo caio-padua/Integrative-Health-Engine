@@ -6,7 +6,7 @@
 // auditar "fui avisado quantas vezes essa semana? quantas deixei
 // expirar mesmo assim?" sem abrir o banco.
 import { useCallback, useEffect, useState } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import {

@@ -1,4 +1,4 @@
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { DashboardBase, type DashTheme } from "./_DashboardBase";
 
 const themeCockpitNeon: DashTheme = {

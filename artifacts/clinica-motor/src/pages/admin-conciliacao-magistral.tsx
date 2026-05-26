@@ -5,7 +5,7 @@
 // POST /painel-pawards/conciliacao-magistral/confirmar — assim o card
 // "Fluxo de Caixa 30d" passa a refletir o custo magistral real.
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import { RefreshCw, CheckCircle2, AlertTriangle, DollarSign, Filter } from "lucide-react";
 

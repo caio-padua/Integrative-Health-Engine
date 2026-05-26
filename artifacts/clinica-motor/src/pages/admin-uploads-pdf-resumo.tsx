@@ -11,7 +11,7 @@
 //     na tela /assinaturas/uploads-falhos.
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import {
   RefreshCw,

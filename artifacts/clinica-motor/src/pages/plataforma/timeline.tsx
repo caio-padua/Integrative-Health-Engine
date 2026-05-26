@@ -6,7 +6,7 @@
 // brute-force comecar, eu tinha 2FA expirado?") sem abrir 3 telas.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";

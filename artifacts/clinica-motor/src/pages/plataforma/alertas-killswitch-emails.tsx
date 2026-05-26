@@ -4,7 +4,7 @@
 // linhas com unidade, acao (SUSPENDER/REASSUMIR), motivo, % falha, status
 // email/wpp e data. Filtros por unidade e por motivo.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePlatformStepUp } from "@/lib/usePlatformStepUp";
 import { Platform2faExpiryBanner } from "@/lib/Platform2faExpiryBanner";

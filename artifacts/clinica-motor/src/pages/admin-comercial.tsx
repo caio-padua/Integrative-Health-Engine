@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Save, RefreshCw, Building2, Percent, Tag, ClipboardList, FileText, Package } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";

@@ -2,7 +2,7 @@
 // 3 abas: Status das Parcerias / Wizard Emissão / Histórico Status
 // Substitui "comissão" por contraprestação técnica de auditoria Kaizen.
 import { useEffect, useState, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { apiFetch } from "@/lib/api-fetch";
 import {
   ShieldCheck,

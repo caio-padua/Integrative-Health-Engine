@@ -4,7 +4,7 @@
 // - Painel simulador: dispara POST preview pra ver qual farmacia o
 //   roteador escolheria dado {unidade, tipo_bloco, override}
 import { useEffect, useState, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { RefreshCw, Save, Wand2 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
