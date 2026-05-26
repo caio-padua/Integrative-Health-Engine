@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { useClinic } from "@/contexts/ClinicContext";
 import { apiFetch } from "@/lib/api-fetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

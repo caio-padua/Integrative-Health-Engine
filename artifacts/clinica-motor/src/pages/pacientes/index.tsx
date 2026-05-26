@@ -1,4 +1,4 @@
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useListarPacientes, getListarPacientesQueryKey, useCriarPaciente, CriarPacienteBody } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
