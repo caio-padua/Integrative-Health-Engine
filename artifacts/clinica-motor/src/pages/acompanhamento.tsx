@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

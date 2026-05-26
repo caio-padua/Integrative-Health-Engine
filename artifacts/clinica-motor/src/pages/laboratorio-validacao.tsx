@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

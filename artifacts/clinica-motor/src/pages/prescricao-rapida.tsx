@@ -16,7 +16,7 @@
 //   GET    /api/prescricoes/pdfs/:id/download (abrir via apiFetch)
 
 import { useState, useMemo, useEffect } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
 import { apiFetch, abrirPdfAutenticado, ensureArray } from "@/lib/api-fetch";

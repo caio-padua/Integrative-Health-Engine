@@ -1,4 +1,4 @@
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";

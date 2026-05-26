@@ -12,7 +12,7 @@
  * Cunhado por Dr. Caio · base PADCOM v15.x · 294 analitos populados.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Loader2, Search, X, FlaskConical, Activity, Network, Pencil } from "lucide-react";
 import AnalitoEditorModal, { type AnalitoEditavel } from "@/components/exames-dash/AnalitoEditorModal";
 

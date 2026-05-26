@@ -1,4 +1,4 @@
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { useRoute, Link } from "wouter";
 import { useObterPaciente, getObterPacienteQueryKey, useAtualizarPaciente } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

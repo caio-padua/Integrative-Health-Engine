@@ -10,7 +10,7 @@
  * alertas.ts (envio). Cunhado por Dr. Caio · base PDF Opus 4.7 · v3.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Loader2, Copy, CheckCircle2, Pencil, Save, X } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";

@@ -1,4 +1,4 @@
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCriarAnamnese } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
