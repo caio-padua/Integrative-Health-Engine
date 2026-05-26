@@ -120,7 +120,7 @@ export default function TercoTablePanel() {
               <button
                 key={slug}
                 onClick={() => setZonaFiltro(slug)}
-                className="h-7 px-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider transition-all"
+                className="h-7 px-2 flex items-center gap-1 uppercase tracking-wider transition-all font-extralight text-[93px]"
                 style={{
                   background: ativa ? meta.cor + "22" : "transparent",
                   color: ativa ? meta.cor : "var(--crn-fg-muted)",
@@ -143,7 +143,6 @@ export default function TercoTablePanel() {
           })}
         </div>
       </header>
-
       {/* TABELA TERÇOS HEATMAP */}
       <div className="flex-1 overflow-auto bg-[var(--crn-bg)]">
         <table className="w-full text-left whitespace-nowrap" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
@@ -262,7 +261,6 @@ export default function TercoTablePanel() {
           </tbody>
         </table>
       </div>
-
       {/* FOOTER LEGENDA */}
       <footer className="flex-none h-7 border-t border-[var(--crn-border)] bg-[var(--crn-bg-panel)] flex items-center px-3 justify-between text-[9px] text-[var(--crn-fg-dim)]">
         <div className="flex items-center gap-3">

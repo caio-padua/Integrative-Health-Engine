@@ -40,18 +40,37 @@ export const fontes = {
 export type FonteChave = keyof typeof fontes;
 
 /**
- * Keyframes da respiração lenta (6s) do submenu ativo. Injetada por <style> uma vez por chrome.
- * Importante: animar box-shadow + background-color, nunca opacity (perde contraste TOC-friendly).
+ * Pulse do submenu ativo.
+ * Opção (c) afinada: pulsa com COR DO PAI (pertencimento) + HALO DOURADO sobreposto
+ * (vínculo com o padrão universal "você-está-aqui").
+ * Animar box-shadow + background-color, NUNCA opacity (perde contraste TOC-friendly).
  */
 export const pulseCss = `
 @keyframes pawards-respira {
-  0%   { box-shadow: 0 0 8px var(--respira-cor-fraca), inset 0 0 0 1px var(--respira-cor-forte); background-color: var(--respira-fundo-min); }
-  50%  { box-shadow: 0 0 24px var(--respira-cor-forte), inset 0 0 0 1px var(--respira-cor-forte); background-color: var(--respira-fundo-max); }
-  100% { box-shadow: 0 0 8px var(--respira-cor-fraca), inset 0 0 0 1px var(--respira-cor-forte); background-color: var(--respira-fundo-min); }
+  0% {
+    box-shadow:
+      0 0 8px var(--respira-cor-fraca),
+      0 0 4px rgba(200,155,60,0.30),
+      inset 0 0 0 1px var(--respira-cor-forte);
+    background-color: var(--respira-fundo-min);
+  }
+  50% {
+    box-shadow:
+      0 0 24px var(--respira-cor-forte),
+      0 0 14px rgba(200,155,60,0.70),
+      inset 0 0 0 1px var(--respira-cor-forte);
+    background-color: var(--respira-fundo-max);
+  }
+  100% {
+    box-shadow:
+      0 0 8px var(--respira-cor-fraca),
+      0 0 4px rgba(200,155,60,0.30),
+      inset 0 0 0 1px var(--respira-cor-forte);
+    background-color: var(--respira-fundo-min);
+  }
 }
-.pawards-respira {
-  animation: pawards-respira 6s ease-in-out infinite;
-}
+.pawards-respira { animation: pawards-respira 6s ease-in-out infinite; }
+
 @keyframes pawards-piscar-suave {
   0%, 100% { opacity: 0.55; }
   50%      { opacity: 1; }
