@@ -74,9 +74,17 @@ export function DashFinalPawards() {
         .tema-final-pawards *,
         .tema-final-pawards *::before,
         .tema-final-pawards *::after { animation: none !important; }
+        /* nível 3 (menu completo) · respiração 4.5s */
         .tema-final-pawards .pwd-menu-item-ativo {
           animation: pwd-breathe-cor 4.5s ease-in-out infinite !important;
           box-shadow: inset 0 0 6px rgba(255,255,255,0.03), 0 0 4px currentColor !important;
+          border-radius: 0 !important;
+        }
+        /* nível 2 (só ícone sigla) · respiração BEM LENTA 6.5s · 0px quina · halo discreto */
+        .tema-final-pawards .pwd-menu-item-ativo .pwd-menu-icone {
+          animation: pwd-breathe-cor 6.5s ease-in-out infinite !important;
+          box-shadow: inset 0 0 0 1px currentColor, 0 0 3px currentColor !important;
+          border-radius: 0 !important;
         }
 
         /* ═══════════════ K2 · 3 NÍVEIS DE ATENÇÃO ═══════════════ */
@@ -116,9 +124,26 @@ export function DashFinalPawards() {
         .tema-final-pawards .pwd-menu-item [style*="opacity: 0.75"],
         .tema-final-pawards .pwd-menu-item [style*="opacity:0.75"] { opacity: 1 !important; color: #ECEFF4 !important; }
         .tema-final-pawards [style*="color: rgb(157, 163, 174)"],
-        .tema-final-pawards [style*="color: #9DA3AE"] { color: #DCE1E9 !important; }
+        .tema-final-pawards [style*="color: #9DA3AE"] { color: #F2F4F7 !important; }
         .tema-final-pawards .pwd-crumb { color: #F4F6F9 !important; }
         .tema-final-pawards .pwd-menu-icone { text-shadow: none !important; }
+
+        /* ═══════════════ FAIXAS 2 e 3 · MESMA INTENSIDADE · altura letra +2% ═══════════════ */
+        /* faixa 2 (breadcrumbs PAWARDS · PÁDUA MATRIZ · DASHBOARD GLOBAL · MODELO 1)
+           e faixa 3 (UNIDADE EM OPERAÇÃO · PÁDUA MATRIZ · DASHBOARD GLOBAL)
+           devem ter a MESMA cor de texto e MESMO line-height */
+        .tema-final-pawards span[style*="letter-spacing"][style*="font-size: 11"],
+        .tema-final-pawards span[style*="letter-spacing"][style*="font-size:11"] {
+          color: #F4F6F9 !important;
+          line-height: 1.24 !important;
+        }
+        /* faixa 3 "UNIDADE EM OPERAÇÃO" · "PÁDUA MATRIZ · DASHBOARD GLOBAL" ganham
+           mesma altura e cor que a faixa 2 */
+        .tema-final-pawards div[style*="line-height: 1.2"][style*="white-space: nowrap"],
+        .tema-final-pawards div[style*="line-height:1.2"][style*="white-space:nowrap"] {
+          line-height: 1.24 !important;
+          color: #F4F6F9 !important;
+        }
 
         /* ═══════════════ HOVER NEON DISCRETO ═══════════════ */
         /* MENU LATERAL · cada item ganha halo neon na cor da própria identidade no hover */
@@ -151,19 +176,23 @@ export function DashFinalPawards() {
             0 0 6px rgba(255,230,0,0.6) !important;
         }
 
-        /* ═══════════════ NAVEGAÇÃO REVERSA · breadcrumbs clicáveis ═══════════════ */
+        /* ═══════════════ NAVEGAÇÃO REVERSA · breadcrumbs clicáveis (faixa 2) ═══════════════
+           Hover neon ciano · sublinhado dotted · tooltip "◂ voltar" · quina 90° (0px) */
         .tema-final-pawards span[style*="color: rgb(157, 163, 174)"][style*="letter-spacing"],
         .tema-final-pawards span[style*="color:#9DA3AE"][style*="letter-spacing"] {
           cursor: pointer !important;
-          color: #DCE1E9 !important;
-          transition: color 120ms, background 120ms, border-color 120ms !important;
-          border-bottom: 1px dotted transparent !important;
+          color: #F4F6F9 !important;
+          transition: color 120ms, background 120ms, border-color 120ms, box-shadow 160ms !important;
+          border: 1px solid transparent !important;
+          border-radius: 0 !important;
+          padding: 3px 6px !important;
         }
         .tema-final-pawards span[style*="color: rgb(157, 163, 174)"][style*="letter-spacing"]:hover,
         .tema-final-pawards span[style*="color:#9DA3AE"][style*="letter-spacing"]:hover {
           color: #5FE6CC !important;
-          border-bottom: 1px dotted #5FE6CC !important;
-          background: rgba(95,230,204,0.08) !important;
+          border-color: #5FE6CC !important;
+          background: rgba(95,230,204,0.10) !important;
+          box-shadow: 0 0 5px rgba(95,230,204,0.5) !important;
         }
         .tema-final-pawards span[style*="color: rgb(157, 163, 174)"][style*="letter-spacing"]::after,
         .tema-final-pawards span[style*="color:#9DA3AE"][style*="letter-spacing"]::after {
@@ -176,18 +205,19 @@ export function DashFinalPawards() {
         .tema-final-pawards span[style*="color: rgb(157, 163, 174)"][style*="letter-spacing"]:hover::after,
         .tema-final-pawards span[style*="color:#9DA3AE"][style*="letter-spacing"]:hover::after { opacity: 1; }
 
-        /* ═══════════════ LUPA · 4º retângulo da FAIXA 1 ═══════════════ */
+        /* ═══════════════ LUPA · 4º retângulo da FAIXA 1 · maior horizontal · borda 2px ═══════════════ */
         .tema-final-pawards .pwd-final-lupa {
           display: inline-flex;
           align-items: center;
-          gap: 7px;
+          gap: 9px;
           height: 30px;
-          padding: 0 12px 0 10px;
+          padding: 0 16px 0 14px;
           margin-right: 6px;
+          min-width: 160px;
           background: transparent;
-          border: 1px solid #5FE6CC;
+          border: 2px solid #5FE6CC;
           color: #5FE6CC;
-          font: 700 10px/1 "JetBrains Mono", ui-monospace, monospace;
+          font: 700 10px/1.24 "JetBrains Mono", ui-monospace, monospace;
           letter-spacing: 0.16em;
           cursor: pointer;
           border-radius: 0;
