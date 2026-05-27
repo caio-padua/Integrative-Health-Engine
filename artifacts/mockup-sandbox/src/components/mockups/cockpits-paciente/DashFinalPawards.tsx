@@ -159,6 +159,23 @@ export function DashFinalPawards() {
         .tema-final-pawards [style*="color: #9DA3AE"] { color: #F2F4F7 !important; }
         .tema-final-pawards .pwd-crumb { color: #F4F6F9 !important; }
         .tema-final-pawards .pwd-menu-icone { text-shadow: none !important; }
+        /* LABELS DOS KPIs (SESSÕES HOJE, RECEITA DIA, ADERÊNCIA MÉD., FILA OPERAC.,
+           MOTOR V4, FALTAS) · CEO 27/mai: "branco muito ruim, não consigo ler".
+           Forço opacity 1 + branco firme em qualquer texto com letter-spacing dentro de bloco */
+        .tema-final-pawards .pwd-bloco [style*="opacity: 0.75"],
+        .tema-final-pawards .pwd-bloco [style*="opacity:0.75"],
+        .tema-final-pawards .pwd-bloco [style*="opacity: 0.7"],
+        .tema-final-pawards .pwd-bloco [style*="opacity:0.7"],
+        .tema-final-pawards .pwd-bloco [style*="opacity: 0.65"],
+        .tema-final-pawards .pwd-bloco [style*="opacity:0.65"] {
+          opacity: 1 !important;
+          color: #F4F6F9 !important;
+        }
+        .tema-final-pawards .pwd-bloco [style*="color: rgb(157, 163, 174)"],
+        .tema-final-pawards .pwd-bloco [style*="color:#9DA3AE"],
+        .tema-final-pawards .pwd-bloco [style*="color: #9DA3AE"] {
+          color: #F4F6F9 !important;
+        }
 
         /* ═══════════════ FAIXAS 2 e 3 · MESMA INTENSIDADE · altura letra +2% ═══════════════ */
         /* faixa 2 (breadcrumbs PAWARDS · PÁDUA MATRIZ · DASHBOARD GLOBAL · MODELO 1)
@@ -178,30 +195,50 @@ export function DashFinalPawards() {
         }
 
         /* ═══════════════ HOVER NEON · MENU LATERAL ═══════════════
-           Mantém a respiração nativa do _dashShell (pwd-breathe-cor 2.8s) e
-           REFORÇA o halo pra ficar bem visível · acende/apaga via animação. */
+           CEO 27/mai: "luz não deve dar a volta na quina, deve sair POR TRÁS do botão".
+           Solução: pseudo ::before posicionado atrás (z-index -1) com background da cor
+           identidade + blur — vaza pelos 4 lados respeitando o retângulo 90°, sem halo
+           circular. Glow externo reduzido pra ficar discreto.
+           Z-INDEX: setamos isolation no item pra ::before -1 funcionar. */
+        .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo) {
+          position: relative !important;
+          isolation: isolate !important;
+        }
+        .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo)::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: currentColor;
+          border-radius: 0;
+          opacity: 0;
+          filter: blur(10px);
+          z-index: -1;
+          transition: opacity 200ms;
+          pointer-events: none;
+        }
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover {
-          animation: pwd-final-hover-pulso 1.8s ease-in-out infinite !important;
-          background: linear-gradient(90deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%) !important;
+          animation: pwd-final-hover-pulso 2.0s ease-in-out infinite !important;
+          background: linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 100%) !important;
           border-left: 3px solid currentColor !important;
         }
+        .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover::before {
+          animation: pwd-final-hover-luz-tras 2.0s ease-in-out infinite !important;
+        }
+        /* RESPIRAÇÃO do item · suave · sem glow externo circular */
         @keyframes pwd-final-hover-pulso {
           0%, 100% {
-            box-shadow:
-              inset 0 0 4px rgba(255,255,255,0.03),
-              0 0 4px currentColor,
-              0 0 8px currentColor;
-            text-shadow: 0 0 4px currentColor;
-            filter: brightness(0.95);
+            text-shadow: 0 0 3px currentColor;
+            filter: brightness(1.0);
           }
           50% {
-            box-shadow:
-              inset 0 0 14px rgba(255,255,255,0.10),
-              0 0 14px currentColor,
-              0 0 24px currentColor;
-            text-shadow: 0 0 10px currentColor;
-            filter: brightness(1.20);
+            text-shadow: 0 0 6px currentColor;
+            filter: brightness(1.10);
           }
+        }
+        /* LUZ POR TRÁS · pseudo ::before com cor sólida + blur · respeita quina 90° */
+        @keyframes pwd-final-hover-luz-tras {
+          0%, 100% { opacity: 0.18; filter: blur(8px); }
+          50%      { opacity: 0.40; filter: blur(14px); }
         }
         /* LOCAL/GLOBAL · halo verde-água sutil quando hover, halo verde NEON quando "on" (já existe) */
         .tema-final-pawards .pwd-escopo {
