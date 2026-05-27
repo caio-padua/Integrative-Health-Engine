@@ -155,6 +155,12 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
   const [blocoAtivo, setBlocoAtivo] = useState<"OPE" | "ALT" | "DMD">("OPE");
   const [nivelViz, setNivelViz] = useState<1 | 2 | 3>(3);
   const [local, setLocal] = useState(true);
+  const [minimizados, setMinimizados] = useState<Set<string>>(new Set());
+  const toggleMin = (k: string) => setMinimizados((p) => {
+    const n = new Set(p);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
 
   const kpiC = [t.accent, t.doms[0], t.ok, t.warn, t.doms[5], t.danger];
   const SID = `ppen-${t.id}`;
@@ -205,15 +211,41 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
       position: relative;
       box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04);
     }
+    /* NEON HOVER · envolve 4 lados (acima, abaixo, esquerda, direita) · miolo limpo · quina 90° */
     .${SID}-elem:hover {
       border-color: var(--ppen-cor) !important;
       box-shadow:
-        0 1px 0 rgba(0,0,0,0.06),
-        0 2px 4px rgba(0,0,0,0.10),
-        inset 0 0 0 1px var(--ppen-cor-soft);
+        0 0 0 1px var(--ppen-cor),
+        0 0 8px 2px var(--ppen-cor-soft),
+        0 0 18px 4px var(--ppen-cor-soft);
+      z-index: 2;
     }
     .${SID}-selecionado {
       animation: ${SID}-respira 4.5s ease-in-out infinite, ${SID}-respira-borda 4.5s ease-in-out infinite !important;
+    }
+    /* MENU LATERAL · item parece BOTÃO (borda + margem + bg) */
+    .${SID}-menu-btn {
+      margin: 3px 6px;
+      border: 1px solid var(--ppen-cor-borda-min, transparent);
+      background: transparent;
+    }
+    /* SUBMENU · L de 90° no canto superior esquerdo conectando à faixa do pai */
+    .${SID}-submenu {
+      position: relative;
+      margin: 0 6px 0 22px;
+      padding: 5px 8px 5px 18px;
+      border: 1px solid transparent;
+    }
+    .${SID}-submenu::before {
+      content: "";
+      position: absolute;
+      left: -10px;
+      top: -3px;
+      width: 14px;
+      height: 14px;
+      border-left: 2px solid var(--ppen-cor);
+      border-bottom: 2px solid var(--ppen-cor);
+      box-shadow: -1px 1px 0 0 var(--ppen-cor-soft);
     }
     /* ALTO-RELEVO 3D · blocos OPE/ALT/DMD com sombra dupla tipo Windows clássico */
     .${SID}-bloco-3d {
@@ -250,7 +282,6 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             display: "flex", alignItems: "center", gap: 5,
             ...hoverVars(t.ok),
           }}>
-          {local && <LED cor={t.ok} size={7} />}
           LOCAL
         </button>
         <button
@@ -263,7 +294,6 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             display: "flex", alignItems: "center", gap: 5,
             ...hoverVars(t.doms[1]),
           }}>
-          {!local && <LED cor={t.doms[1]} size={7} />}
           GLOBAL
         </button>
 
@@ -279,11 +309,10 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
                 style={{
                   width: 26, height: 26, border: `1px solid ${act ? t.warn : t.border}`,
                   background: act ? `${t.warn}22` : "transparent", color: act ? t.warn : t.t3,
-                  fontFamily: font, fontSize: 10, fontWeight: 700, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
+                  fontFamily: font, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
                   ...hoverVars(t.warn),
                 }}>
-                {act && <LED cor={t.warn} size={6} />}
                 {n}
               </button>
             );
@@ -295,8 +324,7 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
           <span style={{ color: t.t3, fontSize: 10 }}>buscar</span>
           <span style={{ marginLeft: "auto", color: t.t3, fontSize: 8, padding: "0 4px", border: `1px solid ${t.border}` }}>⌘K</span>
         </div>
-        <span className={`${SID}-elem`} style={{ marginLeft: "auto", color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 10px", border: `1px solid ${t.accent}66`, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, ...hoverVars(t.accent) }}>
-          <LED cor={t.ok} size={7} />
+        <span className={`${SID}-elem`} style={{ marginLeft: "auto", color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 10px", border: `1px solid ${t.accent}66`, cursor: "pointer", ...hoverVars(t.accent) }}>
           CAIO REGISTER
         </span>
         <span style={{ fontSize: 9, color: t.t2, padding: "3px 7px", border: `1px solid ${t.border}` }}>MÉDICO</span>
@@ -311,8 +339,6 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
         borderBottom: `1px solid ${corBlocoAtivo}55`, fontSize: 9, letterSpacing: "0.12em", color: t.t1, flexShrink: 0,
         borderLeft: `5px solid ${corBlocoAtivo}`,
       }}>
-        <LED cor={corBlocoAtivo} size={8} />
-        <div style={{ width: 8 }} />
         {["PAWARDS", "PÁDUA MATRIZ", "DASHBOARD GLOBAL"].map((x, i, a) => (
           <span key={i}>
             <span className={`${SID}-elem`} style={{ padding: "2px 6px", cursor: "pointer", ...hoverVars(t.accent) }}>{x}</span>
@@ -326,18 +352,49 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
         }}>{blocoAtivo}</span>
       </div>
 
-      {/* ═══════ FAIXA 3 · PACIENTE ATIVO · tinge com cor do bloco ativo ═══════ */}
+      {/* ═══════ FAIXA 3 · PACIENTE ATIVO + TABS de correspondência com menu ═══════
+          Tabs PACIENTE/AGENDA/PRESCRIÇÃO/FATURAMENTO no meio · ao clicar,
+          ACENDE o item correspondente no menu lateral (setActDom). */}
       <div style={{
         minHeight: 32, background: tomFaixaAtiva,
         borderBottom: `1px solid ${t.border}`,
         display: "flex", alignItems: "center", padding: `0 ${LINHA_ESQ}px`, gap: 10, flexShrink: 0,
         borderLeft: `5px solid ${corBlocoAtivo}`,
       }}>
-        <LED cor={t.ok} size={8} />
         <span style={{ fontSize: 8, color: t.ok, fontWeight: 700, letterSpacing: 1, padding: "2px 5px", border: `1px solid ${t.ok}66` }}>ATIVO</span>
         <span style={{ fontSize: 11, fontWeight: 700, color: t.accent, letterSpacing: 1 }}>GRACO SOUZA PÁDUA</span>
         <span style={{ fontSize: 9, color: t.t2 }}>34A · M</span>
         <span style={{ fontSize: 9, color: t.t3 }}>HAS · DM2</span>
+
+        {/* TABS DE CORRESPONDÊNCIA com o menu lateral */}
+        <div style={{ display: "flex", gap: 4, marginLeft: 14 }}>
+          {[
+            { l: "PACIENTE", idx: 1 },
+            { l: "AGENDA", idx: 2 },
+            { l: "PRESCRIÇÃO", idx: 3 },
+            { l: "FATURAMENTO", idx: 4 },
+          ].map((tab) => {
+            const corTab = t.doms[tab.idx];
+            const act = actDom === tab.idx;
+            return (
+              <span key={tab.l}
+                onClick={() => setActDom(tab.idx)}
+                className={`${SID}-elem ${act ? `${SID}-selecionado` : ""}`}
+                style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: 1,
+                  padding: "3px 8px",
+                  border: `1px solid ${act ? corTab : t.border}`,
+                  color: act ? corTab : t.t2,
+                  background: act ? `${corTab}14` : "transparent",
+                  cursor: "pointer",
+                  ...hoverVars(corTab),
+                }}>
+                {tab.l}
+              </span>
+            );
+          })}
+        </div>
+
         <span style={{ fontSize: 9, color: t.warn, marginLeft: "auto" }}>SESSÃO 11:30 · 16MIN</span>
       </div>
 
@@ -373,18 +430,21 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
               const blocoAct = i === menuAceso;
               const act = userAct || blocoAct;
               return (
-                <div key={d.k}>
+                <div key={d.k} style={{ position: "relative" }}>
+                  {/* BOTÃO DO ITEM · borda + bg sutil + espaçado = parece botão */}
                   <div onClick={() => setActDom(i)}
-                    className={`${SID}-elem ${act ? `${SID}-selecionado` : ""}`}
+                    className={`${SID}-elem ${SID}-menu-btn ${act ? `${SID}-selecionado` : ""}`}
                     style={{
-                      padding: nivelViz === 2 ? "8px 6px" : "7px 10px",
+                      padding: nivelViz === 2 ? "8px 6px" : "8px 10px",
                       display: "flex", alignItems: "center", gap: 6,
-                      borderLeft: `5px solid ${act ? cor : "transparent"}`,
-                      background: act ? `${cor}18` : t.bg,
+                      borderLeft: `4px solid ${act ? cor : `${cor}44`}`,
+                      borderTop: `1px solid ${act ? cor : t.border}`,
+                      borderRight: `1px solid ${act ? cor : t.border}`,
+                      borderBottom: `1px solid ${act ? cor : t.border}`,
+                      background: act ? `${cor}18` : t.bg2,
                       cursor: "pointer",
                       ...hoverVars(cor),
                     }}>
-                    {act && <LED cor={cor} size={7} />}
                     <span style={{
                       fontSize: 10, fontWeight: 700,
                       color: act ? cor : t.t2,
@@ -398,20 +458,24 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
                       </div>
                     )}
                   </div>
-                  {/* NÍVEL 3 · submenus indentados com a cor ancorada à esquerda */}
-                  {nivelViz === 3 && act && d.subs.map((s, j) => (
-                    <div key={j} className={`${SID}-elem`}
-                      style={{
-                        padding: "4px 10px 4px 32px",
-                        borderLeft: `5px solid ${cor}66`,
-                        background: t.bg,
-                        cursor: "pointer",
-                        fontSize: 9, color: t.t2, letterSpacing: 0.5,
-                        ...hoverVars(cor),
-                      }}>
-                      <span style={{ color: t.t3, marginRight: 5 }}>›</span>{s}
+                  {/* NÍVEL 3 · submenus com L de 90° conectando ao pai */}
+                  {nivelViz === 3 && act && (
+                    <div style={{ paddingTop: 2, paddingBottom: 4 }}>
+                      {d.subs.map((s, j) => (
+                        <div key={j}
+                          className={`${SID}-elem ${SID}-submenu`}
+                          style={{
+                            cursor: "pointer",
+                            fontSize: 9, color: t.t2, letterSpacing: 0.5,
+                            background: t.bg2,
+                            marginTop: j === 0 ? 4 : 4,
+                            ...hoverVars(cor),
+                          }}>
+                          {s}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               );
             })}
@@ -445,7 +509,14 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
                   <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${corB}22`, color: corB, letterSpacing: 1 }}>OPE</span>
                   <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>OPERAÇÃO HOJE · 27/MAI/2026 · QUI · 11:14</span>
                   <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: corB }}>EM CURSO</span>
+                  <span onClick={(e) => { e.stopPropagation(); toggleMin("OPE"); }}
+                    className={`${SID}-elem`}
+                    style={{ marginLeft: 8, padding: "2px 7px", border: `1px solid ${corB}55`, color: corB, fontSize: 10, fontWeight: 700, cursor: "pointer", ...hoverVars(corB) }}
+                    title={minimizados.has("OPE") ? "Expandir" : "Minimizar"}>
+                    {minimizados.has("OPE") ? "▸" : "▾"}
+                  </span>
                 </div>
+                {!minimizados.has("OPE") && (
                 <div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 1, background: t.border, padding: 1 }}>
                     {KPIS.map((k, i) => (
@@ -484,6 +555,7 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
                     </div>
                   </div>
                 </div>
+                )}
               </div>
             );
           })()}
@@ -512,7 +584,14 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
                   <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${corB}22`, color: corB, letterSpacing: 1 }}>ALT</span>
                   <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>ALERTAS CRÍTICOS DO MOTOR</span>
                   <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: corB }}>3 AGORA</span>
+                  <span onClick={(e) => { e.stopPropagation(); toggleMin("ALT"); }}
+                    className={`${SID}-elem`}
+                    style={{ marginLeft: 8, padding: "2px 7px", border: `1px solid ${corB}55`, color: corB, fontSize: 10, fontWeight: 700, cursor: "pointer", ...hoverVars(corB) }}
+                    title={minimizados.has("ALT") ? "Expandir" : "Minimizar"}>
+                    {minimizados.has("ALT") ? "▸" : "▾"}
+                  </span>
                 </div>
+                {!minimizados.has("ALT") && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, padding: "10px 12px" }}>
                   {ALERTAS.map((a, i) => {
                     const sc = a.sev === "CRÍTICO" ? t.danger : t.warn;
@@ -541,6 +620,7 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
                     );
                   })}
                 </div>
+                )}
               </div>
             );
           })()}
@@ -568,8 +648,14 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
                   <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${corB}22`, color: corB, letterSpacing: 1 }}>DMD</span>
                   <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>DEMANDAS OPERACIONAIS · POR DOMÍNIO</span>
                   <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: corB }}>23 ITENS</span>
+                  <span onClick={(e) => { e.stopPropagation(); toggleMin("DMD"); }}
+                    className={`${SID}-elem`}
+                    style={{ marginLeft: 8, padding: "2px 7px", border: `1px solid ${corB}55`, color: corB, fontSize: 10, fontWeight: 700, cursor: "pointer", ...hoverVars(corB) }}
+                    title={minimizados.has("DMD") ? "Expandir" : "Minimizar"}>
+                    {minimizados.has("DMD") ? "▸" : "▾"}
+                  </span>
                 </div>
-                {DMD_ITENS.map((d, i) => {
+                {!minimizados.has("DMD") && DMD_ITENS.map((d, i) => {
                   const dc = t.doms[d.dom];
                   const ledS = d.s === "ATRASADO" ? t.danger : d.s === "PENDENTE" ? t.warn : t.ok;
                   return (
