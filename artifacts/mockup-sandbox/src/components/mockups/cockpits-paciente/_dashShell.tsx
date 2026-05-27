@@ -79,9 +79,19 @@ const ESTILOS = `
   .pwd-menu-item, .pwd-menu-item:hover, .pwd-menu-item-ativo,
   .pwd-vis, .pwd-vis:hover, .pwd-vis-on,
   .pwd-escopo, .pwd-crumb-on, .pwd-crumb-on:hover,
-  .pwd-op-externo, .pwd-olho, .pwd-tag, .pwd-kpi, .pwd-card-alerta {
+  .pwd-op-externo, .pwd-olho, .pwd-tag, .pwd-kpi, .pwd-card-alerta,
+  .pwd-bloco-toggle, .pwd-bloco-toggle:hover {
     border-radius: 0 !important;
     -webkit-border-radius: 0 !important;
+  }
+
+  /* HOVER do botão FECHAR/EXPANDIR (header do BlocoCockpit) · cinza neutro */
+  .pwd-bloco-toggle:hover {
+    color: ${VERDE_DOS} !important;
+    border-color: ${VERDE_DOS} !important;
+    background: rgba(255,255,255,0.06) !important;
+    text-shadow: 0 0 6px rgba(51,255,102,0.6);
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
 
   /* ===== BOTÃO PADRÃO ===== */
@@ -495,55 +505,66 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes 
   return (
     <div style={{
       background: "#06090F",
-      borderBottom: `2px solid ${p.gold}55`,
-      padding: "10px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
       fontFamily: fonte.familia,
       boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.4)",
+      borderBottom: `2px solid ${p.gold}55`,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        {/* CLUSTER ESCOPO + VIS · largura fixa pra garantir alinhamento perfeito */}
-        <div style={{ width: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+      {/* ════════ FAIXA 1 · controles à esquerda + operador/config/sair à direita ════════ */}
+      <div style={{
+        padding: "8px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        borderBottom: `1px solid ${p.gold}33`,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* LOCAL/GLOBAL · faixa horizontal alinhada com 1/2/3 ao lado */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-            <button className="pwd-escopo pwd-escopo-local-on" style={{ width: "100%" }}>LOCAL</button>
-            <button className="pwd-escopo pwd-escopo-global-off" style={{ width: "100%", marginLeft: -1 }}>GLOBAL</button>
+            <button className="pwd-escopo pwd-escopo-local-on" style={{ minWidth: 64, height: 30 }}>LOCAL</button>
+            <button className="pwd-escopo pwd-escopo-global-off" style={{ minWidth: 64, height: 30, marginLeft: -1 }}>GLOBAL</button>
           </div>
-          {/* 3 BOTÕEZINHOS · NÍVEL DE VISIBILIDADE · alinhados c/ LOCAL/GLOBAL acima */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
+          {/* 3 BOTÕEZINHOS · NÍVEL DE VISIBILIDADE · mesma altura 30px que LOCAL/GLOBAL */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, marginLeft: 6 }}>
             {([1, 2, 3] as NivelMenu[]).map(n => (
               <button
                 key={n}
                 onClick={() => setNivelMenu(n)}
                 className={`pwd-vis ${nivelMenu === n ? "pwd-vis-on" : ""}`}
-                style={{ width: "100%", marginLeft: n > 1 ? -1 : 0 }}
+                style={{ width: 30, height: 30, marginLeft: n > 1 ? -1 : 0 }}
                 title={n === 1 ? "Sem menu lateral (subtítulos visíveis)" : n === 2 ? "Só ícones quadrados" : "Menu completo"}
               >{n}</button>
             ))}
           </div>
         </div>
-        <div style={{ width: 1, height: 38, background: p.border, margin: "0 4px" }} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            {crumbs.map((c, i) => (
-              <span key={c.lab} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                {c.ativo
-                  ? <span className="pwd-crumb-on" style={{ color: c.cor, borderColor: c.cor, fontSize: 11, letterSpacing: ls.forte, fontWeight: 700 }}>{c.lab}</span>
-                  : <span style={{ color: p.inkDim, fontSize: 11, letterSpacing: ls.forte, fontWeight: 500, padding: "4px 4px" }}>{c.lab}</span>}
-                {i < crumbs.length - 1 && <span style={{ color: p.inkMute, fontSize: 11 }}>›</span>}
-              </span>
-            ))}
-          </div>
-          {mostrarDetalhes && (
-            <div style={{ display: "flex", gap: 18, paddingLeft: 4, fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, fontFamily: fonte.familia }}>
-              <span>SESSÃO · <span style={{ color: p.cyan }}>08:42</span></span>
-              <span>DURAÇÃO · <span style={{ color: p.cyan }}>02:32</span></span>
-            </div>
-          )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <OperadorTag nome="CAIO REGISTER" cargo="MÉDICO" extra="CEO · DR. · CRM-SP 142.308" />
+          <button className="pwd-btn pwd-btn-config" style={{ fontSize: 10, padding: 0, height: 30, minWidth: 110 }}>CONFIGURAÇÕES</button>
+          <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: 0, height: 30, minWidth: 64 }}>SAIR</button>
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <OperadorTag nome="CAIO REGISTER" cargo="MÉDICO" extra="CEO · DR. · CRM-SP 142.308" />
-        <button className="pwd-btn pwd-btn-config" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 110 }}>CONFIGURAÇÕES</button>
-        <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 64 }}>SAIR</button>
+      {/* ════════ FAIXA 2 · breadcrumb + subtítulo SESSÃO/DURAÇÃO ════════ */}
+      <div style={{ padding: "8px 22px", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          {crumbs.map((c, i) => (
+            <span key={c.lab} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {c.ativo
+                ? <span className="pwd-crumb-on" style={{ color: c.cor, borderColor: c.cor, fontSize: 11, letterSpacing: ls.forte, fontWeight: 700 }}>{c.lab}</span>
+                : <span style={{ color: p.inkDim, fontSize: 11, letterSpacing: ls.forte, fontWeight: 500, padding: "4px 4px" }}>{c.lab}</span>}
+              {i < crumbs.length - 1 && <span style={{ color: p.inkMute, fontSize: 11 }}>›</span>}
+            </span>
+          ))}
+        </div>
+        {mostrarDetalhes && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "90px 110px 90px 110px",
+            alignItems: "center", gap: 0,
+            fontSize: 10, color: p.ink, letterSpacing: ls.forte,
+            fontFamily: fonte.familia, fontVariantNumeric: "tabular-nums",
+          }}>
+            <span style={{ color: p.ink, fontWeight: 700 }}>SESSÃO ·</span>
+            <span style={{ color: p.cyan, fontWeight: 700 }}>08:42</span>
+            <span style={{ color: p.ink, fontWeight: 700 }}>DURAÇÃO ·</span>
+            <span style={{ color: p.cyan, fontWeight: 700 }}>02:32</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -622,31 +643,35 @@ export function OperadorTag({ nome, cargo, extra }: { nome: string; cargo: strin
       className="pwd-op-externo pwd-op-azul"
       title={extra}
       style={{
-        height: 34, boxSizing: "border-box",
-        display: "inline-flex", alignItems: "center", gap: 10,
-        padding: "0 12px 0 4px",
+        height: 30, boxSizing: "border-box",
+        display: "inline-flex", alignItems: "center", gap: 14,
+        padding: "0 14px 0 3px",
         border: `1.5px solid ${AZUL_NEON}`,
         background: `linear-gradient(180deg, ${p.navyPanel} 0%, ${p.navyDeep} 100%)`,
         cursor: "pointer", transition: "all 120ms ease-out",
         fontFamily: fonte.familia,
+        whiteSpace: "nowrap",
       }}
     >
-      {/* RETÂNGULO INTERNO · nome (azul neon ACESO) */}
+      {/* RETÂNGULO INTERNO · nome (azul neon ACESO) — uma linha só, nowrap */}
       <div style={{
-        height: 26, display: "inline-flex", alignItems: "center",
-        padding: "0 10px",
+        height: 24, display: "inline-flex", alignItems: "center",
+        padding: "0 12px",
         border: `1px solid ${AZUL_NEON}`,
         background: p.navyDeep,
+        whiteSpace: "nowrap",
       }}>
         <span style={{
           fontSize: 11, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1,
           color: AZUL_NEON, textShadow: `0 0 6px ${AZUL_NEON}99`,
+          whiteSpace: "nowrap",
         }}>{nome}</span>
       </div>
-      {/* CARGO · texto no espaço do externo (à direita do interno) */}
+      {/* CARGO · AZUL NEON (não mais branco) · à direita do retângulo interno */}
       <span style={{
-        fontSize: 11, color: p.ink, letterSpacing: ls.forte, fontWeight: 700,
-        textShadow: "0 0 4px rgba(228,233,243,0.3)", lineHeight: 1,
+        fontSize: 11, color: AZUL_NEON, letterSpacing: ls.forte, fontWeight: 700,
+        textShadow: `0 0 6px ${AZUL_NEON}99`, lineHeight: 1,
+        whiteSpace: "nowrap",
       }}>{cargo}</span>
     </div>
   );
@@ -667,9 +692,17 @@ function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes }: { pagin
         <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte }}>UNIDADE EM OPERAÇÃO</div>
         <div style={{ fontSize: 11, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
         {mostrarDetalhes && (
-          <div style={{ display: "flex", gap: 18, fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, whiteSpace: "nowrap" }}>
-            <span>QUINTA · <span style={{ color: p.cyan }}>27/MAI/2026</span></span>
-            <span>ATIVOS · <span style={{ color: p.cyan }}>87</span></span>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "90px 110px 90px 110px",
+            alignItems: "center", gap: 0,
+            fontSize: 10, color: p.ink, letterSpacing: ls.forte,
+            fontFamily: fonte.familia, fontVariantNumeric: "tabular-nums",
+          }}>
+            <span style={{ color: p.ink, fontWeight: 700 }}>QUINTA ·</span>
+            <span style={{ color: p.cyan, fontWeight: 700 }}>27/MAI/2026</span>
+            <span style={{ color: p.ink, fontWeight: 700 }}>ATIVOS ·</span>
+            <span style={{ color: p.cyan, fontWeight: 700 }}>87</span>
           </div>
         )}
       </div>

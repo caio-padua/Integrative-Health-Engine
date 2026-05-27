@@ -79,6 +79,8 @@ export function BlocoCockpit({
   status?: string; statusCor?: string; defaultAberto?: boolean; children: ReactNode;
 }) {
   const [aberto, setAberto] = useState(defaultAberto);
+  /* corAmena · versão mais dessaturada da cor de identidade pra fundo da faixinha sigla + bordas */
+  const corAmena = `${cor}66`;
   return (
     <section style={{
       borderLeft: `3px solid ${cor}`, background: p.navyPanel,
@@ -87,21 +89,47 @@ export function BlocoCockpit({
       <header
         onClick={() => setAberto(!aberto)}
         style={{
-          display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
+          display: "grid",
+          gridTemplateColumns: "auto 1fr 200px 100px",
+          alignItems: "center", gap: 12, padding: "8px 16px",
           background: p.navyPanelAlt, cursor: "pointer", userSelect: "none",
           borderBottom: aberto ? `1px solid ${p.border}` : "none",
+          fontFamily: fonte.familia,
         }}>
-        <span style={{
-          background: cor, color: p.navyDeep, padding: "3px 8px",
-          fontSize: 9, letterSpacing: ls.forte, fontWeight: 700, fontFamily: fonte.familia,
-        }}>{sigla}</span>
-        <span style={{ fontSize: 13, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, fontFamily: fonte.familia, flex: 1 }}>
-          {titulo}
-        </span>
+        {/* TÍTULO EMBORDADO · sigla + texto dentro de um retângulo só, borda amena, esquerda mais grossa */}
+        <div style={{
+          display: "inline-flex", alignItems: "stretch",
+          border: `1px solid ${corAmena}`,
+          borderLeftWidth: 3,
+          borderLeftColor: cor,
+        }}>
+          <span style={{
+            background: corAmena, color: p.ink,
+            padding: "4px 12px",
+            fontSize: 10, letterSpacing: ls.forte, fontWeight: 700, fontFamily: fonte.familia,
+            display: "inline-flex", alignItems: "center",
+          }}>{sigla}</span>
+          <span style={{
+            fontSize: 12, color: p.ink, letterSpacing: ls.forte, fontWeight: 700,
+            fontFamily: fonte.familia,
+            padding: "4px 14px",
+            display: "inline-flex", alignItems: "center",
+          }}>{titulo}</span>
+        </div>
+        <span />{/* espaçador (1fr) pra empurrar chip+botao pro mesmo X em todos os blocos */}
         <ChipStatus texto={status} cor={statusCor} />
-        <span style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, fontFamily: fonte.familia }}>
+        <button className="pwd-bloco-toggle" type="button"
+          onClick={(e) => { e.stopPropagation(); setAberto(!aberto); }}
+          style={{
+            fontSize: 10, letterSpacing: ls.forte, fontWeight: 700, fontFamily: fonte.familia,
+            padding: "5px 10px",
+            background: p.navyDeep, color: p.inkDim,
+            border: `1px solid ${p.border}`,
+            cursor: "pointer", transition: "all 160ms ease-out",
+            whiteSpace: "nowrap",
+          }}>
           {aberto ? "▾ FECHAR" : "▸ EXPANDIR"}
-        </span>
+        </button>
       </header>
       {aberto && <div style={{ padding: 16, fontFamily: fonte.familia }}>{children}</div>}
     </section>
@@ -111,8 +139,12 @@ export function BlocoCockpit({
 export function ChipStatus({ texto, cor }: { texto: string; cor: string }) {
   return (
     <span style={{
-      padding: "2px 8px", background: `${cor}15`, color: cor, border: `1px solid ${cor}55`,
-      fontSize: 9, letterSpacing: ls.forte, fontWeight: 700, fontFamily: fonte.familia,
+      padding: "4px 10px", background: `${cor}15`, color: cor, border: `1px solid ${cor}55`,
+      fontSize: 10, letterSpacing: ls.forte, fontWeight: 700, fontFamily: fonte.familia,
+      textAlign: "center",
+      minWidth: 180,
+      display: "inline-block",
+      whiteSpace: "nowrap",
     }}>{texto}</span>
   );
 }
