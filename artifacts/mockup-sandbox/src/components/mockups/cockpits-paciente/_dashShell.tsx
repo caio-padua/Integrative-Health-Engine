@@ -312,19 +312,20 @@ const ESTILOS = `
 
 export function DashShell({ children, modeloNome }: { children: ReactNode; modeloNome: string }) {
   const [nivelMenu, setNivelMenu] = useState<NivelMenu>(3);
+  const [paginaAtiva, setPaginaAtiva] = useState<string>("DASHBOARD");
   const colWidth = nivelMenu === 1 ? "0" : nivelMenu === 2 ? "58px" : "220px";
   return (
     <CockpitShell>
       <style>{ESTILOS}</style>
       <BarraBreadcrumb modeloNome={modeloNome} nivelMenu={nivelMenu} setNivelMenu={setNivelMenu} />
-      <HeaderClinica />
+      <HeaderClinica paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva} />
       <div style={{
         display: "grid",
         gridTemplateColumns: `${colWidth} 1fr`,
         transition: "grid-template-columns 240ms cubic-bezier(0.4,0,0.2,1)",
         minHeight: "calc(100vh - 180px)",
       }}>
-        <MenuLateral nivel={nivelMenu} />
+        <MenuLateral nivel={nivelMenu} paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva} />
         <main style={{ minWidth: 0, overflow: "hidden" }}>{children}</main>
       </div>
     </CockpitShell>
@@ -393,8 +394,12 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu }: { modeloNome: 
  *  · Nível 2 → só ícone quadradinho colorido (58px)
  *  · Nível 3 → ícone + label + faixa de pertencimento lateral (220px)
  */
-const ITENS_MENU: Array<{ sigla: string; label: string; sub: string; cor: string; ativo?: boolean }> = [
-  { sigla: "DSH", label: "DASHBOARD",   sub: "operação hoje",     cor: "#F5C97A", ativo: true },
+/**
+ * ITENS_MENU · fonte ÚNICA da verdade pro menu lateral E pra nav horizontal do header.
+ * Ambos consomem essa lista — garante correspondência 1:1.
+ */
+const ITENS_MENU: Array<{ sigla: string; label: string; sub: string; cor: string }> = [
+  { sigla: "DSH", label: "DASHBOARD",   sub: "operação hoje",     cor: "#F5C97A" },
   { sigla: "PAC", label: "PACIENTES",   sub: "87 ativos",         cor: "#5BB6FF" },
   { sigla: "AGD", label: "AGENDA",      sub: "5 hoje · 11:14",    cor: "#5FE6CC" },
   { sigla: "PRX", label: "PRESCRIÇÃO",  sub: "6 rascunho",        cor: "#B5A0F0" },
@@ -404,31 +409,35 @@ const ITENS_MENU: Array<{ sigla: string; label: string; sub: string; cor: string
   { sigla: "AUD", label: "AUDITORIA",   sub: "23 eventos 7d",     cor: "#FF9A9A" },
 ];
 
-function MenuLateral({ nivel }: { nivel: NivelMenu }) {
+function MenuLateral({ nivel, paginaAtiva, setPaginaAtiva }: { nivel: NivelMenu; paginaAtiva: string; setPaginaAtiva: (s: string) => void }) {
   if (nivel === 1) return null;
   const compacto = nivel === 2;
   return (
     <aside className="pwd-menu-aside" style={{ padding: compacto ? "10px 6px" : "12px 0" }}>
-      {ITENS_MENU.map(it => (
-        <div
-          key={it.sigla}
-          className={`pwd-menu-item ${it.ativo ? "pwd-menu-item-ativo" : ""}`}
-          style={{
-            justifyContent: compacto ? "center" : "flex-start",
-            padding: compacto ? "8px 0" : "9px 10px",
-            borderLeft: compacto ? "none" : (it.ativo ? `3px solid ${it.cor}` : "3px solid transparent"),
-          }}
-          title={`${it.label} · ${it.sub}`}
-        >
-          <span className="pwd-menu-icone" style={{ color: it.cor }}>{it.sigla}</span>
-          {!compacto && (
-            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <span className="pwd-menu-label" style={{ color: it.ativo ? p.gold : p.ink }}>{it.label}</span>
-              <span className="pwd-menu-sub">{it.sub}</span>
-            </div>
-          )}
-        </div>
-      ))}
+      {ITENS_MENU.map(it => {
+        const ativo = paginaAtiva === it.label;
+        return (
+          <div
+            key={it.sigla}
+            onClick={() => setPaginaAtiva(it.label)}
+            className={`pwd-menu-item ${ativo ? "pwd-menu-item-ativo" : ""}`}
+            style={{
+              justifyContent: compacto ? "center" : "flex-start",
+              padding: compacto ? "8px 0" : "9px 10px",
+              borderLeft: compacto ? "none" : (ativo ? `3px solid ${it.cor}` : "3px solid transparent"),
+            }}
+            title={`${it.label} · ${it.sub}`}
+          >
+            <span className="pwd-menu-icone" style={{ color: it.cor }}>{it.sigla}</span>
+            {!compacto && (
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <span className="pwd-menu-label" style={{ color: ativo ? p.gold : p.ink }}>{it.label}</span>
+                <span className="pwd-menu-sub">{it.sub}</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </aside>
   );
 }
@@ -484,39 +493,43 @@ export function OperadorTag({ nome, cargo, extra }: { nome: string; cargo: strin
   );
 }
 
-function HeaderClinica() {
-  const navs = ["DASHBOARD", "PACIENTES", "AGENDA", "PRESCRIÇÃO", "FATURAMENTO", "MOTOR", "EQUIPE", "AUDITORIA"];
+function HeaderClinica({ paginaAtiva, setPaginaAtiva }: { paginaAtiva: string; setPaginaAtiva: (s: string) => void }) {
   return (
     <header style={{
       position: "sticky", top: 0, zIndex: 50, background: p.navyDeep,
-      borderBottom: `2px solid ${p.gold}`, padding: "14px 22px",
-      display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 18, alignItems: "center",
+      borderBottom: `2px solid ${p.gold}`, padding: "12px 18px",
+      display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 14, alignItems: "center",
       fontFamily: fonte.familia,
       boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 4px 12px rgba(0,0,0,0.4), 0 0 20px ${p.gold}11`,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{
-          width: 62, height: 62, background: p.navyPanel, border: `2px solid ${p.gold}`,
+          width: 52, height: 52, background: p.navyPanel, border: `2px solid ${p.gold}`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 24, color: p.gold, letterSpacing: ls.forte, fontWeight: 700,
+          fontSize: 20, color: p.gold, letterSpacing: ls.forte, fontWeight: 700, flexShrink: 0,
           boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 14px ${p.gold}44, 0 4px 8px rgba(0,0,0,0.5)`,
         }}>PD</div>
-        <div>
-          <div style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, marginBottom: 3 }}>UNIDADE EM OPERAÇÃO</div>
-          <div style={{ fontSize: 18, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2 }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
-          <div style={{ fontSize: 11, color: p.inkDim, letterSpacing: ls.suave, marginTop: 4 }}>
-            UNI 1/15 · QUI 27/MAI/2026 · 11:14 BRT · 87 PACIENTES ATIVOS · CICLO COMERCIAL #14
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte, marginBottom: 2 }}>UNIDADE EM OPERAÇÃO</div>
+          <div style={{ fontSize: 15, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
+          <div style={{ fontSize: 10, color: p.inkDim, letterSpacing: ls.suave, marginTop: 3, whiteSpace: "nowrap" }}>
+            UNI 1/15 · QUI 27/MAI/2026 · 11:14 BRT · 87 ATIVOS · CICLO #14
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
-        {navs.map((t, i) => (
-          <button key={t} className={`pwd-btn ${i === 0 ? "pwd-btn-ativo" : ""}`} style={{ fontSize: 10, padding: "9px 14px" }}>
-            {t}
-          </button>
+      {/* NAVS · sempre uma linha horizontal (nowrap) */}
+      <div style={{ display: "flex", flexWrap: "nowrap", gap: 4, justifyContent: "center", minWidth: 0 }}>
+        {ITENS_MENU.map(it => (
+          <button
+            key={it.label}
+            onClick={() => setPaginaAtiva(it.label)}
+            className={`pwd-btn ${paginaAtiva === it.label ? "pwd-btn-ativo" : ""}`}
+            style={{ fontSize: 9, padding: "7px 9px", letterSpacing: "0.10em", flexShrink: 0, whiteSpace: "nowrap" }}
+            title={it.sub}
+          >{it.label}</button>
         ))}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
         <StatH label="HOJE"      val="18 SESS."  cor={p.cyan} />
         <StatH label="ADERÊNCIA" val="87%"       cor="#5FE6CC" />
         <StatH label="RECEITA"   val="R$ 41.8K"  cor={p.gold} />
