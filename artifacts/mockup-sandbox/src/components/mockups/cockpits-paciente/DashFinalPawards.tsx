@@ -172,14 +172,20 @@ export function DashFinalPawards() {
           color: #F4F6F9 !important;
         }
 
-        /* ═══════════════ HOVER NEON DISCRETO ═══════════════ */
-        /* MENU LATERAL · cada item ganha halo neon na cor da própria identidade no hover */
+        /* ═══════════════ HOVER NEON · MENU LATERAL (3ª faixa visual) ═══════════════
+           Reforçado a pedido do CEO 27/mai: borda lateral 2px na cor da identidade +
+           halo glow visível (10px) + bg translúcido. Antes estava discreto demais. */
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo) {
-          transition: box-shadow 160ms, background 160ms !important;
+          transition: box-shadow 160ms, background 160ms, border-color 160ms !important;
+          border-left: 2px solid transparent !important;
         }
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover {
-          box-shadow: inset 0 0 6px rgba(255,255,255,0.04), 0 0 5px currentColor !important;
-          background: rgba(255,255,255,0.02) !important;
+          border-left-color: currentColor !important;
+          box-shadow:
+            inset 0 0 8px rgba(255,255,255,0.05),
+            inset 2px 0 0 0 currentColor,
+            0 0 10px currentColor !important;
+          background: rgba(255,255,255,0.04) !important;
         }
         /* LOCAL/GLOBAL · halo verde-água sutil quando hover, halo verde NEON quando "on" (já existe) */
         .tema-final-pawards .pwd-escopo {
