@@ -161,19 +161,25 @@ export function DashFinalPawards() {
         .tema-final-pawards .pwd-menu-icone { text-shadow: none !important; }
         /* LABELS DOS KPIs (SESSÕES HOJE, RECEITA DIA, ADERÊNCIA MÉD., FILA OPERAC.,
            MOTOR V4, FALTAS) · CEO 27/mai: "branco muito ruim, não consigo ler".
-           Forço opacity 1 + branco firme em qualquer texto com letter-spacing dentro de bloco */
-        .tema-final-pawards .pwd-bloco [style*="opacity: 0.75"],
-        .tema-final-pawards .pwd-bloco [style*="opacity:0.75"],
-        .tema-final-pawards .pwd-bloco [style*="opacity: 0.7"],
-        .tema-final-pawards .pwd-bloco [style*="opacity:0.7"],
-        .tema-final-pawards .pwd-bloco [style*="opacity: 0.65"],
-        .tema-final-pawards .pwd-bloco [style*="opacity:0.65"] {
+           Os KPIs reais usam classe .pwd-kpi (NÃO .pwd-bloco). Todo span/div
+           interno do .pwd-kpi recebe contraste alto e opacity 1. */
+        .tema-final-pawards .pwd-kpi * {
           opacity: 1 !important;
-          color: #F4F6F9 !important;
         }
-        .tema-final-pawards .pwd-bloco [style*="color: rgb(157, 163, 174)"],
-        .tema-final-pawards .pwd-bloco [style*="color:#9DA3AE"],
-        .tema-final-pawards .pwd-bloco [style*="color: #9DA3AE"] {
+        .tema-final-pawards .pwd-kpi [style*="opacity"] {
+          opacity: 1 !important;
+        }
+        /* Forço TODOS os textos dentro do KPI a usarem branco firme.
+           Label (8-10px), valor (20px) e sub-info (9px) ganham contraste alto. */
+        .tema-final-pawards .pwd-kpi [style*="color: rgb(107"], /* inkMute */
+        .tema-final-pawards .pwd-kpi [style*="color: rgb(159"], /* inkDim variante */
+        .tema-final-pawards .pwd-kpi [style*="color: rgb(157"],
+        .tema-final-pawards .pwd-kpi [style*="color:#6B7388"],
+        .tema-final-pawards .pwd-kpi [style*="color: #6B7388"],
+        .tema-final-pawards .pwd-kpi [style*="color:#9FB0C9"],
+        .tema-final-pawards .pwd-kpi [style*="color: #9FB0C9"],
+        .tema-final-pawards .pwd-kpi [style*="color:#9DA3AE"],
+        .tema-final-pawards .pwd-kpi [style*="color: #9DA3AE"] {
           color: #F4F6F9 !important;
         }
 
@@ -196,13 +202,19 @@ export function DashFinalPawards() {
 
         /* ═══════════════ HOVER NEON · MENU LATERAL ═══════════════
            CEO 27/mai: "luz não deve dar a volta na quina, deve sair POR TRÁS do botão".
-           Solução: pseudo ::before posicionado atrás (z-index -1) com background da cor
-           identidade + blur — vaza pelos 4 lados respeitando o retângulo 90°, sem halo
-           circular. Glow externo reduzido pra ficar discreto.
-           Z-INDEX: setamos isolation no item pra ::before -1 funcionar. */
+           Solução Safari-safe: pseudo ::before com z-index 0 (não -1, que falha em
+           combinação com filter no ancestor `.tema-final-pawards`), pai com isolation
+           isolate cria stacking context próprio, filhos sobem pra z-index 1+.
+           Background = cor de identidade + blur — vaza pelos 4 lados respeitando
+           o retângulo 90°, sem halo circular. */
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo) {
           position: relative !important;
           isolation: isolate !important;
+          overflow: visible !important;
+        }
+        .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo) > * {
+          position: relative;
+          z-index: 1;
         }
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo)::before {
           content: '';
@@ -212,9 +224,13 @@ export function DashFinalPawards() {
           border-radius: 0;
           opacity: 0;
           filter: blur(10px);
-          z-index: -1;
+          z-index: 0;
           transition: opacity 200ms;
           pointer-events: none;
+        }
+        /* Garante que o aside não corte a luz nas bordas */
+        .tema-final-pawards .pwd-menu-aside {
+          overflow: visible !important;
         }
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover {
           animation: pwd-final-hover-pulso 2.0s ease-in-out infinite !important;
@@ -224,21 +240,23 @@ export function DashFinalPawards() {
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover::before {
           animation: pwd-final-hover-luz-tras 2.0s ease-in-out infinite !important;
         }
-        /* RESPIRAÇÃO do item · suave · sem glow externo circular */
+        /* RESPIRAÇÃO do item · AMPLIFICADA · pulso bem visível mas sem halo circular */
         @keyframes pwd-final-hover-pulso {
           0%, 100% {
-            text-shadow: 0 0 3px currentColor;
-            filter: brightness(1.0);
+            text-shadow: 0 0 2px currentColor;
+            filter: brightness(0.92);
           }
           50% {
-            text-shadow: 0 0 6px currentColor;
-            filter: brightness(1.10);
+            text-shadow: 0 0 12px currentColor, 0 0 4px currentColor;
+            filter: brightness(1.35);
           }
         }
-        /* LUZ POR TRÁS · pseudo ::before com cor sólida + blur · respeita quina 90° */
+        /* LUZ POR TRÁS · pseudo ::before AMPLIFICADO · respeita quina 90°
+           Opacidade varia de 0.10 a 0.75 — acende/apaga bem visível
+           Blur varia de 4px a 22px — luz "vaza" e "recolhe" */
         @keyframes pwd-final-hover-luz-tras {
-          0%, 100% { opacity: 0.18; filter: blur(8px); }
-          50%      { opacity: 0.40; filter: blur(14px); }
+          0%, 100% { opacity: 0.10; filter: blur(4px); }
+          50%      { opacity: 0.75; filter: blur(22px); }
         }
         /* LOCAL/GLOBAL · halo verde-água sutil quando hover, halo verde NEON quando "on" (já existe) */
         .tema-final-pawards .pwd-escopo {

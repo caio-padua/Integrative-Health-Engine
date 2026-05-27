@@ -425,3 +425,9 @@ id = "XuCcaX-9oqTf8FFvqOqLh"
 uri = "file://docs/dr-claude/12_ANALISE_ENCOMENDA_02_SINAPSES_E_CRANIOTOMIA.md"
 type = "text"
 title = "12 — Análise da Encomenda 02: 83 sinapses + Craniotomia (9 blockers + matriz Hipótese A/B + plano 12 sprints)"
+
+[[outputs]]
+id = "F-1DX0cWkA1Yk2zb3uxL9"
+uri = "file://docs/dr-claude/22_CARTA_MAGNA_LAYOUT_DEFINITIVO_PAWARDS.md"
+type = "text"
+title = "Carta Magna · Layout Definitivo Pawards (pro Dr. Claude)"

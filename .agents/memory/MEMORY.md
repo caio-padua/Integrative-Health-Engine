@@ -1,1 +1,2 @@
 - [Sticky header + aside scroll](sticky-grid-aside.md) — em layouts com header sticky + sidebar lateral em grid, o aside precisa ser sticky também (não overflow no main) pra rolar por dentro sem empurrar o header.
+- [Pawards cockpit design](pawards-cockpit-design.md) — paleta semantica por dominio, K1/K2/K3, hover "luz por tras" via ::before z-index -1 + isolation isolate, regras INEGOCIAVEIS (zero emoji, JetBrains Mono, 0px radius, retangulo-dentro-retangulo, PT-BR).
