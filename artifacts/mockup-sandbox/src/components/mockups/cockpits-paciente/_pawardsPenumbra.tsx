@@ -47,14 +47,22 @@ export type PerfilPenumbra = {
 };
 
 const DOMINIOS = [
-  { k: "DASHB", l: "DASHBOARD", sub: "operação" },
-  { k: "PACTS", l: "PACIENTES", sub: "87" },
-  { k: "AGEND", l: "AGENDA", sub: "5" },
-  { k: "PRESC", l: "PRESCRIÇÃO", sub: "6" },
-  { k: "FATUR", l: "FATURAMENTO", sub: "41K" },
-  { k: "MOTOR", l: "MOTOR V4", sub: "142" },
-  { k: "EQUIP", l: "EQUIPE", sub: "4" },
-  { k: "AUDIT", l: "AUDITORIA", sub: "3" },
+  { k: "DASHB", l: "DASHBOARD",    sub: "operação", subs: ["Hoje", "Semana", "Mês"] },
+  { k: "PACTS", l: "PACIENTES",    sub: "87",       subs: ["Ativos", "Inativos", "Importar"] },
+  { k: "AGEND", l: "AGENDA",       sub: "5",        subs: ["Hoje", "Amanhã", "Bloqueios"] },
+  { k: "PRESC", l: "PRESCRIÇÃO",   sub: "6",        subs: ["A assinar", "Assinadas", "Modelos"] },
+  { k: "FATUR", l: "FATURAMENTO",  sub: "41K",      subs: ["NF", "Cobranças", "Conciliação"] },
+  { k: "MOTOR", l: "MOTOR V4",     sub: "142",      subs: ["Sugestões", "Regras", "Histórico"] },
+  { k: "EQUIP", l: "EQUIPE",       sub: "4",        subs: ["Médicos", "Enfermagem", "Comissões"] },
+  { k: "AUDIT", l: "AUDITORIA",    sub: "3",        subs: ["LGPD", "Acessos", "Logs"] },
+];
+
+const PULSO_ITENS = [
+  { ic: "MSG", t: "WhatsApp respondido", q: "ok protocolo", h: "09:47", cor: "ok" },
+  { ic: "EXM", t: "Cortisol 8h",         q: "8.2 µg/dL",   h: "ontem", cor: "warn" },
+  { ic: "AGD", t: "Próxima sessão",      q: "30/mai 14h",  h: "+3d",    cor: "accent" },
+  { ic: "RXC", t: "Receita NAD+",        q: "assinada",    h: "2d",     cor: "ok" },
+  { ic: "FIN", t: "Boleto pago",         q: "R$ 1.840",    h: "5d",     cor: "ok" },
 ];
 
 const KPIS = [
@@ -143,8 +151,9 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
   const [actDom, setActDom] = useState(0);
   const [menuOpen, setMenuOpen] = useState(true);
   const [ctxOpen, setCtxOpen] = useState(true);
+  const [pulsoOpen, setPulsoOpen] = useState(true);
   const [blocoAtivo, setBlocoAtivo] = useState<"OPE" | "ALT" | "DMD">("OPE");
-  const [nivelViz, setNivelViz] = useState<1 | 2 | 3>(1);
+  const [nivelViz, setNivelViz] = useState<1 | 2 | 3>(3);
   const [local, setLocal] = useState(true);
 
   const kpiC = [t.accent, t.doms[0], t.ok, t.warn, t.doms[5], t.danger];
@@ -157,9 +166,12 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       if (e.key === "[") { e.preventDefault(); setMenuOpen((p) => !p); }
       if (e.key === "]") { e.preventDefault(); setCtxOpen((p) => !p); }
-      if (e.key === "1") { setNivelViz(1); setBlocoAtivo("OPE"); }
-      if (e.key === "2") { setNivelViz(2); setBlocoAtivo("ALT"); }
-      if (e.key === "3") { setNivelViz(3); setBlocoAtivo("DMD"); }
+      if (e.key === "1") { setNivelViz(1); }
+      if (e.key === "2") { setNivelViz(2); }
+      if (e.key === "3") { setNivelViz(3); }
+      if (e.key.toLowerCase() === "q") { setBlocoAtivo("OPE"); }
+      if (e.key.toLowerCase() === "w") { setBlocoAtivo("ALT"); }
+      if (e.key.toLowerCase() === "e") { setBlocoAtivo("DMD"); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -312,12 +324,6 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
           padding: "2px 8px", fontWeight: 700, marginLeft: 6, fontSize: 9, letterSpacing: 1,
           ...hoverVars(corBlocoAtivo),
         }}>{blocoAtivo}</span>
-        {/* NÍVEL 2/3 · linha extra de contexto alinhada na linha imaginária */}
-        {nivelViz >= 2 && (
-          <span style={{ marginLeft: 14, fontSize: 8, color: t.t2, letterSpacing: 1 }}>
-            · UN 03 · TURNO MANHÃ · 18/24 SESSÕES · MOTOR V4.2.1
-          </span>
-        )}
       </div>
 
       {/* ═══════ FAIXA 3 · PACIENTE ATIVO · tinge com cor do bloco ativo ═══════ */}
@@ -332,51 +338,85 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
         <span style={{ fontSize: 11, fontWeight: 700, color: t.accent, letterSpacing: 1 }}>GRACO SOUZA PÁDUA</span>
         <span style={{ fontSize: 9, color: t.t2 }}>34A · M</span>
         <span style={{ fontSize: 9, color: t.t3 }}>HAS · DM2</span>
-        {/* NÍVEL 3 · detalhe extra alinhado */}
-        {nivelViz >= 3 && (
-          <>
-            <span style={{ fontSize: 9, color: t.warn }}>· NAD+ 200mg · CORTISOL 8.2 · TSH 4.8</span>
-            <span style={{ fontSize: 9, color: t.doms[0] }}>· 12ª SESSÃO · ADESÃO 87%</span>
-          </>
-        )}
         <span style={{ fontSize: 9, color: t.warn, marginLeft: "auto" }}>SESSÃO 11:30 · 16MIN</span>
       </div>
 
       {/* CORPO */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* MENU LATERAL · item correspondente ao bloco ativo ACENDE */}
-        <div style={{ width: menuOpen ? 144 : 40, background: t.bg, borderRight: `1px solid ${t.border}`, padding: "6px 0", transition: "width 0.2s", flexShrink: 0, overflowY: "auto" }}>
-          <div onClick={() => setMenuOpen((p) => !p)} className={`${SID}-elem`} style={{ padding: "4px 8px", textAlign: "center", cursor: "pointer", color: t.t3, fontSize: 9, marginBottom: 4, ...hoverVars(t.accent) }}>{menuOpen ? "[" : "]"}</div>
-          {DOMINIOS.map((d, i) => {
-            const cor = t.doms[i];
-            const userAct = i === actDom;
-            const blocoAct = i === menuAceso;
-            const act = userAct || blocoAct;
-            return (
-              <div key={d.k}
-                onClick={() => setActDom(i)}
-                className={`${SID}-elem ${act ? `${SID}-selecionado` : ""}`}
-                style={{
-                  padding: menuOpen ? "7px 10px" : "7px 2px",
-                  display: "flex", alignItems: "center", gap: 6,
-                  borderLeft: `5px solid ${act ? cor : "transparent"}`,
-                  background: act ? `${cor}18` : t.bg,
-                  cursor: "pointer",
-                  ...hoverVars(cor),
-                }}>
-                {act && <LED cor={cor} size={7} />}
-                <span style={{ fontSize: 10, fontWeight: 700, color: act ? cor : t.t2, letterSpacing: 1, minWidth: menuOpen ? 38 : "auto" }}>{d.k}</span>
-                {menuOpen && (
-                  <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", lineHeight: 1.35 }}>
-                    <span style={{ fontSize: 9, color: act ? t.t1 : t.t2, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{d.l}</span>
-                    <span style={{ fontSize: 8, color: t.t3, whiteSpace: "nowrap" }}>{d.sub}</span>
+        {/* ═════════ MENU LATERAL ═════════
+            NÍVEL 1 · SOME · só uma barrinha clicável de 18px com label vertical pra reabrir
+            NÍVEL 2 · RESUMIDO · só códigos DASHB PACTS... com faixinha de cor (66px)
+            NÍVEL 3 · COMPLETO · código + rótulo + sub + submenus indentados (172px)
+        */}
+        {nivelViz === 1 ? (
+          <div onClick={() => setNivelViz(2)} className={`${SID}-elem`}
+            style={{
+              width: 18, background: t.bg, borderRight: `1px solid ${t.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", writingMode: "vertical-rl",
+              fontSize: 9, color: t.accent, letterSpacing: 3, fontWeight: 700,
+              flexShrink: 0, ...hoverVars(t.accent),
+            }}>
+            MENU ▸
+          </div>
+        ) : (
+          <div style={{
+            width: nivelViz === 2 ? 66 : 172,
+            background: t.bg, borderRight: `1px solid ${t.border}`,
+            padding: "6px 0", transition: "width 0.2s",
+            flexShrink: 0, overflowY: "auto",
+          }}>
+            {DOMINIOS.map((d, i) => {
+              const cor = t.doms[i];
+              const userAct = i === actDom;
+              const blocoAct = i === menuAceso;
+              const act = userAct || blocoAct;
+              return (
+                <div key={d.k}>
+                  <div onClick={() => setActDom(i)}
+                    className={`${SID}-elem ${act ? `${SID}-selecionado` : ""}`}
+                    style={{
+                      padding: nivelViz === 2 ? "8px 6px" : "7px 10px",
+                      display: "flex", alignItems: "center", gap: 6,
+                      borderLeft: `5px solid ${act ? cor : "transparent"}`,
+                      background: act ? `${cor}18` : t.bg,
+                      cursor: "pointer",
+                      ...hoverVars(cor),
+                    }}>
+                    {act && <LED cor={cor} size={7} />}
+                    <span style={{
+                      fontSize: 10, fontWeight: 700,
+                      color: act ? cor : t.t2,
+                      letterSpacing: 1,
+                      minWidth: nivelViz === 2 ? "auto" : 38,
+                    }}>{d.k}</span>
+                    {nivelViz === 3 && (
+                      <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", lineHeight: 1.35 }}>
+                        <span style={{ fontSize: 9, color: act ? t.t1 : t.t2, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{d.l}</span>
+                        <span style={{ fontSize: 8, color: t.t3, whiteSpace: "nowrap" }}>{d.sub}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  {/* NÍVEL 3 · submenus indentados com a cor ancorada à esquerda */}
+                  {nivelViz === 3 && act && d.subs.map((s, j) => (
+                    <div key={j} className={`${SID}-elem`}
+                      style={{
+                        padding: "4px 10px 4px 32px",
+                        borderLeft: `5px solid ${cor}66`,
+                        background: t.bg,
+                        cursor: "pointer",
+                        fontSize: 9, color: t.t2, letterSpacing: 0.5,
+                        ...hoverVars(cor),
+                      }}>
+                      <span style={{ color: t.t3, marginRight: 5 }}>›</span>{s}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* CONTEÚDO CENTRAL · padding alinhado à LINHA_ESQ visual */}
         <div style={{ flex: 1, padding: `8px ${LINHA_ESQ - 4}px`, overflowY: "auto" }}>
@@ -576,7 +616,7 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             </div>
             <div className={`${SID}-bloco-3d`} style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px" }}>
               <div style={{ fontSize: 8, color: t.t3, letterSpacing: 1, marginBottom: 4 }}>TECLADO</div>
-              {[["[", "menu"], ["1", "OPE+lv1"], ["2", "ALT+lv2"], ["3", "DMD+lv3"], ["]", "ctx"]].map(([k, v], i) => (
+              {[["1", "menu some"], ["2", "menu resumo"], ["3", "menu full"], ["q/w/e", "bloco OPE/ALT/DMD"], ["]", "contexto"]].map(([k, v], i) => (
                 <div key={i} style={{ fontSize: 8, color: t.t3, marginBottom: 3, display: "flex", gap: 6, lineHeight: 1.4 }}>
                   <span style={{ color: t.accent, fontWeight: 700, width: 12 }}>{k}</span>{v}
                 </div>
@@ -585,6 +625,63 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
           </div>
         ) : (
           <div onClick={() => setCtxOpen(true)} style={{ width: 20, background: t.bg, borderLeft: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", writingMode: "vertical-rl", fontSize: 8, color: t.t3, letterSpacing: 2 }}>]</div>
+        )}
+
+        {/* ═════════ PAINEL PULSO ═════════
+            Coluna fininha clicável na EXTREMA DIREITA · expande pra
+            timeline resumida do paciente (msg, exame, agenda, recibo).
+            Default colapsada · não rouba espaço do conteúdo. */}
+        {pulsoOpen ? (
+          <div style={{ width: 200, background: t.bg, borderLeft: `1px solid ${t.border}`, padding: "8px 10px", flexShrink: 0, overflowY: "auto" }}>
+            <div onClick={() => setPulsoOpen(false)} className={`${SID}-elem`}
+              style={{
+                fontSize: 8, color: t.accent2, letterSpacing: 2, fontWeight: 700,
+                marginBottom: 10, borderLeft: `3px solid ${t.accent2}`, paddingLeft: 8,
+                cursor: "pointer", display: "flex", justifyContent: "space-between",
+                ...hoverVars(t.accent2),
+              }}>
+              <span>PULSO ◂</span><span style={{ color: t.t3 }}>◂</span>
+            </div>
+            <div className={`${SID}-bloco-3d`}
+              style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px" }}>
+              <div style={{ fontSize: 8, color: t.t3, letterSpacing: 1, marginBottom: 8 }}>TIMELINE PACIENTE</div>
+              {PULSO_ITENS.map((p, i) => {
+                const cor = p.cor === "ok" ? t.ok : p.cor === "warn" ? t.warn : t.accent;
+                return (
+                  <div key={i} className={`${SID}-elem`}
+                    style={{
+                      padding: "6px 8px",
+                      borderLeft: `4px solid ${cor}`,
+                      background: t.bg2,
+                      marginBottom: 5,
+                      cursor: "pointer",
+                      lineHeight: 1.4,
+                      ...hoverVars(cor),
+                    }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+                      <LED cor={cor} size={6} />
+                      <span style={{ fontSize: 8, fontWeight: 700, color: cor, letterSpacing: 1 }}>{p.ic}</span>
+                      <span style={{ fontSize: 7, color: t.t3, marginLeft: "auto" }}>{p.h}</span>
+                    </div>
+                    <div style={{ fontSize: 9, color: t.t1, lineHeight: 1.3 }}>{p.t}</div>
+                    <div style={{ fontSize: 8, color: t.t2 }}>{p.q}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div onClick={() => setPulsoOpen(true)}
+            className={`${SID}-elem`}
+            style={{
+              width: 18, background: t.bg, borderLeft: `1px solid ${t.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", writingMode: "vertical-rl",
+              fontSize: 9, color: t.accent2, letterSpacing: 3, fontWeight: 700,
+              flexShrink: 0, ...hoverVars(t.accent2),
+            }}>
+            ◂ PULSO
+          </div>
         )}
       </div>
     </div>
