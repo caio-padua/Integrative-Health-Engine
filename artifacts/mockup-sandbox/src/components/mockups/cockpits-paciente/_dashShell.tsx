@@ -14,8 +14,12 @@ type NivelMenu = 1 | 2 | 3;
  * Cada modelo só preenche o "miolo" (children) com seu próprio padrão de blocos.
  */
 
-export const VERDE_DOS = "#33FF66";
-export const AZUL_GLB  = "#5BB6FF";
+export const VERDE_DOS    = "#33FF66";
+export const AZUL_GLB     = "#5BB6FF";
+export const AMARELO_NEON = "#FFE600";
+export const ROSA_NEON    = "#FF4FCF";
+export const VERM_NEON    = "#FF3344";
+export const AZUL_NEON    = "#33B6FF";
 
 const ESTILOS = `
   @keyframes pwd-breathe {
@@ -43,6 +47,25 @@ const ESTILOS = `
     }
     50% {
       box-shadow: inset 0 0 18px rgba(255,154,154,0.40), 0 0 26px rgba(255,154,154,0.85), 0 0 44px rgba(255,154,154,0.45);
+      filter: brightness(1.20);
+    }
+  }
+  /* PULSO UNIFICADO · usa currentColor → mesmo BPM (2.8s) pra todos os ativos */
+  @keyframes pwd-breathe-cor {
+    0%, 100% {
+      box-shadow:
+        inset 0 0 10px currentColor,
+        inset 0 1px 0 rgba(255,255,255,0.08),
+        0 0 12px currentColor,
+        0 0 20px currentColor;
+      filter: brightness(0.95);
+    }
+    50% {
+      box-shadow:
+        inset 0 0 18px currentColor,
+        inset 0 1px 0 rgba(255,255,255,0.14),
+        0 0 26px currentColor,
+        0 0 44px currentColor;
       filter: brightness(1.20);
     }
   }
@@ -81,20 +104,32 @@ const ESTILOS = `
   }
   .pwd-btn:active { transform: translateY(1px); animation: none; }
 
+  /* NAV ATIVO (header navs DASHBOARD/PACIENTES/...) → VERDE MS-DOS respirando (sem dourar) */
   .pwd-btn-ativo {
-    color: ${p.navyDeep};
-    background: linear-gradient(180deg, #FFE699 0%, ${p.gold} 100%);
-    border-color: ${p.gold};
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.45),
-      inset 0 -1px 0 rgba(0,0,0,0.3),
-      0 2px 0 rgba(0,0,0,0.5),
-      0 3px 10px rgba(245,201,122,0.4);
-    text-shadow: none;
+    color: ${VERDE_DOS};
+    background: linear-gradient(180deg, rgba(51,255,102,0.22) 0%, rgba(51,255,102,0.08) 100%);
+    border-color: ${VERDE_DOS};
+    text-shadow: 0 0 8px rgba(51,255,102,0.8);
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
-  .pwd-btn-ativo:hover { animation: none; color: ${p.navyDeep}; border-color: ${p.gold}; }
+  .pwd-btn-ativo:hover {
+    color: ${VERDE_DOS}; border-color: ${VERDE_DOS};
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
+  }
 
-  .pwd-btn-danger { color: #FF9A9A; border-color: #FF9A9A55; }
+  /* SAIR · VERMELHO neon ACESO (sem respirar) */
+  .pwd-btn-danger {
+    color: ${VERM_NEON};
+    border-color: ${VERM_NEON};
+    background: linear-gradient(180deg, rgba(255,51,68,0.18) 0%, rgba(255,51,68,0.06) 100%);
+    text-shadow: 0 0 8px rgba(255,51,68,0.7);
+    box-shadow:
+      inset 0 0 10px rgba(255,51,68,0.30),
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 0 14px rgba(255,51,68,0.55),
+      0 0 24px rgba(255,51,68,0.25);
+    animation: none;
+  }
   .pwd-btn-danger:hover {
     color: #FFB8B8; border-color: #FF7070;
     background: linear-gradient(180deg, rgba(255,154,154,0.22) 0%, rgba(255,154,154,0.10) 100%);
@@ -180,14 +215,15 @@ const ESTILOS = `
     text-shadow: 0 0 6px rgba(51,255,102,0.7);
     box-shadow: inset 0 0 6px rgba(51,255,102,0.3), 0 0 8px rgba(51,255,102,0.5);
   }
+  /* VIS [1][2][3] ATIVO · AMARELO NEON respirando (mesmo pulso 2.8s) */
   .pwd-vis-on {
-    color: ${p.navyDeep};
-    background: linear-gradient(180deg, #FFE699 0%, ${p.gold} 100%);
-    border-color: ${p.gold};
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 8px ${p.gold}88;
-    text-shadow: none;
+    color: ${AMARELO_NEON};
+    background: linear-gradient(180deg, rgba(255,230,0,0.22) 0%, rgba(255,230,0,0.06) 100%);
+    border-color: ${AMARELO_NEON};
+    text-shadow: 0 0 6px rgba(255,230,0,0.85);
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
-  .pwd-vis-on:hover { color: ${p.navyDeep}; border-color: ${p.gold}; text-shadow: none; }
+  .pwd-vis-on:hover { color: ${AMARELO_NEON}; border-color: ${AMARELO_NEON}; }
 
   /* ===== MENU LATERAL · 3 níveis de visibilidade ===== */
   .pwd-menu-aside {
@@ -260,16 +296,64 @@ const ESTILOS = `
     text-shadow: 0 0 8px rgba(51,255,102,0.7);
   }
 
+  /* CRUMB ATIVO (MODELO 1 · SANFONA) · AMARELO NEON respirando (mesmo pulso 2.8s) */
   .pwd-crumb-on {
     padding: 4px 11px;
     border: 1px solid;
-    background: rgba(255,255,255,0.04);
-    box-shadow:
-      inset 0 0 8px currentColor,
-      0 0 10px currentColor,
-      0 0 20px currentColor;
-    filter: brightness(1.15);
+    background: rgba(255,230,0,0.06);
     text-shadow: 0 0 6px currentColor;
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
+  }
+
+  /* CONFIGURAÇÕES · ROSA neon ACESO (sem respirar) */
+  .pwd-btn-config {
+    color: ${ROSA_NEON};
+    border-color: ${ROSA_NEON};
+    background: linear-gradient(180deg, rgba(255,79,207,0.18) 0%, rgba(255,79,207,0.06) 100%);
+    text-shadow: 0 0 8px rgba(255,79,207,0.7);
+    box-shadow:
+      inset 0 0 10px rgba(255,79,207,0.30),
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 0 14px rgba(255,79,207,0.55),
+      0 0 24px rgba(255,79,207,0.25);
+    animation: none;
+  }
+  .pwd-btn-config:hover {
+    color: #FFB8E8; border-color: ${ROSA_NEON}; animation: none;
+    background: linear-gradient(180deg, rgba(255,79,207,0.26) 0%, rgba(255,79,207,0.10) 100%);
+  }
+
+  /* OPERADOR · AZUL neon ACESO (sem respirar) — sobrescreve dourado */
+  .pwd-op-externo.pwd-op-azul {
+    border-color: ${AZUL_NEON} !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 2px 0 rgba(0,0,0,0.5),
+      0 0 14px rgba(51,182,255,0.55),
+      0 0 24px rgba(51,182,255,0.25) !important;
+  }
+  .pwd-op-externo.pwd-op-azul > div:first-child {
+    border-color: ${AZUL_NEON} !important;
+    box-shadow: inset 0 0 8px rgba(51,182,255,0.35), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+  }
+  .pwd-op-externo.pwd-op-azul > div:first-child > span {
+    color: ${AZUL_NEON} !important;
+    text-shadow: 0 0 8px rgba(51,182,255,0.7) !important;
+  }
+  .pwd-op-externo.pwd-op-azul:hover {
+    border-color: ${VERDE_DOS} !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 0 16px rgba(51,255,102,0.5),
+      0 0 28px rgba(51,255,102,0.22) !important;
+  }
+  .pwd-op-externo.pwd-op-azul:hover > div:first-child {
+    border-color: ${VERDE_DOS} !important;
+    box-shadow: inset 0 0 10px rgba(51,255,102,0.35) !important;
+  }
+  .pwd-op-externo.pwd-op-azul:hover > div:first-child > span {
+    color: ${VERDE_DOS} !important;
+    text-shadow: 0 0 8px rgba(51,255,102,0.7) !important;
   }
 
   /* ===== CHIP / TAG colorida (usado em colunas) ===== */
@@ -435,7 +519,7 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes,
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <OperadorTag nome="DR. CAIO REGISTER" cargo="MÉDICO" extra="CEO · CRM-SP 142.308" />
-        <button className="pwd-btn" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 110 }}>CONFIGURAÇÕES</button>
+        <button className="pwd-btn pwd-btn-config" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 110 }}>CONFIGURAÇÕES</button>
         <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 64 }}>SAIR</button>
       </div>
     </div>
@@ -510,30 +594,27 @@ function MenuLateral({ nivel, paginaAtiva, setPaginaAtiva }: { nivel: NivelMenu;
 export function OperadorTag({ nome, cargo, extra }: { nome: string; cargo: string; extra?: string }) {
   return (
     <div
-      className="pwd-op-externo"
+      className="pwd-op-externo pwd-op-azul"
       title={extra}
       style={{
         height: 34, boxSizing: "border-box",
         display: "inline-flex", alignItems: "center", gap: 10,
         padding: "0 12px 0 4px",
-        border: `1.5px solid ${p.gold}`,
+        border: `1.5px solid ${AZUL_NEON}`,
         background: `linear-gradient(180deg, ${p.navyPanel} 0%, ${p.navyDeep} 100%)`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 0 rgba(0,0,0,0.5), 0 0 14px ${p.gold}22`,
         cursor: "pointer", transition: "all 120ms ease-out",
         fontFamily: fonte.familia,
       }}
     >
-      {/* RETÂNGULO INTERNO · nome */}
+      {/* RETÂNGULO INTERNO · nome (azul neon ACESO) */}
       <div style={{
         height: 26, display: "inline-flex", alignItems: "center",
         padding: "0 10px",
-        border: `1px solid ${p.gold}`,
+        border: `1px solid ${AZUL_NEON}`,
         background: p.navyDeep,
-        boxShadow: `inset 0 0 8px ${p.gold}33, inset 0 1px 0 rgba(255,255,255,0.05)`,
       }}>
         <span style={{
-          fontSize: 11, color: p.gold, letterSpacing: ls.forte, fontWeight: 700,
-          textShadow: `0 0 6px ${p.gold}66`, lineHeight: 1,
+          fontSize: 11, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1,
         }}>{nome}</span>
       </div>
       {/* CARGO · texto no espaço do externo (à direita do interno) */}
