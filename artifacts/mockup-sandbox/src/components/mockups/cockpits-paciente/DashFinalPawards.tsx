@@ -207,56 +207,39 @@ export function DashFinalPawards() {
            isolate cria stacking context próprio, filhos sobem pra z-index 1+.
            Background = cor de identidade + blur — vaza pelos 4 lados respeitando
            o retângulo 90°, sem halo circular. */
+        /* CEO 27/mai #2: a luz NÃO PODE invadir o interior do botão.
+           Solução definitiva: box-shadow externo (spread + blur). Por definição
+           box-shadow sem inset projeta SÓ pra fora do retângulo, respeitando
+           a quina 90° e nunca vazando pro interior. O botão recebe background
+           navyPanel sólido pra blindar o miolo. */
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo) {
           position: relative !important;
-          isolation: isolate !important;
-          overflow: visible !important;
+          background: #0A1628 !important;
+          transition: box-shadow 200ms ease-out !important;
         }
-        .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo) > * {
-          position: relative;
-          z-index: 1;
-        }
-        .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo)::before {
-          content: '';
-          position: absolute;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: currentColor;
-          border-radius: 0;
-          opacity: 0;
-          filter: blur(10px);
-          z-index: 0;
-          transition: opacity 200ms;
-          pointer-events: none;
-        }
-        /* Garante que o aside não corte a luz nas bordas */
         .tema-final-pawards .pwd-menu-aside {
           overflow: visible !important;
         }
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover {
           animation: pwd-final-hover-pulso 2.0s ease-in-out infinite !important;
-          background: linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 100%) !important;
           border-left: 3px solid currentColor !important;
         }
-        .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover::before {
-          animation: pwd-final-hover-luz-tras 2.0s ease-in-out infinite !important;
-        }
-        /* RESPIRAÇÃO do item · AMPLIFICADA · pulso bem visível mas sem halo circular */
+        /* RESPIRAÇÃO · pulso de texto + box-shadow externo (luz POR FORA do botão) */
         @keyframes pwd-final-hover-pulso {
           0%, 100% {
             text-shadow: 0 0 2px currentColor;
-            filter: brightness(0.92);
+            filter: brightness(0.95);
+            box-shadow:
+              0 0 6px 0 currentColor,
+              0 0 2px 0 currentColor;
           }
           50% {
             text-shadow: 0 0 12px currentColor, 0 0 4px currentColor;
             filter: brightness(1.35);
+            box-shadow:
+              0 0 28px 4px currentColor,
+              0 0 12px 2px currentColor;
           }
-        }
-        /* LUZ POR TRÁS · pseudo ::before AMPLIFICADO · respeita quina 90°
-           Opacidade varia de 0.10 a 0.75 — acende/apaga bem visível
-           Blur varia de 4px a 22px — luz "vaza" e "recolhe" */
-        @keyframes pwd-final-hover-luz-tras {
-          0%, 100% { opacity: 0.10; filter: blur(4px); }
-          50%      { opacity: 0.75; filter: blur(22px); }
         }
         /* LOCAL/GLOBAL · halo verde-água sutil quando hover, halo verde NEON quando "on" (já existe) */
         .tema-final-pawards .pwd-escopo {
