@@ -85,13 +85,12 @@ const ESTILOS = `
     -webkit-border-radius: 0 !important;
   }
 
-  /* HOVER do botão FECHAR/EXPANDIR (header do BlocoCockpit) · cinza neutro */
+  /* HOVER do botão FECHAR/EXPANDIR (header do BlocoCockpit) · CINZA NEUTRO (não verde) */
   .pwd-bloco-toggle:hover {
-    color: ${VERDE_DOS} !important;
-    border-color: ${VERDE_DOS} !important;
-    background: rgba(255,255,255,0.06) !important;
-    text-shadow: 0 0 6px rgba(51,255,102,0.6);
-    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
+    color: ${p.ink} !important;
+    border-color: ${p.inkDim} !important;
+    background: rgba(255,255,255,0.10) !important;
+    text-shadow: none;
   }
 
   /* ===== BOTÃO PADRÃO ===== */
@@ -230,9 +229,10 @@ const ESTILOS = `
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 0 rgba(0,0,0,0.5);
     display: inline-flex; align-items: center; justify-content: center;
   }
+  /* HOVER do VIS [1][2][3] · AMARELO NEON (mesma cor do ativo, sem trocar identidade) */
   .pwd-vis:hover {
-    color: ${VERDE_DOS}; border-color: ${VERDE_DOS};
-    text-shadow: 0 0 6px rgba(51,255,102,0.7);
+    color: ${AMARELO_NEON}; border-color: ${AMARELO_NEON};
+    text-shadow: 0 0 6px rgba(255,230,0,0.85);
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   /* VIS [1][2][3] ATIVO · AMARELO NEON respirando (mesmo pulso 2.8s) */
@@ -244,6 +244,23 @@ const ESTILOS = `
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   .pwd-vis-on:hover { color: ${AMARELO_NEON}; border-color: ${AMARELO_NEON}; }
+
+  /* HOVER dos sub-itens do menu lateral · usa --ident da cor de identidade */
+  .pwd-menu-subitem:hover {
+    color: var(--ident, ${VERDE_DOS}) !important;
+    background: rgba(255,255,255,0.05);
+    border-left-color: var(--ident, ${VERDE_DOS}) !important;
+    text-shadow: 0 0 6px var(--ident, ${VERDE_DOS});
+  }
+
+  /* SCROLLBAR ESTILIZADA do menu lateral · fina, navy */
+  .pwd-menu-aside::-webkit-scrollbar { width: 6px; }
+  .pwd-menu-aside::-webkit-scrollbar-track { background: transparent; }
+  .pwd-menu-aside::-webkit-scrollbar-thumb {
+    background: ${p.border};
+    border-radius: 0;
+  }
+  .pwd-menu-aside::-webkit-scrollbar-thumb:hover { background: ${p.inkMute}; }
 
   /* ===== MENU LATERAL · 3 níveis de visibilidade ===== */
   .pwd-menu-aside {
@@ -453,19 +470,23 @@ export function DashShell({ children, modeloNome }: { children: ReactNode; model
   return (
     <CockpitShell>
       <style>{ESTILOS}</style>
-      <BarraBreadcrumb
-        modeloNome={modeloNome}
-        nivelMenu={nivelMenu} setNivelMenu={setNivelMenu}
-        mostrarDetalhes={mostrarDetalhes}
-      />
-      <HeaderClinica
-        paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva}
-        mostrarDetalhes={mostrarDetalhes}
-      />
+      {/* HEADER STICKY · faixas 1+2+3 congeladas no topo durante rolagem */}
+      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "#06090F" }}>
+        <BarraBreadcrumb
+          modeloNome={modeloNome}
+          nivelMenu={nivelMenu} setNivelMenu={setNivelMenu}
+          mostrarDetalhes={mostrarDetalhes}
+        />
+        <HeaderClinica
+          paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva}
+          mostrarDetalhes={mostrarDetalhes}
+        />
+      </div>
       <div style={{
         display: "grid",
         gridTemplateColumns: nivelMenu === 1 ? "1fr" : `${colWidth} minmax(0,1fr)`,
         transition: "grid-template-columns 240ms cubic-bezier(0.4,0,0.2,1)",
+        alignItems: "start",
       }}>
         <MenuLateral nivel={nivelMenu} paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva} />
         <main style={{ minWidth: 0, width: "100%" }}>{children}</main>
@@ -500,14 +521,14 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes 
     { lab: "PAWARDS",          cor: p.gold,             ativo: false },
     { lab: "PÁDUA MATRIZ",     cor: p.cyan,             ativo: false },
     { lab: "DASHBOARD GLOBAL", cor: pasteis.admin.neon, ativo: false },
-    { lab: modeloNome,         cor: AMARELO_NEON,       ativo: true  },
+    { lab: modeloNome,         cor: "#5FE6CC",          ativo: true  },
   ];
   return (
     <div style={{
       background: "#06090F",
       fontFamily: fonte.familia,
       boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.4)",
-      borderBottom: `2px solid ${p.gold}55`,
+      borderBottom: `1px solid ${p.gold}33`,
     }}>
       {/* ════════ FAIXA 1 · controles à esquerda + operador/config/sair à direita ════════ */}
       <div style={{
@@ -580,43 +601,94 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes 
  * ITENS_MENU · fonte ÚNICA da verdade pro menu lateral E pra nav horizontal do header.
  * Ambos consomem essa lista — garante correspondência 1:1.
  */
-const ITENS_MENU: Array<{ sigla: string; label: string; sub: string; cor: string }> = [
-  { sigla: "DSH", label: "DASHBOARD",   sub: "operação hoje",     cor: "#F5C97A" },
-  { sigla: "PAC", label: "PACIENTES",   sub: "87 ativos",         cor: "#5BB6FF" },
-  { sigla: "AGD", label: "AGENDA",      sub: "5 hoje · 11:14",    cor: "#5FE6CC" },
-  { sigla: "PRX", label: "PRESCRIÇÃO",  sub: "6 rascunho",        cor: "#B5A0F0" },
-  { sigla: "FAT", label: "FATURAMENTO", sub: "R$ 41.8K dia",      cor: "#85E0A3" },
-  { sigla: "MOT", label: "MOTOR V4",    sub: "142 regras hoje",   cor: "#FFA3C8" },
-  { sigla: "EQP", label: "EQUIPE",      sub: "4 ativos",          cor: "#C8B6FF" },
-  { sigla: "AUD", label: "AUDITORIA",   sub: "23 eventos 7d",     cor: "#FF9A9A" },
+const ITENS_MENU: Array<{ sigla: string; label: string; sub: string; cor: string; subs?: string[] }> = [
+  { sigla: "DSH", label: "DASHBOARD",   sub: "operação hoje",     cor: "#F5C97A",
+    subs: ["VISÃO GERAL", "OPERAÇÃO HOJE", "ALERTAS CRÍTICOS"] },
+  { sigla: "PAC", label: "PACIENTES",   sub: "87 ativos",         cor: "#5BB6FF",
+    subs: ["LISTAGEM", "ANAMNESE", "TSH · LABS", "EVOLUÇÃO INTEGRATIVA"] },
+  { sigla: "AGD", label: "AGENDA",      sub: "5 hoje · 11:14",    cor: "#5FE6CC",
+    subs: ["HOJE", "SEMANA", "SUB-AGENDAS"] },
+  { sigla: "PRX", label: "PRESCRIÇÃO",  sub: "6 rascunho",        cor: "#B5A0F0",
+    subs: ["RASCUNHOS", "VALIDAÇÃO MÉDICA", "RASX · MATRIZ V6", "PROTOCOLOS"] },
+  { sigla: "FAT", label: "FATURAMENTO", sub: "R$ 41.8K dia",      cor: "#85E0A3",
+    subs: ["PAGAMENTOS HOJE", "INADIMPLÊNCIA", "COMISSIONAMENTO"] },
+  { sigla: "MOT", label: "MOTOR V4",    sub: "142 regras hoje",   cor: "#FFA3C8",
+    subs: ["REGRAS ATIVAS", "EXAMES SUGERIDOS", "FÓRMULAS · INJETÁVEIS"] },
+  { sigla: "EQP", label: "EQUIPE",      sub: "4 ativos",          cor: "#C8B6FF",
+    subs: ["COLABORADORES", "ESCALA", "AVALIAÇÕES"] },
+  { sigla: "AUD", label: "AUDITORIA",   sub: "23 eventos 7d",     cor: "#FF9A9A",
+    subs: ["LOG GERAL", "LGPD · RETENÇÃO", "SLA OPERACIONAL"] },
 ];
 
 function MenuLateral({ nivel, paginaAtiva, setPaginaAtiva }: { nivel: NivelMenu; paginaAtiva: string; setPaginaAtiva: (s: string) => void }) {
   if (nivel === 1) return null;
   const compacto = nivel === 2;
   return (
-    <aside className="pwd-menu-aside" style={{ padding: compacto ? "10px 6px" : "12px 0" }}>
+    <aside
+      className="pwd-menu-aside"
+      style={{
+        padding: compacto ? "10px 6px" : "12px 0",
+        /* STICKY · menu fica congelado abaixo do header e rola por dentro */
+        position: "sticky",
+        top: 116, /* altura aproximada das 2 faixas superiores · sticky relativo ao header sticky acima */
+        alignSelf: "start",
+        maxHeight: "calc(100vh - 116px)",
+        overflowY: "auto",
+        overflowX: "hidden",
+      }}
+    >
       {ITENS_MENU.map(it => {
         const ativo = paginaAtiva === it.label;
         return (
-          <div
-            key={it.sigla}
-            onClick={() => setPaginaAtiva(it.label)}
-            className={`pwd-menu-item ${ativo ? "pwd-menu-item-ativo" : ""}`}
-            style={{
-              justifyContent: compacto ? "center" : "flex-start",
-              padding: compacto ? "8px 0" : "9px 10px",
-              borderLeft: compacto ? "none" : (ativo ? `3px solid ${it.cor}` : "3px solid transparent"),
-              color: ativo ? it.cor : p.inkDim,
-              ["--ident" as never]: it.cor,
-            }}
-            title={`${it.label} · ${it.sub}`}
-          >
-            <span className="pwd-menu-icone" style={{ color: it.cor }}>{it.sigla}</span>
-            {!compacto && (
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                <span className="pwd-menu-label">{it.label}</span>
-                <span className="pwd-menu-sub" style={{ color: ativo ? `${it.cor}cc` : p.inkMute }}>{it.sub}</span>
+          <div key={it.sigla} style={{ display: "flex", flexDirection: "column" }}>
+            <div
+              onClick={() => setPaginaAtiva(it.label)}
+              className={`pwd-menu-item ${ativo ? "pwd-menu-item-ativo" : ""}`}
+              style={{
+                justifyContent: compacto ? "center" : "flex-start",
+                padding: compacto ? "8px 0" : "9px 10px",
+                borderLeft: compacto ? "none" : (ativo ? `3px solid ${it.cor}` : "3px solid transparent"),
+                color: ativo ? it.cor : p.inkDim,
+                ["--ident" as never]: it.cor,
+              }}
+              title={`${it.label} · ${it.sub}`}
+            >
+              <span className="pwd-menu-icone" style={{ color: it.cor }}>{it.sigla}</span>
+              {!compacto && (
+                <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                  <span className="pwd-menu-label">{it.label}</span>
+                  <span className="pwd-menu-sub" style={{ color: ativo ? `${it.cor}cc` : p.inkMute }}>{it.sub}</span>
+                </div>
+              )}
+            </div>
+            {/* SUBMENUS · só aparecem no item ATIVO em VIS=3 (não compacto) */}
+            {!compacto && ativo && it.subs && (
+              <div style={{
+                display: "flex", flexDirection: "column",
+                background: "rgba(0,0,0,0.35)",
+                borderLeft: `3px solid ${it.cor}66`,
+                marginLeft: 0,
+                paddingTop: 2, paddingBottom: 6,
+              }}>
+                {it.subs.map(sub => (
+                  <div
+                    key={sub}
+                    className="pwd-menu-subitem"
+                    style={{
+                      ["--ident" as never]: it.cor,
+                      padding: "5px 10px 5px 38px",
+                      fontFamily: fonte.familia,
+                      fontSize: 9.5, letterSpacing: ls.forte, fontWeight: 600,
+                      color: p.inkMute,
+                      cursor: "pointer",
+                      transition: "all 120ms ease-out",
+                      borderLeft: "2px solid transparent",
+                      marginLeft: 12,
+                    }}
+                  >
+                    · {sub}
+                  </div>
+                ))}
               </div>
             )}
           </div>
