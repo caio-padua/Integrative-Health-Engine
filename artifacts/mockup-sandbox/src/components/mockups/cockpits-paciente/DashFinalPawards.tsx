@@ -181,11 +181,25 @@ export function DashFinalPawards() {
         }
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover {
           border-left-color: currentColor !important;
-          box-shadow:
-            inset 0 0 8px rgba(255,255,255,0.05),
-            inset 2px 0 0 0 currentColor,
-            0 0 10px currentColor !important;
           background: rgba(255,255,255,0.04) !important;
+          /* RESPIRAÇÃO no hover · acende e apaga 1.8s · CEO 27/mai */
+          animation: pwd-hover-respira 1.8s ease-in-out infinite !important;
+        }
+        @keyframes pwd-hover-respira {
+          0%, 100% {
+            box-shadow:
+              inset 0 0 4px rgba(255,255,255,0.02),
+              inset 2px 0 0 0 currentColor,
+              0 0 4px currentColor;
+            filter: brightness(1);
+          }
+          50% {
+            box-shadow:
+              inset 0 0 12px rgba(255,255,255,0.08),
+              inset 2px 0 0 0 currentColor,
+              0 0 16px currentColor;
+            filter: brightness(1.15);
+          }
         }
         /* LOCAL/GLOBAL · halo verde-água sutil quando hover, halo verde NEON quando "on" (já existe) */
         .tema-final-pawards .pwd-escopo {
