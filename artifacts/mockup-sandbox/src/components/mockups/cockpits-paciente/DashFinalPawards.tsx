@@ -52,11 +52,38 @@ export function DashFinalPawards() {
       containerDireita.insertBefore(lupa, operador);
     }
 
+    function marcarBreadcrumbsClicaveis() {
+      if (!root) return;
+      // FAIXA 2: encontra crumbs NÃO-ativos (são spans irmãos do .pwd-crumb-on dentro de um <span> wrapper)
+      const crumbsAtivos = root.querySelectorAll(".pwd-crumb-on");
+      crumbsAtivos.forEach((ativo) => {
+        // sobe até o wrapper que contém os spans irmãos da faixa 2
+        const linhaCrumbs = ativo.parentElement?.parentElement;
+        if (!linhaCrumbs) return;
+        // varre todos os wrappers de crumb (irmãos do que contém .pwd-crumb-on)
+        linhaCrumbs.querySelectorAll(":scope > span").forEach((wrapper) => {
+          // dentro do wrapper, encontra spans que NÃO são .pwd-crumb-on e NÃO são separadores ›
+          wrapper.querySelectorAll(":scope > span").forEach((sp) => {
+            if (sp.classList.contains("pwd-crumb-on")) return;
+            const txt = (sp.textContent || "").trim();
+            if (txt === "›" || txt.length < 2) return;
+            sp.classList.add("pwd-final-crumb-clicavel");
+          });
+        });
+      });
+    }
+
+    function aplicar() {
+      montarLupa();
+      marcarBreadcrumbsClicaveis();
+    }
+
     // tenta logo + retry curto pra cobrir render assíncrono
-    montarLupa();
-    const t1 = setTimeout(montarLupa, 100);
-    const t2 = setTimeout(montarLupa, 400);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    aplicar();
+    const t1 = setTimeout(aplicar, 100);
+    const t2 = setTimeout(aplicar, 400);
+    const t3 = setTimeout(aplicar, 1000);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   return (
@@ -177,33 +204,32 @@ export function DashFinalPawards() {
         }
 
         /* ═══════════════ NAVEGAÇÃO REVERSA · breadcrumbs clicáveis (faixa 2) ═══════════════
-           Hover neon ciano · sublinhado dotted · tooltip "◂ voltar" · quina 90° (0px) */
-        .tema-final-pawards span[style*="color: rgb(157, 163, 174)"][style*="letter-spacing"],
-        .tema-final-pawards span[style*="color:#9DA3AE"][style*="letter-spacing"] {
+           Classe injetada via useEffect (.pwd-final-crumb-clicavel) — seletores por
+           atributo style não funcionam mais porque a cor agora vem da variável p.inkDim */
+        .tema-final-pawards .pwd-final-crumb-clicavel {
           cursor: pointer !important;
           color: #F4F6F9 !important;
           transition: color 120ms, background 120ms, border-color 120ms, box-shadow 160ms !important;
           border: 1px solid transparent !important;
           border-radius: 0 !important;
-          padding: 3px 6px !important;
+          padding: 3px 8px !important;
+          display: inline-flex !important;
+          align-items: center !important;
         }
-        .tema-final-pawards span[style*="color: rgb(157, 163, 174)"][style*="letter-spacing"]:hover,
-        .tema-final-pawards span[style*="color:#9DA3AE"][style*="letter-spacing"]:hover {
+        .tema-final-pawards .pwd-final-crumb-clicavel:hover {
           color: #5FE6CC !important;
           border-color: #5FE6CC !important;
           background: rgba(95,230,204,0.10) !important;
-          box-shadow: 0 0 5px rgba(95,230,204,0.5) !important;
+          box-shadow: 0 0 6px rgba(95,230,204,0.55) !important;
         }
-        .tema-final-pawards span[style*="color: rgb(157, 163, 174)"][style*="letter-spacing"]::after,
-        .tema-final-pawards span[style*="color:#9DA3AE"][style*="letter-spacing"]::after {
+        .tema-final-pawards .pwd-final-crumb-clicavel::after {
           content: " ◂ voltar";
           font-size: 8px; letter-spacing: 0.18em;
           color: #5FE6CC; opacity: 0;
           transition: opacity 120ms;
           margin-left: 6px; font-weight: 700;
         }
-        .tema-final-pawards span[style*="color: rgb(157, 163, 174)"][style*="letter-spacing"]:hover::after,
-        .tema-final-pawards span[style*="color:#9DA3AE"][style*="letter-spacing"]:hover::after { opacity: 1; }
+        .tema-final-pawards .pwd-final-crumb-clicavel:hover::after { opacity: 1; }
 
         /* ═══════════════ LUPA · 4º retângulo da FAIXA 1 · maior horizontal · borda 2px ═══════════════ */
         .tema-final-pawards .pwd-final-lupa {
