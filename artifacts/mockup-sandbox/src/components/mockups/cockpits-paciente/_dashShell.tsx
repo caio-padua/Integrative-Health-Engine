@@ -1,5 +1,7 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { CockpitShell, p, pasteis, ls, fonte } from "./_pecasCockpit";
+
+type NivelMenu = 1 | 2 | 3;
 
 /**
  * SHELL COMPARTILHADO dos 5 DASHBOARD MODELOS
@@ -142,6 +144,85 @@ const ESTILOS = `
     border-color: ${VERDE_DOS}66 !important;
   }
 
+  /* ===== BOTÕEZINHOS DE VISIBILIDADE DO MENU LATERAL ===== */
+  .pwd-vis {
+    width: 22px; height: 20px;
+    background: ${p.navyPanel};
+    border: 1px solid ${p.borderSoft};
+    color: ${p.inkMute};
+    font-family: ${fonte.familia};
+    font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 120ms ease-out;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 0 rgba(0,0,0,0.5);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .pwd-vis:hover {
+    color: ${VERDE_DOS}; border-color: ${VERDE_DOS};
+    text-shadow: 0 0 6px rgba(51,255,102,0.7);
+    box-shadow: inset 0 0 6px rgba(51,255,102,0.3), 0 0 8px rgba(51,255,102,0.5);
+  }
+  .pwd-vis-on {
+    color: ${p.navyDeep};
+    background: linear-gradient(180deg, #FFE699 0%, ${p.gold} 100%);
+    border-color: ${p.gold};
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 8px ${p.gold}88;
+    text-shadow: none;
+  }
+  .pwd-vis-on:hover { color: ${p.navyDeep}; border-color: ${p.gold}; text-shadow: none; }
+
+  /* ===== MENU LATERAL · 3 níveis de visibilidade ===== */
+  .pwd-menu-aside {
+    background: linear-gradient(180deg, ${p.navyDeep} 0%, #050810 100%);
+    border-right: 1px solid ${p.border};
+    box-shadow: inset -1px 0 0 rgba(255,255,255,0.03), 4px 0 12px rgba(0,0,0,0.4);
+    padding: 10px 0;
+    display: flex; flex-direction: column; gap: 4px;
+    overflow: hidden;
+    font-family: ${fonte.familia};
+  }
+  .pwd-menu-item {
+    position: relative;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    color: ${p.inkDim};
+    cursor: pointer;
+    transition: all 120ms ease-out;
+    border-left: 3px solid transparent;
+  }
+  .pwd-menu-item:hover {
+    color: ${VERDE_DOS};
+    background: linear-gradient(90deg, rgba(51,255,102,0.14) 0%, rgba(51,255,102,0.02) 100%);
+    border-left-color: ${VERDE_DOS};
+    text-shadow: 0 0 6px rgba(51,255,102,0.6);
+  }
+  .pwd-menu-item-ativo {
+    color: ${p.gold};
+    background: linear-gradient(90deg, rgba(245,201,122,0.18) 0%, rgba(245,201,122,0.02) 100%);
+    border-left-color: ${p.gold};
+    text-shadow: 0 0 8px ${p.gold}66;
+  }
+  .pwd-menu-item-ativo:hover {
+    color: ${p.gold}; border-left-color: ${p.gold}; text-shadow: 0 0 8px ${p.gold}66;
+  }
+  .pwd-menu-icone {
+    flex-shrink: 0;
+    width: 34px; height: 34px;
+    border: 1px solid currentColor;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.10em;
+    background: rgba(0,0,0,0.3);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 6px currentColor;
+  }
+  .pwd-menu-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .pwd-menu-sub {
+    font-size: 9px; color: ${p.inkMute}; letter-spacing: 0.12em;
+    margin-top: 2px; white-space: nowrap;
+  }
+
   /* ===== OPERADOR · retângulo dentro de retângulo (tsunami v4) ===== */
   .pwd-op-externo:hover {
     border-color: ${VERDE_DOS} !important;
@@ -230,17 +311,27 @@ const ESTILOS = `
 `;
 
 export function DashShell({ children, modeloNome }: { children: ReactNode; modeloNome: string }) {
+  const [nivelMenu, setNivelMenu] = useState<NivelMenu>(3);
+  const colWidth = nivelMenu === 1 ? "0" : nivelMenu === 2 ? "58px" : "220px";
   return (
     <CockpitShell>
       <style>{ESTILOS}</style>
-      <BarraBreadcrumb modeloNome={modeloNome} />
+      <BarraBreadcrumb modeloNome={modeloNome} nivelMenu={nivelMenu} setNivelMenu={setNivelMenu} />
       <HeaderClinica />
-      {children}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: `${colWidth} 1fr`,
+        transition: "grid-template-columns 240ms cubic-bezier(0.4,0,0.2,1)",
+        minHeight: "calc(100vh - 180px)",
+      }}>
+        <MenuLateral nivel={nivelMenu} />
+        <main style={{ minWidth: 0, overflow: "hidden" }}>{children}</main>
+      </div>
     </CockpitShell>
   );
 }
 
-function BarraBreadcrumb({ modeloNome }: { modeloNome: string }) {
+function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu }: { modeloNome: string; nivelMenu: NivelMenu; setNivelMenu: (n: NivelMenu) => void }) {
   const crumbs = [
     { lab: "PAWARDS",          cor: p.gold,             ativo: false },
     { lab: "PÁDUA MATRIZ",     cor: p.cyan,             ativo: false },
@@ -254,11 +345,25 @@ function BarraBreadcrumb({ modeloNome }: { modeloNome: string }) {
       fontFamily: fonte.familia, boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.5)",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 0 }}>
-          <button className="pwd-escopo pwd-escopo-local-on">LOCAL · PÁDUA MATRIZ</button>
-          <button className="pwd-escopo pwd-escopo-global-off" style={{ marginLeft: -1 }}>GLOBAL · 15 UN</button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", gap: 0 }}>
+            <button className="pwd-escopo pwd-escopo-local-on">LOCAL · PÁDUA MATRIZ</button>
+            <button className="pwd-escopo pwd-escopo-global-off" style={{ marginLeft: -1 }}>GLOBAL · 15 UN</button>
+          </div>
+          {/* 3 BOTÕEZINHOS · NÍVEL DE VISIBILIDADE DO MENU LATERAL */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 8, color: p.inkMute, letterSpacing: ls.forte, fontFamily: fonte.familia, fontWeight: 700, marginRight: 2 }}>VIS</span>
+            {([1, 2, 3] as NivelMenu[]).map(n => (
+              <button
+                key={n}
+                onClick={() => setNivelMenu(n)}
+                className={`pwd-vis ${nivelMenu === n ? "pwd-vis-on" : ""}`}
+                title={n === 1 ? "Sem menu lateral" : n === 2 ? "Só ícones quadrados" : "Menu completo (ícone + label + faixa)"}
+              >{n}</button>
+            ))}
+          </div>
         </div>
-        <div style={{ width: 1, height: 26, background: p.border, margin: "0 4px" }} />
+        <div style={{ width: 1, height: 38, background: p.border, margin: "0 4px" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {crumbs.map((c, i) => (
             <span key={c.lab} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -279,6 +384,52 @@ function BarraBreadcrumb({ modeloNome }: { modeloNome: string }) {
         <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: "8px 14px" }}>SAIR</button>
       </div>
     </div>
+  );
+}
+
+/**
+ * MENU LATERAL · 3 níveis de visibilidade
+ *  · Nível 1 → não renderiza (column collapsada via grid)
+ *  · Nível 2 → só ícone quadradinho colorido (58px)
+ *  · Nível 3 → ícone + label + faixa de pertencimento lateral (220px)
+ */
+const ITENS_MENU: Array<{ sigla: string; label: string; sub: string; cor: string; ativo?: boolean }> = [
+  { sigla: "DSH", label: "DASHBOARD",   sub: "operação hoje",     cor: "#F5C97A", ativo: true },
+  { sigla: "PAC", label: "PACIENTES",   sub: "87 ativos",         cor: "#5BB6FF" },
+  { sigla: "AGD", label: "AGENDA",      sub: "5 hoje · 11:14",    cor: "#5FE6CC" },
+  { sigla: "PRX", label: "PRESCRIÇÃO",  sub: "6 rascunho",        cor: "#B5A0F0" },
+  { sigla: "FAT", label: "FATURAMENTO", sub: "R$ 41.8K dia",      cor: "#85E0A3" },
+  { sigla: "MOT", label: "MOTOR V4",    sub: "142 regras hoje",   cor: "#FFA3C8" },
+  { sigla: "EQP", label: "EQUIPE",      sub: "4 ativos",          cor: "#C8B6FF" },
+  { sigla: "AUD", label: "AUDITORIA",   sub: "23 eventos 7d",     cor: "#FF9A9A" },
+];
+
+function MenuLateral({ nivel }: { nivel: NivelMenu }) {
+  if (nivel === 1) return null;
+  const compacto = nivel === 2;
+  return (
+    <aside className="pwd-menu-aside" style={{ padding: compacto ? "10px 6px" : "12px 0" }}>
+      {ITENS_MENU.map(it => (
+        <div
+          key={it.sigla}
+          className={`pwd-menu-item ${it.ativo ? "pwd-menu-item-ativo" : ""}`}
+          style={{
+            justifyContent: compacto ? "center" : "flex-start",
+            padding: compacto ? "8px 0" : "9px 10px",
+            borderLeft: compacto ? "none" : (it.ativo ? `3px solid ${it.cor}` : "3px solid transparent"),
+          }}
+          title={`${it.label} · ${it.sub}`}
+        >
+          <span className="pwd-menu-icone" style={{ color: it.cor }}>{it.sigla}</span>
+          {!compacto && (
+            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <span className="pwd-menu-label" style={{ color: it.ativo ? p.gold : p.ink }}>{it.label}</span>
+              <span className="pwd-menu-sub">{it.sub}</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </aside>
   );
 }
 
