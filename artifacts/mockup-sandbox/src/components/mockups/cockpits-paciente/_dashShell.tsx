@@ -308,23 +308,33 @@ const ESTILOS = `
     text-shadow: 0 0 10px currentColor;
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
+  /* SIGLA do item · GLOW REDUZIDO pra ficar padrão e não roubar a cena */
   .pwd-menu-icone {
     flex-shrink: 0;
-    width: 34px; height: 34px;
+    min-width: 60px; height: 28px;
+    padding: 0 6px;
     border: 1px solid currentColor;
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; letter-spacing: 0.10em;
-    background: rgba(0,0,0,0.3);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 6px currentColor;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    background: rgba(0,0,0,0.35);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    text-shadow: 0 0 2px currentColor;
   }
   .pwd-menu-label {
     font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
     text-transform: uppercase; white-space: nowrap;
+    color: #FFFFFF; /* SEMPRE branco em repouso · cor só aparece no hover/ativo */
   }
   .pwd-menu-sub {
-    font-size: 9px; color: ${p.inkMute}; letter-spacing: 0.12em;
+    font-size: 9px; letter-spacing: 0.12em;
     margin-top: 2px; white-space: nowrap;
+    color: ${p.ink}; /* BRANCO (não mais cinza apagado) — assume cor só no hover/ativo */
+    opacity: 0.75;
   }
+  .pwd-menu-item-ativo .pwd-menu-label,
+  .pwd-menu-item:hover .pwd-menu-label { color: currentColor; }
+  .pwd-menu-item-ativo .pwd-menu-sub,
+  .pwd-menu-item:hover .pwd-menu-sub { color: currentColor; opacity: 1; }
 
   /* ===== OPERADOR · retângulo dentro de retângulo (tsunami v4) ===== */
   .pwd-op-externo:hover {
@@ -474,7 +484,7 @@ export function DashShell({ children, modeloNome }: { children: ReactNode; model
   const [paginaAtiva, setPaginaAtiva] = useState<string>("DASHBOARD");
   // SUBTÍTULOS visíveis quando VIS=1 (menu lateral colapsado → sobra espaço pros detalhes)
   const mostrarDetalhes = nivelMenu === 1;
-  const colWidth = nivelMenu === 1 ? "0" : nivelMenu === 2 ? "58px" : "220px";
+  const colWidth = nivelMenu === 1 ? "0" : nivelMenu === 2 ? "84px" : "220px";
   return (
     <CockpitShell>
       <style>{ESTILOS}</style>
@@ -526,9 +536,10 @@ function OlhoIcone({ aberto, onClick }: { aberto: boolean; onClick: () => void }
 
 function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes }: { modeloNome: string; nivelMenu: NivelMenu; setNivelMenu: (n: NivelMenu) => void; mostrarDetalhes: boolean }) {
   const crumbs = [
-    { lab: "PAWARDS",          cor: p.gold,             ativo: false },
-    { lab: "PÁDUA MATRIZ",     cor: p.cyan,             ativo: false },
-    { lab: "DASHBOARD GLOBAL", cor: pasteis.admin.neon, ativo: false },
+    /* CRUMBS NÃO-ATIVOS em BRANCO neutro — mesma intensidade do título "PÁDUA MATRIZ · DASHBOARD GLOBAL" da faixa 3 (CEO 27/mai) */
+    { lab: "PAWARDS",          cor: p.ink,              ativo: false },
+    { lab: "PÁDUA MATRIZ",     cor: p.ink,              ativo: false },
+    { lab: "DASHBOARD GLOBAL", cor: p.ink,              ativo: false },
     { lab: modeloNome,         cor: "#5FE6CC",          ativo: true  },
   ];
   return (
@@ -610,21 +621,21 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes 
  * Ambos consomem essa lista — garante correspondência 1:1.
  */
 const ITENS_MENU: Array<{ sigla: string; label: string; sub: string; cor: string; subs?: string[] }> = [
-  { sigla: "DSH", label: "DASHBOARD",   sub: "operação hoje",     cor: "#F5C97A",
+  { sigla: "DASHB", label: "DASHBOARD",   sub: "operação hoje",     cor: "#F5C97A",
     subs: ["VISÃO GERAL", "OPERAÇÃO HOJE", "ALERTAS CRÍTICOS"] },
-  { sigla: "PAC", label: "PACIENTES",   sub: "87 ativos",         cor: "#5BB6FF",
+  { sigla: "PACTS", label: "PACIENTES",   sub: "87 ativos",         cor: "#5BB6FF",
     subs: ["LISTAGEM", "ANAMNESE", "TSH · LABS", "EVOLUÇÃO INTEGRATIVA"] },
-  { sigla: "AGD", label: "AGENDA",      sub: "5 hoje · 11:14",    cor: "#5FE6CC",
+  { sigla: "AGEND", label: "AGENDA",      sub: "5 hoje · 11:14",    cor: "#5FE6CC",
     subs: ["HOJE", "SEMANA", "SUB-AGENDAS"] },
-  { sigla: "PRX", label: "PRESCRIÇÃO",  sub: "6 rascunho",        cor: "#B5A0F0",
+  { sigla: "PRESC", label: "PRESCRIÇÃO",  sub: "6 rascunho",        cor: "#B5A0F0",
     subs: ["RASCUNHOS", "VALIDAÇÃO MÉDICA", "RASX · MATRIZ V6", "PROTOCOLOS"] },
-  { sigla: "FAT", label: "FATURAMENTO", sub: "R$ 41.8K dia",      cor: "#85E0A3",
+  { sigla: "FATUR", label: "FATURAMENTO", sub: "R$ 41.8K dia",      cor: "#85E0A3",
     subs: ["PAGAMENTOS HOJE", "INADIMPLÊNCIA", "COMISSIONAMENTO"] },
-  { sigla: "MOT", label: "MOTOR V4",    sub: "142 regras hoje",   cor: "#FFA3C8",
+  { sigla: "MOTOR", label: "MOTOR V4",    sub: "142 regras hoje",   cor: "#FFA3C8",
     subs: ["REGRAS ATIVAS", "EXAMES SUGERIDOS", "FÓRMULAS · INJETÁVEIS"] },
-  { sigla: "EQP", label: "EQUIPE",      sub: "4 ativos",          cor: "#C8B6FF",
+  { sigla: "EQUIP", label: "EQUIPE",      sub: "4 ativos",          cor: "#C8B6FF",
     subs: ["COLABORADORES", "ESCALA", "AVALIAÇÕES"] },
-  { sigla: "AUD", label: "AUDITORIA",   sub: "23 eventos 7d",     cor: "#FF9A9A",
+  { sigla: "AUDIT", label: "AUDITORIA",   sub: "23 eventos 7d",     cor: "#FF9A9A",
     subs: ["LOG GERAL", "LGPD · RETENÇÃO", "SLA OPERACIONAL"] },
 ];
 
@@ -654,7 +665,7 @@ function MenuLateral({ nivel, paginaAtiva, setPaginaAtiva }: { nivel: NivelMenu;
               className={`pwd-menu-item ${ativo ? "pwd-menu-item-ativo" : ""}`}
               style={{
                 justifyContent: compacto ? "center" : "flex-start",
-                padding: compacto ? "8px 0" : "9px 10px",
+                padding: compacto ? "8px 6px" : "9px 10px",
                 borderLeft: compacto ? "none" : (ativo ? `3px solid ${it.cor}` : "3px solid transparent"),
                 color: ativo ? it.cor : p.inkDim,
                 ["--ident" as never]: it.cor,

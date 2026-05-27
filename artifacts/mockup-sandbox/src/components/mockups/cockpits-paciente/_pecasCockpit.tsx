@@ -95,9 +95,10 @@ export function BlocoCockpit({
           background: p.navyPanelAlt, cursor: "pointer", userSelect: "none",
           /* RETÂNGULO EMBORDADO em VOLTA INTEIRA da faixa do header — ativo quando aberto
              cor de identidade do bloco · espelha o print do CEO ("retângulo ciano fechado") */
-          border: aberto ? `1px solid ${cor}` : "1px solid transparent",
+          /* RETÂNGULO embordando o header inteiro · cor de identidade SATURADA (mais visível) */
+          border: aberto ? `1.5px solid ${cor}` : "1px solid transparent",
           boxShadow: aberto
-            ? `inset 0 0 12px ${cor}11, 0 0 8px ${cor}55, 0 0 16px ${cor}33`
+            ? `inset 0 0 14px ${cor}22, 0 0 10px ${cor}aa, 0 0 22px ${cor}66`
             : "none",
           fontFamily: fonte.familia,
           transition: "border-color 200ms ease-out, box-shadow 200ms ease-out",
