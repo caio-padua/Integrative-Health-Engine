@@ -265,15 +265,15 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
     ["--ppen-cor-borda-min" as string]: t.border,
   } as React.CSSProperties);
 
-  /* tom tonal de fundo · cor do bloco ativo diluída */
-  const tomFaixaAtiva = `${corBlocoAtivo}10`;
+  /* IDENTIDADE VISUAL FIXA · faixas 2 e 3 NÃO mudam de cor com bloco ativo
+     (decisão Caio 27/mai/2026 — preserva identidade da chrome). */
 
   return (
     <div style={{ background: t.bg, minHeight: 720, fontFamily: font, color: t.t1, display: "flex", flexDirection: "column" }}>
       <style>{css}</style>
 
-      {/* ═══════ FAIXA 1 · TOPO · alinhada em LINHA_ESQ ═══════ */}
-      <div style={{ height: 48, background: t.bg, display: "flex", alignItems: "center", padding: `0 ${LINHA_ESQ}px`, gap: 8, borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
+      {/* ═══════ FAIXA 1 · TOPO · alinhada em LINHA_ESQ · altura 40 ═══════ */}
+      <div style={{ height: 40, background: t.bg, display: "flex", alignItems: "center", padding: `0 ${LINHA_ESQ}px`, gap: 8, borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
         <button
           onClick={() => setLocal(true)}
           className={`${SID}-elem ${local ? `${SID}-selecionado` : ""}`}
@@ -335,7 +335,7 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
             className={`${SID}-elem`}
             title={t.modoClaro ? "Alternar para modo escuro" : "Alternar para modo claro"}
             style={{
-              fontSize: 9, color: t.accent2, padding: "3px 7px",
+              fontSize: 10, color: t.accent2, padding: "3px 7px",
               border: `1px solid ${t.accent2}66`, cursor: "pointer",
               fontWeight: 700, letterSpacing: 1,
               ...hoverVars(t.accent2),
@@ -343,28 +343,27 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
             {t.modoClaro ? "ESCURO" : "CLARO"}
           </span>
         )}
-        <span style={{ fontSize: 9, color: t.t2, padding: "3px 7px", border: `1px solid ${t.border}` }}>MÉDICO</span>
-        <span className={`${SID}-elem`} style={{ fontSize: 9, color: t.warn, padding: "3px 7px", border: `1px solid ${t.warn}55`, cursor: "pointer", ...hoverVars(t.warn) }}>CONFIG</span>
-        <span className={`${SID}-elem`} style={{ fontSize: 9, color: t.danger, padding: "3px 7px", border: `1px solid ${t.danger}55`, cursor: "pointer", ...hoverVars(t.danger) }}>SAIR</span>
+        <span style={{ fontSize: 10, color: t.t2, padding: "3px 7px", border: `1px solid ${t.border}` }}>MÉDICO</span>
+        <span className={`${SID}-elem`} style={{ fontSize: 10, color: t.warn, padding: "3px 7px", border: `1px solid ${t.warn}55`, cursor: "pointer", ...hoverVars(t.warn) }}>CONFIG</span>
+        <span className={`${SID}-elem`} style={{ fontSize: 10, color: t.danger, padding: "3px 7px", border: `1px solid ${t.danger}55`, cursor: "pointer", ...hoverVars(t.danger) }}>SAIR</span>
       </div>
 
-      {/* ═══════ FAIXA 2 · BREADCRUMB · tinge com cor do bloco ativo ═══════ */}
+      {/* ═══════ FAIXA 2 · BREADCRUMB · altura 40 · identidade fixa ═══════ */}
       <div style={{
-        minHeight: 30, background: tomFaixaAtiva,
+        height: 40, background: t.bg,
         display: "flex", alignItems: "center", padding: `0 ${LINHA_ESQ}px`,
-        borderBottom: `1px solid ${corBlocoAtivo}55`, fontSize: 9, letterSpacing: "0.12em", color: t.t1, flexShrink: 0,
-        borderLeft: `5px solid ${corBlocoAtivo}`,
+        borderBottom: `1px solid ${t.border}`, fontSize: 10, letterSpacing: "0.12em", color: t.t1, flexShrink: 0,
       }}>
         {["PAWARDS", "PÁDUA MATRIZ", "DASHBOARD GLOBAL"].map((x, i, a) => (
           <span key={i}>
-            <span className={`${SID}-elem`} style={{ padding: "2px 6px", cursor: "pointer", ...hoverVars(t.accent) }}>{x}</span>
-            {i < a.length - 1 && <span style={{ color: t.t3, margin: "0 3px" }}>▸</span>}
+            <span className={`${SID}-elem`} style={{ padding: "2px 6px", fontSize: 10, cursor: "pointer", ...hoverVars(t.accent) }}>{x}</span>
+            {i < a.length - 1 && <span style={{ color: t.t3, margin: "0 3px", fontSize: 10 }}>▸</span>}
           </span>
         ))}
         <span className={`${SID}-elem ${SID}-selecionado`} style={{
           background: "transparent", color: corBlocoAtivo,
           border: `1px solid ${corBlocoAtivo}`,
-          padding: "2px 8px", fontWeight: 700, marginLeft: 6, fontSize: 9, letterSpacing: 1,
+          padding: "2px 8px", fontWeight: 700, marginLeft: 6, fontSize: 10, letterSpacing: 1,
           ...hoverVars(corBlocoAtivo),
         }}>{blocoAtivo}</span>
       </div>
@@ -373,15 +372,14 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
           Tabs PACIENTE/AGENDA/PRESCRIÇÃO/FATURAMENTO no meio · ao clicar,
           ACENDE o item correspondente no menu lateral (setActDom). */}
       <div style={{
-        minHeight: 32, background: tomFaixaAtiva,
+        height: 40, background: t.bg,
         borderBottom: `1px solid ${t.border}`,
         display: "flex", alignItems: "center", padding: `0 ${LINHA_ESQ}px`, gap: 10, flexShrink: 0,
-        borderLeft: `5px solid ${corBlocoAtivo}`,
       }}>
-        <span style={{ fontSize: 8, color: t.ok, fontWeight: 700, letterSpacing: 1, padding: "2px 5px", border: `1px solid ${t.ok}66` }}>ATIVO</span>
-        <span style={{ fontSize: 11, fontWeight: 700, color: t.accent, letterSpacing: 1 }}>GRACO SOUZA PÁDUA</span>
-        <span style={{ fontSize: 9, color: t.t2 }}>34A · M</span>
-        <span style={{ fontSize: 9, color: t.t3 }}>HAS · DM2</span>
+        <span style={{ fontSize: 10, color: t.ok, fontWeight: 700, letterSpacing: 1, padding: "2px 5px", border: `1px solid ${t.ok}66` }}>ATIVO</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: t.accent, letterSpacing: 1 }}>GRACO SOUZA PÁDUA</span>
+        <span style={{ fontSize: 10, color: t.t2 }}>34A · M</span>
+        <span style={{ fontSize: 10, color: t.t3 }}>HAS · DM2</span>
 
         {/* TABS DE CORRESPONDÊNCIA com o menu lateral */}
         <div style={{ display: "flex", gap: 4, marginLeft: 14 }}>
@@ -398,7 +396,7 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
                 onClick={() => setActDom(tab.idx)}
                 className={`${SID}-elem ${act ? `${SID}-selecionado` : ""}`}
                 style={{
-                  fontSize: 9, fontWeight: 700, letterSpacing: 1,
+                  fontSize: 10, fontWeight: 700, letterSpacing: 1,
                   padding: "3px 8px",
                   border: `1px solid ${act ? corTab : t.border}`,
                   color: act ? corTab : t.t2,
@@ -412,7 +410,7 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
           })}
         </div>
 
-        <span style={{ fontSize: 9, color: t.warn, marginLeft: "auto" }}>SESSÃO 11:30 · 16MIN</span>
+        <span style={{ fontSize: 10, color: t.warn, marginLeft: "auto" }}>SESSÃO 11:30 · 16MIN</span>
       </div>
 
       {/* CORPO */}
