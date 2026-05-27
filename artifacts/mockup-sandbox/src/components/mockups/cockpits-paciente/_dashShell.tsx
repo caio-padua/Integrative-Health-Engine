@@ -104,16 +104,15 @@ const ESTILOS = `
   }
   .pwd-btn:active { transform: translateY(1px); animation: none; }
 
-  /* NAV ATIVO (header navs DASHBOARD/PACIENTES/...) → VERDE MS-DOS respirando (sem dourar) */
+  /* NAV ATIVO (header navs) → assume COR DE IDENTIDADE inline (currentColor), respirando */
   .pwd-btn-ativo {
-    color: ${VERDE_DOS};
-    background: linear-gradient(180deg, rgba(51,255,102,0.22) 0%, rgba(51,255,102,0.08) 100%);
-    border-color: ${VERDE_DOS};
-    text-shadow: 0 0 8px rgba(51,255,102,0.8);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+    border-color: currentColor;
+    text-shadow: 0 0 8px currentColor;
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   .pwd-btn-ativo:hover {
-    color: ${VERDE_DOS}; border-color: ${VERDE_DOS};
+    border-color: currentColor;
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
 
@@ -250,14 +249,16 @@ const ESTILOS = `
     border-left-color: ${VERDE_DOS};
     text-shadow: 0 0 6px rgba(51,255,102,0.6);
   }
+  /* MENU ATIVO → assume COR DE IDENTIDADE (currentColor inline) + respiração unificada 2.8s */
   .pwd-menu-item-ativo {
-    color: ${p.gold};
-    background: linear-gradient(90deg, rgba(245,201,122,0.18) 0%, rgba(245,201,122,0.02) 100%);
-    border-left-color: ${p.gold};
-    text-shadow: 0 0 8px ${p.gold}66;
+    background: linear-gradient(90deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%);
+    border-left-color: currentColor;
+    text-shadow: 0 0 8px currentColor;
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   .pwd-menu-item-ativo:hover {
-    color: ${p.gold}; border-left-color: ${p.gold}; text-shadow: 0 0 8px ${p.gold}66;
+    border-left-color: currentColor; text-shadow: 0 0 8px currentColor;
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   .pwd-menu-icone {
     flex-shrink: 0;
@@ -415,7 +416,8 @@ const ESTILOS = `
 export function DashShell({ children, modeloNome }: { children: ReactNode; modeloNome: string }) {
   const [nivelMenu, setNivelMenu] = useState<NivelMenu>(3);
   const [paginaAtiva, setPaginaAtiva] = useState<string>("DASHBOARD");
-  const [mostrarDetalhes, setMostrarDetalhes] = useState<boolean>(false);
+  // SUBTÍTULOS visíveis quando VIS=1 (menu lateral colapsado → sobra espaço pros detalhes)
+  const mostrarDetalhes = nivelMenu === 1;
   const colWidth = nivelMenu === 1 ? "0" : nivelMenu === 2 ? "58px" : "220px";
   return (
     <CockpitShell>
@@ -423,11 +425,11 @@ export function DashShell({ children, modeloNome }: { children: ReactNode; model
       <BarraBreadcrumb
         modeloNome={modeloNome}
         nivelMenu={nivelMenu} setNivelMenu={setNivelMenu}
-        mostrarDetalhes={mostrarDetalhes} setMostrarDetalhes={setMostrarDetalhes}
+        mostrarDetalhes={mostrarDetalhes}
       />
       <HeaderClinica
         paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva}
-        mostrarDetalhes={mostrarDetalhes} setMostrarDetalhes={setMostrarDetalhes}
+        mostrarDetalhes={mostrarDetalhes}
       />
       <div style={{
         display: "grid",
@@ -463,18 +465,20 @@ function OlhoIcone({ aberto, onClick }: { aberto: boolean; onClick: () => void }
   );
 }
 
-function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes, setMostrarDetalhes }: { modeloNome: string; nivelMenu: NivelMenu; setNivelMenu: (n: NivelMenu) => void; mostrarDetalhes: boolean; setMostrarDetalhes: (b: boolean) => void }) {
+function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes }: { modeloNome: string; nivelMenu: NivelMenu; setNivelMenu: (n: NivelMenu) => void; mostrarDetalhes: boolean }) {
   const crumbs = [
     { lab: "PAWARDS",          cor: p.gold,             ativo: false },
     { lab: "PÁDUA MATRIZ",     cor: p.cyan,             ativo: false },
     { lab: "DASHBOARD GLOBAL", cor: pasteis.admin.neon, ativo: false },
-    { lab: modeloNome,         cor: p.gold,             ativo: true  },
+    { lab: modeloNome,         cor: AMARELO_NEON,       ativo: true  },
   ];
   return (
     <div style={{
-      background: "#06090F", borderBottom: `1px solid ${p.border}`,
-      padding: "9px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-      fontFamily: fonte.familia, boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.5)",
+      background: "#06090F",
+      borderBottom: `2px solid ${p.gold}55`,
+      padding: "10px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      fontFamily: fonte.familia,
+      boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.4)",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         {/* CLUSTER ESCOPO + VIS · largura fixa pra garantir alinhamento perfeito */}
@@ -491,27 +495,25 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes,
                 onClick={() => setNivelMenu(n)}
                 className={`pwd-vis ${nivelMenu === n ? "pwd-vis-on" : ""}`}
                 style={{ width: "100%", marginLeft: n > 1 ? -1 : 0 }}
-                title={n === 1 ? "Sem menu lateral" : n === 2 ? "Só ícones quadrados" : "Menu completo (ícone + label + faixa)"}
+                title={n === 1 ? "Sem menu lateral (subtítulos visíveis)" : n === 2 ? "Só ícones quadrados" : "Menu completo"}
               >{n}</button>
             ))}
           </div>
         </div>
         <div style={{ width: 1, height: 38, background: p.border, margin: "0 4px" }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          {crumbs.map((c, i) => (
-            <span key={c.lab} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              {c.ativo
-                ? <span className="pwd-crumb-on" style={{ color: c.cor, borderColor: c.cor, fontSize: 11, letterSpacing: ls.forte, fontWeight: 700 }}>{c.lab}</span>
-                : <span style={{ color: p.inkDim, fontSize: 11, letterSpacing: ls.forte, fontWeight: 500, padding: "4px 4px" }}>{c.lab}</span>}
-              {i < crumbs.length - 1 && <span style={{ color: p.inkMute, fontSize: 11 }}>›</span>}
-            </span>
-          ))}
-        </div>
-        {/* ÍCONE OLHO + SUBTEXTO SESSÃO (colapsado por padrão) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 12, borderLeft: `1px solid ${p.border}`, marginLeft: 4 }}>
-          <OlhoIcone aberto={mostrarDetalhes} onClick={() => setMostrarDetalhes(!mostrarDetalhes)} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            {crumbs.map((c, i) => (
+              <span key={c.lab} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {c.ativo
+                  ? <span className="pwd-crumb-on" style={{ color: c.cor, borderColor: c.cor, fontSize: 11, letterSpacing: ls.forte, fontWeight: 700 }}>{c.lab}</span>
+                  : <span style={{ color: p.inkDim, fontSize: 11, letterSpacing: ls.forte, fontWeight: 500, padding: "4px 4px" }}>{c.lab}</span>}
+                {i < crumbs.length - 1 && <span style={{ color: p.inkMute, fontSize: 11 }}>›</span>}
+              </span>
+            ))}
+          </div>
           {mostrarDetalhes && (
-            <span style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte }}>
+            <span style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, paddingLeft: 4 }}>
               SESSÃO INICIADA 08:42 · ATIVA 2H 32MIN · ÚLT. AÇÃO 11:11 · REGISTRO SESSÃO S03
             </span>
           )}
@@ -626,50 +628,40 @@ export function OperadorTag({ nome, cargo, extra }: { nome: string; cargo: strin
   );
 }
 
-function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes, setMostrarDetalhes }: { paginaAtiva: string; setPaginaAtiva: (s: string) => void; mostrarDetalhes: boolean; setMostrarDetalhes: (b: boolean) => void }) {
+function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes }: { paginaAtiva: string; setPaginaAtiva: (s: string) => void; mostrarDetalhes: boolean }) {
   return (
     <header style={{
       position: "sticky", top: 0, zIndex: 50, background: p.navyDeep,
-      borderBottom: `2px solid ${p.gold}`, padding: "12px 18px",
+      borderTop: `1px solid ${p.border}`,
+      borderBottom: `2px solid ${p.gold}`,
+      padding: "10px 22px",
       display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 14, alignItems: "center",
       fontFamily: fonte.familia,
       boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 4px 12px rgba(0,0,0,0.4), 0 0 20px ${p.gold}11`,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{
-          width: 52, height: 52, background: p.navyPanel, border: `2px solid ${p.gold}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 20, color: p.gold, letterSpacing: ls.forte, fontWeight: 700, flexShrink: 0,
-          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 14px ${p.gold}44, 0 4px 8px rgba(0,0,0,0.5)`,
-        }}>PD</div>
-        {/* Bloco texto · com ícone olho à esquerda das 2 linhas de subtítulo */}
-        <div style={{ display: "flex", alignItems: "stretch", gap: 10, minWidth: 0 }}>
-          {/* Ícone olho colado à esquerda dos subtítulos */}
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", paddingTop: 12 }}>
-            <OlhoIcone aberto={mostrarDetalhes} onClick={() => setMostrarDetalhes(!mostrarDetalhes)} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+        <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte }}>UNIDADE EM OPERAÇÃO</div>
+        <div style={{ fontSize: 15, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
+        {mostrarDetalhes && (
+          <div style={{ fontSize: 10, color: p.inkDim, letterSpacing: ls.suave, whiteSpace: "nowrap" }}>
+            UNI 1/15 · QUI 27/MAI/2026 · 11:14 BRT · 87 ATIVOS · CICLO #14
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte, marginBottom: 2 }}>UNIDADE EM OPERAÇÃO</div>
-            <div style={{ fontSize: 15, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
-            {mostrarDetalhes && (
-              <div style={{ fontSize: 10, color: p.inkDim, letterSpacing: ls.suave, marginTop: 3, whiteSpace: "nowrap" }}>
-                UNI 1/15 · QUI 27/MAI/2026 · 11:14 BRT · 87 ATIVOS · CICLO #14
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
-      {/* NAVS · sempre uma linha horizontal (nowrap) */}
+      {/* NAVS · sempre uma linha horizontal (nowrap) — cor de identidade quando ativo */}
       <div style={{ display: "flex", flexWrap: "nowrap", gap: 4, justifyContent: "center", minWidth: 0 }}>
-        {ITENS_MENU.map(it => (
+        {ITENS_MENU.map(it => {
+          const ativo = paginaAtiva === it.label;
+          return (
           <button
             key={it.label}
             onClick={() => setPaginaAtiva(it.label)}
-            className={`pwd-btn ${paginaAtiva === it.label ? "pwd-btn-ativo" : ""}`}
-            style={{ fontSize: 9, padding: "7px 9px", letterSpacing: "0.10em", flexShrink: 0, whiteSpace: "nowrap" }}
+            className={`pwd-btn ${ativo ? "pwd-btn-ativo" : ""}`}
+            style={{ fontSize: 9, padding: "7px 9px", letterSpacing: "0.10em", flexShrink: 0, whiteSpace: "nowrap", color: ativo ? it.cor : undefined }}
             title={it.sub}
           >{it.label}</button>
-        ))}
+          );
+        })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
         <StatH label="HOJE"      val="18 SESS."  cor={p.cyan} />
