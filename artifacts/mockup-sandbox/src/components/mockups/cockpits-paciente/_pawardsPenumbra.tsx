@@ -411,12 +411,13 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
           <div onClick={() => setNivelViz(2)} className={`${SID}-elem`}
             style={{
               width: 18, background: t.bg, borderRight: `1px solid ${t.border}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              display: "flex", alignItems: "flex-start", justifyContent: "center",
+              paddingTop: 14,
               cursor: "pointer", writingMode: "vertical-rl",
-              fontSize: 9, color: t.accent, letterSpacing: 3, fontWeight: 700,
+              fontSize: 10, color: t.accent, letterSpacing: 4, fontWeight: 900,
               flexShrink: 0, ...hoverVars(t.accent),
             }}>
-            MENU ▸
+            MENU
           </div>
         ) : (
           <div style={{
@@ -715,12 +716,13 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             className={`${SID}-elem`}
             style={{
               width: 18, background: t.bg, borderLeft: `1px solid ${t.border}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              display: "flex", alignItems: "flex-start", justifyContent: "center",
+              paddingTop: 14,
               cursor: "pointer", writingMode: "vertical-rl",
-              fontSize: 9, color: t.accent, letterSpacing: 3, fontWeight: 900,
+              fontSize: 10, color: t.accent, letterSpacing: 4, fontWeight: 900,
               flexShrink: 0, ...hoverVars(t.accent),
             }}>
-            ] CONTEXTO
+            CONTEXTO
           </div>
         )}
 
@@ -772,12 +774,13 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             className={`${SID}-elem`}
             style={{
               width: 18, background: t.bg, borderLeft: `1px solid ${t.border}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              display: "flex", alignItems: "flex-start", justifyContent: "center",
+              paddingTop: 14,
               cursor: "pointer", writingMode: "vertical-rl",
-              fontSize: 9, color: t.accent2, letterSpacing: 3, fontWeight: 700,
+              fontSize: 10, color: t.accent2, letterSpacing: 4, fontWeight: 900,
               flexShrink: 0, ...hoverVars(t.accent2),
             }}>
-            ◂ PULSO
+            PULSO
           </div>
         )}
       </div>
