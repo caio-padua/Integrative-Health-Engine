@@ -97,17 +97,22 @@ export function DashFinalPawards() {
       }}
     >
       <style>{`
-        /* ═══════════════ K1 · PULSO ÚNICO ═══════════════ */
-        .tema-final-pawards *,
-        .tema-final-pawards *::before,
-        .tema-final-pawards *::after { animation: none !important; }
-        /* nível 3 (menu completo) · respiração 4.5s */
-        .tema-final-pawards .pwd-menu-item-ativo {
-          animation: pwd-breathe-cor 4.5s ease-in-out infinite !important;
-          box-shadow: inset 0 0 6px rgba(255,255,255,0.03), 0 0 4px currentColor !important;
-          border-radius: 0 !important;
-        }
-        /* nível 2 (só ícone sigla) · respiração BEM LENTA 6.5s · 0px quina · halo discreto */
+        /* ═══════════════ K1 · PULSO ÚNICO ═══════════════
+           Zera animação SÓ nos elementos que costumam pulsar fora do "âncora-vivo".
+           NÃO toca em .pwd-menu-item / .pwd-menu-item:hover / .pwd-menu-item-ativo
+           pra preservar a respiração nativa do _dashShell (linhas 285-310). */
+        .tema-final-pawards .pwd-card-alerta,
+        .tema-final-pawards .pwd-card-alerta *,
+        .tema-final-pawards .pwd-tag,
+        .tema-final-pawards .pwd-bloco-tag,
+        .tema-final-pawards .pwd-status,
+        .tema-final-pawards .pwd-badge,
+        .tema-final-pawards .pwd-pulse,
+        .tema-final-pawards .pwd-vis,
+        .tema-final-pawards .pwd-escopo { animation: none !important; }
+        /* MENU ATIVO já respira 2.8s via _dashShell · só forço quina 0px */
+        .tema-final-pawards .pwd-menu-item-ativo { border-radius: 0 !important; }
+        /* Nível 2 (só ícone sigla): respiração lenta 6.5s no ícone do ativo · quina 90° */
         .tema-final-pawards .pwd-menu-item-ativo .pwd-menu-icone {
           animation: pwd-breathe-cor 6.5s ease-in-out infinite !important;
           box-shadow: inset 0 0 0 1px currentColor, 0 0 3px currentColor !important;
@@ -172,33 +177,30 @@ export function DashFinalPawards() {
           color: #F4F6F9 !important;
         }
 
-        /* ═══════════════ HOVER NEON · MENU LATERAL (3ª faixa visual) ═══════════════
-           Reforçado a pedido do CEO 27/mai: borda lateral 2px na cor da identidade +
-           halo glow visível (10px) + bg translúcido. Antes estava discreto demais. */
-        .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo) {
-          transition: box-shadow 160ms, background 160ms, border-color 160ms !important;
-          border-left: 2px solid transparent !important;
-        }
+        /* ═══════════════ HOVER NEON · MENU LATERAL ═══════════════
+           Mantém a respiração nativa do _dashShell (pwd-breathe-cor 2.8s) e
+           REFORÇA o halo pra ficar bem visível · acende/apaga via animação. */
         .tema-final-pawards .pwd-menu-item:not(.pwd-menu-item-ativo):hover {
-          border-left-color: currentColor !important;
-          background: rgba(255,255,255,0.04) !important;
-          /* RESPIRAÇÃO no hover · acende e apaga 1.8s · CEO 27/mai */
-          animation: pwd-hover-respira 1.8s ease-in-out infinite !important;
+          animation: pwd-final-hover-pulso 1.8s ease-in-out infinite !important;
+          background: linear-gradient(90deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%) !important;
+          border-left: 3px solid currentColor !important;
         }
-        @keyframes pwd-hover-respira {
+        @keyframes pwd-final-hover-pulso {
           0%, 100% {
             box-shadow:
-              inset 0 0 4px rgba(255,255,255,0.02),
-              inset 2px 0 0 0 currentColor,
-              0 0 4px currentColor;
-            filter: brightness(1);
+              inset 0 0 4px rgba(255,255,255,0.03),
+              0 0 4px currentColor,
+              0 0 8px currentColor;
+            text-shadow: 0 0 4px currentColor;
+            filter: brightness(0.95);
           }
           50% {
             box-shadow:
-              inset 0 0 12px rgba(255,255,255,0.08),
-              inset 2px 0 0 0 currentColor,
-              0 0 16px currentColor;
-            filter: brightness(1.15);
+              inset 0 0 14px rgba(255,255,255,0.10),
+              0 0 14px currentColor,
+              0 0 24px currentColor;
+            text-shadow: 0 0 10px currentColor;
+            filter: brightness(1.20);
           }
         }
         /* LOCAL/GLOBAL · halo verde-água sutil quando hover, halo verde NEON quando "on" (já existe) */
