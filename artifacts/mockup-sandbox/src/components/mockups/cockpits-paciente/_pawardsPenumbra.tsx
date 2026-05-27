@@ -412,7 +412,7 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             style={{
               width: 18, background: t.bg, borderRight: `1px solid ${t.border}`,
               display: "flex", alignItems: "flex-start", justifyContent: "center",
-              paddingTop: 14,
+              paddingTop: 4,
               cursor: "pointer", writingMode: "vertical-rl",
               fontSize: 10, color: t.accent, letterSpacing: 4, fontWeight: 900,
               flexShrink: 0, ...hoverVars(t.accent),
@@ -717,7 +717,7 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             style={{
               width: 18, background: t.bg, borderLeft: `1px solid ${t.border}`,
               display: "flex", alignItems: "flex-start", justifyContent: "center",
-              paddingTop: 14,
+              paddingTop: 4,
               cursor: "pointer", writingMode: "vertical-rl",
               fontSize: 10, color: t.accent, letterSpacing: 4, fontWeight: 900,
               flexShrink: 0, ...hoverVars(t.accent),
@@ -775,7 +775,7 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             style={{
               width: 18, background: t.bg, borderLeft: `1px solid ${t.border}`,
               display: "flex", alignItems: "flex-start", justifyContent: "center",
-              paddingTop: 14,
+              paddingTop: 4,
               cursor: "pointer", writingMode: "vertical-rl",
               fontSize: 10, color: t.accent2, letterSpacing: 4, fontWeight: 900,
               flexShrink: 0, ...hoverVars(t.accent2),
