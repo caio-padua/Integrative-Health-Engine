@@ -74,6 +74,16 @@ const ESTILOS = `
     50%      { box-shadow: 0 0 14px currentColor, 0 0 28px currentColor; filter: brightness(1.3); }
   }
 
+  /* ===== REGRA DE FERRO · ZERO border-radius em TODOS os elementos interativos ===== */
+  .pwd-btn, .pwd-btn:hover, .pwd-btn-ativo,
+  .pwd-menu-item, .pwd-menu-item:hover, .pwd-menu-item-ativo,
+  .pwd-vis, .pwd-vis:hover, .pwd-vis-on,
+  .pwd-escopo, .pwd-crumb-on, .pwd-crumb-on:hover,
+  .pwd-op-externo, .pwd-olho, .pwd-tag, .pwd-kpi, .pwd-card-alerta {
+    border-radius: 0 !important;
+    -webkit-border-radius: 0 !important;
+  }
+
   /* ===== BOTÃO PADRÃO ===== */
   .pwd-btn {
     position: relative;
@@ -444,7 +454,7 @@ export function DashShell({ children, modeloNome }: { children: ReactNode; model
       />
       <div style={{
         display: "grid",
-        gridTemplateColumns: `${colWidth} 1fr`,
+        gridTemplateColumns: nivelMenu === 1 ? "1fr" : `${colWidth} minmax(0,1fr)`,
         transition: "grid-template-columns 240ms cubic-bezier(0.4,0,0.2,1)",
       }}>
         <MenuLateral nivel={nivelMenu} paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva} />
@@ -523,9 +533,10 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes 
             ))}
           </div>
           {mostrarDetalhes && (
-            <span style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, paddingLeft: 4 }}>
-              SESSÃO INICIADA 08:42 · ATIVA 2H 32MIN · ÚLT. AÇÃO 11:11 · REGISTRO SESSÃO S03
-            </span>
+            <div style={{ display: "flex", gap: 18, paddingLeft: 4, fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, fontFamily: fonte.familia }}>
+              <span>SESSÃO · <span style={{ color: p.cyan }}>08:42</span></span>
+              <span>DURAÇÃO · <span style={{ color: p.cyan }}>02:32</span></span>
+            </div>
           )}
         </div>
       </div>
@@ -648,7 +659,7 @@ function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes }: { pagin
       borderTop: `1px solid ${p.border}`,
       borderBottom: `2px solid ${p.gold}`,
       padding: "10px 22px",
-      display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 14, alignItems: "center",
+      display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "center",
       fontFamily: fonte.familia,
       boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 4px 12px rgba(0,0,0,0.4), 0 0 20px ${p.gold}11`,
     }}>
@@ -656,13 +667,14 @@ function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes }: { pagin
         <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte }}>UNIDADE EM OPERAÇÃO</div>
         <div style={{ fontSize: 11, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
         {mostrarDetalhes && (
-          <div style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, whiteSpace: "nowrap" }}>
-            UNI 1/15 · QUI 27/MAI/2026 · 11:14 BRT · 87 ATIVOS · CICLO #14
+          <div style={{ display: "flex", gap: 18, fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, whiteSpace: "nowrap" }}>
+            <span>QUINTA · <span style={{ color: p.cyan }}>27/MAI/2026</span></span>
+            <span>ATIVOS · <span style={{ color: p.cyan }}>87</span></span>
           </div>
         )}
       </div>
-      {/* NAVS · sempre uma linha horizontal (nowrap) — cor de identidade quando ativo */}
-      <div style={{ display: "flex", flexWrap: "nowrap", gap: 4, justifyContent: "center", minWidth: 0 }}>
+      {/* NAVS · alinhados à PONTA DIREITA — cor de identidade quando ativo */}
+      <div style={{ display: "flex", flexWrap: "nowrap", gap: 4, justifyContent: "flex-end", minWidth: 0 }}>
         {ITENS_MENU.map(it => {
           const ativo = paginaAtiva === it.label;
           return (
@@ -675,11 +687,6 @@ function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes }: { pagin
           >{it.label}</button>
           );
         })}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
-        <StatH label="HOJE"      val="18 SESS."  cor={p.cyan} />
-        <StatH label="ADERÊNCIA" val="87%"       cor="#5FE6CC" />
-        <StatH label="RECEITA"   val="R$ 41.8K"  cor={p.gold} />
       </div>
     </header>
   );
