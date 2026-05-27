@@ -289,15 +289,23 @@ const ESTILOS = `
     text-shadow: 0 0 6px var(--ident, ${VERDE_DOS});
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
-  /* MENU ATIVO → assume COR DE IDENTIDADE (currentColor inline) + respiração unificada 2.8s */
+  /* MENU ATIVO → RETÂNGULO EMBORDADO COMPLETO em volta do item inteiro (sigla+label+sub)
+     espelha o estilo do "MODELO 1 SANFONA" / "PAC PACIENTES" do print do CEO */
   .pwd-menu-item-ativo {
     background: linear-gradient(90deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%);
-    border-left-color: currentColor;
+    border: 1px solid currentColor !important;
+    border-left: 3px solid currentColor !important;
+    box-shadow:
+      inset 0 0 12px rgba(255,255,255,0.04),
+      0 0 8px currentColor,
+      0 0 16px currentColor;
     text-shadow: 0 0 8px currentColor;
+    margin: 0 6px;
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   .pwd-menu-item-ativo:hover {
-    border-left-color: currentColor; text-shadow: 0 0 8px currentColor;
+    border-color: currentColor !important;
+    text-shadow: 0 0 10px currentColor;
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   .pwd-menu-icone {
