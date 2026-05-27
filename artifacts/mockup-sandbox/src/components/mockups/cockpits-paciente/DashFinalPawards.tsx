@@ -203,7 +203,7 @@ export function DashFinalPawards() {
         /* ═══════════════ HOVER NEON · MENU LATERAL ═══════════════
            CEO 27/mai: "luz não deve dar a volta na quina, deve sair POR TRÁS do botão".
            Solução Safari-safe: pseudo ::before com z-index 0 (não -1, que falha em
-           combinação com filter no ancestor `.tema-final-pawards`), pai com isolation
+           combinação com filter no ancestor .tema-final-pawards), pai com isolation
            isolate cria stacking context próprio, filhos sobem pra z-index 1+.
            Background = cor de identidade + blur — vaza pelos 4 lados respeitando
            o retângulo 90°, sem halo circular. */
