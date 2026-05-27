@@ -1,21 +1,27 @@
 import { useState, useEffect } from "react";
 
 /* ════════════════════════════════════════════════════════════════════
-   LAYOUT PAWARDS PENUMBRA · disposição Claude + respiração pulsátil
+   LAYOUT PAWARDS PENUMBRA · V2
    ────────────────────────────────────────────────────────────────────
-   Caio pediu: pegar disposição/tamanho de botões/altura+tamanho da fonte
-   do mock Claude (já validado em _pawardsClaude) e aplicar no MODO PENUMBRA:
-   hover com NEON RESPIRANDO de trás do botão (4.5s ease-in-out).
+   Ajustes da rodada (Caio · PaperCiano como base aprovada):
 
-   Mecanismo do glow:
-   - box-shadow EXTERNO multi-layer (0 0 18px + 0 0 36px) na cor accent
-   - animação @keyframes alternando intensidade (efeito respiração)
-   - miolo do botão fica limpo, luz vaza POR FORA respeitando quina 90°
-
-   Suporta modoClaro (fundo papel) ou modoEscuro (navy/preto profundo).
+   1. Neon respira só quando SELECIONADO (estado React), não no hover.
+      Hover continua marcando borda mas sem pulso.
+   2. Cor do bloco ativo (OPE/ALT/DMD) TINGE a faixa horizontal inteira
+      e ACENDE o item correspondente no menu lateral · "dá a volta por
+      cima de tudo".
+   3. Borda esquerda dos blocos 5px (era 3px tênue).
+   4. Alto-relevo 3D · box-shadow duplo dando profundidade tipo Windows
+      clássico (monoblocos um sobre outro).
+   5. LEDs de vidro · bolinhas semáforo com radial-gradient nos cantos.
+   6. Botões 1/2/3 = NÍVEIS de visualização. Nível 2 adiciona linha de
+      contexto na faixa breadcrumb. Nível 3 adiciona linha de paciente
+      detalhada. Tudo alinhado pela LINHA IMAGINÁRIA ESQUERDA em 16px.
+   7. Alinhamento 16px unificado: breadcrumb, ATIVO, blocos.
    ════════════════════════════════════════════════════════════════════ */
 
 const font = "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace";
+const LINHA_ESQ = 16; // linha imaginária esquerda · TUDO alinha aqui
 
 export type PerfilPenumbra = {
   id: string;
@@ -73,6 +79,27 @@ const DMD_ITENS = [
   { dom: 4, tt: "NF PENDENTES", n: 5, s: "ATRASADO" },
 ];
 
+/* Mapa bloco → índice do menu lateral que acende junto */
+const BLOCO_PARA_MENU: Record<string, number> = {
+  OPE: 0, // DASHB
+  ALT: 5, // MOTOR
+  DMD: 1, // PACTS
+};
+
+/* LED de vidro · bolinha semáforo com radial-gradient */
+function LED({ cor, size = 9 }: { cor: string; size?: number }) {
+  return (
+    <span style={{
+      display: "inline-block",
+      width: size, height: size, borderRadius: "50%",
+      background: `radial-gradient(circle at 30% 30%, #FFFFFF, ${cor} 55%, ${cor} 100%)`,
+      boxShadow: `0 0 4px ${cor}, inset 0 -1px 1px rgba(0,0,0,0.3)`,
+      border: `1px solid ${cor}aa`,
+      flexShrink: 0,
+    }} />
+  );
+}
+
 function Gauge({ valor, max, label, cor, t, size = 68 }: { valor: number; max: number; label: string; cor: string; t: PerfilPenumbra; size?: number }) {
   const pct = Math.round((valor / max) * 100);
   const r = size * 0.35;
@@ -116,142 +143,232 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
   const [actDom, setActDom] = useState(0);
   const [menuOpen, setMenuOpen] = useState(true);
   const [ctxOpen, setCtxOpen] = useState(true);
-  const [opeOpen, setOpeOpen] = useState(true);
-  const [altOpen, setAltOpen] = useState(true);
-  const [dmdOpen, setDmdOpen] = useState(true);
+  const [blocoAtivo, setBlocoAtivo] = useState<"OPE" | "ALT" | "DMD">("OPE");
+  const [nivelViz, setNivelViz] = useState<1 | 2 | 3>(1);
   const [local, setLocal] = useState(true);
 
   const kpiC = [t.accent, t.doms[0], t.ok, t.warn, t.doms[5], t.danger];
   const SID = `ppen-${t.id}`;
+  const menuAceso = BLOCO_PARA_MENU[blocoAtivo] ?? 0;
+  const corBlocoAtivo = blocoAtivo === "OPE" ? t.doms[0] : blocoAtivo === "ALT" ? t.danger : t.doms[6];
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       if (e.key === "[") { e.preventDefault(); setMenuOpen((p) => !p); }
       if (e.key === "]") { e.preventDefault(); setCtxOpen((p) => !p); }
-      if (e.key === "1") setOpeOpen((p) => !p);
-      if (e.key === "2") setAltOpen((p) => !p);
-      if (e.key === "3") setDmdOpen((p) => !p);
+      if (e.key === "1") { setNivelViz(1); setBlocoAtivo("OPE"); }
+      if (e.key === "2") { setNivelViz(2); setBlocoAtivo("ALT"); }
+      if (e.key === "3") { setNivelViz(3); setBlocoAtivo("DMD"); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  /* ────────── CSS injetado · respiração pulsátil + glow vindo de trás ────────── */
+  /* ────────── CSS · respiração SÓ em .selecionado · hover sutil ────────── */
   const css = `
     @keyframes ${SID}-respira {
-      0%   { box-shadow: 0 0 6px 0 var(--ppen-cor), 0 0 14px 1px var(--ppen-cor-soft); }
-      50%  { box-shadow: 0 0 18px 2px var(--ppen-cor), 0 0 32px 4px var(--ppen-cor-soft); }
-      100% { box-shadow: 0 0 6px 0 var(--ppen-cor), 0 0 14px 1px var(--ppen-cor-soft); }
+      0%   { box-shadow:
+        0 1px 0 var(--ppen-cor-borda-min),
+        0 2px 4px rgba(0,0,0,0.06),
+        0 0 6px 0 var(--ppen-cor),
+        0 0 14px 1px var(--ppen-cor-soft); }
+      50%  { box-shadow:
+        0 1px 0 var(--ppen-cor-borda-min),
+        0 2px 4px rgba(0,0,0,0.06),
+        0 0 18px 3px var(--ppen-cor),
+        0 0 36px 6px var(--ppen-cor-soft); }
+      100% { box-shadow:
+        0 1px 0 var(--ppen-cor-borda-min),
+        0 2px 4px rgba(0,0,0,0.06),
+        0 0 6px 0 var(--ppen-cor),
+        0 0 14px 1px var(--ppen-cor-soft); }
     }
     @keyframes ${SID}-respira-borda {
       0%, 100% { border-color: var(--ppen-cor-borda-min); }
       50%      { border-color: var(--ppen-cor); }
     }
-
-    /* HOVER UNIVERSAL · todos os elementos interativos respiram em câmera lenta */
-    .${SID}-hover {
-      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    .${SID}-elem {
+      transition: background 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s;
       position: relative;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04);
     }
-    .${SID}-hover:hover {
-      animation: ${SID}-respira 4.5s ease-in-out infinite, ${SID}-respira-borda 4.5s ease-in-out infinite;
+    .${SID}-elem:hover {
+      border-color: var(--ppen-cor) !important;
+      box-shadow:
+        0 1px 0 rgba(0,0,0,0.06),
+        0 2px 4px rgba(0,0,0,0.10),
+        inset 0 0 0 1px var(--ppen-cor-soft);
     }
-
-    /* MENU lateral · item ativo respira sozinho */
-    .${SID}-menu-ativo {
-      animation: ${SID}-respira 5s ease-in-out infinite;
+    .${SID}-selecionado {
+      animation: ${SID}-respira 4.5s ease-in-out infinite, ${SID}-respira-borda 4.5s ease-in-out infinite !important;
+    }
+    /* ALTO-RELEVO 3D · blocos OPE/ALT/DMD com sombra dupla tipo Windows clássico */
+    .${SID}-bloco-3d {
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.5) inset,
+        0 -1px 0 rgba(0,0,0,0.05) inset,
+        0 2px 0 rgba(0,0,0,0.04),
+        0 4px 10px rgba(0,0,0,0.06);
     }
   `;
 
-  // Helper inline pra passar var --ppen-cor por elemento
   const hoverVars = (cor: string): React.CSSProperties => ({
     ["--ppen-cor" as string]: cor,
     ["--ppen-cor-soft" as string]: `${cor}55`,
     ["--ppen-cor-borda-min" as string]: t.border,
   } as React.CSSProperties);
 
+  /* tom tonal de fundo · cor do bloco ativo diluída */
+  const tomFaixaAtiva = `${corBlocoAtivo}10`;
+
   return (
     <div style={{ background: t.bg, minHeight: 720, fontFamily: font, color: t.t1, display: "flex", flexDirection: "column" }}>
       <style>{css}</style>
 
-      {/* FAIXA 1 · TOPO */}
-      <div style={{ height: 48, background: t.bg, display: "flex", alignItems: "center", padding: "0 16px", gap: 8, borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
-        <button onClick={() => setLocal(true)} className={`${SID}-hover`} style={{
-          padding: "4px 12px", border: `1px solid ${local ? t.ok : t.border}`,
-          background: local ? `${t.ok}1f` : "transparent", color: local ? t.ok : t.t3,
-          fontFamily: font, fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer",
-          ...hoverVars(t.ok),
-        }}>LOCAL</button>
-        <button onClick={() => setLocal(false)} className={`${SID}-hover`} style={{
-          padding: "4px 12px", border: `1px solid ${!local ? t.doms[1] : t.border}`,
-          background: !local ? `${t.doms[1]}1f` : "transparent", color: !local ? t.doms[1] : t.t3,
-          fontFamily: font, fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer",
-          ...hoverVars(t.doms[1]),
-        }}>GLOBAL</button>
+      {/* ═══════ FAIXA 1 · TOPO · alinhada em LINHA_ESQ ═══════ */}
+      <div style={{ height: 48, background: t.bg, display: "flex", alignItems: "center", padding: `0 ${LINHA_ESQ}px`, gap: 8, borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
+        <button
+          onClick={() => setLocal(true)}
+          className={`${SID}-elem ${local ? `${SID}-selecionado` : ""}`}
+          style={{
+            padding: "4px 12px", border: `1px solid ${local ? t.ok : t.border}`,
+            background: local ? `${t.ok}1f` : "transparent", color: local ? t.ok : t.t3,
+            fontFamily: font, fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 5,
+            ...hoverVars(t.ok),
+          }}>
+          {local && <LED cor={t.ok} size={7} />}
+          LOCAL
+        </button>
+        <button
+          onClick={() => setLocal(false)}
+          className={`${SID}-elem ${!local ? `${SID}-selecionado` : ""}`}
+          style={{
+            padding: "4px 12px", border: `1px solid ${!local ? t.doms[1] : t.border}`,
+            background: !local ? `${t.doms[1]}1f` : "transparent", color: !local ? t.doms[1] : t.t3,
+            fontFamily: font, fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 5,
+            ...hoverVars(t.doms[1]),
+          }}>
+          {!local && <LED cor={t.doms[1]} size={7} />}
+          GLOBAL
+        </button>
+
+        {/* NÍVEIS DE VISUALIZAÇÃO · 1/2/3 */}
         <div style={{ display: "flex", gap: 3, marginLeft: 4 }}>
-          {["1", "2", "3"].map((n) => (
-            <button key={n} className={`${SID}-hover`} style={{
-              width: 24, height: 24, border: `1px solid ${n === "3" ? t.warn : t.border}`,
-              background: n === "3" ? `${t.warn}22` : "transparent", color: n === "3" ? t.warn : t.t3,
-              fontFamily: font, fontSize: 10, fontWeight: 700, cursor: "pointer",
-              ...hoverVars(t.warn),
-            }}>{n}</button>
-          ))}
+          {([1, 2, 3] as const).map((n) => {
+            const act = nivelViz === n;
+            return (
+              <button key={n}
+                onClick={() => setNivelViz(n)}
+                className={`${SID}-elem ${act ? `${SID}-selecionado` : ""}`}
+                title={n === 1 ? "Nível 1 · básico" : n === 2 ? "Nível 2 · + contexto" : "Nível 3 · detalhe completo"}
+                style={{
+                  width: 26, height: 26, border: `1px solid ${act ? t.warn : t.border}`,
+                  background: act ? `${t.warn}22` : "transparent", color: act ? t.warn : t.t3,
+                  fontFamily: font, fontSize: 10, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
+                  ...hoverVars(t.warn),
+                }}>
+                {act && <LED cor={t.warn} size={6} />}
+                {n}
+              </button>
+            );
+          })}
         </div>
-        <div className={`${SID}-hover`} style={{ flex: 1, maxWidth: 220, marginLeft: 8, padding: "4px 10px", background: t.bg2, border: `1px solid ${t.border}`, display: "flex", gap: 6, alignItems: "center", ...hoverVars(t.accent) }}>
+
+        <div className={`${SID}-elem`} style={{ flex: 1, maxWidth: 220, marginLeft: 8, padding: "4px 10px", background: t.bg2, border: `1px solid ${t.border}`, display: "flex", gap: 6, alignItems: "center", ...hoverVars(t.accent) }}>
           <span style={{ color: t.accent, fontSize: 10 }}>⌕</span>
           <span style={{ color: t.t3, fontSize: 10 }}>buscar</span>
           <span style={{ marginLeft: "auto", color: t.t3, fontSize: 8, padding: "0 4px", border: `1px solid ${t.border}` }}>⌘K</span>
         </div>
-        <span className={`${SID}-hover`} style={{ marginLeft: "auto", color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 10px", border: `1px solid ${t.accent}66`, cursor: "pointer", ...hoverVars(t.accent) }}>CAIO REGISTER</span>
+        <span className={`${SID}-elem`} style={{ marginLeft: "auto", color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 10px", border: `1px solid ${t.accent}66`, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, ...hoverVars(t.accent) }}>
+          <LED cor={t.ok} size={7} />
+          CAIO REGISTER
+        </span>
         <span style={{ fontSize: 9, color: t.t2, padding: "3px 7px", border: `1px solid ${t.border}` }}>MÉDICO</span>
-        <span className={`${SID}-hover`} style={{ fontSize: 9, color: t.warn, padding: "3px 7px", border: `1px solid ${t.warn}55`, cursor: "pointer", ...hoverVars(t.warn) }}>CONFIG</span>
-        <span className={`${SID}-hover`} style={{ fontSize: 9, color: t.danger, padding: "3px 7px", border: `1px solid ${t.danger}55`, cursor: "pointer", ...hoverVars(t.danger) }}>SAIR</span>
+        <span className={`${SID}-elem`} style={{ fontSize: 9, color: t.warn, padding: "3px 7px", border: `1px solid ${t.warn}55`, cursor: "pointer", ...hoverVars(t.warn) }}>CONFIG</span>
+        <span className={`${SID}-elem`} style={{ fontSize: 9, color: t.danger, padding: "3px 7px", border: `1px solid ${t.danger}55`, cursor: "pointer", ...hoverVars(t.danger) }}>SAIR</span>
       </div>
 
-      {/* FAIXA 2 · BREADCRUMB */}
-      <div style={{ height: 30, background: t.bg, display: "flex", alignItems: "center", padding: "0 16px", borderBottom: `1px solid ${t.borderAccent}`, fontSize: 9, letterSpacing: "0.12em", color: t.t1, flexShrink: 0 }}>
+      {/* ═══════ FAIXA 2 · BREADCRUMB · tinge com cor do bloco ativo ═══════ */}
+      <div style={{
+        minHeight: 30, background: tomFaixaAtiva,
+        display: "flex", alignItems: "center", padding: `0 ${LINHA_ESQ}px`,
+        borderBottom: `1px solid ${corBlocoAtivo}55`, fontSize: 9, letterSpacing: "0.12em", color: t.t1, flexShrink: 0,
+        borderLeft: `5px solid ${corBlocoAtivo}`,
+      }}>
+        <LED cor={corBlocoAtivo} size={8} />
+        <div style={{ width: 8 }} />
         {["PAWARDS", "PÁDUA MATRIZ", "DASHBOARD GLOBAL"].map((x, i, a) => (
           <span key={i}>
-            <span className={`${SID}-hover`} style={{ padding: "2px 6px", cursor: "pointer", ...hoverVars(t.accent) }}>{x}</span>
+            <span className={`${SID}-elem`} style={{ padding: "2px 6px", cursor: "pointer", ...hoverVars(t.accent) }}>{x}</span>
             {i < a.length - 1 && <span style={{ color: t.t3, margin: "0 3px" }}>▸</span>}
           </span>
         ))}
-        <span className={`${SID}-menu-ativo`} style={{ background: t.accent, color: t.modoClaro ? "#FFFFFF" : t.bg, padding: "2px 8px", fontWeight: 700, marginLeft: 6, fontSize: 9, ...hoverVars(t.accent) }}>{t.nome}</span>
+        <span className={`${SID}-selecionado`} style={{
+          background: corBlocoAtivo, color: t.modoClaro ? "#FFFFFF" : t.bg,
+          padding: "2px 8px", fontWeight: 700, marginLeft: 6, fontSize: 9, letterSpacing: 1,
+          ...hoverVars(corBlocoAtivo),
+        }}>{blocoAtivo}</span>
+        {/* NÍVEL 2/3 · linha extra de contexto alinhada na linha imaginária */}
+        {nivelViz >= 2 && (
+          <span style={{ marginLeft: 14, fontSize: 8, color: t.t2, letterSpacing: 1 }}>
+            · UN 03 · TURNO MANHÃ · 18/24 SESSÕES · MOTOR V4.2.1
+          </span>
+        )}
       </div>
 
-      {/* FAIXA 3 · PACIENTE ATIVO */}
-      <div style={{ height: 32, background: t.bg2, borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", padding: "0 16px", gap: 10, flexShrink: 0 }}>
+      {/* ═══════ FAIXA 3 · PACIENTE ATIVO · tinge com cor do bloco ativo ═══════ */}
+      <div style={{
+        minHeight: 32, background: tomFaixaAtiva,
+        borderBottom: `1px solid ${t.border}`,
+        display: "flex", alignItems: "center", padding: `0 ${LINHA_ESQ}px`, gap: 10, flexShrink: 0,
+        borderLeft: `5px solid ${corBlocoAtivo}`,
+      }}>
+        <LED cor={t.ok} size={8} />
         <span style={{ fontSize: 8, color: t.ok, fontWeight: 700, letterSpacing: 1, padding: "2px 5px", border: `1px solid ${t.ok}66` }}>ATIVO</span>
         <span style={{ fontSize: 11, fontWeight: 700, color: t.accent, letterSpacing: 1 }}>GRACO SOUZA PÁDUA</span>
         <span style={{ fontSize: 9, color: t.t2 }}>34A · M</span>
         <span style={{ fontSize: 9, color: t.t3 }}>HAS · DM2</span>
+        {/* NÍVEL 3 · detalhe extra alinhado */}
+        {nivelViz >= 3 && (
+          <>
+            <span style={{ fontSize: 9, color: t.warn }}>· NAD+ 200mg · CORTISOL 8.2 · TSH 4.8</span>
+            <span style={{ fontSize: 9, color: t.doms[0] }}>· 12ª SESSÃO · ADESÃO 87%</span>
+          </>
+        )}
         <span style={{ fontSize: 9, color: t.warn, marginLeft: "auto" }}>SESSÃO 11:30 · 16MIN</span>
       </div>
 
       {/* CORPO */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* MENU LATERAL */}
+        {/* MENU LATERAL · item correspondente ao bloco ativo ACENDE */}
         <div style={{ width: menuOpen ? 144 : 40, background: t.bg, borderRight: `1px solid ${t.border}`, padding: "6px 0", transition: "width 0.2s", flexShrink: 0, overflowY: "auto" }}>
-          <div onClick={() => setMenuOpen((p) => !p)} className={`${SID}-hover`} style={{ padding: "4px 8px", textAlign: "center", cursor: "pointer", color: t.t3, fontSize: 9, marginBottom: 4, ...hoverVars(t.accent) }}>{menuOpen ? "[" : "]"}</div>
+          <div onClick={() => setMenuOpen((p) => !p)} className={`${SID}-elem`} style={{ padding: "4px 8px", textAlign: "center", cursor: "pointer", color: t.t3, fontSize: 9, marginBottom: 4, ...hoverVars(t.accent) }}>{menuOpen ? "[" : "]"}</div>
           {DOMINIOS.map((d, i) => {
             const cor = t.doms[i];
-            const act = i === actDom;
+            const userAct = i === actDom;
+            const blocoAct = i === menuAceso;
+            const act = userAct || blocoAct;
             return (
-              <div key={d.k} onClick={() => setActDom(i)} className={act ? `${SID}-menu-ativo ${SID}-hover` : `${SID}-hover`}
+              <div key={d.k}
+                onClick={() => setActDom(i)}
+                className={`${SID}-elem ${act ? `${SID}-selecionado` : ""}`}
                 style={{
                   padding: menuOpen ? "7px 10px" : "7px 2px",
                   display: "flex", alignItems: "center", gap: 6,
-                  borderLeft: `3px solid ${act ? cor : "transparent"}`,
+                  borderLeft: `5px solid ${act ? cor : "transparent"}`,
                   background: act ? `${cor}18` : t.bg,
                   cursor: "pointer",
                   ...hoverVars(cor),
                 }}>
+                {act && <LED cor={cor} size={7} />}
                 <span style={{ fontSize: 10, fontWeight: 700, color: act ? cor : t.t2, letterSpacing: 1, minWidth: menuOpen ? 38 : "auto" }}>{d.k}</span>
                 {menuOpen && (
-                  <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", lineHeight: 1.35 }}>
                     <span style={{ fontSize: 9, color: act ? t.t1 : t.t2, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{d.l}</span>
                     <span style={{ fontSize: 8, color: t.t3, whiteSpace: "nowrap" }}>{d.sub}</span>
                   </div>
@@ -261,158 +378,206 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
           })}
         </div>
 
-        {/* CONTEÚDO CENTRAL */}
-        <div style={{ flex: 1, padding: "8px 12px", overflowY: "auto" }}>
+        {/* CONTEÚDO CENTRAL · padding alinhado à LINHA_ESQ visual */}
+        <div style={{ flex: 1, padding: `8px ${LINHA_ESQ - 4}px`, overflowY: "auto" }}>
 
-          {/* BLOCO OPE */}
-          <div style={{ border: `1px solid ${t.border}`, background: t.bg2, marginBottom: 8 }}>
-            <div onClick={() => setOpeOpen((p) => !p)} className={`${SID}-hover`} style={{
-              padding: "7px 14px", background: t.bg3, borderBottom: `1px solid ${t.border}`,
-              borderLeft: `3px solid ${t.doms[0]}`, display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              ...hoverVars(t.doms[0]),
-            }}>
-              <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${t.doms[0]}22`, color: t.doms[0], letterSpacing: 1 }}>OPE</span>
-              <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>OPERAÇÃO HOJE · 27/MAI/2026 · QUI · 11:14</span>
-              <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: t.doms[0] }}>EM CURSO</span>
-              <span style={{ fontFamily: font, fontSize: 10, color: t.t3 }}>{opeOpen ? "FECHAR" : "ABRIR"}</span>
-            </div>
-            {opeOpen && (
-              <div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 1, background: t.border, padding: 1 }}>
-                  {KPIS.map((k, i) => (
-                    <div key={i} className={`${SID}-hover`}
-                      style={{
-                        background: t.bg2,
-                        padding: "10px 8px", textAlign: "center", cursor: "default",
-                        ...hoverVars(kpiC[i]),
-                      }}>
-                      <div style={{ fontSize: 9, color: t.t1, letterSpacing: "0.14em", fontWeight: 700 }}>{k.l}</div>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: kpiC[i], fontVariantNumeric: "tabular-nums", marginTop: 3, textShadow: `0 0 8px ${kpiC[i]}55` }}>{k.v}</div>
-                      <div style={{ fontSize: 9, color: t.t2, marginTop: 3 }}>{k.sub}</div>
-                    </div>
-                  ))}
+          {/* ───── BLOCO OPE ───── */}
+          {(() => {
+            const corB = t.doms[0];
+            const ativo = blocoAtivo === "OPE";
+            return (
+              <div className={`${SID}-bloco-3d`} style={{
+                border: `1px solid ${ativo ? corB : t.border}`,
+                borderLeft: `5px solid ${corB}`,
+                background: ativo ? `${corB}08` : t.bg2,
+                marginBottom: 10,
+              }}>
+                <div onClick={() => setBlocoAtivo("OPE")}
+                  className={`${SID}-elem ${ativo ? `${SID}-selecionado` : ""}`}
+                  style={{
+                    padding: "8px 14px", background: ativo ? `${corB}14` : t.bg3,
+                    borderBottom: `1px solid ${t.border}`,
+                    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                    lineHeight: 1.4,
+                    ...hoverVars(corB),
+                  }}>
+                  <LED cor={corB} size={9} />
+                  <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${corB}22`, color: corB, letterSpacing: 1 }}>OPE</span>
+                  <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>OPERAÇÃO HOJE · 27/MAI/2026 · QUI · 11:14</span>
+                  <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: corB }}>EM CURSO</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-around", padding: "10px 14px", borderTop: `1px solid ${t.border}`, flexWrap: "wrap", gap: 6 }}>
-                  <Gauge valor={18} max={24} label="SESSÕES" cor={t.accent} t={t} />
-                  <Gauge valor={87} max={100} label="ADERÊNCIA" cor={t.ok} t={t} />
-                  <Gauge valor={41820} max={50000} label="RECEITA" cor={t.doms[0]} t={t} />
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, justifyContent: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 8, color: t.t3, width: 48, textAlign: "right" }}>SONO 7d</span>
-                      <Spark data={[6, 7, 7, 8, 7, 8, 9]} cor={t.accent} />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: t.accent, width: 16, textAlign: "right" }}>9</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 8, color: t.t3, width: 48, textAlign: "right" }}>ENERGIA</span>
-                      <Spark data={[5, 6, 7, 7, 8, 8, 8]} cor={t.ok} />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: t.ok, width: 16, textAlign: "right" }}>8</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 8, color: t.t3, width: 48, textAlign: "right" }}>FOCO</span>
-                      <Spark data={[7, 7, 8, 8, 7, 9, 8]} cor={t.accent2} />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: t.accent2, width: 16, textAlign: "right" }}>8</span>
+                <div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 1, background: t.border, padding: 1 }}>
+                    {KPIS.map((k, i) => (
+                      <div key={i} className={`${SID}-elem`}
+                        style={{
+                          background: t.bg2, padding: "11px 8px", textAlign: "center", cursor: "default",
+                          lineHeight: 1.5,
+                          ...hoverVars(kpiC[i]),
+                        }}>
+                        <div style={{ fontSize: 9, color: t.t1, letterSpacing: "0.14em", fontWeight: 700 }}>{k.l}</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: kpiC[i], fontVariantNumeric: "tabular-nums", marginTop: 4, textShadow: `0 0 8px ${kpiC[i]}55`, lineHeight: 1.2 }}>{k.v}</div>
+                        <div style={{ fontSize: 9, color: t.t2, marginTop: 4 }}>{k.sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-around", padding: "12px 14px", borderTop: `1px solid ${t.border}`, flexWrap: "wrap", gap: 6 }}>
+                    <Gauge valor={18} max={24} label="SESSÕES" cor={t.accent} t={t} />
+                    <Gauge valor={87} max={100} label="ADERÊNCIA" cor={t.ok} t={t} />
+                    <Gauge valor={41820} max={50000} label="RECEITA" cor={t.doms[0]} t={t} />
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7, justifyContent: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 8, color: t.t3, width: 48, textAlign: "right" }}>SONO 7d</span>
+                        <Spark data={[6, 7, 7, 8, 7, 8, 9]} cor={t.accent} />
+                        <span style={{ fontSize: 10, fontWeight: 700, color: t.accent, width: 16, textAlign: "right" }}>9</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 8, color: t.t3, width: 48, textAlign: "right" }}>ENERGIA</span>
+                        <Spark data={[5, 6, 7, 7, 8, 8, 8]} cor={t.ok} />
+                        <span style={{ fontSize: 10, fontWeight: 700, color: t.ok, width: 16, textAlign: "right" }}>8</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 8, color: t.t3, width: 48, textAlign: "right" }}>FOCO</span>
+                        <Spark data={[7, 7, 8, 8, 7, 9, 8]} cor={t.accent2} />
+                        <span style={{ fontSize: 10, fontWeight: 700, color: t.accent2, width: 16, textAlign: "right" }}>8</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
 
-          {/* BLOCO ALT */}
-          <div style={{ border: `1px solid ${t.border}`, background: t.bg2, marginBottom: 8 }}>
-            <div onClick={() => setAltOpen((p) => !p)} className={`${SID}-hover`} style={{
-              padding: "7px 14px", background: t.bg3, borderBottom: `1px solid ${t.border}`,
-              borderLeft: `3px solid ${t.danger}`, display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              ...hoverVars(t.danger),
-            }}>
-              <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${t.danger}22`, color: t.danger, letterSpacing: 1 }}>ALT</span>
-              <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>ALERTAS CRÍTICOS DO MOTOR</span>
-              <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: t.danger }}>3 AGORA</span>
-              <span style={{ fontFamily: font, fontSize: 10, color: t.t3 }}>{altOpen ? "FECHAR" : "ABRIR"}</span>
-            </div>
-            {altOpen && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, padding: "8px 12px" }}>
-                {ALERTAS.map((a, i) => {
-                  const sc = a.sev === "CRÍTICO" ? t.danger : t.warn;
-                  return (
-                    <div key={i} className={`${SID}-hover`}
-                      style={{
-                        border: `1px solid ${sc}66`, background: t.bg2,
-                        padding: "10px 12px", cursor: "pointer",
-                        ...hoverVars(sc),
-                      }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                        <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 7px", border: `1px solid ${sc}77`, color: sc, letterSpacing: 1 }}>{a.sev}</span>
-                        <span style={{ fontSize: 8, color: t.t3 }}>{a.ctx}</span>
+          {/* ───── BLOCO ALT ───── */}
+          {(() => {
+            const corB = t.danger;
+            const ativo = blocoAtivo === "ALT";
+            return (
+              <div className={`${SID}-bloco-3d`} style={{
+                border: `1px solid ${ativo ? corB : t.border}`,
+                borderLeft: `5px solid ${corB}`,
+                background: ativo ? `${corB}08` : t.bg2,
+                marginBottom: 10,
+              }}>
+                <div onClick={() => setBlocoAtivo("ALT")}
+                  className={`${SID}-elem ${ativo ? `${SID}-selecionado` : ""}`}
+                  style={{
+                    padding: "8px 14px", background: ativo ? `${corB}14` : t.bg3,
+                    borderBottom: `1px solid ${t.border}`,
+                    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                    lineHeight: 1.4,
+                    ...hoverVars(corB),
+                  }}>
+                  <LED cor={corB} size={9} />
+                  <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${corB}22`, color: corB, letterSpacing: 1 }}>ALT</span>
+                  <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>ALERTAS CRÍTICOS DO MOTOR</span>
+                  <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: corB }}>3 AGORA</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, padding: "10px 12px" }}>
+                  {ALERTAS.map((a, i) => {
+                    const sc = a.sev === "CRÍTICO" ? t.danger : t.warn;
+                    return (
+                      <div key={i} className={`${SID}-elem`}
+                        style={{
+                          border: `1px solid ${sc}66`, background: t.bg2,
+                          padding: "11px 12px", cursor: "pointer",
+                          lineHeight: 1.45,
+                          ...hoverVars(sc),
+                        }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, alignItems: "center" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <LED cor={sc} size={7} />
+                            <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 7px", border: `1px solid ${sc}77`, color: sc, letterSpacing: 1 }}>{a.sev}</span>
+                          </div>
+                          <span style={{ fontSize: 8, color: t.t3 }}>{a.ctx}</span>
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.04em", marginBottom: 4 }}>{a.t}</div>
+                        <div style={{ fontSize: 10, color: sc, marginBottom: 8 }}>{a.pac}</div>
+                        <div style={{
+                          fontSize: 9, fontWeight: 700, color: sc, padding: "6px 0",
+                          borderTop: `1px solid ${sc}44`, textAlign: "center", letterSpacing: 1,
+                        }}>{a.cta}</div>
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.04em", marginBottom: 4, lineHeight: 1.3 }}>{a.t}</div>
-                      <div style={{ fontSize: 10, color: sc, marginBottom: 8 }}>{a.pac}</div>
-                      <div style={{
-                        fontSize: 9, fontWeight: 700, color: sc, padding: "6px 0",
-                        borderTop: `1px solid ${sc}44`, textAlign: "center", letterSpacing: 1,
-                      }}>{a.cta}</div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ───── BLOCO DMD ───── */}
+          {(() => {
+            const corB = t.doms[6];
+            const ativo = blocoAtivo === "DMD";
+            return (
+              <div className={`${SID}-bloco-3d`} style={{
+                border: `1px solid ${ativo ? corB : t.border}`,
+                borderLeft: `5px solid ${corB}`,
+                background: ativo ? `${corB}08` : t.bg2,
+              }}>
+                <div onClick={() => setBlocoAtivo("DMD")}
+                  className={`${SID}-elem ${ativo ? `${SID}-selecionado` : ""}`}
+                  style={{
+                    padding: "8px 14px", background: ativo ? `${corB}14` : t.bg3,
+                    borderBottom: `1px solid ${t.border}`,
+                    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                    lineHeight: 1.4,
+                    ...hoverVars(corB),
+                  }}>
+                  <LED cor={corB} size={9} />
+                  <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${corB}22`, color: corB, letterSpacing: 1 }}>DMD</span>
+                  <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>DEMANDAS OPERACIONAIS · POR DOMÍNIO</span>
+                  <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: corB }}>23 ITENS</span>
+                </div>
+                {DMD_ITENS.map((d, i) => {
+                  const dc = t.doms[d.dom];
+                  const ledS = d.s === "ATRASADO" ? t.danger : d.s === "PENDENTE" ? t.warn : t.ok;
+                  return (
+                    <div key={i} className={`${SID}-elem`}
+                      style={{
+                        padding: "9px 12px", borderBottom: `1px solid ${t.border}55`,
+                        display: "flex", alignItems: "center", gap: 8,
+                        borderLeft: `4px solid ${dc}88`,
+                        background: t.bg2, cursor: "pointer",
+                        lineHeight: 1.4,
+                        ...hoverVars(dc),
+                      }}>
+                      <LED cor={dc} size={8} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: dc, width: 50, letterSpacing: 1 }}>{DOMINIOS[d.dom]?.k}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: t.t1, letterSpacing: "0.04em", flex: 1 }}>{d.tt}</span>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: dc, fontVariantNumeric: "tabular-nums", textShadow: `0 0 6px ${dc}55` }}>{d.n}</span>
+                      <LED cor={ledS} size={7} />
+                      <span style={{ fontSize: 8, fontWeight: 700, color: ledS, letterSpacing: 1, padding: "2px 6px", border: `1px solid ${ledS}55` }}>{d.s}</span>
                     </div>
                   );
                 })}
               </div>
-            )}
-          </div>
-
-          {/* BLOCO DMD */}
-          <div style={{ border: `1px solid ${t.border}`, background: t.bg2 }}>
-            <div onClick={() => setDmdOpen((p) => !p)} className={`${SID}-hover`} style={{
-              padding: "7px 14px", background: t.bg3, borderBottom: `1px solid ${t.border}`,
-              borderLeft: `3px solid ${t.doms[6]}`, display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              ...hoverVars(t.doms[6]),
-            }}>
-              <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: "2px 7px", background: `${t.doms[6]}22`, color: t.doms[6], letterSpacing: 1 }}>DMD</span>
-              <span style={{ fontFamily: font, fontSize: 11, fontWeight: 700, color: t.t1, letterSpacing: "0.08em", flex: 1 }}>DEMANDAS OPERACIONAIS · POR DOMÍNIO</span>
-              <span style={{ fontFamily: font, fontSize: 10, fontWeight: 700, color: t.doms[6] }}>23 ITENS</span>
-              <span style={{ fontFamily: font, fontSize: 10, color: t.t3 }}>{dmdOpen ? "FECHAR" : "ABRIR"}</span>
-            </div>
-            {dmdOpen && DMD_ITENS.map((d, i) => {
-              const dc = t.doms[d.dom];
-              return (
-                <div key={i} className={`${SID}-hover`}
-                  style={{
-                    padding: "8px 12px", borderBottom: `1px solid ${t.border}55`,
-                    display: "flex", alignItems: "center", gap: 8,
-                    borderLeft: "3px solid transparent",
-                    background: t.bg2, cursor: "pointer",
-                    ...hoverVars(dc),
-                  }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: dc, width: 44, letterSpacing: 1 }}>{DOMINIOS[d.dom]?.k}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: t.t1, letterSpacing: "0.04em", flex: 1 }}>{d.tt}</span>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: dc, fontVariantNumeric: "tabular-nums", textShadow: `0 0 6px ${dc}55` }}>{d.n}</span>
-                  <span style={{ fontSize: 8, fontWeight: 700, color: d.s === "ATRASADO" ? t.danger : d.s === "PENDENTE" ? t.warn : t.ok, letterSpacing: 1, padding: "2px 6px", border: `1px solid ${d.s === "ATRASADO" ? t.danger : d.s === "PENDENTE" ? t.warn : t.ok}55` }}>{d.s}</span>
-                </div>
-              );
-            })}
-          </div>
+            );
+          })()}
         </div>
 
         {/* PAINEL CONTEXTO */}
         {ctxOpen ? (
           <div style={{ width: 200, background: t.bg, borderLeft: `1px solid ${t.border}`, padding: "8px 10px", flexShrink: 0, overflowY: "auto" }}>
-            <div onClick={() => setCtxOpen(false)} className={`${SID}-hover`} style={{ fontSize: 8, color: t.accent, letterSpacing: 2, fontWeight: 700, marginBottom: 10, borderLeft: `2px solid ${t.accent}`, paddingLeft: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", ...hoverVars(t.accent) }}>
+            <div onClick={() => setCtxOpen(false)} className={`${SID}-elem`} style={{ fontSize: 8, color: t.accent, letterSpacing: 2, fontWeight: 700, marginBottom: 10, borderLeft: `3px solid ${t.accent}`, paddingLeft: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", ...hoverVars(t.accent) }}>
               <span>CONTEXTO</span><span style={{ color: t.t3 }}>]</span>
             </div>
-            <div style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px", marginBottom: 8 }}>
+            <div className={`${SID}-bloco-3d`} style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px", marginBottom: 8 }}>
               <div style={{ fontSize: 8, color: t.t3, letterSpacing: 1, marginBottom: 6 }}>AGENDA RESTANTE</div>
               {["14:00 · Camila T.", "15:30 · Lucas V.", "17:00 · Ana B."].map((x, i) => (
-                <div key={i} className={`${SID}-hover`} style={{ fontSize: 10, color: t.t1, marginBottom: 4, padding: "3px 6px", borderLeft: "2px solid transparent", cursor: "pointer", ...hoverVars(t.accent) }}>{x}</div>
+                <div key={i} className={`${SID}-elem`} style={{ fontSize: 10, color: t.t1, marginBottom: 4, padding: "3px 6px", borderLeft: "2px solid transparent", cursor: "pointer", lineHeight: 1.4, ...hoverVars(t.accent) }}>{x}</div>
               ))}
             </div>
-            <div style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px", marginBottom: 8 }}>
+            <div className={`${SID}-bloco-3d`} style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px", marginBottom: 8 }}>
               <div style={{ fontSize: 8, color: t.t3, letterSpacing: 1, marginBottom: 6 }}>ATALHOS</div>
               {["+ RECEITA", "+ EXAME", "+ MENSAGEM"].map((x, i) => (
-                <div key={i} className={`${SID}-hover`} style={{ fontSize: 9, color: t.accent2, padding: "4px 6px", cursor: "pointer", borderLeft: "2px solid transparent", marginBottom: 2, ...hoverVars(t.accent2) }}>{x}</div>
+                <div key={i} className={`${SID}-elem`} style={{ fontSize: 9, color: t.accent2, padding: "4px 6px", cursor: "pointer", borderLeft: "2px solid transparent", marginBottom: 2, lineHeight: 1.4, ...hoverVars(t.accent2) }}>{x}</div>
               ))}
             </div>
-            <div style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px" }}>
+            <div className={`${SID}-bloco-3d`} style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px" }}>
               <div style={{ fontSize: 8, color: t.t3, letterSpacing: 1, marginBottom: 4 }}>TECLADO</div>
-              {[["[", "menu"], ["1", "OPE"], ["2", "ALT"], ["3", "DMD"], ["]", "ctx"]].map(([k, v], i) => (
-                <div key={i} style={{ fontSize: 8, color: t.t3, marginBottom: 2, display: "flex", gap: 6 }}>
+              {[["[", "menu"], ["1", "OPE+lv1"], ["2", "ALT+lv2"], ["3", "DMD+lv3"], ["]", "ctx"]].map(([k, v], i) => (
+                <div key={i} style={{ fontSize: 8, color: t.t3, marginBottom: 3, display: "flex", gap: 6, lineHeight: 1.4 }}>
                   <span style={{ color: t.accent, fontWeight: 700, width: 12 }}>{k}</span>{v}
                 </div>
               ))}
