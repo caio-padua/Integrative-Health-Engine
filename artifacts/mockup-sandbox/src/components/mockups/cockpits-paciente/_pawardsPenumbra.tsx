@@ -147,7 +147,9 @@ function Spark({ data, cor, w = 88, h = 22 }: { data: number[]; cor: string; w?:
   );
 }
 
-export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra }) {
+export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPenumbra; perfilPar?: PerfilPenumbra }) {
+  const [usarPar, setUsarPar] = useState(false);
+  const t = usarPar && perfilPar ? perfilPar : perfil;
   const [actDom, setActDom] = useState(0);
   const [menuOpen, setMenuOpen] = useState(true);
   const [ctxOpen, setCtxOpen] = useState(true);
@@ -327,6 +329,20 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
         <span className={`${SID}-elem`} style={{ marginLeft: "auto", color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 10px", border: `1px solid ${t.accent}66`, cursor: "pointer", ...hoverVars(t.accent) }}>
           CAIO REGISTER
         </span>
+        {perfilPar && (
+          <span
+            onClick={() => setUsarPar((p) => !p)}
+            className={`${SID}-elem`}
+            title={t.modoClaro ? "Alternar para modo escuro" : "Alternar para modo claro"}
+            style={{
+              fontSize: 9, color: t.accent2, padding: "3px 7px",
+              border: `1px solid ${t.accent2}66`, cursor: "pointer",
+              fontWeight: 700, letterSpacing: 1,
+              ...hoverVars(t.accent2),
+            }}>
+            {t.modoClaro ? "ESCURO" : "CLARO"}
+          </span>
+        )}
         <span style={{ fontSize: 9, color: t.t2, padding: "3px 7px", border: `1px solid ${t.border}` }}>MÉDICO</span>
         <span className={`${SID}-elem`} style={{ fontSize: 9, color: t.warn, padding: "3px 7px", border: `1px solid ${t.warn}55`, cursor: "pointer", ...hoverVars(t.warn) }}>CONFIG</span>
         <span className={`${SID}-elem`} style={{ fontSize: 9, color: t.danger, padding: "3px 7px", border: `1px solid ${t.danger}55`, cursor: "pointer", ...hoverVars(t.danger) }}>SAIR</span>
