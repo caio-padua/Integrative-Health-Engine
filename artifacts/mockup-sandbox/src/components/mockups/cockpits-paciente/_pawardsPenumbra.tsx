@@ -345,8 +345,9 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             {i < a.length - 1 && <span style={{ color: t.t3, margin: "0 3px" }}>▸</span>}
           </span>
         ))}
-        <span className={`${SID}-selecionado`} style={{
-          background: corBlocoAtivo, color: t.modoClaro ? "#FFFFFF" : t.bg,
+        <span className={`${SID}-elem ${SID}-selecionado`} style={{
+          background: "transparent", color: corBlocoAtivo,
+          border: `1px solid ${corBlocoAtivo}`,
           padding: "2px 8px", fontWeight: 700, marginLeft: 6, fontSize: 9, letterSpacing: 1,
           ...hoverVars(corBlocoAtivo),
         }}>{blocoAtivo}</span>
@@ -685,8 +686,8 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
         {/* PAINEL CONTEXTO */}
         {ctxOpen ? (
           <div style={{ width: 200, background: t.bg, borderLeft: `1px solid ${t.border}`, padding: "8px 10px", flexShrink: 0, overflowY: "auto" }}>
-            <div onClick={() => setCtxOpen(false)} className={`${SID}-elem`} style={{ fontSize: 8, color: t.accent, letterSpacing: 2, fontWeight: 700, marginBottom: 10, borderLeft: `3px solid ${t.accent}`, paddingLeft: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", ...hoverVars(t.accent) }}>
-              <span>CONTEXTO</span><span style={{ color: t.t3 }}>]</span>
+            <div onClick={() => setCtxOpen(false)} className={`${SID}-elem`} style={{ fontSize: 11, color: t.accent, letterSpacing: 3, fontWeight: 900, marginBottom: 10, borderLeft: `3px solid ${t.accent}`, paddingLeft: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", ...hoverVars(t.accent) }}>
+              <span>CONTEXTO</span><span style={{ color: t.t3, fontWeight: 700 }}>]</span>
             </div>
             <div className={`${SID}-bloco-3d`} style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px", marginBottom: 8 }}>
               <div style={{ fontSize: 8, color: t.t3, letterSpacing: 1, marginBottom: 6 }}>AGENDA RESTANTE</div>
@@ -710,7 +711,17 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
             </div>
           </div>
         ) : (
-          <div onClick={() => setCtxOpen(true)} style={{ width: 20, background: t.bg, borderLeft: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", writingMode: "vertical-rl", fontSize: 8, color: t.t3, letterSpacing: 2 }}>]</div>
+          <div onClick={() => setCtxOpen(true)}
+            className={`${SID}-elem`}
+            style={{
+              width: 18, background: t.bg, borderLeft: `1px solid ${t.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", writingMode: "vertical-rl",
+              fontSize: 9, color: t.accent, letterSpacing: 3, fontWeight: 900,
+              flexShrink: 0, ...hoverVars(t.accent),
+            }}>
+            ] CONTEXTO
+          </div>
         )}
 
         {/* ═════════ PAINEL PULSO ═════════
@@ -721,12 +732,12 @@ export function LayoutPawardsPenumbra({ perfil: t }: { perfil: PerfilPenumbra })
           <div style={{ width: 200, background: t.bg, borderLeft: `1px solid ${t.border}`, padding: "8px 10px", flexShrink: 0, overflowY: "auto" }}>
             <div onClick={() => setPulsoOpen(false)} className={`${SID}-elem`}
               style={{
-                fontSize: 8, color: t.accent2, letterSpacing: 2, fontWeight: 700,
+                fontSize: 11, color: t.accent2, letterSpacing: 3, fontWeight: 900,
                 marginBottom: 10, borderLeft: `3px solid ${t.accent2}`, paddingLeft: 8,
                 cursor: "pointer", display: "flex", justifyContent: "space-between",
                 ...hoverVars(t.accent2),
               }}>
-              <span>PULSO ◂</span><span style={{ color: t.t3 }}>◂</span>
+              <span>PULSO</span><span style={{ color: t.t3, fontWeight: 700 }}>◂</span>
             </div>
             <div className={`${SID}-bloco-3d`}
               style={{ border: `1px solid ${t.border}`, background: t.bg2, padding: "8px 10px" }}>
