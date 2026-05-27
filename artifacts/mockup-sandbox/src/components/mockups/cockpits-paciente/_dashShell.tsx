@@ -144,6 +144,24 @@ const ESTILOS = `
     border-color: ${VERDE_DOS}66 !important;
   }
 
+  /* ===== ÍCONE OLHO · toggle detalhes (SESSÃO INICIADA + UNI/data) ===== */
+  .pwd-olho {
+    background: ${p.navyPanel};
+    border: 1px solid ${p.borderSoft};
+    color: ${p.inkMute};
+    width: 26px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 120ms ease-out;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 0 rgba(0,0,0,0.5);
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .pwd-olho:hover {
+    color: ${VERDE_DOS}; border-color: ${VERDE_DOS};
+    box-shadow: inset 0 0 6px rgba(51,255,102,0.3), 0 0 8px rgba(51,255,102,0.5);
+  }
+
   /* ===== BOTÕEZINHOS DE VISIBILIDADE DO MENU LATERAL ===== */
   .pwd-vis {
     width: 22px; height: 20px;
@@ -313,12 +331,20 @@ const ESTILOS = `
 export function DashShell({ children, modeloNome }: { children: ReactNode; modeloNome: string }) {
   const [nivelMenu, setNivelMenu] = useState<NivelMenu>(3);
   const [paginaAtiva, setPaginaAtiva] = useState<string>("DASHBOARD");
+  const [mostrarDetalhes, setMostrarDetalhes] = useState<boolean>(false);
   const colWidth = nivelMenu === 1 ? "0" : nivelMenu === 2 ? "58px" : "220px";
   return (
     <CockpitShell>
       <style>{ESTILOS}</style>
-      <BarraBreadcrumb modeloNome={modeloNome} nivelMenu={nivelMenu} setNivelMenu={setNivelMenu} />
-      <HeaderClinica paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva} />
+      <BarraBreadcrumb
+        modeloNome={modeloNome}
+        nivelMenu={nivelMenu} setNivelMenu={setNivelMenu}
+        mostrarDetalhes={mostrarDetalhes} setMostrarDetalhes={setMostrarDetalhes}
+      />
+      <HeaderClinica
+        paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva}
+        mostrarDetalhes={mostrarDetalhes} setMostrarDetalhes={setMostrarDetalhes}
+      />
       <div style={{
         display: "grid",
         gridTemplateColumns: `${colWidth} 1fr`,
@@ -332,7 +358,28 @@ export function DashShell({ children, modeloNome }: { children: ReactNode; model
   );
 }
 
-function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu }: { modeloNome: string; nivelMenu: NivelMenu; setNivelMenu: (n: NivelMenu) => void }) {
+/** Ícone de olho SVG (aberto = mostrando · fechado = ocultando) */
+function OlhoIcone({ aberto, onClick }: { aberto: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="pwd-olho" title={aberto ? "Ocultar detalhes" : "Mostrar detalhes"}>
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+        {aberto ? (
+          <>
+            <path d="M1 5.5 C 3 1.5, 13 1.5, 15 5.5 C 13 9.5, 3 9.5, 1 5.5 Z" stroke="currentColor" strokeWidth="1.2" fill="none" />
+            <circle cx="8" cy="5.5" r="2.2" fill="currentColor" />
+          </>
+        ) : (
+          <>
+            <path d="M1 7 C 3 4, 13 4, 15 7" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+            <path d="M3 4 L 4.5 5.5 M 13 4 L 11.5 5.5 M 8 5 L 8 7" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+          </>
+        )}
+      </svg>
+    </button>
+  );
+}
+
+function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes, setMostrarDetalhes }: { modeloNome: string; nivelMenu: NivelMenu; setNivelMenu: (n: NivelMenu) => void; mostrarDetalhes: boolean; setMostrarDetalhes: (b: boolean) => void }) {
   const crumbs = [
     { lab: "PAWARDS",          cor: p.gold,             ativo: false },
     { lab: "PÁDUA MATRIZ",     cor: p.cyan,             ativo: false },
@@ -346,19 +393,20 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu }: { modeloNome: 
       fontFamily: fonte.familia, boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.5)",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ display: "flex", gap: 0 }}>
-            <button className="pwd-escopo pwd-escopo-local-on">LOCAL · PÁDUA MATRIZ</button>
-            <button className="pwd-escopo pwd-escopo-global-off" style={{ marginLeft: -1 }}>GLOBAL · 15 UN</button>
+        {/* CLUSTER ESCOPO + VIS · largura fixa pra garantir alinhamento perfeito */}
+        <div style={{ width: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+            <button className="pwd-escopo pwd-escopo-local-on" style={{ width: "100%" }}>LOCAL</button>
+            <button className="pwd-escopo pwd-escopo-global-off" style={{ width: "100%", marginLeft: -1 }}>GLOBAL</button>
           </div>
-          {/* 3 BOTÕEZINHOS · NÍVEL DE VISIBILIDADE DO MENU LATERAL */}
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontSize: 8, color: p.inkMute, letterSpacing: ls.forte, fontFamily: fonte.familia, fontWeight: 700, marginRight: 2 }}>VIS</span>
+          {/* 3 BOTÕEZINHOS · NÍVEL DE VISIBILIDADE · alinhados c/ LOCAL/GLOBAL acima */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
             {([1, 2, 3] as NivelMenu[]).map(n => (
               <button
                 key={n}
                 onClick={() => setNivelMenu(n)}
                 className={`pwd-vis ${nivelMenu === n ? "pwd-vis-on" : ""}`}
+                style={{ width: "100%", marginLeft: n > 1 ? -1 : 0 }}
                 title={n === 1 ? "Sem menu lateral" : n === 2 ? "Só ícones quadrados" : "Menu completo (ícone + label + faixa)"}
               >{n}</button>
             ))}
@@ -375,14 +423,20 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu }: { modeloNome: 
             </span>
           ))}
         </div>
-        <span style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, paddingLeft: 12, borderLeft: `1px solid ${p.border}`, marginLeft: 4 }}>
-          SESSÃO INICIADA 08:42 · ATIVA 2H 32MIN · ÚLT. AÇÃO 11:11 · REGISTRO SESSÃO S03
-        </span>
+        {/* ÍCONE OLHO + SUBTEXTO SESSÃO (colapsado por padrão) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 12, borderLeft: `1px solid ${p.border}`, marginLeft: 4 }}>
+          <OlhoIcone aberto={mostrarDetalhes} onClick={() => setMostrarDetalhes(!mostrarDetalhes)} />
+          {mostrarDetalhes && (
+            <span style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte }}>
+              SESSÃO INICIADA 08:42 · ATIVA 2H 32MIN · ÚLT. AÇÃO 11:11 · REGISTRO SESSÃO S03
+            </span>
+          )}
+        </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <OperadorTag nome="DR. CAIO REGISTER" cargo="MÉDICO" extra="CEO · CRM-SP 142.308" />
-        <button className="pwd-btn" style={{ fontSize: 10, padding: "8px 14px" }}>CONFIGURAÇÕES</button>
-        <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: "8px 14px" }}>SAIR</button>
+        <button className="pwd-btn" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 110 }}>CONFIGURAÇÕES</button>
+        <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 64 }}>SAIR</button>
       </div>
     </div>
   );
@@ -457,9 +511,11 @@ export function OperadorTag({ nome, cargo, extra }: { nome: string; cargo: strin
   return (
     <div
       className="pwd-op-externo"
+      title={extra}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 14,
-        padding: "6px 14px 6px 6px",
+        height: 34, boxSizing: "border-box",
+        display: "inline-flex", alignItems: "center", gap: 10,
+        padding: "0 12px 0 4px",
         border: `1.5px solid ${p.gold}`,
         background: `linear-gradient(180deg, ${p.navyPanel} 0%, ${p.navyDeep} 100%)`,
         boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 0 rgba(0,0,0,0.5), 0 0 14px ${p.gold}22`,
@@ -469,31 +525,27 @@ export function OperadorTag({ nome, cargo, extra }: { nome: string; cargo: strin
     >
       {/* RETÂNGULO INTERNO · nome */}
       <div style={{
-        padding: "8px 14px",
+        height: 26, display: "inline-flex", alignItems: "center",
+        padding: "0 10px",
         border: `1px solid ${p.gold}`,
         background: p.navyDeep,
         boxShadow: `inset 0 0 8px ${p.gold}33, inset 0 1px 0 rgba(255,255,255,0.05)`,
       }}>
-        <div style={{
-          fontSize: 12, color: p.gold, letterSpacing: ls.forte, fontWeight: 700,
-          textShadow: `0 0 6px ${p.gold}66`, lineHeight: 1.1,
-        }}>{nome}</div>
-        {extra && (
-          <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte, marginTop: 3, lineHeight: 1.1 }}>
-            {extra}
-          </div>
-        )}
+        <span style={{
+          fontSize: 11, color: p.gold, letterSpacing: ls.forte, fontWeight: 700,
+          textShadow: `0 0 6px ${p.gold}66`, lineHeight: 1,
+        }}>{nome}</span>
       </div>
       {/* CARGO · texto no espaço do externo (à direita do interno) */}
-      <div style={{
-        fontSize: 13, color: p.ink, letterSpacing: ls.forte, fontWeight: 700,
-        textShadow: "0 0 4px rgba(228,233,243,0.3)", paddingRight: 4,
-      }}>{cargo}</div>
+      <span style={{
+        fontSize: 11, color: p.ink, letterSpacing: ls.forte, fontWeight: 700,
+        textShadow: "0 0 4px rgba(228,233,243,0.3)", lineHeight: 1,
+      }}>{cargo}</span>
     </div>
   );
 }
 
-function HeaderClinica({ paginaAtiva, setPaginaAtiva }: { paginaAtiva: string; setPaginaAtiva: (s: string) => void }) {
+function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes, setMostrarDetalhes }: { paginaAtiva: string; setPaginaAtiva: (s: string) => void; mostrarDetalhes: boolean; setMostrarDetalhes: (b: boolean) => void }) {
   return (
     <header style={{
       position: "sticky", top: 0, zIndex: 50, background: p.navyDeep,
@@ -509,11 +561,20 @@ function HeaderClinica({ paginaAtiva, setPaginaAtiva }: { paginaAtiva: string; s
           fontSize: 20, color: p.gold, letterSpacing: ls.forte, fontWeight: 700, flexShrink: 0,
           boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 14px ${p.gold}44, 0 4px 8px rgba(0,0,0,0.5)`,
         }}>PD</div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte, marginBottom: 2 }}>UNIDADE EM OPERAÇÃO</div>
-          <div style={{ fontSize: 15, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
-          <div style={{ fontSize: 10, color: p.inkDim, letterSpacing: ls.suave, marginTop: 3, whiteSpace: "nowrap" }}>
-            UNI 1/15 · QUI 27/MAI/2026 · 11:14 BRT · 87 ATIVOS · CICLO #14
+        {/* Bloco texto · com ícone olho à esquerda das 2 linhas de subtítulo */}
+        <div style={{ display: "flex", alignItems: "stretch", gap: 10, minWidth: 0 }}>
+          {/* Ícone olho colado à esquerda dos subtítulos */}
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", paddingTop: 12 }}>
+            <OlhoIcone aberto={mostrarDetalhes} onClick={() => setMostrarDetalhes(!mostrarDetalhes)} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte, marginBottom: 2 }}>UNIDADE EM OPERAÇÃO</div>
+            <div style={{ fontSize: 15, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
+            {mostrarDetalhes && (
+              <div style={{ fontSize: 10, color: p.inkDim, letterSpacing: ls.suave, marginTop: 3, whiteSpace: "nowrap" }}>
+                UNI 1/15 · QUI 27/MAI/2026 · 11:14 BRT · 87 ATIVOS · CICLO #14
+              </div>
+            )}
           </div>
         </div>
       </div>
