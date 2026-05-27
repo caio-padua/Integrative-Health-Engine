@@ -94,13 +94,14 @@ const ESTILOS = `
       0 3px 6px rgba(0,0,0,0.4);
     text-transform: uppercase;
   }
+  /* HOVER do botão → assume COR DE IDENTIDADE via CSS var --ident · BPM unificado 2.8s */
   .pwd-btn:hover {
-    color: ${VERDE_DOS};
-    border-color: ${VERDE_DOS};
-    background: linear-gradient(180deg, rgba(51,255,102,0.18) 0%, rgba(51,255,102,0.08) 100%);
+    color: var(--ident, ${VERDE_DOS});
+    border-color: var(--ident, ${VERDE_DOS});
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
     transform: translateY(-1px);
-    text-shadow: 0 0 8px rgba(51,255,102,0.7);
-    animation: pwd-breathe 1.6s ease-in-out infinite;
+    text-shadow: 0 0 8px var(--ident, ${VERDE_DOS});
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   .pwd-btn:active { transform: translateY(1px); animation: none; }
 
@@ -212,7 +213,7 @@ const ESTILOS = `
   .pwd-vis:hover {
     color: ${VERDE_DOS}; border-color: ${VERDE_DOS};
     text-shadow: 0 0 6px rgba(51,255,102,0.7);
-    box-shadow: inset 0 0 6px rgba(51,255,102,0.3), 0 0 8px rgba(51,255,102,0.5);
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   /* VIS [1][2][3] ATIVO · AMARELO NEON respirando (mesmo pulso 2.8s) */
   .pwd-vis-on {
@@ -243,11 +244,13 @@ const ESTILOS = `
     transition: all 120ms ease-out;
     border-left: 3px solid transparent;
   }
+  /* HOVER menu lateral → assume COR DE IDENTIDADE via --ident · BPM 2.8s */
   .pwd-menu-item:hover {
-    color: ${VERDE_DOS};
-    background: linear-gradient(90deg, rgba(51,255,102,0.14) 0%, rgba(51,255,102,0.02) 100%);
-    border-left-color: ${VERDE_DOS};
-    text-shadow: 0 0 6px rgba(51,255,102,0.6);
+    color: var(--ident, ${VERDE_DOS});
+    background: linear-gradient(90deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%);
+    border-left-color: var(--ident, ${VERDE_DOS});
+    text-shadow: 0 0 6px var(--ident, ${VERDE_DOS});
+    animation: pwd-breathe-cor 2.8s ease-in-out infinite;
   }
   /* MENU ATIVO → assume COR DE IDENTIDADE (currentColor inline) + respiração unificada 2.8s */
   .pwd-menu-item-ativo {
@@ -304,6 +307,14 @@ const ESTILOS = `
     background: rgba(255,230,0,0.06);
     text-shadow: 0 0 6px currentColor;
     animation: pwd-breathe-cor 2.8s ease-in-out infinite;
+    cursor: pointer;
+    transition: color 120ms, border-color 120ms;
+  }
+  /* HOVER do crumb ativo → CIANO neon (cor exclusiva da linha 2 · BPM 2.8s) */
+  .pwd-crumb-on:hover {
+    color: #5FE6CC !important;
+    border-color: #5FE6CC !important;
+    text-shadow: 0 0 6px #5FE6CC;
   }
 
   /* CONFIGURAÇÕES · ROSA neon ACESO (sem respirar) */
@@ -435,10 +446,9 @@ export function DashShell({ children, modeloNome }: { children: ReactNode; model
         display: "grid",
         gridTemplateColumns: `${colWidth} 1fr`,
         transition: "grid-template-columns 240ms cubic-bezier(0.4,0,0.2,1)",
-        minHeight: "calc(100vh - 180px)",
       }}>
         <MenuLateral nivel={nivelMenu} paginaAtiva={paginaAtiva} setPaginaAtiva={setPaginaAtiva} />
-        <main style={{ minWidth: 0, overflow: "hidden" }}>{children}</main>
+        <main style={{ minWidth: 0, width: "100%" }}>{children}</main>
       </div>
     </CockpitShell>
   );
@@ -520,7 +530,7 @@ function BarraBreadcrumb({ modeloNome, nivelMenu, setNivelMenu, mostrarDetalhes 
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <OperadorTag nome="DR. CAIO REGISTER" cargo="MÉDICO" extra="CEO · CRM-SP 142.308" />
+        <OperadorTag nome="CAIO REGISTER" cargo="MÉDICO" extra="CEO · DR. · CRM-SP 142.308" />
         <button className="pwd-btn pwd-btn-config" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 110 }}>CONFIGURAÇÕES</button>
         <button className="pwd-btn pwd-btn-danger" style={{ fontSize: 10, padding: 0, height: 34, minWidth: 64 }}>SAIR</button>
       </div>
@@ -565,14 +575,16 @@ function MenuLateral({ nivel, paginaAtiva, setPaginaAtiva }: { nivel: NivelMenu;
               justifyContent: compacto ? "center" : "flex-start",
               padding: compacto ? "8px 0" : "9px 10px",
               borderLeft: compacto ? "none" : (ativo ? `3px solid ${it.cor}` : "3px solid transparent"),
+              color: ativo ? it.cor : p.inkDim,
+              ["--ident" as never]: it.cor,
             }}
             title={`${it.label} · ${it.sub}`}
           >
             <span className="pwd-menu-icone" style={{ color: it.cor }}>{it.sigla}</span>
             {!compacto && (
               <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                <span className="pwd-menu-label" style={{ color: ativo ? p.gold : p.ink }}>{it.label}</span>
-                <span className="pwd-menu-sub">{it.sub}</span>
+                <span className="pwd-menu-label">{it.label}</span>
+                <span className="pwd-menu-sub" style={{ color: ativo ? `${it.cor}cc` : p.inkMute }}>{it.sub}</span>
               </div>
             )}
           </div>
@@ -617,6 +629,7 @@ export function OperadorTag({ nome, cargo, extra }: { nome: string; cargo: strin
       }}>
         <span style={{
           fontSize: 11, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1,
+          color: AZUL_NEON, textShadow: `0 0 6px ${AZUL_NEON}99`,
         }}>{nome}</span>
       </div>
       {/* CARGO · texto no espaço do externo (à direita do interno) */}
@@ -641,9 +654,9 @@ function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes }: { pagin
     }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
         <div style={{ fontSize: 9, color: p.inkMute, letterSpacing: ls.forte }}>UNIDADE EM OPERAÇÃO</div>
-        <div style={{ fontSize: 15, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
+        <div style={{ fontSize: 11, color: p.ink, letterSpacing: ls.forte, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>PÁDUA MATRIZ · DASHBOARD GLOBAL</div>
         {mostrarDetalhes && (
-          <div style={{ fontSize: 10, color: p.inkDim, letterSpacing: ls.suave, whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 10, color: p.inkMute, letterSpacing: ls.forte, whiteSpace: "nowrap" }}>
             UNI 1/15 · QUI 27/MAI/2026 · 11:14 BRT · 87 ATIVOS · CICLO #14
           </div>
         )}
@@ -657,7 +670,7 @@ function HeaderClinica({ paginaAtiva, setPaginaAtiva, mostrarDetalhes }: { pagin
             key={it.label}
             onClick={() => setPaginaAtiva(it.label)}
             className={`pwd-btn ${ativo ? "pwd-btn-ativo" : ""}`}
-            style={{ fontSize: 9, padding: "7px 9px", letterSpacing: "0.10em", flexShrink: 0, whiteSpace: "nowrap", color: ativo ? it.cor : undefined }}
+            style={{ fontSize: 9, padding: "7px 9px", letterSpacing: "0.10em", flexShrink: 0, whiteSpace: "nowrap", color: ativo ? it.cor : undefined, ["--ident" as never]: it.cor }}
             title={it.sub}
           >{it.label}</button>
           );
