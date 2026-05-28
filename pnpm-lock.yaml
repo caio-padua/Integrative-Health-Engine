@@ -209,6 +209,9 @@ importers:
       '@workspace/exports':
         specifier: workspace:*
         version: link:../../lib/exports
+      '@workspace/mensageria-core':
+        specifier: workspace:*
+        version: link:../../lib/mensageria-core
       '@workspace/posologia':
         specifier: workspace:*
         version: link:../../lib/posologia
@@ -418,6 +421,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/mensageria-core':
+        specifier: workspace:*
+        version: link:../../lib/mensageria-core
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
