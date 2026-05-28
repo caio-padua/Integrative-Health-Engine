@@ -87,6 +87,75 @@ const DMD_ITENS = [
   { dom: 4, tt: "NF PENDENTES", n: 5, s: "ATRASADO" },
 ];
 
+/* ════════════════════════════════════════════════════════════════════
+   BUSCA DUPLA FACETADA EM FUNIL (D010 · proposta Caio 27/mai/2026)
+   ────────────────────────────────────────────────────────────────────
+   2 mecanismos separados pra evitar ruído cognitivo:
+   - BUSCA A · ENTIDADES (o quê / quem) · accent teal
+   - BUSCA B · EVENTOS (o que aconteceu) · accent âmbar
+   Ambas com dropdown facetado por categoria + funil ao digitar.
+   Mocks abaixo · dados reais virão na fase SQL. */
+type CatBusca = { k: string; itens: { t: string; sub: string }[] };
+
+const CATS_A_TPL: CatBusca[] = [
+  { k: "PACIENTES", itens: [
+    { t: "GRACO SOUZA PÁDUA", sub: "34A · M · HAS DM2 · CPF 123.456.789-00" },
+    { t: "CAIO PÁDUA FILHO",  sub: "42A · M · CPF 098.765.432-11" },
+    { t: "CAMILA TOLEDO",     sub: "29A · F · CPF 555.444.333-22" },
+    { t: "LUCAS VARGAS",      sub: "51A · M · CPF 222.111.000-99" },
+    { t: "ANA BEATRIZ",       sub: "38A · F · CPF 777.888.999-00" },
+  ]},
+  { k: "AGENDAMENTOS", itens: [
+    { t: "14:00 · CAMILA T.", sub: "Hoje · sessão NAD+" },
+    { t: "15:30 · LUCAS V.",  sub: "Hoje · retorno" },
+    { t: "17:00 · ANA B.",    sub: "Hoje · primeira consulta" },
+  ]},
+  { k: "PRESCRIÇÕES", itens: [
+    { t: "RECEITA NAD+ · 30/MAI", sub: "Graco · assinada · ZapSign" },
+    { t: "FÓRMULA DHEA · 28/MAI", sub: "Camila · a assinar" },
+  ]},
+  { k: "FATURAS", itens: [
+    { t: "NF 0247 · R$ 1.840",   sub: "Graco · paga · 22/MAI" },
+    { t: "BOLETO 0312 · R$ 980", sub: "Lucas · pendente · vence 30/MAI" },
+  ]},
+  { k: "QUADROS CLÍNICOS", itens: [
+    { t: "HAS · HIPERTENSÃO ARTERIAL", sub: "I10 · 23 pacientes ativos" },
+    { t: "DM2 · DIABETES TIPO 2",      sub: "E11 · 14 pacientes ativos" },
+    { t: "HIPOTIREOIDISMO SUBCLÍNICO", sub: "E03 · 8 pacientes ativos" },
+  ]},
+];
+
+const CATS_B_TPL: CatBusca[] = [
+  { k: "MENSAGENS", itens: [
+    { t: "WHATSAPP · GRACO",   sub: "ok protocolo · 09:47" },
+    { t: "E-MAIL · CAMILA",    sub: "dúvida sobre dosagem · ontem 18:32" },
+    { t: "WHATSAPP · LUCAS",   sub: "confirma 15:30? · 08:15" },
+  ]},
+  { k: "ALERTAS DO MOTOR", itens: [
+    { t: "INTERAÇÃO NAD+ × ATORVASTATINA", sub: "Graco · CRÍTICO · 11:30" },
+    { t: "CORTISOL 8H BAIXO",              sub: "Camila · URGENTE · lab 2d" },
+    { t: "TSH LIMÍTROFE 4.8",              sub: "Lucas · URGENTE · reflex pend" },
+  ]},
+  { k: "NOTIFICAÇÕES OPERACIONAIS", itens: [
+    { t: "RECEITA A ASSINAR", sub: "Graco · NAD+ · há 16min" },
+    { t: "EXAME RETORNADO",   sub: "Lucas · TSH 4.8 · há 2h" },
+    { t: "BOLETO VENCENDO",   sub: "Lucas · R$ 980 · vence 30/MAI" },
+  ]},
+  { k: "AUDITORIA RECENTE", itens: [
+    { t: "ACESSO PRONTUÁRIO",   sub: "Dra. Ana · Graco · 11:14" },
+    { t: "EDIÇÃO PROTOCOLO",    sub: "Caio · NAD+ V4 · 10:32" },
+    { t: "LOGIN NOVO DISPOSIT", sub: "Caio · IP 187.34.. · 09:02" },
+  ]},
+];
+
+function filtrarFunil(cats: CatBusca[], q: string): CatBusca[] {
+  if (!q.trim()) return cats;
+  const qq = q.toLowerCase();
+  return cats
+    .map((c) => ({ ...c, itens: c.itens.filter((i) => i.t.toLowerCase().includes(qq) || i.sub.toLowerCase().includes(qq)) }))
+    .filter((c) => c.itens.length > 0);
+}
+
 /* Mapa bloco → índice do menu lateral que acende junto */
 const BLOCO_PARA_MENU: Record<string, number> = {
   OPE: 0, // DASHB
@@ -163,6 +232,18 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
     if (n.has(k)) n.delete(k); else n.add(k);
     return n;
   });
+  /* BUSCA DUPLA (D010) · A=entidades, B=eventos · ambas com dropdown facetado */
+  const [buscaA, setBuscaA] = useState<{ open: boolean; q: string }>({ open: false, q: "" });
+  const [buscaB, setBuscaB] = useState<{ open: boolean; q: string }>({ open: false, q: "" });
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      const tgt = e.target as HTMLElement;
+      if (!tgt.closest(`[data-busca="A"]`)) setBuscaA((s) => ({ ...s, open: false }));
+      if (!tgt.closest(`[data-busca="B"]`)) setBuscaB((s) => ({ ...s, open: false }));
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
 
   const kpiC = [t.accent, t.doms[0], t.ok, t.warn, t.doms[5], t.danger];
   const SID = `ppen-${t.id}`;
@@ -299,7 +380,7 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
           GLOBAL
         </button>
 
-        {/* NÍVEIS DE VISUALIZAÇÃO · 1/2/3 */}
+        {/* NÍVEIS DE VISUALIZAÇÃO + ESCURO/CLARO · todos toggles de UI agrupados (D009) */}
         <div style={{ display: "flex", gap: 3, marginLeft: 4 }}>
           {([1, 2, 3] as const).map((n) => {
             const act = nivelViz === n;
@@ -319,31 +400,166 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
               </button>
             );
           })}
+          {perfilPar && (
+            <button
+              onClick={() => setUsarPar((p) => !p)}
+              className={`${SID}-elem`}
+              title={t.modoClaro ? "Alternar para modo escuro" : "Alternar para modo claro"}
+              style={{
+                height: 26, padding: "0 8px", border: `1px solid ${t.accent2}66`,
+                background: "transparent", color: t.accent2,
+                fontFamily: font, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                cursor: "pointer", display: "flex", alignItems: "center",
+                ...hoverVars(t.accent2),
+              }}>
+              {t.modoClaro ? "ESCURO" : "CLARO"}
+            </button>
+          )}
         </div>
 
-        <div className={`${SID}-elem`} style={{ flex: 1, maxWidth: 220, marginLeft: 8, padding: "4px 10px", background: t.bg2, border: `1px solid ${t.border}`, display: "flex", gap: 6, alignItems: "center", ...hoverVars(t.accent) }}>
-          <span style={{ color: t.accent, fontSize: 10 }}>⌕</span>
-          <span style={{ color: t.t3, fontSize: 10 }}>buscar</span>
-          <span style={{ marginLeft: "auto", color: t.t3, fontSize: 8, padding: "0 4px", border: `1px solid ${t.border}` }}>⌘K</span>
-        </div>
-        <span className={`${SID}-elem`} style={{ marginLeft: "auto", color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 10px", border: `1px solid ${t.accent}66`, cursor: "pointer", ...hoverVars(t.accent) }}>
+        {/* ════ BUSCA A · ENTIDADES (D010) · accent teal · dropdown facetado ════ */}
+        {(() => {
+          const cor = t.accent;
+          const filtrado = filtrarFunil(CATS_A_TPL, buscaA.q);
+          return (
+            <div data-busca="A" style={{ position: "relative", flex: 1, minWidth: 180, maxWidth: 320, marginLeft: 8 }}>
+              <div className={`${SID}-elem`}
+                onClick={() => setBuscaA((s) => ({ ...s, open: true }))}
+                style={{
+                  height: 26, padding: "0 8px", background: t.bg2,
+                  border: `1px solid ${buscaA.open ? cor : t.border}`,
+                  display: "flex", gap: 6, alignItems: "center", cursor: "text",
+                  ...hoverVars(cor),
+                }}>
+                <span style={{ color: cor, fontSize: 11 }}>⌕</span>
+                <span style={{ color: cor, fontSize: 9, fontWeight: 700, letterSpacing: 1 }}>ENTIDADES</span>
+                <input
+                  value={buscaA.q}
+                  onChange={(e) => setBuscaA({ open: true, q: e.target.value })}
+                  onFocus={() => setBuscaA((s) => ({ ...s, open: true }))}
+                  placeholder="paciente · CPF · receita · quadro..."
+                  style={{
+                    flex: 1, background: "transparent", border: "none", outline: "none",
+                    color: t.t1, fontSize: 10, fontFamily: font, minWidth: 0,
+                  }}
+                />
+                <span style={{ color: t.t3, fontSize: 9 }}>{buscaA.open ? "▴" : "▾"}</span>
+              </div>
+              {buscaA.open && (
+                <div className={`${SID}-bloco-3d`} style={{
+                  position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
+                  background: t.bg2, border: `1px solid ${cor}`,
+                  boxShadow: `0 0 0 1px ${cor}55, 0 8px 24px rgba(0,0,0,0.18)`,
+                  zIndex: 50, maxHeight: 420, overflowY: "auto",
+                }}>
+                  {filtrado.length === 0 ? (
+                    <div style={{ padding: 14, fontSize: 10, color: t.t3, textAlign: "center", letterSpacing: 1 }}>
+                      NENHUM RESULTADO PARA &quot;{buscaA.q}&quot;
+                    </div>
+                  ) : filtrado.map((c, ci) => (
+                    <div key={ci}>
+                      <div style={{
+                        fontSize: 9, color: cor, fontWeight: 700, letterSpacing: 2,
+                        padding: "5px 10px 4px", background: t.bg3,
+                        borderTop: ci > 0 ? `1px solid ${t.border}` : "none",
+                        borderBottom: `1px solid ${t.border}`,
+                        display: "flex", justifyContent: "space-between",
+                      }}>
+                        <span>{c.k}</span>
+                        <span style={{ color: t.t3, fontWeight: 400 }}>{c.itens.length}</span>
+                      </div>
+                      {c.itens.slice(0, 5).map((it, ii) => (
+                        <div key={ii} className={`${SID}-elem`} style={{
+                          padding: "5px 10px 5px 18px", cursor: "pointer",
+                          borderBottom: `1px solid ${t.border}55`, lineHeight: 1.35,
+                          ...hoverVars(cor),
+                        }}>
+                          <div style={{ fontSize: 10, color: t.t1, fontWeight: 600 }}>{it.t}</div>
+                          <div style={{ fontSize: 8, color: t.t3 }}>{it.sub}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        <span className={`${SID}-elem`} style={{ marginLeft: 6, color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 10px", border: `1px solid ${t.accent}66`, cursor: "pointer", ...hoverVars(t.accent) }}>
           CAIO REGISTER
         </span>
-        {perfilPar && (
-          <span
-            onClick={() => setUsarPar((p) => !p)}
-            className={`${SID}-elem`}
-            title={t.modoClaro ? "Alternar para modo escuro" : "Alternar para modo claro"}
-            style={{
-              fontSize: 10, color: t.accent2, padding: "3px 7px",
-              border: `1px solid ${t.accent2}66`, cursor: "pointer",
-              fontWeight: 700, letterSpacing: 1,
-              ...hoverVars(t.accent2),
-            }}>
-            {t.modoClaro ? "ESCURO" : "CLARO"}
-          </span>
-        )}
-        <span style={{ fontSize: 10, color: t.t2, padding: "3px 7px", border: `1px solid ${t.border}` }}>MÉDICO</span>
+
+        {/* ════ BUSCA B · EVENTOS (D010) · accent âmbar · dropdown facetado ════ */}
+        {(() => {
+          const cor = t.warn;
+          const filtrado = filtrarFunil(CATS_B_TPL, buscaB.q);
+          return (
+            <div data-busca="B" style={{ position: "relative", flex: 1, minWidth: 180, maxWidth: 280, marginLeft: 6 }}>
+              <div className={`${SID}-elem`}
+                onClick={() => setBuscaB((s) => ({ ...s, open: true }))}
+                style={{
+                  height: 26, padding: "0 8px", background: t.bg2,
+                  border: `1px solid ${buscaB.open ? cor : t.border}`,
+                  display: "flex", gap: 6, alignItems: "center", cursor: "text",
+                  ...hoverVars(cor),
+                }}>
+                <span style={{ color: cor, fontSize: 11 }}>⌕</span>
+                <span style={{ color: cor, fontSize: 9, fontWeight: 700, letterSpacing: 1 }}>EVENTOS</span>
+                <input
+                  value={buscaB.q}
+                  onChange={(e) => setBuscaB({ open: true, q: e.target.value })}
+                  onFocus={() => setBuscaB((s) => ({ ...s, open: true }))}
+                  placeholder="msg · alerta · notif · log..."
+                  style={{
+                    flex: 1, background: "transparent", border: "none", outline: "none",
+                    color: t.t1, fontSize: 10, fontFamily: font, minWidth: 0,
+                  }}
+                />
+                <span style={{ color: t.t3, fontSize: 9 }}>{buscaB.open ? "▴" : "▾"}</span>
+              </div>
+              {buscaB.open && (
+                <div className={`${SID}-bloco-3d`} style={{
+                  position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
+                  background: t.bg2, border: `1px solid ${cor}`,
+                  boxShadow: `0 0 0 1px ${cor}55, 0 8px 24px rgba(0,0,0,0.18)`,
+                  zIndex: 50, maxHeight: 420, overflowY: "auto",
+                }}>
+                  {filtrado.length === 0 ? (
+                    <div style={{ padding: 14, fontSize: 10, color: t.t3, textAlign: "center", letterSpacing: 1 }}>
+                      NENHUM RESULTADO PARA &quot;{buscaB.q}&quot;
+                    </div>
+                  ) : filtrado.map((c, ci) => (
+                    <div key={ci}>
+                      <div style={{
+                        fontSize: 9, color: cor, fontWeight: 700, letterSpacing: 2,
+                        padding: "5px 10px 4px", background: t.bg3,
+                        borderTop: ci > 0 ? `1px solid ${t.border}` : "none",
+                        borderBottom: `1px solid ${t.border}`,
+                        display: "flex", justifyContent: "space-between",
+                      }}>
+                        <span>{c.k}</span>
+                        <span style={{ color: t.t3, fontWeight: 400 }}>{c.itens.length}</span>
+                      </div>
+                      {c.itens.slice(0, 5).map((it, ii) => (
+                        <div key={ii} className={`${SID}-elem`} style={{
+                          padding: "5px 10px 5px 18px", cursor: "pointer",
+                          borderBottom: `1px solid ${t.border}55`, lineHeight: 1.35,
+                          ...hoverVars(cor),
+                        }}>
+                          <div style={{ fontSize: 10, color: t.t1, fontWeight: 600 }}>{it.t}</div>
+                          <div style={{ fontSize: 8, color: t.t3 }}>{it.sub}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        <span style={{ marginLeft: 6, fontSize: 10, color: t.t2, padding: "3px 7px", border: `1px solid ${t.border}` }}>MÉDICO</span>
         <span className={`${SID}-elem`} style={{ fontSize: 10, color: t.warn, padding: "3px 7px", border: `1px solid ${t.warn}55`, cursor: "pointer", ...hoverVars(t.warn) }}>CONFIG</span>
         <span className={`${SID}-elem`} style={{ fontSize: 10, color: t.danger, padding: "3px 7px", border: `1px solid ${t.danger}55`, cursor: "pointer", ...hoverVars(t.danger) }}>SAIR</span>
       </div>
