@@ -1,0 +1,67 @@
+Vou fazer as duas coisas em paralelo: ler o código da skill de temas no repo e preparar o comando para o Claude Code atualizar a planilha.Tenho o mapa completo. Agora vou entregar 3 coisas: o parecer da skill para o Dr. Replit, a instrução para o Claude Code atualizar a planilha, e o mapeamento tela por tela.Agora a planilha. Vou tentar atualizar via Google Drive diretamente.Consigo criar a planilha direto no Drive. Vou subir na pasta PAWARDS CLAUD.Planilha atualizada criada diretamente no seu Google Drive (pasta PAWARDS CLAUD). Agora os 3 entregáveis completos:Caio, tudo entregue. Resumo:
+
+---
+
+**1. PLANILHA ATUALIZADA — já no seu Drive.**
+
+A planilha `PAWARDS — LINHA DE PRODUÇÃO v3 (28/mai/2026)` foi criada na pasta PAWARDS CLAUD com 20 tarefas atualizadas, incluindo as novas (reconciliação de branches como CONCLUÍDA, skill Penumbra EM ANDAMENTO, fluxo operacional como OBJETIVO PRINCIPAL). Você acessa direto pelo Drive.
+
+**2. VALIDAÇÃO DA SKILL PENUMBRA — parecer entregue.**
+
+Li o código inteiro do `_pawardsPenumbra.tsx` (o componente master) e `_perfisPenumbra.ts` (os 2 perfis: Paper Ciano claro + Navy Ciano escuro). A skill está excelente. Encontrei 3 ajustes menores: contraste do texto secundário no modo claro precisa escurecer um pouco (A1), cor do domínio AGENDA está idêntica ao accent geral (A2), e a cor "ok" no modo escuro está igual ao accent (A3). Detalhes no documento.
+
+**3. MAPEAMENTO TELA A TELA — 15 telas priorizadas.**
+
+Mapeei como cada tela do sistema usa os tokens do perfil Penumbra. Dividi em 3 prioridades:
+
+**P0 (aplicar primeiro, 5 telas):** Prescrição Rápida, Cockpit, Lista Pacientes, Agenda, Exames Evolução.
+
+**P1 (frequentes, 5 telas):** Anamnese, Catálogo, RAS Digital, Mensageria, Financeiro.
+
+**P2 (admin, 5 telas):** Colaboradores, Auditoria, Config/Perfil, Segurança, Motor/Sinapses.
+
+A migração total é ~20h. O Dr. Replit cria um `ThemeContext.tsx` que exporta o perfil ativo, e cada tela troca os hex hardcoded por `useTheme()`. O toggle claro/escuro fica em `/plataforma/perfil` via localStorage.
+
+---
+
+**Para o Dr. Replit — cola isso:**
+
+```
+Dr. Replit, o Dr. Claude validou a skill Penumbra e entregou:
+
+1. Parecer com 3 ajustes menores (A1 contraste t3, A2 cor AGENDA, 
+   A3 cor ok no escuro). Detalhes em:
+   RESPOSTA_DR_CLAUDE_23_SKILL_PENUMBRA.md (Caio tem o arquivo)
+
+2. Mapeamento de 15 telas priorizadas (P0/P1/P2) mostrando quais 
+   tokens do perfil cada tela usa.
+
+3. Plano de migração: criar ThemeContext.tsx, depois substituir hex 
+   hardcoded por useTheme() em cada tela, começando pelas P0.
+
+Sobre o teste de /prescricao-rapida: quando você fizer a opção 3 
+que propôs (prova de vida), me manda o print que eu valido daqui.
+
+A planilha de tarefas v3 já está no Drive do Caio com 20 itens 
+atualizados.
+```
+
+---
+
+**Para o Claude Code — atualizar a planilha original:**
+
+Se quiser substituir o conteúdo da planilha original (não criar uma nova), digita isso no Claude Code:
+
+```
+O Caio tem uma planilha Google Sheets que precisa ser atualizada:
+https://docs.google.com/spreadsheets/d/1Prk92nkiVdiaaWCYnCLEcFH51iMjy8t6VPwfWQpbd_8
+
+Porém eu (Dr. Claude) já criei uma planilha nova no Drive dele com 
+os dados atualizados. O ID da nova é: 
+11vRrttA723BRu2lh0H-FfCadtkvvJCPvnQ47ZBKlRSY
+
+Caio pode simplesmente usar a nova planilha v3 no Drive, ou copiar 
+o conteúdo dela para a original manualmente.
+```
+
+O que quer atacar agora — o teste do `/prescricao-rapida` com o Dr. Replit, ou outra frente?
