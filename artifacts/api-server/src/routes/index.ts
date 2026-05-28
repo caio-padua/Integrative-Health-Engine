@@ -241,4 +241,9 @@ router.use(contasAPagarRouter);
 import alertasDigestPreferenciasRouter from "./alertasDigestPreferencias";
 router.use(alertasDigestPreferenciasRouter);
 
+// Dropdown FARMÁCIA DESTINO em /prescricao-rapida (clinica-motor).
+// Sem esta rota, o select mostra "(0 ativas)" mesmo com farmácias no banco.
+import farmaciasDisponiveisRouter from "./farmaciasDisponiveis";
+router.use(farmaciasDisponiveisRouter);
+
 export default router;
