@@ -235,6 +235,8 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
   /* BUSCA DUPLA (D010) · A=entidades, B=eventos · ambas com dropdown facetado */
   const [buscaA, setBuscaA] = useState<{ open: boolean; q: string }>({ open: false, q: "" });
   const [buscaB, setBuscaB] = useState<{ open: boolean; q: string }>({ open: false, q: "" });
+  /* SOM (D013) · toggle ON/OFF · controla notificações sonoras (alertas, msgs) */
+  const [somAtivo, setSomAtivo] = useState(true);
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       const tgt = e.target as HTMLElement;
@@ -400,22 +402,47 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
               </button>
             );
           })}
-          {perfilPar && (
+        </div>
+
+        {/* ════ CLARO / ESCURO · segmentado igual LOCAL/GLOBAL (D011) ════
+            Grupo separado dos níveis 1·2·3 com gap respirando · botão segmentado
+            (não mais ação isolada) reforça que é estado bi-modal, igual LOCAL/GLOBAL. */}
+        {perfilPar && (
+          <div style={{ display: "flex", gap: 3, marginLeft: 4 }}>
             <button
-              onClick={() => setUsarPar((p) => !p)}
-              className={`${SID}-elem`}
-              title={t.modoClaro ? "Alternar para modo escuro" : "Alternar para modo claro"}
+              onClick={() => { if (!t.modoClaro) setUsarPar((p) => !p); }}
+              className={`${SID}-elem ${t.modoClaro ? `${SID}-selecionado` : ""}`}
+              title="Modo claro · papel"
               style={{
-                height: 26, padding: "0 8px", border: `1px solid ${t.accent2}66`,
-                background: "transparent", color: t.accent2,
+                height: 26, padding: "0 10px",
+                border: `1px solid ${t.modoClaro ? t.accent2 : t.border}`,
+                background: t.modoClaro ? `${t.accent2}1f` : "transparent",
+                color: t.modoClaro ? t.accent2 : t.t3,
                 fontFamily: font, fontSize: 10, fontWeight: 700, letterSpacing: 1,
-                cursor: "pointer", display: "flex", alignItems: "center",
+                cursor: t.modoClaro ? "default" : "pointer",
+                display: "flex", alignItems: "center",
                 ...hoverVars(t.accent2),
               }}>
-              {t.modoClaro ? "ESCURO" : "CLARO"}
+              CLARO
             </button>
-          )}
-        </div>
+            <button
+              onClick={() => { if (t.modoClaro) setUsarPar((p) => !p); }}
+              className={`${SID}-elem ${!t.modoClaro ? `${SID}-selecionado` : ""}`}
+              title="Modo escuro · tinta"
+              style={{
+                height: 26, padding: "0 10px",
+                border: `1px solid ${!t.modoClaro ? t.accent2 : t.border}`,
+                background: !t.modoClaro ? `${t.accent2}1f` : "transparent",
+                color: !t.modoClaro ? t.accent2 : t.t3,
+                fontFamily: font, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                cursor: !t.modoClaro ? "default" : "pointer",
+                display: "flex", alignItems: "center",
+                ...hoverVars(t.accent2),
+              }}>
+              ESCURO
+            </button>
+          </div>
+        )}
 
         {/* ════ BUSCA A · ENTIDADES (D010) · accent teal · dropdown facetado ════ */}
         {(() => {
@@ -486,10 +513,6 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
           );
         })()}
 
-        <span className={`${SID}-elem`} style={{ marginLeft: 6, color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 10px", border: `1px solid ${t.accent}66`, cursor: "pointer", ...hoverVars(t.accent) }}>
-          CAIO REGISTER
-        </span>
-
         {/* ════ BUSCA B · EVENTOS (D010) · accent âmbar · dropdown facetado ════ */}
         {(() => {
           const cor = t.warn;
@@ -559,9 +582,59 @@ export function LayoutPawardsPenumbra({ perfil, perfilPar }: { perfil: PerfilPen
           );
         })()}
 
-        <span style={{ marginLeft: 6, fontSize: 10, color: t.t2, padding: "3px 7px", border: `1px solid ${t.border}` }}>MÉDICO</span>
-        <span className={`${SID}-elem`} style={{ fontSize: 10, color: t.warn, padding: "3px 7px", border: `1px solid ${t.warn}55`, cursor: "pointer", ...hoverVars(t.warn) }}>CONFIG</span>
-        <span className={`${SID}-elem`} style={{ fontSize: 10, color: t.danger, padding: "3px 7px", border: `1px solid ${t.danger}55`, cursor: "pointer", ...hoverVars(t.danger) }}>SAIR</span>
+        {/* ════ CLUSTER OPERADOR · encostado borda direita (D012/D013/D014) ════
+            Identidade ⇢ controles de sistema, com divisor entre eles.
+            Ordem: NOME · FUNÇÃO | ♪SOM · CONFIG · SAIR (SAIR na borda direita).
+            Nome operador formatado: primeiro + iniciais dos meios + último (D012). */}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          {/* NOME OPERADOR · destaque accent · primeiro + iniciais meios + último */}
+          <span className={`${SID}-elem`}
+            title="Operador autenticado · Caio Henrique Fernandes Pádua"
+            style={{
+              height: 26, padding: "0 10px",
+              border: `1px solid ${t.accent}66`,
+              color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 7,
+              ...hoverVars(t.accent),
+            }}>
+            <span>CAIO H. F. PÁDUA</span>
+            <span style={{
+              color: t.t2, fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
+              paddingLeft: 7, borderLeft: `1px solid ${t.accent}44`,
+            }}>CEO</span>
+          </span>
+          {/* divisor identidade ↔ sistema */}
+          <div style={{ width: 1, height: 16, background: t.border, marginLeft: 1, marginRight: 1 }} />
+          {/* SOM · toggle ON/OFF (D013) · ícone musical funcional, não decorativo */}
+          <button
+            onClick={() => setSomAtivo((s) => !s)}
+            className={`${SID}-elem`}
+            title={somAtivo ? "Som ativo · clique para silenciar" : "Som mudo · clique para ativar"}
+            style={{
+              height: 26, padding: "0 9px",
+              border: `1px solid ${somAtivo ? t.ok : t.border}`,
+              background: somAtivo ? `${t.ok}14` : "transparent",
+              color: somAtivo ? t.ok : t.t3,
+              fontFamily: font, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+              ...hoverVars(somAtivo ? t.ok : t.t3),
+            }}>
+            <span style={{ fontSize: 12, lineHeight: 1, textDecoration: somAtivo ? "none" : "line-through" }}>♪</span>
+            <span>{somAtivo ? "SOM" : "MUDO"}</span>
+          </button>
+          <span className={`${SID}-elem`} style={{
+            height: 26, padding: "0 9px", fontSize: 10, color: t.warn,
+            border: `1px solid ${t.warn}55`, cursor: "pointer",
+            display: "flex", alignItems: "center", letterSpacing: 1, fontWeight: 700,
+            ...hoverVars(t.warn),
+          }}>CONFIG</span>
+          <span className={`${SID}-elem`} style={{
+            height: 26, padding: "0 9px", fontSize: 10, color: t.danger,
+            border: `1px solid ${t.danger}55`, cursor: "pointer",
+            display: "flex", alignItems: "center", letterSpacing: 1, fontWeight: 700,
+            ...hoverVars(t.danger),
+          }}>SAIR</span>
+        </div>
       </div>
 
       {/* ═══════ FAIXA 2 · BREADCRUMB · altura 40 · identidade fixa ═══════ */}
