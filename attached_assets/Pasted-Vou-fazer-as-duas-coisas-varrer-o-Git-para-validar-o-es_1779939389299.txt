@@ -1,0 +1,51 @@
+Vou fazer as duas coisas: varrer o Git para validar o estado real, e depois atualizar a planilha. Começando pelo Git.Identificou falhas críticas e ponderou estratégia de atualizaçãoIdentificou falhas críticas e ponderou estratégia de atualizaçãoCaio, achei problemas sérios. Vou ser direto.
+
+AUDITORIA DO GIT — RESULTADO:
+Existem 2 branches divergentes no GitHub:
+BranchHEADConteúdofeat/dominio-pawards2c37004Todo nosso trabalho (Wave 17, specs 18-22, LayoutTripleFocus, prescrição rápida)ver-l2-dr-claudeea470b4Trabalho novo do Dr. Replit (cockpit Penumbra, Skill, doc 23)
+3 problemas críticos encontrados:
+PROBLEMA 1 — 73 migrations DELETADAS. O branch ver-l2-dr-claude deletou 73 arquivos de migration do banco de dados (030 até 077). Essas migrations criam tabelas, adicionam colunas, e são a espinha dorsal do banco. Se alguém rodar o sistema a partir desse branch, o banco fica incompleto.
+PROBLEMA 2 — prescricao-rapida.tsx NÃO EXISTE no branch ver-l2-dr-claude. A página que você precisa para operar (fazer receita) existe em feat/dominio-pawards mas sumiu no branch novo. Provavelmente foi deletada no mesmo checkpoint que apagou as migrations.
+PROBLEMA 3 — Os branches não estão mergeados. O trabalho visual do Dr. Replit (cockpit Penumbra, doc 23, skill) está em um branch, e toda a infraestrutura operacional (prescrição, WhatsApp, RAS, Wave 17) está em outro. Ninguém juntou os dois.
+
+PLANILHA ATUALIZADA — estado real de cada tarefa:
+Não consigo editar o Google Sheets diretamente (a API não permite edição de células). Vou te entregar a planilha atualizada para você ou o Claude Code substituir:Avaliou limitações de ferramentas e explorou alternativas disponíveisAvaliou limitações de ferramentas e explorou alternativas disponíveisNão tenho ferramenta para editar o Google Sheets diretamente. Vou criar o arquivo para o Claude Code subir, e te dar a mensagem para o Dr. Replit.Preparou panorama completo e plano de açãoPreparou panorama completo e plano de açãoCaio, aqui vai o resumo completo e o que fazer AGORA.
+
+O que o Dr. Replit fez de bom (reconheço):
+Criou o cockpit Penumbra (clara + escura) que você aprovou. Criou a Skill para mim com protocolo de comunicação. Criou o doc 23 (Carta Magna reformada). Montou o sistema syncToGitHub via API REST (necessário porque o sandbox bloqueia git push). Tudo isso é trabalho real e útil.
+O que ele quebrou (grave):
+Deletou 73 migrations do banco no branch ver-l2-dr-claude. A página prescricao-rapida.tsx que você precisa para operar não existe nesse branch. Os dois branches estão desconectados — o trabalho dele e o nosso não estão juntos.
+
+PLANO DE AÇÃO IMEDIATO (3 prioridades):
+PRIORIDADE ZERO — MERGE DOS BRANCHES. Cola isso no Dr. Replit:
+Dr. Replit, URGENTE. Auditoria do Dr. Claude encontrou 3 problemas:
+
+1. Branch ver-l2-dr-claude deletou 73 arquivos de migration (030-077).
+   Esses arquivos sao a espinha dorsal do banco. Se perdemos eles, 
+   o sistema nao consegue recriar o schema.
+
+2. prescricao-rapida.tsx NAO EXISTE em ver-l2-dr-claude. Essa pagina 
+   e o que eu preciso para operar (fazer receita). Ela existe em 
+   feat/dominio-pawards.
+
+3. Os 2 branches estao desconectados. Teu trabalho visual (cockpit 
+   Penumbra, doc 23, skill) esta em ver-l2-dr-claude. Toda a infra 
+   operacional (prescricao, WhatsApp, RAS, Wave 17) esta em 
+   feat/dominio-pawards.
+
+ACAO REQUERIDA:
+- Mergear feat/dominio-pawards INTO ver-l2-dr-claude (ou vice-versa)
+- Garantir que as 73 migrations NAO sejam deletadas no merge
+- Garantir que prescricao-rapida.tsx sobreviva
+- Me confirmar quando o merge estiver feito
+
+DEPOIS DO MERGE:
+- Testar /prescricao-rapida no preview
+- Eu quero fazer 1 receita e enviar via WhatsApp HOJE
+
+Nada mais importa ate isso estar resolvido.
+PRIORIDADE 1 — Atualizar a planilha. Baixa o CSV PAWARDS_LINHA_PRODUCAO_v3.csv que entreguei. Ele tem 20 tarefas atualizadas com o estado real. Substitui o conteúdo da aba atual da planilha Google Sheets por esse CSV (abre o CSV no Google Sheets → copia → cola na planilha existente). Ou abre o Claude Code e pede pra ele subir pro Drive.
+PRIORIDADE 2 — Depois do merge, testar o fluxo. Abre /prescricao-rapida → busca paciente → adiciona ativo → emite PDF → envia WhatsApp. Se funcionar, você está operando.
+
+Sobre o Claude Code (print que você mandou): ele está pronto e aguardando no prompt >. Se quiser, pode pedir pra ele subir o CSV para o Google Drive agora. Ou pode focar no merge primeiro (que é mais urgente).
+O que quer atacar primeiro?
