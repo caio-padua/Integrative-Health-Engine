@@ -1,2 +1,3 @@
 - [Sticky header + aside scroll](sticky-grid-aside.md) — em layouts com header sticky + sidebar lateral em grid, o aside precisa ser sticky também (não overflow no main) pra rolar por dentro sem empurrar o header.
+- [Chrome cockpit Pawards](cockpit-chrome-pawards.md) — ordem fixa de clusters na faixa 1 + regra de nome operador abreviado (CAIO H. F. PÁDUA) + cluster identidade↔sistema encostado direita. Vale pra todas as telas Pawards.
 - [Pawards cockpit design](pawards-cockpit-design.md) — paleta semantica por dominio, K1/K2/K3, hover "luz por tras" via ::before z-index -1 + isolation isolate, regras INEGOCIAVEIS (zero emoji, JetBrains Mono, 0px radius, retangulo-dentro-retangulo, PT-BR).
