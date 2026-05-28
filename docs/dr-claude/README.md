@@ -34,6 +34,22 @@ Leia nessa ordem se for a primeira vez nesta pasta hoje:
 
 ---
 
+## 📖 SKILL operacional pro Dr. Claude
+
+> **Atualizado em 2026-05-28** — leia ANTES de responder qualquer doc.
+
+[`SKILL_PARA_DR_CLAUDE.md`](./SKILL_PARA_DR_CLAUDE.md) é o manual de
+operação: estrutura obrigatória das respostas (`RESPOSTA_DR_CLAUDE_NN_*.md`),
+as 4 lentes (🩺 médico · 💰 CEO · 📈 empresário · 🛡️ investidor), regras de
+ouro inegociáveis (zero emoji nos artefatos, JetBrains Mono, 0px radius,
+PT-BR, `perfil` nunca `role`), e a cadência canônica do triângulo Caio /
+Dr. Claude / Dr. Replit.
+
+Raw URL:
+`https://raw.githubusercontent.com/caio-padua/Integrative-Health-Engine/ver-l2-dr-claude/docs/dr-claude/SKILL_PARA_DR_CLAUDE.md`
+
+---
+
 ## 📡 Braço de Volta — `docs/dr-replit/`
 
 A partir de 2026-05-21, o canal de comunicação é **bidirecional**:
