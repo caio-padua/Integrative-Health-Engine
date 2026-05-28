@@ -263,23 +263,26 @@ Proposto:
 [LOCAL] [GLOBAL]  [1][2][3][ESCURO]  [busca]  ... [CAIO] [MÉDICO] [CONFIG] [SAIR]
 ```
 
-### D010 · [NOVA · 27/mai] Busca dupla facetada em funil (proposta Caio)
+### D010 · [NOVA · 27/mai · IMPLEMENTADA] Busca dupla facetada em funil
 
-Caio propôs **2 mecanismos de busca** em área estratégica:
+Caio propôs e validou visualmente **2 mecanismos de busca** na faixa 1:
 
-**Busca A · ENTIDADES** (atual, na faixa 1)
-- ao **clicar** abre dropdown ao invés de só permitir digitar
+**Busca A · ENTIDADES** (accent teal, esquerda das buscas)
+- ao **clicar** abre dropdown **ancorado** abaixo do input (opção
+  Algolia inline · resposta Q010)
 - dropdown listado **por categoria**, uma embaixo da outra:
   - PACIENTES (por nome / sobrenome / CPF)
   - AGENDAMENTOS
   - PRESCRIÇÕES
   - FATURAS
   - QUADROS CLÍNICOS (doenças, blocos motor)
-- conforme digita, **filtra em funil**: `caio` → mostra todos com
-  "caio"; `caio p` → estreita; `caio padua` → 1 resultado.
+- conforme digita, **filtra em funil** simultâneo em todas as
+  categorias; categorias sem resultado somem; cap de 5 itens por
+  categoria com scroll (resposta Q011)
 - estilo cmd-K / Linear / Algolia.
 
-**Busca B · EVENTOS** (nova, posição a definir)
+**Busca B · EVENTOS** (accent âmbar, direita das buscas, **opção b
+da Q012**)
 - mensagens recebidas / enviadas (WhatsApp, e-mail)
 - alertas do motor (críticos, urgentes)
 - notificações operacionais (assinatura pendente, exame retornado)
@@ -287,9 +290,78 @@ Caio propôs **2 mecanismos de busca** em área estratégica:
 
 Justificativa Caio: "não existe layout de sistema assim". Médico
 precisa achar `paciente X` e `mensagem do paciente X` por caminhos
-diferentes — misturar tudo numa busca só vira ruído.
+diferentes — misturar tudo numa busca só vira ruído. Cores distintas
+(teal vs âmbar) deixam claro que são canais separados.
 
-Decisões abertas: ver **Q009 a Q012**.
+Status: implementado e aprovado visualmente em 27/mai. Q009-Q012
+respondidas — ver §6.
+
+### D011 · [NOVA · 27/mai] CLARO/ESCURO como botão segmentado
+
+**Versão anterior**: botão único alternante (clicar em "ESCURO"
+levava ao modo escuro; depois aparecia "CLARO" pra voltar).
+
+**Versão atual**: botão **segmentado** `[CLARO][ESCURO]`, igual
+`[LOCAL][GLOBAL]` e `[1][2][3]`. O estado ativo fica destacado
+(border+background accent2), o inativo fica neutro e clicável.
+
+**Por quê**: P15 simetria. Modo de exibição é estado bi-modal igual
+LOCAL/GLOBAL, então a UI tem que ser visualmente equivalente.
+Segmentado deixa as 2 opções sempre visíveis — o operador não
+precisa ler o label pra saber o que vai acontecer (TDAH-friendly).
+
+**Posicionamento**: grupo próprio com `marginLeft: 4` depois do
+grupo 1·2·3 (D009 atualizado — ESCURO não fica "muito encostado" no
+3, tem espacinho).
+
+### D012 · [NOVA · 27/mai] Nome do operador formatado + cluster encostado direita
+
+**Regra de formatação do nome do operador na chrome**:
+primeiro nome completo + **iniciais** dos nomes do meio + sobrenome
+completo. Ex.: `Caio Henrique Fernandes Pádua` → `CAIO H. F. PÁDUA`.
+Maiúsculas, JetBrains Mono, accent teal.
+
+**Por quê**: nome completo polui a chrome (P08 mesma altura/fonte na
+chrome); só primeiro nome perde formalidade institucional; iniciais
+preservam identidade jurídica completa do operador sem ocupar mais
+de ~18 caracteres na largura.
+
+**Posicionamento**: cluster operador encostado na **borda direita**
+da faixa 1, com `marginLeft: auto`. Ordem dentro do cluster:
+
+```
+[NOME OPERADOR · CARGO] | [♪ SOM] [CONFIG] [SAIR]
+   ↑ identidade           ↑ controles sistema
+```
+
+Divisor vertical de 1px separa **identidade** (nome+cargo, accent
+teal) de **controles de sistema** (som+config+sair, cores funcionais
+ok/warn/danger). SAIR fica colado na borda direita.
+
+**Cargo dinâmico**: a string fixa "MÉDICO" da chrome anterior virou
+a função real do operador autenticado. Caio é "CEO", uma enfermeira
+seria "ENFERMEIRA", um médico colaborador seria "MÉDICO". Mock atual
+mostra "CEO".
+
+### D013 · [NOVA · 27/mai] Botão SOM toggle no cluster operador
+
+Toggle dedicado **ON/OFF** pra notificações sonoras (alertas
+críticos do motor, mensagens novas, lembretes de sessão).
+
+Estados:
+- **ON** (default): ícone `♪` accent ok verde + label "SOM" +
+  border ativo
+- **OFF**: ícone `♪` com `text-decoration: line-through` + label
+  "MUDO" + cor neutra t3 + border default
+
+**Por quê**: ambiente clínico tem momentos em que o som é essencial
+(alerta motor durante anamnese remota) e momentos em que é hostil
+(sala de exame, paciente sensível). Toggle global de 1 clique
+resolve. Pertence ao cluster operador (preferência pessoal, não
+config global).
+
+**Posicionamento**: primeiro botão depois do divisor identidade ↔
+sistema, antes de CONFIG.
 
 ---
 
@@ -414,31 +486,50 @@ Ou virar **drawers** sobre o cockpit?
 Manter como referência, parear todos pra ter 3 pares com toggle, ou
 deletar?
 
-### Q009 · [NOVA] Busca: 1 retângulo ou 2?
-Caio propôs **2 retângulos** (Entidades vs Eventos). Faz sentido pro
-fluxo cognitivo do médico, ou uma busca única com filtro por
-categoria já resolve?
+### Q009 · [RESPONDIDA · 27/mai] Busca: 1 retângulo ou 2?
+**Resposta Caio**: 2 retângulos, lado a lado na faixa 1. ENTIDADES
+(teal) e EVENTOS (âmbar) com cores distintas pra reforçar canais
+separados. Ver D010.
 
-### Q010 · [NOVA] Dropdown facetado · onde abrir?
-Ao clicar na busca: dropdown abre como overlay sobre o cockpit
-(estilo cmd-K), ou se ancora abaixo do input (estilo Algolia
-inline)? Qual respeita melhor o eixo TDAH-friendly?
+### Q010 · [RESPONDIDA · 27/mai] Dropdown facetado · onde abrir?
+**Resposta Caio**: dropdown **ancorado** abaixo do input (Algolia
+inline), `position: absolute, top: calc(100% + 2px)`. Overlay
+cmd-K rejeitado — quebraria continuidade visual com a chrome.
 
-### Q011 · [NOVA] Funil de digitação · debounce?
-Digita `caio` → filtra. Debounce de 150ms ou busca a cada tecla?
-Hard cap de N resultados por categoria (5? 10?) com link "ver
-todos"?
+### Q011 · [RESPONDIDA · 27/mai] Funil de digitação · debounce?
+**Resposta Caio**: filtragem instantânea a cada tecla (sem
+debounce, dataset cliente-side pequeno). Cap de **5 itens por
+categoria** com scroll interno. Sem link "ver todos" por
+enquanto — adicionar quando dataset real ultrapassar 5.
 
-### Q012 · [NOVA] Busca B (Eventos) · posicionamento
-Caio sugeriu "área estratégica e poderosa". Opções:
-a) **2ª faixa** dedicada (vira faixa 4 — quebra o princípio de altura
-   uniforme).
-b) **Mesma faixa 1**, lado direito (junto com MÉDICO/CONFIG/SAIR).
-c) **Painel CONTEXTO** ganha bloco de busca de eventos.
-d) **Atalho de teclado** abre overlay (`Ctrl+E`?) sem ocupar chrome.
+### Q012 · [RESPONDIDA · 27/mai] Busca B (Eventos) · posicionamento
+**Resposta Caio**: opção **b** — mesma faixa 1, ao lado da Busca A,
+antes do cluster operador. Preserva P05 e P14, mantém ambas as
+buscas no campo de visão único. Implementado.
 
-Qual respeita melhor P05 (retângulo dentro de retângulo) e P14
-(chrome estável)?
+### Q013 · [NOVA] Persistência do som
+Toggle SOM (D013) é por sessão ou persiste no perfil do operador?
+Se persiste, onde armazenar — `usuarios.preferencias_ui` JSONB?
+
+### Q014 · [NOVA] Cargo dinâmico do operador
+Mock atual mostra "CEO" hardcoded. No banco, a fonte da verdade é
+`usuarios.perfil` (enum: enfermeira, medico_tecnico, ceo, etc) ou
+um campo separado `usuarios.cargo_exibicao` (string livre, ex.:
+"Sócio-Diretor Clínico")? Caio precisa decidir.
+
+### Q015 · [NOVA] Formatação do nome operador
+D012 define "primeiro + iniciais meios + último". Funções pra
+casos especiais:
+- Nome simples ("Ana Silva") → "ANA SILVA" (sem iniciais, ok)
+- Sobrenome composto ("Caio Pádua Filho") → "CAIO P. FILHO" ou
+  "CAIO PÁDUA FILHO" (preservar "Filho/Junior/Neto" como parte
+  do sobrenome composto)?
+- Hifenizado ("Maria José Sá-Pereira") → "MARIA J. SÁ-PEREIRA"?
+- Nomes com partícula ("Ana de Souza") → "ANA DE SOUZA" ou
+  "ANA D. SOUZA"?
+
+Caio decide regra única ou abrimos exceções catalogadas no
+`utils/formatarNomeOperador.ts`?
 
 ---
 
