@@ -1,0 +1,59 @@
+Caio, ouvi tudo. Vou atualizar a planilha AGORA e endereçar cada ponto. Primeiro a planilha, depois o plano.Planilha v4 criada no Drive (pasta PAWARDS CLAUD). Agora o diagnóstico e o plano.
+
+---
+
+**Sobre o problema das farmácias e clínicas duplicadas — você tem razão absoluta.**
+
+Isso é exatamente o tipo de coisa que impede operação. Se tem 2 locais para cadastrar farmácia, o dropdown da prescrição rápida não sabe de qual ler. Resultado: "0 ativas". Mesmo problema com clínicas: se o `useClinic()` lê de uma tabela e o admin cadastra em outra, os dados nunca se encontram.
+
+Cola isso no Dr. Replit agora:
+
+```
+Dr. Replit, ANTES de qualquer feature nova, preciso que voce resolva 
+2 problemas de dados que bloqueiam minha operacao:
+
+PROBLEMA 1 — FARMACIA DUPLICADA
+Existem 2 locais para cadastrar farmacia no sistema. Eu preciso de 
+1 UNICO local. Me diz:
+- Quais sao as 2 rotas/telas que cadastram farmacia?
+- Qual tabela no banco cada uma grava?
+- Qual voce recomenda como canonica (a outra vira redirect)?
+- O dropdown de /prescricao-rapida le de qual tabela?
+
+PROBLEMA 2 — CLINICA DUPLICADA  
+Mesmo problema. Mais de 1 local para cadastrar clinica. Me diz:
+- Quais rotas gravam clinica?
+- O useClinic() le de qual tabela?
+- Como unificar para 1 lugar so?
+
+NAO preciso de tela nova. Preciso que o que JA EXISTE funcione 
+com 1 fonte de dados cada. Resolve isso e me avisa.
+```
+
+---
+
+**Sobre o design (telas comuns vs telas especiais) — concordo com sua visão.**
+
+Você está dizendo algo inteligente: nem toda tela é igual. Existem 2 categorias e cada uma precisa de tratamento diferente:
+
+**TELAS COMUNS (automatizáveis com a skill):** Listas de pacientes, agendas, cadastros, financeiro, configurações, perfil, colaboradores, auditoria. São telas de tabela + formulário + filtro. A skill Penumbra (claro/escuro) se aplica em lote — `ThemeContext` + tokens do perfil. O Dr. Replit pode migrar 3-4 por dia mecanicamente.
+
+**TELAS ESPECIAIS (precisam de spec individual):** Craniotomia (grafo de sinapses + matriz espelho), Prescrição Rápida (autocomplete + regras ANVISA + geração PDF + envio), Exames Evolução (5 terços + chips + gráficos), Mensageria (catálogo + WhatsApp + Telegram + templates HSM), RAS Digital (timeline de sessões + importação planilha), Cockpit do Paciente (6 fluxos em 1 tela). Essas telas têm lógica clínica embutida, mecanismos de preenchimento complexos, e integrações com serviços externos. A skill visual se aplica (cores, tipografia, espaçamento), mas o layout interno e a lógica são únicos por tela.
+
+---
+
+**O plano concreto — sem enxugar gelo:**
+
+**Esta semana (29-31/mai):** Resolver farmácia e clínica duplicada. Testar prescrição rápida end-to-end. Fazer 1 receita real. Se WhatsApp sandbox funcionar, missão cumprida para operação básica.
+
+**Semana que vem (02-06/jun):** Skill Penumbra aplicada nas telas comuns (lote). Telegram plugado na API. Importação RAS da planilha. Fly.io + Meta WhatsApp iniciados.
+
+**Semana seguinte (09-13/jun):** Telas especiais uma por uma (Craniotomia, Prescrição, Exames, Mensageria). Cada uma com spec individual antes de mexer.
+
+---
+
+**Sobre o Claude Code (print que mandou):** ele rodou `clasp login` que é para autenticação do Google Apps Script. Isso não é necessário agora — foi uma ação que ele tomou por iniciativa própria tentando achar um jeito de editar a planilha. A planilha v4 já foi criada por mim diretamente via API do Drive, está no seu Drive. O `clasp login` pode ficar para depois.
+
+**Sobre a planilha original** (a que você compartilhou no link): ela continua com as 11 tarefas antigas. A v4 que criei tem 20 tarefas atualizadas. Se quiser, pode copiar o conteúdo da v4 para a original, ou simplesmente usar a v4 como a nova versão oficial. Quer que eu tente sobrescrever a original?
+
+O que faz agora: manda a mensagem sobre farmácia/clínica pro Dr. Replit e me avisa o que ele responder.
