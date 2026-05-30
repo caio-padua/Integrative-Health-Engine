@@ -50,23 +50,24 @@ mockup. A tela que o Caio usa de verdade é a versão de fábrica básica.
 
 ---
 
-## 3. CANDIDATOS A FANTASMA (a confirmar no raio-X)
+## 3. RESULTADO DO RAIO-X COMPLETO (30/mai)
 
-Mockups no canvas que podem ou não ter equivalente vivo:
+> Raio-X feito. Detalhe completo em
+> [`AUDITORIA_ECTOPLASMAS_v1.md`](./AUDITORIA_ECTOPLASMAS_v1.md).
 
-| mockup (`mockup-sandbox`) | equivalente no app? | status |
-|---|---|---|
-| `chromes-navegacionaispadua-atelier` | chrome/header das telas | 🔍 |
-| `cockpits-pacientepawards-dashboards` | `clinica-motor/pages/cockpit` existe | 🔍 (verificar paridade) |
-| `consultoriopawards-showcase` | `pages/consultorias` | 🔍 |
-| `sahara-noir` (tema/paleta) | tema do app | 🔍 |
-| `ReceitaVariante A/B/C/D` + `PdfVariante A/B/C/D` | PDF de receita real | 🔍 |
-| `craniotomia*` (mockup) | `pages/craniotomia.tsx` existe | 🔍 (verificar versão V4 splitview) |
-| `layout-oficial` / `menu-variants` | layout do app | 🔍 |
-| `GoogleCalendarDemo` | agenda-motor (sync já vivo) | 🔍 |
+| item | status |
+|---|---|
+| Governança (bloqueio clínico) | 👻⚓ SEMI-FANTASMA (âncora) |
+| Mensageria rica / GPS Pádua (B1) | 🧬 MEIO-VIVO |
+| Carta de Encantamento | 👻 FANTASMA |
+| Craniotomia (grafo sinapses) | 👻 FANTASMA (só iframe) |
+| Penumbra (tema claro/escuro) | 👻 FANTASMA |
+| Exames Evolução / Trajetória | 🧬 MEIO-VIVO |
+| PADSITE portal clínicas | 👻 FANTASMA (standby) |
+| Cockpit / PDF V8 / Layout / 2FA / Pulso Diário / RAS import | 🫀 VIVOS |
 
-> Próximo passo: rodar 1 raio-X por linha (comparar mockup × tela viva) e
-> cravar 🫀/🧬/👻. Caio autorizou levar "dias e dias" pra fazer direito.
+**Fila de graduação corrigida:** governança (âncora) → B1 → Carta → Craniotomia
+→ Exames → Penumbra → PADSITE.
 
 ---
 

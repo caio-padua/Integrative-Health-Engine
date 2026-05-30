@@ -50,8 +50,11 @@
 ### 3.3 MODO 3 — RECEITA CLÍNICA COMPLETA (PARQ + comissão)
 - 3.3.1 paciente + farmácia + registro financeiro completo
 - 3.3.2 aciona `comissao_estimada` + `parq_estimado`
-- 3.3.3 SÓ disponível se operador = **médico de clínica** (gate por perfil)
-- 3.3.4 tecnicamente: comportamento atual, sem mudança de trigger
+- 3.3.3 CORREÇÃO DO CAIO (30/mai): o gate NÃO é "operador = médico".
+  O gate são os **toggles de GOVERNANÇA** (depende da unidade/permissão).
+  Ver ectoplasma-âncora em `../AUDITORIA_ECTOPLASMAS_v1.md` §3.
+- 3.3.4 tecnicamente: comportamento atual de trigger, MAS a emissão precisa
+  passar a LER a governança (hoje ela ignora — é fantasma)
 
 ---
 
@@ -74,6 +77,6 @@
 **Default sugerido por Dr. Replit:** A, com o carimbo padrão = MODO 3 quando o
 operador é médico, e MODO 1 quando não é.
 
-**Pergunta extra:** o gate do PARQ (3.3.3) usa qual perfil como "médico de clínica"?
-Hoje o PARQ no código exige `validador_mestre`/`admin`. Confirmar se é esse o
-perfil ou se há um perfil `medico` específico.
+**RESOLVIDO (Caio 30/mai):** o gate do MODO 3 é por GOVERNANÇA, não por perfil.
+Pré-requisito: graduar o ectoplasma-âncora "governança" (fazer a emissão LER os
+toggles de `matrix_governanca_categoria` / `permissoes_delegadas`) ANTES da B1.
