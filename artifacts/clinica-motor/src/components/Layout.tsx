@@ -443,7 +443,7 @@ export function Layout({ children }: { children: ReactNode }) {
         // ───── PRESCRIÇÃO RÁPIDA · sub-mockups exploratórios ─────
         { name: "📚 Prescrição · Catálogo Lateral", path: "/mockup-canvas/prescricao-rapida/CatalogoLateral", icon: BookOpen, slug: "presc-catalogo" },
         { name: "⌨️ Prescrição · Comando de Teclado", path: "/mockup-canvas/prescricao-rapida/ComandoTeclado", icon: FileText, slug: "presc-comando" },
-        { name: "🧭 Prescrição · GPS Pádua", path: "/mockup-canvas/prescricao-rapida/GpsPadua", icon: Radar, slug: "presc-gps" },
+        { name: "🧭 Prescrição · GPS Clínico", path: "/mockup-canvas/prescricao-rapida/GpsPadua", icon: Radar, slug: "presc-gps" },
         { name: "📡 Prescrição · Motor Mensageria", path: "/mockup-canvas/prescricao-rapida/MotorMensageriaPadua", icon: MessageSquareText, slug: "presc-motor-msg" },
         { name: "📦 Prescrição · Pilha por Via", path: "/mockup-canvas/prescricao-rapida/PilhaPorVia", icon: Package, slug: "presc-pilha" },
         { name: "🎭 Prescrição · Teatro Mensageria", path: "/mockup-canvas/prescricao-rapida/TeatroMensageriaPadua", icon: MessageCircle, slug: "presc-teatro" },

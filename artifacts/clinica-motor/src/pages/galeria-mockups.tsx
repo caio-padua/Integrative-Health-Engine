@@ -45,7 +45,7 @@ const MOCKUPS: Mockup[] = [
   { slug: "pawards-showcase/SistemaHeader", nome: "Showcase · Header do Sistema", grupo: "SHOWCASE PAWARDS", altura: 800 },
   { slug: "prescricao-rapida/CatalogoLateral", nome: "Prescrição Rápida · Catálogo Lateral", grupo: "PRESCRIÇÃO RÁPIDA", altura: 1400 },
   { slug: "prescricao-rapida/ComandoTeclado", nome: "Prescrição Rápida · Comando de Teclado", grupo: "PRESCRIÇÃO RÁPIDA", altura: 1200 },
-  { slug: "prescricao-rapida/GpsPadua", nome: "Prescrição Rápida · GPS Pádua", grupo: "PRESCRIÇÃO RÁPIDA", altura: 1400 },
+  { slug: "prescricao-rapida/GpsPadua", nome: "Prescrição Rápida · GPS Clínico", grupo: "PRESCRIÇÃO RÁPIDA", altura: 1400 },
   { slug: "prescricao-rapida/MotorMensageriaPadua", nome: "Prescrição Rápida · Motor de Mensageria", grupo: "PRESCRIÇÃO RÁPIDA", altura: 1400 },
   { slug: "prescricao-rapida/PilhaPorVia", nome: "Prescrição Rápida · Pilha por Via", grupo: "PRESCRIÇÃO RÁPIDA", altura: 1400 },
   { slug: "prescricao-rapida/TeatroMensageriaPadua", nome: "Prescrição Rápida · Teatro de Mensageria", grupo: "PRESCRIÇÃO RÁPIDA", altura: 1400 },
