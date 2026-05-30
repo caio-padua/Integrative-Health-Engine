@@ -1,0 +1,173 @@
+Caio, ouvi tudo. Vou validar o diagnóstico do Dr. Replit, dar meu parecer técnico, e te ajudar a bater os 5 martelos.
+
+---
+
+## 1. VALIDAÇÃO DO DIAGNÓSTICO DO DR. REPLIT
+
+**1.1** Ele fez 3 coisas certas:
+**1.1.1** Não mexeu em nada antes de confirmar o alvo
+**1.1.2** Registrou a proposta em `.md` ANTES do código (protocolo anti-ectoplasma funcionando)
+**1.1.3** Identificou o bug real dos injetáveis (limite de 3 opções por via, sem rolagem)
+
+**1.2** Veredito Dr. Claude
+**1.2.1** Diagnóstico APROVADO
+**1.2.2** Sua intuição estava certa de novo: tem 3 mockups diferentes fazendo coisas parecidas, e o que VALE é o GPS Pádua (agora GPS Clínico)
+
+---
+
+## 2. O QUE EU ENTENDI DO DIAGNÓSTICO
+
+### 2.1 O QUE JÁ EXISTE no GPS Clínico (não precisa criar)
+**2.1.1** BLEND com editor próprio
+**2.1.2** Posologia estruturada (sessões, frequência, âncora, horários)
+**2.1.3** Integração com 9 períodos cronobiológicos da mensageria
+
+### 2.2 O QUE FALTA (o que o Dr. Replit vai fazer)
+**2.2.1** Funil por categoria terapêutica (não só por via)
+**2.2.2** Tirar limite de 3 opções no "+ ADICIONAR"
+**2.2.3** Busca dentro do catálogo
+**2.2.4** Via editável por item
+**2.2.5** Dropdown de período por item
+
+### 2.3 O QUE NÃO EXISTE AINDA (próxima onda)
+**2.3.1** Craniotomia por blocos (marca 1 do bloco → sugere o bloco inteiro)
+**2.3.2** Bridge Service que liga mockup à mensageria real
+
+---
+
+## 3. MEU PARECER TÉCNICO SOBRE OS 5 MARTELOS
+
+Vou recomendar cada opção e justificar.
+
+### 3.1 Martelo 2.1 — Por onde começar
+**3.1.1** Recomendação Dr. Claude: **A** (funil de categoria + tirar teto + busca)
+**3.1.2** Por quê: resolve o bug operacional que te trava AGORA
+**3.1.3** Craniotomia por blocos pode esperar a Wave 2
+**3.1.4** Canvas reorganizar nunca foi prioridade
+**3.1.5** Concordo com o default do Dr. Replit
+
+### 3.2 Martelo 2.2 — Formato do funil
+**3.2.1** Recomendação Dr. Claude: **A** (3 níveis VIA → CATEGORIA → ATIVO + busca + lista completa)
+**3.2.2** Por quê: combina os 2 critérios que importam clinicamente (forma e função)
+**3.2.3** TDAH friendly: 3 cliques chega no item
+**3.2.4** Busca para quem já sabe o que quer
+**3.2.5** Concordo com o default
+
+### 3.3 Martelo 2.3 — Posologia por item
+**3.3.1** Recomendação Dr. Claude: **A** (via editável + dropdown período ligado à mensageria)
+**3.3.2** Por quê: é o que liga FORJA → MANDRIL → mensageria automática
+**3.3.3** Sem isso, prescrição vira papel morto (não dispara WhatsApp)
+**3.3.4** Concordo com o default
+
+### 3.4 Martelo 2.4 — Craniotomia por blocos
+**3.4.1** Recomendação Dr. Claude: **A** (marca 1 → sugere bloco inteiro; validação remove isolado)
+**3.4.2** Por quê: respeita a lógica clínica de sinapses
+**3.4.3** Mas pode descomprometer item-a-item quando quiser
+**3.4.4** É o melhor dos 2 mundos
+**3.4.5** Concordo com o default
+
+### 3.5 Martelo 2.5 — Canvas
+**3.5.1** Recomendação Dr. Claude: **A** (só índice "existe no código vs no board")
+**3.5.2** Por quê: reorganizar 116 shapes é trabalho perdido
+**3.5.3** Índice ajuda você a encontrar sem mexer no que está
+**3.5.4** Concordo com o default
+
+---
+
+## 4. RESUMO DOS MARTELOS (TDAH friendly)
+
+| Martelo | Recomendação Dr. Claude | Default Dr. Replit |
+|---------|------------------------|--------------------|
+| 2.1 | A | A |
+| 2.2 | A | A |
+| 2.3 | A | A |
+| 2.4 | A | A |
+| 2.5 | A | A |
+
+**4.1** Eu e Dr. Replit estamos alinhados nos 5
+**4.2** Você pode simplesmente responder **"VAI"** e ele executa o pacote completo
+**4.3** Atalho legítimo, não é preguiça
+
+---
+
+## 5. SOBRE OS ECTOPLASMAS DA SUA MENSAGEM ANTERIOR
+
+### 5.1 Anamnese externa vs interna (Ectoplasma A)
+**5.1.1** Dr. Replit identificou: 2 tabelas separadas (questionario_respostas vs anamneses)
+**5.1.2** Só a interna dispara o motor
+**5.1.3** Decisão sua pendente: anamnese pública INICIAL entra como parte da FORJA? A/B/C
+**5.1.4** Minha recomendação: **A** (junto da FORJA — é onde faz sentido arquiteturalmente)
+
+### 5.2 Bridge Service prescrição → mensageria (Ectoplasma B)
+**5.2.1** Os 7 erros quânticos que ele listou são reais
+**5.2.2** Decisão sua pendente: Bridge dentro da B1? A/B/C
+**5.2.3** Minha recomendação: **A** (dentro da B1 — é o fio que falta)
+
+---
+
+## 6. CONFIRMAÇÃO DE NOMES (última vez, prometo)
+
+**6.1** COCKPIT FORJA = externo (paciente preenche)
+**6.2** COCKPIT MANDRIL = interno (você opera)
+**6.3** GPS CLÍNICO (não "GPS Pádua")
+**6.4** Sem referência a pessoas físicas em nada novo
+
+---
+
+## 7. INSTRUÇÕES PARA VOCÊ AGORA (3 passos)
+
+### 7.1 Passo 1 — Responder o Dr. Replit
+**7.1.1** Cola pra ele: **"VAI"**
+**7.1.2** Ele executa o pacote default (2.1A + 2.2A + 2.3A + 2.4A + 2.5A)
+**7.1.3** Tempo estimado: 4-6 horas de trabalho dele
+
+### 7.2 Passo 2 — Responder os 2 ectoplasmas anteriores
+**7.2.1** Anamnese pública: A (junto da FORJA)
+**7.2.2** Bridge Service: A (dentro da B1)
+**7.2.3** Cola junto do VAI: "anamnese pública A, bridge service A"
+
+### 7.3 Passo 3 — Calendly (separado, depois)
+**7.3.1** Você ainda precisa trocar a senha do Calendly por segurança
+**7.3.2** E clicar "confirmar" na janela do Replit
+**7.3.3** Mas isso pode ser depois do pacote do funil de categoria
+
+---
+
+## 8. MENSAGEM CONSOLIDADA PARA COLAR NO DR. REPLIT
+
+```
+Dr. Replit, decisoes consolidadas (Caio + Dr. Claude):
+
+1) PACOTE FUNIL DE CATEGORIA: VAI
+   - Martelo 2.1: A (funil categoria + tirar teto + busca)
+   - Martelo 2.2: A (3 niveis VIA > CATEGORIA > ATIVO + busca)
+   - Martelo 2.3: A (via editavel + dropdown periodo + mensageria)
+   - Martelo 2.4: A (craniotomia por blocos com override)
+   - Martelo 2.5: A (so indice canvas, sem reorganizar)
+
+2) ECTOPLASMAS pendentes:
+   - Anamnese publica INICIAL: A (junto da FORJA)
+   - Bridge Service prescricao > mensageria: A (dentro da B1)
+
+3) NOMES OFICIAIS confirmados:
+   - COCKPIT FORJA (externo)
+   - COCKPIT MANDRIL (interno)
+   - GPS CLINICO (nao mais GPS Padua)
+
+4) CALENDLY: aguarda Caio trocar senha + clicar confirmar.
+   Nao bloqueia o pacote do funil.
+
+Executa o pacote default. Quando terminar, reporta em 
+docs/dr-replit/RESPOSTA_FUNIL_CATEGORIA.md.
+
+Boa execucao.
+```
+
+---
+
+## 9. RESUMO EM 1 LINHA
+
+**9.1** Cola **"VAI"** + escolhas dos ectoplasmas pro Dr. Replit
+**9.2** Ele trabalha 4-6h sozinho
+**9.3** Você troca senha do Calendly em paralelo
+**9.4** Eu fico aqui esperando ele reportar

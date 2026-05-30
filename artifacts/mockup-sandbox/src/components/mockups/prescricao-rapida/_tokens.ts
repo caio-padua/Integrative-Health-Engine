@@ -37,6 +37,24 @@ export const VIA_META: Record<Via, { titulo: string; sub: string }> = {
   PRC: { titulo: "PROCEDIMENTOS",   sub: "consulta · estética" },
 };
 
+// ── Categorias terapêuticas (2º nível do funil VIA → CATEGORIA → ATIVO) ──────
+// Ordem canônica usada para ordenar os chips de categoria no painel + ADICIONAR.
+export const CATEGORIAS = [
+  "Bioenergético",
+  "Antioxidante",
+  "Imunológico",
+  "Vitaminas & Minerais",
+  "Aminoácidos & Peptídeos",
+  "Hormonal",
+  "Metabólico / GLP-1",
+  "Longevidade",
+  "Neuro / Cognitivo",
+  "Calmante / Sono",
+  "Estética",
+  "Consulta & Exames",
+] as const;
+export type Categoria = typeof CATEGORIAS[number];
+
 export const FREQUENCIAS = [
   "única", "diária", "2×/dia", "3×/dia",
   "1×/sem", "2×/sem", "3×/sem",
@@ -60,12 +78,15 @@ export type Substancia = {
   id: string;
   nome: string;
   via: Via;
+  categoria?: Categoria;
   dose: string;
   detalhe?: string;
   sessoes: number;
   frequencia: Frequencia;
   preco: number;
   ancora?: Ancora;
+  // período cronobiológico explícito (sigla JE/IM/MM/AL/IT/MT/NO/FN/CE) ou undefined = AUTO pelos horários
+  periodo?: string;
   periodos?: string[];
   componentes?: ComponenteBlend[];
   horarios?: string[];
@@ -86,16 +107,37 @@ export const PACIENTE = {
 };
 
 export const CATALOGO: Substancia[] = [
-  { id: "nad-ev",    nome: "NAD+ Endovenoso",            via: "EV",  dose: "500 mg",      detalhe: "Restaurador bioenergético",  sessoes: 6,  frequencia: "1×/sem",   preco: 450, ancora: "sem-ancora" },
-  { id: "glut-ev",   nome: "Glutationa Reduzida",        via: "EV",  dose: "1200 mg",     detalhe: "Antioxidante mestre",        sessoes: 6,  frequencia: "1×/sem",   preco: 320, ancora: "sem-ancora" },
-  { id: "vitc-ev",   nome: "Vitamina C Alta Dose",       via: "EV",  dose: "25 g",        detalhe: "Imunomodulador",             sessoes: 6,  frequencia: "1×/sem",   preco: 280, ancora: "sem-ancora" },
-  { id: "coq10-im",  nome: "CoQ10 Ubiquinol + PQQ",      via: "IM",  dose: "100 + 20 mg", detalhe: "Mitocondrial",               sessoes: 6,  frequencia: "1×/sem",   preco: 235, ancora: "sem-ancora" },
-  { id: "b12-im",    nome: "B12 Metilcobalamina",        via: "IM",  dose: "5000 mcg",    detalhe: "Neurotrófico",               sessoes: 4,  frequencia: "1×/sem",   preco: 95,  ancora: "sem-ancora" },
-  { id: "vitd-im",   nome: "Vitamina D3 100k UI",        via: "IM",  dose: "100.000 UI",  detalhe: "Pulso D · dose única",       sessoes: 1,  frequencia: "única",    preco: 180, ancora: "primeira" },
-  { id: "resv-im",   nome: "Resveratrol Injetável",      via: "IM",  dose: "250 mg",      detalhe: "Sirtuína / longevidade",     sessoes: 4,  frequencia: "1×/sem",   preco: 210, ancora: "sem-ancora" },
-  { id: "sema-sc",   nome: "Semaglutida 0,5 mg",         via: "SC",  dose: "0,5 mg",      detalhe: "GLP-1 · controle apetite",   sessoes: 12, frequencia: "1×/sem",   preco: 380, ancora: "sem-ancora" },
-  { id: "tirz-sc",   nome: "Tirzepatida 2,5 mg",         via: "SC",  dose: "2,5 mg",      detalhe: "GLP-1/GIP · titulação",      sessoes: 8,  frequencia: "1×/sem",   preco: 520, ancora: "sem-ancora" },
-  { id: "blend-vo",  nome: "Fórmula Blend Menopausa",    via: "VO",  dose: "1 cáps/dia",  detalhe: "Magistral · Galena",         sessoes: 30, frequencia: "diária",   preco: 380, ancora: "primeira",
+  // ── EV · ENDOVENOSO ───────────────────────────────────────────────────────
+  { id: "nad-ev",    nome: "NAD+ Endovenoso",            via: "EV", categoria: "Bioenergético",        dose: "500 mg",  detalhe: "Restaurador bioenergético",   sessoes: 6, frequencia: "1×/sem", preco: 450, ancora: "sem-ancora" },
+  { id: "glut-ev",   nome: "Glutationa Reduzida",        via: "EV", categoria: "Antioxidante",          dose: "1200 mg", detalhe: "Antioxidante mestre",         sessoes: 6, frequencia: "1×/sem", preco: 320, ancora: "sem-ancora" },
+  { id: "vitc-ev",   nome: "Vitamina C Alta Dose",       via: "EV", categoria: "Imunológico",           dose: "25 g",    detalhe: "Imunomodulador",              sessoes: 6, frequencia: "1×/sem", preco: 280, ancora: "sem-ancora" },
+  { id: "alfa-ev",   nome: "Ácido Alfa-Lipóico EV",      via: "EV", categoria: "Antioxidante",          dose: "600 mg",  detalhe: "Antioxidante neuroprotetor",  sessoes: 6, frequencia: "1×/sem", preco: 240, ancora: "sem-ancora" },
+  { id: "taur-ev",   nome: "Taurina Endovenosa",         via: "EV", categoria: "Aminoácidos & Peptídeos", dose: "2 g",   detalhe: "Cardio + energia",            sessoes: 6, frequencia: "1×/sem", preco: 190, ancora: "sem-ancora" },
+  { id: "compb-ev",  nome: "Complexo B Endovenoso",      via: "EV", categoria: "Vitaminas & Minerais",  dose: "ampola",  detalhe: "Energia + neuro",             sessoes: 6, frequencia: "1×/sem", preco: 160, ancora: "sem-ancora" },
+  { id: "mgsulf-ev", nome: "Sulfato de Magnésio EV",     via: "EV", categoria: "Vitaminas & Minerais",  dose: "2 g",     detalhe: "Relaxante neuromuscular",     sessoes: 4, frequencia: "1×/sem", preco: 150, ancora: "sem-ancora" },
+  { id: "ozonio-ev", nome: "Ozonioterapia Sistêmica",    via: "EV", categoria: "Imunológico",           dose: "—",       detalhe: "Modulação imune + oxigenação", sessoes: 10, frequencia: "2×/sem", preco: 220, ancora: "sem-ancora" },
+  { id: "edta-ev",   nome: "Quelação EDTA",              via: "EV", categoria: "Longevidade",           dose: "3 g",     detalhe: "Detox metais pesados",        sessoes: 10, frequencia: "1×/sem", preco: 360, ancora: "sem-ancora" },
+
+  // ── IM · INTRAMUSCULAR ────────────────────────────────────────────────────
+  { id: "coq10-im",  nome: "CoQ10 Ubiquinol + PQQ",      via: "IM", categoria: "Bioenergético",         dose: "100 + 20 mg", detalhe: "Mitocondrial",            sessoes: 6, frequencia: "1×/sem", preco: 235, ancora: "sem-ancora" },
+  { id: "b12-im",    nome: "B12 Metilcobalamina",        via: "IM", categoria: "Neuro / Cognitivo",     dose: "5000 mcg", detalhe: "Neurotrófico",               sessoes: 4, frequencia: "1×/sem", preco: 95,  ancora: "sem-ancora" },
+  { id: "vitd-im",   nome: "Vitamina D3 100k UI",        via: "IM", categoria: "Vitaminas & Minerais",  dose: "100.000 UI", detalhe: "Pulso D · dose única",     sessoes: 1, frequencia: "única",  preco: 180, ancora: "primeira" },
+  { id: "resv-im",   nome: "Resveratrol Injetável",      via: "IM", categoria: "Longevidade",           dose: "250 mg",  detalhe: "Sirtuína / longevidade",      sessoes: 4, frequencia: "1×/sem", preco: 210, ancora: "sem-ancora" },
+  { id: "testo-im",  nome: "Testosterona Cipionato",     via: "IM", categoria: "Hormonal",              dose: "200 mg",  detalhe: "Reposição hormonal",          sessoes: 8, frequencia: "quinzenal", preco: 160, ancora: "sem-ancora" },
+  { id: "glut-im",   nome: "Glutationa Intramuscular",   via: "IM", categoria: "Antioxidante",          dose: "600 mg",  detalhe: "Antioxidante de bolso",       sessoes: 6, frequencia: "1×/sem", preco: 140, ancora: "sem-ancora" },
+  { id: "carn-im",   nome: "L-Carnitina Injetável",      via: "IM", categoria: "Metabólico / GLP-1",    dose: "1 g",     detalhe: "Oxidação lipídica",           sessoes: 8, frequencia: "1×/sem", preco: 120, ancora: "sem-ancora" },
+  { id: "compb-im",  nome: "Complexo B Intramuscular",   via: "IM", categoria: "Vitaminas & Minerais",  dose: "ampola",  detalhe: "Energia + neuro",             sessoes: 4, frequencia: "1×/sem", preco: 90,  ancora: "sem-ancora" },
+
+  // ── SC · SUBCUTÂNEO ───────────────────────────────────────────────────────
+  { id: "sema-sc",   nome: "Semaglutida 0,5 mg",         via: "SC", categoria: "Metabólico / GLP-1",    dose: "0,5 mg",  detalhe: "GLP-1 · controle apetite",    sessoes: 12, frequencia: "1×/sem", preco: 380, ancora: "sem-ancora" },
+  { id: "tirz-sc",   nome: "Tirzepatida 2,5 mg",         via: "SC", categoria: "Metabólico / GLP-1",    dose: "2,5 mg",  detalhe: "GLP-1/GIP · titulação",       sessoes: 8,  frequencia: "1×/sem", preco: 520, ancora: "sem-ancora" },
+  { id: "lira-sc",   nome: "Liraglutida 1,2 mg",         via: "SC", categoria: "Metabólico / GLP-1",    dose: "1,2 mg",  detalhe: "GLP-1 · uso diário",          sessoes: 30, frequencia: "diária", preco: 290, ancora: "sem-ancora" },
+  { id: "bpc-sc",    nome: "BPC-157 Peptídeo",           via: "SC", categoria: "Aminoácidos & Peptídeos", dose: "250 mcg", detalhe: "Reparo tecidual",           sessoes: 20, frequencia: "diária", preco: 240, ancora: "sem-ancora" },
+  { id: "ghk-sc",    nome: "GHK-Cu Peptídeo",            via: "SC", categoria: "Estética",              dose: "2 mg",    detalhe: "Regeneração / pele",          sessoes: 15, frequencia: "3×/sem", preco: 260, ancora: "sem-ancora" },
+  { id: "ipa-sc",    nome: "Ipamorelina + CJC",          via: "SC", categoria: "Hormonal",              dose: "200 mcg", detalhe: "Eixo GH · noturno",           sessoes: 20, frequencia: "diária", preco: 310, ancora: "sem-ancora" },
+
+  // ── VO · VIA ORAL (magistral) ─────────────────────────────────────────────
+  { id: "blend-vo",  nome: "Fórmula Blend Menopausa",    via: "VO", categoria: "Hormonal",              dose: "1 cáps/dia", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "diária", preco: 380, ancora: "primeira",
     horarios: ["08h", "20h"],
     componentes: [
       { id: "c1", nome: "DHEA Micronizado",        dose: "25 mg" },
@@ -105,7 +147,7 @@ export const CATALOGO: Substancia[] = [
       { id: "c5", nome: "Magnésio Bisglicinato",   dose: "100 mg" },
     ],
   },
-  { id: "blend-en",  nome: "Fórmula Blend Energia AM",   via: "VO",  dose: "1 cáps/dia",  detalhe: "Magistral · Galena",         sessoes: 30, frequencia: "diária",   preco: 290, ancora: "primeira",
+  { id: "blend-en",  nome: "Fórmula Blend Energia AM",   via: "VO", categoria: "Bioenergético",         dose: "1 cáps/dia", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "diária", preco: 290, ancora: "primeira",
     horarios: ["07h"],
     componentes: [
       { id: "c1", nome: "Cafeína Anidra",          dose: "100 mg" },
@@ -114,19 +156,60 @@ export const CATALOGO: Substancia[] = [
       { id: "c4", nome: "Vitamina B6 P5P",         dose: "25 mg" },
     ],
   },
-  { id: "mag-vo",    nome: "Magnésio Dimalato",          via: "VO",  dose: "300 mg",      detalhe: "Quelado · 2× ao dia",        sessoes: 30, frequencia: "2×/dia",   preco: 110, ancora: "primeira",
+  { id: "blend-sono", nome: "Fórmula Blend Sono",        via: "VO", categoria: "Calmante / Sono",       dose: "1 cáps/noite", detalhe: "Magistral · Galena",      sessoes: 30, frequencia: "diária", preco: 220, ancora: "primeira",
+    horarios: ["22h"],
+    componentes: [
+      { id: "c1", nome: "Melatonina",              dose: "3 mg" },
+      { id: "c2", nome: "L-Triptofano",            dose: "300 mg" },
+      { id: "c3", nome: "Magnésio Bisglicinato",   dose: "150 mg" },
+      { id: "c4", nome: "Passiflora EP",           dose: "200 mg" },
+    ],
+  },
+  { id: "blend-cog", nome: "Fórmula Blend Cognição",     via: "VO", categoria: "Neuro / Cognitivo",     dose: "2 cáps/dia", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "2×/dia", preco: 340, ancora: "primeira",
+    horarios: ["08h", "14h"],
+    componentes: [
+      { id: "c1", nome: "Citicolina",              dose: "250 mg" },
+      { id: "c2", nome: "Bacopa Monnieri EP",      dose: "300 mg" },
+      { id: "c3", nome: "L-Teanina",               dose: "200 mg" },
+      { id: "c4", nome: "Ácido Pantotênico",       dose: "100 mg" },
+    ],
+  },
+  { id: "mag-vo",    nome: "Magnésio Dimalato",          via: "VO", categoria: "Vitaminas & Minerais",  dose: "300 mg",  detalhe: "Quelado · 2× ao dia",         sessoes: 30, frequencia: "2×/dia", preco: 110, ancora: "primeira",
     horarios: ["12h", "22h"],
   },
-  { id: "gest-imp",  nome: "Gestrinona-T 12 mg",         via: "IMP", dose: "12 mg",       detalhe: "Implante hormonal 4-6 meses", sessoes: 1,  frequencia: "semestral", preco: 1280, ancora: "primeira" },
-  { id: "trem-imp",  nome: "Trembolona-T 50 mg",         via: "IMP", dose: "50 mg",       detalhe: "Implante 3-4 meses",          sessoes: 1,  frequencia: "trimestral", preco: 980,  ancora: "primeira" },
-  { id: "consulta",  nome: "Consulta Dr. Caio Pádua",    via: "PRC", dose: "60 min",      detalhe: "Reavaliação clínica",         sessoes: 2,  frequencia: "mensal",    preco: 500,  ancora: "primeira" },
-  { id: "exame-lab", nome: "Encaminhamento Laboratório", via: "PRC", dose: "—",           detalhe: "Painel hormonal completo",     sessoes: 1,  frequencia: "única",     preco: 0,    ancora: "penultima" },
-  { id: "botox",     nome: "Botox Toxina Botulínica",    via: "PRC", dose: "50 U",        detalhe: "Estética facial · terço sup", sessoes: 1,  frequencia: "semestral", preco: 1500, ancora: "ultima" },
-  { id: "preench",   nome: "Preenchimento Ác. Hialurônico", via: "PRC", dose: "1 ml",     detalhe: "Estética facial · sulcos",    sessoes: 1,  frequencia: "única",     preco: 1800, ancora: "ultima" },
+  { id: "mela-vo",   nome: "Melatonina 3 mg",            via: "VO", categoria: "Calmante / Sono",       dose: "3 mg",    detalhe: "Indução do sono",             sessoes: 30, frequencia: "diária", preco: 70,  ancora: "primeira", horarios: ["22h"] },
+  { id: "omega-vo",  nome: "Ômega 3 TG Concentrado",     via: "VO", categoria: "Longevidade",           dose: "2 g",     detalhe: "EPA/DHA alta pureza",         sessoes: 30, frequencia: "diária", preco: 130, ancora: "primeira", horarios: ["12h"] },
+  { id: "vitdk-vo",  nome: "Vitamina D3 + K2 VO",        via: "VO", categoria: "Vitaminas & Minerais",  dose: "10.000 UI", detalhe: "Manutenção diária",         sessoes: 30, frequencia: "diária", preco: 90,  ancora: "primeira", horarios: ["08h"] },
+  { id: "creat-vo",  nome: "Creatina Monohidratada",     via: "VO", categoria: "Aminoácidos & Peptídeos", dose: "5 g",   detalhe: "Força + cognição",            sessoes: 30, frequencia: "diária", preco: 80,  ancora: "primeira", horarios: ["09h"] },
+  { id: "prob-vo",   nome: "Probiótico 50 bi UFC",       via: "VO", categoria: "Imunológico",           dose: "1 cáps/dia", detalhe: "Eixo intestino-cérebro",    sessoes: 30, frequencia: "diária", preco: 150, ancora: "primeira", horarios: ["07h"] },
+
+  // ── IMP · IMPLANTES ───────────────────────────────────────────────────────
+  { id: "gest-imp",  nome: "Gestrinona-T 12 mg",         via: "IMP", categoria: "Hormonal",             dose: "12 mg",   detalhe: "Implante hormonal 4-6 meses", sessoes: 1, frequencia: "semestral", preco: 1280, ancora: "primeira" },
+  { id: "trem-imp",  nome: "Trembolona-T 50 mg",         via: "IMP", categoria: "Hormonal",             dose: "50 mg",   detalhe: "Implante 3-4 meses",          sessoes: 1, frequencia: "trimestral", preco: 980, ancora: "primeira" },
+  { id: "testo-imp", nome: "Implante Testosterona",      via: "IMP", categoria: "Hormonal",             dose: "100 mg",  detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 1100, ancora: "primeira" },
+  { id: "estr-imp",  nome: "Implante Estradiol",         via: "IMP", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 1050, ancora: "primeira" },
+
+  // ── PRC · PROCEDIMENTOS / CONSULTA / EXAMES ───────────────────────────────
+  { id: "consulta",  nome: "Consulta Clínica",           via: "PRC", categoria: "Consulta & Exames",    dose: "60 min",  detalhe: "Reavaliação clínica",         sessoes: 2, frequencia: "mensal",   preco: 500,  ancora: "primeira" },
+  { id: "exame-lab", nome: "Encaminhamento Laboratório", via: "PRC", categoria: "Consulta & Exames",    dose: "—",       detalhe: "Painel hormonal completo",    sessoes: 1, frequencia: "única",    preco: 0,    ancora: "penultima" },
+  { id: "bioimp",    nome: "Bioimpedância Segmentar",    via: "PRC", categoria: "Consulta & Exames",    dose: "—",       detalhe: "Composição corporal",         sessoes: 2, frequencia: "mensal",   preco: 120,  ancora: "primeira" },
+  { id: "botox",     nome: "Botox Toxina Botulínica",    via: "PRC", categoria: "Estética",             dose: "50 U",    detalhe: "Estética facial · terço sup", sessoes: 1, frequencia: "semestral", preco: 1500, ancora: "ultima" },
+  { id: "preench",   nome: "Preenchimento Ác. Hialurônico", via: "PRC", categoria: "Estética",          dose: "1 ml",    detalhe: "Estética facial · sulcos",    sessoes: 1, frequencia: "única",    preco: 1800, ancora: "ultima" },
+  { id: "microag",   nome: "Microagulhamento",           via: "PRC", categoria: "Estética",             dose: "—",       detalhe: "Indução de colágeno",         sessoes: 4, frequencia: "mensal",   preco: 450,  ancora: "sem-ancora" },
 ];
 
+function porId(id: string): Substancia {
+  const s = CATALOGO.find(x => x.id === id);
+  if (!s) throw new Error(`Substancia ${id} ausente no CATALOGO`);
+  return s;
+}
+
 export const SELECIONADAS_INICIAIS: Substancia[] = [
-  CATALOGO[0], CATALOGO[3], CATALOGO[9], CATALOGO[14], CATALOGO[15],
+  porId("nad-ev"),
+  porId("coq10-im"),
+  porId("sema-sc"),
+  porId("blend-vo"),
+  porId("consulta"),
 ];
 
 export const PATOLOGIAS = [

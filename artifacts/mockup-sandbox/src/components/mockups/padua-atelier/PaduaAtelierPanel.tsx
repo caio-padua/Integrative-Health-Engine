@@ -946,10 +946,10 @@ export default function PaduaAtelierPanel() {
               />
             </div>
             {[
-              { label: "TSH",            v: 3.8,   min: 0,    max: 10,   color: "#3B5BDB", ideal: [0.4, 4.5] as [number, number] },
-              { label: "T4 Livre",       v: 1.2,   min: 0,    max: 3,    color: "#00945C", ideal: [0.8, 1.8] as [number, number] },
-              { label: "Anti-TPO",       v: 145,   min: 0,    max: 500,  color: "#D97706", ideal: [0, 35] as [number, number] },
-              { label: "Vitamina D",     v: 58,    min: 0,    max: 100,  color: "#00945C", ideal: [40, 80] as [number, number] },
+              { label: "TSH",            value: 3.8,   min: 0,    max: 10,   color: "#3B5BDB", ideal: [0.4, 4.5] as [number, number] },
+              { label: "T4 Livre",       value: 1.2,   min: 0,    max: 3,    color: "#00945C", ideal: [0.8, 1.8] as [number, number] },
+              { label: "Anti-TPO",       value: 145,   min: 0,    max: 500,  color: "#D97706", ideal: [0, 35] as [number, number] },
+              { label: "Vitamina D",     value: 58,    min: 0,    max: 100,  color: "#00945C", ideal: [40, 80] as [number, number] },
             ].map(m => (
               <RangeBar key={m.label} {...m} />
             ))}

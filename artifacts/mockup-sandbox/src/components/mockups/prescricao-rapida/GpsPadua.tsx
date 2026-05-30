@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import {
-  tk, CATALOGO, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
+  tk, CATALOGO, CATEGORIAS, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
   VIA_META, FREQUENCIAS, HORARIOS_PADRAO,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
 import {
-  type Substancia, type Via, type Frequencia, type Ancora, type ComponenteBlend,
+  type Substancia, type Via, type Categoria, type Frequencia, type Ancora, type ComponenteBlend,
 } from "./_tokens";
 
 type Modo = "PILHA" | "TIMELINE" | "GPS";
@@ -193,23 +193,28 @@ function Topo({ modo, setModo, totalSubs, totalGeral }: {
         <Kpi lbl="PROTOCOLO" val={brl(totalGeral)}                    cor={tk.accent} />
       </div>
 
-      {/* Toggle modo Motor-Clínico style */}
-      <div style={{ display: "flex", border: `1px solid ${tk.border}` }}>
-        {(["PILHA", "TIMELINE", "GPS"] as Modo[]).map(m => {
-          const ativo = modo === m;
-          return (
-            <button key={m}
-              onClick={() => setModo(m)}
-              style={{
-                fontFamily: tk.mono, fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
-                padding: "8px 14px", cursor: "pointer",
-                background: ativo ? tk.accent : tk.bg,
-                color: ativo ? tk.bg : tk.inkMuted,
-                border: "none", borderRight: m !== "GPS" ? `1px solid ${tk.border}` : "none",
-                ...(ativo ? { boxShadow: `0 0 12px ${tk.accentGlow}` } : {}),
-              }}>{m}</button>
-          );
-        })}
+      {/* Título do painel (não-pessoal) + toggle de modo Motor-Clínico style */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+        <span style={{
+          fontFamily: tk.mono, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: tk.accent,
+        }}>GPS CLÍNICO</span>
+        <div style={{ display: "flex", border: `1px solid ${tk.border}` }}>
+          {(["PILHA", "TIMELINE", "GPS"] as Modo[]).map(m => {
+            const ativo = modo === m;
+            return (
+              <button key={m}
+                onClick={() => setModo(m)}
+                style={{
+                  fontFamily: tk.mono, fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                  padding: "8px 14px", cursor: "pointer",
+                  background: ativo ? tk.accent : tk.bg,
+                  color: ativo ? tk.bg : tk.inkMuted,
+                  border: "none", borderRight: m !== "GPS" ? `1px solid ${tk.border}` : "none",
+                  ...(ativo ? { boxShadow: `0 0 12px ${tk.accentGlow}` } : {}),
+                }}>{m}</button>
+            );
+          })}
+        </div>
       </div>
     </header>
   );
@@ -348,27 +353,54 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                       </div>
                     </div>
 
-                    {/* Controles em linha */}
-                    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 6, marginTop: 6 }}>
-                      <Mini label="SESSÕES">
-                        <input type="number" min={1} max={30} value={s.sessoes}
-                          onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })}
+                    {/* Posologia campo-a-campo · tudo alinhado à linha imaginária esquerda */}
+                    <div style={{
+                      marginTop: 8, display: "flex", flexDirection: "column", gap: 5,
+                      paddingLeft: 8, borderLeft: `1px solid ${c.line}`,
+                    }}>
+                      <Campo label="DOSE">
+                        <input value={s.dose}
+                          onChange={(e) => update(s.id, { dose: e.target.value })}
                           style={inpBase} />
-                      </Mini>
-                      <Mini label="FREQ.">
+                      </Campo>
+                      <Campo label="VIA">
+                        <select value={s.via}
+                          onChange={(e) => update(s.id, { via: e.target.value as Via })}
+                          style={inpBase}>
+                          {(Object.keys(VIA_META) as Via[]).map(vv => (
+                            <option key={vv} value={vv}>{vv} · {VIA_META[vv].titulo}</option>
+                          ))}
+                        </select>
+                      </Campo>
+                      <Campo label="FREQ.">
                         <select value={s.frequencia}
                           onChange={(e) => update(s.id, { frequencia: e.target.value as Frequencia })}
                           style={inpBase}>
                           {FREQUENCIAS.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
-                      </Mini>
-                      <Mini label="ÂNCORA" full>
+                      </Campo>
+                      <Campo label="PERÍODO">
+                        <select value={s.periodo || ""}
+                          onChange={(e) => update(s.id, { periodo: e.target.value || undefined })}
+                          style={inpBase}>
+                          <option value="">AUTO · pelos horários</option>
+                          {PERIODOS_DIA.map(p => (
+                            <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
+                          ))}
+                        </select>
+                      </Campo>
+                      <Campo label="SESSÕES">
+                        <input type="number" min={1} max={30} value={s.sessoes}
+                          onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })}
+                          style={inpBase} />
+                      </Campo>
+                      <Campo label="ÂNCORA">
                         <select value={s.ancora || "sem-ancora"}
                           onChange={(e) => update(s.id, { ancora: e.target.value as Ancora })}
                           style={inpBase}>
                           {ANCORAS.map(a => <option key={a.v} value={a.v}>{a.lbl === "—" ? "sem âncora" : a.lbl}</option>)}
                         </select>
-                      </Mini>
+                      </Campo>
                     </div>
 
                     {/* Mini-timeline da própria substância */}
@@ -404,31 +436,8 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
               )}
             </div>
 
-            {/* Sugestões + subtotal */}
-            {cands.length > 0 && (
-              <div style={{ padding: 8, borderTop: `1px solid ${tk.border}` }}>
-                <div style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5, marginBottom: 4 }}>
-                  + ADICIONAR
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  {cands.slice(0, 3).map(s => (
-                    <button key={s.id}
-                      onClick={() => addItem(s)}
-                      onMouseEnter={(e) => { e.currentTarget.style.outline = `1px solid ${c.dot}`; e.currentTarget.style.boxShadow = `0 0 6px ${c.line}`; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.outline = `1px solid ${tk.border}`; e.currentTarget.style.boxShadow = "none"; }}
-                      style={{
-                        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4,
-                        padding: "4px 6px", background: tk.bg, color: tk.ink, border: "none",
-                        outline: `1px solid ${tk.border}`, outlineOffset: "-1px",
-                        cursor: "pointer", textAlign: "left", transition: "all 0.12s",
-                      }}>
-                      <span style={{ fontSize: 10, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.nome}</span>
-                      <span style={{ fontFamily: tk.mono, fontSize: 9, color: c.dot, flexShrink: 0 }}>+</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Funil VIA → CATEGORIA → ATIVO · lista completa + busca */}
+            <PainelAdicionar cor={c.dot} corLine={c.line} cands={cands} addItem={addItem} />
 
             <div style={{
               padding: "6px 10px", borderTop: `1px solid ${tk.border}`,
@@ -450,15 +459,97 @@ const inpBase: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
 };
 
-function Mini({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{
-      display: "flex", flexDirection: "column", gap: 2,
-      gridColumn: full ? "1 / -1" : "auto",
-    }}>
-      <span style={{ fontFamily: tk.mono, fontSize: 7, color: tk.inkSubtle, letterSpacing: 1.2 }}>{label}</span>
+    <label style={{ display: "grid", gridTemplateColumns: "64px 1fr", alignItems: "center", gap: 8 }}>
+      <span style={{
+        fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.2,
+        textAlign: "left", whiteSpace: "nowrap",
+      }}>{label}</span>
       {children}
     </label>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Painel + ADICIONAR · funil VIA → CATEGORIA → ATIVO (lista completa + busca)
+// ───────────────────────────────────────────────────────────────────────
+function PainelAdicionar({ cor, corLine, cands, addItem }: {
+  cor: string; corLine: string; cands: Substancia[]; addItem: (s: Substancia) => void;
+}) {
+  const [busca, setBusca] = useState("");
+  const [cat, setCat] = useState<Categoria | null>(null);
+
+  const categorias = useMemo(
+    () => CATEGORIAS.filter(k => cands.some(s => s.categoria === k)),
+    [cands],
+  );
+  const q = busca.trim().toLowerCase();
+  const filtrados = cands.filter(s =>
+    (!cat || s.categoria === cat) &&
+    (!q || s.nome.toLowerCase().includes(q) || (s.detalhe || "").toLowerCase().includes(q)),
+  );
+
+  if (cands.length === 0) return null;
+
+  const chip = (ativo: boolean): React.CSSProperties => ({
+    fontFamily: tk.mono, fontSize: 8, fontWeight: 700, letterSpacing: 0.5,
+    padding: "3px 7px", cursor: "pointer", whiteSpace: "nowrap",
+    background: ativo ? cor : tk.bg, color: ativo ? tk.bg : tk.inkMuted,
+    border: `1px solid ${ativo ? cor : tk.border}`, transition: "all 0.12s",
+  });
+
+  return (
+    <div style={{ padding: 8, borderTop: `1px solid ${tk.border}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
+        <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5 }}>+ ADICIONAR</span>
+        <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle }}>{filtrados.length}/{cands.length}</span>
+      </div>
+
+      {/* busca textual */}
+      <input value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        placeholder="buscar ativo…"
+        style={{ ...inpBase, fontSize: 10, padding: "4px 7px", marginBottom: 6 }} />
+
+      {/* nível 2 · categorias terapêuticas */}
+      {categorias.length > 1 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+          <button onClick={() => setCat(null)} style={chip(cat === null)}>TODAS</button>
+          {categorias.map(k => (
+            <button key={k} onClick={() => setCat(cat === k ? null : k)} style={chip(cat === k)}>{k}</button>
+          ))}
+        </div>
+      )}
+
+      {/* nível 3 · lista completa rolável (sem teto) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 168, overflowY: "auto" }}>
+        {filtrados.map(s => (
+          <button key={s.id}
+            onClick={() => addItem(s)}
+            onMouseEnter={(e) => { e.currentTarget.style.outline = `1px solid ${cor}`; e.currentTarget.style.boxShadow = `0 0 6px ${corLine}`; }}
+            onMouseLeave={(e) => { e.currentTarget.style.outline = `1px solid ${tk.border}`; e.currentTarget.style.boxShadow = "none"; }}
+            style={{
+              display: "grid", gridTemplateColumns: "1fr auto", gap: 4, alignItems: "center",
+              padding: "4px 6px", background: tk.bg, color: tk.ink, border: "none",
+              outline: `1px solid ${tk.border}`, outlineOffset: "-1px",
+              cursor: "pointer", textAlign: "left", transition: "all 0.12s",
+            }}>
+            <span style={{ overflow: "hidden" }}>
+              <span style={{ display: "block", fontSize: 10, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.nome}</span>
+              <span style={{ display: "block", fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle }}>{s.categoria || "—"} · {s.dose}</span>
+            </span>
+            <span style={{ fontFamily: tk.mono, fontSize: 11, fontWeight: 700, color: cor, flexShrink: 0 }}>+</span>
+          </button>
+        ))}
+        {filtrados.length === 0 && (
+          <div style={{
+            border: `1px dashed ${tk.borderStrong}`, padding: 8, textAlign: "center",
+            fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1,
+          }}>NADA ENCONTRADO</div>
+        )}
+      </div>
+    </div>
   );
 }
 

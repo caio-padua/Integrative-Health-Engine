@@ -77,6 +77,7 @@ export function CraniotomiaV4() {
   const [inspectorW, setInspectorW] = usePersisted<number>("crn-v4-inspector-w", 320);
   const [legendCollapsed, setLegendCollapsed] = usePersisted<boolean>("crn-v4-legend-collapsed", false);
   const [inspectorCollapsed, setInspectorCollapsed] = usePersisted<boolean>("crn-v4-inspector-collapsed", false);
+  const [marcadasArr, setMarcadasArr] = usePersisted<number[]>("crn-v4-marcadas", []);
 
   // ---------- Estado efêmero ----------
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -86,6 +87,7 @@ export function CraniotomiaV4() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; sinapseId: number } | null>(null);
 
   const filtroB1 = useMemo(() => new Set(filtroB1Arr), [filtroB1Arr]);
+  const marcadas = useMemo(() => new Set(marcadasArr), [marcadasArr]);
   const tableRowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const bodyContainerRef = useRef<HTMLDivElement>(null);
@@ -232,6 +234,41 @@ export function CraniotomiaV4() {
     setFiltroB1Arr(filtroB1Arr.includes(b1) ? filtroB1Arr.filter((x) => x !== b1) : [...filtroB1Arr, b1]);
   };
 
+  // ---------- Craniotomia por blocos (regra 2.4A Caio) ----------
+  // Um "bloco" = sinapses que nascem da MESMA origem de anamnese (b1|b2):
+  // o mesmo sinal dispara varias acoes terapeuticas. Marcar 1 sugere o bloco
+  // inteiro; a validacao oferece completar o bloco ou remover o item isolado.
+  const blocosIncompletos = useMemo(() => {
+    const porBloco = new Map<string, Sinapse[]>();
+    SINAPSES.forEach((s) => {
+      const k = `${s.b1}|${s.b2}`;
+      const arr = porBloco.get(k);
+      if (arr) arr.push(s); else porBloco.set(k, [s]);
+    });
+    const out: { key: string; b1: B1; b2: string; membros: Sinapse[]; marcados: Sinapse[] }[] = [];
+    porBloco.forEach((membros, key) => {
+      const marcados = membros.filter((m) => marcadas.has(m.id));
+      if (marcados.length > 0 && marcados.length < membros.length) {
+        out.push({ key, b1: membros[0].b1, b2: membros[0].b2, membros, marcados });
+      }
+    });
+    return out;
+  }, [marcadas]);
+
+  const blocosDistintos = useMemo(
+    () => new Set(SINAPSES.filter((s) => marcadas.has(s.id)).map((s) => `${s.b1}|${s.b2}`)).size,
+    [marcadas],
+  );
+
+  const toggleMarcada = (id: number) =>
+    setMarcadasArr(marcadasArr.includes(id) ? marcadasArr.filter((x) => x !== id) : [...marcadasArr, id]);
+  const completarBloco = (membros: Sinapse[]) =>
+    setMarcadasArr([...new Set([...marcadasArr, ...membros.map((m) => m.id)])]);
+  const removerIsolado = (membros: Sinapse[]) => {
+    const ids = new Set(membros.map((m) => m.id));
+    setMarcadasArr(marcadasArr.filter((x) => !ids.has(x)));
+  };
+
   const expandirPainel = (qual: "GRAFO" | "MATRIZ" | "RESET") => {
     if (qual === "GRAFO") setSplitPct(splitPct >= 80 ? 50 : 80);
     else if (qual === "MATRIZ") setSplitPct(splitPct <= 20 ? 50 : 20);
@@ -311,6 +348,7 @@ export function CraniotomiaV4() {
             <KpiPill label="BLOQ" value={RESUMO.bloqueadas} color="var(--crn-estado-bloqueado)" />
             <KpiPill label="VALID" value={RESUMO.aguardando} color="var(--crn-estado-validacao)" />
             <KpiPill label="HITS 30D" value={RESUMO.hitsTotal} color="var(--crn-accent)" />
+            <KpiPill label="MARCADAS" value={marcadas.size} color="var(--crn-accent-strong)" />
           </div>
           <div className="flex items-center gap-1">
             {(Object.keys(B1_LABEL) as B1[]).map((b1) => {
@@ -340,6 +378,53 @@ export function CraniotomiaV4() {
           <div className="mt-2 flex items-center gap-2 text-[10px] text-[var(--crn-estado-validacao)] bg-[var(--crn-estado-validacao)]/10 border border-[var(--crn-estado-validacao)] px-2 py-1">
             <Focus className="w-3 h-3" />
             <span>Isolado: <strong>{isolatedNode.split("|")[1]}</strong> ({filteredSinapses.length} sinapses) — Esc pra sair</span>
+          </div>
+        )}
+
+        {/* CRANIOTOMIA POR BLOCOS · validacao de bloco incompleto (regra 2.4A) */}
+        {(blocosIncompletos.length > 0 || marcadas.size > 0) && (
+          <div className="mt-2 flex flex-col gap-1">
+            {blocosIncompletos.length > 0 && (
+              <div className="flex items-start gap-2 text-[10px] text-[var(--crn-estado-validacao)] bg-[var(--crn-estado-validacao)]/10 border border-[var(--crn-estado-validacao)] px-2 py-1">
+                <Layers className="w-3 h-3 mt-0.5 flex-none" />
+                <div className="flex-1 flex flex-col gap-1">
+                  <span className="font-bold uppercase tracking-wider">
+                    Bloco incompleto — {blocosIncompletos.length} sinal(is) com acao isolada
+                  </span>
+                  {blocosIncompletos.map((bl) => (
+                    <div key={bl.key} className="flex items-center gap-2 flex-wrap">
+                      <span className="px-1 font-bold text-white" style={{ backgroundColor: B1_COR[bl.b1] }}>{bl.b1}</span>
+                      <span className="text-[var(--crn-fg)]">{bl.b2}</span>
+                      <span className="font-mono text-[var(--crn-fg-muted)]">{bl.marcados.length}/{bl.membros.length} marcado</span>
+                      <button
+                        onClick={() => completarBloco(bl.membros)}
+                        className="px-1.5 py-0.5 border border-[var(--crn-estado-ativo)] text-[var(--crn-estado-ativo)] hover:bg-[var(--crn-estado-ativo)]/15 flex items-center gap-1"
+                      >
+                        <Plus className="w-2.5 h-2.5" /> COMPLETAR BLOCO
+                      </button>
+                      <button
+                        onClick={() => removerIsolado(bl.membros)}
+                        className="px-1.5 py-0.5 border border-[var(--crn-estado-bloqueado)] text-[var(--crn-estado-bloqueado)] hover:bg-[var(--crn-estado-bloqueado)]/15 flex items-center gap-1"
+                      >
+                        <Trash2 className="w-2.5 h-2.5" /> REMOVER ISOLADO
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {marcadas.size > 0 && (
+              <div className="flex items-center gap-2 text-[9px] text-[var(--crn-fg-dim)]">
+                <span>
+                  {marcadas.size} sinapse(s) marcada(s) em {blocosDistintos} bloco(s) distinto(s)
+                  {blocosDistintos > 1 ? " — atencao: protocolo puxa de mais de um bloco" : ""}
+                </span>
+                <button
+                  onClick={() => setMarcadasArr([])}
+                  className="px-1.5 py-0.5 border border-[var(--crn-border)] text-[var(--crn-fg-dim)] hover:text-[var(--crn-fg)]"
+                >LIMPAR MARCADAS</button>
+              </div>
+            )}
           </div>
         )}
       </header>
@@ -551,6 +636,7 @@ export function CraniotomiaV4() {
             <table className="w-full text-left whitespace-nowrap" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
               <thead className="sticky top-[28px] z-10 bg-[var(--crn-bg-panel)] shadow-[0_1px_0_var(--crn-border)] text-[9px] text-[var(--crn-fg-dim)] uppercase tracking-wider">
                 <tr>
+                  <th className="px-2 py-1.5 w-8 text-center" title="Marcar pro protocolo">✓</th>
                   <th className="px-2 py-1.5 w-14">BLOCO</th>
                   <th className="px-2 py-1.5 w-32">CÓDIGO V4</th>
                   <th className="px-2 py-1.5 w-[200px]">SINAL DE ANAMNESE</th>
@@ -587,10 +673,20 @@ export function CraniotomiaV4() {
                         // Como table usa border-separate, o boxShadow no <tr> renderiza por baixo das tds (que aplicam a borda visivel).
                         boxShadow: (isHovered || isSelected)
                           ? `0 0 0 1px ${B1_COR[s.b1]}, 0 0 8px ${B1_COR[s.b1]}cc, 0 0 18px ${B1_COR[s.b1]}55`
-                          : "none",
+                          : marcadas.has(s.id) ? `inset 3px 0 0 ${B1_COR[s.b1]}` : "none",
                         transition: "box-shadow 70ms ease-out, background-color 70ms ease-out",
                       }}
                     >
+                      <td className="px-2 py-1 text-center">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleMarcada(s.id); }}
+                          className={`w-3.5 h-3.5 border inline-flex items-center justify-center ${marcadas.has(s.id) ? "text-white" : "text-transparent hover:text-[var(--crn-fg-dim)]"}`}
+                          style={{ borderColor: marcadas.has(s.id) ? B1_COR[s.b1] : "var(--crn-border-strong)", backgroundColor: marcadas.has(s.id) ? B1_COR[s.b1] : "transparent" }}
+                          title={marcadas.has(s.id) ? "Desmarcar do protocolo" : "Marcar pro protocolo"}
+                        >
+                          <span className="text-[9px] leading-none">✓</span>
+                        </button>
+                      </td>
                       <td className="px-2 py-1">
                         <span
                           className="inline-flex px-1.5 py-0.5 font-bold tracking-widest text-[8px] border"
