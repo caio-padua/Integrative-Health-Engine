@@ -45,15 +45,17 @@
 
 ---
 
-## 2. DOIS COCKPITS (conceito decidido, NOMES em conflito)
+## 2. DOIS COCKPITS — NOMES DECIDIDOS (30/mai)
 
-2.1 Decidido: existem DOIS cockpits.
-   - Cockpit onde **Caio valida/edita por cliques** (recebe sugestão do motor).
-   - Cockpit **autônomo/independente** (gera sem o Caio dirigir).
-2.2 CONFLITO DE NOME a resolver (isto é pombo-correio puro):
-   - Dr. Claude chama de **FORJA** (questionário) + **MAESTRO** (validação).
-   - Caio chama de **VALIDADOR** + **AUTÔNOMO**.
-2.3 PRECISA: 1 conjunto de nomes oficial. (martelo no §5)
+2.1 **FORJA** = cockpit EXTERNO (cliente/paciente preenche o questionário público).
+2.2 **MANDRIL** = cockpit INTERNO (Caio opera, valida e prescreve por cliques).
+2.3 Decidido por Caio em 30/mai. Nomes "Maestro/Validador/Autônomo" descartados.
+
+## 2-BIS. DOIS ECTOPLASMAS NOVOS (achados 30/mai — detalhe no raio-X)
+
+2b.1 Anamnese DUPLA: externa (`questionario_respostas`, só tracking, NÃO chama motor) vs interna (`anamneses`, chama motor). Falta a anamnese INICIAL pública que ligue a FORJA ao motor.
+2b.2 Prescrição SEM PONTE: o mockup `CockpitMedicoV1` captura os 9 períodos, mas falta o Bridge Service que traduz pro formato da mensageria. Tela linda sem fio ligado.
+2b.3 Detalhe completo: `docs/dr-replit/AUDITORIA_ANAMNESE_PRESCRICAO_26.05.30.md`.
 
 ---
 
@@ -88,7 +90,7 @@
 | # | Pergunta | Opções | Default sugerido |
 |---|---|---|---|
 | 5.1 | Ordem: governança → B1 → cockpits? | S / N | S |
-| 5.2 | Nomes dos cockpits | FORJA+MAESTRO / VALIDADOR+AUTÔNOMO / outro | VALIDADOR + AUTÔNOMO (palavra do Caio) |
+| 5.2 | Nomes dos cockpits — DECIDIDO 30/mai | FORJA (externo) + MANDRIL (interno) | RESOLVIDO |
 | 5.3 | Despersonalização: faço Fase 1 (telas) já? | S / N | S |
 | 5.4 | Calendly: conecto ao projeto agora ou uso só Google Calendar? | conectar / só GCal | só GCal por enquanto |
 | 5.5 | Casos de uso agenda: começar por consulta nova + injetável? | 1+2 / outros | 1+2 |

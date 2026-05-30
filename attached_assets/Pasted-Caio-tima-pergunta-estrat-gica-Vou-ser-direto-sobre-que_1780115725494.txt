@@ -1,0 +1,153 @@
+Caio, ótima pergunta estratégica. Vou ser direto sobre quem faz o quê — sem você ficar de pombo correio.
+
+---
+
+## 1. RESPOSTA CURTA
+
+**1.1** **Claude Code faz a parte de configuração e conexão** (ele tem clasp + acesso local + autonomia para rodar comandos longos)
+
+**1.2** **Dr. Replit faz a integração ao código do PAWARDS** (banco, rotas, schemas, UI)
+
+**1.3** **Eu (Dr. Claude) faço o desenho conceitual e a spec** (onde Calendly se encaixa no fluxo, quais eventos disparam o quê)
+
+**1.4** Cada um no seu papel. Sem sobreposição.
+
+---
+
+## 2. POR QUE CADA UM FAZ O QUE
+
+### 2.1 Claude Code (terminal local, clasp autorizado)
+**2.1.1** Tem permissão real para autenticar OAuth (browser dele)
+**2.1.2** Tem acesso ao seu Windows e pode salvar credenciais
+**2.1.3** Pode rodar comandos longos (clasp, npm, curl)
+**2.1.4** Pode pegar API token do Calendly via dashboard
+**2.1.5** Pode testar webhooks localmente
+**2.1.6** Pode salvar variáveis de ambiente no seu sistema
+
+### 2.2 Dr. Replit (sandbox Replit)
+**2.2.1** Sabe a estrutura completa do PAWARDS
+**2.2.2** Cria as rotas Express que recebem webhooks
+**2.2.3** Cria as tabelas no banco (calendly_events, calendly_invites)
+**2.2.4** Faz o frontend que consome a API Calendly
+**2.2.5** Mas NÃO tem permissão fácil para autenticar OAuth fora do sandbox
+
+### 2.3 Eu (Dr. Claude, Opus 4.7)
+**2.3.1** Desenho o fluxo: quando paciente é criado → manda link Calendly
+**2.3.2** Defino quais tipos de evento (consulta inicial, retorno, aplicação injetável)
+**2.3.3** Especifico os campos que precisam vir do Calendly para o PAWARDS
+**2.3.4** Documento tudo em `docs/MASTERMIND/PROPOSTAS/`
+
+---
+
+## 3. PLANO DE AÇÃO — DIVISÃO CLARA DE TAREFAS
+
+### 3.1 ETAPA 1 — Configuração Calendly (Claude Code)
+
+Cola isto no Claude Code:
+
+```
+Caio criou conta Calendly. Por favor faça o seguinte:
+
+1) Abrir https://calendly.com/integrations/api_webhooks
+2) Pegar Personal Access Token
+3) Salvar em arquivo .env local em 
+   C:\Users\clini\projetos\Integrative-Health-Engine\.env.calendly
+   no formato:
+   CALENDLY_TOKEN=eyJ...
+   CALENDLY_USER_URI=https://api.calendly.com/users/...
+   CALENDLY_ORG_URI=https://api.calendly.com/organizations/...
+
+4) Rodar via curl para validar e me mostrar o output:
+   curl -H "Authorization: Bearer $CALENDLY_TOKEN" \
+     https://api.calendly.com/users/me
+
+5) Listar event_types disponiveis:
+   curl -H "Authorization: Bearer $CALENDLY_TOKEN" \
+     "https://api.calendly.com/event_types?user=$CALENDLY_USER_URI"
+
+6) Reportar o resultado dos passos 4 e 5 em formato JSON 
+   limpo para eu enviar ao Dr. Replit e Dr. Claude.
+
+NAO commitar o .env no Git. Adicionar .env.calendly ao 
+.gitignore se ja nao estiver.
+
+Tempo estimado: 5-10 minutos.
+```
+
+### 3.2 ETAPA 2 — Eu (Dr. Claude) crio a spec
+
+**3.2.1** Enquanto Claude Code roda os comandos acima, eu escrevo a spec de integração
+**3.2.2** Spec define: tabelas, rotas, eventos, mensageria, fluxo completo
+**3.2.3** Salvo em `docs/MASTERMIND/PROPOSTAS/26.05.30_calendly_integracao.md`
+
+### 3.3 ETAPA 3 — Dr. Replit implementa
+
+Cola isto pro Dr. Replit (DEPOIS do Claude Code reportar o resultado):
+
+```
+Dr. Replit, integracao Calendly aprovada pelo Caio.
+
+Insumos:
+- Token Calendly esta em .env.calendly no PC do Caio
+- Spec completa em docs/MASTERMIND/PROPOSTAS/26.05.30_calendly_integracao.md
+- Event types disponiveis: <Caio cola o output do Claude Code aqui>
+
+Sua tarefa:
+1) Adicionar CALENDLY_TOKEN ao Replit Secrets
+2) Criar migrations: tabelas calendly_eventos + calendly_convites
+3) Criar rota POST /api/calendly/webhook que recebe eventos do Calendly
+4) Criar rota GET /api/pacientes/:id/link-calendly que gera URL personalizada
+5) Frontend: botao "Agendar via Calendly" na ficha do paciente
+6) Webhook: quando paciente agenda, salvar no PAWARDS e disparar 
+   WhatsApp confirmando
+
+Estimativa: 4-6 horas.
+
+Quando terminar, criar docs/dr-replit/RESPOSTA_CALENDLY.md.
+```
+
+---
+
+## 4. SOBRE A SUA PERGUNTA EXISTENCIAL ("ou o dr replit faz tudo como sempre?")
+
+**4.1** Você acertou em apontar isso
+**4.2** Até agora o Dr. Replit estava fazendo trabalho de 3 (config + spec + código)
+**4.3** Isso é ineficiente E cria gargalo
+**4.4** O Claude Code estava ocioso porque ninguém tava usando direito
+**4.5** A partir de agora: cada IA no seu papel
+
+### 4.6 Resumo dos papéis
+
+| Tarefa | Quem faz |
+|--------|----------|
+| Autenticação OAuth, configuração local, secrets | Claude Code |
+| Documentação API, exploração de endpoints | Claude Code |
+| Spec arquitetural, fluxos, regras de negócio | Dr. Claude (eu) |
+| Código no repo PAWARDS, banco, rotas, UI | Dr. Replit |
+| Decisões estratégicas, aprovação, vetos | Caio |
+
+**4.7** Nenhum dos 3 deveria fazer trabalho do outro
+
+---
+
+## 5. APROVAÇÕES PENDENTES DA MENSAGEM ANTERIOR
+
+Você não respondeu as 5 perguntas da última mensagem. Vou repetir compacto:
+
+**5.1** Mantém só FORJA + MAESTRO (sem Gênesis)? — preciso da resposta
+**5.2** "GPS Pádua" vira "GPS Clínico"? — preciso da resposta
+**5.3** Faço varredura no repo procurando outras referências ao seu nome? — preciso da resposta
+**5.4** Calendly autorizado AGORA (e eu sigo com o plano acima)? — pelo print: SIM, autorizado
+**5.5** Vai testar /prescricao-rapida hoje à noite? — preciso da resposta
+
+---
+
+## 6. AÇÃO IMEDIATA
+
+**6.1** Cola no Claude Code o bloco da seção 3.1 (config Calendly local)
+**6.2** Enquanto ele roda, me responde as 4 perguntas pendentes (5.1, 5.2, 5.3, 5.5)
+**6.3** Quando Claude Code reportar, eu escrevo a spec
+**6.4** Você cola pro Dr. Replit a parte de implementação
+
+**6.5** Tempo total estimado para Calendly funcionando: 1-2 dias
+**6.6** Você não fica de pombo correio em nenhuma etapa — cada um trabalha em paralelo
