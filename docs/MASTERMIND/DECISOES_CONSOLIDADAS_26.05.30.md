@@ -75,13 +75,14 @@
 
 ---
 
-## 4. CALENDLY — CORREÇÃO HONESTA AO DR. CLAUDE
+## 4. CALENDLY — CONECTADO E ATIVO (30/mai)
 
-4.1 O print mostra Calendly "Active" — mas isso é na CONTA Replit do Caio.
-4.2 No PROJETO PAWARDS, **não há conexão Calendly** (testei: 0 conexões).
-4.3 Google Calendar SIM está ligado ao projeto e funciona.
-4.4 Para usar Calendly no app, falta CONECTAR o Calendly a este projeto.
-4.5 Enquanto isso: dá pra fazer agendamento 100% com Google Calendar (já temos).
+4.1 Calendly vinculado ao projeto via integração nativa do Replit (sem token manual).
+4.2 Conta lida: `caio padua`, email institucional `ceo@pawards.com.br`, agenda `calendly.com/ceo-pawards`.
+4.3 Acesso é SÓ LEITURA (users / event_types / scheduled_events).
+4.4 PENDÊNCIA: a conta é nova e tem **0 tipos de evento**. Caio precisa criar no painel Calendly.
+4.5 Recomendado criar 2 tipos primeiro: "Consulta Nova" + "Aplicação Injetável" (casos 1+2).
+4.6 Google Calendar segue ligado e funcionando (9 agendas) — os dois convivem.
 
 ---
 
@@ -92,7 +93,7 @@
 | 5.1 | Ordem: governança → B1 → cockpits? | S / N | S |
 | 5.2 | Nomes dos cockpits — DECIDIDO 30/mai | FORJA (externo) + MANDRIL (interno) | RESOLVIDO |
 | 5.3 | Despersonalização: faço Fase 1 (telas) já? | S / N | S |
-| 5.4 | Calendly: conecto ao projeto agora ou uso só Google Calendar? | conectar / só GCal | só GCal por enquanto |
+| 5.4 | Calendly — CONECTADO 30/mai | falta Caio criar tipos de evento no painel | RESOLVIDO (conexão) |
 | 5.5 | Casos de uso agenda: começar por consulta nova + injetável? | 1+2 / outros | 1+2 |
 | 5.6 | MODO 2 da B1 (farmácia sem comissão): faço já (mexe trigger) ou depois? | já / depois | depois |
 
