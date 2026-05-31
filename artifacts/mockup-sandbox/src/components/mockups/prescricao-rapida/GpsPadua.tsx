@@ -392,7 +392,13 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         <MiniCampo label="PERÍODO">
                           <NeonSelect cor={c.dot} value={s.periodo || ""}
                             onChange={(e) => update(s.id, { periodo: e.target.value || undefined })}>
-                            <option value="">AUTO · pelo horário</option>
+                            {/* REGRA 1: em AUTO, depois de digitar o HORÁRIO o período derivado aparece aqui */}
+                            <option value="">
+                              {(() => {
+                                const p = s.horario ? horarioParaPeriodo(s.horario) : null;
+                                return p ? `AUTO → ${p.sigla} · ${p.nome}` : "AUTO · pelo horário";
+                              })()}
+                            </option>
                             {PERIODOS_DIA.map(p => (
                               <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
                             ))}
