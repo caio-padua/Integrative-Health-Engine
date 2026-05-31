@@ -224,6 +224,7 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
           formula={formulaAberta}
           update={(patch) => update(formulaAberta.id, patch)}
           onClose={() => setEditandoFormula(null)}
+          selecionarFormula={(id) => setEditandoFormula(id)}
           carta={carta} setCarta={setCarta} todasFormulas={sel} />
       )}
 
@@ -844,6 +845,91 @@ function PrescricaoPreview({ s, cor }: { s: Substancia; cor: string }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────
+// FOLHA · receita consolidada · todas as fórmulas (ativos + posologia) como sai no papel
+// ───────────────────────────────────────────────────────────────────────
+function FolhaConsolidada({ todasFormulas }: { todasFormulas: Substancia[] }) {
+  const ordemVias: Via[] = ["EV", "IM", "SC", "VO", "IMP", "PRC"];
+  const ordenadas = [...todasFormulas].sort(
+    (a, b) => ordemVias.indexOf(a.via) - ordemVias.indexOf(b.via),
+  );
+  return (
+    <div style={{ padding: 14 }}>
+      <div style={{ background: tk.bg, border: `1px solid ${tk.border}`, padding: 14 }}>
+        {/* Cabeçalho da folha */}
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+          borderBottom: `1px solid ${tk.border}`, paddingBottom: 8, marginBottom: 10,
+        }}>
+          <div>
+            <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 2 }}>
+              PRESCRIÇÃO · COMO SAI NA FOLHA
+            </div>
+            <div style={{ fontFamily: tk.sans, fontSize: 13, fontWeight: 700, color: tk.ink, marginTop: 3 }}>
+              {PACIENTE.nome}
+            </div>
+            <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 1 }}>
+              ID {PACIENTE.id} · {PACIENTE.idade}a · CPF {PACIENTE.cpf}
+            </div>
+          </div>
+          <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1 }}>
+            {ordenadas.length} {ordenadas.length === 1 ? "ITEM" : "ITENS"}
+          </span>
+        </div>
+
+        {/* Cada fórmula: ativos + posologia */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {ordenadas.map((f, idx) => {
+            const cf = tk.via[f.via];
+            const comps = f.componentes || [];
+            return (
+              <div key={f.id} style={{
+                borderLeft: `3px solid ${cf.dot}`, paddingLeft: 10,
+                display: "flex", flexDirection: "column", gap: 5,
+              }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkSubtle }}>
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{
+                    fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cf.dot,
+                    padding: "1px 6px", border: `1px solid ${cf.line}`, letterSpacing: 1,
+                  }}>{f.via}</span>
+                  <span style={{ fontFamily: tk.sans, fontSize: 12, fontWeight: 700, color: tk.ink }}>{f.nome}</span>
+                </div>
+
+                {/* Ativos (componentes do blend) */}
+                {comps.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1, paddingLeft: 4 }}>
+                    {comps.map((cp, i) => (
+                      <div key={cp.id} style={{
+                        display: "flex", justifyContent: "space-between", gap: 8,
+                        fontFamily: tk.mono, fontSize: 10, color: tk.ink,
+                      }}>
+                        <span>{String(i + 1).padStart(2, "0")} · {cp.nome || "—"}</span>
+                        <span style={{ color: tk.inkMuted }}>{cp.dose}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Posologia */}
+                {f.via === "VO" ? (
+                  <PrescricaoPreview s={f} cor={cf.dot} />
+                ) : (
+                  <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted, paddingLeft: 4 }}>
+                    {f.dose} · {quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
 // Painel + ADICIONAR · funil VIA → CATEGORIA → ATIVO (lista completa + busca)
 // ───────────────────────────────────────────────────────────────────────
 function PainelAdicionar({ cor, corLine, cands, addItem }: {
@@ -1095,18 +1181,19 @@ function ActionBar({ total, sel, porVia }: {
 // 3º ANDAR · Editor de Blend (fórmula magistral expandida)
 // ───────────────────────────────────────────────────────────────────────
 
-function EditorBlend({ formula, update, onClose, carta, setCarta, todasFormulas }: {
+function EditorBlend({ formula, update, onClose, selecionarFormula, carta, setCarta, todasFormulas }: {
   formula: Substancia;
   update: (patch: Partial<Substancia>) => void;
   onClose: () => void;
+  selecionarFormula: (id: string) => void;
   carta: MatrizCartaEncantamento;
   setCarta: (c: MatrizCartaEncantamento) => void;
   todasFormulas: Substancia[];
 }) {
   const c = tk.via[formula.via];
   const componentes = formula.componentes || [];
-  // R2 · dois modos de visualização: a fórmula selecionada OU todas a prescrever.
-  const [modoVis, setModoVis] = useState<"SELECIONADA" | "TODAS">("SELECIONADA");
+  // R2 · três modos: a fórmula SELECIONADA, VER TODAS (clicável) ou FOLHA (receita consolidada).
+  const [modoVis, setModoVis] = useState<"SELECIONADA" | "TODAS" | "FOLHA">("SELECIONADA");
 
   const setComp = (idx: number, patch: Partial<ComponenteBlend>) => {
     const novo = componentes.map((c, i) => i === idx ? { ...c, ...patch } : c);
@@ -1149,17 +1236,18 @@ function EditorBlend({ formula, update, onClose, carta, setCarta, todasFormulas 
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* R2 · toggle de visualização */}
+          {/* R2 · toggle de visualização · SELECIONADA / VER TODAS / FOLHA */}
           <div style={{ display: "flex", border: `1px solid ${tk.border}` }}>
-            {(["SELECIONADA", "TODAS"] as const).map(m => {
+            {(["SELECIONADA", "TODAS", "FOLHA"] as const).map((m, i, arr) => {
               const ativo = modoVis === m;
+              const rotulo = m === "SELECIONADA" ? "SELECIONADA" : m === "TODAS" ? "VER TODAS" : "FOLHA";
               return (
                 <button key={m} onClick={() => setModoVis(m)} style={{
                   fontFamily: tk.mono, fontSize: 8, fontWeight: 700, letterSpacing: 1,
                   padding: "4px 8px", cursor: "pointer",
                   background: ativo ? c.dot : tk.bg, color: ativo ? tk.bg : tk.inkMuted,
-                  border: "none", borderRight: m === "SELECIONADA" ? `1px solid ${tk.border}` : "none",
-                }}>{m === "SELECIONADA" ? "SELECIONADA" : "VER TODAS"}</button>
+                  border: "none", borderRight: i < arr.length - 1 ? `1px solid ${tk.border}` : "none",
+                }}>{rotulo}</button>
               );
             })}
           </div>
@@ -1170,25 +1258,39 @@ function EditorBlend({ formula, update, onClose, carta, setCarta, todasFormulas 
         </div>
       </div>
 
-      {/* R2 · MODO VER TODAS · prescrição empilhada de todas as fórmulas a prescrever */}
+      {/* R2 · MODO VER TODAS · cada fórmula é clicável: emoldura + abre pra edição */}
       {modoVis === "TODAS" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14 }}>
           <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5 }}>
-            TODAS AS FÓRMULAS A PRESCREVER · {todasFormulas.length}
+            TODAS AS FÓRMULAS A PRESCREVER · {todasFormulas.length} · clique pra editar
           </span>
           {todasFormulas.map(f => {
             const cf = tk.via[f.via];
+            const atual = f.id === formula.id;
             return (
-              <div key={f.id} style={{
-                background: tk.bg, border: `1px solid ${tk.border}`, borderLeft: `3px solid ${cf.dot}`,
-                padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5,
-              }}>
+              <button key={f.id}
+                onClick={() => { selecionarFormula(f.id); setModoVis("SELECIONADA"); }}
+                aria-current={atual}
+                title="Clique pra emoldurar e editar esta fórmula"
+                style={{
+                  textAlign: "left", cursor: "pointer", width: "100%",
+                  background: atual ? cf.soft : tk.bg,
+                  border: atual ? `1px solid ${cf.dot}` : `1px solid ${tk.border}`,
+                  borderLeft: `3px solid ${cf.dot}`,
+                  boxShadow: atual ? `0 0 10px ${cf.line}` : "none",
+                  padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5,
+                }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                   <span style={{
                     fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cf.dot,
                     padding: "1px 6px", border: `1px solid ${cf.line}`, letterSpacing: 1,
                   }}>{f.via}</span>
                   <span style={{ fontFamily: tk.sans, fontSize: 12, fontWeight: 700, color: tk.ink }}>{f.nome}</span>
+                  {atual && (
+                    <span style={{ fontFamily: tk.mono, fontSize: 8, fontWeight: 700, color: cf.dot, letterSpacing: 1, marginLeft: "auto" }}>
+                      EM EDIÇÃO
+                    </span>
+                  )}
                 </div>
                 {f.via === "VO" ? (
                   <PrescricaoPreview s={f} cor={cf.dot} />
@@ -1197,10 +1299,12 @@ function EditorBlend({ formula, update, onClose, carta, setCarta, todasFormulas 
                     {f.dose} · {quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}
                   </div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
+      ) : modoVis === "FOLHA" ? (
+        <FolhaConsolidada todasFormulas={todasFormulas} />
       ) : (
       /* MODO SELECIONADA · 2 colunas: substâncias do blend + tomadas */
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 14, padding: 14 }}>
