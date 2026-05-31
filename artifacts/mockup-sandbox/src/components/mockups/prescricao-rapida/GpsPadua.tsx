@@ -123,25 +123,25 @@ function pluralUnidade(u: string): string {
   if (u.endsWith("ão")) return u.slice(0, -2) + "ões"; // aplicação → aplicações
   return u + "s";
 }
-// Traduz a frequência em cadência natural ("1×/sem" → "1 ampola a cada 7 dias").
-function cadenciaInjetavel(freq: string | undefined, unidade: string): string | null {
-  if (!freq) return null;
+// Frequência em linguagem natural pra linha rotulada ("1×/sem" → "A cada 7 dias").
+function frequenciaNatural(freq?: string): string {
+  if (!freq) return "—";
   const f = freq.toLowerCase().trim();
-  if (f.includes("única") || f.includes("unica")) return "dose única";
-  if (f.includes("diár") || f.includes("diar")) return `1 ${unidade} por dia`;
-  if (f.includes("quinzenal")) return `1 ${unidade} a cada 15 dias`;
-  if (f.includes("mensal")) return `1 ${unidade} a cada 30 dias`;
-  if (f === "semanal") return `1 ${unidade} a cada 7 dias`;
+  if (f.includes("única") || f.includes("unica")) return "Dose única";
+  if (f.includes("diár") || f.includes("diar")) return "Diária";
+  if (f.includes("quinzenal")) return "A cada 15 dias";
+  if (f.includes("mensal")) return "A cada 30 dias";
+  if (f === "semanal") return "A cada 7 dias";
   const semMatch = f.match(/^(\d+)\s*[x×]\s*\/?\s*sem/);
   if (semMatch) {
     const n = parseInt(semMatch[1], 10);
-    if (n === 1) return `1 ${unidade} a cada 7 dias`;
-    return `${n} ${pluralUnidade(unidade)} por semana`;
+    if (n === 1) return "A cada 7 dias";
+    return `${n}× por semana`;
   }
-  return null;
+  return freq;
 }
 
-function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: string }[]; quantidade: string } {
+function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: string }[]; quantidade: string; rodape?: { label: string; valor: string }[] } {
   const ts = tomadasDe(s);
   const inj = ehInjetavel(s.via);
   const tomadas = ts.map(t => {
@@ -170,11 +170,14 @@ function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: strin
     const ap = s.sessoes;
     const unidade = unidadeInjetavel(s.quantidade);
     const totalUnid = ap > 1 ? pluralUnidade(unidade) : unidade;
-    const cad = cadenciaInjetavel(s.frequencia, unidade);
-    // "Quantidade: 6 ampolas ( 1 ampola a cada 7 dias )" — total + cadência numa frase
-    // só, deixando sessões e frequência implícitas (pedido Caio 31/05).
-    const detalhe = cad ? ` ( ${cad} )` : (s.frequencia ? ` · ${s.frequencia}` : "");
-    return { tomadas, quantidade: `Quantidade: ${ap} ${totalUnid}${detalhe}` };
+    // Rodapé do injetável em linhas rotuladas explícitas (pedido Caio 31/05):
+    // Quantidade / Sessões / Frequência — um fato por linha, sem jargão "1×/sem".
+    const rodape = [
+      { label: "Quantidade", valor: `${ap} ${totalUnid}` },
+      { label: "Sessões", valor: `${ap}` },
+      { label: "Frequência", valor: frequenciaNatural(s.frequencia) },
+    ];
+    return { tomadas, quantidade: `Quantidade: ${ap} ${totalUnid}`, rodape };
   }
   const dpd = dosesPorDia(s);
   const dias = diasDeDuracao(s.duracao);
@@ -924,7 +927,7 @@ function TomadasEditor({ tomadas, setTomadas, cor, line }: {
 
 // Bloco de saída da prescrição (R7) · 1 linha por tomada + Obs. + Quantidade.
 function PrescricaoPreview({ s, cor, comTitulo = false }: { s: Substancia; cor: string; comTitulo?: boolean }) {
-  const { tomadas, quantidade } = linhasPrescricao(s);
+  const { tomadas, quantidade, rodape } = linhasPrescricao(s);
   return (
     <div style={{
       marginTop: 2, padding: "6px 8px", background: tk.bgAlt,
@@ -949,10 +952,20 @@ function PrescricaoPreview({ s, cor, comTitulo = false }: { s: Substancia; cor: 
           </div>
         ))}
       </div>
-      <div style={{
-        fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cor,
-        letterSpacing: 0.5, marginTop: 4,
-      }}>{quantidade}</div>
+      {rodape ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 4 }}>
+          {rodape.map((r, i) => (
+            <div key={i} style={{ fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cor, letterSpacing: 0.5 }}>
+              {r.label}: {r.valor}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{
+          fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cor,
+          letterSpacing: 0.5, marginTop: 4,
+        }}>{quantidade}</div>
+      )}
     </div>
   );
 }

@@ -1,45 +1,50 @@
-# Proposta — Quantidade do injetável em linguagem natural
+# Proposta — Rodapé do injetável em linhas rotuladas explícitas
 
 Data: 31/05/2026
-Origem: refinamento do CEO Caio, com exemplo e pergunta:
+Origem: refinamento do CEO Caio. Primeiro testei a frase consolidada
+"Quantidade: 6 ampolas ( 1 ampola a cada 7 dias )". Caio respondeu que a
+fórmula está perfeita e propôs, pros injetáveis, o formato rotulado:
 
 ```
 Coenzima Q10 100mg
 Aplicar 1 ou 2 Ampola IM ( depende do caso ) - Antes do Café da Manhã
-Quantidade: 6 Ampolas ( 1 Ampola a cada 7 dias )
+Quantidade: 6 Ampolas
+Sessões: 6
+Frequência: A cada 7 dias
 ```
-"Porque desta forma já fica implícito as sessões e frequência, correto?"
 
-## 1. Resposta à pergunta
+## 1. Decisão
 
-1.1. Correto.
+1.1. Escolhido o formato rotulado explícito (opção do Caio) em vez da frase consolidada.
 
-1.2. "6 Ampolas" = total (vem das sessões).
+1.2. Motivo: um fato por linha, escaneável, alinhado à preferência TDAH do Caio.
 
-1.3. "( 1 Ampola a cada 7 dias )" = cadência (vem da frequência 1×/sem).
+## 2. Formato final do rodapé (só injetável)
 
-1.4. As duas informações ficam numa frase só, sem jargão "sessões"/"1×/sem".
+2.1. "Quantidade: N {unidade-plural}" — total a dispensar (vem das sessões).
 
-## 2. Mudança
+2.2. "Sessões: N" — número de aplicações.
 
-2.1. A linha Quantidade do injetável deixa de ser "Quantidade: 6 aplicações · 1×/sem".
+2.3. "Frequência: A cada 7 dias" — frequência traduzida em linguagem natural.
 
-2.2. Passa a ser "Quantidade: 6 {unidade-plural} ( 1 {unidade} a cada N dias )".
+## 3. Traduções de frequência
 
-2.3. A unidade (ampola/frasco/aplicação) é lida do campo QTD por aplicação.
+3.1. 1×/sem ou semanal → "A cada 7 dias".
 
-2.4. A cadência traduz a frequência: 1×/sem→7 dias, quinzenal→15 dias, mensal→30 dias, diária→por dia, única→dose única.
+3.2. quinzenal → "A cada 15 dias"; mensal → "A cada 30 dias".
 
-2.5. Frequência fora do mapa cai no fallback "· {frequência}" (sem quebrar).
+3.3. diária → "Diária"; única → "Dose única".
 
-## 3. Sobre a linha "Aplicar 1 ou 2 ( depende do caso )"
+3.4. 2×/sem → "2× por semana"; fora do mapa → texto original (sem quebrar).
 
-3.1. O campo QTD já é texto livre — o médico digita "1 ou 2 ampola ( depende do caso )".
+## 4. A linha "Aplicar 1 ou 2 Ampola ( depende do caso )"
 
-3.2. Não mudo a montagem da linha (Aplicar {qtd} {via} — {período}) pra não engessar; a via fica após a quantidade.
+4.1. O campo QTD é texto livre — o médico digita "1 ou 2 ampola ( depende do caso )".
 
-## 4. Escopo / segurança
+4.2. Sai como "Aplicar {qtd} {via} — {período}", sem relógio (horário vive na mensageria).
 
-4.1. Vale só pro injetável (EV/IM/SC); VO/IMP/PRC inalterados.
+## 5. Escopo / segurança
 
-4.2. Sem migration, sem mudança de dados — só o texto do preview.
+5.1. Vale só pro injetável (EV/IM/SC); VO/IMP/PRC mantêm a linha única "Quantidade: ...".
+
+5.2. Sem migration, sem mudança de dados — só o texto do preview.

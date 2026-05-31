@@ -16,8 +16,11 @@ Regras:
 - Bloco "COMO SAI NA RECEITA" do injetável é autocontido: 1a linha = nome+dose
   (prop `comTitulo`, só no card por-via; na folha o nome já vem no cabeçalho),
   2a linha = "Aplicar {qtd} {via} — {período}" SEM relógio (horário vive no campo+mensageria),
-  3a linha = "Quantidade: N {unidade-plural} ( 1 {unidade} a cada N dias )" — total (sessões)
-  + cadência (frequência traduzida) numa frase só, em linguagem natural sem jargão.
+  rodapé = 3 linhas ROTULADAS (preferência final Caio 31/05, um fato por linha TDAH):
+  "Quantidade: N {unidade-plural}" / "Sessões: N" / "Frequência: A cada 7 dias".
+  Unidade lida do campo QTD; frequência traduzida por `frequenciaNatural` (1×/sem→"A cada 7 dias",
+  quinzenal→15, mensal→30, diária→"Diária", única→"Dose única"). Render via `rodape?` em
+  linhasPrescricao + branch em PrescricaoPreview; VO/IMP/PRC usam `quantidade` string single-line.
 - FREQUÊNCIA: só SC mantém dropdown (datalist); IM/EV são texto livre puro.
 
 **Why:** receita de injetável tem que sair legível como posologia real, não como
