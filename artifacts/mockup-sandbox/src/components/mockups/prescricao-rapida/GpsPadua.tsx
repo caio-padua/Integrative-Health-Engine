@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, CATEGORIAS, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
-  VIA_META, FREQUENCIAS, HORARIOS_PADRAO, DURACOES,
+  VIA_META, FREQUENCIAS, HORARIOS_PADRAO, DURACOES, ACOES_ANCORA,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
 import {
-  type Substancia, type Via, type Categoria, type Frequencia, type Ancora, type ComponenteBlend,
+  type Substancia, type Via, type Categoria, type Frequencia, type Ancora, type AcaoAncora, type ComponenteBlend,
 } from "./_tokens";
 
 type Modo = "PILHA" | "TIMELINE" | "GPS";
@@ -17,11 +17,13 @@ const SESSAO_ATUAL = 3;
 
 const ANCORAS: { v: Ancora; lbl: string }[] = [
   { v: "sem-ancora", lbl: "—" },
-  { v: "primeira",   lbl: "1ª" },
+  { v: "primeira",   lbl: "1ª sessão" },
+  { v: "segunda",    lbl: "2ª sessão" },
   { v: "S01", lbl: "S01" }, { v: "S02", lbl: "S02" }, { v: "S03", lbl: "S03" },
   { v: "S04", lbl: "S04" }, { v: "S05", lbl: "S05" }, { v: "S06", lbl: "S06" },
   { v: "S07", lbl: "S07" }, { v: "S08", lbl: "S08" },
-  { v: "penultima", lbl: "PEN" }, { v: "ultima", lbl: "ÚLT" },
+  { v: "antepenultima", lbl: "antepenúltima" },
+  { v: "penultima", lbl: "penúltima" }, { v: "ultima", lbl: "última" },
 ];
 
 function brl(n: number) {
@@ -30,8 +32,11 @@ function brl(n: number) {
 
 function sessoesAtivas(s: Substancia): boolean[] {
   const arr = new Array(TOTAL_SESSOES).fill(false);
+  if (s.ancora === "primeira")  { arr[0] = true; return arr; }
+  if (s.ancora === "segunda")   { arr[1] = true; return arr; }
   if (s.ancora === "ultima")    { arr[TOTAL_SESSOES - 1] = true; return arr; }
   if (s.ancora === "penultima") { arr[TOTAL_SESSOES - 2] = true; return arr; }
+  if (s.ancora === "antepenultima") { arr[TOTAL_SESSOES - 3] = true; return arr; }
   if (s.ancora && s.ancora.startsWith("S")) {
     const idx = parseInt(s.ancora.slice(1), 10) - 1;
     if (idx >= 0 && idx < TOTAL_SESSOES) arr[idx] = true;
@@ -408,10 +413,13 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                             {DURACOES.map(d => <option key={d} value={d}>{d}</option>)}
                           </NeonSelect>
                         </MiniCampo>
-                        <MiniCampo label="SESSÕES">
-                          <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
-                            onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
-                        </MiniCampo>
+                        {/* SESSÕES = nº de comparecimentos do paciente · em VO some (uso contínuo em casa) */}
+                        {s.via !== "VO" && (
+                          <MiniCampo label="SESSÕES">
+                            <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
+                              onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                          </MiniCampo>
+                        )}
                       </div>
 
                       {/* MENSAGEM · instrução livre (sentido próprio → sozinho) */}
@@ -423,13 +431,28 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         </MiniCampo>
                       </div>
 
-                      {/* ÂNCORA · vínculo a marco da jornada (sentido próprio → sozinho) */}
+                      {/* ÂNCORA · marco da jornada + ação vinculada (mesmo sentido → lado a lado) */}
                       <div style={{ display: "flex", gap: 6 }}>
-                        <MiniCampo label="ÂNCORA">
+                        <MiniCampo label="ÂNCORA · MARCO">
                           <NeonSelect cor={c.dot} value={s.ancora || "sem-ancora"}
                             onChange={(e) => update(s.id, { ancora: e.target.value as Ancora })}>
                             {ANCORAS.map(a => <option key={a.v} value={a.v}>{a.lbl === "—" ? "sem vínculo" : a.lbl}</option>)}
                           </NeonSelect>
+                        </MiniCampo>
+                        <MiniCampo label="AÇÃO">
+                          <NeonSelect cor={c.dot} value={s.ancoraAcao ?? "—"}
+                            onChange={(e) => update(s.id, { ancoraAcao: e.target.value === "—" ? undefined : (e.target.value as AcaoAncora) })}>
+                            {ACOES_ANCORA.map(a => <option key={a} value={a}>{a === "—" ? "sem ação" : a}</option>)}
+                          </NeonSelect>
+                        </MiniCampo>
+                      </div>
+
+                      {/* NOTA DA ÂNCORA · frase livre (lembrete do paciente ou da fórmula) */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <MiniCampo label="NOTA DA ÂNCORA">
+                          <NeonInput cor={c.dot} value={s.ancoraNota ?? ""}
+                            placeholder="ex: esposa grávida, parabenizar · solicitar TSH na próxima"
+                            onChange={(e) => update(s.id, { ancoraNota: e.target.value })} />
                         </MiniCampo>
                       </div>
                     </div>

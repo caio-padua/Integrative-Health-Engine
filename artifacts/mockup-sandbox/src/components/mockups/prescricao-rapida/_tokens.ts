@@ -71,8 +71,21 @@ export type Duracao = typeof DURACOES[number];
 export type Ancora =
   | "sem-ancora"
   | "primeira"
+  | "segunda"
   | "S01" | "S02" | "S03" | "S04" | "S05" | "S06" | "S07" | "S08"
-  | "penultima" | "ultima";
+  | "antepenultima" | "penultima" | "ultima";
+
+// Acao vinculada a uma ancora (marco da jornada). Ex: na 1a sessao "Mensagem ao
+// paciente", na penultima "Exame / Encaminhamento". Selecionavel + nota livre.
+export const ACOES_ANCORA = [
+  "—",
+  "Exame / Encaminhamento",
+  "Mensagem ao paciente",
+  "Procedimento",
+  "Lembrete da fórmula",
+  "Outro",
+] as const;
+export type AcaoAncora = typeof ACOES_ANCORA[number];
 
 export type ComponenteBlend = {
   id: string;
@@ -91,6 +104,11 @@ export type Substancia = {
   frequencia: Frequencia;
   preco: number;
   ancora?: Ancora;
+  // ancoraAcao = acao vinculada ao marco da ancora (exame, mensagem, procedimento...)
+  ancoraAcao?: AcaoAncora;
+  // ancoraNota = frase livre da ancora, lembrete sobre o paciente ou a formula
+  // (ex: "esposa gravida, parabenizar"; "solicitar TSH na proxima")
+  ancoraNota?: string;
   // período cronobiológico explícito (sigla JE/IM/MM/AL/IT/MT/NO/FN/CE) ou undefined = AUTO pelos horários
   periodo?: string;
   periodos?: string[];
@@ -206,7 +224,7 @@ export const CATALOGO: Substancia[] = [
   { id: "estr-imp",  nome: "Implante Estradiol",         via: "IMP", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 1050, ancora: "primeira" },
 
   // ── PRC · PROCEDIMENTOS / CONSULTA / EXAMES ───────────────────────────────
-  { id: "consulta",  nome: "Consulta Clínica",           via: "PRC", categoria: "Consulta & Exames",    dose: "60 min",  detalhe: "Reavaliação clínica",         sessoes: 2, frequencia: "mensal",   preco: 500,  ancora: "primeira", quantidade: "1 sessão", duracao: "—", horario: "09:00", periodo: "MM" },
+  { id: "consulta",  nome: "Consulta Clínica",           via: "PRC", categoria: "Consulta & Exames",    dose: "60 min",  detalhe: "Reavaliação clínica",         sessoes: 2, frequencia: "mensal",   preco: 500,  ancora: "primeira", quantidade: "1 sessão", duracao: "—", horario: "09:00", periodo: "MM", ancoraAcao: "Mensagem ao paciente", ancoraNota: "lembrar de perguntar do recém-nascido" },
   { id: "exame-lab", nome: "Encaminhamento Laboratório", via: "PRC", categoria: "Consulta & Exames",    dose: "—",       detalhe: "Painel hormonal completo",    sessoes: 1, frequencia: "única",    preco: 0,    ancora: "penultima" },
   { id: "bioimp",    nome: "Bioimpedância Segmentar",    via: "PRC", categoria: "Consulta & Exames",    dose: "—",       detalhe: "Composição corporal",         sessoes: 2, frequencia: "mensal",   preco: 120,  ancora: "primeira" },
   { id: "botox",     nome: "Botox Toxina Botulínica",    via: "PRC", categoria: "Estética",             dose: "50 U",    detalhe: "Estética facial · terço sup", sessoes: 1, frequencia: "semestral", preco: 1500, ancora: "ultima" },

@@ -73,3 +73,20 @@ Opcoes:
 5.3 Nova const DURACOES (7/15/30/45/60/90 dias, 6 meses, continuo).
 5.4 HORARIO ligado ao PERIODO via janelas de _mensageria.ts.
 5.5 Mockup funcional e editavel para o Caio testar antes de levar ao app real.
+
+## 6. VALIDACAO DO CAIO (31/05/2026) — implementado
+
+6.1 SESSOES = Opcao A confirmada.
+6.2 SESSOES = numero de comparecimentos do paciente para aplicar o item (EV/IM/SC/IMP/PRC).
+6.3 Em VO o campo SESSOES some (uso continuo em casa, sem comparecimento).
+6.4 Subtotal de VO segue visivel no rodape (N x preco), entao o valor nao fica oculto.
+
+6.5 ANCORA = Opcao A confirmada, com EXTENSAO pedida pelo Caio.
+6.6 ANCORA virou um cluster com 3 partes:
+6.6.1 MARCO da jornada: sem-vinculo, 1a sessao, 2a sessao, S01..S08, antepenultima, penultima, ultima.
+6.6.2 ACAO selecionavel vinculada ao marco: Exame/Encaminhamento, Mensagem ao paciente, Procedimento, Lembrete da formula, Outro.
+6.6.3 NOTA livre: lembrete sobre o paciente ou a formula (ex: "esposa gravida, parabenizar"; "solicitar TSH na proxima").
+
+6.7 Impacto tecnico aditivo: tipo Ancora ganhou "segunda" e "antepenultima".
+6.8 Substancia ganhou ancoraAcao (tipo AcaoAncora) e ancoraNota (string), ambos opcionais.
+6.9 Nenhum campo removido; back-compat preservado; typecheck verde.
