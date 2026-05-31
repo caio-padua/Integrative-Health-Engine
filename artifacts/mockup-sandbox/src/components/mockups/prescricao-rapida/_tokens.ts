@@ -60,7 +60,15 @@ export const FREQUENCIAS = [
   "1×/sem", "2×/sem", "3×/sem",
   "quinzenal", "mensal", "trimestral", "semestral",
 ] as const;
-export type Frequencia = typeof FREQUENCIAS[number];
+
+// Frequencia de aplicacao dos INJETAVEIS (EV/IM/SC) no formato "a cada N dias"
+// que o Caio pediu — substitui o campo DURACAO nessas vias.
+export const FREQUENCIAS_INJETAVEL = [
+  "diário", "a cada 2 dias", "a cada 3 dias", "a cada 7 dias",
+  "a cada 15 dias", "a cada 21 dias", "a cada 30 dias",
+] as const;
+
+export type Frequencia = typeof FREQUENCIAS[number] | typeof FREQUENCIAS_INJETAVEL[number];
 
 // Duracao = extensao do tratamento (campo "duracao" da posologia campo-a-campo).
 export const DURACOES = [
@@ -102,6 +110,7 @@ export type Substancia = {
   detalhe?: string;
   sessoes: number;
   frequencia: Frequencia;
+  dosesDia?: number;
   preco: number;
   ancora?: Ancora;
   // ancoraAcao = acao vinculada ao marco da ancora (exame, mensagem, procedimento...)

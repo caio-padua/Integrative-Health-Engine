@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, CATEGORIAS, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
-  VIA_META, FREQUENCIAS, HORARIOS_PADRAO, DURACOES, ACOES_ANCORA,
+  VIA_META, FREQUENCIAS, FREQUENCIAS_INJETAVEL, HORARIOS_PADRAO, DURACOES, ACOES_ANCORA,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
@@ -28,6 +28,45 @@ const ANCORAS: { v: Ancora; lbl: string }[] = [
 
 function brl(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+// Injetaveis usam SESSOES + FREQUENCIA ("a cada N dias"); VO usa DURACAO + DOSES/DIA.
+function ehInjetavel(via: Via): boolean {
+  return via === "EV" || via === "IM" || via === "SC";
+}
+
+// "30 dias" -> 30 · "6 meses" -> 180 · "continuo" -> null
+function diasDeDuracao(d?: string): number | null {
+  if (!d) return null;
+  const md = d.match(/(\d+)\s*dia/);
+  if (md) return parseInt(md[1], 10);
+  const mm = d.match(/(\d+)\s*m[eê]s/);
+  if (mm) return parseInt(mm[1], 10) * 30;
+  return null;
+}
+
+// Doses por dia: usa dosesDia explicito; senao deriva da frequencia legada
+// (2×/dia -> 2, 3×/dia -> 3, demais -> 1) pra nao subcontar itens do catalogo.
+function dosesPorDia(s: Substancia): number {
+  if (s.dosesDia != null) return s.dosesDia;
+  if (s.frequencia === "2×/dia") return 2;
+  if (s.frequencia === "3×/dia") return 3;
+  return 1;
+}
+
+// Linha "QUANTIDADE: N DOSES" embaixo da posologia (pedido Caio 31/05).
+// VO: doses/dia x dias de duracao. Injetaveis: nº de aplicacoes (= sessoes).
+function quantidadeResumo(s: Substancia): string | null {
+  if (s.via === "VO") {
+    const dpd = dosesPorDia(s);
+    const dias = diasDeDuracao(s.duracao);
+    if (dias) return `${dpd * dias} DOSES`;
+    return `${dpd} ${dpd > 1 ? "DOSES" : "DOSE"}/DIA · CONTÍNUO`;
+  }
+  if (ehInjetavel(s.via)) {
+    return `${s.sessoes} ${s.sessoes > 1 ? "APLICAÇÕES" : "APLICAÇÃO"}`;
+  }
+  return null;
 }
 
 function sessoesAtivas(s: Substancia): boolean[] {
@@ -410,23 +449,67 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         </MiniCampo>
                       </div>
 
-                      {/* EXTENSÃO · duração + sessões (mesmo sentido → lado a lado) */}
+                      {/* EXTENSÃO · injetáveis: SESSÕES + FREQUÊNCIA · VO: DURAÇÃO + DOSES/DIA · demais: DURAÇÃO + SESSÕES */}
                       <div style={{ display: "flex", gap: 6 }}>
-                        <MiniCampo label="DURAÇÃO">
-                          <NeonSelect cor={c.dot} value={s.duracao ?? ""}
-                            onChange={(e) => update(s.id, { duracao: e.target.value || undefined })}>
-                            <option value="">—</option>
-                            {DURACOES.map(d => <option key={d} value={d}>{d}</option>)}
-                          </NeonSelect>
-                        </MiniCampo>
-                        {/* SESSÕES = nº de comparecimentos do paciente · em VO some (uso contínuo em casa) */}
-                        {s.via !== "VO" && (
-                          <MiniCampo label="SESSÕES">
-                            <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
-                              onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
-                          </MiniCampo>
+                        {s.via === "VO" ? (
+                          <>
+                            <MiniCampo label="DURAÇÃO">
+                              <NeonSelect cor={c.dot} value={s.duracao ?? ""}
+                                onChange={(e) => update(s.id, { duracao: e.target.value || undefined })}>
+                                <option value="">—</option>
+                                {DURACOES.map(d => <option key={d} value={d}>{d}</option>)}
+                              </NeonSelect>
+                            </MiniCampo>
+                            {/* DOSES/DIA alimenta o cálculo QUANTIDADE: N DOSES (doses/dia × dias) */}
+                            <MiniCampo label="DOSES/DIA">
+                              <NeonInput cor={c.dot} type="number" min={1} max={12} value={dosesPorDia(s)}
+                                onChange={(e) => update(s.id, { dosesDia: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                            </MiniCampo>
+                          </>
+                        ) : ehInjetavel(s.via) ? (
+                          <>
+                            {/* SESSÕES antes · DURAÇÃO virou FREQUÊNCIA nos injetáveis (pedido Caio 31/05) */}
+                            <MiniCampo label="SESSÕES">
+                              <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
+                                onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                            </MiniCampo>
+                            <MiniCampo label="FREQUÊNCIA">
+                              <NeonSelect cor={c.dot} value={s.frequencia}
+                                onChange={(e) => update(s.id, { frequencia: e.target.value as Frequencia })}>
+                                {!FREQUENCIAS_INJETAVEL.includes(s.frequencia as typeof FREQUENCIAS_INJETAVEL[number]) && (
+                                  <option value={s.frequencia}>{s.frequencia}</option>
+                                )}
+                                {FREQUENCIAS_INJETAVEL.map(f => <option key={f} value={f}>{f}</option>)}
+                              </NeonSelect>
+                            </MiniCampo>
+                          </>
+                        ) : (
+                          <>
+                            <MiniCampo label="DURAÇÃO">
+                              <NeonSelect cor={c.dot} value={s.duracao ?? ""}
+                                onChange={(e) => update(s.id, { duracao: e.target.value || undefined })}>
+                                <option value="">—</option>
+                                {DURACOES.map(d => <option key={d} value={d}>{d}</option>)}
+                              </NeonSelect>
+                            </MiniCampo>
+                            <MiniCampo label="SESSÕES">
+                              <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
+                                onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                            </MiniCampo>
+                          </>
                         )}
                       </div>
+
+                      {/* QUANTIDADE: N DOSES · mensagem embaixo da posologia (pedido Caio 31/05) */}
+                      {quantidadeResumo(s) && (
+                        <div style={{
+                          marginTop: 2, padding: "3px 7px", background: tk.bgAlt,
+                          borderLeft: `3px solid ${c.dot}`,
+                          fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: c.dot, letterSpacing: 1,
+                        }}>
+                          QUANTIDADE: {quantidadeResumo(s)}
+                        </div>
+                      )}
 
                       {/* MENSAGEM · instrução livre (sentido próprio → sozinho) */}
                       <div style={{ display: "flex", gap: 6 }}>
@@ -465,16 +548,14 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
 
                     {/* Mini-timeline da própria substância */}
                     <div style={{ display: "flex", gap: 2, marginTop: 6 }}>
-                      {sessoesAtivas(s).map((on, i) => {
-                        const passada = i + 1 < SESSAO_ATUAL;
-                        return (
-                          <span key={i} title={`S${String(i + 1).padStart(2, "0")}`}
-                            style={{
-                              flex: 1, height: 6,
-                              background: on ? (passada ? c.line : c.dot) : tk.bgSoft,
-                            }} />
-                        );
-                      })}
+                      {/* Mini-timeline: sessões planejadas acesas (na prescrição não há sessão "passada") */}
+                      {sessoesAtivas(s).map((on, i) => (
+                        <span key={i} title={`S${String(i + 1).padStart(2, "0")}`}
+                          style={{
+                            flex: 1, height: 6,
+                            background: on ? c.dot : tk.bgSoft,
+                          }} />
+                      ))}
                     </div>
 
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
