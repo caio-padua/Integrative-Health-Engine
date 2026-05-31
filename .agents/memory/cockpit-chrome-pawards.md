@@ -21,11 +21,11 @@ Regras:
    Divisor vertical de 1px separa identidade (accent teal) de controles de sistema (ok/warn/danger). SAIR sempre na borda.
 
 4. **Nome operador formatado**: primeiro nome completo + iniciais com ponto dos nomes do meio + último sobrenome completo, maiúsculas.
-   Ex.: `Caio Henrique Fernandes Pádua` → `CAIO H. F. PÁDUA`.
+   Ex.: `Maria Aparecida Silva Costa` → `MARIA A. S. COSTA`.
    **Por quê**: chrome tem `fontSize: 10` uniforme (P08); nome completo polui, só primeiro perde formalidade institucional. Iniciais preservam identidade jurídica em ~18 chars.
    **Casos abertos** (Q015 do doc 23): "Filho/Junior/Neto", hifenizados, partículas ("de", "da") — regra ainda não fechada.
 
-5. **Cargo na chrome** vem da função real do operador (`usuarios.perfil` ou campo dedicado — Q014 aberta), nunca hardcoded "MÉDICO". Caio é CEO, enfermeira é ENFERMEIRA.
+5. **Cargo na chrome** vem da função real do operador (`usuarios.perfil` ou campo dedicado — Q014 aberta), nunca hardcoded "MÉDICO". O CEO aparece como CEO, a enfermeira como ENFERMEIRA.
 
 6. **SOM toggle** com ícone `♪` funcional: ON = accent ok verde + label "SOM"; OFF = `text-decoration: line-through` no ♪ + label "MUDO" + cor neutra. Posição: primeiro botão após o divisor identidade↔sistema.
 
