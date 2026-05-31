@@ -126,7 +126,8 @@ function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: strin
         : `${n} ${n > 1 ? "doses" : "dose"}`;
       dose = `Aplicar ${qtd} ${s.via}`;
       if (p) dose += ` — ${p.nome}`;
-      if (hora) dose += ` — às ${hora}`;
+      // Relógio sai do texto da receita do injetável (pedido Caio 31/05: "Aplicar 1 Ampola
+      // IM - Antes do Café da Manhã"). O horário continua vivo no campo + mensageria.
     } else {
       dose = `${n} ${n > 1 ? "Doses" : "Dose"} ${s.via}`;
       if (p) dose += ` — ${p.nome}`;
@@ -621,7 +622,7 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                           injetáveis — mesmo formato da prescrição de fórmulas (pedido Caio 31/05).
                           IMP/PRC mantêm o resumo curto QUANTIDADE. */}
                       {(s.via === "VO" || ehInjetavel(s.via)) ? (
-                        <PrescricaoPreview s={s} cor={c.dot} />
+                        <PrescricaoPreview s={s} cor={c.dot} comTitulo={ehInjetavel(s.via)} />
                       ) : quantidadeResumo(s) && (
                         <div style={{
                           marginTop: 2, padding: "3px 7px", background: tk.bgAlt,
@@ -887,7 +888,7 @@ function TomadasEditor({ tomadas, setTomadas, cor, line }: {
 }
 
 // Bloco de saída da prescrição (R7) · 1 linha por tomada + Obs. + Quantidade.
-function PrescricaoPreview({ s, cor }: { s: Substancia; cor: string }) {
+function PrescricaoPreview({ s, cor, comTitulo = false }: { s: Substancia; cor: string; comTitulo?: boolean }) {
   const { tomadas, quantidade } = linhasPrescricao(s);
   return (
     <div style={{
@@ -898,6 +899,11 @@ function PrescricaoPreview({ s, cor }: { s: Substancia; cor: string }) {
         fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle,
         letterSpacing: 1.5, marginBottom: 4,
       }}>PRESCRIÇÃO · COMO SAI NA RECEITA</div>
+      {comTitulo && (
+        <div style={{
+          fontFamily: tk.mono, fontSize: 11, fontWeight: 700, color: tk.ink, marginBottom: 4,
+        }}>{s.nome}{s.dose ? ` ${s.dose}` : ""}</div>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {tomadas.map((t, i) => (
           <div key={i}>
