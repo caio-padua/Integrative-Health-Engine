@@ -548,14 +548,16 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
 
                     {/* Mini-timeline da própria substância */}
                     <div style={{ display: "flex", gap: 2, marginTop: 6 }}>
-                      {/* Mini-timeline: sessões planejadas acesas (na prescrição não há sessão "passada") */}
-                      {sessoesAtivas(s).map((on, i) => (
-                        <span key={i} title={`S${String(i + 1).padStart(2, "0")}`}
-                          style={{
-                            flex: 1, height: 6,
-                            background: on ? c.dot : tk.bgSoft,
-                          }} />
-                      ))}
+                      {sessoesAtivas(s).map((on, i) => {
+                        const passada = i + 1 < SESSAO_ATUAL;
+                        return (
+                          <span key={i} title={`S${String(i + 1).padStart(2, "0")}`}
+                            style={{
+                              flex: 1, height: 6,
+                              background: on ? (passada ? c.line : c.dot) : tk.bgSoft,
+                            }} />
+                        );
+                      })}
                     </div>
 
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
