@@ -111,6 +111,36 @@ function horariosDeTomadas(s: Substancia): string[] {
 
 // Formato de saída da prescrição (regra Caio 31/05): 1 linha por tomada, Obs. embaixo
 // só quando preenchida, e "Quantidade: N Doses" no rodapé. Singular/plural automático.
+// Unidade do injetável lida do campo QTD por aplicação ("1 ampola" → "ampola").
+const UNIDADES_INJETAVEL = ["ampola", "frasco", "seringa", "flaconete", "aplicação", "aplicacao", "dose"];
+function unidadeInjetavel(quantidade?: string): string {
+  const low = (quantidade ?? "").toLowerCase();
+  const hit = UNIDADES_INJETAVEL.find(u => low.includes(u));
+  if (!hit) return "aplicação";
+  return hit === "aplicacao" ? "aplicação" : hit;
+}
+function pluralUnidade(u: string): string {
+  if (u.endsWith("ão")) return u.slice(0, -2) + "ões"; // aplicação → aplicações
+  return u + "s";
+}
+// Traduz a frequência em cadência natural ("1×/sem" → "1 ampola a cada 7 dias").
+function cadenciaInjetavel(freq: string | undefined, unidade: string): string | null {
+  if (!freq) return null;
+  const f = freq.toLowerCase().trim();
+  if (f.includes("única") || f.includes("unica")) return "dose única";
+  if (f.includes("diár") || f.includes("diar")) return `1 ${unidade} por dia`;
+  if (f.includes("quinzenal")) return `1 ${unidade} a cada 15 dias`;
+  if (f.includes("mensal")) return `1 ${unidade} a cada 30 dias`;
+  if (f === "semanal") return `1 ${unidade} a cada 7 dias`;
+  const semMatch = f.match(/^(\d+)\s*[x×]\s*\/?\s*sem/);
+  if (semMatch) {
+    const n = parseInt(semMatch[1], 10);
+    if (n === 1) return `1 ${unidade} a cada 7 dias`;
+    return `${n} ${pluralUnidade(unidade)} por semana`;
+  }
+  return null;
+}
+
 function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: string }[]; quantidade: string } {
   const ts = tomadasDe(s);
   const inj = ehInjetavel(s.via);
@@ -138,8 +168,13 @@ function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: strin
   });
   if (inj) {
     const ap = s.sessoes;
-    const freq = s.frequencia ? ` · ${s.frequencia}` : "";
-    return { tomadas, quantidade: `Quantidade: ${ap} ${ap > 1 ? "aplicações" : "aplicação"}${freq}` };
+    const unidade = unidadeInjetavel(s.quantidade);
+    const totalUnid = ap > 1 ? pluralUnidade(unidade) : unidade;
+    const cad = cadenciaInjetavel(s.frequencia, unidade);
+    // "Quantidade: 6 ampolas ( 1 ampola a cada 7 dias )" — total + cadência numa frase
+    // só, deixando sessões e frequência implícitas (pedido Caio 31/05).
+    const detalhe = cad ? ` ( ${cad} )` : (s.frequencia ? ` · ${s.frequencia}` : "");
+    return { tomadas, quantidade: `Quantidade: ${ap} ${totalUnid}${detalhe}` };
   }
   const dpd = dosesPorDia(s);
   const dias = diasDeDuracao(s.duracao);

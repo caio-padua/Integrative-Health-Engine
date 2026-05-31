@@ -12,8 +12,12 @@ Regras:
 - EV/IM/SC usam o MESMO `TomadasEditor` da VO → permitem mais de 1 aplicação/dia.
 - A miligramagem (campo `dose`) é FIXA do cadastro da fórmula → read-only no cockpit;
   o que o médico edita por injetável é `quantidade` (QTD por aplicação, ex "1 ampola").
-- Preview e FolhaConsolidada dos injetáveis passam por `PrescricaoPreview` →
-  formato "Aplicar {quantidade} {via} — {período} — às {hora}" + "Quantidade: N aplicações · frequência".
+- Preview e FolhaConsolidada dos injetáveis passam por `PrescricaoPreview`.
+- Bloco "COMO SAI NA RECEITA" do injetável é autocontido: 1a linha = nome+dose
+  (prop `comTitulo`, só no card por-via; na folha o nome já vem no cabeçalho),
+  2a linha = "Aplicar {qtd} {via} — {período}" SEM relógio (horário vive no campo+mensageria),
+  3a linha = "Quantidade: N {unidade-plural} ( 1 {unidade} a cada N dias )" — total (sessões)
+  + cadência (frequência traduzida) numa frase só, em linguagem natural sem jargão.
 - FREQUÊNCIA: só SC mantém dropdown (datalist); IM/EV são texto livre puro.
 
 **Why:** receita de injetável tem que sair legível como posologia real, não como
