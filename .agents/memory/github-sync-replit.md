@@ -42,14 +42,15 @@ sh('git --no-optional-locks push github HEAD:ver-l2-dr-claude 2>&1');
 console.log(sh('git --no-optional-locks log --oneline HEAD..github/ver-l2-dr-claude') || 'IN_SYNC');
 ```
 
-# Quando usar `syncToGitHub` (fallback)
+# `syncToGitHub` NÃO existe mais (confirmado 31/05/2026)
 
-A função `syncToGitHub([{path, msg}])` documentada em `.local/skills/sync-github-batch/SKILL.md` ainda existe e funciona, mas só serve agora pra:
+A função `syncToGitHub([...])` e o skill `.local/skills/sync-github-batch/` foram
+REMOVIDOS — `typeof syncToGitHub === "undefined"` e `skillSearch` não acha nada.
+NÃO tente usar; é caminho morto.
 
-- Hotfixes pontuais em 1-2 arquivos isolados onde criar um commit local + push é overhead
-- Casos onde o GitHub está disponível mas o git local está em estado ruim (rebase abortado, conflito não resolvido)
-
-**Para fluxo normal de Dr. Replit ↔ Dr. Claude, use `git push` direto.** É o caminho canônico — preserva histórico real do que aconteceu, não cria commits cosméticos "Replit Agent" duplicados.
+**Único caminho canônico agora: `git push` direto via remote `github`** (setup acima).
+Push normal funciona no sandbox do code_execution (só `--force` é bloqueado).
+Preserva histórico real, não cria commits cosméticos duplicados.
 
 # Lição do incidente de 2026-05-28
 
