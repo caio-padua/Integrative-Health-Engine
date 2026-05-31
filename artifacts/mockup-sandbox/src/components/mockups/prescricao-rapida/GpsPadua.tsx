@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, CATEGORIAS, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
-  VIA_META, FREQUENCIAS, HORARIOS_PADRAO,
+  VIA_META, FREQUENCIAS, HORARIOS_PADRAO, DURACOES,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
@@ -353,54 +353,85 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                       </div>
                     </div>
 
-                    {/* Posologia campo-a-campo · tudo alinhado à linha imaginária esquerda */}
+                    {/* Posologia campo-a-campo · clusters por sentido · linha imaginária à esquerda · neon ao focar/hover */}
                     <div style={{
-                      marginTop: 8, display: "flex", flexDirection: "column", gap: 5,
+                      marginTop: 8, display: "flex", flexDirection: "column", gap: 7,
                       paddingLeft: 8, borderLeft: `1px solid ${c.line}`,
                     }}>
-                      <Campo label="DOSE">
-                        <input value={s.dose}
-                          onChange={(e) => update(s.id, { dose: e.target.value })}
-                          style={inpBase} />
-                      </Campo>
-                      <Campo label="VIA">
-                        <select value={s.via}
-                          onChange={(e) => update(s.id, { via: e.target.value as Via })}
-                          style={inpBase}>
-                          {(Object.keys(VIA_META) as Via[]).map(vv => (
-                            <option key={vv} value={vv}>{vv} · {VIA_META[vv].titulo}</option>
-                          ))}
-                        </select>
-                      </Campo>
-                      <Campo label="FREQ.">
-                        <select value={s.frequencia}
-                          onChange={(e) => update(s.id, { frequencia: e.target.value as Frequencia })}
-                          style={inpBase}>
-                          {FREQUENCIAS.map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                      </Campo>
-                      <Campo label="PERÍODO">
-                        <select value={s.periodo || ""}
-                          onChange={(e) => update(s.id, { periodo: e.target.value || undefined })}
-                          style={inpBase}>
-                          <option value="">AUTO · pelos horários</option>
-                          {PERIODOS_DIA.map(p => (
-                            <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
-                          ))}
-                        </select>
-                      </Campo>
-                      <Campo label="SESSÕES">
-                        <input type="number" min={1} max={30} value={s.sessoes}
-                          onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })}
-                          style={inpBase} />
-                      </Campo>
-                      <Campo label="ÂNCORA">
-                        <select value={s.ancora || "sem-ancora"}
-                          onChange={(e) => update(s.id, { ancora: e.target.value as Ancora })}
-                          style={inpBase}>
-                          {ANCORAS.map(a => <option key={a.v} value={a.v}>{a.lbl === "—" ? "sem âncora" : a.lbl}</option>)}
-                        </select>
-                      </Campo>
+                      {/* QUANTO · dose + quantidade (mesmo sentido → lado a lado) */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <MiniCampo label="DOSE">
+                          <NeonInput cor={c.dot} value={s.dose}
+                            onChange={(e) => update(s.id, { dose: e.target.value })} />
+                        </MiniCampo>
+                        <MiniCampo label="QUANTIDADE">
+                          <NeonInput cor={c.dot} value={s.quantidade ?? ""} placeholder="ex: 2 cáps"
+                            onChange={(e) => update(s.id, { quantidade: e.target.value })} />
+                        </MiniCampo>
+                      </div>
+
+                      {/* VIA · rota (sentido próprio → sozinho) */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <MiniCampo label="VIA">
+                          <NeonSelect cor={c.dot} value={s.via}
+                            onChange={(e) => update(s.id, { via: e.target.value as Via })}>
+                            {(Object.keys(VIA_META) as Via[]).map(vv => (
+                              <option key={vv} value={vv}>{vv} · {VIA_META[vv].titulo}</option>
+                            ))}
+                          </NeonSelect>
+                        </MiniCampo>
+                      </div>
+
+                      {/* QUANDO NO DIA · período + horário (mesmo sentido → lado a lado) */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <MiniCampo label="PERÍODO">
+                          <NeonSelect cor={c.dot} value={s.periodo || ""}
+                            onChange={(e) => update(s.id, { periodo: e.target.value || undefined })}>
+                            <option value="">AUTO · pelo horário</option>
+                            {PERIODOS_DIA.map(p => (
+                              <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
+                            ))}
+                          </NeonSelect>
+                        </MiniCampo>
+                        <MiniCampo label="HORÁRIO">
+                          <NeonInput cor={c.dot} type="time" value={s.horario ?? ""}
+                            onChange={(e) => update(s.id, { horario: e.target.value })} />
+                        </MiniCampo>
+                      </div>
+
+                      {/* EXTENSÃO · duração + sessões (mesmo sentido → lado a lado) */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <MiniCampo label="DURAÇÃO">
+                          <NeonSelect cor={c.dot} value={s.duracao ?? ""}
+                            onChange={(e) => update(s.id, { duracao: e.target.value || undefined })}>
+                            <option value="">—</option>
+                            {DURACOES.map(d => <option key={d} value={d}>{d}</option>)}
+                          </NeonSelect>
+                        </MiniCampo>
+                        <MiniCampo label="SESSÕES">
+                          <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
+                            onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                        </MiniCampo>
+                      </div>
+
+                      {/* MENSAGEM · instrução livre (sentido próprio → sozinho) */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <MiniCampo label="MENSAGEM">
+                          <NeonInput cor={c.dot} value={s.mensagem ?? ""}
+                            placeholder="ex: antes do café da tarde · com suco de limão"
+                            onChange={(e) => update(s.id, { mensagem: e.target.value })} />
+                        </MiniCampo>
+                      </div>
+
+                      {/* ÂNCORA · vínculo a marco da jornada (sentido próprio → sozinho) */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <MiniCampo label="ÂNCORA">
+                          <NeonSelect cor={c.dot} value={s.ancora || "sem-ancora"}
+                            onChange={(e) => update(s.id, { ancora: e.target.value as Ancora })}>
+                            {ANCORAS.map(a => <option key={a.v} value={a.v}>{a.lbl === "—" ? "sem vínculo" : a.lbl}</option>)}
+                          </NeonSelect>
+                        </MiniCampo>
+                      </div>
                     </div>
 
                     {/* Mini-timeline da própria substância */}
@@ -459,15 +490,54 @@ const inpBase: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
 };
 
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+// Posologia campo-a-campo · cada campo é um quadradinho VISÍVEL com titulozinho em cima,
+// alinhado à esquerda; neon na cor da via ao focar/passar o mouse.
+function MiniCampo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "grid", gridTemplateColumns: "64px 1fr", alignItems: "center", gap: 8 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
       <span style={{
-        fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.2,
-        textAlign: "left", whiteSpace: "nowrap",
+        fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1,
+        textTransform: "uppercase", whiteSpace: "nowrap",
       }}>{label}</span>
       {children}
     </label>
+  );
+}
+
+function neonStyle(cor: string, ativo: boolean): React.CSSProperties {
+  return {
+    background: tk.bg, color: tk.ink,
+    border: `1px solid ${ativo ? cor : tk.borderStrong}`,
+    padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, outline: "none",
+    width: "100%", boxSizing: "border-box",
+    boxShadow: ativo ? `0 0 8px ${cor}, inset 0 0 6px ${cor}22` : "none",
+    transition: "border-color 0.12s, box-shadow 0.12s",
+  };
+}
+
+function NeonInput({ cor, ...props }: { cor: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const [ativo, setAtivo] = useState(false);
+  return (
+    <input {...props}
+      onFocus={(e) => { setAtivo(true); props.onFocus?.(e); }}
+      onBlur={(e) => { setAtivo(false); props.onBlur?.(e); }}
+      onMouseEnter={(e) => { setAtivo(true); props.onMouseEnter?.(e); }}
+      onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) setAtivo(false); props.onMouseLeave?.(e); }}
+      style={{ ...neonStyle(cor, ativo), ...props.style }} />
+  );
+}
+
+function NeonSelect({ cor, children, ...props }: { cor: string } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const [ativo, setAtivo] = useState(false);
+  return (
+    <select {...props}
+      onFocus={(e) => { setAtivo(true); props.onFocus?.(e); }}
+      onBlur={(e) => { setAtivo(false); props.onBlur?.(e); }}
+      onMouseEnter={(e) => { setAtivo(true); props.onMouseEnter?.(e); }}
+      onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) setAtivo(false); props.onMouseLeave?.(e); }}
+      style={{ ...neonStyle(cor, ativo), ...props.style }}>
+      {children}
+    </select>
   );
 }
 
