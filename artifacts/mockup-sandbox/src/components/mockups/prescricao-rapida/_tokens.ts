@@ -112,6 +112,8 @@ export type Tomada = {
   horario?: string;
   // número de doses (cápsulas/unidades) NESTE período
   doses: number;
+  // observação livre DESTA tomada (ex: "com suco de limão"). Vazia = não aparece na prescrição.
+  obs?: string;
 };
 
 export type Substancia = {

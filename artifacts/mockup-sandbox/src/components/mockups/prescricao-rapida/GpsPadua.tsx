@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, CATEGORIAS, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
-  VIA_META, FREQUENCIAS, FREQUENCIAS_INJETAVEL, HORARIOS_PADRAO, DURACOES, ACOES_ANCORA,
+  VIA_META, FREQUENCIAS, FREQUENCIAS_INJETAVEL, DURACOES, ACOES_ANCORA,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
@@ -64,14 +64,6 @@ function dosesPorDia(s: Substancia): number {
   return 1;
 }
 
-// Resumo curto do mapa de doses por período: "2 MM + 1 NO" (só quando há >1 tomada).
-function mapaDosesResumo(s: Substancia): string | null {
-  if (s.via !== "VO") return null;
-  const ts = tomadasDe(s);
-  if (ts.length < 2) return null;
-  return ts.map(t => `${t.doses} ${t.periodo || "?"}`).join(" + ");
-}
-
 // Linha "QUANTIDADE: N DOSES" embaixo da posologia (pedido Caio 31/05).
 // VO: doses/dia x dias de duracao. Injetaveis: nº de aplicacoes (= sessoes).
 function quantidadeResumo(s: Substancia): string | null {
@@ -85,6 +77,59 @@ function quantidadeResumo(s: Substancia): string | null {
     return `${s.sessoes} ${s.sessoes > 1 ? "APLICAÇÕES" : "APLICAÇÃO"}`;
   }
   return null;
+}
+
+// "20:00" → "20h" · "20:30" → "20h30" · aceita "20h" já pronto.
+function horaCurta(hhmm?: string): string | null {
+  if (!hhmm) return null;
+  const m = hhmm.match(/(\d{1,2})[h:]?(\d{2})?/);
+  if (!m) return null;
+  const h = m[1].padStart(2, "0");
+  const mn = m[2] && m[2] !== "00" ? m[2] : "";
+  return `${h}h${mn}`;
+}
+
+// Período resolvido de uma tomada: se tem horário, deriva (AUTO); senão usa o sigla manual.
+function periodoResolvido(t: Tomada): typeof PERIODOS_DIA[number] | null {
+  if (t.horario) return horarioParaPeriodo(t.horario);
+  if (t.periodo) return PERIODOS_DIA.find(p => p.sigla === t.periodo) ?? null;
+  return null;
+}
+
+// Horários efetivos de todas as tomadas — alimenta a mensageria e a carta.
+// Tomada com hora usa a própria hora; tomada só com período (R5) usa o início da
+// janela daquele período, pra que horarioParaPeriodo() resolva o MESMO período.
+function horariosDeTomadas(s: Substancia): string[] {
+  return tomadasDe(s)
+    .map(t => {
+      if (t.horario) return t.horario;
+      if (t.periodo) return PERIODOS_DIA.find(p => p.sigla === t.periodo)?.janela_inicio ?? null;
+      return null;
+    })
+    .filter((h): h is string => !!h);
+}
+
+// Formato de saída da prescrição (regra Caio 31/05): 1 linha por tomada, Obs. embaixo
+// só quando preenchida, e "Quantidade: N Doses" no rodapé. Singular/plural automático.
+function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: string }[]; quantidade: string } {
+  const ts = tomadasDe(s);
+  const tomadas = ts.map(t => {
+    const n = t.doses || 1;
+    const p = periodoResolvido(t);
+    const hora = horaCurta(t.horario);
+    let dose = `${n} ${n > 1 ? "Doses" : "Dose"} ${s.via}`;
+    if (p) dose += ` — ${p.nome}`;
+    if (hora) dose += ` — Sugestão às ${hora}`;
+    const obs = t.obs && t.obs.trim() ? t.obs.trim() : undefined;
+    return { dose, obs };
+  });
+  const dpd = dosesPorDia(s);
+  const dias = diasDeDuracao(s.duracao);
+  const total = dias ? dpd * dias : null;
+  const quantidade = total != null
+    ? `Quantidade: ${total} ${total > 1 ? "Doses" : "Dose"}`
+    : `Quantidade: ${dpd} ${dpd > 1 ? "Doses" : "Dose"}/dia · contínuo`;
+  return { tomadas, quantidade };
 }
 
 function sessoesAtivas(s: Substancia): boolean[] {
@@ -179,7 +224,7 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
           formula={formulaAberta}
           update={(patch) => update(formulaAberta.id, patch)}
           onClose={() => setEditandoFormula(null)}
-          carta={carta} setCarta={setCarta} />
+          carta={carta} setCarta={setCarta} todasFormulas={sel} />
       )}
 
       {(modo === "TIMELINE" || modo === "GPS") && (
@@ -445,66 +490,12 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                       </div>
 
                       {/* QUANDO NO DIA · dose POR PERÍODO (VO: lista de tomadas · injetáveis: linha única) */}
-                      {s.via === "VO" ? (() => {
-                        const tomadas = tomadasDe(s);
-                        const setTomadas = (arr: Tomada[]) => update(s.id, { tomadas: arr });
-                        const patch = (id: string, p: Partial<Tomada>) =>
-                          setTomadas(tomadas.map(x => x.id === id ? { ...x, ...p } : x));
-                        return (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            <span style={{
-                              fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle,
-                              letterSpacing: 1, textTransform: "uppercase",
-                            }}>QUANDO NO DIA · DOSE POR PERÍODO</span>
-                            {tomadas.map(t => (
-                              <div key={t.id} style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
-                                <MiniCampo label="PERÍODO">
-                                  <NeonSelect cor={c.dot} value={t.periodo || ""}
-                                    onChange={(e) => patch(t.id, { periodo: e.target.value || undefined })}>
-                                    <option value="">
-                                      {(() => {
-                                        const p = t.horario ? horarioParaPeriodo(t.horario) : null;
-                                        return p ? `AUTO → ${p.sigla}` : "AUTO · horário";
-                                      })()}
-                                    </option>
-                                    {PERIODOS_DIA.map(p => (
-                                      <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
-                                    ))}
-                                  </NeonSelect>
-                                </MiniCampo>
-                                <MiniCampo label="HORÁRIO">
-                                  <NeonInput cor={c.dot} type="time" value={t.horario ?? ""}
-                                    onChange={(e) => patch(t.id, { horario: e.target.value })} />
-                                </MiniCampo>
-                                <div style={{ flex: "0 0 56px" }}>
-                                  <MiniCampo label="DOSES">
-                                    <NeonInput cor={c.dot} type="number" min={1} max={12} value={t.doses}
-                                      onChange={(e) => patch(t.id, { doses: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
-                                  </MiniCampo>
-                                </div>
-                                <button
-                                  onClick={() => { if (tomadas.length > 1) setTomadas(tomadas.filter(x => x.id !== t.id)); }}
-                                  disabled={tomadas.length <= 1}
-                                  title="Remover esta tomada"
-                                  style={{
-                                    background: "transparent",
-                                    color: tomadas.length > 1 ? tk.inkSubtle : tk.border,
-                                    border: `1px solid ${tk.border}`, fontFamily: tk.mono, fontSize: 11,
-                                    lineHeight: 1, cursor: tomadas.length > 1 ? "pointer" : "default",
-                                    padding: "5px 7px",
-                                  }}>×</button>
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => setTomadas([...tomadas, { id: "t" + Date.now(), periodo: "", horario: "", doses: 1 }])}
-                              style={{
-                                alignSelf: "flex-start", background: "transparent", color: c.dot,
-                                border: `1px dashed ${c.line}`, fontFamily: tk.mono, fontSize: 8,
-                                fontWeight: 700, letterSpacing: 1, cursor: "pointer", padding: "3px 8px",
-                              }}>+ TOMADA</button>
-                          </div>
-                        );
-                      })() : (
+                      {s.via === "VO" ? (
+                        <TomadasEditor
+                          tomadas={tomadasDe(s)}
+                          setTomadas={(arr) => update(s.id, { tomadas: arr })}
+                          cor={c.dot} line={c.line} />
+                      ) : (
                         <div style={{ display: "flex", gap: 6 }}>
                           <MiniCampo label="PERÍODO">
                             <NeonSelect cor={c.dot} value={s.periodo || ""}
@@ -556,14 +547,14 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                               <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
                                 onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
                             </MiniCampo>
+                            {/* R8 · FREQUÊNCIA é texto livre · presets viram só sugestão (datalist) */}
                             <MiniCampo label="FREQUÊNCIA">
-                              <NeonSelect cor={c.dot} value={s.frequencia}
-                                onChange={(e) => update(s.id, { frequencia: e.target.value as Frequencia })}>
-                                {!FREQUENCIAS_INJETAVEL.includes(s.frequencia as typeof FREQUENCIAS_INJETAVEL[number]) && (
-                                  <option value={s.frequencia}>{s.frequencia}</option>
-                                )}
-                                {FREQUENCIAS_INJETAVEL.map(f => <option key={f} value={f}>{f}</option>)}
-                              </NeonSelect>
+                              <NeonInput cor={c.dot} value={s.frequencia}
+                                list="freq-injetavel-presets" placeholder="escreva à vontade · ex: a cada 10 dias"
+                                onChange={(e) => update(s.id, { frequencia: e.target.value as Frequencia })} />
+                              <datalist id="freq-injetavel-presets">
+                                {FREQUENCIAS_INJETAVEL.map(f => <option key={f} value={f} />)}
+                              </datalist>
                             </MiniCampo>
                           </>
                         ) : (
@@ -583,15 +574,17 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         )}
                       </div>
 
-                      {/* QUANTIDADE: N DOSES · mensagem embaixo da posologia (pedido Caio 31/05) */}
-                      {quantidadeResumo(s) && (
+                      {/* R7 · VO mostra a PRESCRIÇÃO formatada (1 linha por tomada + Obs. + Quantidade).
+                          Demais vias mantêm o resumo curto QUANTIDADE (pedido Caio 31/05). */}
+                      {s.via === "VO" ? (
+                        <PrescricaoPreview s={s} cor={c.dot} />
+                      ) : quantidadeResumo(s) && (
                         <div style={{
                           marginTop: 2, padding: "3px 7px", background: tk.bgAlt,
                           borderLeft: `3px solid ${c.dot}`,
                           fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: c.dot, letterSpacing: 1,
                         }}>
                           QUANTIDADE: {quantidadeResumo(s)}
-                          {mapaDosesResumo(s) ? ` · ${mapaDosesResumo(s)}` : ""}
                         </div>
                       )}
 
@@ -734,6 +727,119 @@ function NeonSelect({ cor, children, ...props }: { cor: string } & React.SelectH
       style={{ ...neonStyle(cor, ativo), ...props.style }}>
       {children}
     </select>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// TomadasEditor · dose individualizada por período (compartilhado card GPS + 3º andar)
+// Regras Caio 31/05: R3 horário primeiro / período à direita · R4 período AUTO pelo
+// horário · R5 sem hora → período selecionável · R6 Obs. por tomada (vazia some).
+// ───────────────────────────────────────────────────────────────────────
+function TomadasEditor({ tomadas, setTomadas, cor, line }: {
+  tomadas: Tomada[]; setTomadas: (arr: Tomada[]) => void; cor: string; line: string;
+}) {
+  const patch = (id: string, p: Partial<Tomada>) =>
+    setTomadas(tomadas.map(x => x.id === id ? { ...x, ...p } : x));
+  const remove = (id: string) => { if (tomadas.length > 1) setTomadas(tomadas.filter(x => x.id !== id)); };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span style={{
+        fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle,
+        letterSpacing: 1, textTransform: "uppercase",
+      }}>QUANDO NO DIA · DOSE POR PERÍODO</span>
+      {tomadas.map(t => {
+        const pAuto = t.horario ? horarioParaPeriodo(t.horario) : null;
+        return (
+          <div key={t.id} style={{
+            display: "flex", flexDirection: "column", gap: 4,
+            paddingBottom: 6, borderBottom: `1px dashed ${tk.border}`,
+          }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+              {/* R3 · HORÁRIO primeiro */}
+              <MiniCampo label="HORÁRIO">
+                <NeonInput cor={cor} type="time" value={t.horario ?? ""}
+                  onChange={(e) => patch(t.id, { horario: e.target.value || undefined })} />
+              </MiniCampo>
+              {/* R4/R5 · PERÍODO à direita: AUTO se tem hora, selecionável se não */}
+              <MiniCampo label="PERÍODO">
+                {t.horario ? (
+                  <div style={{
+                    background: tk.bg, border: `1px solid ${tk.border}`, padding: "4px 6px",
+                    fontFamily: tk.mono, fontSize: 10, color: cor, fontWeight: 700,
+                    boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }} title={pAuto ? `${pAuto.sigla} · ${pAuto.nome}` : "fora das janelas"}>
+                    {pAuto ? `AUTO → ${pAuto.sigla} · ${pAuto.nome}` : "AUTO → —"}
+                  </div>
+                ) : (
+                  <NeonSelect cor={cor} value={t.periodo || ""}
+                    onChange={(e) => patch(t.id, { periodo: e.target.value || undefined })}>
+                    <option value="">selecione…</option>
+                    {PERIODOS_DIA.map(p => (
+                      <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
+                    ))}
+                  </NeonSelect>
+                )}
+              </MiniCampo>
+              <div style={{ flex: "0 0 52px" }}>
+                <MiniCampo label="DOSES">
+                  <NeonInput cor={cor} type="number" min={1} max={12} value={t.doses}
+                    onChange={(e) => patch(t.id, { doses: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                </MiniCampo>
+              </div>
+              <button onClick={() => remove(t.id)} disabled={tomadas.length <= 1} title="Remover esta tomada"
+                style={{
+                  background: "transparent", color: tomadas.length > 1 ? tk.inkSubtle : tk.border,
+                  border: `1px solid ${tk.border}`, fontFamily: tk.mono, fontSize: 11,
+                  lineHeight: 1, cursor: tomadas.length > 1 ? "pointer" : "default", padding: "5px 7px",
+                }}>×</button>
+            </div>
+            {/* R6 · Obs. desta tomada (vazia = não aparece na prescrição) */}
+            <MiniCampo label="OBS. DESTA TOMADA">
+              <NeonInput cor={cor} value={t.obs ?? ""}
+                placeholder="vazio = não aparece · ex: com suco de limão"
+                onChange={(e) => patch(t.id, { obs: e.target.value })} />
+            </MiniCampo>
+          </div>
+        );
+      })}
+      <button
+        onClick={() => setTomadas([...tomadas, { id: "t" + Date.now(), periodo: "", horario: "", doses: 1 }])}
+        style={{
+          alignSelf: "flex-start", background: "transparent", color: cor,
+          border: `1px dashed ${line}`, fontFamily: tk.mono, fontSize: 8,
+          fontWeight: 700, letterSpacing: 1, cursor: "pointer", padding: "3px 8px",
+        }}>+ TOMADA</button>
+    </div>
+  );
+}
+
+// Bloco de saída da prescrição (R7) · 1 linha por tomada + Obs. + Quantidade.
+function PrescricaoPreview({ s, cor }: { s: Substancia; cor: string }) {
+  const { tomadas, quantidade } = linhasPrescricao(s);
+  return (
+    <div style={{
+      marginTop: 2, padding: "6px 8px", background: tk.bgAlt,
+      border: `1px solid ${tk.border}`, borderLeft: `3px solid ${cor}`,
+    }}>
+      <div style={{
+        fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle,
+        letterSpacing: 1.5, marginBottom: 4,
+      }}>PRESCRIÇÃO · COMO SAI NA RECEITA</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {tomadas.map((t, i) => (
+          <div key={i}>
+            <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.ink, fontWeight: 700 }}>{t.dose}</div>
+            {t.obs && (
+              <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, paddingLeft: 8 }}>Obs.: {t.obs}</div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{
+        fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cor,
+        letterSpacing: 0.5, marginTop: 4,
+      }}>{quantidade}</div>
+    </div>
   );
 }
 
@@ -989,17 +1095,18 @@ function ActionBar({ total, sel, porVia }: {
 // 3º ANDAR · Editor de Blend (fórmula magistral expandida)
 // ───────────────────────────────────────────────────────────────────────
 
-function EditorBlend({ formula, update, onClose, carta, setCarta }: {
+function EditorBlend({ formula, update, onClose, carta, setCarta, todasFormulas }: {
   formula: Substancia;
   update: (patch: Partial<Substancia>) => void;
   onClose: () => void;
   carta: MatrizCartaEncantamento;
   setCarta: (c: MatrizCartaEncantamento) => void;
+  todasFormulas: Substancia[];
 }) {
   const c = tk.via[formula.via];
   const componentes = formula.componentes || [];
-  const horarios = formula.horarios || [];
-  const [customH, setCustomH] = useState("");
+  // R2 · dois modos de visualização: a fórmula selecionada OU todas a prescrever.
+  const [modoVis, setModoVis] = useState<"SELECIONADA" | "TODAS">("SELECIONADA");
 
   const setComp = (idx: number, patch: Partial<ComponenteBlend>) => {
     const novo = componentes.map((c, i) => i === idx ? { ...c, ...patch } : c);
@@ -1012,17 +1119,12 @@ function EditorBlend({ formula, update, onClose, carta, setCarta }: {
   const removeComp = (idx: number) => {
     update({ componentes: componentes.filter((_, i) => i !== idx) });
   };
-  const toggleHorario = (h: string) => {
-    const novo = horarios.includes(h) ? horarios.filter(x => x !== h) : [...horarios, h];
-    update({ horarios: novo });
-  };
-  const addCustomH = () => {
-    if (!customH.trim() || horarios.includes(customH.trim())) return;
-    update({ horarios: [...horarios, customH.trim()] });
-    setCustomH("");
-  };
 
-  const dosesDia = horarios.length;
+  // R1 · tomadas (dose individualizada por período) também no 3º andar.
+  const tomadas = tomadasDe(formula);
+  const setTomadas = (arr: Tomada[]) => update({ tomadas: arr });
+  const horariosTomadas = horariosDeTomadas(formula);
+  const dosesDia = tomadas.reduce((a, t) => a + (t.doses || 0), 0);
   const dosesPeriodo = dosesDia * formula.sessoes;
 
   return (
@@ -1046,13 +1148,61 @@ function EditorBlend({ formula, update, onClose, carta, setCarta }: {
             {formula.detalhe} · {formula.sessoes} {formula.frequencia === "diária" ? "dias" : "ciclos"}
           </span>
         </div>
-        <button onClick={onClose} style={{
-          background: "transparent", color: tk.inkMuted, border: `1px solid ${tk.border}`,
-          fontFamily: tk.mono, fontSize: 9, cursor: "pointer", padding: "3px 8px", letterSpacing: 1,
-        }}>FECHAR ×</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* R2 · toggle de visualização */}
+          <div style={{ display: "flex", border: `1px solid ${tk.border}` }}>
+            {(["SELECIONADA", "TODAS"] as const).map(m => {
+              const ativo = modoVis === m;
+              return (
+                <button key={m} onClick={() => setModoVis(m)} style={{
+                  fontFamily: tk.mono, fontSize: 8, fontWeight: 700, letterSpacing: 1,
+                  padding: "4px 8px", cursor: "pointer",
+                  background: ativo ? c.dot : tk.bg, color: ativo ? tk.bg : tk.inkMuted,
+                  border: "none", borderRight: m === "SELECIONADA" ? `1px solid ${tk.border}` : "none",
+                }}>{m === "SELECIONADA" ? "SELECIONADA" : "VER TODAS"}</button>
+              );
+            })}
+          </div>
+          <button onClick={onClose} style={{
+            background: "transparent", color: tk.inkMuted, border: `1px solid ${tk.border}`,
+            fontFamily: tk.mono, fontSize: 9, cursor: "pointer", padding: "3px 8px", letterSpacing: 1,
+          }}>FECHAR ×</button>
+        </div>
       </div>
 
-      {/* Conteúdo em 2 colunas: substâncias do blend + horários */}
+      {/* R2 · MODO VER TODAS · prescrição empilhada de todas as fórmulas a prescrever */}
+      {modoVis === "TODAS" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14 }}>
+          <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5 }}>
+            TODAS AS FÓRMULAS A PRESCREVER · {todasFormulas.length}
+          </span>
+          {todasFormulas.map(f => {
+            const cf = tk.via[f.via];
+            return (
+              <div key={f.id} style={{
+                background: tk.bg, border: `1px solid ${tk.border}`, borderLeft: `3px solid ${cf.dot}`,
+                padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5,
+              }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{
+                    fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cf.dot,
+                    padding: "1px 6px", border: `1px solid ${cf.line}`, letterSpacing: 1,
+                  }}>{f.via}</span>
+                  <span style={{ fontFamily: tk.sans, fontSize: 12, fontWeight: 700, color: tk.ink }}>{f.nome}</span>
+                </div>
+                {f.via === "VO" ? (
+                  <PrescricaoPreview s={f} cor={cf.dot} />
+                ) : (
+                  <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted }}>
+                    {f.dose} · {quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+      /* MODO SELECIONADA · 2 colunas: substâncias do blend + tomadas */
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 14, padding: 14 }}>
 
         {/* COLUNA 1 · substâncias do blend (linhas editáveis) */}
@@ -1135,61 +1285,16 @@ function EditorBlend({ formula, update, onClose, carta, setCarta }: {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
             <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1.5 }}>
-              HORÁRIOS DE TOMADA · dentro do período
+              TOMADAS · dose por período
             </span>
             <span style={{ fontFamily: tk.mono, fontSize: 9, color: c.dot }}>
               {dosesDia} dose{dosesDia !== 1 ? "s" : ""}/dia
             </span>
           </div>
 
-          {/* Chips de horário padrão */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-            {HORARIOS_PADRAO.map(h => {
-              const on = horarios.includes(h);
-              return (
-                <button key={h} onClick={() => toggleHorario(h)}
-                  onMouseEnter={(e) => { if (!on) e.currentTarget.style.borderColor = c.dot; }}
-                  onMouseLeave={(e) => { if (!on) e.currentTarget.style.borderColor = tk.border; }}
-                  style={{
-                    fontFamily: tk.mono, fontSize: 11, fontWeight: 700, letterSpacing: 1,
-                    padding: "6px 10px", cursor: "pointer",
-                    background: on ? c.dot : tk.bg, color: on ? tk.bg : tk.ink,
-                    border: `1px solid ${on ? c.dot : tk.border}`, transition: "all 0.12s",
-                    ...(on ? { boxShadow: `0 0 8px ${c.line}` } : {}),
-                  }}>{h}</button>
-              );
-            })}
-          </div>
-
-          {/* Horários custom (fora do padrão) */}
-          {horarios.filter(h => !HORARIOS_PADRAO.includes(h as any)).length > 0 && (
-            <div style={{ marginBottom: 8 }}>
-              <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5 }}>CUSTOM ATIVOS</span>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 4 }}>
-                {horarios.filter(h => !HORARIOS_PADRAO.includes(h as any)).map(h => (
-                  <button key={h} onClick={() => toggleHorario(h)}
-                    style={{
-                      fontFamily: tk.mono, fontSize: 11, fontWeight: 700, letterSpacing: 1,
-                      padding: "6px 10px", cursor: "pointer",
-                      background: c.dot, color: tk.bg, border: `1px solid ${c.dot}`,
-                      boxShadow: `0 0 8px ${c.line}`,
-                    }}>{h} ×</button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Input livre pra horário custom */}
-          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-            <input value={customH}
-              onChange={(e) => setCustomH(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addCustomH(); }}
-              placeholder="ex: 11h30, 23h, em jejum…"
-              style={{ ...inpBase, flex: 1, fontSize: 10, padding: "5px 8px" }} />
-            <button onClick={addCustomH} style={{
-              background: "transparent", color: c.dot, border: `1px solid ${c.line}`,
-              fontFamily: tk.mono, fontSize: 9, fontWeight: 700, cursor: "pointer", padding: "0 12px", letterSpacing: 1,
-            }}>+ ADD</button>
+          {/* R1 · TomadasEditor (horário primeiro · período AUTO · dose por período · obs por tomada) */}
+          <div style={{ marginBottom: 10 }}>
+            <TomadasEditor tomadas={tomadas} setTomadas={setTomadas} cor={c.dot} line={c.line} />
           </div>
 
           {/* Resumo do esquema */}
@@ -1210,18 +1315,23 @@ function EditorBlend({ formula, update, onClose, carta, setCarta }: {
               </div>
             </div>
             <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 8, lineHeight: 1.5 }}>
-              <span style={{ color: c.dot }}>→</span> {dosesDia === 0 ? "(selecione ao menos 1 horário)" :
-                `${horarios.sort().join(" · ")} durante ${formula.sessoes} ${formula.frequencia === "diária" ? "dias" : "ciclos"}`}
+              <span style={{ color: c.dot }}>→</span> {dosesDia === 0 ? "(adicione ao menos 1 tomada)" :
+                `${tomadas.map(t => {
+                  const p = periodoResolvido(t);
+                  const h = horaCurta(t.horario);
+                  return p ? `${p.sigla}${h ? ` ${h}` : ""}` : (h ?? "—");
+                }).join(" · ")} durante ${formula.sessoes} ${formula.frequencia === "diária" ? "dias" : "ciclos"}`}
             </div>
           </div>
 
-          {/* MOTOR DE MENSAGERIA · 1 disparo por período */}
-          <MapeamentoMensageria horarios={horarios} corVia={c.dot} />
+          {/* MOTOR DE MENSAGERIA · 1 disparo por período (derivado das tomadas) */}
+          <MapeamentoMensageria horarios={horariosTomadas} corVia={c.dot} />
 
           {/* CARTA DE ENCANTAMENTO · matriz períodos × cenários (estado lifted no GpsPadua) */}
-          <CartaEncantamentoMatriz horarios={horarios} carta={carta} setCarta={setCarta} />
+          <CartaEncantamentoMatriz horarios={horariosTomadas} carta={carta} setCarta={setCarta} />
         </div>
       </div>
+      )}
     </section>
   );
 }
