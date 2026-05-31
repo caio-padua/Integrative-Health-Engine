@@ -141,6 +141,18 @@ function frequenciaNatural(freq?: string): string {
   return freq;
 }
 
+// Injetável é cobrado POR AMPOLA/UNIDADE (pedido Caio 31/05): a dose por aplicação
+// (nº de ampolas) multiplica a quantidade total e o orçamento. Demais vias: por sessão.
+function ampolasPorAplicacao(s: Substancia): number {
+  return Math.max(1, Math.floor(s.dosePorAplicacao ?? 1));
+}
+function unidadesCobranca(s: Substancia): number {
+  return ehInjetavel(s.via) ? s.sessoes * ampolasPorAplicacao(s) : s.sessoes;
+}
+function custoTotal(s: Substancia): number {
+  return s.preco * unidadesCobranca(s);
+}
+
 function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: string }[]; quantidade: string; rodape?: { label: string; valor: string }[] } {
   const ts = tomadasDe(s);
   const inj = ehInjetavel(s.via);
@@ -150,14 +162,14 @@ function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: strin
     const hora = horaCurta(t.horario);
     let dose: string;
     if (inj) {
-      // Formato pedido Caio 31/05: "Aplicar 1 Ampola IM — Antes do Café da Manhã"
-      const qtd = s.quantidade && s.quantidade.trim()
-        ? s.quantidade.trim()
-        : `${n} ${n > 1 ? "doses" : "dose"}`;
-      dose = `Aplicar ${qtd} ${s.via}`;
+      // Dose POR APLICAÇÃO = nº de ampolas (editável no cockpit); a unidade vem do cadastro.
+      // Ex: "Aplicar 2 ampolas IM — Antes do Café da Manhã" (pedido Caio 31/05).
+      const ampApp = ampolasPorAplicacao(s);
+      const unid = unidadeInjetavel(s.quantidade);
+      const unidApp = ampApp > 1 ? pluralUnidade(unid) : unid;
+      dose = `Aplicar ${ampApp} ${unidApp} ${s.via}`;
       if (p) dose += ` — ${p.nome}`;
-      // Relógio sai do texto da receita do injetável (pedido Caio 31/05: "Aplicar 1 Ampola
-      // IM - Antes do Café da Manhã"). O horário continua vivo no campo + mensageria.
+      // Relógio sai do texto da receita do injetável; horário vive no campo + mensageria.
     } else {
       dose = `${n} ${n > 1 ? "Doses" : "Dose"} ${s.via}`;
       if (p) dose += ` — ${p.nome}`;
@@ -167,17 +179,18 @@ function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: strin
     return { dose, obs };
   });
   if (inj) {
-    const ap = s.sessoes;
-    const unidade = unidadeInjetavel(s.quantidade);
-    const totalUnid = ap > 1 ? pluralUnidade(unidade) : unidade;
-    // Rodapé do injetável em linhas rotuladas explícitas (pedido Caio 31/05):
-    // Quantidade / Sessões / Frequência — um fato por linha, sem jargão "1×/sem".
+    const ampApp = ampolasPorAplicacao(s);
+    const unid = unidadeInjetavel(s.quantidade);
+    const total = s.sessoes * ampApp; // total a dispensar = sessões × ampolas/aplicação
+    const totalLabel = total > 1 ? pluralUnidade(unid) : unid;
+    // Rodapé do injetável em linhas rotuladas (pedido Caio 31/05): a Quantidade total já
+    // multiplica a dose por aplicação (preço é por ampola). Um fato por linha.
     const rodape = [
-      { label: "Quantidade", valor: `${ap} ${totalUnid}` },
-      { label: "Sessões", valor: `${ap}` },
+      { label: "Quantidade", valor: `${total} ${totalLabel}` },
+      { label: "Sessões", valor: `${s.sessoes}` },
       { label: "Frequência", valor: frequenciaNatural(s.frequencia) },
     ];
-    return { tomadas, quantidade: `Quantidade: ${ap} ${totalUnid}`, rodape };
+    return { tomadas, quantidade: `Quantidade: ${total} ${totalLabel}`, rodape };
   }
   const dpd = dosesPorDia(s);
   const dias = diasDeDuracao(s.duracao);
@@ -233,7 +246,7 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
     return m;
   }, [sel]);
 
-  const total = sel.reduce((a, s) => a + s.preco * s.sessoes, 0);
+  const total = sel.reduce((a, s) => a + custoTotal(s), 0);
 
   const update = (id: string, patch: Partial<Substancia>) =>
     setSel(sel.map(s => s.id === id ? { ...s, ...patch } : s));
@@ -450,7 +463,7 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
         }
 
         const cands = CATALOGO.filter(s => s.via === v && !sel.find(x => x.id === s.id));
-        const subtotal = itens.reduce((a, s) => a + s.preco * s.sessoes, 0);
+        const subtotal = itens.reduce((a, s) => a + custoTotal(s), 0);
 
         return (
           <div key={v} style={{
@@ -522,28 +535,48 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                       marginTop: 8, display: "flex", flexDirection: "column", gap: 7,
                       paddingLeft: 8, borderLeft: `1px solid ${c.line}`,
                     }}>
-                      {/* QUANTO · dose + quantidade (mesmo sentido → lado a lado).
-                          Injetáveis: MG é FIXO da fórmula (read-only) + QTD/APLICAÇÃO editável (pedido Caio 31/05). */}
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <MiniCampo label={ehInjetavel(s.via) ? "MG · FIXO DA FÓRMULA" : "DOSE"}>
-                          {ehInjetavel(s.via) ? (
-                            <div title="Definido no cadastro da fórmula · não editável no cockpit"
-                              style={{
-                                background: tk.bgAlt, color: tk.inkMuted, border: `1px dashed ${tk.border}`,
-                                padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
-                                boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                              }}>{s.dose}</div>
-                          ) : (
+                      {/* QUANTO · injetável: MG fixo + DOSE editável (nº de ampolas/aplicação) +
+                          APRESENTAÇÃO read-only do cadastro. Demais vias: DOSE + QUANTIDADE (pedido Caio 31/05). */}
+                      {ehInjetavel(s.via) ? (
+                        <>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <MiniCampo label="MG · FIXO DA FÓRMULA">
+                              <div title="Definido no cadastro da fórmula · não editável no cockpit"
+                                style={{
+                                  background: tk.bgAlt, color: tk.inkMuted, border: `1px dashed ${tk.border}`,
+                                  padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
+                                  boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                                }}>{s.dose}</div>
+                            </MiniCampo>
+                            <MiniCampo label="DOSE · POR APLICAÇÃO">
+                              <NeonInput cor={c.dot} type="number" min={1} max={20} value={s.dosePorAplicacao ?? 1}
+                                onChange={(e) => update(s.id, { dosePorAplicacao: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                            </MiniCampo>
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <MiniCampo label="APRESENTAÇÃO · CADASTRO">
+                              <div title="Apresentação definida no cadastro da fórmula · não editável no cockpit"
+                                style={{
+                                  background: tk.bgAlt, color: tk.inkMuted, border: `1px dashed ${tk.border}`,
+                                  padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
+                                  boxSizing: "border-box", lineHeight: 1.4,
+                                }}>{s.apresentacao ?? "—"}</div>
+                            </MiniCampo>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <MiniCampo label="DOSE">
                             <NeonInput cor={c.dot} value={s.dose}
                               onChange={(e) => update(s.id, { dose: e.target.value })} />
-                          )}
-                        </MiniCampo>
-                        <MiniCampo label={ehInjetavel(s.via) ? "QTD · POR APLICAÇÃO" : "QUANTIDADE"}>
-                          <NeonInput cor={c.dot} value={s.quantidade ?? ""}
-                            placeholder={ehInjetavel(s.via) ? "ex: 1 ampola · 2 ampolas" : "ex: 2 cáps"}
-                            onChange={(e) => update(s.id, { quantidade: e.target.value })} />
-                        </MiniCampo>
-                      </div>
+                          </MiniCampo>
+                          <MiniCampo label="QUANTIDADE">
+                            <NeonInput cor={c.dot} value={s.quantidade ?? ""}
+                              placeholder="ex: 2 cáps"
+                              onChange={(e) => update(s.id, { quantidade: e.target.value })} />
+                          </MiniCampo>
+                        </div>
+                      )}
 
                       {/* VIA · rota (sentido próprio → sozinho) */}
                       <div style={{ display: "flex", gap: 6 }}>
@@ -722,10 +755,10 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
 
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
                       <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle }}>
-                        {s.sessoes}× {brl(s.preco)}
+                        {unidadesCobranca(s)}× {brl(s.preco)}
                       </span>
                       <span style={{ fontFamily: tk.mono, fontSize: 10, fontWeight: 700, color: c.dot }}>
-                        {brl(s.preco * s.sessoes)}
+                        {brl(custoTotal(s))}
                       </span>
                     </div>
                   </div>
@@ -1237,7 +1270,7 @@ function Timeline({ sel, hoverItem, setHoverItem, update }: {
                 {ANCORAS.map(a => <option key={a.v} value={a.v}>{a.lbl === "—" ? "sem âncora" : a.lbl}</option>)}
               </select>
               <span style={{ fontFamily: tk.mono, fontSize: 11, fontWeight: 700, color: c.dot, textAlign: "right" }}>
-                {brl(s.preco * s.sessoes)}
+                {brl(custoTotal(s))}
               </span>
             </div>
           );
@@ -1270,7 +1303,7 @@ function ActionBar({ total, sel, porVia }: {
         {VIAS_ORDEM.map(v => {
           const c = tk.via[v];
           const n = porVia[v].length;
-          const sub = porVia[v].reduce((a, s) => a + s.preco * s.sessoes, 0);
+          const sub = porVia[v].reduce((a, s) => a + custoTotal(s), 0);
           return (
             <div key={v} style={{
               display: "flex", alignItems: "center", gap: 8, padding: "4px 10px",

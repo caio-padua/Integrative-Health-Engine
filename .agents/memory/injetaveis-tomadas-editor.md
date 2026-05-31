@@ -10,8 +10,16 @@ de fórmulas (VO), não como uma "linha única" de período+horário.
 
 Regras:
 - EV/IM/SC usam o MESMO `TomadasEditor` da VO → permitem mais de 1 aplicação/dia.
-- A miligramagem (campo `dose`) é FIXA do cadastro da fórmula → read-only no cockpit;
-  o que o médico edita por injetável é `quantidade` (QTD por aplicação, ex "1 ampola").
+- A miligramagem (campo `dose`) é FIXA do cadastro da fórmula → read-only no cockpit.
+- APRESENTAÇÃO vs DOSE (pedido Caio 31/05): o injetável tem 3 conceitos distintos:
+  - `dose` (mg) = read-only, concentração de fábrica;
+  - `apresentacao` (string) = read-only, descreve a ampola ("500 mg/frasco · 1 frasco = 1 dose"), dado de CADASTRO;
+  - `dosePorAplicacao` (number, default 1) = ÚNICO campo editável = nº de ampolas/frascos por aplicação.
+  O campo `quantidade` deixou de ser editado no card — agora serve SÓ como fonte da unidade (ampola/frasco/aplicação).
+- Preço do injetável é POR AMPOLA: helpers `ampolasPorAplicacao` / `unidadesCobranca`
+  (=ehInjetavel? sessoes×ampolas : sessoes) / `custoTotal` (=preco×unidadesCobranca).
+  A dose por aplicação multiplica posologia ("Aplicar 2 ampolas"), quantidade total
+  do rodapé (sessoes×dose) E orçamento (5 pontos: total geral, subtotal por-via, per-item label "12×", per-item total, folha). Rótulo do campo é fixo "DOSE · POR APLICAÇÃO" (não montar com unidade plural — vira "aplicações por aplicação" no SC).
 - Preview e FolhaConsolidada dos injetáveis passam por `PrescricaoPreview`.
 - Bloco "COMO SAI NA RECEITA" do injetável é autocontido: 1a linha = nome+dose
   (prop `comTitulo`, só no card por-via; na folha o nome já vem no cabeçalho),
