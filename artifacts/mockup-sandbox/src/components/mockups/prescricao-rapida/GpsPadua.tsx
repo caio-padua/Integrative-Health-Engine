@@ -55,7 +55,7 @@ function tomadasDe(s: Substancia): Tomada[] {
 // Doses por dia: VO com tomadas -> SOMA das doses de cada período (ex: 2 manhã + 1 noite = 3).
 // Senão usa dosesDia explicito; senao deriva da frequencia legada (2×/dia, 3×/dia).
 function dosesPorDia(s: Substancia): number {
-  if (s.via === "VO" && s.tomadas && s.tomadas.length) {
+  if (s.tomadas && s.tomadas.length) {
     return s.tomadas.reduce((acc, t) => acc + (t.doses || 0), 0);
   }
   if (s.dosesDia != null) return s.dosesDia;
@@ -113,16 +113,33 @@ function horariosDeTomadas(s: Substancia): string[] {
 // só quando preenchida, e "Quantidade: N Doses" no rodapé. Singular/plural automático.
 function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: string }[]; quantidade: string } {
   const ts = tomadasDe(s);
+  const inj = ehInjetavel(s.via);
   const tomadas = ts.map(t => {
     const n = t.doses || 1;
     const p = periodoResolvido(t);
     const hora = horaCurta(t.horario);
-    let dose = `${n} ${n > 1 ? "Doses" : "Dose"} ${s.via}`;
-    if (p) dose += ` — ${p.nome}`;
-    if (hora) dose += ` — Sugestão às ${hora}`;
+    let dose: string;
+    if (inj) {
+      // Formato pedido Caio 31/05: "Aplicar 1 Ampola IM — Antes do Café da Manhã"
+      const qtd = s.quantidade && s.quantidade.trim()
+        ? s.quantidade.trim()
+        : `${n} ${n > 1 ? "doses" : "dose"}`;
+      dose = `Aplicar ${qtd} ${s.via}`;
+      if (p) dose += ` — ${p.nome}`;
+      if (hora) dose += ` — às ${hora}`;
+    } else {
+      dose = `${n} ${n > 1 ? "Doses" : "Dose"} ${s.via}`;
+      if (p) dose += ` — ${p.nome}`;
+      if (hora) dose += ` — Sugestão às ${hora}`;
+    }
     const obs = t.obs && t.obs.trim() ? t.obs.trim() : undefined;
     return { dose, obs };
   });
+  if (inj) {
+    const ap = s.sessoes;
+    const freq = s.frequencia ? ` · ${s.frequencia}` : "";
+    return { tomadas, quantidade: `Quantidade: ${ap} ${ap > 1 ? "aplicações" : "aplicação"}${freq}` };
+  }
   const dpd = dosesPorDia(s);
   const dias = diasDeDuracao(s.duracao);
   const total = dias ? dpd * dias : null;
@@ -462,18 +479,29 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                     </div>
 
                     {/* Posologia campo-a-campo · clusters por sentido · linha imaginária à esquerda · neon ao focar/hover */}
-                    <div style={{
+                    <div data-campos="sim" style={{
                       marginTop: 8, display: "flex", flexDirection: "column", gap: 7,
                       paddingLeft: 8, borderLeft: `1px solid ${c.line}`,
                     }}>
-                      {/* QUANTO · dose + quantidade (mesmo sentido → lado a lado) */}
+                      {/* QUANTO · dose + quantidade (mesmo sentido → lado a lado).
+                          Injetáveis: MG é FIXO da fórmula (read-only) + QTD/APLICAÇÃO editável (pedido Caio 31/05). */}
                       <div style={{ display: "flex", gap: 6 }}>
-                        <MiniCampo label="DOSE">
-                          <NeonInput cor={c.dot} value={s.dose}
-                            onChange={(e) => update(s.id, { dose: e.target.value })} />
+                        <MiniCampo label={ehInjetavel(s.via) ? "MG · FIXO DA FÓRMULA" : "DOSE"}>
+                          {ehInjetavel(s.via) ? (
+                            <div title="Definido no cadastro da fórmula · não editável no cockpit"
+                              style={{
+                                background: tk.bgAlt, color: tk.inkMuted, border: `1px dashed ${tk.border}`,
+                                padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
+                                boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                              }}>{s.dose}</div>
+                          ) : (
+                            <NeonInput cor={c.dot} value={s.dose}
+                              onChange={(e) => update(s.id, { dose: e.target.value })} />
+                          )}
                         </MiniCampo>
-                        <MiniCampo label="QUANTIDADE">
-                          <NeonInput cor={c.dot} value={s.quantidade ?? ""} placeholder="ex: 2 cáps"
+                        <MiniCampo label={ehInjetavel(s.via) ? "QTD · POR APLICAÇÃO" : "QUANTIDADE"}>
+                          <NeonInput cor={c.dot} value={s.quantidade ?? ""}
+                            placeholder={ehInjetavel(s.via) ? "ex: 1 ampola · 2 ampolas" : "ex: 2 cáps"}
                             onChange={(e) => update(s.id, { quantidade: e.target.value })} />
                         </MiniCampo>
                       </div>
@@ -490,8 +518,9 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         </MiniCampo>
                       </div>
 
-                      {/* QUANDO NO DIA · dose POR PERÍODO (VO: lista de tomadas · injetáveis: linha única) */}
-                      {s.via === "VO" ? (
+                      {/* QUANDO NO DIA · dose POR PERÍODO. VO + injetáveis (EV/IM/SC) usam o MESMO
+                          editor de tomadas da prescrição de fórmulas (pedido Caio 31/05). IMP/PRC: linha única. */}
+                      {(s.via === "VO" || ehInjetavel(s.via)) ? (
                         <TomadasEditor
                           tomadas={tomadasDe(s)}
                           setTomadas={(arr) => update(s.id, { tomadas: arr })}
@@ -514,8 +543,18 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                             </NeonSelect>
                           </MiniCampo>
                           <MiniCampo label="HORÁRIO">
-                            <NeonInput cor={c.dot} type="time" value={s.horario ?? ""}
-                              onChange={(e) => update(s.id, { horario: e.target.value })} />
+                            <div style={{ display: "flex", gap: 3 }}>
+                              <NeonInput cor={c.dot} type="time" value={s.horario ?? ""} style={{ flex: 1 }}
+                                onChange={(e) => update(s.id, { horario: e.target.value || undefined })} />
+                              {s.horario && (
+                                <button type="button" title="Zerar horário"
+                                  onClick={() => update(s.id, { horario: undefined })}
+                                  style={{
+                                    background: "transparent", color: tk.inkSubtle, border: `1px solid ${tk.border}`,
+                                    fontFamily: tk.mono, fontSize: 11, lineHeight: 1, cursor: "pointer", padding: "0 6px",
+                                  }}>×</button>
+                              )}
+                            </div>
                           </MiniCampo>
                         </div>
                       )}
@@ -548,14 +587,17 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                               <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
                                 onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
                             </MiniCampo>
-                            {/* R8 · FREQUÊNCIA é texto livre · presets viram só sugestão (datalist) */}
+                            {/* FREQUÊNCIA · SC mantém sugestões em dropdown · IM/EV texto livre puro (pedido Caio 31/05) */}
                             <MiniCampo label="FREQUÊNCIA">
                               <NeonInput cor={c.dot} value={s.frequencia}
-                                list="freq-injetavel-presets" placeholder="escreva à vontade · ex: a cada 10 dias"
+                                list={s.via === "SC" ? "freq-injetavel-presets" : undefined}
+                                placeholder="escreva à vontade · ex: a cada 10 dias"
                                 onChange={(e) => update(s.id, { frequencia: e.target.value as Frequencia })} />
-                              <datalist id="freq-injetavel-presets">
-                                {FREQUENCIAS_INJETAVEL.map(f => <option key={f} value={f} />)}
-                              </datalist>
+                              {s.via === "SC" && (
+                                <datalist id="freq-injetavel-presets">
+                                  {FREQUENCIAS_INJETAVEL.map(f => <option key={f} value={f} />)}
+                                </datalist>
+                              )}
                             </MiniCampo>
                           </>
                         ) : (
@@ -575,9 +617,10 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         )}
                       </div>
 
-                      {/* R7 · VO mostra a PRESCRIÇÃO formatada (1 linha por tomada + Obs. + Quantidade).
-                          Demais vias mantêm o resumo curto QUANTIDADE (pedido Caio 31/05). */}
-                      {s.via === "VO" ? (
+                      {/* PRESCRIÇÃO formatada (1 linha por tomada + Obs. + Quantidade) na VO E nos
+                          injetáveis — mesmo formato da prescrição de fórmulas (pedido Caio 31/05).
+                          IMP/PRC mantêm o resumo curto QUANTIDADE. */}
+                      {(s.via === "VO" || ehInjetavel(s.via)) ? (
                         <PrescricaoPreview s={s} cor={c.dot} />
                       ) : quantidadeResumo(s) && (
                         <div style={{
@@ -680,6 +723,23 @@ const inpBase: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
 };
 
+// Navegação por teclado (pedido Caio 31/05): Enter pula pro próximo campo,
+// Shift+Enter volta pro anterior. Tab continua nativo. Setas NÃO são sequestradas
+// pra não quebrar o stepper do campo número, o seletor de hora nem a troca de
+// opção do dropdown (decisão A da proposta). Escopo = card com [data-campos].
+function navPorEnter(e: React.KeyboardEvent<HTMLElement>) {
+  if (e.key !== "Enter") return;
+  const escopo = (e.currentTarget as HTMLElement).closest("[data-campos]");
+  if (!escopo) return;
+  const campos = Array.from(
+    escopo.querySelectorAll<HTMLElement>("input, select, textarea"),
+  ).filter(el => !(el as HTMLInputElement).disabled && el.tabIndex !== -1);
+  const i = campos.indexOf(e.currentTarget as HTMLElement);
+  if (i === -1) return;
+  const alvo = campos[i + (e.shiftKey ? -1 : 1)];
+  if (alvo) { e.preventDefault(); alvo.focus(); }
+}
+
 // Posologia campo-a-campo · cada campo é um quadradinho VISÍVEL com titulozinho em cima,
 // alinhado à esquerda; neon na cor da via ao focar/passar o mouse.
 function MiniCampo({ label, children }: { label: string; children: React.ReactNode }) {
@@ -711,6 +771,7 @@ function NeonInput({ cor, ...props }: { cor: string } & React.InputHTMLAttribute
     <input {...props}
       onFocus={(e) => { setAtivo(true); props.onFocus?.(e); }}
       onBlur={(e) => { setAtivo(false); props.onBlur?.(e); }}
+      onKeyDown={(e) => { navPorEnter(e); props.onKeyDown?.(e); }}
       onMouseEnter={(e) => { setAtivo(true); props.onMouseEnter?.(e); }}
       onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) setAtivo(false); props.onMouseLeave?.(e); }}
       style={{ ...neonStyle(cor, ativo), ...props.style }} />
@@ -723,6 +784,7 @@ function NeonSelect({ cor, children, ...props }: { cor: string } & React.SelectH
     <select {...props}
       onFocus={(e) => { setAtivo(true); props.onFocus?.(e); }}
       onBlur={(e) => { setAtivo(false); props.onBlur?.(e); }}
+      onKeyDown={(e) => { navPorEnter(e); props.onKeyDown?.(e); }}
       onMouseEnter={(e) => { setAtivo(true); props.onMouseEnter?.(e); }}
       onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) setAtivo(false); props.onMouseLeave?.(e); }}
       style={{ ...neonStyle(cor, ativo), ...props.style }}>
@@ -756,10 +818,20 @@ function TomadasEditor({ tomadas, setTomadas, cor, line }: {
             paddingBottom: 6, borderBottom: `1px dashed ${tk.border}`,
           }}>
             <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
-              {/* R3 · HORÁRIO primeiro */}
+              {/* R3 · HORÁRIO primeiro · com botão zerar (pedido Caio 31/05) */}
               <MiniCampo label="HORÁRIO">
-                <NeonInput cor={cor} type="time" value={t.horario ?? ""}
-                  onChange={(e) => patch(t.id, { horario: e.target.value || undefined })} />
+                <div style={{ display: "flex", gap: 3 }}>
+                  <NeonInput cor={cor} type="time" value={t.horario ?? ""} style={{ flex: 1 }}
+                    onChange={(e) => patch(t.id, { horario: e.target.value || undefined })} />
+                  {t.horario && (
+                    <button type="button" title="Zerar horário"
+                      onClick={() => patch(t.id, { horario: undefined })}
+                      style={{
+                        background: "transparent", color: tk.inkSubtle, border: `1px solid ${tk.border}`,
+                        fontFamily: tk.mono, fontSize: 11, lineHeight: 1, cursor: "pointer", padding: "0 6px",
+                      }}>×</button>
+                  )}
+                </div>
               </MiniCampo>
               {/* R4/R5 · PERÍODO à direita: AUTO se tem hora, selecionável se não */}
               <MiniCampo label="PERÍODO">
@@ -894,7 +966,7 @@ function FolhaConsolidada({ todasFormulas }: { todasFormulas: Substancia[] }) {
                     fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cf.dot,
                     padding: "1px 6px", border: `1px solid ${cf.line}`, letterSpacing: 1,
                   }}>{f.via}</span>
-                  <span style={{ fontFamily: tk.sans, fontSize: 12, fontWeight: 700, color: tk.ink }}>{f.nome}</span>
+                  <span style={{ fontFamily: tk.sans, fontSize: 12, fontWeight: 700, color: tk.ink }}>{f.nome}{ehInjetavel(f.via) && f.dose ? ` ${f.dose}` : ""}</span>
                 </div>
 
                 {/* Ativos (componentes do blend) */}
@@ -912,8 +984,8 @@ function FolhaConsolidada({ todasFormulas }: { todasFormulas: Substancia[] }) {
                   </div>
                 )}
 
-                {/* Posologia */}
-                {f.via === "VO" ? (
+                {/* Posologia · injetáveis agora no mesmo formato da VO (pedido Caio 31/05) */}
+                {(f.via === "VO" || ehInjetavel(f.via)) ? (
                   <PrescricaoPreview s={f} cor={cf.dot} />
                 ) : (
                   <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted, paddingLeft: 4 }}>
@@ -1285,14 +1357,14 @@ function EditorBlend({ formula, update, onClose, selecionarFormula, carta, setCa
                     fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cf.dot,
                     padding: "1px 6px", border: `1px solid ${cf.line}`, letterSpacing: 1,
                   }}>{f.via}</span>
-                  <span style={{ fontFamily: tk.sans, fontSize: 12, fontWeight: 700, color: tk.ink }}>{f.nome}</span>
+                  <span style={{ fontFamily: tk.sans, fontSize: 12, fontWeight: 700, color: tk.ink }}>{f.nome}{ehInjetavel(f.via) && f.dose ? ` ${f.dose}` : ""}</span>
                   {atual && (
                     <span style={{ fontFamily: tk.mono, fontSize: 8, fontWeight: 700, color: cf.dot, letterSpacing: 1, marginLeft: "auto" }}>
                       EM EDIÇÃO
                     </span>
                   )}
                 </div>
-                {f.via === "VO" ? (
+                {(f.via === "VO" || ehInjetavel(f.via)) ? (
                   <PrescricaoPreview s={f} cor={cf.dot} />
                 ) : (
                   <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted }}>
