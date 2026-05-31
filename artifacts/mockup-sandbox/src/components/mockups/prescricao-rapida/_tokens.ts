@@ -101,6 +101,19 @@ export type ComponenteBlend = {
   dose: string;
 };
 
+// ── Tomada = um evento de administração no dia (período + horário + nº de doses) ──
+// Permite dose INDIVIDUALIZADA por período: ex. 2 doses de manhã (07h) + 1 à noite (20h).
+// Cada tomada vira uma janela própria de disparo na mensageria cronobiológica.
+export type Tomada = {
+  id: string;
+  // sigla do período cronobiológico (JE/IM/MM/AL/IT/MT/NO/FN/CE) ou undefined = AUTO pelo horário
+  periodo?: string;
+  // horário exato dentro do período (HH:MM)
+  horario?: string;
+  // número de doses (cápsulas/unidades) NESTE período
+  doses: number;
+};
+
 export type Substancia = {
   id: string;
   nome: string;
@@ -133,6 +146,12 @@ export type Substancia = {
   mensagem?: string;
   // horario = horario exato dentro do periodo selecionado (HH:MM), muito importante
   horario?: string;
+  // tomadas = dose individualizada por período (ex: 2 manhã + 1 noite). Quando presente,
+  // substitui o par único periodo/horario na UI. Ausente = 1 tomada derivada de periodo/horario/dosesDia.
+  tomadas?: Tomada[];
+  // posologiaPadrao = marca esta posologia como o MODELO USUAL da fórmula (fixado no catálogo).
+  // Quando true, é o que aparece pré-preenchido toda vez que a fórmula é puxada no cockpit.
+  posologiaPadrao?: boolean;
 };
 
 export const HORARIOS_PADRAO = ["06h", "07h", "08h", "09h", "12h", "15h", "18h", "20h", "22h"] as const;
@@ -180,7 +199,12 @@ export const CATALOGO: Substancia[] = [
   { id: "ipa-sc",    nome: "Ipamorelina + CJC",          via: "SC", categoria: "Hormonal",              dose: "200 mcg", detalhe: "Eixo GH · noturno",           sessoes: 20, frequencia: "diária", preco: 310, ancora: "sem-ancora" },
 
   // ── VO · VIA ORAL (magistral) ─────────────────────────────────────────────
-  { id: "blend-vo",  nome: "Fórmula Blend Menopausa",    via: "VO", categoria: "Hormonal",              dose: "1 cáps/dia", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "diária", preco: 380, ancora: "primeira", quantidade: "1 cáps", duracao: "continuo", horario: "08:00", periodo: "IM", mensagem: "antes do café da manhã",
+  { id: "blend-vo",  nome: "Fórmula Blend Menopausa",    via: "VO", categoria: "Hormonal",              dose: "1 cáps", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "2×/dia", preco: 380, ancora: "primeira", quantidade: "1 cáps", duracao: "continuo", horario: "07:00", periodo: "MM", mensagem: "antes do café da manhã",
+    posologiaPadrao: true,
+    tomadas: [
+      { id: "tm", periodo: "MM", horario: "07:00", doses: 2 },
+      { id: "tn", periodo: "NO", horario: "20:00", doses: 1 },
+    ],
     horarios: ["08h", "20h"],
     componentes: [
       { id: "c1", nome: "DHEA Micronizado",        dose: "25 mg" },

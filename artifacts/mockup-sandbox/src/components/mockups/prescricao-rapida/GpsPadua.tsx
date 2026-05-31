@@ -6,7 +6,7 @@ import {
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
 import {
-  type Substancia, type Via, type Categoria, type Frequencia, type Ancora, type AcaoAncora, type ComponenteBlend,
+  type Substancia, type Via, type Categoria, type Frequencia, type Ancora, type AcaoAncora, type ComponenteBlend, type Tomada,
 } from "./_tokens";
 
 type Modo = "PILHA" | "TIMELINE" | "GPS";
@@ -45,13 +45,31 @@ function diasDeDuracao(d?: string): number | null {
   return null;
 }
 
-// Doses por dia: usa dosesDia explicito; senao deriva da frequencia legada
-// (2×/dia -> 2, 3×/dia -> 3, demais -> 1) pra nao subcontar itens do catalogo.
+// Tomadas = doses por período no dia. Se a substância já tem tomadas, usa-as;
+// senão sintetiza UMA tomada a partir do par único periodo/horario + dosesDia.
+function tomadasDe(s: Substancia): Tomada[] {
+  if (s.tomadas && s.tomadas.length) return s.tomadas;
+  return [{ id: "t0", periodo: s.periodo, horario: s.horario, doses: s.dosesDia ?? 1 }];
+}
+
+// Doses por dia: VO com tomadas -> SOMA das doses de cada período (ex: 2 manhã + 1 noite = 3).
+// Senão usa dosesDia explicito; senao deriva da frequencia legada (2×/dia, 3×/dia).
 function dosesPorDia(s: Substancia): number {
+  if (s.via === "VO" && s.tomadas && s.tomadas.length) {
+    return s.tomadas.reduce((acc, t) => acc + (t.doses || 0), 0);
+  }
   if (s.dosesDia != null) return s.dosesDia;
   if (s.frequencia === "2×/dia") return 2;
   if (s.frequencia === "3×/dia") return 3;
   return 1;
+}
+
+// Resumo curto do mapa de doses por período: "2 MM + 1 NO" (só quando há >1 tomada).
+function mapaDosesResumo(s: Substancia): string | null {
+  if (s.via !== "VO") return null;
+  const ts = tomadasDe(s);
+  if (ts.length < 2) return null;
+  return ts.map(t => `${t.doses} ${t.periodo || "?"}`).join(" + ");
 }
 
 // Linha "QUANTIDADE: N DOSES" embaixo da posologia (pedido Caio 31/05).
@@ -426,33 +444,95 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         </MiniCampo>
                       </div>
 
-                      {/* QUANDO NO DIA · período + horário (mesmo sentido → lado a lado) */}
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <MiniCampo label="PERÍODO">
-                          <NeonSelect cor={c.dot} value={s.periodo || ""}
-                            onChange={(e) => update(s.id, { periodo: e.target.value || undefined })}>
-                            {/* REGRA 1: em AUTO, depois de digitar o HORÁRIO o período derivado aparece aqui */}
-                            <option value="">
-                              {(() => {
-                                const p = s.horario ? horarioParaPeriodo(s.horario) : null;
-                                return p ? `AUTO → ${p.sigla} · ${p.nome}` : "AUTO · pelo horário";
-                              })()}
-                            </option>
-                            {PERIODOS_DIA.map(p => (
-                              <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
+                      {/* QUANDO NO DIA · dose POR PERÍODO (VO: lista de tomadas · injetáveis: linha única) */}
+                      {s.via === "VO" ? (() => {
+                        const tomadas = tomadasDe(s);
+                        const setTomadas = (arr: Tomada[]) => update(s.id, { tomadas: arr });
+                        const patch = (id: string, p: Partial<Tomada>) =>
+                          setTomadas(tomadas.map(x => x.id === id ? { ...x, ...p } : x));
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            <span style={{
+                              fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle,
+                              letterSpacing: 1, textTransform: "uppercase",
+                            }}>QUANDO NO DIA · DOSE POR PERÍODO</span>
+                            {tomadas.map(t => (
+                              <div key={t.id} style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                                <MiniCampo label="PERÍODO">
+                                  <NeonSelect cor={c.dot} value={t.periodo || ""}
+                                    onChange={(e) => patch(t.id, { periodo: e.target.value || undefined })}>
+                                    <option value="">
+                                      {(() => {
+                                        const p = t.horario ? horarioParaPeriodo(t.horario) : null;
+                                        return p ? `AUTO → ${p.sigla}` : "AUTO · horário";
+                                      })()}
+                                    </option>
+                                    {PERIODOS_DIA.map(p => (
+                                      <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
+                                    ))}
+                                  </NeonSelect>
+                                </MiniCampo>
+                                <MiniCampo label="HORÁRIO">
+                                  <NeonInput cor={c.dot} type="time" value={t.horario ?? ""}
+                                    onChange={(e) => patch(t.id, { horario: e.target.value })} />
+                                </MiniCampo>
+                                <div style={{ flex: "0 0 56px" }}>
+                                  <MiniCampo label="DOSES">
+                                    <NeonInput cor={c.dot} type="number" min={1} max={12} value={t.doses}
+                                      onChange={(e) => patch(t.id, { doses: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                                  </MiniCampo>
+                                </div>
+                                <button
+                                  onClick={() => { if (tomadas.length > 1) setTomadas(tomadas.filter(x => x.id !== t.id)); }}
+                                  disabled={tomadas.length <= 1}
+                                  title="Remover esta tomada"
+                                  style={{
+                                    background: "transparent",
+                                    color: tomadas.length > 1 ? tk.inkSubtle : tk.border,
+                                    border: `1px solid ${tk.border}`, fontFamily: tk.mono, fontSize: 11,
+                                    lineHeight: 1, cursor: tomadas.length > 1 ? "pointer" : "default",
+                                    padding: "5px 7px",
+                                  }}>×</button>
+                              </div>
                             ))}
-                          </NeonSelect>
-                        </MiniCampo>
-                        <MiniCampo label="HORÁRIO">
-                          <NeonInput cor={c.dot} type="time" value={s.horario ?? ""}
-                            onChange={(e) => update(s.id, { horario: e.target.value })} />
-                        </MiniCampo>
-                      </div>
+                            <button
+                              onClick={() => setTomadas([...tomadas, { id: "t" + Date.now(), periodo: "", horario: "", doses: 1 }])}
+                              style={{
+                                alignSelf: "flex-start", background: "transparent", color: c.dot,
+                                border: `1px dashed ${c.line}`, fontFamily: tk.mono, fontSize: 8,
+                                fontWeight: 700, letterSpacing: 1, cursor: "pointer", padding: "3px 8px",
+                              }}>+ TOMADA</button>
+                          </div>
+                        );
+                      })() : (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <MiniCampo label="PERÍODO">
+                            <NeonSelect cor={c.dot} value={s.periodo || ""}
+                              onChange={(e) => update(s.id, { periodo: e.target.value || undefined })}>
+                              {/* REGRA 1: em AUTO, depois de digitar o HORÁRIO o período derivado aparece aqui */}
+                              <option value="">
+                                {(() => {
+                                  const p = s.horario ? horarioParaPeriodo(s.horario) : null;
+                                  return p ? `AUTO → ${p.sigla} · ${p.nome}` : "AUTO · pelo horário";
+                                })()}
+                              </option>
+                              {PERIODOS_DIA.map(p => (
+                                <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
+                              ))}
+                            </NeonSelect>
+                          </MiniCampo>
+                          <MiniCampo label="HORÁRIO">
+                            <NeonInput cor={c.dot} type="time" value={s.horario ?? ""}
+                              onChange={(e) => update(s.id, { horario: e.target.value })} />
+                          </MiniCampo>
+                        </div>
+                      )}
 
                       {/* EXTENSÃO · injetáveis: SESSÕES + FREQUÊNCIA · VO: DURAÇÃO + DOSES/DIA · demais: DURAÇÃO + SESSÕES */}
                       <div style={{ display: "flex", gap: 6 }}>
                         {s.via === "VO" ? (
                           <>
+                            {/* VO: doses agora vêm das TOMADAS por período · aqui só a extensão do tratamento */}
                             <MiniCampo label="DURAÇÃO">
                               <NeonSelect cor={c.dot} value={s.duracao ?? ""}
                                 onChange={(e) => update(s.id, { duracao: e.target.value || undefined })}>
@@ -460,10 +540,13 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                                 {DURACOES.map(d => <option key={d} value={d}>{d}</option>)}
                               </NeonSelect>
                             </MiniCampo>
-                            {/* DOSES/DIA alimenta o cálculo QUANTIDADE: N DOSES (doses/dia × dias) */}
-                            <MiniCampo label="DOSES/DIA">
-                              <NeonInput cor={c.dot} type="number" min={1} max={12} value={dosesPorDia(s)}
-                                onChange={(e) => update(s.id, { dosesDia: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                            {/* TOTAL/DIA derivado da soma das tomadas (somente leitura) */}
+                            <MiniCampo label="TOTAL/DIA">
+                              <div style={{
+                                background: tk.bg, border: `1px solid ${tk.border}`,
+                                padding: "4px 6px", fontFamily: tk.mono, fontSize: 10,
+                                color: c.dot, fontWeight: 700, boxSizing: "border-box",
+                              }}>{dosesPorDia(s)} {dosesPorDia(s) > 1 ? "doses" : "dose"}</div>
                             </MiniCampo>
                           </>
                         ) : ehInjetavel(s.via) ? (
@@ -508,6 +591,7 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                           fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: c.dot, letterSpacing: 1,
                         }}>
                           QUANTIDADE: {quantidadeResumo(s)}
+                          {mapaDosesResumo(s) ? ` · ${mapaDosesResumo(s)}` : ""}
                         </div>
                       )}
 
