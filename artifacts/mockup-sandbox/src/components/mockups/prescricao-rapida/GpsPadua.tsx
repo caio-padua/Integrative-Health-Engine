@@ -1058,84 +1058,231 @@ function PrescricaoPreview({ s, cor, comTitulo = false }: { s: Substancia; cor: 
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// FOLHA · receita consolidada · todas as fórmulas (ativos + posologia) como sai no papel
+// FOLHA · receita consolidada como SAI NO PAPEL — folha A4 imprimível.
+// Pedido Caio 01/06: o 3º bloco não pode parecer "tela digital"; tem que ser uma
+// prescrição em papel/PDF que possa inclusive ser impressa (window.print). Por isso
+// esta paleta é CLARA e local (não usa o tk escuro), mantendo as regras inegociáveis:
+// 0px radius, JetBrains Mono, zero emoji, PT-BR, retângulo-dentro-retângulo.
 // ───────────────────────────────────────────────────────────────────────
+const papel = {
+  fundo: "#E6E9EE",     // mesa atrás da folha (some na impressão)
+  folha: "#FFFFFF",     // papel
+  navy: "#0A2647",      // faixa institucional
+  gold: "#B7935A",      // selo PAWARDS / RASX-MATRIZ
+  tinta: "#14233B",     // texto principal
+  tintaMedia: "#46566E",
+  tintaFraca: "#8A97AC",
+  regua: "#D6DBE3",     // fios/linhas
+  mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+};
+
+// Cores de via reescritas pra TINTA sobre papel branco (as do tk são claras p/ fundo escuro).
+const viaTinta: Record<Via, string> = {
+  EV: "#1C8A5F", IM: "#9A6E16", SC: "#2E63C4", VO: "#6E3FB0", IMP: "#A8407F", PRC: "#46566E",
+};
+
+// Posologia no formato papel (tinta preta), reaproveitando a mesma lógica do app (linhasPrescricao).
+function PosologiaPapel({ s }: { s: Substancia }) {
+  const { tomadas, quantidade, rodape } = linhasPrescricao(s);
+  return (
+    <div style={{ marginTop: 4, paddingLeft: 2 }}>
+      {tomadas.map((t, i) => (
+        <div key={i}>
+          <div style={{ fontFamily: papel.mono, fontSize: 10.5, color: papel.tinta, fontWeight: 600 }}>{t.dose}</div>
+          {t.obs && (
+            <div style={{ fontFamily: papel.mono, fontSize: 9.5, color: papel.tintaMedia, paddingLeft: 10 }}>Obs.: {t.obs}</div>
+          )}
+        </div>
+      ))}
+      {rodape ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginTop: 3 }}>
+          {rodape.map((r, i) => (
+            <span key={i} style={{ fontFamily: papel.mono, fontSize: 9.5, color: papel.tintaMedia }}>
+              <span style={{ color: papel.tintaFraca }}>{r.label}:</span>{" "}
+              <b style={{ color: papel.tinta, fontWeight: 700 }}>{r.valor}</b>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontFamily: papel.mono, fontSize: 9.5, color: papel.tinta, fontWeight: 600, marginTop: 3 }}>{quantidade}</div>
+      )}
+    </div>
+  );
+}
+
 function FolhaConsolidada({ todasFormulas }: { todasFormulas: Substancia[] }) {
   const ordemVias: Via[] = ["EV", "IM", "SC", "VO", "IMP", "PRC"];
   const ordenadas = [...todasFormulas].sort(
     (a, b) => ordemVias.indexOf(a.via) - ordemVias.indexOf(b.via),
   );
+  const emissao = new Date().toLocaleDateString("pt-BR");
+
   return (
-    <div style={{ padding: 14 }}>
-      <div style={{ background: tk.bg, border: `1px solid ${tk.border}`, padding: 14 }}>
-        {/* Cabeçalho da folha */}
+    <div style={{ background: papel.fundo, padding: 18, minHeight: "100%" }}>
+      {/* CSS de impressão: na impressão some tudo menos a folha (id folha-papel). */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #folha-papel, #folha-papel * { visibility: visible !important; }
+          #folha-papel { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; border: none !important; }
+          [data-no-print] { display: none !important; }
+        }
+        @page { size: A4; margin: 14mm; }
+      `}</style>
+
+      {/* Barra de ação (não imprime) */}
+      <div data-no-print style={{
+        maxWidth: 760, margin: "0 auto 12px", display: "flex",
+        justifyContent: "space-between", alignItems: "center",
+      }}>
+        <span style={{ fontFamily: papel.mono, fontSize: 10, color: papel.tintaMedia, letterSpacing: 1 }}>
+          PRÉ-VISUALIZAÇÃO DA FOLHA IMPRESSA
+        </span>
+        <button
+          onClick={() => window.print()}
+          style={{
+            fontFamily: papel.mono, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+            color: "#FFFFFF", background: papel.navy, border: `1px solid ${papel.navy}`,
+            padding: "6px 14px", cursor: "pointer",
+          }}
+        >IMPRIMIR</button>
+      </div>
+
+      {/* FOLHA A4 */}
+      <div id="folha-papel" style={{
+        maxWidth: 760, margin: "0 auto", background: papel.folha,
+        border: `1px solid ${papel.regua}`, boxShadow: "0 4px 18px rgba(10,38,71,0.14)",
+      }}>
+        {/* Cabeçalho institucional */}
         <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "baseline",
-          borderBottom: `1px solid ${tk.border}`, paddingBottom: 8, marginBottom: 10,
+          background: papel.navy, padding: "14px 22px",
+          display: "flex", justifyContent: "space-between", alignItems: "flex-start",
         }}>
           <div>
-            <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 2 }}>
-              PRESCRIÇÃO · COMO SAI NA FOLHA
-            </div>
-            <div style={{ fontFamily: tk.sans, fontSize: 13, fontWeight: 700, color: tk.ink, marginTop: 3 }}>
-              {PACIENTE.nome}
-            </div>
-            <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 1 }}>
-              ID {PACIENTE.id} · {PACIENTE.idade}a · CPF {PACIENTE.cpf}
-            </div>
+            <div style={{ fontFamily: papel.mono, fontSize: 13, fontWeight: 700, color: "#FFFFFF", letterSpacing: 1 }}>INSTITUTO PÁDUA</div>
+            <div style={{ fontFamily: papel.mono, fontSize: 8.5, color: "#AEBDD2", marginTop: 2 }}>PADUCCIA CLÍNICA MÉDICA LTDA — EPP</div>
+            <div style={{ fontFamily: papel.mono, fontSize: 8.5, color: "#8A99B5", marginTop: 1 }}>CNPJ 63.865.940/0001-63</div>
+            <div style={{ fontFamily: papel.mono, fontSize: 8.5, color: "#8A99B5", marginTop: 1 }}>Rua Guaxupé, 327 — Vila Formosa, São Paulo/SP</div>
           </div>
-          <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle, letterSpacing: 1 }}>
-            {ordenadas.length} {ordenadas.length === 1 ? "ITEM" : "ITENS"}
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontFamily: papel.mono, fontSize: 17, fontWeight: 800, color: papel.gold, letterSpacing: 3 }}>PAWARDS</div>
+            <div style={{ fontFamily: papel.mono, fontSize: 8, color: "#AEBDD2", marginTop: 2 }}>Sistema de Gestão em Saúde</div>
+          </div>
+        </div>
+
+        {/* Título do documento */}
+        <div style={{
+          textAlign: "center", padding: "9px 22px",
+          borderBottom: `2px solid ${papel.navy}`, background: "#F2F5F9",
+        }}>
+          <span style={{ fontFamily: papel.mono, fontSize: 13, fontWeight: 700, color: papel.navy, letterSpacing: 3 }}>
+            PRESCRIÇÃO MÉDICA
           </span>
         </div>
 
-        {/* Cada fórmula: ativos + posologia */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Bloco do paciente */}
+        <div style={{
+          padding: "12px 22px", borderBottom: `1px solid ${papel.regua}`,
+          display: "flex", justifyContent: "space-between", alignItems: "flex-end",
+        }}>
+          <div>
+            <div style={{ fontFamily: papel.mono, fontSize: 8, color: papel.tintaFraca, letterSpacing: 1.5 }}>PACIENTE</div>
+            <div style={{ fontFamily: papel.mono, fontSize: 13, fontWeight: 700, color: papel.tinta, marginTop: 2 }}>{PACIENTE.nome}</div>
+            <div style={{ fontFamily: papel.mono, fontSize: 9.5, color: papel.tintaMedia, marginTop: 2 }}>
+              ID {PACIENTE.id} · {PACIENTE.idade} anos · CPF {PACIENTE.cpf}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontFamily: papel.mono, fontSize: 8, color: papel.tintaFraca, letterSpacing: 1.5 }}>EMISSÃO</div>
+            <div style={{ fontFamily: papel.mono, fontSize: 11, fontWeight: 700, color: papel.tinta, marginTop: 2 }}>{emissao}</div>
+            <div style={{ fontFamily: papel.mono, fontSize: 9, color: papel.tintaMedia, marginTop: 2 }}>
+              {ordenadas.length} {ordenadas.length === 1 ? "item prescrito" : "itens prescritos"}
+            </div>
+          </div>
+        </div>
+
+        {/* Corpo · cada fórmula */}
+        <div style={{ padding: "14px 22px", display: "flex", flexDirection: "column", gap: 0 }}>
           {ordenadas.map((f, idx) => {
-            const cf = tk.via[f.via];
+            const ct = viaTinta[f.via];
             const comps = f.componentes || [];
+            const ultimo = idx === ordenadas.length - 1;
             return (
               <div key={f.id} style={{
-                borderLeft: `3px solid ${cf.dot}`, paddingLeft: 10,
+                borderLeft: `3px solid ${ct}`, paddingLeft: 12,
+                paddingBottom: ultimo ? 0 : 12, marginBottom: ultimo ? 0 : 12,
+                borderBottom: ultimo ? "none" : `1px solid ${papel.regua}`,
                 display: "flex", flexDirection: "column", gap: 5,
               }}>
+                {/* Linha-título do item */}
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                  <span style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkSubtle }}>
+                  <span style={{ fontFamily: papel.mono, fontSize: 10, color: papel.tintaFraca }}>
                     {String(idx + 1).padStart(2, "0")}
                   </span>
                   <span style={{
-                    fontFamily: tk.mono, fontSize: 9, fontWeight: 700, color: cf.dot,
-                    padding: "1px 6px", border: `1px solid ${cf.line}`, letterSpacing: 1,
+                    fontFamily: papel.mono, fontSize: 9, fontWeight: 700, color: ct,
+                    padding: "1px 6px", border: `1px solid ${ct}`, letterSpacing: 1,
                   }}>{f.via}</span>
-                  <span style={{ fontFamily: tk.sans, fontSize: 12, fontWeight: 700, color: tk.ink }}>{f.nome}{ehInjetavel(f.via) && f.dose ? ` ${f.dose}` : ""}</span>
+                  <span style={{ fontFamily: papel.mono, fontSize: 12, fontWeight: 700, color: papel.tinta }}>
+                    {f.nome}{ehInjetavel(f.via) && f.dose ? ` ${f.dose}` : ""}
+                  </span>
                 </div>
 
-                {/* Ativos (componentes do blend) */}
+                {/* Ativos do blend */}
                 {comps.length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 1, paddingLeft: 4 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1, paddingLeft: 2 }}>
                     {comps.map((cp, i) => (
                       <div key={cp.id} style={{
                         display: "flex", justifyContent: "space-between", gap: 8,
-                        fontFamily: tk.mono, fontSize: 10, color: tk.ink,
+                        fontFamily: papel.mono, fontSize: 10, color: papel.tinta,
                       }}>
                         <span>{String(i + 1).padStart(2, "0")} · {cp.nome || "—"}</span>
-                        <span style={{ color: tk.inkMuted }}>{cp.dose}</span>
+                        <span style={{ color: papel.tintaMedia }}>{cp.dose}</span>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* Posologia · injetáveis agora no mesmo formato da VO (pedido Caio 31/05) */}
+                {/* Posologia */}
                 {(f.via === "VO" || ehInjetavel(f.via)) ? (
-                  <PrescricaoPreview s={f} cor={cf.dot} />
+                  <PosologiaPapel s={f} />
                 ) : (
-                  <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted, paddingLeft: 4 }}>
+                  <div style={{ fontFamily: papel.mono, fontSize: 10, color: papel.tintaMedia, paddingLeft: 2 }}>
                     {ehConsulta(f) ? consultaResumo(f) : `${f.dose} · ${quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}`}
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+
+        {/* Assinatura */}
+        <div style={{ padding: "8px 22px 18px", display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ width: 260, textAlign: "center" }}>
+            <div style={{ borderTop: `1px solid ${papel.tinta}`, paddingTop: 5 }}>
+              <div style={{ fontFamily: papel.mono, fontSize: 10, fontWeight: 700, color: papel.tinta }}>Clínico Responsável</div>
+              <div style={{ fontFamily: papel.mono, fontSize: 8.5, color: papel.tintaMedia, marginTop: 1 }}>Assinatura e carimbo (CRM)</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Rodapé institucional */}
+        <div style={{
+          borderTop: `1px solid ${papel.regua}`, padding: "8px 22px",
+          display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFBFC",
+        }}>
+          <div style={{ flex: 1 }} />
+          <div style={{ flex: 2, textAlign: "center" }}>
+            <span style={{ fontFamily: papel.mono, fontSize: 8, color: papel.tintaFraca, fontStyle: "italic" }}>
+              PADCON — Tecnologia e Desenvolvimento (PADUCCIA)
+            </span>
+          </div>
+          <div style={{ flex: 1, textAlign: "right" }}>
+            <span style={{
+              fontFamily: papel.mono, fontSize: 7, fontWeight: 700, color: papel.gold, letterSpacing: 1,
+              border: `1px solid ${papel.gold}88`, background: `${papel.gold}11`, padding: "2px 6px",
+            }}>RASX-MATRIZ</span>
+          </div>
         </div>
       </div>
     </div>
