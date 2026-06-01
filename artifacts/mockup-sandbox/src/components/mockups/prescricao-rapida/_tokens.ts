@@ -143,11 +143,12 @@ export type Substancia = {
   // NOTA injetavel: serve so como FONTE DA UNIDADE (ampola/frasco/aplicacao), nao editavel.
   quantidade?: string;
   // apresentacao = descricao da apresentacao do injetavel, definida no CADASTRO e
-  // NAO editavel no cockpit (ex: "500 mg/frasco · 1 frasco 10 mL = 1 dose").
+  // NAO editavel no cockpit. Separada por "·" -> cada fato vira um retangulozinho:
+  // qtd da substancia por frasco/ampola · volume em mL. Ex: "500 mg/frasco · 10 mL".
+  // A concentracao (mg/mL) NAO se digita: e CALCULADA (mg ÷ mL) e mostrada num
+  // retangulo destacado "= 50 mg/mL" com a formula no tooltip (auditavel).
+  // A dose POR APLICACAO (nº de ampolas) vem do campo DOSES da tomada (TomadasEditor).
   apresentacao?: string;
-  // dosePorAplicacao = nº de ampolas/frascos/unidades por aplicacao (EDITAVEL no cockpit).
-  // Multiplica posologia + quantidade total + orcamento (preco e por ampola). Default 1.
-  dosePorAplicacao?: number;
   // duracao = extensao do tratamento em dias (ex: "30 dias", "60 dias", "continuo")
   // NOTA: campo "frequencia" acima permanece (back-compat) = ritmo (diaria, 1x/sem)
   duracao?: string;
@@ -179,7 +180,7 @@ export const PACIENTE = {
 
 export const CATALOGO: Substancia[] = [
   // ── EV · ENDOVENOSO ───────────────────────────────────────────────────────
-  { id: "nad-ev",    nome: "NAD+ Endovenoso",            via: "EV", categoria: "Bioenergético",        dose: "500 mg",  detalhe: "Restaurador bioenergético",   sessoes: 6, frequencia: "1×/sem", preco: 450, ancora: "sem-ancora", quantidade: "1 frasco", apresentacao: "500 mg/frasco · 1 frasco 10 mL = 1 dose", dosePorAplicacao: 1, duracao: "60 dias", horario: "07:00", periodo: "IM", mensagem: "infusão lenta · 40 min" },
+  { id: "nad-ev",    nome: "NAD+ Endovenoso",            via: "EV", categoria: "Bioenergético",        dose: "500 mg",  detalhe: "Restaurador bioenergético",   sessoes: 6, frequencia: "1×/sem", preco: 450, ancora: "sem-ancora", quantidade: "1 frasco", apresentacao: "500 mg/frasco · 10 mL", duracao: "60 dias", horario: "07:00", periodo: "IM", mensagem: "infusão lenta · 40 min" },
   { id: "glut-ev",   nome: "Glutationa Reduzida",        via: "EV", categoria: "Antioxidante",          dose: "1200 mg", detalhe: "Antioxidante mestre",         sessoes: 6, frequencia: "1×/sem", preco: 320, ancora: "sem-ancora" },
   { id: "vitc-ev",   nome: "Vitamina C Alta Dose",       via: "EV", categoria: "Imunológico",           dose: "25 g",    detalhe: "Imunomodulador",              sessoes: 6, frequencia: "1×/sem", preco: 280, ancora: "sem-ancora" },
   { id: "alfa-ev",   nome: "Ácido Alfa-Lipóico EV",      via: "EV", categoria: "Antioxidante",          dose: "600 mg",  detalhe: "Antioxidante neuroprotetor",  sessoes: 6, frequencia: "1×/sem", preco: 240, ancora: "sem-ancora" },
@@ -190,7 +191,7 @@ export const CATALOGO: Substancia[] = [
   { id: "edta-ev",   nome: "Quelação EDTA",              via: "EV", categoria: "Longevidade",           dose: "3 g",     detalhe: "Detox metais pesados",        sessoes: 10, frequencia: "1×/sem", preco: 360, ancora: "sem-ancora" },
 
   // ── IM · INTRAMUSCULAR ────────────────────────────────────────────────────
-  { id: "coq10-im",  nome: "CoQ10 Ubiquinol + PQQ",      via: "IM", categoria: "Bioenergético",         dose: "100 + 20 mg", detalhe: "Mitocondrial",            sessoes: 6, frequencia: "1×/sem", preco: 235, ancora: "sem-ancora", quantidade: "1 ampola", apresentacao: "120 mg/ampola 2 mL · 1 ampola = 1 dose", dosePorAplicacao: 1, duracao: "45 dias", horario: "08:00", periodo: "IM" },
+  { id: "coq10-im",  nome: "CoQ10 Ubiquinol + PQQ",      via: "IM", categoria: "Bioenergético",         dose: "100 + 20 mg", detalhe: "Mitocondrial",            sessoes: 6, frequencia: "1×/sem", preco: 235, ancora: "sem-ancora", quantidade: "1 ampola", apresentacao: "120 mg/ampola · 2 mL", duracao: "45 dias", horario: "08:00", periodo: "IM" },
   { id: "b12-im",    nome: "B12 Metilcobalamina",        via: "IM", categoria: "Neuro / Cognitivo",     dose: "5000 mcg", detalhe: "Neurotrófico",               sessoes: 4, frequencia: "1×/sem", preco: 95,  ancora: "sem-ancora" },
   { id: "vitd-im",   nome: "Vitamina D3 100k UI",        via: "IM", categoria: "Vitaminas & Minerais",  dose: "100.000 UI", detalhe: "Pulso D · dose única",     sessoes: 1, frequencia: "única",  preco: 180, ancora: "primeira" },
   { id: "resv-im",   nome: "Resveratrol Injetável",      via: "IM", categoria: "Longevidade",           dose: "250 mg",  detalhe: "Sirtuína / longevidade",      sessoes: 4, frequencia: "1×/sem", preco: 210, ancora: "sem-ancora" },
@@ -200,7 +201,7 @@ export const CATALOGO: Substancia[] = [
   { id: "compb-im",  nome: "Complexo B Intramuscular",   via: "IM", categoria: "Vitaminas & Minerais",  dose: "ampola",  detalhe: "Energia + neuro",             sessoes: 4, frequencia: "1×/sem", preco: 90,  ancora: "sem-ancora" },
 
   // ── SC · SUBCUTÂNEO ───────────────────────────────────────────────────────
-  { id: "sema-sc",   nome: "Semaglutida 0,5 mg",         via: "SC", categoria: "Metabólico / GLP-1",    dose: "0,5 mg",  detalhe: "GLP-1 · controle apetite",    sessoes: 12, frequencia: "1×/sem", preco: 380, ancora: "sem-ancora", quantidade: "1 aplicação", apresentacao: "0,5 mg/dose · 1 caneta = 1 aplicação", dosePorAplicacao: 1, duracao: "90 dias", horario: "20:00", periodo: "FN", mensagem: "rotacionar local da aplicação" },
+  { id: "sema-sc",   nome: "Semaglutida 0,5 mg",         via: "SC", categoria: "Metabólico / GLP-1",    dose: "0,5 mg",  detalhe: "GLP-1 · controle apetite",    sessoes: 12, frequencia: "1×/sem", preco: 380, ancora: "sem-ancora", quantidade: "1 aplicação", apresentacao: "0,5 mg/dose · caneta multidose · 1 aplicação", duracao: "90 dias", horario: "20:00", periodo: "FN", mensagem: "rotacionar local da aplicação" },
   { id: "tirz-sc",   nome: "Tirzepatida 2,5 mg",         via: "SC", categoria: "Metabólico / GLP-1",    dose: "2,5 mg",  detalhe: "GLP-1/GIP · titulação",       sessoes: 8,  frequencia: "1×/sem", preco: 520, ancora: "sem-ancora" },
   { id: "lira-sc",   nome: "Liraglutida 1,2 mg",         via: "SC", categoria: "Metabólico / GLP-1",    dose: "1,2 mg",  detalhe: "GLP-1 · uso diário",          sessoes: 30, frequencia: "diária", preco: 290, ancora: "sem-ancora" },
   { id: "bpc-sc",    nome: "BPC-157 Peptídeo",           via: "SC", categoria: "Aminoácidos & Peptídeos", dose: "250 mcg", detalhe: "Reparo tecidual",           sessoes: 20, frequencia: "diária", preco: 240, ancora: "sem-ancora" },

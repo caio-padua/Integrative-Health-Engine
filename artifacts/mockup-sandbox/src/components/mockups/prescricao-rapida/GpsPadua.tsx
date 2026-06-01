@@ -79,6 +79,60 @@ function quantidadeResumo(s: Substancia): string | null {
   return null;
 }
 
+// Consulta/avaliação (PRC): linha dedicada no 3º andar (pedido Caio 01/06) —
+// "2 consultas / avaliação com duração de 60 min · a cada 30 dias".
+function ehConsulta(s: Substancia): boolean {
+  return s.via === "PRC" && /consulta|avalia/i.test(s.nome);
+}
+function consultaResumo(s: Substancia): string {
+  const n = s.sessoes;
+  const cabeca = `${n} ${n > 1 ? "consultas" : "consulta"} / avaliação`;
+  const dur = s.dose && s.dose !== "—" ? ` com duração de ${s.dose}` : "";
+  const freq = frequenciaNatural(s.frequencia);
+  const cadencia = freq && freq !== "—" ? ` · ${freq.toLowerCase()}` : "";
+  return `${cabeca}${dur}${cadencia}`;
+}
+
+// Normaliza número escrito em PT-BR ou EN para Number. Detecta o separador decimal
+// pela última ocorrência de "," ou "."; o outro é tratado como milhar. Ponto único:
+// 3 dígitos após = milhar (1.200), senão decimal (0.5, 10.5).
+function normalizarNumeroBR(raw: string): number {
+  const temPonto = raw.includes("."), temVirgula = raw.includes(",");
+  let s = raw;
+  if (temPonto && temVirgula) {
+    s = raw.lastIndexOf(",") > raw.lastIndexOf(".")
+      ? raw.replace(/\./g, "").replace(",", ".")  // BR: 1.200,5 -> 1200.5
+      : raw.replace(/,/g, "");                      // EN: 1,200.5 -> 1200.5
+  } else if (temVirgula) {
+    s = raw.replace(/\./g, "").replace(",", ".");
+  } else if (temPonto) {
+    const dec = raw.match(/\.(\d+)$/);
+    const ehMilhar = raw.split(".").length > 2 || (dec !== null && dec[1].length === 3);
+    s = ehMilhar ? raw.replace(/\./g, "") : raw;
+  }
+  return parseFloat(s);
+}
+
+// Concentração do injetável NÃO se digita: é CALCULADA (mg ÷ mL) a partir dos dois
+// fatos do cadastro (pedido Caio 01/06 "cadê o cálculo de mg/mL?"). Retorna o valor
+// formatado + a fórmula pro tooltip. Sem mL (ex: caneta multidose) → null.
+function concentracaoCalculada(apresentacao?: string): { valor: string; formula: string } | null {
+  if (!apresentacao) return null;
+  const partes = apresentacao.split("·").map((p) => p.trim());
+  let mg: number | null = null, ml: number | null = null;
+  let mgTxt = "", mlTxt = "";
+  for (const p of partes) {
+    const mMg = p.match(/([\d.,]+)\s*mg/i);
+    const mMl = p.match(/([\d.,]+)\s*ml/i);
+    if (mMg && mg === null) { mg = normalizarNumeroBR(mMg[1]); mgTxt = `${mMg[1]} mg`; }
+    if (mMl && ml === null) { ml = normalizarNumeroBR(mMl[1]); mlTxt = `${mMl[1]} mL`; }
+  }
+  if (mg === null || ml === null || ml === 0 || !isFinite(mg) || !isFinite(ml)) return null;
+  const v = mg / ml;
+  const fmt = Number.isInteger(v) ? String(v) : v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+  return { valor: `${fmt} mg/mL`, formula: `${mgTxt} ÷ ${mlTxt} = ${fmt} mg/mL` };
+}
+
 // "20:00" → "20h" · "20:30" → "20h30" · aceita "20h" já pronto.
 function horaCurta(hhmm?: string): string | null {
   if (!hhmm) return null;
@@ -141,10 +195,11 @@ function frequenciaNatural(freq?: string): string {
   return freq;
 }
 
-// Injetável é cobrado POR AMPOLA/UNIDADE (pedido Caio 31/05): a dose por aplicação
-// (nº de ampolas) multiplica a quantidade total e o orçamento. Demais vias: por sessão.
+// Injetável é cobrado POR AMPOLA/UNIDADE (pedido Caio): a dose por aplicação (nº de
+// ampolas) multiplica a quantidade total e o orçamento. A dose por aplicação agora
+// vem do campo DOSES da tomada (pedido Caio 01/06), não de um campo separado.
 function ampolasPorAplicacao(s: Substancia): number {
-  return Math.max(1, Math.floor(s.dosePorAplicacao ?? 1));
+  return Math.max(1, Math.floor(dosesPorDia(s)));
 }
 function unidadesCobranca(s: Substancia): number {
   return ehInjetavel(s.via) ? s.sessoes * ampolasPorAplicacao(s) : s.sessoes;
@@ -187,7 +242,7 @@ function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: strin
     // multiplica a dose por aplicação (preço é por ampola). Um fato por linha.
     const rodape = [
       { label: "Quantidade", valor: `${total} ${totalLabel}` },
-      { label: "Sessões", valor: `${s.sessoes}` },
+      { label: "Sessões", valor: `${s.sessoes} ${s.sessoes > 1 ? "aplicações" : "aplicação"}` },
       { label: "Frequência", valor: frequenciaNatural(s.frequencia) },
     ];
     return { tomadas, quantidade: `Quantidade: ${total} ${totalLabel}`, rodape };
@@ -535,35 +590,34 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                       marginTop: 8, display: "flex", flexDirection: "column", gap: 7,
                       paddingLeft: 8, borderLeft: `1px solid ${c.line}`,
                     }}>
-                      {/* QUANTO · injetável: MG fixo + DOSE editável (nº de ampolas/aplicação) +
-                          APRESENTAÇÃO read-only do cadastro. Demais vias: DOSE + QUANTIDADE (pedido Caio 31/05). */}
+                      {/* QUANTO · injetável: SÓ a APRESENTAÇÃO read-only do cadastro, em
+                          retângulos (1 fato cada). A dose POR APLICAÇÃO virou o campo DOSES
+                          da tomada abaixo (pedido Caio 01/06). Demais vias: DOSE + QUANTIDADE. */}
                       {ehInjetavel(s.via) ? (
-                        <>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <MiniCampo label="MG · FIXO DA FÓRMULA">
-                              <div title="Definido no cadastro da fórmula · não editável no cockpit"
-                                style={{
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <MiniCampo label="APRESENTAÇÃO · CADASTRO">
+                            <div title="Apresentação definida no cadastro da fórmula · não editável no cockpit"
+                              style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                              {(s.apresentacao ?? "—").split("·").map(p => p.trim()).filter(Boolean).map((p, i) => (
+                                <span key={i} style={{
                                   background: tk.bgAlt, color: tk.inkMuted, border: `1px dashed ${tk.border}`,
-                                  padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
-                                  boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                                }}>{s.dose}</div>
-                            </MiniCampo>
-                            <MiniCampo label="DOSE · POR APLICAÇÃO">
-                              <NeonInput cor={c.dot} type="number" min={1} max={20} value={s.dosePorAplicacao ?? 1}
-                                onChange={(e) => update(s.id, { dosePorAplicacao: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
-                            </MiniCampo>
-                          </div>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <MiniCampo label="APRESENTAÇÃO · CADASTRO">
-                              <div title="Apresentação definida no cadastro da fórmula · não editável no cockpit"
-                                style={{
-                                  background: tk.bgAlt, color: tk.inkMuted, border: `1px dashed ${tk.border}`,
-                                  padding: "4px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
-                                  boxSizing: "border-box", lineHeight: 1.4,
-                                }}>{s.apresentacao ?? "—"}</div>
-                            </MiniCampo>
-                          </div>
-                        </>
+                                  padding: "3px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                }}>{p}</span>
+                              ))}
+                              {(() => {
+                                const conc = concentracaoCalculada(s.apresentacao);
+                                return conc ? (
+                                  <span title={`Concentração calculada automaticamente: ${conc.formula}`} style={{
+                                    background: tk.bgAlt, color: c.dot, border: `1px solid ${c.dot}`,
+                                    padding: "3px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                  }}>= {conc.valor}</span>
+                                ) : null;
+                              })()}
+                            </div>
+                          </MiniCampo>
+                        </div>
                       ) : (
                         <div style={{ display: "flex", gap: 6 }}>
                           <MiniCampo label="DOSE">
@@ -1076,7 +1130,7 @@ function FolhaConsolidada({ todasFormulas }: { todasFormulas: Substancia[] }) {
                   <PrescricaoPreview s={f} cor={cf.dot} />
                 ) : (
                   <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted, paddingLeft: 4 }}>
-                    {f.dose} · {quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}
+                    {ehConsulta(f) ? consultaResumo(f) : `${f.dose} · ${quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}`}
                   </div>
                 )}
               </div>
@@ -1455,7 +1509,7 @@ function EditorBlend({ formula, update, onClose, selecionarFormula, carta, setCa
                   <PrescricaoPreview s={f} cor={cf.dot} />
                 ) : (
                   <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted }}>
-                    {f.dose} · {quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}
+                    {ehConsulta(f) ? consultaResumo(f) : `${f.dose} · ${quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}`}
                   </div>
                 )}
               </button>
