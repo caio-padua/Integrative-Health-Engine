@@ -217,12 +217,13 @@ function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: strin
     const hora = horaCurta(t.horario);
     let dose: string;
     if (inj) {
-      // Dose POR APLICAÇÃO = nº de ampolas (editável no cockpit); a unidade vem do cadastro.
-      // Ex: "Aplicar 2 ampolas IM — Antes do Café da Manhã" (pedido Caio 31/05).
-      const ampApp = ampolasPorAplicacao(s);
+      // Dose POR APLICAÇÃO/PERÍODO = nº de ampolas DESTA tomada (campo DOSES da própria
+      // tomada), NÃO a soma do dia. Ex: 2 frascos de manhã + 1 frasco à noite saem como
+      // duas linhas distintas — "Aplicar 2 frascos EV — Início da Manhã" e "Aplicar 1
+      // frasco EV — Final da Noite" (bug reportado por Caio 01/06: antes ambas mostravam 3).
       const unid = unidadeInjetavel(s.quantidade);
-      const unidApp = ampApp > 1 ? pluralUnidade(unid) : unid;
-      dose = `Aplicar ${ampApp} ${unidApp} ${s.via}`;
+      const unidApp = n > 1 ? pluralUnidade(unid) : unid;
+      dose = `Aplicar ${n} ${unidApp} ${s.via}`;
       if (p) dose += ` — ${p.nome}`;
       // Relógio sai do texto da receita do injetável; horário vive no campo + mensageria.
     } else {

@@ -25,8 +25,13 @@ Regras:
   O campo `quantidade` serve SÓ como fonte da unidade (ampola/frasco/aplicação).
 - Preço do injetável é POR AMPOLA: helpers `ampolasPorAplicacao` / `unidadesCobranca`
   (=ehInjetavel? sessoes×ampolas : sessoes) / `custoTotal` (=preco×unidadesCobranca).
-  A dose por aplicação (DOSES da tomada) multiplica posologia ("Aplicar 2 ampolas"),
-  quantidade total do rodapé E orçamento (total geral, subtotal por-via, per-item).
+  `ampolasPorAplicacao(s)` = `Math.floor(dosesPorDia(s))` = SOMA das doses do dia.
+  Serve SÓ para cobrança e para o TOTAL do rodapé (`sessoes × soma-do-dia`).
+- ATENÇÃO (bug Caio 01/06): cada LINHA de período no "COMO SAI NA RECEITA" usa a dose
+  da PRÓPRIA tomada (`n = t.doses`), NUNCA `ampolasPorAplicacao` (a soma). Ex: 2 frascos
+  de manhã + 1 à noite → duas linhas "Aplicar 2 frascos" e "Aplicar 1 frasco"; o rodapé
+  soma 3. Usar a soma na linha fazia TODOS os períodos mostrarem "3 frascos".
+  **Why:** posologia é por janela do dia; a soma só vale pro total dispensado/orçamento.
 - Consulta/avaliação (PRC, `ehConsulta` = via PRC && nome ~/consulta|avalia/): no 3º
   andar (VER TODAS + FOLHA) usa `consultaResumo` → "N consultas / avaliação com
   duração de {dose} · {frequenciaNatural minúsculo}".
