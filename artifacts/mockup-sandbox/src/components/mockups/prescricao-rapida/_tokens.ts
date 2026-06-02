@@ -19,7 +19,6 @@ export const tk = {
     IM:  { dot: "#F5C26B", soft: "rgba(245,194,107,0.12)", line: "rgba(245,194,107,0.35)" },
     SC:  { dot: "#A8C7FA", soft: "rgba(168,199,250,0.12)", line: "rgba(168,199,250,0.35)" },
     VO:  { dot: "#C9A5F5", soft: "rgba(201,165,245,0.12)", line: "rgba(201,165,245,0.35)" },
-    SL:  { dot: "#8FD3C7", soft: "rgba(143,211,199,0.12)", line: "rgba(143,211,199,0.35)" },
     IMP: { dot: "#E8A5D8", soft: "rgba(232,165,216,0.12)", line: "rgba(232,165,216,0.35)" },
     PRC: { dot: "#B0BCD0", soft: "rgba(176,188,208,0.12)", line: "rgba(176,188,208,0.35)" },
   },
@@ -27,17 +26,28 @@ export const tk = {
   sans: "'Inter', ui-sans-serif, system-ui, sans-serif",
 } as const;
 
-export type Via = "EV" | "IM" | "SC" | "VO" | "SL" | "IMP" | "PRC";
+// Via = COLUNA do cockpit (agrupador). Sublingual NÃO é coluna: virou uma via de
+// administração da fórmula (ver VIAS_ADMINISTRACAO). A coluna VO foi renomeada para
+// RECEITAS CLÍNICAS — é onde o Caio receita as fórmulas manipuladas.
+export type Via = "EV" | "IM" | "SC" | "VO" | "IMP" | "PRC";
 
 export const VIA_META: Record<Via, { titulo: string; sub: string }> = {
   EV:  { titulo: "ENDOVENOSO",      sub: "infusão · acesso periférico" },
   IM:  { titulo: "INTRAMUSCULAR",   sub: "glúteo · superior externo" },
   SC:  { titulo: "SUBCUTÂNEO",      sub: "abdominal · rotativo" },
-  VO:  { titulo: "VIA ORAL",        sub: "magistral · uso contínuo" },
-  SL:  { titulo: "SUBLINGUAL",      sub: "absorção · sob a língua" },
+  VO:  { titulo: "RECEITAS CLÍNICAS", sub: "fórmulas manipuladas · uso contínuo" },
   IMP: { titulo: "IMPLANTES",       sub: "hormonal · longa duração" },
   PRC: { titulo: "PROCEDIMENTOS",   sub: "consulta · estética" },
 };
+
+// ── Vias de administração das fórmulas manipuladas (02/06/2026) ──────────────
+// Propriedade da FÓRMULA (não da coluna). Lista pedida pelo Caio: as vias mais
+// comuns de fórmulas manipuladas. Default = Oral.
+export const VIAS_ADMINISTRACAO = [
+  "Oral", "Sublingual", "Tópica", "Transdérmica", "Vaginal", "Retal",
+  "Nasal", "Otológica", "Oftálmica", "Intramuscular", "Subcutânea", "Endovenosa",
+] as const;
+export type ViaAdministracao = typeof VIAS_ADMINISTRACAO[number];
 
 // ── Tipos de consulta clínica (medicina integrativa = equipe multidisciplinar) ──
 // Cada tipo roteia para a AGENDA própria do profissional. Pesquisa 02/06/2026.
@@ -205,6 +215,9 @@ export type Substancia = {
   // itensImplante = pellets implantados NA MESMA sessão. A dose vem do CADASTRO (read-only);
   // o médico só define a QUANTIDADE de cada pellet. Custo = soma(preco × quantidade).
   itensImplante?: ImplanteLinha[];
+  // ── Via de administração da fórmula manipulada (02/06/2026) ──
+  // Propriedade da fórmula (coluna RECEITAS CLÍNICAS), não cria coluna. Default = Oral.
+  viaAdministracao?: ViaAdministracao;
 };
 
 // Uma linha do blend de implantes: um pellet do cadastro com a quantidade escolhida.
@@ -313,10 +326,10 @@ export const CATALOGO: Substancia[] = [
   { id: "creat-vo",  nome: "Creatina Monohidratada",     via: "VO", categoria: "Aminoácidos & Peptídeos", dose: "5 g",   detalhe: "Força + cognição",            sessoes: 30, frequencia: "diária", preco: 80,  dosesDiaPadrao: 1, ancora: "primeira", horarios: ["09h"] },
   { id: "prob-vo",   nome: "Probiótico 50 bi UFC",       via: "VO", categoria: "Imunológico",           dose: "1 dose/dia", detalhe: "Eixo intestino-cérebro",    sessoes: 30, frequencia: "diária", preco: 150, dosesDiaPadrao: 1, ancora: "primeira", horarios: ["07h"] },
 
-  // ── SL · SUBLINGUAL ───────────────────────────────────────────────────────
-  { id: "b12-sl",    nome: "Vitamina B12 Sublingual",    via: "SL", categoria: "Vitaminas & Minerais",  dose: "1.000 mcg", detalhe: "1 gota sob a língua",        sessoes: 30, frequencia: "diária",   preco: 60,  ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "08:00", periodo: "JE" },
-  { id: "testo-sl",  nome: "Testosterona Troche SL",     via: "SL", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Pastilha de absorção SL",     sessoes: 30, frequencia: "diária",   preco: 180, ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "07:00", periodo: "JE" },
-  { id: "tadala-sl", nome: "Tadalafila Sublingual",      via: "SL", categoria: "Longevidade",           dose: "5 mg",    detalhe: "Vasodilatador · uso contínuo", sessoes: 30, frequencia: "diária",  preco: 140, ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "21:00", periodo: "NO" },
+  // ── Fórmulas sublinguais (via de administração = Sublingual, coluna RECEITAS CLÍNICAS) ──
+  { id: "b12-sl",    nome: "Vitamina B12 Sublingual",    via: "VO", viaAdministracao: "Sublingual", categoria: "Vitaminas & Minerais",  dose: "1.000 mcg", detalhe: "1 gota sob a língua",        sessoes: 30, frequencia: "diária",   preco: 60,  ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "08:00", periodo: "JE" },
+  { id: "testo-sl",  nome: "Testosterona Troche SL",     via: "VO", viaAdministracao: "Sublingual", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Pastilha de absorção SL",     sessoes: 30, frequencia: "diária",   preco: 180, ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "07:00", periodo: "JE" },
+  { id: "tadala-sl", nome: "Tadalafila Sublingual",      via: "VO", viaAdministracao: "Sublingual", categoria: "Longevidade",           dose: "5 mg",    detalhe: "Vasodilatador · uso contínuo", sessoes: 30, frequencia: "diária",  preco: 140, ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "21:00", periodo: "NO" },
 
   // ── IMP · IMPLANTES (pellets do cadastro · dose fixa por pellet) ───────────
   { id: "gest-imp-50", nome: "Gestrinona 50 mg",         via: "IMP", categoria: "Hormonal",             dose: "50 mg",   detalhe: "Implante hormonal 4-6 meses", sessoes: 1, frequencia: "semestral", preco: 1280, ancora: "primeira" },

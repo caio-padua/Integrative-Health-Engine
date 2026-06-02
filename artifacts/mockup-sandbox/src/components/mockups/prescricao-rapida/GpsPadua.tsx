@@ -2,18 +2,18 @@ import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, CATEGORIAS, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
   VIA_META, FREQUENCIAS, DURACOES, ACOES_ANCORA,
-  TIPOS_CONSULTA, TEMPOS_CONSULTA, agendaDoTipo, linhaImplante,
+  TIPOS_CONSULTA, TEMPOS_CONSULTA, agendaDoTipo, linhaImplante, VIAS_ADMINISTRACAO,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
 import {
   type Substancia, type Via, type Categoria, type Frequencia, type Ancora, type AcaoAncora, type ComponenteBlend, type Tomada,
-  type ImplanteLinha, type TipoConsulta,
+  type ImplanteLinha, type TipoConsulta, type ViaAdministracao,
 } from "./_tokens";
 
 type Modo = "PILHA" | "TIMELINE" | "GPS";
 
-const VIAS_ORDEM: Via[] = ["EV", "IM", "SC", "VO", "SL", "IMP", "PRC"];
+const VIAS_ORDEM: Via[] = ["EV", "IM", "SC", "VO", "IMP", "PRC"];
 const TOTAL_SESSOES = 8;
 const SESSAO_ATUAL = 3;
 
@@ -342,7 +342,10 @@ function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: strin
       if (p) dose += ` — ${p.nome}`;
       // Relógio sai do texto da receita do injetável; horário vive no campo + mensageria.
     } else {
-      dose = `${n} ${n > 1 ? "Doses" : "Dose"} ${s.via}`;
+      // Fórmula manipulada (Receitas Clínicas): o texto da receita carrega a VIA DE
+      // ADMINISTRAÇÃO (Oral, Sublingual, Tópica...), nunca o código de coluna "VO".
+      const viaAdm = s.viaAdministracao ?? "Oral";
+      dose = `${n} ${n > 1 ? "Doses" : "Dose"} · ${viaAdm}`;
       if (p) dose += ` — ${p.nome}`;
       if (hora) dose += ` — Sugestão às ${hora}`;
     }
@@ -408,11 +411,11 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
     // Decisão Caio: recolher por padrão apenas as vias SEM itens; vias com
     // item cadastrado já abrem (não polui a tela quando vazio, mas mostra o
     // conteúdo quando existe — vale pra IMP/PRC e qualquer outra via).
-    const cont: Record<Via, number> = { EV: 0, IM: 0, SC: 0, VO: 0, SL: 0, IMP: 0, PRC: 0 };
+    const cont: Record<Via, number> = { EV: 0, IM: 0, SC: 0, VO: 0, IMP: 0, PRC: 0 };
     SELECIONADAS_INICIAIS.forEach(s => { cont[s.via] += 1; });
     return {
       EV: cont.EV === 0, IM: cont.IM === 0, SC: cont.SC === 0,
-      VO: cont.VO === 0, SL: cont.SL === 0, IMP: cont.IMP === 0, PRC: cont.PRC === 0,
+      VO: cont.VO === 0, IMP: cont.IMP === 0, PRC: cont.PRC === 0,
     };
   });
   const [editandoFormula, setEditandoFormula] = useState<string | null>("blend-vo");
@@ -420,7 +423,7 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
   const [carta, setCarta] = useState<MatrizCartaEncantamento>(exemploCartaFuturoPapai());
 
   const porVia = useMemo(() => {
-    const m: Record<Via, Substancia[]> = { EV: [], IM: [], SC: [], VO: [], SL: [], IMP: [], PRC: [] };
+    const m: Record<Via, Substancia[]> = { EV: [], IM: [], SC: [], VO: [], IMP: [], PRC: [] };
     sel.forEach(s => m[s.via].push(s));
     return m;
   }, [sel]);
@@ -797,16 +800,29 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         </div>
                       )}
 
-                      {/* VIA · rota (sentido próprio → sozinho) */}
+                      {/* VIA · fórmula manipulada (Receitas Clínicas) escolhe a VIA DE
+                          ADMINISTRAÇÃO (oral, sublingual, tópica...); não troca de coluna.
+                          Demais vias (injetáveis/IMP/PRC): a coluna É a via, dropdown de coluna. */}
                       <div style={{ display: "flex", gap: 6 }}>
-                        <MiniCampo label="VIA">
-                          <NeonSelect cor={c.dot} value={s.via}
-                            onChange={(e) => update(s.id, { via: e.target.value as Via })}>
-                            {(Object.keys(VIA_META) as Via[]).map(vv => (
-                              <option key={vv} value={vv}>{vv} · {VIA_META[vv].titulo}</option>
-                            ))}
-                          </NeonSelect>
-                        </MiniCampo>
+                        {s.via === "VO" ? (
+                          <MiniCampo label="VIA DE ADMINISTRAÇÃO">
+                            <NeonSelect cor={c.dot} value={s.viaAdministracao ?? "Oral"}
+                              onChange={(e) => update(s.id, { viaAdministracao: e.target.value as ViaAdministracao })}>
+                              {VIAS_ADMINISTRACAO.map(va => (
+                                <option key={va} value={va}>{va}</option>
+                              ))}
+                            </NeonSelect>
+                          </MiniCampo>
+                        ) : (
+                          <MiniCampo label="VIA">
+                            <NeonSelect cor={c.dot} value={s.via}
+                              onChange={(e) => update(s.id, { via: e.target.value as Via })}>
+                              {(Object.keys(VIA_META) as Via[]).map(vv => (
+                                <option key={vv} value={vv}>{vv} · {VIA_META[vv].titulo}</option>
+                              ))}
+                            </NeonSelect>
+                          </MiniCampo>
+                        )}
                       </div>
 
                       {/* QUANDO NO DIA · dose POR PERÍODO. VO + injetáveis (EV/IM/SC) usam o MESMO
@@ -1395,7 +1411,7 @@ const papel = {
 
 // Cores de via reescritas pra TINTA sobre papel branco (as do tk são claras p/ fundo escuro).
 const viaTinta: Record<Via, string> = {
-  EV: "#1C8A5F", IM: "#9A6E16", SC: "#2E63C4", VO: "#6E3FB0", SL: "#2F8E8E", IMP: "#A8407F", PRC: "#46566E",
+  EV: "#1C8A5F", IM: "#9A6E16", SC: "#2E63C4", VO: "#6E3FB0", IMP: "#A8407F", PRC: "#46566E",
 };
 
 // Posologia no formato papel (tinta preta), reaproveitando a mesma lógica do app (linhasPrescricao).
@@ -2073,17 +2089,17 @@ function EditorBlend({ formula, update, onClose, selecionarFormula, carta, setCa
             <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1.5 }}>
               VIA DE ADMINISTRAÇÃO
             </span>
-            <select value={formula.via}
-              onChange={(e) => update({ via: e.target.value as Via })}
+            <select value={formula.viaAdministracao ?? "Oral"}
+              onChange={(e) => update({ viaAdministracao: e.target.value as ViaAdministracao })}
               style={{ ...inpBase, fontSize: 11, fontWeight: 700, color: c.dot }}>
-              {(Object.keys(VIA_META) as Via[]).map(v => (
-                <option key={v} value={v}>{v} · {VIA_META[v].titulo}</option>
+              {VIAS_ADMINISTRACAO.map(va => (
+                <option key={va} value={va}>{va}</option>
               ))}
             </select>
             <span style={{
               fontFamily: tk.mono, fontSize: 9, color: c.dot,
               padding: "3px 8px", background: c.soft, border: `1px solid ${c.line}`, letterSpacing: 1,
-            }}>{VIA_META[formula.via].sub}</span>
+            }}>fórmula manipulada</span>
           </div>
         </div>
 
