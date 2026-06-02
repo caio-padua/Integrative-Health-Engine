@@ -98,6 +98,16 @@ function custoImplanteBlend(s: Substancia): number {
 function totalPellets(s: Substancia): number {
   return (s.itensImplante ?? []).reduce((acc, li) => acc + li.quantidade, 0);
 }
+// Descritivo do blend de implantes (VER TODAS + FOLHA), já que não usa dose/posologia.
+function implanteBlendResumo(s: Substancia): string {
+  const itens = s.itensImplante ?? [];
+  if (itens.length === 0) return "Implantar na mesma sessão";
+  const lista = itens
+    .map((li) => `${li.quantidade}× ${li.nome} ${li.doseCadastro}`.trim())
+    .join(" · ");
+  const tot = totalPellets(s);
+  return `Implantar na mesma sessão · ${tot} ${tot > 1 ? "implantes" : "implante"}: ${lista}`;
+}
 
 // Instancia o item ao adicionar pela coluna. IMP é especial: cada "+ ADICIONAR" na
 // coluna de implantes cria um NOVO blend (reimplante futuro, após o vencimento do
@@ -1555,7 +1565,7 @@ function FolhaConsolidada({ todasFormulas }: { todasFormulas: Substancia[] }) {
                   <PosologiaPapel s={f} />
                 ) : (
                   <div style={{ fontFamily: papel.mono, fontSize: 10, color: papel.tintaMedia, paddingLeft: 2 }}>
-                    {ehConsulta(f) ? consultaResumo(f) : `${f.dose} · ${quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}`}
+                    {ehImplanteBlend(f) ? implanteBlendResumo(f) : ehConsulta(f) ? consultaResumo(f) : `${f.dose} · ${quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}`}
                   </div>
                 )}
               </div>
@@ -1988,7 +1998,7 @@ function EditorBlend({ formula, update, onClose, selecionarFormula, carta, setCa
                   <PrescricaoPreview s={f} cor={cf.dot} />
                 ) : (
                   <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted }}>
-                    {ehConsulta(f) ? consultaResumo(f) : `${f.dose} · ${quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}`}
+                    {ehImplanteBlend(f) ? implanteBlendResumo(f) : ehConsulta(f) ? consultaResumo(f) : `${f.dose} · ${quantidadeResumo(f) ?? `${f.sessoes} ${f.sessoes > 1 ? "aplicações" : "aplicação"}`}`}
                   </div>
                 )}
               </button>

@@ -21,6 +21,16 @@ quebrando a UX pedida.
 cadastro); médico só edita QUANTIDADE. EXTENSÃO (sessões/frequência) é omitida
 pra blend. Custo = soma(preco×qtd).
 
+## Descritivo em VER TODAS / FOLHA
+Regra: blend e consulta NÃO têm dose/posologia, então o descritivo consolidado
+(VER TODAS + FolhaConsolidada) precisa de branch próprio — senão cai no genérico
+`${f.dose} · ...` e sai vazio (dose="").
+**Why:** Caio reportou "não aparece o descritivo na folha e no ver todas" —
+os dois pontos liam só `ehConsulta`, deixando o blend sem texto.
+**How to apply:** ambos os spots usam
+`ehImplanteBlend(f) ? implanteBlendResumo(f) : ehConsulta(f) ? consultaResumo(f) : <genérico>`.
+`implanteBlendResumo` lista "Implantar na mesma sessão · N implantes: q× nome dose…".
+
 ## PRC — Consulta
 Regra: a duração da consulta é canônica em `tempoConsulta`, não em `dose`.
 **Why:** a 1ª linha da consulta é TIPO+AGENDA (sem dose/quantidade), e a
