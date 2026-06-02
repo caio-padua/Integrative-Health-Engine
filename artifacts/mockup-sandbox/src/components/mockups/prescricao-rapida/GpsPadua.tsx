@@ -352,8 +352,16 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
   const [modo, setModo] = useState<Modo>("GPS");
   const [sel, setSel] = useState<Substancia[]>(SELECIONADAS_INICIAIS);
   const [hoverItem, setHoverItem] = useState<string | null>(null);
-  const [colMin, setColMin] = useState<Record<Via, boolean>>({
-    EV: false, IM: false, SC: false, VO: false, IMP: true, PRC: true,
+  const [colMin, setColMin] = useState<Record<Via, boolean>>(() => {
+    // Decisão Caio: recolher por padrão apenas as vias SEM itens; vias com
+    // item cadastrado já abrem (não polui a tela quando vazio, mas mostra o
+    // conteúdo quando existe — vale pra IMP/PRC e qualquer outra via).
+    const cont: Record<Via, number> = { EV: 0, IM: 0, SC: 0, VO: 0, IMP: 0, PRC: 0 };
+    SELECIONADAS_INICIAIS.forEach(s => { cont[s.via] += 1; });
+    return {
+      EV: cont.EV === 0, IM: cont.IM === 0, SC: cont.SC === 0,
+      VO: cont.VO === 0, IMP: cont.IMP === 0, PRC: cont.PRC === 0,
+    };
   });
   const [editandoFormula, setEditandoFormula] = useState<string | null>("blend-vo");
   // Lifted: carta de encantamento persiste mesmo ao fechar/abrir o EditorBlend

@@ -290,6 +290,7 @@ export const SELECIONADAS_INICIAIS: Substancia[] = [
   porId("coq10-im"),
   porId("sema-sc"),
   porId("blend-vo"),
+  porId("testo-imp"),
   porId("consulta"),
 ];
 
