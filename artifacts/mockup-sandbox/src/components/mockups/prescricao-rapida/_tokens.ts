@@ -126,6 +126,10 @@ export type Substancia = {
   sessoes: number;
   frequencia: Frequencia;
   dosesDia?: number;
+  // dosesDiaPadrao = doses/dia da POSOLOGIA PADRÃO à qual o `preco` se refere (fórmulas VO).
+  // O preço cadastrado é sempre o valor de um tratamento de 30 dias nessa posologia padrão.
+  // Editar tomadas/dia ou duração no cockpit reescala o custo proporcionalmente.
+  dosesDiaPadrao?: number;
   preco: number;
   ancora?: Ancora;
   // ancoraAcao = acao vinculada ao marco da ancora (exame, mensagem, procedimento...)
@@ -209,7 +213,7 @@ export const CATALOGO: Substancia[] = [
   { id: "ipa-sc",    nome: "Ipamorelina + CJC",          via: "SC", categoria: "Hormonal",              dose: "200 mcg", detalhe: "Eixo GH · noturno",           sessoes: 20, frequencia: "diária", preco: 310, ancora: "sem-ancora" },
 
   // ── VO · VIA ORAL (magistral) ─────────────────────────────────────────────
-  { id: "blend-vo",  nome: "Fórmula Blend Menopausa",    via: "VO", categoria: "Hormonal",              dose: "1 cáps", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "2×/dia", preco: 380, ancora: "primeira", quantidade: "1 cáps", duracao: "continuo", horario: "07:00", periodo: "MM", mensagem: "antes do café da manhã",
+  { id: "blend-vo",  nome: "Fórmula Blend Menopausa",    via: "VO", categoria: "Hormonal",              dose: "1 dose", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "2×/dia", preco: 380, dosesDiaPadrao: 3, ancora: "primeira", quantidade: "1 dose", duracao: "continuo", horario: "07:00", periodo: "MM", mensagem: "antes do café da manhã",
     posologiaPadrao: true,
     tomadas: [
       { id: "tm", periodo: "MM", horario: "07:00", doses: 2 },
@@ -224,7 +228,7 @@ export const CATALOGO: Substancia[] = [
       { id: "c5", nome: "Magnésio Bisglicinato",   dose: "100 mg" },
     ],
   },
-  { id: "blend-en",  nome: "Fórmula Blend Energia AM",   via: "VO", categoria: "Bioenergético",         dose: "1 cáps/dia", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "diária", preco: 290, ancora: "primeira",
+  { id: "blend-en",  nome: "Fórmula Blend Energia AM",   via: "VO", categoria: "Bioenergético",         dose: "1 dose/dia", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "diária", preco: 290, dosesDiaPadrao: 1, ancora: "primeira",
     horarios: ["07h"],
     componentes: [
       { id: "c1", nome: "Cafeína Anidra",          dose: "100 mg" },
@@ -233,7 +237,7 @@ export const CATALOGO: Substancia[] = [
       { id: "c4", nome: "Vitamina B6 P5P",         dose: "25 mg" },
     ],
   },
-  { id: "blend-sono", nome: "Fórmula Blend Sono",        via: "VO", categoria: "Calmante / Sono",       dose: "1 cáps/noite", detalhe: "Magistral · Galena",      sessoes: 30, frequencia: "diária", preco: 220, ancora: "primeira",
+  { id: "blend-sono", nome: "Fórmula Blend Sono",        via: "VO", categoria: "Calmante / Sono",       dose: "1 dose/noite", detalhe: "Magistral · Galena",      sessoes: 30, frequencia: "diária", preco: 220, dosesDiaPadrao: 1, ancora: "primeira",
     horarios: ["22h"],
     componentes: [
       { id: "c1", nome: "Melatonina",              dose: "3 mg" },
@@ -242,7 +246,7 @@ export const CATALOGO: Substancia[] = [
       { id: "c4", nome: "Passiflora EP",           dose: "200 mg" },
     ],
   },
-  { id: "blend-cog", nome: "Fórmula Blend Cognição",     via: "VO", categoria: "Neuro / Cognitivo",     dose: "2 cáps/dia", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "2×/dia", preco: 340, ancora: "primeira",
+  { id: "blend-cog", nome: "Fórmula Blend Cognição",     via: "VO", categoria: "Neuro / Cognitivo",     dose: "2 doses/dia", detalhe: "Magistral · Galena",        sessoes: 30, frequencia: "2×/dia", preco: 340, dosesDiaPadrao: 2, ancora: "primeira",
     horarios: ["08h", "14h"],
     componentes: [
       { id: "c1", nome: "Citicolina",              dose: "250 mg" },
@@ -251,14 +255,14 @@ export const CATALOGO: Substancia[] = [
       { id: "c4", nome: "Ácido Pantotênico",       dose: "100 mg" },
     ],
   },
-  { id: "mag-vo",    nome: "Magnésio Dimalato",          via: "VO", categoria: "Vitaminas & Minerais",  dose: "300 mg",  detalhe: "Quelado · 2× ao dia",         sessoes: 30, frequencia: "2×/dia", preco: 110, ancora: "primeira",
+  { id: "mag-vo",    nome: "Magnésio Dimalato",          via: "VO", categoria: "Vitaminas & Minerais",  dose: "300 mg",  detalhe: "Quelado · 2× ao dia",         sessoes: 30, frequencia: "2×/dia", preco: 110, dosesDiaPadrao: 2, ancora: "primeira",
     horarios: ["12h", "22h"],
   },
-  { id: "mela-vo",   nome: "Melatonina 3 mg",            via: "VO", categoria: "Calmante / Sono",       dose: "3 mg",    detalhe: "Indução do sono",             sessoes: 30, frequencia: "diária", preco: 70,  ancora: "primeira", horarios: ["22h"] },
-  { id: "omega-vo",  nome: "Ômega 3 TG Concentrado",     via: "VO", categoria: "Longevidade",           dose: "2 g",     detalhe: "EPA/DHA alta pureza",         sessoes: 30, frequencia: "diária", preco: 130, ancora: "primeira", horarios: ["12h"] },
-  { id: "vitdk-vo",  nome: "Vitamina D3 + K2 VO",        via: "VO", categoria: "Vitaminas & Minerais",  dose: "10.000 UI", detalhe: "Manutenção diária",         sessoes: 30, frequencia: "diária", preco: 90,  ancora: "primeira", horarios: ["08h"] },
-  { id: "creat-vo",  nome: "Creatina Monohidratada",     via: "VO", categoria: "Aminoácidos & Peptídeos", dose: "5 g",   detalhe: "Força + cognição",            sessoes: 30, frequencia: "diária", preco: 80,  ancora: "primeira", horarios: ["09h"] },
-  { id: "prob-vo",   nome: "Probiótico 50 bi UFC",       via: "VO", categoria: "Imunológico",           dose: "1 cáps/dia", detalhe: "Eixo intestino-cérebro",    sessoes: 30, frequencia: "diária", preco: 150, ancora: "primeira", horarios: ["07h"] },
+  { id: "mela-vo",   nome: "Melatonina 3 mg",            via: "VO", categoria: "Calmante / Sono",       dose: "3 mg",    detalhe: "Indução do sono",             sessoes: 30, frequencia: "diária", preco: 70,  dosesDiaPadrao: 1, ancora: "primeira", horarios: ["22h"] },
+  { id: "omega-vo",  nome: "Ômega 3 TG Concentrado",     via: "VO", categoria: "Longevidade",           dose: "2 g",     detalhe: "EPA/DHA alta pureza",         sessoes: 30, frequencia: "diária", preco: 130, dosesDiaPadrao: 1, ancora: "primeira", horarios: ["12h"] },
+  { id: "vitdk-vo",  nome: "Vitamina D3 + K2 VO",        via: "VO", categoria: "Vitaminas & Minerais",  dose: "10.000 UI", detalhe: "Manutenção diária",         sessoes: 30, frequencia: "diária", preco: 90,  dosesDiaPadrao: 1, ancora: "primeira", horarios: ["08h"] },
+  { id: "creat-vo",  nome: "Creatina Monohidratada",     via: "VO", categoria: "Aminoácidos & Peptídeos", dose: "5 g",   detalhe: "Força + cognição",            sessoes: 30, frequencia: "diária", preco: 80,  dosesDiaPadrao: 1, ancora: "primeira", horarios: ["09h"] },
+  { id: "prob-vo",   nome: "Probiótico 50 bi UFC",       via: "VO", categoria: "Imunológico",           dose: "1 dose/dia", detalhe: "Eixo intestino-cérebro",    sessoes: 30, frequencia: "diária", preco: 150, dosesDiaPadrao: 1, ancora: "primeira", horarios: ["07h"] },
 
   // ── IMP · IMPLANTES ───────────────────────────────────────────────────────
   { id: "gest-imp",  nome: "Gestrinona-T 12 mg",         via: "IMP", categoria: "Hormonal",             dose: "12 mg",   detalhe: "Implante hormonal 4-6 meses", sessoes: 1, frequencia: "semestral", preco: 1280, ancora: "primeira" },

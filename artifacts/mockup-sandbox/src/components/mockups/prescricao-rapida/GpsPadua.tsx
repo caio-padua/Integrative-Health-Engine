@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, CATEGORIAS, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
-  VIA_META, FREQUENCIAS, FREQUENCIAS_INJETAVEL, DURACOES, ACOES_ANCORA,
+  VIA_META, FREQUENCIAS, DURACOES, ACOES_ANCORA,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
@@ -133,6 +133,44 @@ function concentracaoCalculada(apresentacao?: string): { valor: string; formula:
   return { valor: `${fmt} mg/mL`, formula: `${mgTxt} ÷ ${mlTxt} = ${fmt} mg/mL` };
 }
 
+// Recipiente legível a partir do denominador da apresentação ("500 mg/frasco" → "Frasco",
+// "120 mg/ampola" → "Ampola", "0,5 mg/dose" → "Dose"). Sem denominador conhecido → null.
+function recipienteDe(apresentacao?: string): string | null {
+  if (!apresentacao) return null;
+  const m = apresentacao.match(/mg\s*\/\s*(frasco|ampola|dose|caneta)/i);
+  if (!m) return null;
+  const r = m[1].toLowerCase();
+  return r.charAt(0).toUpperCase() + r.slice(1);
+}
+
+// Apresentação do injetável em retângulos (1 fato cada · pedido Caio 01/06):
+//   1) quantidade por recipiente (ex: "500 mg/frasco")
+//   2) recipiente + volume (ex: "Frasco = 10 mL")
+//   3) concentração calculada destacada (ex: "50 mg/mL")
+// Vias sem mL (ex: caneta multidose) caem de pé mostrando os fatos crus disponíveis.
+function retangulosApresentacao(s: Substancia): { texto: string; destaque?: boolean; tooltip?: string }[] {
+  const partes = (s.apresentacao ?? "—").split("·").map(p => p.trim()).filter(Boolean);
+  if (partes.length === 0) return [{ texto: "—" }];
+  const recipiente = recipienteDe(s.apresentacao);
+  const fatos: { texto: string; destaque?: boolean; tooltip?: string }[] = [];
+  const usados = new Set<number>();
+  // 1) parte com mg/recipiente (quantidade por recipiente)
+  const idxMgRec = partes.findIndex(p => /mg\s*\//i.test(p));
+  if (idxMgRec >= 0) { fatos.push({ texto: partes[idxMgRec] }); usados.add(idxMgRec); }
+  // 2) volume em mL → "Recipiente = N mL"
+  const idxMl = partes.findIndex((p, i) => !usados.has(i) && /ml/i.test(p));
+  if (idxMl >= 0) {
+    usados.add(idxMl);
+    fatos.push({ texto: recipiente ? `${recipiente} = ${partes[idxMl]}` : partes[idxMl] });
+  }
+  // demais fatos crus (ex: "caneta multidose", "1 aplicação")
+  partes.forEach((p, i) => { if (!usados.has(i)) fatos.push({ texto: p }); });
+  // 3) concentração calculada destacada
+  const conc = concentracaoCalculada(s.apresentacao);
+  if (conc) fatos.push({ texto: conc.valor, destaque: true, tooltip: `Concentração calculada automaticamente: ${conc.formula}` });
+  return fatos;
+}
+
 // "20:00" → "20h" · "20:30" → "20h30" · aceita "20h" já pronto.
 function horaCurta(hhmm?: string): string | null {
   if (!hhmm) return null;
@@ -204,8 +242,33 @@ function ampolasPorAplicacao(s: Substancia): number {
 function unidadesCobranca(s: Substancia): number {
   return ehInjetavel(s.via) ? s.sessoes * ampolasPorAplicacao(s) : s.sessoes;
 }
+
+// Fórmulas/itens VO: o `preco` cadastrado é o valor de um tratamento de 30 dias na
+// POSOLOGIA PADRÃO (dosesDiaPadrao doses/dia). Editar tomadas/dia ou duração no
+// cockpit reescala proporcionalmente (pedido Caio 01/06). Na posologia padrão e
+// 30 dias, o custo é exatamente o preço. diasTratamento: duração em dias; contínuo
+// ou vazio = 30 (um ciclo de 30 dias).
+function diasTratamentoVO(s: Substancia): number {
+  return diasDeDuracao(s.duracao) ?? 30;
+}
+function fatorPosologiaVO(s: Substancia): number {
+  const padrao = s.dosesDiaPadrao || dosesPorDia(s) || 1;
+  return dosesPorDia(s) / padrao;
+}
 function custoTotal(s: Substancia): number {
-  return s.preco * unidadesCobranca(s);
+  if (ehInjetavel(s.via)) return s.preco * unidadesCobranca(s);
+  if (s.via === "VO") return s.preco * fatorPosologiaVO(s) * (diasTratamentoVO(s) / 30);
+  return s.preco * s.sessoes; // IMP/PRC: implante/consulta cobrados por sessão
+}
+
+// Quebra textual do custo por item (esquerda da linha de preço). VO mostra a base
+// de 30 dias + doses/dia; injetável mostra unidades × preço; IMP/PRC sessões × preço.
+function custoQuebra(s: Substancia): string {
+  if (s.via === "VO") {
+    const dpd = dosesPorDia(s);
+    return `${diasTratamentoVO(s)} dias · ${dpd} ${dpd > 1 ? "doses" : "dose"}/dia`;
+  }
+  return `${unidadesCobranca(s)}× ${brl(s.preco)}`;
 }
 
 function linhasPrescricao(s: Substancia): { tomadas: { dose: string; obs?: string }[]; quantidade: string; rodape?: { label: string; valor: string }[] } {
@@ -565,7 +628,9 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.25 }}>{s.nome}</div>
                         <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 1 }}>
-                          {s.dose}{ehFormula ? ` · ${s.componentes!.length} subst.` : ""}
+                          {ehFormula
+                            ? `1 dose = ${s.componentes!.length} substâncias ou ativos`
+                            : s.dose}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -599,22 +664,18 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                           <MiniCampo label="APRESENTAÇÃO · CADASTRO">
                             <div title="Apresentação definida no cadastro da fórmula · não editável no cockpit"
                               style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                              {(s.apresentacao ?? "—").split("·").map(p => p.trim()).filter(Boolean).map((p, i) => (
-                                <span key={i} style={{
-                                  background: tk.bgAlt, color: tk.inkMuted, border: `1px dashed ${tk.border}`,
-                                  padding: "3px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                }}>{p}</span>
-                              ))}
                               {(() => {
-                                const conc = concentracaoCalculada(s.apresentacao);
-                                return conc ? (
-                                  <span title={`Concentração calculada automaticamente: ${conc.formula}`} style={{
-                                    background: tk.bgAlt, color: c.dot, border: `1px solid ${c.dot}`,
-                                    padding: "3px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
-                                    whiteSpace: "nowrap",
-                                  }}>= {conc.valor}</span>
-                                ) : null;
+                                const fatos = retangulosApresentacao(s);
+                                return fatos.map((f, i) => (
+                                  <span key={i} title={f.tooltip}
+                                    style={{
+                                      background: tk.bgAlt,
+                                      color: f.destaque ? c.dot : tk.inkMuted,
+                                      border: f.destaque ? `1px solid ${c.dot}` : `1px dashed ${tk.border}`,
+                                      padding: "3px 6px", fontFamily: tk.mono, fontSize: 10, fontWeight: 700,
+                                      whiteSpace: "nowrap",
+                                    }}>{f.texto}</span>
+                                ));
                               })()}
                             </div>
                           </MiniCampo>
@@ -627,9 +688,21 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                           </MiniCampo>
                           <MiniCampo label="QUANTIDADE">
                             <NeonInput cor={c.dot} value={s.quantidade ?? ""}
-                              placeholder="ex: 2 cáps"
+                              placeholder="ex: 2 doses"
                               onChange={(e) => update(s.id, { quantidade: e.target.value })} />
                           </MiniCampo>
+                        </div>
+                      )}
+
+                      {/* Nota DOSE x CÁPSULA · só fórmulas VO (pedido Caio 01/06): a dose é a
+                          unidade de prescrição, não a cápsula física. */}
+                      {ehFormula && s.via === "VO" && (
+                        <div style={{
+                          padding: "4px 7px", background: tk.bgAlt, borderLeft: `3px solid ${c.dot}`,
+                          fontFamily: tk.mono, fontSize: 9, lineHeight: 1.4, color: tk.inkMuted,
+                        }}>
+                          1 (uma) dose pode ser composta por 2 (duas) ou mais cápsulas, pois os
+                          componentes da fórmula nem sempre cabem em uma única cápsula.
                         </div>
                       )}
 
@@ -714,17 +787,11 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                               <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
                                 onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
                             </MiniCampo>
-                            {/* FREQUÊNCIA · SC mantém sugestões em dropdown · IM/EV texto livre puro (pedido Caio 31/05) */}
+                            {/* FREQUÊNCIA · texto livre puro em todas as vias injetáveis · sem dropdown (pedido Caio 01/06) */}
                             <MiniCampo label="FREQUÊNCIA">
                               <NeonInput cor={c.dot} value={s.frequencia}
-                                list={s.via === "SC" ? "freq-injetavel-presets" : undefined}
                                 placeholder="escreva à vontade · ex: a cada 10 dias"
                                 onChange={(e) => update(s.id, { frequencia: e.target.value as Frequencia })} />
-                              {s.via === "SC" && (
-                                <datalist id="freq-injetavel-presets">
-                                  {FREQUENCIAS_INJETAVEL.map(f => <option key={f} value={f} />)}
-                                </datalist>
-                              )}
                             </MiniCampo>
                           </>
                         ) : (
@@ -810,7 +877,7 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
 
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
                       <span style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkSubtle }}>
-                        {unidadesCobranca(s)}× {brl(s.preco)}
+                        {custoQuebra(s)}
                       </span>
                       <span style={{ fontFamily: tk.mono, fontSize: 10, fontWeight: 700, color: c.dot }}>
                         {brl(custoTotal(s))}
@@ -1298,10 +1365,18 @@ function PainelAdicionar({ cor, corLine, cands, addItem }: {
 }) {
   const [busca, setBusca] = useState("");
   const [cat, setCat] = useState<Categoria | null>(null);
+  // ordenação dos chips de categoria: "funcao" = ordem canônica por afinidade (default)
+  // · "az" = alfabética (pedido Caio 01/06).
+  const [ordemCat, setOrdemCat] = useState<"funcao" | "az">("funcao");
 
   const categorias = useMemo(
-    () => CATEGORIAS.filter(k => cands.some(s => s.categoria === k)),
-    [cands],
+    () => {
+      const base = CATEGORIAS.filter(k => cands.some(s => s.categoria === k));
+      return ordemCat === "az"
+        ? [...base].sort((a, b) => a.localeCompare(b, "pt-BR"))
+        : base;
+    },
+    [cands, ordemCat],
   );
   const q = busca.trim().toLowerCase();
   const filtrados = cands.filter(s =>
@@ -1331,13 +1406,30 @@ function PainelAdicionar({ cor, corLine, cands, addItem }: {
         placeholder="buscar ativo…"
         style={{ ...inpBase, fontSize: 10, padding: "4px 7px", marginBottom: 6 }} />
 
-      {/* nível 2 · categorias terapêuticas */}
+      {/* nível 2 · categorias terapêuticas · grid alinhado de 3 colunas (andares de
+          categorias afins) encostado na linha vertical à esquerda · toggle de ordenação
+          FUNÇÃO/A–Z (pedido Caio 01/06) */}
       {categorias.length > 1 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
-          <button onClick={() => setCat(null)} style={chip(cat === null)}>TODAS</button>
-          {categorias.map(k => (
-            <button key={k} onClick={() => setCat(cat === k ? null : k)} style={chip(cat === k)}>{k}</button>
-          ))}
+        <div style={{ marginBottom: 6 }}>
+          {/* toggle de ordenação */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <span style={{ fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle, letterSpacing: 1 }}>ORDENAR</span>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button onClick={() => setOrdemCat("funcao")} style={chip(ordemCat === "funcao")}>FUNÇÃO</button>
+              <button onClick={() => setOrdemCat("az")} style={chip(ordemCat === "az")}>A–Z</button>
+            </div>
+          </div>
+          {/* grid alinhado encostado na linha vertical à esquerda */}
+          <div style={{ paddingLeft: 8, borderLeft: `1px solid ${corLine}` }}>
+            <button onClick={() => setCat(null)}
+              style={{ ...chip(cat === null), width: "100%", marginBottom: 4, textAlign: "center" }}>TODAS</button>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
+              {categorias.map(k => (
+                <button key={k} onClick={() => setCat(cat === k ? null : k)}
+                  style={{ ...chip(cat === k), width: "100%", whiteSpace: "normal", textAlign: "left", lineHeight: 1.2 }}>{k}</button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
