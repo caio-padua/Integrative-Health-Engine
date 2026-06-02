@@ -19,6 +19,7 @@ export const tk = {
     IM:  { dot: "#F5C26B", soft: "rgba(245,194,107,0.12)", line: "rgba(245,194,107,0.35)" },
     SC:  { dot: "#A8C7FA", soft: "rgba(168,199,250,0.12)", line: "rgba(168,199,250,0.35)" },
     VO:  { dot: "#C9A5F5", soft: "rgba(201,165,245,0.12)", line: "rgba(201,165,245,0.35)" },
+    SL:  { dot: "#8FD3C7", soft: "rgba(143,211,199,0.12)", line: "rgba(143,211,199,0.35)" },
     IMP: { dot: "#E8A5D8", soft: "rgba(232,165,216,0.12)", line: "rgba(232,165,216,0.35)" },
     PRC: { dot: "#B0BCD0", soft: "rgba(176,188,208,0.12)", line: "rgba(176,188,208,0.35)" },
   },
@@ -26,16 +27,43 @@ export const tk = {
   sans: "'Inter', ui-sans-serif, system-ui, sans-serif",
 } as const;
 
-export type Via = "EV" | "IM" | "SC" | "VO" | "IMP" | "PRC";
+export type Via = "EV" | "IM" | "SC" | "VO" | "SL" | "IMP" | "PRC";
 
 export const VIA_META: Record<Via, { titulo: string; sub: string }> = {
   EV:  { titulo: "ENDOVENOSO",      sub: "infusão · acesso periférico" },
   IM:  { titulo: "INTRAMUSCULAR",   sub: "glúteo · superior externo" },
   SC:  { titulo: "SUBCUTÂNEO",      sub: "abdominal · rotativo" },
   VO:  { titulo: "VIA ORAL",        sub: "magistral · uso contínuo" },
+  SL:  { titulo: "SUBLINGUAL",      sub: "absorção · sob a língua" },
   IMP: { titulo: "IMPLANTES",       sub: "hormonal · longa duração" },
   PRC: { titulo: "PROCEDIMENTOS",   sub: "consulta · estética" },
 };
+
+// ── Tipos de consulta clínica (medicina integrativa = equipe multidisciplinar) ──
+// Cada tipo roteia para a AGENDA própria do profissional. Pesquisa 02/06/2026.
+export const TIPOS_CONSULTA = [
+  { tipo: "Médico Integrativo",        agenda: "Agenda Médica" },
+  { tipo: "Nutrólogo",                 agenda: "Agenda Nutrologia" },
+  { tipo: "Endocrinologista",          agenda: "Agenda Endocrinologia" },
+  { tipo: "Nutricionista",             agenda: "Agenda Nutrição" },
+  { tipo: "Psicólogo",                 agenda: "Agenda Psicologia" },
+  { tipo: "Educador Físico",           agenda: "Agenda Educação Física" },
+  { tipo: "Farmacêutico Clínico",      agenda: "Agenda Farmácia" },
+  { tipo: "Enfermeiro",                agenda: "Agenda Enfermagem" },
+  { tipo: "Fisioterapeuta",            agenda: "Agenda Fisioterapia" },
+  { tipo: "Terapeuta Integrativo",     agenda: "Agenda Práticas Integrativas" },
+] as const;
+export type TipoConsulta = typeof TIPOS_CONSULTA[number]["tipo"];
+
+export function agendaDoTipo(tipo?: string): string {
+  const t = TIPOS_CONSULTA.find(x => x.tipo === tipo);
+  return t ? t.agenda : "—";
+}
+
+// Duração do tempo de consulta (campo que substitui DOSES na linha da consulta).
+export const TEMPOS_CONSULTA = [
+  "15 min", "20 min", "30 min", "40 min", "50 min", "60 min", "90 min",
+] as const;
 
 // ── Categorias terapêuticas (2º nível do funil VIA → CATEGORIA → ATIVO) ──────
 // Ordem canônica usada para ordenar os chips de categoria no painel + ADICIONAR.
@@ -166,6 +194,27 @@ export type Substancia = {
   // posologiaPadrao = marca esta posologia como o MODELO USUAL da fórmula (fixado no catálogo).
   // Quando true, é o que aparece pré-preenchido toda vez que a fórmula é puxada no cockpit.
   posologiaPadrao?: boolean;
+  // ── Consulta (PRC) · 02/06/2026 ──
+  // tipoConsulta = profissional/tipo da consulta; roteia para a agenda própria (agendaDoTipo).
+  tipoConsulta?: TipoConsulta;
+  // tempoConsulta = duração do tempo de consulta (substitui DOSE na consulta). Ex: "60 min".
+  tempoConsulta?: string;
+  // obsConsulta = observação curta da linha de agenda da consulta (sem +TOMADA, distinto de mensagem).
+  obsConsulta?: string;
+  // ── Implante em blend (IMP) · 02/06/2026 ──
+  // itensImplante = pellets implantados NA MESMA sessão. A dose vem do CADASTRO (read-only);
+  // o médico só define a QUANTIDADE de cada pellet. Custo = soma(preco × quantidade).
+  itensImplante?: ImplanteLinha[];
+};
+
+// Uma linha do blend de implantes: um pellet do cadastro com a quantidade escolhida.
+export type ImplanteLinha = {
+  id: string;
+  refId: string;        // id do pellet no CATALOGO (para repor preço/dose se preciso)
+  nome: string;
+  doseCadastro: string; // dose definida no cadastro (não editável na tela)
+  preco: number;        // preço unitário do pellet (cadastro)
+  quantidade: number;   // quantos pellets deste tipo nesta sessão
 };
 
 export const HORARIOS_PADRAO = ["06h", "07h", "08h", "09h", "12h", "15h", "18h", "20h", "22h"] as const;
@@ -264,14 +313,24 @@ export const CATALOGO: Substancia[] = [
   { id: "creat-vo",  nome: "Creatina Monohidratada",     via: "VO", categoria: "Aminoácidos & Peptídeos", dose: "5 g",   detalhe: "Força + cognição",            sessoes: 30, frequencia: "diária", preco: 80,  dosesDiaPadrao: 1, ancora: "primeira", horarios: ["09h"] },
   { id: "prob-vo",   nome: "Probiótico 50 bi UFC",       via: "VO", categoria: "Imunológico",           dose: "1 dose/dia", detalhe: "Eixo intestino-cérebro",    sessoes: 30, frequencia: "diária", preco: 150, dosesDiaPadrao: 1, ancora: "primeira", horarios: ["07h"] },
 
-  // ── IMP · IMPLANTES ───────────────────────────────────────────────────────
-  { id: "gest-imp",  nome: "Gestrinona-T 12 mg",         via: "IMP", categoria: "Hormonal",             dose: "12 mg",   detalhe: "Implante hormonal 4-6 meses", sessoes: 1, frequencia: "semestral", preco: 1280, ancora: "primeira" },
-  { id: "trem-imp",  nome: "Trembolona-T 50 mg",         via: "IMP", categoria: "Hormonal",             dose: "50 mg",   detalhe: "Implante 3-4 meses",          sessoes: 1, frequencia: "trimestral", preco: 980, ancora: "primeira" },
-  { id: "testo-imp", nome: "Implante Testosterona",      via: "IMP", categoria: "Hormonal",             dose: "100 mg",  detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 1100, ancora: "primeira" },
-  { id: "estr-imp",  nome: "Implante Estradiol",         via: "IMP", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 1050, ancora: "primeira" },
+  // ── SL · SUBLINGUAL ───────────────────────────────────────────────────────
+  { id: "b12-sl",    nome: "Vitamina B12 Sublingual",    via: "SL", categoria: "Vitaminas & Minerais",  dose: "1.000 mcg", detalhe: "1 gota sob a língua",        sessoes: 30, frequencia: "diária",   preco: 60,  ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "08:00", periodo: "JE" },
+  { id: "testo-sl",  nome: "Testosterona Troche SL",     via: "SL", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Pastilha de absorção SL",     sessoes: 30, frequencia: "diária",   preco: 180, ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "07:00", periodo: "JE" },
+  { id: "tadala-sl", nome: "Tadalafila Sublingual",      via: "SL", categoria: "Longevidade",           dose: "5 mg",    detalhe: "Vasodilatador · uso contínuo", sessoes: 30, frequencia: "diária",  preco: 140, ancora: "primeira", quantidade: "1 dose", duracao: "30 dias", horario: "21:00", periodo: "NO" },
+
+  // ── IMP · IMPLANTES (pellets do cadastro · dose fixa por pellet) ───────────
+  { id: "gest-imp-50", nome: "Gestrinona 50 mg",         via: "IMP", categoria: "Hormonal",             dose: "50 mg",   detalhe: "Implante hormonal 4-6 meses", sessoes: 1, frequencia: "semestral", preco: 1280, ancora: "primeira" },
+  { id: "gest-imp-35", nome: "Gestrinona 35 mg",         via: "IMP", categoria: "Hormonal",             dose: "35 mg",   detalhe: "Implante hormonal 4-6 meses", sessoes: 1, frequencia: "semestral", preco: 1120, ancora: "primeira" },
+  { id: "gest-imp-25", nome: "Gestrinona 25 mg",         via: "IMP", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Implante hormonal 4-6 meses", sessoes: 1, frequencia: "semestral", preco: 980,  ancora: "primeira" },
+  { id: "testo-imp-100", nome: "Testosterona 100 mg",    via: "IMP", categoria: "Hormonal",             dose: "100 mg",  detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 1100, ancora: "primeira" },
+  { id: "testo-imp-50",  nome: "Testosterona 50 mg",     via: "IMP", categoria: "Hormonal",             dose: "50 mg",   detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 820,  ancora: "primeira" },
+  { id: "testo-imp-25",  nome: "Testosterona 25 mg",     via: "IMP", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 640,  ancora: "primeira" },
+  { id: "estr-imp-25",   nome: "Estradiol 25 mg",        via: "IMP", categoria: "Hormonal",             dose: "25 mg",   detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 1050, ancora: "primeira" },
+  { id: "estr-imp-12",   nome: "Estradiol 12 mg",        via: "IMP", categoria: "Hormonal",             dose: "12 mg",   detalhe: "Implante 5-6 meses",          sessoes: 1, frequencia: "semestral", preco: 780,  ancora: "primeira" },
+  { id: "trem-imp-50",   nome: "Trembolona 50 mg",       via: "IMP", categoria: "Hormonal",             dose: "50 mg",   detalhe: "Implante 3-4 meses",          sessoes: 1, frequencia: "trimestral", preco: 980,  ancora: "primeira" },
 
   // ── PRC · PROCEDIMENTOS / CONSULTA / EXAMES ───────────────────────────────
-  { id: "consulta",  nome: "Consulta Clínica",           via: "PRC", categoria: "Consulta & Exames",    dose: "60 min",  detalhe: "Reavaliação clínica",         sessoes: 2, frequencia: "mensal",   preco: 500,  ancora: "primeira", quantidade: "1 sessão", duracao: "—", horario: "09:00", periodo: "MM", ancoraAcao: "Mensagem ao paciente", ancoraNota: "lembrar de perguntar do recém-nascido" },
+  { id: "consulta",  nome: "Consulta Clínica",           via: "PRC", categoria: "Consulta & Exames",    dose: "60 min",  detalhe: "Reavaliação clínica",         sessoes: 2, frequencia: "mensal",   preco: 500,  ancora: "primeira", tipoConsulta: "Médico Integrativo", tempoConsulta: "60 min", horario: "09:00", periodo: "MM", ancoraAcao: "Mensagem ao paciente", ancoraNota: "lembrar de perguntar do recém-nascido" },
   { id: "exame-lab", nome: "Encaminhamento Laboratório", via: "PRC", categoria: "Consulta & Exames",    dose: "—",       detalhe: "Painel hormonal completo",    sessoes: 1, frequencia: "única",    preco: 0,    ancora: "penultima" },
   { id: "bioimp",    nome: "Bioimpedância Segmentar",    via: "PRC", categoria: "Consulta & Exames",    dose: "—",       detalhe: "Composição corporal",         sessoes: 2, frequencia: "mensal",   preco: 120,  ancora: "primeira" },
   { id: "botox",     nome: "Botox Toxina Botulínica",    via: "PRC", categoria: "Estética",             dose: "50 U",    detalhe: "Estética facial · terço sup", sessoes: 1, frequencia: "semestral", preco: 1500, ancora: "ultima" },
@@ -285,12 +344,33 @@ function porId(id: string): Substancia {
   return s;
 }
 
+// Monta uma linha de blend de implante a partir de um pellet do CATALOGO.
+// A dose e o preço vêm do cadastro (read-only na tela); o médico só escolhe a quantidade.
+export function linhaImplante(refId: string, quantidade = 1): ImplanteLinha {
+  const p = porId(refId);
+  return { id: `li-${refId}`, refId, nome: p.nome, doseCadastro: p.dose, preco: p.preco, quantidade };
+}
+
+// Seed do blend de implantes (ex. clássico Caio: gestrinona + gestrinona + testosterona
+// implantados NA MESMA sessão, mesmo dia/horário).
+const blendImplanteSeed: Substancia = {
+  id: "blend-imp", nome: "Blend de Implantes", via: "IMP", categoria: "Hormonal",
+  dose: "", detalhe: "Implantação única · mesma sessão",
+  sessoes: 1, frequencia: "semestral", preco: 0, ancora: "primeira",
+  periodo: "MM", horario: "09:00",
+  itensImplante: [
+    linhaImplante("gest-imp-50", 1),
+    linhaImplante("gest-imp-25", 1),
+    linhaImplante("testo-imp-25", 1),
+  ],
+};
+
 export const SELECIONADAS_INICIAIS: Substancia[] = [
   porId("nad-ev"),
   porId("coq10-im"),
   porId("sema-sc"),
   porId("blend-vo"),
-  porId("testo-imp"),
+  blendImplanteSeed,
   porId("consulta"),
 ];
 

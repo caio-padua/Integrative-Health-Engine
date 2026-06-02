@@ -2,16 +2,18 @@ import { useMemo, useState } from "react";
 import {
   tk, CATALOGO, CATEGORIAS, SELECIONADAS_INICIAIS, PACIENTE, VITAIS, PATOLOGIAS,
   VIA_META, FREQUENCIAS, DURACOES, ACOES_ANCORA,
+  TIPOS_CONSULTA, TEMPOS_CONSULTA, agendaDoTipo, linhaImplante,
 } from "./_tokens";
 import { horarioParaPeriodo, PERIODOS_DIA } from "./_mensageria";
 import { CENARIOS, exemploCartaFuturoPapai, type CenarioId, type MatrizCartaEncantamento } from "./_teatro";
 import {
   type Substancia, type Via, type Categoria, type Frequencia, type Ancora, type AcaoAncora, type ComponenteBlend, type Tomada,
+  type ImplanteLinha, type TipoConsulta,
 } from "./_tokens";
 
 type Modo = "PILHA" | "TIMELINE" | "GPS";
 
-const VIAS_ORDEM: Via[] = ["EV", "IM", "SC", "VO", "IMP", "PRC"];
+const VIAS_ORDEM: Via[] = ["EV", "IM", "SC", "VO", "SL", "IMP", "PRC"];
 const TOTAL_SESSOES = 8;
 const SESSAO_ATUAL = 3;
 
@@ -84,10 +86,45 @@ function quantidadeResumo(s: Substancia): string | null {
 function ehConsulta(s: Substancia): boolean {
   return s.via === "PRC" && /consulta|avalia/i.test(s.nome);
 }
+
+// Implante em blend (IMP): card com vários pellets implantados na MESMA sessão.
+// A dose vem do cadastro; o médico só define a quantidade de cada pellet.
+function ehImplanteBlend(s: Substancia): boolean {
+  return s.via === "IMP" && Array.isArray(s.itensImplante);
+}
+function custoImplanteBlend(s: Substancia): number {
+  return (s.itensImplante ?? []).reduce((acc, li) => acc + li.preco * li.quantidade, 0);
+}
+function totalPellets(s: Substancia): number {
+  return (s.itensImplante ?? []).reduce((acc, li) => acc + li.quantidade, 0);
+}
+
+// Instancia o item ao adicionar pela coluna. IMP é especial: cada "+ ADICIONAR" na
+// coluna de implantes cria um NOVO blend (reimplante futuro, após o vencimento do
+// anterior) com o pellet escolhido como 1ª linha — nunca um pellet solto.
+function instanciarSelecionado(s: Substancia): Substancia {
+  if (s.via === "IMP" && !Array.isArray(s.itensImplante)) {
+    return {
+      ...s,
+      id: `blend-${s.id}-${Date.now()}`,
+      nome: "Blend de Implantes",
+      dose: "",
+      detalhe: "Implantação única · mesma sessão",
+      sessoes: 1,
+      preco: 0,
+      periodo: s.periodo ?? "MM",
+      horario: s.horario ?? "09:00",
+      itensImplante: [linhaImplante(s.id, 1)],
+    };
+  }
+  return { ...s };
+}
 function consultaResumo(s: Substancia): string {
   const n = s.sessoes;
   const cabeca = `${n} ${n > 1 ? "consultas" : "consulta"} / avaliação`;
-  const dur = s.dose && s.dose !== "—" ? ` com duração de ${s.dose}` : "";
+  // Duração canônica = tempoConsulta (editável na agenda); s.dose é só fallback legado.
+  const tempo = s.tempoConsulta ?? (s.dose && s.dose !== "—" ? s.dose : "");
+  const dur = tempo ? ` com duração de ${tempo}` : "";
   const freq = frequenciaNatural(s.frequencia);
   const cadencia = freq && freq !== "—" ? ` · ${freq.toLowerCase()}` : "";
   return `${cabeca}${dur}${cadencia}`;
@@ -256,6 +293,7 @@ function fatorPosologiaVO(s: Substancia): number {
   return dosesPorDia(s) / padrao;
 }
 function custoTotal(s: Substancia): number {
+  if (ehImplanteBlend(s)) return custoImplanteBlend(s); // blend: soma(preço × qtd de cada pellet)
   if (ehInjetavel(s.via)) return s.preco * unidadesCobranca(s);
   if (s.via === "VO") return s.preco * fatorPosologiaVO(s) * (diasTratamentoVO(s) / 30);
   return s.preco * s.sessoes; // IMP/PRC: implante/consulta cobrados por sessão
@@ -264,6 +302,10 @@ function custoTotal(s: Substancia): number {
 // Quebra textual do custo por item (esquerda da linha de preço). VO mostra a base
 // de 30 dias + doses/dia; injetável mostra unidades × preço; IMP/PRC sessões × preço.
 function custoQuebra(s: Substancia): string {
+  if (ehImplanteBlend(s)) {
+    const n = totalPellets(s);
+    return `${n} ${n > 1 ? "implantes" : "implante"} · 1 sessão`;
+  }
   if (s.via === "VO") {
     const dpd = dosesPorDia(s);
     return `${diasTratamentoVO(s)} dias · ${dpd} ${dpd > 1 ? "doses" : "dose"}/dia`;
@@ -356,11 +398,11 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
     // Decisão Caio: recolher por padrão apenas as vias SEM itens; vias com
     // item cadastrado já abrem (não polui a tela quando vazio, mas mostra o
     // conteúdo quando existe — vale pra IMP/PRC e qualquer outra via).
-    const cont: Record<Via, number> = { EV: 0, IM: 0, SC: 0, VO: 0, IMP: 0, PRC: 0 };
+    const cont: Record<Via, number> = { EV: 0, IM: 0, SC: 0, VO: 0, SL: 0, IMP: 0, PRC: 0 };
     SELECIONADAS_INICIAIS.forEach(s => { cont[s.via] += 1; });
     return {
       EV: cont.EV === 0, IM: cont.IM === 0, SC: cont.SC === 0,
-      VO: cont.VO === 0, IMP: cont.IMP === 0, PRC: cont.PRC === 0,
+      VO: cont.VO === 0, SL: cont.SL === 0, IMP: cont.IMP === 0, PRC: cont.PRC === 0,
     };
   });
   const [editandoFormula, setEditandoFormula] = useState<string | null>("blend-vo");
@@ -368,7 +410,7 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
   const [carta, setCarta] = useState<MatrizCartaEncantamento>(exemploCartaFuturoPapai());
 
   const porVia = useMemo(() => {
-    const m: Record<Via, Substancia[]> = { EV: [], IM: [], SC: [], VO: [], IMP: [], PRC: [] };
+    const m: Record<Via, Substancia[]> = { EV: [], IM: [], SC: [], VO: [], SL: [], IMP: [], PRC: [] };
     sel.forEach(s => m[s.via].push(s));
     return m;
   }, [sel]);
@@ -410,7 +452,7 @@ export function GpsPadua({ embutido = false }: { embutido?: boolean } = {}) {
       {(modo === "PILHA" || modo === "GPS") && (
         <Pilha porVia={porVia} update={update} remove={remove}
           hoverItem={hoverItem} setHoverItem={setHoverItem}
-          addItem={(s) => setSel([...sel, { ...s }])} sel={sel}
+          addItem={(s) => setSel([...sel, instanciarSelecionado(s)])} sel={sel}
           colMin={colMin} toggleCol={toggleCol}
           editandoFormula={editandoFormula} setEditandoFormula={setEditandoFormula} />
       )}
@@ -638,6 +680,10 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         <div style={{ fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, marginTop: 1 }}>
                           {ehFormula
                             ? `1 dose = ${s.componentes!.length} substâncias ou ativos`
+                            : ehImplanteBlend(s)
+                            ? `${(s.itensImplante ?? []).length} ${(s.itensImplante ?? []).length > 1 ? "implantes" : "implante"} · mesma sessão`
+                            : ehConsulta(s)
+                            ? agendaDoTipo(s.tipoConsulta)
                             : s.dose}
                         </div>
                       </div>
@@ -688,6 +734,33 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                             </div>
                           </MiniCampo>
                         </div>
+                      ) : ehImplanteBlend(s) ? (
+                        /* IMP blend · vários pellets na MESMA sessão · dose vem do cadastro (read-only) */
+                        <ImplanteBlendEditor
+                          itens={s.itensImplante ?? []}
+                          setItens={(arr) => update(s.id, { itensImplante: arr })}
+                          cor={c.dot} line={c.line} />
+                      ) : ehConsulta(s) ? (
+                        /* Consulta · 1ª linha = TIPO + AGENDA derivada (sem DOSE/QUANTIDADE) */
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <MiniCampo label="TIPO DE CONSULTA">
+                            <NeonSelect cor={c.dot} value={s.tipoConsulta ?? ""}
+                              onChange={(e) => update(s.id, { tipoConsulta: (e.target.value || undefined) as TipoConsulta | undefined })}>
+                              <option value="">— selecione —</option>
+                              {TIPOS_CONSULTA.map(t => (
+                                <option key={t.tipo} value={t.tipo}>{t.tipo}</option>
+                              ))}
+                            </NeonSelect>
+                          </MiniCampo>
+                          <MiniCampo label="AGENDA · DERIVADA">
+                            <div title="Agenda definida pelo tipo de consulta · roteamento automático"
+                              style={{
+                                background: tk.bg, border: `1px dashed ${tk.border}`, padding: "4px 6px",
+                                fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted, fontWeight: 700,
+                                boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                              }}>{agendaDoTipo(s.tipoConsulta)}</div>
+                          </MiniCampo>
+                        </div>
                       ) : (
                         <div style={{ display: "flex", gap: 6 }}>
                           <MiniCampo label="DOSE">
@@ -733,6 +806,52 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                           tomadas={tomadasDe(s)}
                           setTomadas={(arr) => update(s.id, { tomadas: arr })}
                           cor={c.dot} line={c.line} />
+                      ) : ehConsulta(s) ? (
+                        /* Consulta · agenda: PERÍODO + HORÁRIO + DURAÇÃO(tempo de consulta) + OBS · sem +TOMADA */
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <MiniCampo label="PERÍODO">
+                              <NeonSelect cor={c.dot} value={s.periodo || ""}
+                                onChange={(e) => update(s.id, { periodo: e.target.value || undefined })}>
+                                <option value="">
+                                  {(() => {
+                                    const p = s.horario ? horarioParaPeriodo(s.horario) : null;
+                                    return p ? `AUTO → ${p.sigla} · ${p.nome}` : "AUTO · pelo horário";
+                                  })()}
+                                </option>
+                                {PERIODOS_DIA.map(p => (
+                                  <option key={p.sigla} value={p.sigla}>{p.sigla} · {p.nome}</option>
+                                ))}
+                              </NeonSelect>
+                            </MiniCampo>
+                            <MiniCampo label="HORÁRIO">
+                              <div style={{ display: "flex", gap: 3 }}>
+                                <NeonInput cor={c.dot} type="time" value={s.horario ?? ""} style={{ flex: 1 }}
+                                  onChange={(e) => update(s.id, { horario: e.target.value || undefined })} />
+                                {s.horario && (
+                                  <button type="button" title="Zerar horário"
+                                    onClick={() => update(s.id, { horario: undefined })}
+                                    style={{
+                                      background: "transparent", color: tk.inkSubtle, border: `1px solid ${tk.border}`,
+                                      fontFamily: tk.mono, fontSize: 11, lineHeight: 1, cursor: "pointer", padding: "0 6px",
+                                    }}>×</button>
+                                )}
+                              </div>
+                            </MiniCampo>
+                            <MiniCampo label="DURAÇÃO · TEMPO">
+                              <NeonSelect cor={c.dot} value={s.tempoConsulta ?? ""}
+                                onChange={(e) => update(s.id, { tempoConsulta: e.target.value || undefined })}>
+                                <option value="">—</option>
+                                {TEMPOS_CONSULTA.map(t => <option key={t} value={t}>{t}</option>)}
+                              </NeonSelect>
+                            </MiniCampo>
+                          </div>
+                          <MiniCampo label="OBS · AGENDA">
+                            <NeonInput cor={c.dot} value={s.obsConsulta ?? ""}
+                              placeholder="ex: trazer exames anteriores"
+                              onChange={(e) => update(s.id, { obsConsulta: e.target.value || undefined })} />
+                          </MiniCampo>
+                        </div>
                       ) : (
                         <div style={{ display: "flex", gap: 6 }}>
                           <MiniCampo label="PERÍODO">
@@ -767,7 +886,10 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                         </div>
                       )}
 
-                      {/* EXTENSÃO · injetáveis: SESSÕES + FREQUÊNCIA · VO: DURAÇÃO + DOSES/DIA · demais: DURAÇÃO + SESSÕES */}
+                      {/* EXTENSÃO · injetáveis: SESSÕES + FREQUÊNCIA · VO: DURAÇÃO + DOSES/DIA ·
+                          consulta: SESSÕES(nº consultas) + FREQUÊNCIA(intervalo) · IMP blend: omitido
+                          (implantação única na mesma sessão) · demais: DURAÇÃO + SESSÕES */}
+                      {!ehImplanteBlend(s) && (
                       <div style={{ display: "flex", gap: 6 }}>
                         {s.via === "VO" ? (
                           <>
@@ -786,6 +908,19 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                                 padding: "4px 6px", fontFamily: tk.mono, fontSize: 10,
                                 color: c.dot, fontWeight: 700, boxSizing: "border-box",
                               }}>{dosesPorDia(s)} {dosesPorDia(s) > 1 ? "doses" : "dose"}</div>
+                            </MiniCampo>
+                          </>
+                        ) : ehConsulta(s) ? (
+                          <>
+                            {/* Consulta · SESSÕES = nº de consultas/avaliações · FREQUÊNCIA = intervalo */}
+                            <MiniCampo label="SESSÕES · Nº CONSULTAS">
+                              <NeonInput cor={c.dot} type="number" min={1} max={30} value={s.sessoes}
+                                onChange={(e) => update(s.id, { sessoes: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+                            </MiniCampo>
+                            <MiniCampo label="FREQUÊNCIA · INTERVALO">
+                              <NeonInput cor={c.dot} value={s.frequencia}
+                                placeholder="ex: a cada 30 dias"
+                                onChange={(e) => update(s.id, { frequencia: e.target.value as Frequencia })} />
                             </MiniCampo>
                           </>
                         ) : ehInjetavel(s.via) ? (
@@ -818,12 +953,29 @@ function Pilha({ porVia, update, remove, hoverItem, setHoverItem, addItem, sel,
                           </>
                         )}
                       </div>
+                      )}
 
                       {/* PRESCRIÇÃO formatada (1 linha por tomada + Obs. + Quantidade) na VO E nos
                           injetáveis — mesmo formato da prescrição de fórmulas (pedido Caio 31/05).
                           IMP/PRC mantêm o resumo curto QUANTIDADE. */}
                       {(s.via === "VO" || ehInjetavel(s.via)) ? (
                         <PrescricaoPreview s={s} cor={c.dot} comTitulo={ehInjetavel(s.via)} />
+                      ) : ehImplanteBlend(s) ? (
+                        /* Resumo do blend: 1 linha por pellet (nome · dose cadastro · qtd) */
+                        <div style={{
+                          marginTop: 2, padding: "4px 7px", background: tk.bgAlt,
+                          borderLeft: `3px solid ${c.dot}`,
+                          fontFamily: tk.mono, fontSize: 9, color: tk.inkMuted, lineHeight: 1.5,
+                        }}>
+                          <div style={{ fontWeight: 700, color: c.dot, letterSpacing: 1, marginBottom: 2 }}>
+                            IMPLANTAR NA MESMA SESSÃO
+                          </div>
+                          {(s.itensImplante ?? []).map(li => (
+                            <div key={li.id}>
+                              {li.quantidade}× {li.nome} · {li.doseCadastro}
+                            </div>
+                          ))}
+                        </div>
                       ) : quantidadeResumo(s) && (
                         <div style={{
                           marginTop: 2, padding: "3px 7px", background: tk.bgAlt,
@@ -1088,6 +1240,85 @@ function TomadasEditor({ tomadas, setTomadas, cor, line }: {
   );
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// ImplanteBlendEditor · vários pellets implantados na MESMA sessão (pedido Caio 02/06)
+// Dose vem do CADASTRO (read-only); o médico só escolhe a QUANTIDADE de cada pellet.
+// "+ Implante Complementar" adiciona linha NO MESMO card. Custo = soma(preço × qtd).
+// ───────────────────────────────────────────────────────────────────────
+function ImplanteBlendEditor({ itens, setItens, cor, line }: {
+  itens: ImplanteLinha[]; setItens: (arr: ImplanteLinha[]) => void; cor: string; line: string;
+}) {
+  const pellets = CATALOGO.filter(p => p.via === "IMP");
+  const patch = (id: string, p: Partial<ImplanteLinha>) =>
+    setItens(itens.map(x => x.id === id ? { ...x, ...p } : x));
+  const remove = (id: string) => { if (itens.length > 1) setItens(itens.filter(x => x.id !== id)); };
+  const trocarPellet = (id: string, refId: string) => {
+    const p = pellets.find(x => x.id === refId);
+    if (!p) return;
+    patch(id, { refId, nome: p.nome, doseCadastro: p.dose, preco: p.preco });
+  };
+  const adicionar = () => {
+    const p = pellets[0];
+    setItens([...itens, {
+      id: "li" + Date.now(), refId: p.id, nome: p.nome,
+      doseCadastro: p.dose, preco: p.preco, quantidade: 1,
+    }]);
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span style={{
+        fontFamily: tk.mono, fontSize: 8, color: tk.inkSubtle,
+        letterSpacing: 1, textTransform: "uppercase",
+      }}>IMPLANTES DO BLEND · MESMA SESSÃO</span>
+      {itens.map(li => (
+        <div key={li.id} style={{
+          display: "flex", gap: 6, alignItems: "flex-end",
+          paddingBottom: 6, borderBottom: `1px dashed ${tk.border}`,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <MiniCampo label="IMPLANTE · CADASTRO">
+              <NeonSelect cor={cor} value={li.refId}
+                onChange={(e) => trocarPellet(li.id, e.target.value)}>
+                {pellets.map(p => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </NeonSelect>
+            </MiniCampo>
+          </div>
+          <div style={{ flex: "0 0 78px" }}>
+            <MiniCampo label="DOSE · FIXA">
+              <div title="Dose definida no cadastro do pellet · não editável na tela"
+                style={{
+                  background: tk.bg, border: `1px dashed ${tk.border}`, padding: "4px 6px",
+                  fontFamily: tk.mono, fontSize: 10, color: tk.inkMuted, fontWeight: 700,
+                  boxSizing: "border-box", whiteSpace: "nowrap",
+                }}>{li.doseCadastro}</div>
+            </MiniCampo>
+          </div>
+          <div style={{ flex: "0 0 58px" }}>
+            <MiniCampo label="QUANTIDADE">
+              <NeonInput cor={cor} type="number" min={1} max={12} value={li.quantidade}
+                onChange={(e) => patch(li.id, { quantidade: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
+            </MiniCampo>
+          </div>
+          <button onClick={() => remove(li.id)} disabled={itens.length <= 1} title="Remover este implante"
+            style={{
+              background: "transparent", color: itens.length > 1 ? tk.inkSubtle : tk.border,
+              border: `1px solid ${tk.border}`, fontFamily: tk.mono, fontSize: 11,
+              lineHeight: 1, cursor: itens.length > 1 ? "pointer" : "default", padding: "5px 7px",
+            }}>×</button>
+        </div>
+      ))}
+      <button onClick={adicionar}
+        style={{
+          alignSelf: "flex-start", background: "transparent", color: cor,
+          border: `1px dashed ${line}`, fontFamily: tk.mono, fontSize: 8,
+          fontWeight: 700, letterSpacing: 1, cursor: "pointer", padding: "3px 8px",
+        }}>+ IMPLANTE COMPLEMENTAR</button>
+    </div>
+  );
+}
+
 // Bloco de saída da prescrição (R7) · 1 linha por tomada + Obs. + Quantidade.
 function PrescricaoPreview({ s, cor, comTitulo = false }: { s: Substancia; cor: string; comTitulo?: boolean }) {
   const { tomadas, quantidade, rodape } = linhasPrescricao(s);
@@ -1154,7 +1385,7 @@ const papel = {
 
 // Cores de via reescritas pra TINTA sobre papel branco (as do tk são claras p/ fundo escuro).
 const viaTinta: Record<Via, string> = {
-  EV: "#1C8A5F", IM: "#9A6E16", SC: "#2E63C4", VO: "#6E3FB0", IMP: "#A8407F", PRC: "#46566E",
+  EV: "#1C8A5F", IM: "#9A6E16", SC: "#2E63C4", VO: "#6E3FB0", SL: "#2F8E8E", IMP: "#A8407F", PRC: "#46566E",
 };
 
 // Posologia no formato papel (tinta preta), reaproveitando a mesma lógica do app (linhasPrescricao).

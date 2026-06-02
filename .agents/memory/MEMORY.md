@@ -7,3 +7,4 @@
 - [Tomadas → horários → mensageria](tomadas-horarios-mensageria.md) — tomada só com período (sem hora) precisa emitir janela_inicio como horário sintético, senão mensageria/carta ficam cegas (preview OK, motor não dispara).
 - [FOLHA em papel imprimível](folha-papel-imprimivel.md) — modo FOLHA do EditorBlend (GpsPadua) é folha A4 branca imprimível (window.print + @media print), paleta clara `papel`/`viaTinta`, NÃO o tema escuro tk.
 - [Mensageria cronobiológica + posologia](mensageria-cronobiologica.md) — disparo WhatsApp é POR PERÍODO (9 em periodos_dia JE/IM/MM/AL/IT/MT/NO/FN/CE), 1 msg por janela, mensagem rica com placeholders, dose≠cápsula é {OBS_DOSE}. Docs 16/17 dr-claude validados ao vivo com Caio.
+- [IMP blend + Consulta GpsPadua](imp-blend-consulta-gpspadua.md) — coluna IMP "+ adicionar" cria NOVO blend (nunca pellet solto, via instanciarSelecionado); duração da consulta é canônica em tempoConsulta, não dose.
