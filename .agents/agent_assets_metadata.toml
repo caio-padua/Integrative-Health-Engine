@@ -443,3 +443,9 @@ id = "AHlCaCAZawTEGK9w1wwDD"
 uri = "file://docs/dr-replit/PROPOSTAS/2026-06-02_ORGANOGRAMA_REGRA14_VS_WAVE_ATUAL.pdf"
 type = "pdf"
 title = "Organograma — REGRA 14 (já feita) vs Wave Atual"
+
+[[outputs]]
+id = "4e-sDRa5cfLYa8agcg58T"
+uri = "file://docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.02.xlsx"
+type = "table"
+title = "Glossário de Conceitos PAWARDS — para validar (Excel)"

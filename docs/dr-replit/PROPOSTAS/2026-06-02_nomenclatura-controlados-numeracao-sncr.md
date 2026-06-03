@@ -178,3 +178,21 @@ Opcao B: voce ajusta o blueprint primeiro (corrige nomenclatura/modelo) e eu
 reviso este .md antes de codar.
 Opcao C: implemento so a parte de cadastro (a/b/c/d) agora e deixo a faixa de
 numeracao para a proxima onda.
+
+---
+
+## ATUALIZACAO 02/06/2026 — REGRA DE NUMERACAO CORRIGIDA (decisao do Caio)
+
+1. O sistema **NUNCA bloqueia** a emissao da receita.
+2. Se faltar numeracao (faixa esgotada ou inexistente), o sistema **apenas ALERTA**
+   e **emite a receita SEM a numeracao**.
+3. O fluxo de emissao **segue normalmente** — a ausencia de numero nao trava nada.
+4. O sistema **contempla o cadastro do intervalo (faixa) de numeracao para cada
+   tipo de receita** (UF + tipo + n. inicial + n. final + n. atual).
+5. Correcao em relacao ao blueprint anterior: onde se lia "bloqueia emissao do
+   tipo" / "bloqueia o controlado", passa a valer "alerta + emite sem numero".
+
+Entregavel desta atualizacao:
+`docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.02.xlsx`
+(glossario de conceitos proprios + tipos de receita + destinos + regras SNCR +
+rotas reais + fluxos, com colunas em branco para o Caio validar nomes/rotas/fluxos).
