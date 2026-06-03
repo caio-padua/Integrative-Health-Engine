@@ -437,3 +437,9 @@ id = "6kV4RUI8Fr_C4TqUGP1rT"
 uri = "file://docs/dr-replit/PROPOSTAS/2026-06-02_BLUEPRINT_DESMEMBRAMENTO_RECEITAS_E_NUMERACAO_SNCR.pdf"
 type = "pdf"
 title = "Blueprint — Desmembramento de Receitas + Numeração SNCR/Anvisa"
+
+[[outputs]]
+id = "AHlCaCAZawTEGK9w1wwDD"
+uri = "file://docs/dr-replit/PROPOSTAS/2026-06-02_ORGANOGRAMA_REGRA14_VS_WAVE_ATUAL.pdf"
+type = "pdf"
+title = "Organograma — REGRA 14 (já feita) vs Wave Atual"
