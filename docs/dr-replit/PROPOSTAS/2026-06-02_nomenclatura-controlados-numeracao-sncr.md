@@ -208,8 +208,10 @@ Decisoes consolidadas a partir do arquivo revisado do Caio:
 1. CONCEITOS — definicoes dele incorporadas: Prescricao (documento legal/terapeutico
    guarda-chuva), Blend (mistura magistral multi-ativo).
 2. POSOLOGIA — corrigida: dose + VIA DE ADMINISTRACAO + frequencia + periodo + observacao.
-3. FREQUENCIA — = se o tratamento SE REPETE apos terminar (ciclos/repeticao). NAO e
-   vezes por dia.
+3. FREQUENCIA — = o INTERVALO, sempre em DIAS, em que o item SE REPETE: consulta,
+   aplicacao injetavel (IM/EV/SC), procedimento ou receita recorrente. Ex: consulta
+   a cada 30/45 dias, aplicacao IM a cada 21 dias, receita manipulada a cada 30 dias.
+   NAO e vezes por dia (isso e a 'tomada'). [travado pelo Caio em 03/06/2026]
 4. TOMADA — = quantidade de doses e forma (capsulas/comprimidos/ampolas/frascos/
    aplicacoes) durante o dia.
 5. CORES — separadas em duas familias: (2A) RECEITUARIO LEGAL Anvisa (Portaria 344/98:

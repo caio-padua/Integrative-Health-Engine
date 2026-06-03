@@ -9,3 +9,4 @@
 - [Receitas Clínicas via administração](receitas-clinicas-via-administracao.md) — em GpsPadua "Via" é COLUNA (VO=Receitas Clínicas); sublingual e cia são `viaAdministracao` da fórmula, há 2 dropdowns a manter em sync.
 - [Mensageria cronobiológica + posologia](mensageria-cronobiologica.md) — disparo WhatsApp é POR PERÍODO (9 em periodos_dia JE/IM/MM/AL/IT/MT/NO/FN/CE), 1 msg por janela, mensagem rica com placeholders, dose≠cápsula é {OBS_DOSE}. Docs 16/17 dr-claude validados ao vivo com Caio.
 - [IMP blend + Consulta GpsPadua](imp-blend-consulta-gpspadua.md) — coluna IMP "+ adicionar" cria NOVO blend (nunca pellet solto, via instanciarSelecionado); duração da consulta é canônica em tempoConsulta, não dose.
+- [Vocabulario posologia Pawards](posologia-vocabulario.md) — Caio travou: posologia=dose+via+frequencia+periodo+observacao; frequencia=intervalo de repeticao em DIAS (≠ vezes/dia); tomada=qtd doses+forma por momento.
