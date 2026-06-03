@@ -196,3 +196,43 @@ Entregavel desta atualizacao:
 `docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.02.xlsx`
 (glossario de conceitos proprios + tipos de receita + destinos + regras SNCR +
 rotas reais + fluxos, com colunas em branco para o Caio validar nomes/rotas/fluxos).
+
+---
+
+## ATUALIZACAO 03/06/2026 — REVISAO DO CAIO INCORPORADA (Glossario v2)
+
+Entregavel: `docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.03.xlsx`
+
+Decisoes consolidadas a partir do arquivo revisado do Caio:
+
+1. CONCEITOS — definicoes dele incorporadas: Prescricao (documento legal/terapeutico
+   guarda-chuva), Blend (mistura magistral multi-ativo).
+2. POSOLOGIA — corrigida: dose + VIA DE ADMINISTRACAO + frequencia + periodo + observacao.
+3. FREQUENCIA — = se o tratamento SE REPETE apos terminar (ciclos/repeticao). NAO e
+   vezes por dia.
+4. TOMADA — = quantidade de doses e forma (capsulas/comprimidos/ampolas/frascos/
+   aplicacoes) durante o dia.
+5. CORES — separadas em duas familias: (2A) RECEITUARIO LEGAL Anvisa (Portaria 344/98:
+   Amarela A1/A2/A3, Azul B1/B2, Branca controle especial C, Branca comum) e (2B) CORES
+   INTERNAS da clinica por categoria da formula. Caio avisou: "verde e lilas NAO existem"
+   na Anvisa — sao internas.
+6. FAIXA -> INTERVALO — renomeado "faixa de numeracao SNCR" para "intervalo de
+   numeracao SNCR" em todas as abas/fluxos.
+7. FARMACIAS (DESTINOS) — nova nomenclatura no padrao farma.XXXXX (5 letras + ponto +
+   5 letras), pedido do Caio (aaaaa.bbbbb). Mapeamento ADITIVO (codigo antigo vira
+   comentario; rotas/enum atuais continuam funcionando):
+   - FAMA -> farma.manip (manipulacao)
+   - FACO -> farma.droga (drogaria comum)
+   - FAOP -> farma.opcio (opcional, paciente escolhe)
+   - FAMX -> farma.mista (mistura manip + drogaria)
+   - INJE -> farma.injet (injetavel aplicado na clinica)
+   - FITO -> farma.fitor (fitoterapico)
+   - HORM -> farma.hormo (hormonal)
+   - (novo) farma.labor (laboratorio de injetaveis externo, mediante liberacao)
+
+PENDENCIAS PARA O CAIO (bater o martelo no Excel):
+- A. farma.injet vs farma.labor sao a MESMA categoria ou DUAS?
+- B. Confirmar os codigos de 5 letras propostos (opcio/mista/hormo/fitor/injet/labor).
+
+NOTA: nenhuma alteracao de codigo (enum DestinoDispensacao) foi feita ainda — so apos
+o Caio validar os nomes no Excel (regra: proposta antes do codigo).

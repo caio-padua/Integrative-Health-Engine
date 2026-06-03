@@ -449,3 +449,9 @@ id = "4e-sDRa5cfLYa8agcg58T"
 uri = "file://docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.02.xlsx"
 type = "table"
 title = "Glossário de Conceitos PAWARDS — para validar (Excel)"
+
+[[outputs]]
+id = "SPrF7RAhW34VxoxmZHVdZ"
+uri = "file://docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.03.xlsx"
+type = "table"
+title = "Glossário PAWARDS v2 — farma.* + cores + intervalo (validar)"
