@@ -431,3 +431,9 @@ id = "F-1DX0cWkA1Yk2zb3uxL9"
 uri = "file://docs/dr-claude/22_CARTA_MAGNA_LAYOUT_DEFINITIVO_PAWARDS.md"
 type = "text"
 title = "Carta Magna · Layout Definitivo Pawards (pro Dr. Claude)"
+
+[[outputs]]
+id = "6kV4RUI8Fr_C4TqUGP1rT"
+uri = "file://docs/dr-replit/PROPOSTAS/2026-06-02_BLUEPRINT_DESMEMBRAMENTO_RECEITAS_E_NUMERACAO_SNCR.pdf"
+type = "pdf"
+title = "Blueprint — Desmembramento de Receitas + Numeração SNCR/Anvisa"
