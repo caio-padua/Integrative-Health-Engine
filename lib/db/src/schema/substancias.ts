@@ -42,6 +42,16 @@ export const substanciasTable = pgTable("substancias", {
   controlado: boolean("controlado").notNull().default(false),
   tipoReceitaAnvisaCodigo: text("tipo_receita_anvisa_codigo"),
   farmaciaPadrao: text("farmacia_padrao"),
+  // Migration 080 — classificacao multi-eixo de ativos/materias-primas (aditivo).
+  // Eixo 1 Natureza (exclusivo, define a cor); Eixos 2/3 multi-valor.
+  // Eficacia REUSA classificacaoEstrelas (D003=A) — nenhuma coluna nova de eficacia.
+  naturezaAtivo: text("natureza_ativo"),
+  funcoesObjetivo: text("funcoes_objetivo").array(),
+  finalidades: text("finalidades").array(),
+  doseMinima: text("dose_minima"),
+  doseMaxima: text("dose_maxima"),
+  potencia: integer("potencia"),
+  origemDado: text("origem_dado").notNull().default("OPERADOR"),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 

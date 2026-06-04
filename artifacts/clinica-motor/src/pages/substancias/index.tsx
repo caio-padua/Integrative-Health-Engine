@@ -9,8 +9,14 @@ import { apiFetch } from "@/lib/api-fetch";
 import {
   Search, ChevronDown, ChevronRight, FlaskConical,
   Star, Clock, DollarSign, Syringe, Package, Activity,
-  Brain, Heart, Zap, Moon, Flame, Shield, Sparkles, Pencil, X, Trash2
+  Brain, Heart, Zap, Moon, Flame, Shield, Sparkles, Pencil, X, Trash2,
+  Plus, Gauge, AlertTriangle
 } from "lucide-react";
+import {
+  NATUREZAS_ATIVO, NATUREZA_KEYS, corDaNatureza, labelDaNatureza,
+  FUNCOES_OBJETIVO_SUGERIDAS, FINALIDADES_SUGERIDAS, ORIGEM_DADO_LABELS,
+  type NaturezaAtivo,
+} from "@/lib/naturezaAtivo";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
@@ -50,6 +56,30 @@ interface Substancia {
   contraindicacoes: string | null;
   evidenciaCientifica: string | null;
   notas: string | null;
+  naturezaAtivo: string | null;
+  funcoesObjetivo: string[] | null;
+  finalidades: string[] | null;
+  doseMinima: string | null;
+  doseMaxima: string | null;
+  potencia: number | null;
+  origemDado: string;
+}
+
+function novaSubstanciaVazia(): Substancia {
+  return {
+    id: 0, nome: "", abreviacao: null, codigoSemantico: null, categoria: "geral",
+    categoriaDetalhada: null, cor: "#3B82F6", dosePadrao: null, unidadeDose: null,
+    via: "oral", duracaoMinutos: 30, precoReferencia: null, maxSessoesPorSemana: null,
+    intervaloDias: null, estoqueQuantidade: 0, estoqueUnidade: null, descricao: null,
+    funcaoPrincipal: null, efeitosPercebidos: null, tempoParaEfeito: null,
+    classificacaoEstrelas: 3, efeitosSistemasCorporais: null, beneficioLongevidade: null,
+    impactoQualidadeVida: null, beneficioSono: null, beneficioEnergia: null,
+    beneficioLibido: null, performanceFisica: null, forcaMuscular: null, clarezaMental: null,
+    peleCabeloUnhas: null, suporteImunologico: null, contraindicacoes: null,
+    evidenciaCientifica: null, notas: null, naturezaAtivo: null, funcoesObjetivo: null,
+    finalidades: null, doseMinima: null, doseMaxima: null, potencia: null,
+    origemDado: "OPERADOR",
+  };
 }
 
 const VIA_LABELS: Record<string, string> = {
@@ -99,11 +129,24 @@ function SubstanciaCard({ sub, onEdit }: { sub: Substancia; onEdit: (s: Substanc
           {sub.abreviacao || sub.nome.substring(0, 2).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-sm truncate">{sub.nome}</h3>
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${VIA_COLORS[sub.via] || ""}`}>
               {VIA_LABELS[sub.via] || sub.via}
             </Badge>
+            {sub.naturezaAtivo && (
+              <span
+                className="text-[10px] px-1.5 py-0 border font-mono uppercase tracking-wide"
+                style={{ color: corDaNatureza(sub.naturezaAtivo, "claro") ?? undefined, borderColor: corDaNatureza(sub.naturezaAtivo, "claro") ?? undefined }}
+              >
+                {labelDaNatureza(sub.naturezaAtivo)}
+              </span>
+            )}
+            {sub.origemDado === "SEED_RASCUNHO" && (
+              <span className="text-[10px] px-1.5 py-0 border border-amber-400 text-amber-600 font-mono uppercase tracking-wide flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> rascunho
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
             {sub.codigoSemantico && (
@@ -113,6 +156,17 @@ function SubstanciaCard({ sub, onEdit }: { sub: Substancia; onEdit: (s: Substanc
               <span className="flex items-center gap-1">
                 <Syringe className="h-3 w-3" />
                 {sub.dosePadrao}{sub.unidadeDose ? ` ${sub.unidadeDose}` : ""}
+              </span>
+            )}
+            {(sub.doseMinima || sub.doseMaxima) && (
+              <span className="flex items-center gap-1 font-mono">
+                faixa {sub.doseMinima || "?"}–{sub.doseMaxima || "?"}
+              </span>
+            )}
+            {typeof sub.potencia === "number" && (
+              <span className="flex items-center gap-1">
+                <Gauge className="h-3 w-3" />
+                pot {sub.potencia}/5
               </span>
             )}
             <span className="flex items-center gap-1">
@@ -204,7 +258,49 @@ function SubstanciaCard({ sub, onEdit }: { sub: Substancia; onEdit: (s: Substanc
   );
 }
 
+function TagMultiField({ label, values, suggestions, onChange }: {
+  label: string; values: string[]; suggestions: string[]; onChange: (v: string[]) => void;
+}) {
+  const [input, setInput] = useState("");
+  const add = (raw: string) => {
+    const t = raw.trim();
+    if (!t || values.includes(t)) { setInput(""); return; }
+    onChange([...values, t]); setInput("");
+  };
+  return (
+    <div className="space-y-1 col-span-3">
+      <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{label}</label>
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1">
+          {values.map(v => (
+            <span key={v} className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-border bg-muted flex items-center gap-1">
+              {v}
+              <button type="button" onClick={() => onChange(values.filter(x => x !== v))}><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(input); } }}
+        placeholder="Digite e tecle Enter para adicionar"
+        className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+      />
+      <div className="flex flex-wrap gap-1 mt-1">
+        {suggestions.filter(s => !values.includes(s)).map(s => (
+          <button key={s} type="button" onClick={() => add(s)}
+            className="text-[10px] font-mono px-1.5 py-0.5 border border-dashed border-border text-muted-foreground hover:bg-muted">
+            + {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substancia; onClose: () => void; onSave: (data: any) => void; onDelete: () => void }) {
+  const isCreate = item.id === 0;
   const [form, setForm] = useState<Record<string, any>>({
     nome: item.nome, abreviacao: item.abreviacao || "", codigoSemantico: item.codigoSemantico || "",
     categoria: item.categoria, categoriaDetalhada: item.categoriaDetalhada || "", cor: item.cor,
@@ -221,9 +317,34 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
     beneficioLibido: item.beneficioLibido || "", performanceFisica: item.performanceFisica || "",
     forcaMuscular: item.forcaMuscular || "", clarezaMental: item.clarezaMental || "",
     peleCabeloUnhas: item.peleCabeloUnhas || "", suporteImunologico: item.suporteImunologico || "",
+    naturezaAtivo: item.naturezaAtivo || "", funcoesObjetivo: item.funcoesObjetivo || [],
+    finalidades: item.finalidades || [], doseMinima: item.doseMinima || "",
+    doseMaxima: item.doseMaxima || "", potencia: item.potencia ?? "",
+    origemDado: item.origemDado || "OPERADOR",
   });
   const [saving, setSaving] = useState(false);
-  const handleSave = async () => { setSaving(true); await onSave(form); setSaving(false); };
+  const escolherNatureza = (nat: string) => {
+    const corAuto = nat ? NATUREZAS_ATIVO[nat as NaturezaAtivo]?.corClaro : null;
+    setForm(f => ({ ...f, naturezaAtivo: nat, cor: corAuto ?? f.cor }));
+  };
+  const handleSave = async () => {
+    setSaving(true);
+    const numOuNull = (v: any) => (v === "" || v == null ? null : Number(v));
+    const payload = {
+      ...form,
+      potencia: numOuNull(form.potencia),
+      precoReferencia: numOuNull(form.precoReferencia),
+      maxSessoesPorSemana: numOuNull(form.maxSessoesPorSemana),
+      intervaloDias: numOuNull(form.intervaloDias),
+      funcoesObjetivo: form.funcoesObjetivo?.length ? form.funcoesObjetivo : null,
+      finalidades: form.finalidades?.length ? form.finalidades : null,
+      doseMinima: form.doseMinima || null,
+      doseMaxima: form.doseMaxima || null,
+      naturezaAtivo: form.naturezaAtivo || null,
+    };
+    await onSave(payload);
+    setSaving(false);
+  };
   const fields = [
     { key: "nome", label: "Nome" }, { key: "abreviacao", label: "Abreviacao" },
     { key: "codigoSemantico", label: "Codigo Semantico" }, { key: "categoria", label: "Categoria" },
@@ -257,9 +378,84 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-card border border-border w-full max-w-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Substancia</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">{isCreate ? "Nova Substancia" : "Editar Substancia"}</h3>
           <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
+
+        <div className="border border-border p-3 space-y-3">
+          <h4 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Classificacao do Ativo</h4>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Natureza (define a cor)</label>
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 flex-shrink-0 border border-border" style={{ background: form.cor || "transparent" }} />
+                <select
+                  value={form.naturezaAtivo || ""}
+                  onChange={e => escolherNatureza(e.target.value)}
+                  className="flex-1 bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                >
+                  <option value="">— sem natureza —</option>
+                  {NATUREZA_KEYS.map(k => <option key={k} value={k}>{NATUREZAS_ATIVO[k].label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Potencia (1-5)</label>
+              <select
+                value={form.potencia ?? ""}
+                onChange={e => setForm({ ...form, potencia: e.target.value })}
+                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+              >
+                <option value="">—</option>
+                {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Procedencia do dado</label>
+              <select
+                value={form.origemDado || "OPERADOR"}
+                onChange={e => setForm({ ...form, origemDado: e.target.value })}
+                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+              >
+                {Object.entries(ORIGEM_DADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Minima</label>
+              <input value={form.doseMinima || ""} onChange={e => setForm({ ...form, doseMinima: e.target.value })}
+                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Maxima</label>
+              <input value={form.doseMaxima || ""} onChange={e => setForm({ ...form, doseMaxima: e.target.value })}
+                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Eficacia (estrelas 1-5)</label>
+              <select
+                value={form.classificacaoEstrelas ?? ""}
+                onChange={e => setForm({ ...form, classificacaoEstrelas: e.target.value === "" ? null : Number(e.target.value) })}
+                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+              >
+                <option value="">—</option>
+                {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <TagMultiField
+              label="Funcoes Objetivo (multi)"
+              values={form.funcoesObjetivo || []}
+              suggestions={FUNCOES_OBJETIVO_SUGERIDAS}
+              onChange={v => setForm({ ...form, funcoesObjetivo: v })}
+            />
+            <TagMultiField
+              label="Finalidades (multi)"
+              values={form.finalidades || []}
+              suggestions={FINALIDADES_SUGERIDAS}
+              onChange={v => setForm({ ...form, finalidades: v })}
+            />
+          </div>
+        </div>
+
         <div className="grid grid-cols-3 gap-3">
           {fields.map(f => (
             <div key={f.key} className={`space-y-1 ${f.type === "textarea" ? "col-span-3" : ""}`}>
@@ -292,9 +488,11 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
           </div>
         </div>
         <div className="flex gap-2 pt-2 border-t border-border">
-          <Button className="flex-1 text-xs h-9" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar Alteracoes"}</Button>
+          <Button className="flex-1 text-xs h-9" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : isCreate ? "Cadastrar Substancia" : "Salvar Alteracoes"}</Button>
           <Button variant="outline" className="text-xs h-9" onClick={onClose}>Cancelar</Button>
-          <Button variant="destructive" className="text-xs h-9 gap-1" onClick={onDelete}><Trash2 className="w-3 h-3" /> Excluir</Button>
+          {!isCreate && (
+            <Button variant="destructive" className="text-xs h-9 gap-1" onClick={onDelete}><Trash2 className="w-3 h-3" /> Excluir</Button>
+          )}
         </div>
       </div>
     </div>
@@ -336,9 +534,14 @@ export default function Substancias() {
               Catalogo unificado de substancias para sessoes (IV, IM, Implantes)
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <FlaskConical className="h-5 w-5 text-muted-foreground" />
-            <span className="text-sm font-medium">{substancias.length} substancias</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium">{substancias.length} substancias</span>
+            </div>
+            <Button size="sm" className="text-xs gap-1" onClick={() => setEditing(novaSubstanciaVazia())}>
+              <Plus className="h-4 w-4" /> Nova Substancia
+            </Button>
           </div>
         </div>
 
@@ -419,11 +622,17 @@ export default function Substancias() {
             item={editing}
             onClose={() => setEditing(null)}
             onSave={async (data) => {
+              const isCreate = editing.id === 0;
               try {
-                const res = await apiFetch(`/api/substancias/${editing.id}`, {
-                  method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
-                });
-                if (!res.ok) { alert("Erro ao salvar substancia"); return; }
+                const res = await apiFetch(
+                  isCreate ? `/api/substancias` : `/api/substancias/${editing.id}`,
+                  {
+                    method: isCreate ? "POST" : "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
+                  },
+                );
+                if (!res.ok) { alert(isCreate ? "Erro ao cadastrar substancia" : "Erro ao salvar substancia"); return; }
                 setEditing(null);
                 qc.invalidateQueries({ queryKey: ["substancias"] });
               } catch { alert("Erro de conexao"); }

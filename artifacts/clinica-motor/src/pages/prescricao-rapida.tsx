@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
 import { apiFetch, abrirPdfAutenticado, ensureArray } from "@/lib/api-fetch";
 import { useToast } from "@/hooks/use-toast";
+import { corDaNatureza, labelDaNatureza } from "@/lib/naturezaAtivo";
 
 const tk = {
   bg: "#0B1220",
@@ -58,6 +59,10 @@ type SubstanciaCatalogo = {
   via?: string | null;
   controlado?: boolean | null;
   tipoReceitaAnvisaCodigo?: string | null;
+  cor?: string | null;
+  naturezaAtivo?: string | null;
+  potencia?: number | null;
+  classificacaoEstrelas?: number | null;
 };
 
 type Ativo = {
@@ -582,12 +587,15 @@ function AtivoCard({
                 onMouseEnter={(e) => (e.currentTarget.style.background = tk.bgSoft)}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <div style={{ color: tk.ink, fontWeight: 500 }}>
+                <div style={{ color: tk.ink, fontWeight: 500, display: "flex", alignItems: "center", gap: 7 }}>
+                  <span style={{ width: 9, height: 9, flexShrink: 0, borderRadius: 0, background: corDaNatureza(s.naturezaAtivo, "escuro") ?? s.cor ?? tk.inkSubtle }} />
                   {s.nome}
-                  {s.abreviacao && <span style={{ fontFamily: tk.mono, color: tk.accent, marginLeft: 6 }}>· {s.abreviacao.toUpperCase()}</span>}
+                  {s.abreviacao && <span style={{ fontFamily: tk.mono, color: tk.accent, marginLeft: 2 }}>· {s.abreviacao.toUpperCase()}</span>}
                 </div>
                 <div style={{ fontFamily: tk.mono, fontSize: 10, color: tk.inkSubtle, marginTop: 2 }}>
-                  {s.categoria ?? "—"} · VIA={(s.via ?? "?").toUpperCase()}
+                  {labelDaNatureza(s.naturezaAtivo) ?? s.categoria ?? "—"} · VIA={(s.via ?? "?").toUpperCase()}
+                  {typeof s.potencia === "number" ? ` · POT ${s.potencia}/5` : ""}
+                  {typeof s.classificacaoEstrelas === "number" ? ` · EFIC ${s.classificacaoEstrelas}/5` : ""}
                   {s.controlado ? " · CONTROLADO" : ""}
                   {s.tipoReceitaAnvisaCodigo ? ` · ${s.tipoReceitaAnvisaCodigo}` : ""}
                 </div>

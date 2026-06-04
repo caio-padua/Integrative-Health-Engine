@@ -34,6 +34,17 @@ const ALLOWED_FIELDS = [
   // CLASSIFICAÇÃO ANVISA — editável pelo CEO quando a lei muda
   "controlado",
   "tipoReceitaAnvisaCodigo",
+  // Migration 080 — classificação multi-eixo (Natureza/Função/Finalidade),
+  // faixa de dose, potência e procedência do dado.
+  "naturezaAtivo",
+  "funcoesObjetivo",
+  "finalidades",
+  "doseMinima",
+  "doseMaxima",
+  "potencia",
+  // NOTA: origemDado NAO entra aqui de proposito. E portao de confianca
+  // clinica (D001): SEED_RASCUNHO -> VALIDADO_MEDICO so via fluxo de
+  // validacao do Caio, nunca por PUT/PATCH livre do cliente.
 ] as const;
 
 /** Filtra req.body mantendo só campos permitidos. */
@@ -76,7 +87,12 @@ router.post("/substancias", async (req, res) => {
     res.status(400).json({ error: parsed.error.issues });
     return;
   }
-  const [created] = await db.insert(substanciasTable).values(parsed.data).returning();
+  // Portao de confianca clinica (D001): cliente NUNCA define origemDado.
+  // Cadastro manual cai no DEFAULT 'OPERADOR' do banco; SEED_RASCUNHO e
+  // VALIDADO_MEDICO so via scripts/fluxo de validacao do Caio.
+  const dadosCriacao = { ...parsed.data };
+  delete (dadosCriacao as { origemDado?: unknown }).origemDado;
+  const [created] = await db.insert(substanciasTable).values(dadosCriacao).returning();
 
   // T5 PARMASUPRA-TSUNAMI · hook cobrança automática de inclusão de substância.
   // Defensivo: nunca derruba a resposta principal.
