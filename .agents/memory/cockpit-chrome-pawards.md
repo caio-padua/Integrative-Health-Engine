@@ -21,7 +21,7 @@ Regras:
    Divisor vertical de 1px separa identidade (accent teal) de controles de sistema (ok/warn/danger). SAIR sempre na borda.
 
 4. **Nome operador formatado**: primeiro nome completo + iniciais com ponto dos nomes do meio + último sobrenome completo, maiúsculas.
-   Ex.: `Maria Aparecida Silva Costa` → `MARIA A. S. COSTA`.
+   Ex. (placeholder sintetico): `Nome Meio1 Meio2 Sobrenome` → `NOME M. M. SOBRENOME`.
    **Por quê**: chrome tem `fontSize: 10` uniforme (P08); nome completo polui, só primeiro perde formalidade institucional. Iniciais preservam identidade jurídica em ~18 chars.
    **Casos abertos** (Q015 do doc 23): "Filho/Junior/Neto", hifenizados, partículas ("de", "da") — regra ainda não fechada.
 
