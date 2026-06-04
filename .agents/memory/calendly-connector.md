@@ -19,7 +19,7 @@ const j = await r.json(); // proxy retorna response cru, precisa .json()
 ```
 
 **Permissões:** somente LEITURA (users:read, event_types:read, scheduled_events:read).
-Criar tipo de evento NÃO dá pela API — Caio cria no painel calendly.com.
+Criar tipo de evento NÃO dá pela API — CEO cria no painel calendly.com.
 
 **Why:** perdi um ciclo tentando ler por token (igual GCal) antes de descobrir
 que Calendly só funciona pelo proxy SDK. Google Calendar SIM expõe token via

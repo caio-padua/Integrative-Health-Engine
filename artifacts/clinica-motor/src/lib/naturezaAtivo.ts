@@ -60,6 +60,9 @@ export const FINALIDADES_SUGERIDAS = [
   "Estetica",
 ];
 
+// Unidade compartilhada da faixa de dose (min/media/max). D006=A — um seletor.
+export const UNIDADES_DOSE = ["mg", "mcg", "g", "mL", "UI", "gotas", "unidade", "%"];
+
 // Procedencia do dado (origem_dado). SEED_RASCUNHO exige validacao medica.
 export const ORIGEM_DADO_LABELS: Record<string, string> = {
   OPERADOR: "Cadastrado pelo operador",

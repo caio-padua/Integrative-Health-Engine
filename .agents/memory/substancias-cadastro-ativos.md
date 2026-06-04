@@ -10,7 +10,7 @@ A coluna `origem_dado` (`OPERADOR` / `SEED_RASCUNHO` / `VALIDADO_MEDICO`) NAO e
 gravavel pelo cliente. Foi deixada FORA de `ALLOWED_FIELDS` (PUT/PATCH) e e
 removida do payload no POST (cai no DEFAULT 'OPERADOR' do banco).
 
-**Why:** decisao D001 do Caio — dado seedado de fontes publicas e RASCUNHO e
+**Why:** decisao D001 do CEO — dado seedado de fontes publicas e RASCUNHO e
 so vira `VALIDADO_MEDICO` apos validacao medica explicita. Se o cliente
 pudesse setar `origemDado` livre, burlaria o portao de confianca clinica
 (elevacao indevida de confianca do dado).
@@ -30,6 +30,19 @@ Drizzle E o array `ALLOWED_FIELDS` da rota juntos.
 Natureza do ativo auto-preenche `cor` (editavel) via helper `naturezaAtivo.ts`
 (2 faces PENUMBRA claro/escuro). Eficacia NAO ganhou coluna nova: reusa
 `classificacao_estrelas` (1-5). `potencia` e coluna nova com CHECK 1..5.
+
+## Faixa de dose: min/media/max compartilham UMA unidade (D005=A, D006=A)
+As 3 doses (`dose_minima` / `dose_media` / `dose_maxima`, todas text) sao um bloco
+unico no modal ("Faixa de Dose") e dividem UM seletor de unidade que grava em
+`unidade_dose` (sem coluna nova p/ unidade). Opcoes em `UNIDADES_DOSE`
+(mg/mcg/g/mL/UI/gotas/unidade/%).
+
+**Why:** o CEO travou que dose media e valor de REFERENCIA do medico (nem sempre a
+media aritmetica) -> texto manual, nunca auto-calculada. E que a unidade vale pras
+3 doses juntas (uma so), nao uma por dose.
+
+**How to apply:** manter as 3 doses agrupadas e a unidade unica; se um consumidor
+(cockpit de prescricao) precisar do valor, ler `dose_media` + `unidade_dose`.
 
 ## Padrao de input numerico no modal
 Campos numericos novos guardam STRING no estado e convertem no submit com

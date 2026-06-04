@@ -41,6 +41,8 @@ const ALLOWED_FIELDS = [
   "finalidades",
   "doseMinima",
   "doseMaxima",
+  // Migration 081 — dose de referencia (D005=A).
+  "doseMedia",
   "potencia",
   // NOTA: origemDado NAO entra aqui de proposito. E portao de confianca
   // clinica (D001): SEED_RASCUNHO -> VALIDADO_MEDICO so via fluxo de

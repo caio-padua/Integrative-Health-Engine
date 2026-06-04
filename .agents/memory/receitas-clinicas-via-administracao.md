@@ -13,7 +13,7 @@ Sublingual (e as demais rotas: oral, tópica, transdérmica, vaginal, retal,
 nasal, otológica, oftálmica, intramuscular, subcutânea, endovenosa) **NÃO é
 coluna**: é a `viaAdministracao` da fórmula, um campo à parte. Default = Oral.
 
-**Why:** Caio (02/06/2026) explicitou que sublingual é só uma via de
+**Why:** CEO (02/06/2026) explicitou que sublingual é só uma via de
 administração, não um quadro. Acoplar via↔coluna fazia trocar de coluna ao
 escolher a rota.
 

@@ -9,7 +9,7 @@ O 3º modo do `EditorBlend` (SELECIONADA / VER TODAS / **FOLHA**) em
 `prescricao-rapida/GpsPadua.tsx` renderiza a `FolhaConsolidada` como **folha A4
 branca** (paleta clara local `papel`), NÃO no tema escuro `tk`.
 
-**Why:** pedido Caio 01/06/2026 — o bloco não podia parecer "tela digital"; tinha
+**Why:** pedido CEO 01/06/2026 — o bloco não podia parecer "tela digital"; tinha
 que ser uma prescrição em papel que pudesse ser impressa.
 
 **How to apply:**

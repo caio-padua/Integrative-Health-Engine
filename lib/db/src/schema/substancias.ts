@@ -50,6 +50,8 @@ export const substanciasTable = pgTable("substancias", {
   finalidades: text("finalidades").array(),
   doseMinima: text("dose_minima"),
   doseMaxima: text("dose_maxima"),
+  // Migration 081 — dose de referencia entre minima e maxima (D005=A, manual).
+  doseMedia: text("dose_media"),
   potencia: integer("potencia"),
   origemDado: text("origem_dado").notNull().default("OPERADOR"),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),

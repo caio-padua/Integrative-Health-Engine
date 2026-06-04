@@ -11,7 +11,7 @@ diferente das injetáveis/VO (que usam TomadasEditor).
 ## IMP — Blend de Implantes
 Regra: cada `+ ADICIONAR` na coluna IMP cria um **novo blend** (objeto com
 `itensImplante: ImplanteLinha[]`), NUNCA um pellet solto.
-**Why:** Caio modela reimplante futuro como um novo blend (após o vencimento
+**Why:** CEO modela reimplante futuro como um novo blend (após o vencimento
 do anterior), e os pellets do catálogo são linhas dentro de um card, não cards
 soltos. Pellet solto cairia no branch genérico (DOSE+QUANTIDADE+SESSÕES),
 quebrando a UX pedida.
@@ -25,7 +25,7 @@ pra blend. Custo = soma(preco×qtd).
 Regra: blend e consulta NÃO têm dose/posologia, então o descritivo consolidado
 (VER TODAS + FolhaConsolidada) precisa de branch próprio — senão cai no genérico
 `${f.dose} · ...` e sai vazio (dose="").
-**Why:** Caio reportou "não aparece o descritivo na folha e no ver todas" —
+**Why:** CEO reportou "não aparece o descritivo na folha e no ver todas" —
 os dois pontos liam só `ehConsulta`, deixando o blend sem texto.
 **How to apply:** ambos os spots usam
 `ehImplanteBlend(f) ? implanteBlendResumo(f) : ehConsulta(f) ? consultaResumo(f) : <genérico>`.

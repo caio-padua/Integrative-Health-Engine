@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import {
   NATUREZAS_ATIVO, NATUREZA_KEYS, corDaNatureza, labelDaNatureza,
-  FUNCOES_OBJETIVO_SUGERIDAS, FINALIDADES_SUGERIDAS, ORIGEM_DADO_LABELS,
+  FUNCOES_OBJETIVO_SUGERIDAS, FINALIDADES_SUGERIDAS, ORIGEM_DADO_LABELS, UNIDADES_DOSE,
   type NaturezaAtivo,
 } from "@/lib/naturezaAtivo";
 
@@ -60,6 +60,7 @@ interface Substancia {
   funcoesObjetivo: string[] | null;
   finalidades: string[] | null;
   doseMinima: string | null;
+  doseMedia: string | null;
   doseMaxima: string | null;
   potencia: number | null;
   origemDado: string;
@@ -77,7 +78,7 @@ function novaSubstanciaVazia(): Substancia {
     beneficioLibido: null, performanceFisica: null, forcaMuscular: null, clarezaMental: null,
     peleCabeloUnhas: null, suporteImunologico: null, contraindicacoes: null,
     evidenciaCientifica: null, notas: null, naturezaAtivo: null, funcoesObjetivo: null,
-    finalidades: null, doseMinima: null, doseMaxima: null, potencia: null,
+    finalidades: null, doseMinima: null, doseMedia: null, doseMaxima: null, potencia: null,
     origemDado: "OPERADOR",
   };
 }
@@ -319,7 +320,8 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
     peleCabeloUnhas: item.peleCabeloUnhas || "", suporteImunologico: item.suporteImunologico || "",
     naturezaAtivo: item.naturezaAtivo || "", funcoesObjetivo: item.funcoesObjetivo || [],
     finalidades: item.finalidades || [], doseMinima: item.doseMinima || "",
-    doseMaxima: item.doseMaxima || "", potencia: item.potencia ?? "",
+    doseMedia: item.doseMedia || "", doseMaxima: item.doseMaxima || "",
+    potencia: item.potencia ?? "",
     origemDado: item.origemDado || "OPERADOR",
   });
   const [saving, setSaving] = useState(false);
@@ -339,7 +341,9 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
       funcoesObjetivo: form.funcoesObjetivo?.length ? form.funcoesObjetivo : null,
       finalidades: form.finalidades?.length ? form.finalidades : null,
       doseMinima: form.doseMinima || null,
+      doseMedia: form.doseMedia || null,
       doseMaxima: form.doseMaxima || null,
+      unidadeDose: form.unidadeDose || null,
       naturezaAtivo: form.naturezaAtivo || null,
     };
     await onSave(payload);
@@ -349,7 +353,7 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
     { key: "nome", label: "Nome" }, { key: "abreviacao", label: "Abreviacao" },
     { key: "codigoSemantico", label: "Codigo Semantico" }, { key: "categoria", label: "Categoria" },
     { key: "categoriaDetalhada", label: "Categoria Detalhada" }, { key: "cor", label: "Cor" },
-    { key: "dosePadrao", label: "Dose Padrao" }, { key: "unidadeDose", label: "Unidade Dose" },
+    { key: "dosePadrao", label: "Dose Padrao" },
     { key: "via", label: "Via", options: ["iv", "im", "implant", "oral", "topico"] },
     { key: "duracaoMinutos", label: "Duracao (min)", type: "number" },
     { key: "precoReferencia", label: "Preco Referencia", type: "number" },
@@ -421,16 +425,6 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Minima</label>
-              <input value={form.doseMinima || ""} onChange={e => setForm({ ...form, doseMinima: e.target.value })}
-                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Maxima</label>
-              <input value={form.doseMaxima || ""} onChange={e => setForm({ ...form, doseMaxima: e.target.value })}
-                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
-            </div>
-            <div className="space-y-1">
               <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Eficacia (estrelas 1-5)</label>
               <select
                 value={form.classificacaoEstrelas ?? ""}
@@ -453,6 +447,38 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
               suggestions={FINALIDADES_SUGERIDAS}
               onChange={v => setForm({ ...form, finalidades: v })}
             />
+          </div>
+
+          <div className="border border-border p-3 space-y-2">
+            <h4 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Faixa de Dose</h4>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Minima</label>
+                <input value={form.doseMinima || ""} onChange={e => setForm({ ...form, doseMinima: e.target.value })}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Media</label>
+                <input value={form.doseMedia || ""} onChange={e => setForm({ ...form, doseMedia: e.target.value })}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Maxima</label>
+                <input value={form.doseMaxima || ""} onChange={e => setForm({ ...form, doseMaxima: e.target.value })}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Unidade (min/media/max)</label>
+                <select
+                  value={form.unidadeDose || ""}
+                  onChange={e => setForm({ ...form, unidadeDose: e.target.value })}
+                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                >
+                  <option value="">—</option>
+                  {UNIDADES_DOSE.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 

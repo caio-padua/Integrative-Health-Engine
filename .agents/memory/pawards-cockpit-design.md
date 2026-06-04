@@ -4,20 +4,20 @@ description: Princípios duráveis do sistema visual do cockpit Pawards
 ---
 
 ## Por que existe esse cockpit
-CEO Caio é Asperger + TDAH + TOC. O design visual NÃO é estético — é cognitivo.
+O CEO é de alta carga cognitiva e baixa dispersao. O design visual NÃO é estético — é cognitivo.
 Toda decisão abaixo existe pra reduzir dispersão e custo de leitura num turno
 de 12h. Quando em dúvida sobre uma mudança visual, perguntar: "isso reduz
-ou aumenta carga cognitiva pra alguém com TDAH?".
+ou aumenta carga cognitiva pra alguém com baixa tolerância a dispersão?".
 
 ## Regras inegociáveis (com motivo)
 - **Zero emojis em UI/código/commits.** CEO rejeita visualmente; mistura
-  tipográfica quebra a leitura monoespaçada.
+ tipográfica quebra a leitura monoespaçada.
 - **JetBrains Mono em tudo, sempre.** Sensação de "documento jurídico /
-  log de servidor profissional" — confere autoridade ao sistema.
+ log de servidor profissional" — confere autoridade ao sistema.
 - **`border-radius: 0` em toda classe `.pwd-*`.** Quina arredondada lê
-  como "SaaS amigável" e dilui a sensação de cockpit operacional.
+ como "SaaS amigável" e dilui a sensação de cockpit operacional.
 - **Retângulo dentro de retângulo.** Moldura externa + interna concêntrica
-  cria hierarquia espacial sem cor adicional.
+ cria hierarquia espacial sem cor adicional.
 - **PT-BR sempre.** Toda label, erro, log, comentário público.
 
 ## Regra "Luz por trás" (não dar volta na quina)
@@ -33,10 +33,10 @@ container ancestor pra não cortar a luz.
 
 ## K1 / K2 / K3 — gramática de atenção
 - **K1 Pulso Único**: idealmente 1 elemento "vivo" por tela. Pulsos
-  simultâneos sobrecarregam atenção TDAH. Status atual: aspiracional
-  (ainda não totalmente aplicado).
+ simultâneos sobrecarregam a atenção sob alta carga. Status atual: aspiracional
+ (ainda não totalmente aplicado).
 - **K2 Três Níveis**: repouso (cinza dim) → foco (borda colorida) → ação
-  (respiração na cor). Hierarquia única, sem ambiguidade.
+ (respiração na cor). Hierarquia única, sem ambiguidade.
 - **K3 Faixa Visível**: inset 2px amarelo em sub-menu nível 3 expandido.
 
 ## Não brigar contra o sistema próprio
