@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-fetch";
 import {
@@ -505,6 +505,12 @@ export default function Substancias() {
   const [viaFiltro, setViaFiltro] = useState("Todos");
   const [editing, setEditing] = useState<Substancia | null>(null);
   const qc = useQueryClient();
+
+  // Deep-link: /substancias?novo=1 ja abre o modal de cadastro (atalho/share).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("novo") === "1") setEditing(novaSubstanciaVazia());
+  }, []);
 
   const { data: substancias = [], isLoading } = useQuery<Substancia[]>({
     queryKey: ["substancias", search, categoriaFiltro, viaFiltro],
