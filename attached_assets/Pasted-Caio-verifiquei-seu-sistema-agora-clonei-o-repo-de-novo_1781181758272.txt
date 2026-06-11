@@ -1,0 +1,623 @@
+Caio, verifiquei seu sistema agora (clonei o repo de novo, fresh). Respondo em formato TDAH friendly.
+
+
+
+---
+
+
+
+## 1. RESPOSTAS DIRETAS ÀS SUAS 3 PERGUNTAS
+
+
+
+**1.1** Consigo montar isso? **SIM**
+
+**1.2** Tenho acesso ao sistema? **SIM** — repo clonado agora, branch `replit-agent`, 1.644 arquivos
+
+**1.3** Quero validar antes? **SIM** — 5 decisões abaixo. Mas primeiro um alerta matemático importante.
+
+
+
+---
+
+
+
+## 2. O ALERTA MATEMÁTICO (leia antes de decidir)
+
+
+
+**2.1** Sua matriz de dietas tem estas variáveis:
+
+
+
+| Variável | Opções | Quantidade |
+
+|----------|--------|------------|
+
+| Tipo | cetogênica, hiperproteica, lowcarb, vegetariana | 4 |
+
+| Sexo | homem, mulher | 2 |
+
+| Calorias | 1000, 1250, 1500, 2000, 2500, 3500, 4000 | 7 |
+
+| Refeições | 3 ou 6 por dia | 2 |
+
+| Variação | pouca ou muita | 2 |
+
+
+
+**2.2** Multiplicando: 4 × 2 × 7 × 2 × 2 = **448 cardápios diferentes**
+
+
+
+**2.3** Se eu escrever 448 documentos estáticos:
+
+- 2.3.1 Você nunca vai conseguir revisar todos
+
+- 2.3.2 Qualquer mudança (ex: trocar tilápia) exige editar dezenas de docs
+
+- 2.3.3 Vira o maior ectoplasma da história do projeto
+
+
+
+**2.4** A solução certa: **GERADOR PARAMÉTRICO**
+
+- 2.4.1 Eu crio um banco de ~120 **refeições modulares** (blocos)
+
+- 2.4.2 Cada bloco tem versão por tipo de dieta
+
+- 2.4.3 As porções **escalam automaticamente** pela meta calórica e sexo
+
+- 2.4.4 O sistema **monta** o cardápio na hora: você escolhe 5 parâmetros, ele gera
+
+- 2.4.5 Trocar tilápia = editar 1 bloco, todos os cardápios atualizam
+
+
+
+**2.5** Analogia: em vez de 448 receitas prontas, uma cozinha com ingredientes que se combinam.
+
+
+
+---
+
+
+
+## 3. O PLANO DE TRATAMENTO COMPLETO (confirmando que entendi)
+
+
+
+Uma consulta sua gera 1 PLANO DE TRATAMENTO com até 7 componentes:
+
+
+
+**3.1** Prescrição de fórmulas manipuladas
+
+**3.2** Prescrição de remédios de farmácia
+
+**3.3** Protocolos injetáveis (EV e/ou IM)
+
+**3.4** Procedimento pellet hormonal (se aceitar)
+
+**3.5** Aconselhamento psicológico (dieta/atividade física)
+
+**3.6** **PLANO ALIMENTAR** (a base de tudo)
+
+**3.7** Plano de treino (musculação, 4 níveis)
+
+
+
+**3.8** Itens 3.1 a 3.3 já existem no sistema (prescrição rápida + GPS Clínico).
+
+**3.9** Itens 3.4 a 3.7 **não existem** — verificei o schema agora: zero tabelas de dieta ou treino.
+
+**3.10** É isso que vamos construir.
+
+
+
+---
+
+
+
+## 4. AS 5 DECISÕES (com minha sugestão em cada)
+
+
+
+### 4.1 DECISÃO 1 — Abordagem das dietas
+
+- **A)** Gerador paramétrico (banco de refeições modulares) ← **SUGIRO**
+
+- B) 448 documentos estáticos
+
+- C) Só os 20-30 cardápios mais usados, estáticos
+
+
+
+**Por que A:** escala, fácil manutenção, e o motor pode evoluir para ajuste automático.
+
+
+
+### 4.2 DECISÃO 2 — Quem escreve o conteúdo clínico das refeições
+
+- **A)** Eu gero a base completa (~120 blocos), você valida por amostragem ← **SUGIRO**
+
+- B) Você me dita as refeições, eu só estruturo
+
+- C) Misto: eu gero, você revisa TODAS antes de entrar no sistema
+
+
+
+**Por que A:** você é o gargalo. Valida 15-20 blocos representativos, confia no padrão.
+
+
+
+### 4.3 DECISÃO 3 — Treino
+
+- **A)** 4 templates base (iniciante, intermediário 1, intermediário 2, profissional) com progressão de 30 dias ← **SUGIRO**
+
+- B) Gerador paramétrico também para treino
+
+- C) Aproveitar o template do projeto paralelo como base dos 4
+
+
+
+**Por que A (com C embutido):** treino tem menos variáveis que dieta. O template paralelo já é nível intermediário-avançado — aproveito ele.
+
+
+
+### 4.4 DECISÃO 4 — Onde mora no sistema
+
+- **A)** Módulo novo "PROTOCOLO INTEGRATIVO" com aba própria no MANDRIL ← **SUGIRO**
+
+- B) Dentro da prescrição rápida atual
+
+- C) Tela separada independente
+
+
+
+**Por que A:** plano alimentar + treino + aconselhamento são parte do plano de tratamento, não da receita. Mas saem juntos no mesmo PDF/WhatsApp.
+
+
+
+### 4.5 DECISÃO 5 — Prioridade na fila
+
+- **A)** Depois do pacote atual do Dr. Replit (funil de categoria), antes da FORJA ← **SUGIRO**
+
+- B) Agora, pausa o funil
+
+- C) Depois de tudo (governança → B1 → FORJA → dieta)
+
+
+
+**Por que A:** o funil termina em horas. Dieta é a base do seu tratamento — não pode ficar no fim da fila.
+
+
+
+---
+
+
+
+## 5. O QUE EU FAÇO ASSIM QUE VOCÊ BATER OS MARTELOS
+
+
+
+**5.1** Escrevo a spec completa: tabelas, gerador, regras de escala calórica
+
+**5.2** Gero o banco de refeições (120 blocos × 4 tipos de dieta)
+
+**5.3** Gero os 4 templates de treino com progressão
+
+**5.4** Tudo vai para `docs/MASTERMIND/PROPOSTAS/` no padrão anti-ectoplasma
+
+**5.5** Dr. Replit implementa quando terminar o funil
+
+**5.6** Integração com mensageria: cada refeição dispara WhatsApp no período certo (JE-CE) — a estrutura dos 9 períodos já existe e vamos reusar
+
+
+
+---
+
+
+
+## 6. RESPOSTA RÁPIDA (se quiser atalho)
+
+
+
+**6.1** Se concordar com tudo, responde só: **"VAI no A-A-A-A-A"**
+
+**6.2** Se quiser mudar algo, responde tipo: "4.1 A, 4.2 C, 4.3 A, 4.4 A, 4.5 B"
+
+
+
+Bata os martelos que eu começo a montar o arsenal.# 26 — SPEC PROTOCOLO INTEGRATIVO: DIETA + TREINO COMO SEGMENTOS DO MOTOR
+
+
+
+> Autor: Dr. Claude (Fable 5)
+
+> Data: 2026-05-30
+
+> Status: APROVADO POR CAIO (decisoes 4.1A, 4.2A, 4.3A, 4.5A + 4.4 CORRIGIDA)
+
+> Destino: docs/MASTERMIND/PROPOSTAS/
+
+
+
+---
+
+
+
+## 1. A DESCOBERTA ARQUITETURAL (li o codigo, branch replit-agent)
+
+
+
+### 1.1 O trilho que o Caio descreveu JA EXISTE no sistema
+
+
+
+FLUXO ATUAL (ja construido):
+
+anamneses (ignicao)
+
+  -> regras_motor (palavra_chave -> segmento)
+
+  -> sugestoes_clinicas (anamnese_id, tipo, justificativa, status)
+
+  -> validacao humana (validadoPorId, status: pendente->validado)
+
+  -> execucao
+
+
+
+### 1.2 As tabelas-chave confirmadas
+
+
+
+1.2.1 regras_motor
+
+  - palavraChave + segmento: ["exame","formula","injetavel","implante","protocolo"]
+
+  - prioridade, blocoReferencia
+
+
+
+1.2.2 sugestoes_clinicas
+
+  - anamneseId (A IGNICAO), pacienteId
+
+  - tipo: ["exame","formula","injetavel_im","injetavel_ev","implante","protocolo"]
+
+  - justificativa, prioridade
+
+  - status: ["pendente","validado","rejeitado","em_execucao","concluido"]
+
+  - validadoPorId (= MANDRIL)
+
+
+
+1.2.3 itens_terapeuticos (o catalogo universal)
+
+  - categoria: ["formula","injetavel_im","injetavel_ev","implante","exame","protocolo"]
+
+  - posologiaEstruturada (jsonb), exigeValidacaoHumana (governanca embrionaria!)
+
+  - preco (monetizacao pronta), tags, blocoId
+
+
+
+1.2.4 periodos_dia: 9 periodos JE-CE (mensageria cronobiologica)
+
+
+
+1.2.5 protocolos: tabela generica com itens jsonb
+
+
+
+### 1.3 O INSIGHT CENTRAL
+
+
+
+DIETA e TREINO nao precisam de ilha nova.
+
+Eles entram como NOVAS CATEGORIAS no MESMO trilho:
+
+
+
+ANTES: anamnese -> motor -> sugere formula/injetavel/exame
+
+DEPOIS: anamnese -> motor -> sugere formula/injetavel/exame/DIETA/TREINO/ACONSELHAMENTO
+
+
+
+Mesma fila de validacao. Mesmo MANDRIL. Mesma mensageria.
+
+Os bracos confluem porque correm no mesmo rio.
+
+
+
+---
+
+
+
+## 2. MUDANCAS DE SCHEMA (aditivas, nunca destrutivas)
+
+
+
+### 2.1 Extensao de enums (3 lugares)
+
+
+
+2.1.1 regras_motor.segmento
+
+  += "dieta", "treino", "aconselhamento"
+
+
+
+2.1.2 sugestoes_clinicas.tipo
+
+  += "dieta", "treino", "aconselhamento"
+
+
+
+2.1.3 itens_terapeuticos.categoria
+
+  += "dieta", "treino", "aconselhamento"
+
+
+
+### 2.2 Tabelas NOVAS do gerador parametrico de dietas
+
+
+
+2.2.1 dieta_blocos_refeicao (o banco de ~120 blocos modulares)
+
+  - id, nome ("Cafe proteico com ovos")
+
+  - tipo_dieta: ["cetogenica","hiperproteica","lowcarb","vegetariana"]
+
+  - posicao_refeicao: ["cafe","lanche_manha","almoco","lanche_tarde","janta","ceia"]
+
+  - kcal_base (para escala), prot_g, carb_g, gord_g
+
+  - itens jsonb: [{alimento, qtd_base, unidade, escala_por_kcal: bool}]
+
+  - variacao_grupo (blocos intercambiaveis = "muita variacao")
+
+  - periodo_sugerido: JE-CE (liga na mensageria)
+
+  - sexo_pref: ["ambos","M","F"] (default ambos)
+
+  - ativo
+
+
+
+2.2.2 dieta_planos (a dieta gerada para 1 paciente)
+
+  - id, paciente_id, sugestao_id (FK sugestoes_clinicas — o elo com o motor!)
+
+  - tipo_dieta, kcal_alvo: [1000,1250,1500,2000,2500,3500,4000]
+
+  - num_refeicoes: [3,6]
+
+  - variacao: ["pouca","muita"]
+
+  - sexo, status, criado_por, validado_por
+
+
+
+2.2.3 dieta_plano_refeicoes (materializacao)
+
+  - plano_id, dia_index (para rotacao se variacao=muita)
+
+  - posicao_refeicao, bloco_id, horario, periodo (JE-CE)
+
+  - itens_escalados jsonb (qtds ja calculadas para a kcal_alvo)
+
+
+
+### 2.3 Tabelas NOVAS de treino
+
+
+
+2.3.1 treino_templates (4 niveis)
+
+  - id, nivel: ["iniciante","intermediario_1","intermediario_2","profissional"]
+
+  - duracao_dias (30), descricao, ativo
+
+
+
+2.3.2 treino_sessoes
+
+  - template_id, dia_semana, grupo_muscular, aquecimento
+
+
+
+2.3.3 treino_exercicios
+
+  - sessao_id, ordem, exercicio, series_reps, descanso, observacao
+
+
+
+2.3.4 treino_planos (atribuicao a paciente)
+
+  - paciente_id, sugestao_id (FK — mesmo elo), template_id
+
+  - nivel, inicio, status, ajustes jsonb
+
+
+
+### 2.4 Regras do motor para dieta/treino (exemplos de seed)
+
+
+
+REGRA D1: anamnese.objetivo="emagrecimento" + sexo=F + peso>X
+
+  -> sugere dieta lowcarb 1250 kcal 6 refeicoes
+
+REGRA D2: anamnese.objetivo="hipertrofia" + treina_atualmente=sim
+
+  -> sugere dieta hiperproteica 2500-3500 + treino intermediario
+
+REGRA D3: anamnese.restricao="vegetariano"
+
+  -> forca tipo_dieta=vegetariana em qualquer sugestao
+
+REGRA T1: anamnese.experiencia_treino="nunca"
+
+  -> treino_template nivel=iniciante
+
+REGRA A1: anamnese.indica_compulsao OU desmotivacao
+
+  -> sugestao tipo=aconselhamento (psicologico)
+
+
+
+---
+
+
+
+## 3. O ALGORITMO DO GERADOR (logica central)
+
+
+
+### 3.1 Entrada (5 parametros)
+
+tipo_dieta, kcal_alvo, num_refeicoes, variacao, sexo
+
+
+
+### 3.2 Passos
+
+3.2.1 Distribui kcal_alvo pelas refeicoes conforme tabela de proporcoes:
+
+  - 6 refeicoes: cafe 20%, lanche1 10%, almoco 30%, lanche2 10%, janta 20%, ceia 10%
+
+  - 3 refeicoes: cafe 30%, almoco 40%, janta 30%
+
+3.2.2 Para cada posicao, filtra blocos: tipo_dieta + posicao + sexo
+
+3.2.3 variacao=pouca: 1 bloco fixo por posicao (7 dias iguais)
+
+3.2.4 variacao=muita: rotaciona 2-3 blocos do variacao_grupo
+
+3.2.5 Escala quantidades: fator = kcal_alvo_refeicao / kcal_base_bloco
+
+3.2.6 Arredonda para medidas praticas (50g, 1 unidade, 1 colher)
+
+3.2.7 Materializa em dieta_plano_refeicoes com periodo JE-CE
+
+
+
+### 3.3 Saidas
+
+3.3.1 PDF estruturado (template do projeto paralelo como base visual)
+
+3.3.2 Mensageria: cada refeicao dispara WhatsApp no periodo certo
+
+3.3.3 RAS: monitoramento (pesagem 3x/semana, foto semanal, regras de ajuste)
+
+
+
+---
+
+
+
+## 4. ONDE CADA COCKPIT ENTRA (a confluencia)
+
+
+
+### 4.1 FORJA (externo)
+
+4.1.1 Paciente novo via site/rede social preenche anamnese publica
+
+4.1.2 Anamnese grava em anamneses (apos resolver Ectoplasma A)
+
+4.1.3 Motor dispara TODAS as sugestoes: formulas + injetaveis + exames + dieta + treino + aconselhamento
+
+
+
+### 4.2 MANDRIL (interno)
+
+4.2.1 Fila unica de sugestoes_clinicas pendentes
+
+4.2.2 Medico valida/edita/rejeita CADA sugestao (incluindo dieta e treino)
+
+4.2.3 Para dieta: pode trocar kcal, tipo, refeicoes ANTES de materializar
+
+4.2.4 Para paciente JA em tratamento: medico cria sugestao manual direto no MANDRIL (sem anamnese nova)
+
+4.2.5 exigeValidacaoHumana + governanca controlam quem pode validar o que
+
+
+
+### 4.3 Monetizacao PAYS (pay-per-use) — ja tem semente
+
+4.3.1 itens_terapeuticos.preco ja existe
+
+4.3.2 Cada validacao de outro medico = evento cobravel
+
+4.3.3 Tabela futura: uso_licenca (medico_id, evento, valor) — Wave posterior
+
+
+
+---
+
+
+
+## 5. FILA DE IMPLEMENTACAO (encaixe na linha de producao)
+
+
+
+5.1 Dr. Replit termina funil de categoria (em andamento)
+
+5.2 Governanca bloqueante + toggle PARQ (ja decidido)
+
+5.3 B1 prescricao rica + Bridge mensageria (ja decidido)
+
+5.4 PROTOCOLO INTEGRATIVO fase 1: schemas + seeds de blocos + gerador + PDF
+
+5.5 PROTOCOLO INTEGRATIVO fase 2: integracao mensageria (refeicoes por periodo)
+
+5.6 FORJA com anamnese publica (Ectoplasma A) — dieta ja nasce integrada
+
+5.7 PROTOCOLO INTEGRATIVO fase 3: regras motor + ajuste automatico por monitoramento
+
+
+
+---
+
+
+
+## 6. DIVISAO DE TRABALHO
+
+
+
+6.1 Dr. Claude (eu): gero os ~120 blocos de refeicao (4 tipos x 6 posicoes x 5 variacoes)
+
+     + 4 templates de treino com progressao + seeds SQL prontos
+
+6.2 Dr. Replit: migrations + gerador + telas no MANDRIL + PDF + mensageria
+
+6.3 Caio: valida 15-20 blocos por amostragem + bate martelo em duvidas clinicas
+
+
+
+---
+
+
+
+## 7. PERGUNTA ABERTA (unica)
+
+
+
+7.1 Caio mencionou "Pharma Doctor" e email — mensagem veio truncada do voice-to-text.
+
+7.2 Aguardando esclarecimento: e uma farmacia parceira? Um email a redigir? Um contato a aprovar?
+
+
+
+---
+
+
+
+quero que analise o sistema , em relacao ao processador: forja e mandril. pois precisamos quero que entenda como introduzir esta nova ferramenta no sistema. quero que vsasculhe o sistema no sentido de ja identificar, os 2 moteres de processamento : forja e mandril. se ha ectoplasmas como : geradores de dietas e treino ou "rascunhos" "ecotplasmas , que sao desenvolvimentos que na maioria dos casos foram validados, porem nao foram ainda implantados no corpo do sistema e realizado as inervacoes e coneccoes com vaos sanguineos ) precisamos talves atrelalos as sistemas e ferramentas de mensageria, ras , e etc quero que me ajude a pensar analisar com calma, gosto que voce faca trestes semanticos , buscar e rebuscas, gosto de sinceridade e nao gosto de ter experiencias de cliente com velocidade, priorizo zelo , cuidado , nao gosto de retrabalho, prefiro eseprar por 10h por algo do que receber algo em 10 min e ter varios retrabalhos e erros por falta de reflexao , gosto da palavra reflexao e meditacao, meditacao , meditacao m, no sentido de entregar algo proximo ao perfeito e perfeito se possivel. quero que depois disso tudo pense de forma filosofica , e emprendedora na maxima japonesa kaizen , e verifique o que pode ainda ser melhorado e ja sugira para eimplmentarmos ou se tiver capacidade ja me surpreenda colocando e ja estruturando tudo . voce sera elegido à programador e codificadoe "pleno" e o replit ia de programacao ainda sera o "senior"  principamelnte ao cerebro Claude Code. repito claude code. voce concorda com o que o opus disse acima ? estamos em 11.06.26
