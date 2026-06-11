@@ -103,7 +103,18 @@
 11.3. Script Google NÃO tem motor de slots/anti-colisão — só lê a planilha e gera RAS;
       o agendamento com anti-colisão é COISA NOVA que estou criando agora.
 
-11.4. A regra de **consolidação (item 10.4) NÃO existe em NENHUM dos dois** — é IP clínica nova.
+11.4. CORREÇÃO (eu tinha errado): a consolidação **JÁ EXISTE no script** como
+      comportamento PADRÃO. No cockpit, `lancarProtocolo` usa UMA data de protocolo
+      (B8/C8/D8) e cada substância herda **"a data do protocolo"** (Code.gs L1446/L1504/L1518);
+      a coluna INICIO é OPCIONAL e só serve pra **intercalar** (L687/L717). Ou seja, por
+      padrão TODAS as substâncias do paciente caem num ÚNICO dia. Isso é exatamente o item 10.4.
+
+11.4.1. No PAWARDS isso NÃO está implementado assim (a expansão é por fase em `motorPlanos.ts`).
+
+11.4.2. O QUE REALMENTE FALTA nos dois: garantir a consolidação **ao longo dos ciclos
+        recorrentes** quando substâncias têm FREQ diferentes (7/15/30/60) — sem isso, as
+        sessões repetidas DRIFTAM pra dias diferentes e quebram a regra "1 dia por semana
+        por paciente". O motor novo precisa FORÇAR tudo da janela pro dia eleito.
 
 11.5. Expansão protocolo→sessões datadas: PAWARDS tem PARCIAL (`motorPlanos.ts`), script não tem.
 
