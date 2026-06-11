@@ -337,6 +337,70 @@ function criarAgendamentoRAS(dados) {
   return evento.getId();
 }
 
+/**
+ * VARIANTE com CONVITE: cria o evento E convida o paciente.
+ * Ao adicionar o paciente como convidado com sendInvites=true, o Google:
+ *  (1) MANDA O E-MAIL do convite pro paciente automaticamente; e
+ *  (2) o evento APARECE NA AGENDA do paciente quando ele aceita/auto-aceita.
+ * Esse e o jeito nativo e legal de "compartilhar na agenda dele" — voce nao
+ * escreve direto no calendario privado de terceiro, voce convida.
+ *
+ * dados: igual ao criarAgendamentoRAS + { pacienteEmail }
+ */
+function criarAgendamentoRASComConvite(dados) {
+  var cal = dados.calendarId
+    ? CalendarApp.getCalendarById(dados.calendarId)
+    : CalendarApp.getDefaultCalendar();
+  if (!cal) throw new Error('Calendario nao encontrado: ' + dados.calendarId);
+
+  var inicio = parseDataHora_(dados.dataAgendada, dados.horaAgendada);
+  var fim = parseDataHora_(dados.dataAgendada, dados.horaFim);
+
+  var titulo = buildEventSummary({
+    pacienteNome: dados.pacienteNome,
+    pacienteCpf: dados.pacienteCpf,
+    tipoProcedimento: dados.tipoProcedimento,
+    substancias: dados.substancias,
+  });
+
+  var descricao = buildEventDescription({
+    pacienteNome: dados.pacienteNome,
+    pacienteCpf: dados.pacienteCpf,
+    numeroMarcacao: dados.numeroMarcacao,
+    totalMarcacoes: dados.totalMarcacoes,
+    unidadeNome: dados.unidadeNome,
+    substancias: dados.substancias,
+    tipoProcedimento: dados.tipoProcedimento,
+    duracaoMin: dados.duracaoMin,
+    endereco: dados.endereco,
+  });
+
+  var location = '';
+  if (dados.endereco && dados.endereco.rua) {
+    location = [dados.endereco.rua, dados.endereco.bairro, dados.endereco.cidade, dados.endereco.estado, dados.endereco.cep]
+      .filter(function (x) { return !!x; }).join(', ');
+  }
+
+  var opts = { description: descricao, sendInvites: true };
+  if (location) opts.location = location;
+  if (dados.pacienteEmail) opts.guests = dados.pacienteEmail;
+
+  var evento = cal.createEvent(titulo, inicio, fim, opts);
+  evento.setColor(getEventColor(dados.tipoProcedimento, dados.substancias));
+
+  // OPCIONAL: e-mail extra personalizado (alem do convite do Google).
+  // Descomente se quiser um e-mail proprio (ex: com o RAS-Contingencia em anexo).
+  // if (dados.pacienteEmail) {
+  //   MailApp.sendEmail({
+  //     to: dados.pacienteEmail,
+  //     subject: 'Seu agendamento — ' + tituloAmigavel_(dados),
+  //     htmlBody: descricao.replace(/\n/g, '<br>')
+  //   });
+  // }
+
+  return evento.getId();
+}
+
 // ── EXEMPLO DE USO (rode esta funcao no editor p/ testar) ──────
 function exemploCriarAgendamentoRAS() {
   var id = criarAgendamentoRAS({
