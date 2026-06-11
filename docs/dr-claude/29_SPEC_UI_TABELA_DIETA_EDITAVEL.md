@@ -1,0 +1,95 @@
+# 29 — SPEC UI: TABELA DE DIETA EDITAVEL COM ALINHAMENTO TOC FRIENDLY
+
+De: Dr. Claude (orquestrador)
+Para: Dr. Replit (senior — valida) e Dr. Code (pleno — constroi a UI)
+Data: 11/06/2026
+Requisito de: CEO Caio (vinculante, 11/06/2026)
+Tom: instrucao colaborativa — Dr. Replit tem veto tecnico se medir risco.
+
+---
+
+## 1. O REQUISITO DO CEO, EM SUAS PALAVRAS
+
+1.1 Tudo em gramas: cada alimento tem o peso em gramas como campo principal.
+1.2 Ao lado, o equivalente em porcao caseira (ex: 100 g | 2 colheres de sopa).
+1.3 Tudo AUTOPREENCHIDO pelo sistema (os 141 itens ja vem com os 2 campos).
+1.4 Tudo EDITAVEL campo a campo na UI.
+1.5 Tudo ALINHADO: os pesos alinhados a esquerda por uma LINHA VERTICAL
+    IMAGINARIA. Requisito TOC friendly — inviolavel.
+1.6 Tudo muito bem explicado e parametrizado.
+
+## 2. LAYOUT CANONICO DA TABELA (mockup em texto)
+
+A fonte do sistema ja e JetBrains Mono (monoespacada) — perfeita para
+alinhamento por coluna. Layout da tela de edicao de bloco:
+
+```
+BLOCO: PICANHA COM OVOS                    CARNIVORA · ALMOCO · ALT 1
+CODIGO: DIET CARN ALMO 0588                REFERENCIA: 588 kcal
+─────────────────────────────────────────────────────────────────────
+ALIMENTO                    GRAMAS      PORCAO              KCAL
+─────────────────────────────────────────────────────────────────────
+Picanha grelhada            [150 ] g    [1,2 ] [bife    v]   434
+Ovo inteiro cozido          [100 ] g    [2   ] [unidade v]   155
+─────────────────────────────────────────────────────────────────────
+TOTAL DO BLOCO                                               588 kcal
+                                          PROT 52,0  GORD 41,0  CARB 1,1
+```
+
+## 3. REGRAS DE ALINHAMENTO (TOC friendly — pixel a pixel)
+
+3.1 Coluna GRAMAS: inputs com largura FIXA identica (ex: 72px), valores
+    alinhados a ESQUERDA dentro do input. A borda esquerda de todos os
+    inputs forma a linha vertical imaginaria do CEO.
+3.2 Coluna PORCAO: mesmo principio — input numerico de largura fixa +
+    dropdown de unidade de largura fixa. Duas linhas verticais limpas.
+3.3 Coluna KCAL: alinhada a DIREITA (numeros comparaveis pelo comprimento),
+    largura fixa, sempre na mesma coordenada x.
+3.4 NUNCA larguras variaveis por conteudo. Grid CSS com colunas fixas
+    (ex: 1fr 100px 90px 130px 80px), nao table com auto-layout.
+3.5 Separador decimal: virgula (PT-BR). Casas decimais: gramas inteiro,
+    porcao 1 casa, kcal inteiro.
+3.6 Zero emoji, 0px radius, JetBrains Mono — padrao ja vigente.
+
+## 4. COMPORTAMENTO DE EDICAO (o vivo da tela)
+
+4.1 Editar GRAMAS -> recalcula kcal do item na hora (sem salvar ainda)
+    -> recalcula total do bloco -> regenera codigo semantico (4 digitos
+    finais = kcal de referencia, decisao P-F).
+4.2 Editar PORCAO (valor ou unidade) -> sistema SUGERE gramas novas
+    (valor x gramas_equivalente_padrao da unidade) mas DESTACA o campo
+    gramas em amarelo ate o usuario confirmar — gramas e a fonte de
+    verdade, porcao e exibicao (Ajuste 1 do doc 28).
+4.3 Editar GRAMAS nao altera porcao automaticamente — mostra hint
+    discreto "porcao pode estar defasada" se a razao divergir >20%.
+4.4 Salvar = UPSERT do item + recalculo persistido de calorias_calculadas
+    e calorias_referencia do bloco. Tudo em 1 transacao.
+4.5 Botao + ADICIONAR ALIMENTO abre busca no catalogo alimento
+    (68 ja seedados) com criacao rapida inline se nao existir.
+
+## 5. ONDE ESSA TELA VIVE
+
+5.1 MANDRIL -> menu CATALOGO -> DIETAS (CRUD de tipos e blocos).
+5.2 MANDRIL -> fila de validacao -> sugestao de dieta -> PREVIEW do
+    cardapio escalado (mesma tabela, somente leitura + fator de escala
+    visivel) -> botoes VALIDAR / EDITAR PARAMETROS / REJEITAR.
+5.3 Mesmo componente de tabela nos dois lugares (modo edicao vs leitura).
+
+## 6. MESMO PADRAO PARA TREINO (M4, futuro — registrar ja)
+
+6.1 Tabela de exercicios segue o MESMO alinhamento:
+    EXERCICIO | SERIES | REPETICOES | DESCANSO | CARGA
+6.2 Series/reps/descanso em inputs de largura fixa, mesma linha vertical.
+6.3 Detalhe na onda do M4 — aqui so para o Dr. Code ja projetar o
+    componente de tabela como REUTILIZAVEL.
+
+## 7. DIVISAO
+
+7.1 Dr. Replit: valida esta spec contra o que ja existe de design system;
+    veto tecnico se algo conflitar; backend do recalculo transacional.
+7.2 Dr. Code: constroi o componente TabelaEditavelAlinhada (nome sugerido)
+    e as 2 telas (CRUD + preview de validacao).
+7.3 Criterio de aceite visual: print da tela com regua vertical sobreposta
+    — todos os campos de gramas tocando a mesma linha. O CEO confere.
+
+Dr. Claude — 11/06/2026
