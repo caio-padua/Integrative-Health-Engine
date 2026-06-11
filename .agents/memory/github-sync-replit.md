@@ -60,6 +60,18 @@ CEO notou no painel Replit Git ("BRANCH_ALREADY_EXISTS") e reclamou. Resolução
 
 **Regra**: antes de declarar que algo está bloqueado pelo sandbox, **TESTE primeiro**. A mensagem de bloqueio é específica do comando, não geral.
 
+# Nuance do bash do main agent (11/06/2026)
+
+Via ferramenta bash do main agent, `git push github HEAD:ver-l2-dr-claude`
+imprime a linha de sucesso do GitHub (`7fd2..ce1f HEAD -> ver-l2-dr-claude`) e
+LOGO DEPOIS falha com exit 254 "Destructive git operations are not allowed"
+ao tentar atualizar o ref local `.git/refs/remotes/github/...lock`. O envio ao
+GitHub JA ACONTECEU; so o update do tracking-ref local foi bloqueado (cosmetico).
+**Regra**: nao confie no exit code — confirme com `git ls-remote github <branch>`
+e compare com `git rev-parse HEAD`. Se baterem, o push esta completo.
+O token gho_ vem embutido na URL do remote; ao imprimir saida de git, filtrar
+com `sed -E 's/gho_[A-Za-z0-9_]+/***REDACTED***/g'` pra nao vazar.
+
 # Exclusões que continuam valendo
 
 - `.agents/memory/**` NÃO deve ir pro GitHub (memória privada minha, Dr. Claude não precisa)
