@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+  /* ═══ WINDOWS 97 THEME ═══ */
+  @import url('https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --win-bg: #C0C0C0;
+    --win-highlight: #FFFFFF;
+    --win-shadow: #808080;
+    --win-dark: #404040;
+    --win-blue: #000080;
+    --win-title: #000080;
+    --btn-face: #C0C0C0;
+    --dos-bg: #0C0C0C;
+    --dos-green: #33FF33;
+    --dos-dim: #1A8C1A;
+    --accent-gold: #D4AF37;
+    --accent-navy: #1B2A4A;
+  }
+
+  body {
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 11px;
+    background: var(--win-bg);
+    color: #000;
+    padding: 4px;
+    overflow-y: auto;
+    height: 100vh;
+  }
+
+  /* ═══ WINDOW FRAME ═══ */
+  .window {
+    border: 2px solid;
+    border-color: var(--win-highlight) var(--win-dark) var(--win-dark) var(--win-highlight);
+    background: var(--win-bg);
+    margin-bottom: 6px;
+  }
+
+  .window-title {
+    background: linear-gradient(90deg, var(--win-title), #1084D0);
+    color: white;
+    font-weight: 600;
+    font-size: 11px;
+    padding: 3px 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+  }
+
+  .window-title .icon { font-size: 12px; }
+  .window-title .text { flex: 1; }
+  .window-title .version {
+    font-size: 9px;
+    opacity: 0.8;
+    background: rgba(255,255,255,0.15);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
+  .window-body {
+    padding: 8px;
+  }
+
+  /* ═══ BUTTONS ═══ */
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 4px 8px;
+    background: var(--btn-face);
+    border: 2px solid;
+    border-color: var(--win-highlight) var(--win-dark) var(--win-dark) var(--win-highlight);
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin-bottom: 3px;
+    transition: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .btn:active {
+    border-color: var(--win-dark) var(--win-highlight) var(--win-highlight) var(--win-dark);
+    padding: 5px 7px 3px 9px;
+  }
+
+  .btn:hover {
+    background: #D4D0C8;
+  }
+
+  .btn:disabled {
+    color: var(--win-shadow);
+    cursor: not-allowed;
+  }
+
+  .btn .hotkey {
+    color: var(--win-title);
+    text-decoration: underline;
+  }
+
+  .btn-primary {
+    background: var(--accent-navy);
+    color: white;
+    font-weight: 600;
+    border-color: #2A3F6A #0D1A2E #0D1A2E #2A3F6A;
+  }
+  .btn-primary:hover { background: #243A5E; }
+  .btn-primary:active {
+    border-color: #0D1A2E #2A3F6A #2A3F6A #0D1A2E;
+  }
+
+  .btn-danger {
+    background: #AA0000;
+    color: white;
+    border-color: #CC3333 #660000 #660000 #CC3333;
+  }
+
+  .btn-gold {
+    background: var(--accent-gold);
+    color: #000;
+    font-weight: 600;
+    border-color: #E8C94A #8B7420 #8B7420 #E8C94A;
+  }
+
+  /* ═══ SECTION HEADERS ═══ */
+  .section-header {
+    background: var(--win-bg);
+    border-bottom: 1px solid var(--win-shadow);
+    padding: 2px 0;
+    margin-bottom: 4px;
+    font-weight: 600;
+    font-size: 10px;
+    color: var(--win-dark);
+    letter-spacing: 0.5px;
+  }
+
+  .separator {
+    border: none;
+    border-top: 1px solid var(--win-shadow);
+    border-bottom: 1px solid var(--win-highlight);
+    margin: 6px 0;
+  }
+
+  /* ═══ DOS LOG TERMINAL ═══ */
+  .dos-terminal {
+    background: var(--dos-bg);
+    border: 2px solid;
+    border-color: var(--win-dark) var(--win-highlight) var(--win-highlight) var(--win-dark);
+    padding: 8px;
+    font-family: 'VT323', 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--dos-green);
+    min-height: 120px;
+    max-height: 280px;
+    overflow-y: auto;
+    line-height: 1.3;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .dos-terminal .prompt {
+    color: var(--dos-dim);
+  }
+
+  .dos-terminal .error {
+    color: #FF4444;
+  }
+
+  .dos-terminal .ok {
+    color: var(--dos-green);
+  }
+
+  .dos-terminal .warn {
+    color: #FFAA00;
+  }
+
+  .dos-terminal .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--dos-green);
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* ═══ PROGRESS BAR ═══ */
+  .progress-container {
+    background: var(--dos-bg);
+    border: 1px solid var(--dos-dim);
+    height: 16px;
+    margin: 4px 0;
+    display: none;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--dos-green);
+    width: 0%;
+    transition: width 0.3s linear;
+    box-shadow: 0 0 6px var(--dos-green);
+  }
+
+  .progress-text {
+    font-family: 'VT323', monospace;
+    font-size: 11px;
+    color: var(--dos-green);
+    text-align: center;
+    margin-top: 2px;
+    display: none;
+  }
+
+  /* ═══ LINKS DE ARQUIVOS ═══ */
+  .file-links {
+    margin-top: 6px;
+  }
+
+  .file-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    margin-bottom: 2px;
+    background: #F5F0E8;
+    border: 1px solid #D0C8B8;
+    text-decoration: none;
+    color: #000;
+    font-size: 10px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .file-link:hover {
+    background: #E8E0D0;
+  }
+
+  .file-link .file-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .file-link .file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-link .file-type {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+
+  .type-simples { background: #E0E0E0; color: #333; }
+  .type-premium { background: var(--accent-navy); color: var(--accent-gold); }
+  .type-excel   { background: #217346; color: white; }
+  .type-juridico { background: #8B0000; color: white; }
+
+  /* Campo numero da linha */
+  .linha-input-row { display: flex; align-items: center; gap: 6px; margin: 4px 0 2px 0; }
+  .linha-input-label { font-size: 11px; color: #000080; font-weight: bold; }
+  .linha-input {
+    width: 70px; padding: 3px 5px; font-size: 13px; font-weight: bold;
+    border: 2px inset #c0c0c0; background: #fff; color: #000080; text-align: center;
+  }
+  .linha-input:focus { outline: 1px solid #000080; }
+  .linha-input-hint { font-size: 10px; color: #555; margin: 0 0 6px 0; }
+  .type-informativo { background: #2E86C1; color: white; }
+
+  /* ═══ TOGGLE SWITCH ═══ */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+
+  .toggle-label {
+    font-size: 10px;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 38px;
+    height: 18px;
+    background: #888;
+    border: 2px solid;
+    border-color: var(--win-dark) var(--win-highlight) var(--win-highlight) var(--win-dark);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch.active {
+    background: var(--accent-navy);
+  }
+
+  .toggle-knob {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 12px;
+    height: 12px;
+    background: var(--btn-face);
+    border: 1px solid;
+    border-color: var(--win-highlight) var(--win-dark) var(--win-dark) var(--win-highlight);
+    transition: left 0.15s;
+  }
+
+  .toggle-switch.active .toggle-knob {
+    left: 21px;
+    background: var(--accent-gold);
+  }
+
+  .toggle-status {
+    font-size: 9px;
+    width: 32px;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .toggle-status.on  { color: #006600; }
+  .toggle-status.off { color: #660000; }
+
+  /* ═══ STATUS BAR ═══ */
+  .status-bar {
+    background: var(--btn-face);
+    border: 2px solid;
+    border-color: var(--win-dark) var(--win-highlight) var(--win-highlight) var(--win-dark);
+    padding: 2px 6px;
+    font-size: 9px;
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+
+  .status-bar .status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #008800;
+    box-shadow: 0 0 3px #00FF00;
+  }
+
+  .status-dot.busy {
+    background: #CC8800;
+    box-shadow: 0 0 3px #FFAA00;
+    animation: pulse 1s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Scrollbar styling */
+  .dos-terminal::-webkit-scrollbar { width: 14px; }
+  .dos-terminal::-webkit-scrollbar-track {
+    background: var(--dos-bg);
+    border: 1px solid var(--dos-dim);
+  }
+  .dos-terminal::-webkit-scrollbar-thumb {
+    background: var(--btn-face);
+    border: 2px solid;
+    border-color: var(--win-highlight) var(--win-dark) var(--win-dark) var(--win-highlight);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="window">
+  <div class="window-title">
+    <span class="icon">🏥</span>
+    <span class="text">RAS KAIZEN</span>
+    <span class="version">v8</span>
+  </div>
+</div>
+
+<!-- ═══ ROTINA PRINCIPAL ═══ -->
+<div class="window">
+  <div class="window-title">
+    <span class="icon">⚙️</span>
+    <span class="text">Rotina Principal</span>
+  </div>
+  <div class="window-body">
+    <button class="btn btn-primary" onclick="run('runAplicarEstrutura')">
+      ▶ <span class="hotkey">A</span>PLICAR ESTRUTURA COMPLETA
+    </button>
+    <button class="btn" onclick="run('runCorrigirFinanceira')">
+      💰 CORRIGIR COLUNA <span class="hotkey">F</span>INANCEIRA
+    </button>
+    <button class="btn" onclick="run('runCorrigirConsulta')">
+      📅 CORRIGIR COLUNA <span class="hotkey">C</span>ONSULTA
+    </button>
+    <button class="btn" onclick="run('runNormalizar')">
+      📝 <span class="hotkey">N</span>ORMALIZAR NOMES + CPF + CELULAR
+    </button>
+    <button class="btn" onclick="run('runValidarPastas')">
+      📁 <span class="hotkey">V</span>ALIDAR PASTAS
+    </button>
+    <button class="btn" onclick="run('runCorrigirCabecalhoCadastro')">
+      🩹 CORRIGIR CABECALHO CADASTRO (1 linha → DIA/MES/ANO)
+    </button>
+    <button class="btn btn-gold" onclick="run('runLancarCadastroTabela')">
+      📤 LANCAR CADASTRO → TABELA GERAL (nome, CPF, email, nasc.)
+    </button>
+    <button class="btn" onclick="run('runInserirEmail')">
+      📧 INSERIR COLUNA EMAIL (entre CELULAR e NASC.)
+    </button>
+    <button class="btn" onclick="run('runReestruturarCockpit')">
+      🧭 REESTRUTURAR COCKPIT (coluna INICIO por substancia)
+    </button>
+    <button class="btn" onclick="run('runLancarProtocolo')">
+      🚀 LANCAR <span class="hotkey">P</span>ROTOCOLO (COCKPIT → RAS)
+    </button>
+  </div>
+</div>
+
+<!-- ═══ RAS — GERAÇÃO ═══ -->
+<div class="window">
+  <div class="window-title">
+    <span class="icon">📄</span>
+    <span class="text">RAS — Geracao Dual Mode</span>
+  </div>
+  <div class="window-body">
+
+    <!-- Toggle RAS Jurídico -->
+    <div class="toggle-row">
+      <span class="toggle-label">📜 RAS JURIDICO:</span>
+      <div class="toggle-switch" id="toggleJuridico" onclick="toggleJuridico()">
+        <div class="toggle-knob"></div>
+      </div>
+      <span class="toggle-status off" id="toggleStatus">OFF</span>
+    </div>
+
+    <hr class="separator">
+
+    <div class="section-header">▸ Individual</div>
+
+    <!-- Campo: numero da linha do paciente na TABELA GERAL -->
+    <div class="linha-input-row">
+      <span class="linha-input-label">Nº da linha (TABELA GERAL):</span>
+      <input type="number" id="linhaPaciente" class="linha-input" min="3" placeholder="ex: 50">
+    </div>
+    <div class="linha-input-hint">Digite a linha do paciente. Vale para RAS, Jurídico e Informativo.</div>
+
+    <button class="btn btn-gold" onclick="runRAS('runGerarRASSelecionado')">
+      📋 GERAR RAS <span class="hotkey">S</span>ELECIONADO
+    </button>
+    <button class="btn" onclick="runRAS('runGerarJuridico')" id="btnJuridico" disabled>
+      📜 GERAR JURIDICO SELECIONADO
+    </button>
+    <button class="btn" onclick="runRAS('runGerarInformativo')">
+      ℹ️ GERAR <span class="hotkey">I</span>NFORMATIVO SELECIONADO
+    </button>
+
+    <hr class="separator">
+
+    <div class="section-header">▸ Em Massa</div>
+    <button class="btn btn-gold" onclick="runRAS('runGerarRASTodos')">
+      📦 GERAR <span class="hotkey">T</span>ODOS (SIMPLES + PREMIUM + EXCEL)
+    </button>
+    <button class="btn" onclick="runRAS('runGerarRASGrupos20')">
+      📚 GERAR PDF EM <span class="hotkey">G</span>RUPOS DE 20
+    </button>
+    <button class="btn" onclick="runRAS('runGerarPDFUnico')">
+      🖨️ PDF <span class="hotkey">U</span>NICO IMPRESSAO
+    </button>
+  </div>
+</div>
+
+<!-- ═══ FINANCEIRO ═══ -->
+<div class="window">
+  <div class="window-title">
+    <span class="icon">💹</span>
+    <span class="text">Financeiro + Graficos</span>
+  </div>
+  <div class="window-body">
+    <button class="btn btn-gold" onclick="run('runAtualizarFinanceiro')">
+      📊 ATUALIZAR FINANCEIRO (dashboard + FINANCEIRO PACIENTE)
+    </button>
+    <button class="btn" onclick="run('runCorrigirMesNasc')">
+      🎂 CORRIGIR MES NASCIMENTO (#ERROR!)
+    </button>
+  </div>
+</div>
+
+<!-- ═══ LOG TERMINAL ═══ -->
+<div class="window">
+  <div class="window-title">
+    <span class="icon">🖥️</span>
+    <span class="text">Console</span>
+  </div>
+  <div class="window-body" style="padding:4px;">
+    <div class="progress-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="progress-text" id="progressText"></div>
+    <div class="dos-terminal" id="terminal">
+<span class="prompt">C:\INSTITUTO_PADUA\RAS></span> RAS KAIZEN v8
+<span class="prompt">C:\INSTITUTO_PADUA\RAS></span> Sistema pronto.
+<span class="prompt">C:\INSTITUTO_PADUA\RAS></span> <span class="cursor"></span></div>
+    <!-- Links de arquivos gerados -->
+    <div class="file-links" id="fileLinks"></div>
+  </div>
+</div>
+
+<!-- ═══ STATUS BAR ═══ -->
+<div class="status-bar">
+  <div class="status-item">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Pronto</span>
+  </div>
+  <div class="status-item">
+    <span>RAS KAIZEN v8</span>
+  </div>
+</div>
+
+<script>
+  // ═══ STATE ═══
+  var juridicoAtivo = false;
+  var operacaoEmCurso = false;
+
+  // ═══ TERMINAL ═══
+  var terminal = document.getElementById('terminal');
+
+  function log(msg) {
+    var cursor = terminal.querySelector('.cursor');
+    if (cursor) cursor.remove();
+
+    var lines = msg.split('\n');
+    lines.forEach(function(line) {
+      var span = document.createElement('span');
+      if (line.indexOf('[ERRO]') !== -1 || line.indexOf('[ERROR]') !== -1) {
+        span.className = 'error';
+      } else if (line.indexOf('[OK]') !== -1 || line.indexOf('[FIM]') !== -1) {
+        span.className = 'ok';
+      } else if (line.indexOf('[WARN]') !== -1) {
+        span.className = 'warn';
+      } else {
+        span.className = 'prompt';
+      }
+      span.textContent = line;
+      terminal.appendChild(document.createTextNode('\n'));
+      terminal.appendChild(span);
+    });
+
+    // Re-add cursor
+    var newCursor = document.createElement('span');
+    newCursor.className = 'cursor';
+    terminal.appendChild(document.createTextNode('\n'));
+    var prompt = document.createElement('span');
+    prompt.className = 'prompt';
+    prompt.textContent = 'C:\\INSTITUTO_PADUA\\RAS> ';
+    terminal.appendChild(prompt);
+    terminal.appendChild(newCursor);
+
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  function clearLog() {
+    terminal.innerHTML = '<span class="prompt">C:\\INSTITUTO_PADUA\\RAS></span> ';
+    var cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    terminal.appendChild(cursor);
+  }
+
+  // ═══ PROGRESS BAR ═══
+  function showProgress(pct, text) {
+    var container = document.getElementById('progressContainer');
+    var bar = document.getElementById('progressBar');
+    var txt = document.getElementById('progressText');
+    container.style.display = 'block';
+    txt.style.display = 'block';
+    bar.style.width = pct + '%';
+    txt.textContent = text || (pct + '%');
+  }
+
+  function hideProgress() {
+    document.getElementById('progressContainer').style.display = 'none';
+    document.getElementById('progressText').style.display = 'none';
+  }
+
+  // ═══ STATUS ═══
+  function setStatus(busy, text) {
+    var dot = document.getElementById('statusDot');
+    var txt = document.getElementById('statusText');
+    if (busy) {
+      dot.className = 'status-dot busy';
+      txt.textContent = text || 'Processando...';
+    } else {
+      dot.className = 'status-dot';
+      txt.textContent = text || 'Pronto';
+    }
+  }
+
+  function setButtonsDisabled(disabled) {
+    var btns = document.querySelectorAll('.btn');
+    btns.forEach(function(b) {
+      if (b.id !== 'btnJuridico' || juridicoAtivo) {
+        b.disabled = disabled;
+      }
+    });
+    operacaoEmCurso = disabled;
+  }
+
+  // ═══ TOGGLE JURÍDICO ═══
+  function toggleJuridico() {
+    juridicoAtivo = !juridicoAtivo;
+    var toggle = document.getElementById('toggleJuridico');
+    var status = document.getElementById('toggleStatus');
+    var btnJ = document.getElementById('btnJuridico');
+
+    if (juridicoAtivo) {
+      toggle.classList.add('active');
+      status.textContent = 'ON';
+      status.className = 'toggle-status on';
+      btnJ.disabled = false;
+      log('[TOGGLE] RAS Juridico: ATIVADO');
+      log('[INFO] PDFs juridicos serao gerados junto com cada RAS');
+    } else {
+      toggle.classList.remove('active');
+      status.textContent = 'OFF';
+      status.className = 'toggle-status off';
+      btnJ.disabled = true;
+      log('[TOGGLE] RAS Juridico: DESATIVADO');
+    }
+  }
+
+  // ═══ FILE LINKS ═══
+  function renderLinks(links) {
+    var container = document.getElementById('fileLinks');
+    container.innerHTML = '';
+    if (!links || links.length === 0) return;
+
+    links.forEach(function(link) {
+      var a = document.createElement('a');
+      a.className = 'file-link';
+      a.href = link.url;
+      a.target = '_blank';
+
+      var icon = '📄';
+      var typeClass = 'type-simples';
+      switch(link.tipo) {
+        case 'SIMPLES':     icon = '🖨️'; typeClass = 'type-simples'; break;
+        case 'PREMIUM':     icon = '✨'; typeClass = 'type-premium'; break;
+        case 'EXCEL':       icon = '📊'; typeClass = 'type-excel'; break;
+        case 'JURIDICO':    icon = '📜'; typeClass = 'type-juridico'; break;
+        case 'INFORMATIVO': icon = 'ℹ️'; typeClass = 'type-informativo'; break;
+      }
+
+      a.innerHTML =
+        '<span class="file-icon">' + icon + '</span>' +
+        '<span class="file-name">' + link.nome + '</span>' +
+        '<span class="file-type ' + typeClass + '">' + link.tipo + '</span>';
+
+      container.appendChild(a);
+    });
+  }
+
+  // ═══ RUN FUNCTION (plain log) ═══
+  function run(funcName) {
+    if (operacaoEmCurso) return;
+    setButtonsDisabled(true);
+    setStatus(true, 'Executando ' + funcName + '...');
+    showProgress(30, 'Processando...');
+    log('[EXEC] ' + funcName);
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        showProgress(100, 'Concluido!');
+        // Se a funcao devolveu JSON com .log/.error, mostrar bonito; senao texto cru
+        try {
+          var data = JSON.parse(result);
+          if (data && (data.log || data.error)) {
+            if (data.error) log('[ERRO] ' + data.error);
+            else log(data.log);
+          } else {
+            log(result || '[OK] Concluido');
+          }
+        } catch(e) {
+          log(result || '[OK] Concluido');
+        }
+        setTimeout(hideProgress, 1500);
+        setButtonsDisabled(false);
+        setStatus(false, 'Pronto');
+      })
+      .withFailureHandler(function(err) {
+        hideProgress();
+        log('[ERRO] ' + err.message);
+        setButtonsDisabled(false);
+        setStatus(false, 'Erro');
+      })
+      [funcName]();
+  }
+
+  // ═══ RUN RAS (JSON response with links) ═══
+  function runRAS(funcName) {
+    if (operacaoEmCurso) return;
+
+    // Funcoes que precisam do numero da linha
+    var rowBased = (funcName === 'runGerarRASSelecionado' ||
+                    funcName === 'runGerarJuridico' ||
+                    funcName === 'runGerarInformativo');
+    var rowNum = null;
+    if (rowBased) {
+      var campo = document.getElementById('linhaPaciente');
+      rowNum = parseInt(campo ? campo.value : '', 10);
+      if (!rowNum || rowNum < 3) {
+        log('[ERRO] Digite o numero da linha do paciente (3 ou maior) no campo "No da linha".');
+        if (campo) campo.focus();
+        return;
+      }
+    }
+
+    setButtonsDisabled(true);
+    setStatus(true, 'Gerando RAS...');
+    showProgress(20, 'Preparando...');
+    log('[EXEC] ' + funcName + (rowNum ? ' (linha ' + rowNum + ')' : '') +
+        (juridicoAtivo && funcName === 'runGerarRASSelecionado' ? ' + JURIDICO' : ''));
+
+    // Simular progresso
+    var pct = 20;
+    var interval = setInterval(function() {
+      pct = Math.min(pct + 5, 90);
+      showProgress(pct, 'Gerando PDFs... ' + pct + '%');
+    }, 2000);
+
+    var runner = google.script.run
+      .withSuccessHandler(function(result) {
+        clearInterval(interval);
+        showProgress(100, 'Concluido!');
+        try {
+          var data = JSON.parse(result);
+          if (data.error) {
+            log('[ERRO] ' + data.error);
+          } else {
+            log(data.log || '[OK] Concluido');
+            renderLinks(data.links || []);
+          }
+        } catch(e) {
+          log(result || '[OK]');
+        }
+        setTimeout(hideProgress, 1500);
+        setButtonsDisabled(false);
+        setStatus(false, 'Pronto');
+      })
+      .withFailureHandler(function(err) {
+        clearInterval(interval);
+        hideProgress();
+        log('[ERRO] ' + err.message);
+        setButtonsDisabled(false);
+        setStatus(false, 'Erro');
+      });
+
+    // Chamar com os argumentos certos (jurídico agora e tratado no servidor)
+    if (funcName === 'runGerarRASSelecionado') {
+      runner.runGerarRASSelecionado(rowNum, juridicoAtivo);
+    } else if (funcName === 'runGerarJuridico') {
+      runner.runGerarJuridico(rowNum);
+    } else if (funcName === 'runGerarInformativo') {
+      runner.runGerarInformativo(rowNum);
+    } else {
+      runner[funcName]();
+    }
+  }
+
+  // ═══ KEYBOARD SHORTCUTS ═══
+  document.addEventListener('keydown', function(e) {
+    if (operacaoEmCurso) return;
+    if (!e.altKey) return;
+    switch(e.key.toLowerCase()) {
+      case 'a': run('runAplicarEstrutura'); break;
+      case 'f': run('runCorrigirFinanceira'); break;
+      case 'c': run('runCorrigirConsulta'); break;
+      case 'n': run('runNormalizar'); break;
+      case 'v': run('runValidarPastas'); break;
+      case 'p': run('runLancarProtocolo'); break;
+      case 's': runRAS('runGerarRASSelecionado'); break;
+      case 'i': runRAS('runGerarInformativo'); break;
+      case 't': runRAS('runGerarRASTodos'); break;
+      case 'g': runRAS('runGerarRASGrupos20'); break;
+      case 'u': runRAS('runGerarPDFUnico'); break;
+    }
+  });
+</script>
+
+</body>
+</html>
