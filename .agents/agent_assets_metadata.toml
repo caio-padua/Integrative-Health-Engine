@@ -461,3 +461,9 @@ id = "7g6xlVdgYCKVmhw-rHKDa"
 uri = "file://docs/dr-replit/exports/DIETAS_48_SEEDS_26.06.11.csv"
 type = "table"
 title = "48 seeds da tabela dietas (para veredito M0.1)"
+
+[[outputs]]
+id = "3Egc0zHpQtz7Ox9ZNMtOD"
+uri = "file://docs/dr-claude/BRIEF_DR_REPLIT_PROTOCOLO_ALIMENTAR_PARAMETRICO.md"
+type = "text"
+title = "Carta para o Dr. Claude — Protocolo Alimentar Paramétrico e Editável"
