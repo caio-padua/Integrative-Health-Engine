@@ -1,0 +1,86 @@
+Caio, o Dr. Replit aprovou a spec 29 e fez 3 perguntas técnicas para mim. Respondo as 3 agora — e a resposta vai pronta para colar. TDAH friendly.
+
+---
+
+## 1. RESPOSTA ÀS 3 RESSALVAS DO DR. REPLIT
+
+### 1.1 Ressalva 1 — O que são os números?
+**1.1.1** **141 itens** = linhas atômicas de `bloco_refeicao_item` dentro dos 48 blocos (média ~3 itens por bloco)
+**1.1.2** **68 alimentos** = alimentos distintos no catálogo `P-C1_alimento.csv` (58 originais + 10 novos da reconciliação: tutano, camarão, beef jerky, peito de peru, cottage, iogurte grego, tapioca, gema, carne desfiada, curry)
+**1.1.3** Exatamente como ele deduziu. Confirmado.
+
+### 1.2 Ressalva 2 — Caloria e macros por alimento?
+**1.2.1** **SIM, completo.** O `P-C1_alimento.csv` traz, para cada um dos 68: `calorias_por_100_gramas`, `proteina_por_100_gramas`, `gordura_por_100_gramas`, `carboidrato_por_100_gramas`
+**1.2.2** Fonte: TACO 4ª edição + USDA
+**1.2.3** O rodapé PROT/GORD/CARB da spec 29 funciona — o `P-C2` já traz inclusive os totais por bloco calculados, para conferência
+
+### 1.3 Ressalva 3 — Equivalência de porção por item (a mais importante)
+**1.3.1** **CONCORDO com o princípio dele** — 1 fatia de picanha ≠ 1 fatia de queijo. É exatamente o Ajuste 1 do doc 28
+**1.3.2** **MAS não precisa de coluna nova nem tabela nova.** O modelo já resolve:
+- Cada item guarda `quantidade_gramas` (150) E `quantidade_porcao_valor` + `unidade_porcao_id` (1,2 bife) como campos **INDEPENDENTES**
+- A equivalência real daquele alimento já está implícita no par (150 ÷ 1,2 = 125 g/bife) — **por item, como ele quer**
+- O `gramas_equivalente_padrao` da unidade é só sugestão genérica de autopreenchimento; nunca entra em conta de caloria
+**1.3.3** Coluna `gramas_equivalente_porcao` por item seria **redundante** (derivável da divisão) — viola atomicidade R1 às avessas (dado duplicado dessincroniza)
+**1.3.4** A tabela `alimento_unidade_equivalencia` dele é boa ideia para **v2** (autopreenchimento inteligente por alimento), mas **não bloqueia a migration v1**
+
+---
+
+## 2. MENSAGEM PARA COLAR NO DR. REPLIT
+
+```
+Dr. Replit, respostas do Dr. Claude as 3 ressalvas do parecer:
+
+1) NUMEROS confirmados: 141 = linhas de bloco_refeicao_item nos 48
+   blocos; 68 = alimentos distintos no P-C1 (58 + 10 novos da
+   reconciliacao com os seeds reais).
+
+2) MACROS confirmados: P-C1 traz kcal + proteina + gordura +
+   carboidrato por 100g para todos os 68 (TACO 4ed + USDA).
+   P-C2 traz ate os totais por bloco para voce conferir o UPSERT.
+
+3) EQUIVALENCIA POR ITEM: concordo com o principio (1 fatia de
+   picanha != 1 fatia de queijo), e o modelo JA contempla:
+   quantidade_gramas e quantidade_porcao_valor sao campos
+   INDEPENDENTES por item — a equivalencia real vive no par, por
+   item. Coluna gramas_equivalente_porcao seria redundante
+   (derivavel: gramas / porcao_valor) e dessincronizavel.
+   gramas_equivalente_padrao da unidade = so sugestao de UI,
+   nunca entra em calculo. Sua tabela alimento_unidade_equivalencia
+   fica registrada como v2 (autopreenchimento inteligente) — nao
+   bloqueia a migration v1.
+
+LIBERADO: pode rodar migration + UPSERT assim que os 6 arquivos
+chegarem ai. DDL + UPSERT na mesma onda.
+```
+
+---
+
+## 3. O BLOQUEIO FÍSICO CONTINUA O MESMO (importante)
+
+**3.1** O Dr. Replit pediu de novo os arquivos: **eles ainda estão só aqui no nosso chat**
+**3.2** Sem eles, ele não roda nada (regra anti-ectoplasma dele, correta)
+**3.3** Ação sua (3 minutos):
+- 3.3.1 Sobe nesta conversa até os cards dos **7 arquivos** (6 do pacote + spec 29)
+- 3.3.2 Baixa todos
+- 3.3.3 Anexa no chat do Dr. Replit
+- 3.3.4 Cola junto a mensagem da seção 2
+
+---
+
+## 4. PLACAR DA ONDA DIETA (visão de 1 olhada)
+
+| Etapa | Status |
+|-------|--------|
+| Brief do sênior (P-A a P-F) | FEITO |
+| Pacote do Dr. Claude (6 arquivos) | FEITO |
+| Spec 29 UI alinhada | FEITA E APROVADA pelo sênior |
+| 3 ressalvas técnicas | RESPONDIDAS (acima) |
+| **Arquivos chegarem ao Dr. Replit** | **BLOQUEADO — depende de você anexar** |
+| Migration + UPSERT | Aguardando arquivos |
+| UI do Dr. Code | Liberada para projetar (sem API ainda) |
+
+---
+
+## 5. RESUMO EM 1 LINHA
+
+**5.1** As 3 ressalvas estão respondidas (números confirmados, macros completos, equivalência já vive por item sem coluna nova) — agora o único bloqueio é físico: anexar os 7 arquivos no chat do Dr. Replit.

@@ -1,0 +1,93 @@
+Caio, fluxo novo **APROVADO** — é a solução certa para o problema do pombo correio. Confirmação rápida e a instrução final. TDAH friendly.
+
+---
+
+## 1. VALIDAÇÃO DO FLUXO NOVO (parecer do orquestrador)
+
+**1.1** **APROVADO sem ressalva.** O desenho do Dr. Replit está correto:
+- 1.1.1 Dr. Code escreve no GitHub (tem git local)
+- 1.1.2 Dr. Replit lê via raw URL
+- 1.1.3 Eu leio via raw URL (já provado)
+- 1.1.4 Você só faz **1 repasse**: meu conteúdo → ferramenta do Dr. Code
+
+**1.2** Branches separadas: **CONCORDO e reforço**
+- 1.2.1 `ver-l2-dr-claude` = Dr. Replit
+- 1.2.2 `dr-code-entregas` = Dr. Code
+- 1.2.3 Dois empurrando na mesma branch = conflito garantido
+
+**1.3** Limite honesto dele está certo: eu não tenho git com escrita — leitura sim (provei lendo brief e seeds), push não
+
+---
+
+## 2. O ÚNICO REPASSE SEU — COMO FAZER (5 minutos, uma vez só)
+
+**2.1** Baixa os **7 arquivos** dos cards desta conversa (rodadas anteriores):
+- 2.1.1 `28_RESPOSTA_PARAMETROS_DIETA.md`
+- 2.1.2 `P-B_unidade_porcao.csv`
+- 2.1.3 `P-C1_alimento.csv`
+- 2.1.4 `P-C2_bloco_refeicao.csv`
+- 2.1.5 `P-C3_bloco_refeicao_item.csv`
+- 2.1.6 `gerar_parametros.py`
+- 2.1.7 `29_SPEC_UI_DIETA_EDITAVEL.md`
+
+**2.2** Salva todos numa pasta (ex: `C:\Users\clini\Downloads\pacote-dieta`)
+
+**2.3** Cola no Dr. Code a mensagem da seção 3 abaixo
+
+---
+
+## 3. MENSAGEM PARA O DR. CODE (cola junto com o caminho da pasta)
+
+```
+Dr. Code, ativando o fluxo novo (aprovado por Caio + Dr. Claude + Dr. Replit):
+
+1) TESTE DO CANAL primeiro: cria a branch dr-code-entregas a partir de
+   ver-l2-dr-claude, sobe 1 arquivo de teste (docs/dr-code/TESTE_CANAL.md
+   com 1 linha), push, e me reporta: branch + caminho + "subi, pode ler".
+
+2) Funcionou? Então sobe o PACOTE DIETA:
+   - Pasta local: C:\Users\clini\Downloads\pacote-dieta (7 arquivos)
+   - Destino no repo: docs/dr-claude/
+   - Arquivos: 28_RESPOSTA_PARAMETROS_DIETA.md, P-B_unidade_porcao.csv,
+     P-C1_alimento.csv, P-C2_bloco_refeicao.csv, P-C3_bloco_refeicao_item.csv,
+     gerar_parametros.py, 29_SPEC_UI_DIETA_EDITAVEL.md
+   - Branch: dr-code-entregas (NUNCA ver-l2-dr-claude)
+   - Commit: "docs: pacote P-A a P-F dieta + spec 29 UI (Dr. Claude)"
+
+3) Avisa o Dr. Replit em 1 linha: branch + caminhos + "subi, pode ler".
+
+4) REGRAS JA DECIDIDAS (nao re-decidir):
+   - Pacote canonico = o do Dr. Claude (estes 7 arquivos). O seu pacote
+     paralelo NAO sobe — suas 4 melhorias ja foram incorporadas ao modelo.
+   - Sua proxima entrega de codigo: componente TabelaEditavelAlinhada
+     (spec 29), SO DEPOIS da migration + API do Dr. Replit existirem.
+   - Pode ja PROJETAR o componente e subir a lista de campos/interacoes
+     em docs/dr-code/ na sua branch.
+```
+
+---
+
+## 4. DEPOIS DISSO, A MÁQUINA RODA SOZINHA
+
+**4.1** Dr. Code sobe → avisa Dr. Replit
+**4.2** Dr. Replit lê do GitHub → roda migration + UPSERT → mede com count
+**4.3** Dr. Replit reporta números → eu audito via raw URL
+**4.4** Dr. Code constrói a UI da spec 29
+**4.5** Você só aparece para: validar 15-20 blocos por amostragem + conferir o aceite visual (print com régua)
+
+---
+
+## 5. PENDÊNCIAS SUAS (placar atualizado)
+
+| # | Item | Status |
+|---|------|--------|
+| 5.1 | Baixar 7 arquivos + colar mensagem no Dr. Code | **AGORA — destrava tudo** |
+| 5.2 | Token GitHub `gho_` revogado? | Aberto (2 min, quando quiser) |
+| 5.3 | Pharma Doctor (A/B/C) | Aberto — 4ª vez que pergunto |
+| 5.4 | Primeira receita `/prescricao-rapida` (M0.3) | Aberto |
+
+---
+
+## 6. RESUMO EM 1 LINHA
+
+**6.1** Fluxo aprovado: você faz 1 repasse (7 arquivos → Dr. Code), ele sobe na branch `dr-code-entregas`, Dr. Replit lê e roda a migration — e o pombo correio morre oficialmente hoje.
