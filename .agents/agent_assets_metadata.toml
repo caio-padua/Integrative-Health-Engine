@@ -455,3 +455,9 @@ id = "SPrF7RAhW34VxoxmZHVdZ"
 uri = "file://docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.03.xlsx"
 type = "table"
 title = "Glossário PAWARDS v2 — frequência = intervalo em dias (validar)"
+
+[[outputs]]
+id = "7g6xlVdgYCKVmhw-rHKDa"
+uri = "file://docs/dr-replit/exports/DIETAS_48_SEEDS_26.06.11.csv"
+type = "table"
+title = "48 seeds da tabela dietas (para veredito M0.1)"
