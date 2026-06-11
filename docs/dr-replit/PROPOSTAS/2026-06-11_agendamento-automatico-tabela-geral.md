@@ -132,3 +132,58 @@
 
 12.3. **C:** **híbrido** — motor mínimo no script agora pra destravar JÁ + mesma regra no PAWARDS
       em paralelo (regra definida 1x neste `.md` como fonte única).
+
+## 13. REGRA DE LIBERAÇÃO POR OCUPAÇÃO — CONFIRMADA NO PAWARDS (sim, existe)
+
+13.1. A regra "manhã enche primeiro, tarde só abre depois de bater um percentual" **EXISTE e está
+      ligada** no PAWARDS (não é só tabela). Prova:
+
+13.2. Tabela `smart_release_config`: turno manhã (08:00–12:00), turno tarde (13:00–18:00),
+      `limiar_liberacao_percent` (default **60%**), por unidade/profissional.
+
+13.3. Rota motor `POST /agenda-motor/smart-release` (agenda-motor.ts L1295–1345): pra cada dia,
+      calcula `% ocupado da manhã`; se `>= limiar` → **libera a tarde** (`liberado=true`);
+      se não → mantém a tarde **travada** (`liberado=false`).
+
+13.4. Trava no agendamento (L487–488): tentar marcar slot não liberado dá erro
+      "Slot ainda nao liberado (turno da tarde aguardando limiar)".
+
+13.5. NUANCE HONESTA (o que NÃO existe ainda): hoje a tarde é liberada **toda de uma vez** quando
+      a manhã bate o limiar. A liberação **gradual por partes da tarde** (1ª parte → 2ª parte →
+      última parte, cada uma por percentual) que o Caio descreveu **NÃO** está implementada.
+
+13.6. Conclusão: a sua memória estava CERTA nesta — diferente da consolidação, esta regra
+      foi portada pro PAWARDS.
+
+## 14. BOTÕES DO PAINEL (script) — viabilidade e idempotência
+
+14.1. "Lançar tudo da planilha pra agenda": POSSÍVEL. O botão é FÁCIL; o trabalho é o MOTOR
+      atrás (consolidação + anti-colisão + cadência). Dificuldade real: MÉDIA.
+
+14.2. IDEMPOTÊNCIA (não repetir o que já foi lançado): adicionar na TABELA GERAL colunas
+      ocultas **AGENDADO_EM**, **EVENT_IDS** (ids dos eventos criados) e **HASH_PROTOCOLO**
+      (hash de substâncias+datas+freq). Na re-execução: linha com hash igual = PULA;
+      hash mudou = reagenda só o delta.
+
+14.3. "Reagendar tudo": apaga eventos pelos EVENT_IDS guardados e recria. FÁCIL.
+
+14.4. "Reagendar só o que não foi reagendado": flag **REAGENDADO_EM** por linha; processa só
+      quem não tem a flag. FÁCIL.
+
+14.5. "Apagar tudo que foi agendado" (interpretei "pagar" = APAGAR/deletar): percorre os
+      EVENT_IDS e deleta do Google Agenda. FÁCIL. (Se for "marcar como pago/confirmado",
+      é outra coisa — confirmar com Caio.)
+
+14.6. TESTES SEMÂNTICOS: dá pra criar `runTestesSemanticos()` no script (harness com asserts):
+      datas parseiam, zero colisão, consolidação (semana do paciente num dia só), fallback de
+      sábado fechado, expansão FREQ/SESS correta, idempotência (re-run cria 0 novos).
+
+## 15. RECOMENDAÇÃO AFIADA (depois de confirmar o PAWARDS)
+
+15.1. O PAWARDS já tem: janelas (`availability_rules`) + anti-colisão transacional + sync Google
+      + **liberação por ocupação** (item 13). O script NÃO tem nada disso.
+
+15.2. Construir botões + motor + testes NO SCRIPT é **reinventar** o que o PAWARDS já faz bem.
+
+15.3. Por isso a recomendação reforça a **opção A** (motor mora no PAWARDS); o que falta lá é só
+      consolidação + expansão (e, se quiser, a liberação gradual da tarde do item 13.5).
