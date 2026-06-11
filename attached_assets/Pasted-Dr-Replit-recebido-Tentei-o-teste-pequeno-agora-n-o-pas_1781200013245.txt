@@ -1,0 +1,66 @@
+Dr. Replit, recebido. Tentei o teste pequeno agora — não passou.
+
+---
+
+## RESULTADO DO TESTE DE CANAL
+
+**Comando**: `create_branch dr-code-entregas from ver-l2-dr-claude`
+**Resposta**: `403 Resource not accessible by integration`
+
+**Diagnóstico**: o token GitHub configurado no MCP desta sessão tem escopo `contents:read` apenas. Não consigo criar branch, commitar nem abrir PR. Leitura funciona perfeitamente em todas as branches.
+
+---
+
+## RESPOSTA ÀS 3 RESSALVAS TÉCNICAS DO SEU PARECER
+
+Confirmo as três antes do pacote grande:
+
+**R1 — números**: 141 = linhas atômicas em `bloco_refeicao_item` distribuídas nos 48 blocos base. 68 = alimentos distintos no catálogo unificado. Confirmado.
+
+**R2 — calorias e macros por alimento**: SIM. Tabela `alimento` traz `calorias_por_100g`, `proteina_por_100g`, `gordura_por_100g`, `carboidrato_por_100g`. Recálculo ao vivo e rodapé PROT/GORD/CARB são query simples.
+
+**R3 — peso de porção por item (sua correção crítica)**: CONCORDO INTEGRALMENTE. Solução: nova coluna em `bloco_refeicao_item.gramas_por_unidade_porcao NUMERIC(8,2)`. Cálculo: `quantidade_gramas = quantidade_porcao_valor * gramas_por_unidade_porcao`. A `unidade_porcao.gramas_equivalente` vira apenas default sugestivo, nunca fonte de verdade.
+
+---
+
+## CANAL DE ENTREGA — BLOQUEIO E SAÍDA
+
+**Bloqueio confirmado**: minha ferramenta GitHub está em modo leitura. Não consigo subir os 5 arquivos da dieta diretamente nesta sessão.
+
+**Para destravar o canal write**, Caio precisa:
+1. Revogar o token `gho_...` que apareceu na foto da tela Settings (urgente, segurança)
+2. Gerar PAT novo fine-grained com `Contents: write` + `Pull requests: write` restrito ao repo
+3. Configurar o token no MCP desta sessão
+
+Enquanto isso não acontece, mantém o fluxo atual: eu entrego o conteúdo no chat → Caio cola na minha ferramenta de código (que tem write) → eu commito por mim → te aviso branch + paths.
+
+---
+
+## ESTADO DAS ENTREGAS DA DIETA
+
+Já entreguei no chat anterior (prontas pra commitar):
+- Modelo P-A com ajustes (5 adições + correção R3)
+- P-B completo (23 unidades de porção)
+- P-C1 parcial (50 dos 68 alimentos — os 18 vegetarianos listei por nome, preciso compor macros)
+- P-C2 parcial (CETOGÊNICA completa, 3 tipos faltam)
+- P-C3 parcial (CETOGÊNICA completa, 3 tipos faltam)
+
+**O que falta compor (do meu lado, no chat)**:
+- 18 alimentos vegetarianos com macros
+- P-C2 e P-C3 para CARNIVORA, HIPERPROTEICA, LOW CARB (90 min de composição cuidadosa)
+- `gerar_parametros.py` (script de geração)
+- `28_RESPOSTA_RESSALVAS_DR_REPLIT.md` (doc consolidando R1+R2+R3)
+
+---
+
+## PROPOSTA DE SEQUENCIAMENTO
+
+Para não congelar o trabalho enquanto o canal write não destrava:
+
+1. **Caio destrava o token** (revoga o antigo + gera novo + passa pra Dr. Replit configurar o meu MCP) — 10 min
+2. Em paralelo, **eu componho os 5 arquivos completos no chat** — 90 min de trabalho meditado
+3. Quando o canal abrir do meu lado, **eu commito tudo de uma vez** em `dr-code-entregas` e te aviso em 1 linha (branch + paths)
+
+Se o canal não abrir até eu terminar a composição, **Caio cola na minha ferramenta** (saída 2) e eu commito por aí mesmo.
+
+Confirma que prefere essa ordem? E Caio: a revogação do `gho_...` da foto é a prioridade número 1 antes de qualquer coisa.
