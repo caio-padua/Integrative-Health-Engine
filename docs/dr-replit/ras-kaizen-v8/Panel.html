@@ -491,6 +491,37 @@
 </div>
 
 <!-- ═══ FINANCEIRO ═══ -->
+<!-- AGENDA AUTOMATICA -->
+<div class="window">
+  <div class="window-title">
+    <span class="icon">&#128197;</span>
+    <span class="text">Agenda Automatica (Google Agenda)</span>
+  </div>
+  <div class="window-body">
+    <div class="linha-input-hint">
+      Le a TABELA GERAL, consolida 1 ida por semana e cria os eventos no Google Agenda
+      com descricao rica + cor + roteamento (enfermagem / medico). Anti-colisao a partir das 09:00.
+      Idempotente: rodar de novo nao duplica.
+    </div>
+    <button class="btn btn-primary" onclick="run('runLancarAgendaTodos')">
+      LANCAR AGENDA (so quem nunca foi lancado)
+    </button>
+    <button class="btn" onclick="run('runReagendarPendentes')">
+      REAGENDAR PENDENTES (novos + protocolos alterados)
+    </button>
+    <button class="btn btn-gold" onclick="run('runReagendarAgendaTudo')">
+      REAGENDAR TUDO (apaga e recria todos)
+    </button>
+    <button class="btn" onclick="run('runApagarAgenda')">
+      APAGAR TODOS OS EVENTOS LANCADOS
+    </button>
+    <hr class="separator">
+    <button class="btn" onclick="run('runTestesSemanticosAgenda')">
+      RODAR TESTES SEMANTICOS (agenda)
+    </button>
+  </div>
+</div>
+
 <div class="window">
   <div class="window-title">
     <span class="icon">💹</span>

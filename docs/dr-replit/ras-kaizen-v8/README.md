@@ -7,10 +7,14 @@
 ## Conteúdo da pasta
 
 1. `Code.gs` — espelho EXATO do Code.gs do Caio (3.445 linhas).
-2. `Panel.html` — espelho EXATO do painel lateral (tema Windows 97).
+2. `Panel.html` — espelho do painel lateral (tema Windows 97) + seção nova
+   "Agenda Automática" (5 botões).
 3. `AgendamentoGoogleCalendar.gs` — MÓDULO NOVO (Dr. Replit), porte do
    `artifacts/api-server/src/lib/google-calendar.ts` do PAWARDS para Apps Script.
-4. `README.md` — este índice.
+   Monta o evento (título, descrição rica, cor, roteamento).
+4. `AgendamentoMotor.gs` — MÓDULO NOVO (Dr. Replit). Motor que lê a TABELA
+   GERAL, expande/consolida sessões e lança no Google Agenda. Idempotente.
+5. `README.md` — este índice.
 
 ## Contas Google envolvidas
 
@@ -43,12 +47,27 @@
    1.2. `criarAgendamentoRASComConvite(dados)` — idem + convida o paciente por e-mail (`pacienteEmail`) e o evento entra na agenda dele.
    1.3. `determineCalendarRouting(vias)` — implante/consulta → MÉDICO; resto → ENFERMAGEM.
 
+## O que JÁ está pronto (continuação)
+
+2. `AgendamentoMotor.gs` (FEITO em 11/06/2026):
+   2.1. Expansão das sessões + consolidação 1x/semana reusando o motor
+        canônico do RAS (`montarAgendaParaSubstancias_`) → a agenda bate
+        exatamente com o RAS impresso.
+   2.2. HORA do dia: default 09:00, parametrizável em `CONFIG_AGENDA`;
+        anti-colisão acha o próximo horário livre nas janelas 08-12 / 14-18;
+        domingo (e sábado, por default) caem no próximo dia útil.
+   2.3. Roteamento por via (`determineCalendarRouting`): implante/consulta →
+        MÉDICO; injetáveis → ENFERMAGEM. Nomes das agendas em `CONFIG_AGENDA`.
+   2.4. Idempotência: 3 colunas de controle na TABELA GERAL (AGENDA HASH /
+        AGENDA EVENTOS / AGENDA LANCADO EM). Rodar de novo não duplica.
+   2.5. 5 botões no Panel: Lançar / Reagendar pendentes / Reagendar tudo /
+        Apagar / Testes semânticos.
+
 ## O que FALTA (decidir antes de codar)
 
-1. Agendamento automático a partir da TABELA GERAL:
-   1.1. Expansão das sessões: cada substância tem início + FREQ (dias) + SESS (qtd) → gerar N datas e agrupar substâncias da MESMA data num único evento.
-   1.2. HORA do dia: a planilha só tem DIA/MES/ANO, não tem hora — precisa de regra (default proposto: 09:00, parametrizável).
-   1.3. Roteamento por agenda (calendarId de GERAL/ENFERMAGEM/MÉDICO).
+1. CONFIRMAR com o Caio os nomes EXATOS das agendas no Google Agenda
+   (`CONFIG_AGENDA.calendarios`) e o endereço da unidade (`CONFIG_AGENDA.endereco`,
+   ativa Maps/Waze na descrição). Sem isso o motor usa a agenda padrão e omite o endereço.
 
 2. RAS-Contingência (imprimível, conferência manual):
    2.1. Clonar `gerarRASSelecionado` com cabeçalho EXATO:
