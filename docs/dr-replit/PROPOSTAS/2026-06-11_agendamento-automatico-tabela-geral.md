@@ -79,3 +79,45 @@
 9.1. Injetáveis → **AGENDA ENFERMAGEM LOCAL** (resolvida por nome via `CalendarApp.getCalendarsByName`).
 
 9.2. Consulta/implante → agenda médica (regra `determineCalendarRouting`, ajustável).
+
+## 10. Regras de calendário CONFIRMADAS pelo Caio (11/06/2026)
+
+10.1. Cadência = **sábado a cada 15 dias**, 1ª onda **13/06/2026**.
+
+10.2. Se o sábado estiver **aberto** (dentro da janela) → marca no sábado.
+
+10.3. Se o sábado **não** estiver aberto → marca no **primeiro dia útil** seguinte.
+
+10.4. REGRA NOVA (consolidação): como os pacientes são **empresários**, TODAS as aplicações da
+      semana daquele paciente (seg→dom) vão num **ÚNICO dia** eleito pra ele.
+
+10.5. Ou seja, o paciente vem 1x por janela quinzenal e recebe tudo que está previsto naquele ciclo.
+
+## 11. COMPARAÇÃO — PAWARDS (TypeScript) vs Script Google (resposta ao Caio)
+
+11.1. As regras **NÃO são as mesmas** hoje. Detalhe:
+
+11.2. PAWARDS TEM motor de agenda real: janelas de disponibilidade (`availability_rules`),
+      slots transacionais com trava (`FOR UPDATE` + índice único anti-colisão) e sync Google.
+
+11.3. Script Google NÃO tem motor de slots/anti-colisão — só lê a planilha e gera RAS;
+      o agendamento com anti-colisão é COISA NOVA que estou criando agora.
+
+11.4. A regra de **consolidação (item 10.4) NÃO existe em NENHUM dos dois** — é IP clínica nova.
+
+11.5. Expansão protocolo→sessões datadas: PAWARDS tem PARCIAL (`motorPlanos.ts`), script não tem.
+
+11.6. Conclusão: PAWARDS já tem os 80% difíceis (janela + anti-colisão + sync); faltam só
+      consolidação (10.4) e expansão completa.
+
+## 12. DECISÃO ESTRATÉGICA ABERTA — onde mora o motor (A/B/C)
+
+12.1. **A (RECOMENDADA):** terminar no **PAWARDS** (sistema real) — só faltam 10.4 + expansão;
+      começar a usar o PAWARDS pra agendar; script vira quebra-galho SÓ pra imprimir RAS.
+      Dependência: os protocolos (substâncias por paciente) precisam estar no PAWARDS.
+
+12.2. **B:** motor completo no **script Google** agora (rápido, usa a planilha que já tem dados,
+      porém é código descartável).
+
+12.3. **C:** **híbrido** — motor mínimo no script agora pra destravar JÁ + mesma regra no PAWARDS
+      em paralelo (regra definida 1x neste `.md` como fonte única).
