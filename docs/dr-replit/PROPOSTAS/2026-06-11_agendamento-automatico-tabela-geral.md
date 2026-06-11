@@ -187,3 +187,37 @@
 
 15.3. Por isso a recomendação reforça a **opção A** (motor mora no PAWARDS); o que falta lá é só
       consolidação + expansão (e, se quiser, a liberação gradual da tarde do item 13.5).
+
+## 16. EVOLUÇÃO DA REGRA DE OCUPAÇÃO — 4 SUB-BLOCOS + TOGGLE + BIDIRECIONAL (pedido Caio 11/06/2026)
+
+16.1. SUB-DIVISÃO: cada turno vira **2 partes** → 4 sub-blocos no dia:
+      manhã-1, manhã-2, tarde-1, tarde-2.
+
+16.2. LIBERAÇÃO GRADUAL: dentro do período ativo, cada sub-bloco abre quando o anterior atinge o
+      percentual. Caio sugeriu **~25%** por degrau (parâmetro configurável).
+
+16.3. BIDIRECIONAL (novo): o dia "começa" no período que receber o **1º agendamento**.
+      - Se começar pela manhã → tarde só libera quando a **manhã** estiver completa.
+      - Se começar pela tarde → manhã só libera quando a **tarde** estiver completa.
+      (Hoje o motor só faz manhã→tarde, uma direção.)
+
+16.4. TOGGLE DE EXCEÇÃO POR DIA (novo): botão na ferramenta da agenda "seguir regra" / "quebrar
+      regra naquele dia". Caio destrava → faz agendamento manual fora da regra → trava de novo;
+      o cadastro feito **permanece**.
+
+16.5. IMPLEMENTAÇÃO PROPOSTA (PAWARDS, aditivo): nova tabela `smart_release_excecoes`
+      (unidade_id, profissional_id, data, regra_ativa boolean default true, motivo,
+      criado_por_id, criado_em). Quando `regra_ativa=false` para aquele dia:
+      - o booking **pula** a verificação de `liberado` (permite manual);
+      - o motor smart-release **ignora** aquele dia (não re-trava o que foi marcado).
+      Migration via **psql aditiva** (NUNCA db push — P008).
+
+16.6. GAP RESUMIDO (hoje → novo):
+      - Hoje: 2 blocos, manhã→tarde, tudo de uma vez a 60%, sem sub-bloco, sem toggle, 1 direção.
+      - Novo: 4 sub-blocos, degraus de ~25%, bidirecional, com toggle de exceção por dia.
+
+16.7. VIABILIDADE: **SIM**, tudo possível no PAWARDS. É evolução do motor que já existe
+      (item 13), não reescrita. Esforço: **médio**.
+
+16.8. PARÂMETRO A CONFIRMAR: percentual do degrau (default recomendado **25%**) e se o cruzamento
+      manhã↔tarde abre a 100% ("completa") ou também por degrau.
