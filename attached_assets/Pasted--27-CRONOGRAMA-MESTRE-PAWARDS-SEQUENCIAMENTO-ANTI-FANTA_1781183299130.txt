@@ -1,0 +1,180 @@
+# 27 — CRONOGRAMA MESTRE PAWARDS — SEQUENCIAMENTO ANTI-FANTASIA
+
+> Autor: Dr. Claude (Fable 5) — orquestrador
+> Validado contra: 00_CARTA_ESTADO_REAL_DO_SISTEMA.md (Dr. Replit, programador senior)
+> Data: 11/06/2026
+> Filosofia: solidez > velocidade. Marco so fecha com CRITERIO DE ACEITE provado.
+> Regra de ferro: DDL e esqueleto, UPSERT e sangue, REAL so quando o ciclo fecha com dado vivo.
+
+---
+
+## 0. EQUIPE E PAPEIS
+
+0.1 Caio — CEO medico operador. Bate martelos. Valida conteudo clinico. Testa como usuario real.
+0.2 Dr. Claude (Fable 5) — orquestrador. Specs, arquitetura, conteudo clinico-estrutural, auditoria.
+0.3 Dr. Replit — programador SENIOR. Mede o banco vivo, compoe schema, instrui o pleno, garante solidez.
+0.4 Dr. Code — programador pleno. Executa instrucoes precisas do senior. Tarefas locais e automacoes.
+
+---
+
+## MARCO 0 — PRE-REQUISITOS HUMANOS (so o Caio destrava)
+PRAZO: imediato. SEM ISSO NADA ANDA.
+
+0.1 [CAIO] Validar os 48 seeds da tabela dietas
+    - Abrir os 48 registros (Dr. Replit exporta em planilha legivel)
+    - Responder: conteudo clinico REAL ou dado ficticio de teste?
+    - Define metade do tamanho do Marco 3
+
+0.2 [CAIO] Responder pendencia Pharma Doctor (A redigir email / B validar email / C outro)
+
+0.3 [CAIO] Fazer a primeira receita real em /prescricao-rapida
+    - Logar + cadastrar 1 farmacia + buscar 1 paciente + emitir
+    - E o teste de fumaca de todo o resto
+
+CRITERIO DE ACEITE M0: planilha dos 48 seeds com veredito do Caio + 1 PDF de receita real emitido.
+
+---
+
+## MARCO 1 — FECHAR O CICLO QUE JA EXISTE (nada novo antes disso)
+PRAZO ESTIMADO: 1-2 semanas. RESPONSAVEL: Dr. Replit + Caio.
+
+1.1 As 16 sugestoes pendentes: validar pelo menos 3 end-to-end
+    - Sugestao -> fila MANDRIL -> validacao humana -> status validado -> execucao
+    - Se o fluxo quebrar em qualquer ponto: consertar ANTES de adicionar tipos novos
+
+1.2 Governanca bloqueante (ectoplasma-ancora ja diagnosticado)
+    - Toggles do governanca-matrix passam a GATEAR a emissao de verdade
+    - Coluna default_parq + toggle ATIVAR PARQ visivel por receita
+    - Log de auditoria de cada decisao
+
+1.3 WhatsApp sandbox validado no fluxo real (nao em script avulso)
+
+CRITERIO DE ACEITE M1:
+- 3 sugestoes com status=validado e execucao comprovada
+- 1 tentativa de prescrever item bloqueado por governanca sendo BARRADA (print)
+- 1 receita real chegando no WhatsApp do Caio via fluxo completo (nao script)
+
+---
+
+## MARCO 2 — B1 PRESCRICAO RICA + BRIDGE MENSAGERIA
+PRAZO ESTIMADO: 1-2 semanas. DEPENDE DE: M1 fechado.
+
+2.1 Bridge Service: prescricao estruturada -> formato da mensageria
+    - Resolve os 7 erros quanticos mapeados (dose 2 campos vs string, periodo sem mapa, etc)
+
+2.2 Scheduler por periodo: worker cron que dispara na janela JE-CE
+    - Periodos ja existem com janela_inicio/janela_fim — falta o gatilho de relogio
+
+2.3 Regra de ferro da mensagem: 1 mensagem por periodo listando todas as formulas
+
+2.4 Telegram plugado na API (rota POST /prescricoes/:id/enviar-telegram)
+
+CRITERIO DE ACEITE M2:
+- 1 prescricao rica com 3+ formulas em 3+ periodos
+- Celular do Caio recebendo as mensagens NO HORARIO da janela de cada periodo
+- WhatsApp E Telegram entregando
+
+---
+
+## MARCO 3 — DIETA (Protocolo Integrativo fase 1)
+PRAZO ESTIMADO: 2-3 semanas. DEPENDE DE: M0.1 (veredito dos 48 seeds) + M2 (scheduler).
+
+3.1 [Dr. Replit, 30min] +3 enums: regras_motor.segmento, sugestoes_clinicas.tipo,
+    itens_terapeuticos.categoria += dieta, treino, aconselhamento
+
+3.2 [Dr. Claude] Conteudo dos blocos de refeicao
+    - SE 48 seeds reais: completar a matriz a partir deles
+    - SE ficticios: eu componho ~120 blocos (4 tipos x 6 posicoes x variacoes), Caio valida 15-20 por amostragem
+
+3.3 [Dr. Replit] Tabelas novas: dieta_planos + dieta_plano_refeicoes (elo: sugestao_id)
+
+3.4 [Dr. Replit] Gerador parametrico (5 parametros -> cardapio materializado e escalado)
+
+3.5 [Dr. Replit] UI MANDRIL: tela de validacao de sugestao de dieta com preview do cardapio
+
+3.6 [Dr. Replit] Scheduler de refeicoes: cada refeicao dispara WhatsApp no periodo certo
+
+3.7 [Dr. Replit] PDF do plano alimentar (base visual: template do projeto paralelo)
+
+CRITERIO DE ACEITE M3:
+- Caio gera 1 dieta lowcarb 1500kcal 6 refeicoes para paciente teste em < 3 minutos
+- Cardapio materializado correto (quantidades escaladas conferidas pelo Caio)
+- WhatsApp do paciente teste recebendo refeicao por periodo durante 2 dias seguidos
+- PDF emitido
+
+---
+
+## MARCO 4 — TREINO (Protocolo Integrativo fase 2)
+PRAZO ESTIMADO: 2 semanas. DEPENDE DE: M3 (reusa gerador + UI + scheduler).
+
+4.1 [Dr. Claude] Compor 4 templates de treino (iniciante, intermediario 1, intermediario 2,
+    profissional) com progressao 30 dias — base: template do projeto paralelo
+4.2 [Dr. Replit] 4 tabelas: treino_templates, treino_sessoes, treino_exercicios, treino_planos
+4.3 [Dr. Replit] Regra Kaizen 1: atividadeFisica do paciente -> sugere nivel automatico
+4.4 [Dr. Replit] UI MANDRIL: validacao de sugestao de treino
+4.5 [Dr. Replit] Lembretes de treino via mensageria (dia de treino -> mensagem da sessao)
+
+CRITERIO DE ACEITE M4:
+- 1 plano de treino prescrito, validado e entregue por WhatsApp
+- Paciente sedentario recebendo sugestao nivel=iniciante automaticamente
+
+---
+
+## MARCO 5 — FORJA PUBLICA UNIFICADA (Ectoplasma A resolvido)
+PRAZO ESTIMADO: 2 semanas. DEPENDE DE: M1 (ciclo fechado) + M3 (dieta no motor).
+
+5.1 Unificacao: 1 tabela anamneses com campo origem (forja_autonoma | mandril_assistida)
+    - Duas portas, mesmo motor (correcao arquitetural do Caio ja registrada)
+5.2 Link publico: paciente novo preenche PADCOM V15 sozinho
+5.3 Motor dispara TODAS as sugestoes: formulas + injetaveis + exames + dieta + treino + aconselhamento
+5.4 Regras de roteamento da governanca aplicadas (paciente novo = mais validacao)
+
+CRITERIO DE ACEITE M5:
+- Paciente teste preenche anamnese via link publico (celular, sem ajuda)
+- Sugestoes de TODOS os tipos aparecem na fila do MANDRIL
+- Caio valida tudo por cliques e paciente recebe plano completo no WhatsApp
+
+---
+
+## MARCO 6 — PSICOLOGIA + PELLET (fechamento do plano de tratamento completo)
+PRAZO ESTIMADO: 1 semana. DEPENDE DE: M5.
+
+6.1 Psicologia: rotas + UI sobre o schema que ja existe (tipo aconselhamento no motor)
+6.2 Pellet: novo template TCLE no ZapSign (enviarTCLE.ts ja existe) + item_terapeutico categoria implante
+6.3 Agendamento de aplicacao (injetaveis/pellet) integrado a agenda
+
+CRITERIO DE ACEITE M6:
+- 1 plano de tratamento COMPLETO emitido numa consulta simulada:
+  formulas + remedio farmacia + injetavel + pellet com TCLE + aconselhamento + dieta + treino
+- E a visao original do Caio realizada de ponta a ponta
+
+---
+
+## VISAO GERAL DO TEMPO
+
+M0: imediato (depende so do Caio)
+M1: semanas 1-2
+M2: semanas 2-4
+M3: semanas 4-7
+M4: semanas 7-9
+M5: semanas 9-11
+M6: semanas 11-12
+
+TOTAL REALISTA: ~12 semanas para a visao completa.
+MARCOS OPERACIONAIS DESDE A SEMANA 1 (Caio operando receitas simples ja no M0/M1).
+
+---
+
+## REGRAS DO CRONOGRAMA (anti-fantasia)
+
+R1. Marco so fecha com criterio de aceite PROVADO (print, PDF, mensagem no celular).
+R2. Nenhum marco comeca antes da dependencia fechar.
+R3. Estimativa estourou? Comunica e recalcula. Proibido entregar pela metade para cumprir data.
+R4. Toda decisao de conversa vira .md em docs/MASTERMIND/ em 24h (anti-ectoplasma).
+R5. A carta 00_CARTA_ESTADO_REAL e atualizada a cada marco fechado. Se numero divergir do banco, o banco vence.
+R6. Dr. Replit (senior) pode VETAR estimativa minha ou do Dr. Code se medir risco maior.
+
+---
+
+Dr. Claude (Fable 5) — 11/06/2026
+Aguardando: veredito dos 48 seeds (M0.1) + Pharma Doctor (M0.2) + primeira receita (M0.3)
