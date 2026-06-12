@@ -18,7 +18,7 @@ function extrair(nome) {
 }
 const PURAS = ['removerAcentosSub_', 'tituloPalavraSub_', 'ehTokenCodigo_', 'normalizarPalavraSub_',
   'padronizarNomeSubstancia_', 'padronizarDosagem_', 'montarNomeCanonico_', 'chaveBuscaSub_',
-  'extrairDoseLivre_', 'resolverSubstanciaCanonica_', 'planejarVarredura_'];
+  'extrairDoseLivre_', 'indexarApelidos_', 'acharPorCanonico_', 'resolverSubstanciaCanonica_', 'planejarVarredura_'];
 let comb = 'var ACRONIMOS_SUBSTANCIA = { NAC:1,DMSA:1,HCG:1,DHEA:1,PQQ:1,ADEK:1,NAD:1,DMAE:1,EV:1,IM:1,SC:1,UI:1 };\n';
 PURAS.forEach((n) => { comb += extrair(n) + '\n'; });
 comb += 'return { ' + PURAS.join(', ') + ' };';
@@ -61,20 +61,38 @@ const ocorrencias = [
   ['FINANCEIRO K', 13, 'ET-7 ENANTATO 250MG']
 ].map(([aba, linha, texto]) => ({ aba, linha, texto }));
 
+// ---- APELIDOS SUBSTANCIA (fenotipo -> genotipo) — pre-preenchido pelo Dr. Replit ----
+// ATIVO        = resolvo agora (genotipo inequivoco)
+// REVISAR_DOSE = so o CEO sabe a mg (existem varias doses do mesmo nome)
+// SEM_CADASTRO = nao existe no CADASTRO; cadastrar antes
+const apelidos = [
+  { de: 'Vitamina D injetavel',       para: 'Vitamina D3 600.000ui', status: 'ATIVO' },
+  { de: 'VITAMINA B12 2500MG',        para: 'Vitamina B12 2500mcg',  status: 'ATIVO' },
+  { de: 'Testosterona bioidentica',   para: '',                      status: 'REVISAR_DOSE' },
+  { de: 'Tirzepatida',                para: '',                      status: 'REVISAR_DOSE' },
+  { de: 'Peptideo X (emagrecimento)', para: '',                      status: 'SEM_CADASTRO' }
+];
+
 console.log('==== CATALOGO CANONICO (CADASTRO SUBSTANCIAS, fonte da verdade) ====\n');
 catalogo.forEach((c) => {
   console.log('  ' + (c.nome + '/' + c.dosagem).padEnd(34) + ' ->  ' + api.montarNomeCanonico_(c.nome, c.dosagem));
 });
 
-const plano = api.planejarVarredura_(ocorrencias, catalogo);
+console.log('\n==== APELIDOS SUBSTANCIA (de -> para) ====\n');
+apelidos.forEach((a) => {
+  console.log('  [' + a.status.padEnd(12) + '] "' + a.de + '"  ->  "' + (a.para || '(CEO preenche)') + '"');
+});
+
+const plano = api.planejarVarredura_(ocorrencias, catalogo, apelidos);
 console.log('\n==== VARREDURA NAS DEMAIS ABAS (BEFORE -> AFTER) ====\n');
 plano.forEach((p) => {
   const tag = p.status === 'OK' ? (p.mudou ? '[corrige]' : '[ok-igual]') : '[!! REVISAR]';
-  console.log('  ' + tag.padEnd(13) + (p.aba + ' L' + p.linha).padEnd(20) + ' "' + p.de + '"  ->  "' + p.para + '"');
+  const via = p.via ? (' (' + p.via.toLowerCase() + ')') : '';
+  console.log('  ' + tag.padEnd(13) + (p.aba + ' L' + p.linha).padEnd(20) + ' "' + p.de + '"  ->  "' + p.para + '"' + via);
 });
 
 const semCorr = plano.filter((p) => p.status === 'SEM_CORRESPONDENCIA');
-console.log('\n==== SEM CORRESPONDENCIA (CEO precisa decidir o apelido) ====\n');
+console.log('\n==== SEM CORRESPONDENCIA (CEO precisa decidir) ====\n');
 if (!semCorr.length) console.log('  (nenhum)');
 semCorr.forEach((p) => console.log('  - ' + p.aba + ' L' + p.linha + ': "' + p.de + '"'));
 console.log('\n  Total: ' + plano.length + ' ocorrencias | ' +

@@ -3,8 +3,9 @@
 - Data: 12/06/2026
 - Autor: Dr. Replit
 - Sistema: RAS KAIZEN v8 (Apps Script PARALELO, fora do build PAWARDS)
-- Status: motor de NOMES entregue e testado (32 OK / 0 FALHA). Layout e grafico
-  especificados aqui, glue do Panel pendente da validacao do CEO.
+- Status: motor de NOMES + APELIDOS entregue e testado (54 OK / 0 FALHA). Grafico
+  7.A com glue pronto-pra-colar (OrcamentoGrafico.gs). Layout PENUMBRA especificado,
+  glue do Panel pendente. Decisoes do CEO em 12/06 incorporadas (secao 9).
 
 ## 1. Problema real (medido na planilha)
 
@@ -77,3 +78,39 @@
 8.2 Decidir 4.x (apelidos), 6.x (tipo de grafico).
 8.3 Eu construo o glue (varredura write + layout + grafico) como funcoes + botoes no
     Panel; o CEO clica pra aplicar (nenhum AI roda Apps Script).
+
+## 9. Atualizacao 12/06 — decisoes do CEO incorporadas
+
+9.1 Item 5 = A: aba `APELIDOS SUBSTANCIA` (de -> para -> status) IMPLEMENTADA no motor.
+    A resolucao agora consulta o apelido ANTES do catalogo (prioridade absoluta) e
+    valida o "para" contra o catalogo (apelido que aponta pra item inexistente NAO
+    resolve — fail-closed).
+
+9.2 Item 4 (REGRA DE OURO): a IDENTIDADE da substancia e NOME + DOSE juntos
+    ("Coenzima Q10 100mg"). Doses diferentes = itens diferentes. Por isso nome sem
+    dose com varias doses (Testosterona Bio, Tirzepatida) NUNCA e chutado.
+
+9.3 Apelidos pre-preenchidos por mim (fenotipo -> genotipo), como o CEO faria:
+    - `Vitamina D injetavel`        -> `Vitamina D3 600.000ui`   (ATIVO, so existe 1 D)
+    - `Vitamina B12 2500mg` (typo)  -> `Vitamina B12 2500mcg`    (ATIVO, so existe 1 B12)
+    - `Testosterona bioidentica`    -> (vazio)  status REVISAR_DOSE  (25/200/1000mg: so o CEO sabe)
+    - `Tirzepatida`                 -> (vazio)  status REVISAR_DOSE  (2,5/5/10mg: so o CEO sabe)
+    - `Peptideo X (emagrecimento)`  -> (vazio)  status SEM_CADASTRO  (cadastrar antes)
+
+9.4 Resultado da varredura real: 17 ocorrencias | 14 casadas | 3 sem correspondencia
+    (so as 3 que dependem de decisao clinica do CEO: 9.3 ultimas tres).
+
+9.5 Item 7 = A: grafico de COLUNAS dos 3 cenarios entregue como glue pronto-pra-colar
+    em `OrcamentoGrafico.gs` (funcao pura `montarDadosGraficoOrcamento_` + glue
+    `gerarGraficoOrcamento_`). Reusa os cenarios de Orcamento.gs (numero identico).
+
+9.6 Testes: `tests/test_padronizacao.mjs` = 51 OK / 0 FALHA (inclui bateria de apelidos:
+    ATIVO resolve, REVISAR_DOSE/SEM_CADASTRO orfao intencional, apelido vence catalogo,
+    apelido pra inexistente fail-closed, retrocompat sem 3o arg, casa por chave acento/caixa).
+
+9.7 GitHub: push resolvido INTERNAMENTE via token da integracao (conexao healthy);
+    branch `ver-l2-dr-claude` empurrada. Nao depende mais de print do CEO.
+
+9.8 Falta so do CEO: as 3 doses/cadastro de 9.3 (preencher coluna "para" da aba
+    APELIDOS). O resto do glue (varredura write-back + layout PENUMBRA) eu monto como
+    botoes do Panel; o CEO clica (nenhum AI roda Apps Script).

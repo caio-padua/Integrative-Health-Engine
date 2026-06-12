@@ -146,3 +146,16 @@ qualquer toque no Code.gs vira decisão dele.
   inexistente => fail-closed (SEM_CORRESPONDENCIA), nunca chutar a 1a dose.
 - **Why:** casar por nome pegava sempre a 1a dose do catalogo e gravava preco errado
   no FINANCEIRO. Validar SEMPRE com o relatorio sobre dados reais, nao so unit tests.
+
+## Apelidos de substancia (fenotipo->genotipo) + push via integracao — 12/06/2026
+- Aba APELIDOS SUBSTANCIA (de/para/status) resolve ANTES do catalogo e o "para" e
+  validado contra o catalogo (apelido pra item inexistente = fail-closed). status:
+  ATIVO resolve; REVISAR_DOSE/SEM_CADASTRO = orfao INTENCIONAL (null) ate o CEO preencher.
+- REGRA DE OURO do CEO: identidade da substancia = NOME+DOSE juntos; nome sem dose com
+  varias doses (Testosterona Bio, Tirzepatida) nunca e chutado — vira apelido REVISAR_DOSE.
+- **Why:** so e seguro auto-resolver apelido quando o genotipo e inequivoco (1 unico
+  item daquele nome no catalogo); dose ambigua e decisao clinica, nao do agente.
+- PUSH GITHUB (corrige a nota anterior que dizia "token expirado"): a conexao da
+  integracao github e healthy; pegar token via listConnections('github').settings.access_token
+  no code_execution e dar `git push https://x-access-token:<token>@github.com/<repo> HEAD:<branch>`.
+  O remote `origin` ja carrega um token embutido tambem. NUNCA imprimir o token.

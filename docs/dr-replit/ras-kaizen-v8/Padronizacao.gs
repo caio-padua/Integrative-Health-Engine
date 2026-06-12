@@ -85,16 +85,67 @@ function extrairDoseLivre_(texto) {
 }
 
 /**
- * Casa um texto livre contra o catalogo canonico por PREFIXO de palavra inteira.
- * catalogo: [{nome, dosagem}]. Quando o nome casa com varias dosagens (ex.: Testosterona
- *   Bio 25/200/1000), DESAMBIGUA pela dose presente no texto; se a dose nao bater em
- *   exatamente 1 candidato, retorna null (fail-closed, nunca chuta a dose).
+ * Indexa a aba APELIDOS SUBSTANCIA por chave de busca do "de" (texto livre).
+ * apelidos: [{de, para, status}]. status: ATIVO (resolve), REVISAR_DOSE / SEM_CADASTRO
+ *   (orfao intencional: o CEO ainda precisa preencher o "para").
+ * Retorna mapa { chaveBusca(de) : {para, status} }.
  */
-function resolverSubstanciaCanonica_(textoLivre, catalogo) {
+function indexarApelidos_(apelidos) {
+  var idx = {};
+  for (var i = 0; i < (apelidos || []).length; i++) {
+    var a = apelidos[i];
+    var k = chaveBuscaSub_(a.de);
+    // status endurecido: tolera digitacao manual na planilha (espaco/caixa)
+    var st = String(a.status == null ? 'ATIVO' : a.status).trim().toUpperCase();
+    if (!st) st = 'ATIVO';
+    if (k) idx[k] = { para: a.para || '', status: st };
+  }
+  return idx;
+}
+
+/** Acha no catalogo a entrada cujo nome canonico == 'para' (compara por chave de busca). */
+function acharPorCanonico_(para, catalogo) {
+  var alvo = chaveBuscaSub_(para);
+  if (!alvo) return null;
+  var cat = catalogo || [];
+  for (var i = 0; i < cat.length; i++) {
+    if (chaveBuscaSub_(montarNomeCanonico_(cat[i].nome, cat[i].dosagem)) === alvo) return cat[i];
+  }
+  return null;
+}
+
+/**
+ * Casa um texto livre contra o catalogo canonico.
+ * REGRA DE OURO (item 4 do CEO): a IDENTIDADE da substancia e NOME + DOSE juntos
+ *   ("Coenzima Q10 100mg"); doses diferentes = itens diferentes do catalogo.
+ *
+ * Ordem de resolucao:
+ *   1) APELIDOS SUBSTANCIA (fenotipo -> genotipo, decidido pelo CEO): se o texto bate
+ *      um apelido ATIVO, usa o "para" — desde que o "para" exista no catalogo (senao
+ *      fail-closed). Apelido REVISAR_DOSE / SEM_CADASTRO = orfao intencional -> null.
+ *   2) Casamento por PREFIXO de palavra inteira contra o catalogo. Nome com varias
+ *      dosagens (Testosterona Bio 25/200/1000) DESAMBIGUA pela dose do texto; se a dose
+ *      nao bater em exatamente 1 candidato, retorna null (fail-closed, nunca chuta dose).
+ *
+ * catalogo: [{nome, dosagem}]; apelidos (opcional): [{de, para, status}].
+ */
+function resolverSubstanciaCanonica_(textoLivre, catalogo, apelidos) {
   var alvo = chaveBuscaSub_(textoLivre);
   if (!alvo) return null;
-  var alvoSp = alvo + ' ';
   var cat = catalogo || [];
+  // 0) apelido tem prioridade absoluta
+  var idx = indexarApelidos_(apelidos);
+  if (idx[alvo]) {
+    var ap = idx[alvo];
+    if (ap.status !== 'ATIVO' || !ap.para) return null; // orfao intencional (CEO preenche depois)
+    var alvoCat = acharPorCanonico_(ap.para, cat);
+    if (!alvoCat) return null; // apelido aponta pra algo que nao existe no catalogo -> fail-closed
+    return {
+      canonico: montarNomeCanonico_(alvoCat.nome, alvoCat.dosagem),
+      nome: alvoCat.nome, dosagem: alvoCat.dosagem, via: 'APELIDO'
+    };
+  }
+  var alvoSp = alvo + ' ';
   // 1) maior comprimento de nome canonico que casa por prefixo de palavra inteira
   var melhorLen = -1;
   for (var i = 0; i < cat.length; i++) {
@@ -123,7 +174,8 @@ function resolverSubstanciaCanonica_(textoLivre, catalogo) {
   return {
     canonico: montarNomeCanonico_(escolhido.nome, escolhido.dosagem),
     nome: escolhido.nome,
-    dosagem: escolhido.dosagem
+    dosagem: escolhido.dosagem,
+    via: 'CATALOGO'
   };
 }
 
@@ -132,17 +184,18 @@ function resolverSubstanciaCanonica_(textoLivre, catalogo) {
  * destino canonico ou SEM_CORRESPONDENCIA. NUNCA escreve — so planeja (o glue do
  * Panel aplica). ocorrencias: [{aba, linha, texto}].
  */
-function planejarVarredura_(ocorrencias, catalogo) {
+function planejarVarredura_(ocorrencias, catalogo, apelidos) {
   var out = [];
   for (var i = 0; i < (ocorrencias || []).length; i++) {
     var o = ocorrencias[i];
-    var r = resolverSubstanciaCanonica_(o.texto, catalogo);
+    var r = resolverSubstanciaCanonica_(o.texto, catalogo, apelidos);
     out.push({
       aba: o.aba,
       linha: o.linha,
       de: o.texto,
       para: r ? r.canonico : o.texto,
       status: r ? 'OK' : 'SEM_CORRESPONDENCIA',
+      via: r ? r.via : '',
       mudou: r ? (r.canonico !== o.texto) : false
     });
   }

@@ -25,7 +25,8 @@ function extrair(nome) {
 const PURAS = [
   'removerAcentosSub_', 'tituloPalavraSub_', 'ehTokenCodigo_', 'normalizarPalavraSub_',
   'padronizarNomeSubstancia_', 'padronizarDosagem_', 'montarNomeCanonico_',
-  'chaveBuscaSub_', 'extrairDoseLivre_', 'resolverSubstanciaCanonica_', 'planejarVarredura_'
+  'chaveBuscaSub_', 'extrairDoseLivre_', 'indexarApelidos_', 'acharPorCanonico_',
+  'resolverSubstanciaCanonica_', 'planejarVarredura_'
 ];
 let combinado = 'var ACRONIMOS_SUBSTANCIA = { NAC:1,DMSA:1,HCG:1,DHEA:1,PQQ:1,ADEK:1,NAD:1,DMAE:1,EV:1,IM:1,SC:1,UI:1 };\n';
 PURAS.forEach((n) => { combinado += extrair(n) + '\n'; });
@@ -100,6 +101,42 @@ ok('Tirzepatida 5MG -> 5mg (nao 2,5)', api.resolverSubstanciaCanonica_('TIRZEPAT
 ok('Tirzepatida 2,5MG -> 2,5mg', api.resolverSubstanciaCanonica_('TIRZEPATIDA 2,5MG', catalogo).canonico, 'Tirzepatida 2,5mg');
 okTrue('Tirzepatida SEM dose = ambiguo -> null', api.resolverSubstanciaCanonica_('Tirzepatida', catalogo) === null);
 okTrue('Testosterona Bio 999MG = dose inexistente -> null', api.resolverSubstanciaCanonica_('TESTOSTERONA BIO 999MG', catalogo) === null);
+
+console.log('== APELIDOS (fenotipo -> genotipo, decidido pelo CEO) ==');
+const apelidos = [
+  { de: 'Vitamina D injetavel',       para: 'Vitamina D3 600.000ui', status: 'ATIVO' },
+  { de: 'VITAMINA B12 2500MG',        para: 'Vitamina B12 2500mcg',  status: 'ATIVO' },
+  { de: 'Testosterona bioidentica',   para: '',                      status: 'REVISAR_DOSE' },
+  { de: 'Tirzepatida',                para: '',                      status: 'REVISAR_DOSE' },
+  { de: 'Peptideo X (emagrecimento)', para: '',                      status: 'SEM_CADASTRO' }
+];
+// ATIVO resolve pro genotipo inequivoco
+ok('apelido ATIVO: D injetavel -> D3 600.000ui', api.resolverSubstanciaCanonica_('Vitamina D injetavel', catalogo, apelidos).canonico, 'Vitamina D3 600.000ui');
+ok('apelido marca via=APELIDO', api.resolverSubstanciaCanonica_('Vitamina D injetavel', catalogo, apelidos).via, 'APELIDO');
+ok('apelido ATIVO: B12 2500mg(typo) -> 2500mcg', api.resolverSubstanciaCanonica_('VITAMINA B12 2500MG', catalogo, apelidos).canonico, 'Vitamina B12 2500mcg');
+// apelido casa por chave (acento/caixa irrelevantes)
+ok('apelido casa com acento+caixa diferente', api.resolverSubstanciaCanonica_('VITAMINA D INJETÁVEL', catalogo, apelidos).canonico, 'Vitamina D3 600.000ui');
+// orfaos intencionais => null (CEO ainda nao decidiu a dose)
+okTrue('REVISAR_DOSE Testosterona -> null (intencional)', api.resolverSubstanciaCanonica_('Testosterona bioidentica', catalogo, apelidos) === null);
+okTrue('REVISAR_DOSE Tirzepatida -> null (intencional)', api.resolverSubstanciaCanonica_('Tirzepatida', catalogo, apelidos) === null);
+okTrue('SEM_CADASTRO Peptideo X -> null (intencional)', api.resolverSubstanciaCanonica_('Peptideo X (emagrecimento)', catalogo, apelidos) === null);
+// fail-closed: apelido que aponta pra algo fora do catalogo nao resolve
+okTrue('apelido para inexistente -> null (fail-closed)', api.resolverSubstanciaCanonica_('Algo Estranho', catalogo, [{ de: 'Algo Estranho', para: 'Coenzima Q10 999mg', status: 'ATIVO' }]) === null);
+// apelido tem PRIORIDADE sobre o catalogo
+ok('apelido vence catalogo', api.resolverSubstanciaCanonica_('Coenzima Q10 injetavel', catalogo, [{ de: 'Coenzima Q10 injetavel', para: 'Vitamina C 10g', status: 'ATIVO' }]).canonico, 'Vitamina C 10g');
+// quando NAO ha apelido pro texto, cai no catalogo normal (regressao)
+ok('sem apelido aplicavel -> catalogo (via=CATALOGO)', api.resolverSubstanciaCanonica_('Coenzima Q10 injetavel', catalogo, apelidos).via, 'CATALOGO');
+// retrocompat: chamar sem apelidos continua funcionando
+ok('retrocompat sem 3o arg', api.resolverSubstanciaCanonica_('COENZIMA Q10 100MG', catalogo).canonico, 'Coenzima Q10 100mg');
+// indexarApelidos_ default de status ausente = ATIVO
+okTrue('indexarApelidos_ status default ATIVO', api.indexarApelidos_([{ de: 'X', para: 'Y' }]).X.status === 'ATIVO');
+// status endurecido: digitacao manual com espaco/caixa nao quebra
+okTrue('indexarApelidos_ status " ativo " -> ATIVO', api.indexarApelidos_([{ de: 'X', para: 'Y', status: ' ativo ' }]).X.status === 'ATIVO');
+ok('apelido " ativo " (minusculo+espaco) resolve', api.resolverSubstanciaCanonica_('Vitamina D injetavel', catalogo, [{ de: 'Vitamina D injetavel', para: 'Vitamina D3 600.000ui', status: ' ativo ' }]).canonico, 'Vitamina D3 600.000ui');
+okTrue('status "revisar_dose" minusculo -> orfao null', api.resolverSubstanciaCanonica_('Tirzepatida', catalogo, [{ de: 'Tirzepatida', para: '', status: 'revisar_dose' }]) === null);
+// acharPorCanonico_ tolera grafia (caixa/espaco) do "para"
+okTrue('acharPorCanonico_ tolera caixa/espaco', api.acharPorCanonico_('vitamina b12 2500MCG', catalogo) !== null);
+okTrue('acharPorCanonico_ inexistente -> null', api.acharPorCanonico_('Coenzima Q10 7mg', catalogo) === null);
 
 console.log('== planejar varredura (diff + fail-closed) ==');
 const plano = api.planejarVarredura_([
