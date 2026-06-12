@@ -407,26 +407,11 @@
     <button class="btn btn-primary" onclick="run('runAplicarEstrutura')">
       ▶ <span class="hotkey">A</span>PLICAR ESTRUTURA COMPLETA
     </button>
-    <button class="btn" onclick="run('runCorrigirFinanceira')">
-      💰 CORRIGIR COLUNA <span class="hotkey">F</span>INANCEIRA
-    </button>
-    <button class="btn" onclick="run('runCorrigirConsulta')">
-      📅 CORRIGIR COLUNA <span class="hotkey">C</span>ONSULTA
-    </button>
     <button class="btn" onclick="run('runNormalizar')">
       📝 <span class="hotkey">N</span>ORMALIZAR NOMES + CPF + CELULAR
     </button>
-    <button class="btn" onclick="run('runValidarPastas')">
-      📁 <span class="hotkey">V</span>ALIDAR PASTAS
-    </button>
-    <button class="btn" onclick="run('runCorrigirCabecalhoCadastro')">
-      🩹 CORRIGIR CABECALHO CADASTRO (1 linha → DIA/MES/ANO)
-    </button>
     <button class="btn btn-gold" onclick="run('runLancarCadastroTabela')">
       📤 LANCAR CADASTRO → TABELA GERAL (nome, CPF, email, nasc.)
-    </button>
-    <button class="btn" onclick="run('runInserirEmail')">
-      📧 INSERIR COLUNA EMAIL (entre CELULAR e NASC.)
     </button>
     <button class="btn" onclick="run('runReestruturarCockpit')">
       🧭 REESTRUTURAR COCKPIT (coluna INICIO por substancia)
@@ -542,9 +527,6 @@
   <div class="window-body">
     <button class="btn btn-gold" onclick="run('runAtualizarFinanceiro')">
       📊 ATUALIZAR FINANCEIRO (dashboard + FINANCEIRO PACIENTE)
-    </button>
-    <button class="btn" onclick="run('runCorrigirMesNasc')">
-      🎂 CORRIGIR MES NASCIMENTO (#ERROR!)
     </button>
   </div>
 </div>
@@ -879,10 +861,7 @@
     if (!e.altKey) return;
     switch(e.key.toLowerCase()) {
       case 'a': run('runAplicarEstrutura'); break;
-      case 'f': run('runCorrigirFinanceira'); break;
-      case 'c': run('runCorrigirConsulta'); break;
       case 'n': run('runNormalizar'); break;
-      case 'v': run('runValidarPastas'); break;
       case 'o': run('runNovoProtocolo'); break;
       case 'p': run('runLancarProtocolo'); break;
       case 's': runRAS('runGerarRASSelecionado'); break;
