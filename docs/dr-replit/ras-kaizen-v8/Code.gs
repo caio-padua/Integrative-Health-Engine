@@ -373,6 +373,12 @@ function aplicarEstruturaCompleta() {
   // 9. COCKPIT (DEPOIS do cadastro — dropdown funciona)
   estruturarCockpit_(abaCockpit, ss);
   log.push('[OK] COCKPIT estruturado (3 blocos: paciente / data / substancias)');
+
+  // 9b. MULTI-COCKPIT (D8): cria/repara COCKPIT 2/3/4, garante colunas aditivas
+  // (NUMERO PROTOCOLO / COCKPIT ORIGEM) e normaliza o espaco da dose nos blocos.
+  if (typeof aplicarEstruturaMultiCockpit_ === 'function') {
+    aplicarEstruturaMultiCockpit_(ss, abaRAS, abaCadSub, log);
+  }
   
   // 10. Formatação geral
   aplicarFormatacao_(abaRAS);
@@ -645,7 +651,7 @@ function estruturarCockpit_(sheet, ss) {
   var COLS = 9; // A:I
 
   // ═══ TITULO ═══
-  sheet.getRange('A1:I1').merge().setValue('COCKPIT — CRIACAO DE PROTOCOLOS')
+  sheet.getRange('A1:I1').merge().setValue(sheet.getName() + ' — CRIACAO DE PROTOCOLOS')
     .setFontSize(14).setFontWeight('bold').setBackground(COR.navy).setFontColor(COR.dourado)
     .setHorizontalAlignment('center').setVerticalAlignment('middle');
   sheet.setRowHeight(1, 34);
@@ -662,6 +668,23 @@ function estruturarCockpit_(sheet, ss) {
       .requireValueInRange(abaPac.getRange('A3:A500'), true).setAllowInvalid(false).build();
     sheet.getRange('B4').setDataValidation(rulePac);
   }
+
+  // No PROTOCOLO (D3) + LANCAR NA AGENDA AO EMITIR (D6)
+  sheet.getRange('A5').setValue('Nº PROTOCOLO:').setFontWeight('bold').setHorizontalAlignment('left');
+  var optsProtocolo = [];
+  for (var pNum = 0; pNum <= 100; pNum++) { optsProtocolo.push(('00' + pNum).slice(-3)); }
+  var ruleProtocolo = SpreadsheetApp.newDataValidation()
+    .requireValueInList(optsProtocolo, true).setAllowInvalid(false).build();
+  sheet.getRange('B5').setDataValidation(ruleProtocolo).setNumberFormat('@').setValue('000')
+    .setBackground(COR.azulPastel).setFontWeight('bold').setHorizontalAlignment('center')
+    .setBorder(true, true, true, true, false, false, COR.azulSuave, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange('C5:E5').merge().setValue('LANCAR NA AGENDA AO EMITIR?')
+    .setFontWeight('bold').setHorizontalAlignment('right').setFontSize(9);
+  var ruleAgenda = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['NAO', 'SIM'], true).setAllowInvalid(false).build();
+  sheet.getRange('F5').setDataValidation(ruleAgenda).setValue('NAO')
+    .setBackground('#FFE0B2').setFontWeight('bold').setHorizontalAlignment('center')
+    .setBorder(true, true, true, true, false, false, '#E65100', SpreadsheetApp.BorderStyle.SOLID);
 
   // ═══ 2. DATA DE INICIO DO PROTOCOLO (padrao de todas as substancias) ═══
   sheet.getRange('A6:I6').merge().setValue('  2. DATA DE INICIO DO PROTOCOLO  (padrao de todas as substancias)')
@@ -1420,7 +1443,10 @@ function parseDataCelula_(v) {
 
 function lancarProtocolo() {
   var ss = getSS_();
-  var cockpit = ss.getSheetByName('COCKPIT');
+  // D2: lanca a partir da ABA ATIVA, se for um cockpit (COCKPIT / COCKPIT 2/3/4).
+  // ANTES (compat): var cockpit = ss.getSheetByName('COCKPIT');
+  var cockpit = (typeof cockpitAtivo_ === 'function') ? cockpitAtivo_() : ss.getSheetByName('COCKPIT');
+  var nomeCockpit = cockpit ? cockpit.getName() : 'COCKPIT';
   var ras = ss.getSheetByName(ABA_PRINCIPAL);
   if (!cockpit || !ras) return 'ERRO: Abas nao encontradas';
   
@@ -1460,6 +1486,13 @@ function lancarProtocolo() {
   var dia = cockpit.getRange('B8').getValue() || new Date().getDate();
   var mes = cockpit.getRange('C8').getValue() || (new Date().getMonth() + 1);
   var ano = cockpit.getRange('D8').getValue() || new Date().getFullYear();
+
+  // D3: numero de protocolo (B5) + D6: lancar na agenda ao emitir (F5)
+  var numeroProtocolo = (typeof formatarNumeroProtocolo_ === 'function')
+    ? formatarNumeroProtocolo_(cockpit.getRange('B5').getValue())
+    : String(cockpit.getRange('B5').getValue() || '000');
+  var lancarNaAgenda = String(cockpit.getRange('F5').getValue() || 'NAO').trim().toUpperCase() === 'SIM';
+  log.push('[OK] Cockpit origem: ' + nomeCockpit + ' | No protocolo: ' + numeroProtocolo);
   
   log.push('[OK] Paciente: ' + paciente);
   log.push('[OK] Substancias: ' + substancias.length);
@@ -1497,6 +1530,23 @@ function lancarProtocolo() {
     log.push('[AVISO] "' + paciente + '" nao encontrado no CADASTRO PACIENTES — gravado so o nome');
   }
 
+  // D3/D4 + sugestao 10.4: gravar numero de protocolo e cockpit de origem (colunas aditivas)
+  if (typeof getOrCreateColAgenda_ === 'function') {
+    var colProtocolo = getOrCreateColAgenda_(ras, 'NUMERO PROTOCOLO');
+    var colOrigem    = getOrCreateColAgenda_(ras, 'COCKPIT ORIGEM');
+    ras.getRange(nextRow, colProtocolo).setValue(numeroProtocolo).setNumberFormat('@');
+    ras.getRange(nextRow, colOrigem).setValue(nomeCockpit);
+    var ultimaDup = getLastDataRow_(ras, colNome);
+    for (var rDup = 3; rDup < nextRow && rDup <= ultimaDup; rDup++) {
+      var nomeDup = removerAcentos_(String(ras.getRange(rDup, colNome).getValue() || '')).toUpperCase();
+      var protDup = String(ras.getRange(rDup, colProtocolo).getValue() || '');
+      if (nomeDup === nomeUpper && protDup === numeroProtocolo) {
+        log.push('[AVISO] Ja existe protocolo ' + numeroProtocolo + ' para "' + paciente + '" na linha ' + rDup + ' — gravei mesmo assim (sao 2 linhas).');
+        break;
+      }
+    }
+  }
+
   // Buscar colunas de substância e marcar SIM
   var headers = ras.getRange(1, 1, 1, ras.getLastColumn()).getValues()[0];
   
@@ -1507,7 +1557,11 @@ function lancarProtocolo() {
     var sAno = sub.inicioOverride ? sub.inicioOverride.ano : ano;
     // Buscar coluna da substância pelo nome
     for (var c = 0; c < headers.length; c++) {
-      if (normalizeHeader_(headers[c]).indexOf(normalizeHeader_(sub.nome)) !== -1) {
+      // D7: match tolerante a espaco entre numero e unidade ("200 mg" == "200mg")
+      var _matchSub = (typeof normSemEspaco_ === 'function')
+        ? (normSemEspaco_(headers[c]).indexOf(normSemEspaco_(sub.nome)) !== -1)
+        : (normalizeHeader_(headers[c]).indexOf(normalizeHeader_(sub.nome)) !== -1);
+      if (_matchSub) {
         // Bloco: SIM/NAO(c) | SESS(c+1) | FREQ(c+2) | DIA(c+3) | MES(c+4) | ANO(c+5)
         ras.getRange(nextRow, c + 1).setValue('SIM');
         ras.getRange(nextRow, c + 2).setValue(sub.sessoes);
@@ -1522,6 +1576,21 @@ function lancarProtocolo() {
   });
   
   log.push('[FIM] Protocolo lancado na linha ' + nextRow);
+  // D6: se o toggle do cockpit estiver SIM, lanca a agenda APENAS da linha emitida
+  if (lancarNaAgenda && typeof lancarAgendaPaciente_ === 'function') {
+    try {
+      var resAgenda = lancarAgendaPaciente_(ras, nextRow, { modo: 'novos' }, []);
+      if (resAgenda && resAgenda.pulado) {
+        log.push('[AGENDA] linha ' + nextRow + ' pulada: ' + (resAgenda.motivo || 'inalterado'));
+      } else {
+        var nomeAg = (resAgenda && resAgenda.nome) ? resAgenda.nome : 'paciente';
+        var evAg = (resAgenda && resAgenda.eventos) ? resAgenda.eventos : 0;
+        log.push('[AGENDA] ' + nomeAg + ': ' + evAg + ' evento(s) na linha ' + nextRow);
+      }
+    } catch (eAg) {
+      log.push('[AGENDA][ERRO] ' + eAg.message);
+    }
+  }
   return log.join('\n');
 }
 

@@ -477,6 +477,9 @@
     <button class="btn" onclick="runRAS('runGerarInformativo')">
       ℹ️ GERAR <span class="hotkey">I</span>NFORMATIVO SELECIONADO
     </button>
+    <button class="btn" onclick="apagarProtocoloLinha()">
+      APAGAR PROTOCOLO DA LINHA (exclusao total: eventos + remove a linha)
+    </button>
 
     <hr class="separator">
 
@@ -524,6 +527,9 @@
     </button>
     <button class="btn" onclick="run('runTestesOrdenacaoRas')">
       RODAR TESTES SEMANTICOS (ordem por categoria no RAS)
+    </button>
+    <button class="btn" onclick="run('runTestesMultiCockpit')">
+      RODAR TESTES SEMANTICOS (multi-cockpit + protocolo)
     </button>
   </div>
 </div>
@@ -821,6 +827,50 @@
     } else {
       runner[funcName]();
     }
+  }
+
+  // APAGAR PROTOCOLO POR LINHA (exclusao total, confirmacao dupla)
+  function apagarProtocoloLinha() {
+    if (operacaoEmCurso) return;
+    var campo = document.getElementById('linhaPaciente');
+    var rowNum = parseInt(campo ? campo.value : '', 10);
+    if (!rowNum || rowNum < 3) {
+      log('[ERRO] Digite o numero da linha a apagar (3 ou maior) no campo No da linha.');
+      if (campo) campo.focus();
+      return;
+    }
+    if (!confirm('EXCLUSAO TOTAL da linha ' + rowNum + ':\n- apaga os eventos da agenda dessa linha\n- REMOVE a linha (as de baixo sobem)\n\nUm backup da TABELA GERAL e criado antes. Continuar?')) {
+      log('[CANCELADO] Exclusao da linha ' + rowNum + ' abortada.');
+      return;
+    }
+    var conf = prompt('Confirmacao dupla: digite de novo o numero da linha (' + rowNum + '):');
+    if (String(conf).trim() !== String(rowNum)) {
+      log('[CANCELADO] Numero nao confere — exclusao abortada.');
+      return;
+    }
+    setButtonsDisabled(true);
+    setStatus(true, 'Apagando linha ' + rowNum + '...');
+    showProgress(40, 'Apagando...');
+    log('[EXEC] runApagarProtocoloLinha (linha ' + rowNum + ')');
+    google.script.run
+      .withSuccessHandler(function(result) {
+        showProgress(100, 'Concluido!');
+        try {
+          var data = JSON.parse(result);
+          if (data.error) log('[ERRO] ' + data.error);
+          else log(data.log || '[OK] Concluido');
+        } catch (e) { log(result || '[OK]'); }
+        setTimeout(hideProgress, 1500);
+        setButtonsDisabled(false);
+        setStatus(false, 'Pronto');
+      })
+      .withFailureHandler(function(err) {
+        hideProgress();
+        log('[ERRO] ' + err.message);
+        setButtonsDisabled(false);
+        setStatus(false, 'Erro');
+      })
+      .runApagarProtocoloLinha(rowNum);
   }
 
   // ═══ KEYBOARD SHORTCUTS ═══

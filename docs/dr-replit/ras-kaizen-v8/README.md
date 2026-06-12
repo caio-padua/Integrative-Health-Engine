@@ -6,7 +6,8 @@
 
 ## Conteúdo da pasta
 
-1. `Code.gs` — espelho EXATO do Code.gs do Caio (3.445 linhas).
+1. `Code.gs` — espelho EXATO do Code.gs do Caio (~3.510 linhas; ganchos
+   aditivos do multi-cockpit em 12/06/2026).
 2. `Panel.html` — espelho do painel lateral (tema Windows 97) + seção nova
    "Agenda Automática" (5 botões).
 3. `AgendamentoGoogleCalendar.gs` — MÓDULO NOVO (Dr. Replit), porte do
@@ -19,7 +20,10 @@
    categoria SÓ na geração do RAS (em memória); nada muda na planilha.
 6. `NovoProtocoloCockpit.gs` — MÓDULO NOVO. Botão que limpa só o formulário
    do COCKPIT (B4 + B8:D8 + A13:I27) pra começar outro protocolo.
-7. `README.md` — este índice.
+7. `MultiCockpitProtocolo.gs` — MÓDULO NOVO (12/06/2026). 4 cockpits
+   independentes + nº de protocolo (dropdown 000-100) + apagar protocolo por
+   linha (exclusão total c/ backup) + testes semânticos.
+8. `README.md` — este índice.
 
 ## Contas Google envolvidas
 
@@ -87,6 +91,24 @@
 4. `NovoProtocoloCockpit.gs` (FEITO em 12/06/2026):
    4.1. Botão "NOVO PROTOCOLO" (Alt+O) limpa só o formulário do COCKPIT
         (`clearContent` em B4, B8:D8, A13:I27). Não toca em nenhuma outra aba.
+
+5. `MultiCockpitProtocolo.gs` (FEITO em 12/06/2026):
+   5.1. 4 abas de cockpit independentes (COCKPIT, COCKPIT 2/3/4). O botão
+        LANCAR age na ABA ATIVA (`cockpitAtivo_`); título da aba é dinâmico.
+   5.2. Campo "Nº PROTOCOLO" no cockpit (B5, dropdown 000-100, texto 3 dígitos);
+        gravado na coluna aditiva "NUMERO PROTOCOLO" da TABELA GERAL +
+        "COCKPIT ORIGEM". Mesmo paciente = várias linhas (1 por protocolo).
+   5.3. Toggle "LANCAR NA AGENDA AO EMITIR?" (célula F5 do cockpit); se SIM,
+        `lancarProtocolo` chama `lancarAgendaTodos_({modo:'novos'})` no fim.
+   5.4. Aviso de duplicidade (mesmo paciente + mesmo nº de protocolo já existe)
+        — não bloqueia, só alerta no log.
+   5.5. Match de substância tolerante a espaço entre número e unidade
+        ("200 mg" == "200mg") via `normSemEspaco_`.
+   5.6. "aplicar estrutura completa" agora cria/repara os 4 cockpits, garante as
+        colunas aditivas e normaliza o espaço da dose nos nomes dos blocos.
+   5.7. Botão Panel "APAGAR PROTOCOLO DA LINHA" — exclusão TOTAL (apaga eventos
+        da agenda + `deleteRow`), com BACKUP datado antes e confirmação dupla.
+   5.8. Botão Panel "RODAR TESTES SEMANTICOS (multi-cockpit + protocolo)".
 
 ## O que FALTA (decidir antes de codar)
 

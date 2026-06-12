@@ -28,7 +28,28 @@ como mirror passivo — os .gs novos também não existem no script dele até el
 colar. Mas o CEO travou "não editar Code.gs" pra não confundir o espelho, então
 qualquer toque no Code.gs vira decisão dele.
 
+## Quirk de edição: `Code.gs` tem fim de linha CRLF
+
+- `Code.gs` (e `Panel.html` tem emoji/box-chars) usa terminador **CRLF** (`\r\n`).
+  O tool `edit` casa verbatim com `\n`, então qualquer `old_string` multilinha
+  FALHA com "did not appear verbatim" — só edits de 1 linha passam.
+- **How to apply:** pra edits multilinha no Code.gs, usar script Node via bash
+  (`indexOf` + `slice`, montando blocos com `EOL='\r\n'`), validar unicidade do
+  anchor, e `node --check` numa cópia `.js` no fim. Ancorar em tokens ASCII
+  (evitar linhas com `═══` e blanks com trailing space).
+
 ## Detalhes do domínio que não estão óbvios no código
+
+- Multi-cockpit: 4 abas (COCKPIT, COCKPIT 2/3/4). `lancarProtocolo` mira a ABA
+  ATIVA via `cockpitAtivo_` (fallback 'COCKPIT'). Nº protocolo no B5 do cockpit
+  (dropdown 000-100, texto 3 díg.), toggle agenda no F5. Grava colunas aditivas
+  NUMERO PROTOCOLO + COCKPIT ORIGEM. Mesmo paciente = N linhas (1/protocolo).
+- Toggle "lançar ao emitir" usa `lancarAgendaPaciente_(ras, nextRow, {modo:'novos'}, [])`
+  — SÓ a linha emitida, NÃO `lancarAgendaTodos_` (esse varre o backlog inteiro e
+  surpreende). O primitivo por-linha do motor é `lancarAgendaPaciente_`.
+- Match de substância header↔nome é tolerante a espaço número/unidade via
+  `normSemEspaco_` (remove TODOS espaços; "200 mg"=="200mg"). `normalizeHeader_`
+  do Code.gs mantém 1 espaço — NÃO mexer nela (uso amplo).
 
 - CONSULTA/RETORNO são itens da aba CADASTRO SUBSTANCIAS (categoria
   CONSULTA/RETORNO, sem via), NÃO estão no array `CATALOGO_SUBSTANCIAS`. Podem
