@@ -216,6 +216,17 @@ function getOrCreatePastaCliente_(nome, cpf) {
   return it.hasNext() ? it.next() : raiz.createFolder(nomePasta);
 }
 
+/**
+ * Acha a subpasta do cliente SEM criar (null se nao existir).
+ * Usado nos caminhos de SO LEITURA (carregar/visualizar) pra nunca criar pasta
+ * vazia so por abrir um paciente — a pasta nasce no registro/PDF.
+ */
+function acharPastaClienteSeExistir_(nome, cpf) {
+  var raiz = DriveApp.getFolderById(FAP_CONFIG.pastaRaizClientesId);
+  var it = raiz.getFoldersByName(nomePastaCliente_(nome, cpf));
+  return it.hasNext() ? it.next() : null;
+}
+
 /** Le o estado de aplicacoes (aplicacoes.json) da pasta do cliente. */
 function lerEstadoAplicacoes_(pastaCliente) {
   var it = pastaCliente.getFilesByName(FAP_CONFIG.arquivoEstado);
@@ -274,7 +285,8 @@ function registrarAplicacao_(dados) {
 /** Le o set de aplicadas direto da pasta do cliente (fonte da verdade). */
 function lerSetAplicadasCliente_(nome, cpf) {
   try {
-    var pasta = getOrCreatePastaCliente_(nome, cpf);
+    var pasta = acharPastaClienteSeExistir_(nome, cpf);
+    if (!pasta) return {};
     return montarSetAplicadas_(lerEstadoAplicacoes_(pasta));
   } catch (e) {
     return {};

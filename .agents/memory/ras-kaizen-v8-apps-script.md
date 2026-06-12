@@ -80,6 +80,20 @@ qualquer toque no Code.gs vira decisão dele.
   vazaria dado clínico; o gate em código fecha isso.
 - CPF nunca trafega pro cliente; o servidor sempre re-deriva do CADASTRO PACIENTES.
 
+## Teste de integração quando o agente não executa Apps Script (durável)
+
+- Os testes puros (`node`) só cobrem lógica sem API. A camada Sheet/Drive/Cache/PDF
+  fica sem prova viva porque o agente não roda Apps Script.
+- Padrão "SONDA": uma função `runSonda...()` + botão no Panel que o CEO clica, rodando
+  DENTRO da conta dele. Para ser segura ela DEVE: (1) ser SOMENTE LEITURA na planilha;
+  (2) fazer escrita só num registro FICTÍCIO isolado e apagar no `finally`;
+  (3) nunca gerar PDF/email a paciente real; (4) se mexer no contador de bloqueio de
+  PIN de um paciente real, LIMPAR o contador no `finally` (senão trava a enfermeira real).
+  **Why:** integração real exige o runtime do Apps Script, mas não pode sujar dado
+  clínico nem deixar efeito colateral; a fronteira leitura-real + escrita-fictícia
+  resolve os dois. Fabricar linha de paciente na planilha (cobertura máxima, inclui
+  PDF) é decisão do CEO com backup antes — não é o default.
+
 ## Armadilha de encoding ao editar via shell (durável)
 
 - NUNCA usar `perl -0pi` com caractere multibyte (ex.: `\u25b8`) no replacement:

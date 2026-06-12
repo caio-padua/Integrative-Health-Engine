@@ -142,8 +142,15 @@
         (`exigirAcessoApp_`, fail-closed: allowlist `APP_ENF_EMAILS_PERMITIDOS` em
         ScriptProperties + dono sempre passa) em todos os endpoints e no `doGet`.
         Implantar tambem como "Executar como: eu" + acesso restrito (PIN = 2o fator).
-   6.7. Testes: `node tests/test_app_enfermagem.mjs` → 33 OK / 0 FALHA.
+   6.7. Testes puros: `node tests/test_app_enfermagem.mjs` → 54 OK / 0 FALHA.
         Sintaxe dos `.gs` validada por `node --check` (copia `.js` temporaria).
+   6.8. Sonda de integracao (roda DENTRO da conta do CEO): botao
+        "RODAR SONDA (app enfermagem ponta a ponta)" no Panel chama
+        `runSondaEnfermagem()` em `TesteEnfermagem.gs`. Exercita list/carga/chaves/PIN
+        de um paciente real (SOMENTE LEITURA), round-trip de Drive num paciente
+        FICTICIO auto-limpo, idempotencia, e bloqueio de PIN sem deixar rastro.
+        NAO gera PDF/email a paciente real. Decisao + limites em
+        `docs/dr-replit/PROPOSTAS/2026-06-12_sonda-integracao-app-enfermagem.md`.
 
 ## O que FALTA (decidir antes de codar)
 

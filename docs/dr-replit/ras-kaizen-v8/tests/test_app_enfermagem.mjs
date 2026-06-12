@@ -108,5 +108,40 @@ ok('email na allowlist autorizado', api.emailAutorizadoApp_('enf@x.com', 'dono@x
 ok('email fora da lista negado', api.emailAutorizadoApp_('intruso@x.com', 'dono@x.com', 'enf@x.com'), false);
 ok('lista vazia + nao-dono negado (fail-closed)', api.emailAutorizadoApp_('alguem@x.com', 'dono@x.com', ''), false);
 
+console.log('== PIN — mais variaveis ==');
+ok('pin sobrenome hifenizado', api.derivarPin_('Saint-Clair', 9, 7, 1985), 'sain8507');
+ok('pin sobrenome com apostrofo', api.derivarPin_("O'Brien", 3, 12, 2000), 'obri0012');
+ok('pin sobrenome <4 letras', api.derivarPin_('Re', 10, 6, 1999), 're9906');
+ok('pin mes dezembro 2 digitos', api.derivarPin_('Souza', 25, 12, 1970), 'souz7012');
+ok('pin ano 1 digito padded', api.derivarPin_('Lima', 1, 1, 2), 'lima0201');
+okTrue('pin sempre minusculo', api.derivarPin_('PADUA', 1, 1, 1990) === 'padu9001');
+
+console.log('== rubrica — mais variaveis ==');
+ok('rubrica 2 partes', api.rubricaPaciente_('Ana Lima'), 'Lima, A.');
+ok('rubrica espacos repetidos', api.rubricaPaciente_('  Joao   Pedro   Silva  '), 'Silva, J.P.');
+ok('rubrica vazia', api.rubricaPaciente_(''), '');
+
+console.log('== chave — mais variaveis ==');
+ok('chave trim substancia e sessao', api.chaveAplicacao_('  B12  ', '  3/7 '), 'B12|3/7');
+ok('chave sessao nula', api.chaveAplicacao_('B12', null), 'B12|');
+
+console.log('== pasta cliente — mais variaveis ==');
+ok('pasta sem cpf', api.nomePastaCliente_('Ana Lima', ''), 'Ana Lima');
+ok('pasta cpf com hifen/ponto', api.nomePastaCliente_('Ana Lima', '111.222.333-44'), 'Ana Lima 11122233344');
+
+console.log('== arquivo fap — mais variaveis ==');
+ok('arquivo fap (3/3)', api.nomeArquivoRasFap_('RAS Joao', 3, 3), 'RAS Joao (3/3)');
+ok('arquivo fap n=0 sem sufixo', api.nomeArquivoRasFap_('RAS Joao', 0, 5), 'RAS Joao');
+
+console.log('== bloqueio — limites ==');
+ok('bloqueio max=0 desligado', api.avaliarBloqueioPin_(10, 0).bloqueado, false);
+ok('bloqueio restantes nunca negativo', api.avaliarBloqueioPin_(9, 5).restantes, 0);
+
+console.log('== autorizacao — mais variaveis ==');
+ok('email case-insensitive na lista', api.emailAutorizadoApp_('ENF@X.com', 'dono@x.com', 'enf@x.com'), true);
+ok('lista separada por ponto-e-virgula', api.emailAutorizadoApp_('b@x.com', 'dono@x.com', 'a@x.com; b@x.com'), true);
+ok('espacos em volta do email', api.emailAutorizadoApp_('  enf@x.com  ', 'dono@x.com', 'enf@x.com'), true);
+ok('dono case-insensitive', api.emailAutorizadoApp_('DONO@X.COM', 'dono@x.com', ''), true);
+
 console.log('\n== RESULTADO: ' + passou + ' OK / ' + falhou + ' FALHA ==');
 process.exit(falhou === 0 ? 0 : 1);
