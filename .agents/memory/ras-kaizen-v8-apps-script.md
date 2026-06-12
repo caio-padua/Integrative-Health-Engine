@@ -133,3 +133,16 @@ qualquer toque no Code.gs vira decisão dele.
 - `git push github` falha com "Password authentication is not supported" quando o token
   do remoto expira; nenhum agente conserta o token. O CEO precisa RECONECTAR o provedor
   GitHub no painel Git do Replit. Commits/checkpoints locais ficam seguros enquanto isso.
+
+## Padronizacao de nomes de substancia — 12/06/2026
+- CADASTRO SUBSTANCIAS e a FONTE DA VERDADE; ORCAMENTO/FINANCEIRO/TABELA tem nomes
+  livres que sao CASADOS contra ele (nunca o contrario).
+- Nome canonico = "Coenzima Q10 100mg": sem acento, Title Case por palavra, MAS
+  palavra com digito/sinal/sigla/letra-unica fica CAIXA ALTA (Q10/B12/ET-7/NAD+/NAC/
+  HCG/DMSA/DHEA/PQQ/ADEK/Vitamina C/Complexo B); dosagem colada+minuscula (600.000ui).
+- ARMADILHA (bug que o relatorio real pegou): substancia com VARIAS dosagens
+  (Testosterona Bio 25/200/1000, Tirzepatida 2,5/5/10, HCG 500/5000) NAO pode casar
+  so por nome — tem que DESAMBIGUAR pela dose do texto livre; sem dose ou dose
+  inexistente => fail-closed (SEM_CORRESPONDENCIA), nunca chutar a 1a dose.
+- **Why:** casar por nome pegava sempre a 1a dose do catalogo e gravava preco errado
+  no FINANCEIRO. Validar SEMPRE com o relatorio sobre dados reais, nao so unit tests.
