@@ -60,3 +60,9 @@ qualquer toque no Code.gs vira decisão dele.
   nada muda na planilha. Ordem travada pelo CEO: antioxidante, vitamina,
   hormônio, esteroide, peptídeo, mineral, demais (POLIFENOL→demais, COMPLEXO
   VIT.→vitamina, ajustáveis em 1 linha).
+
+- Sheets: `range.merge()` que abrange linhas 1-2 do topo QUEBRA com "mesclar
+  congeladas com nao congeladas" se a aba ja tinha 1 linha congelada de versao
+  antiga. `sheet.clear()` NAO reseta frozenRows. Regra: sempre `setFrozenRows(0)`
+  ANTES de mesclar o topo nos rebuilders (garantirCabecalhoCadastro_,
+  estruturarCadastroPacientes_, estruturarCockpit_) e recongelar no fim.

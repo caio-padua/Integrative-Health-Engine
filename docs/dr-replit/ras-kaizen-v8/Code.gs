@@ -451,6 +451,7 @@ function popularCatalogoSubstancias_(sheet) {
  */
 // Escreve SOMENTE o cabecalho de 2 linhas do CADASTRO (NAO toca em dados da linha 3+).
 function garantirCabecalhoCadastro_(sheet) {
+  sheet.setFrozenRows(0); // D: descongela antes de mesclar o topo (evita erro "mesclar congeladas com nao congeladas")
   try { sheet.getRange(1, 1, 2, 7).breakApart(); } catch (e) {}
   sheet.getRange(1, 1, 2, 7).clearContent();
   sheet.getRange(1, 1, 2, 1).merge().setValue('NOME DO PACIENTE');
@@ -602,6 +603,7 @@ function estruturarCadastroPacientes_(sheet) {
   // ── 3. Reescrever: cabeçalho de 2 linhas + dados na linha 3 (dados já preservados em 'existentes') ──
   var clearRows = Math.max(sheet.getMaxRows(), 2);
   sheet.getRange(1, 1, clearRows, Math.max(7, lastCol)).clearContent();
+  sheet.setFrozenRows(0); // D: descongela antes de mesclar o topo (evita erro "mesclar congeladas com nao congeladas")
   try { sheet.getRange(1, 1, 2, 7).breakApart(); } catch (e) {}
   sheet.getRange(1, 1, 2, 1).merge().setValue('NOME DO PACIENTE');
   sheet.getRange(1, 2, 2, 1).merge().setValue('CPF');
@@ -644,6 +646,7 @@ function popularCadastroPacientes() {
  */
 function estruturarCockpit_(sheet, ss) {
   sheet.clear();
+  sheet.setFrozenRows(0); // D: descongela antes de mesclar o topo (evita erro "mesclar congeladas com nao congeladas")
   // Desfazer merges/validacoes antigas (evita conflito de overlap ao re-mesclar)
   try { sheet.getRange(1, 1, sheet.getMaxRows(), Math.max(12, sheet.getMaxColumns())).breakApart(); } catch (e) {}
   sheet.getRange(1, 1, sheet.getMaxRows(), 12).clearDataValidations();
