@@ -114,3 +114,37 @@
 9.8 Falta so do CEO: as 3 doses/cadastro de 9.3 (preencher coluna "para" da aba
     APELIDOS). O resto do glue (varredura write-back + layout PENUMBRA) eu monto como
     botoes do Panel; o CEO clica (nenhum AI roda Apps Script).
+
+## 10. Atualizacao 12/06 (2a leva) — peptideos + glue write-back
+
+10.1 Item 4 = SIM (dose-no-nome confirmado pelo CEO): identidade = nome + dose.
+     `Vitamina B12 2500mcg` e `Vitamina D3 600.000ui` validados. `Vitamina ADEK 600.000ui`
+     cadastrado.
+
+10.2 Peptideo X resolvido: apelido `Peptideo X (emagrecimento)` -> `Tesamorelin 10mg`
+     (status ATIVO). O teste que afirmava "Peptideo X -> null" foi ATUALIZADO.
+
+10.3 Peptideos ADICIONADOS ao catalogo (grafia oficial do CEO, preservada pelo motor):
+     AOD 9604 10mg, Ipamorelin 5mg, PT 141 10mg, CJC 1296 + Ipamorelin 5/5mg,
+     GLOW 10/10/5mg, GHK-Cu 100mg, Selank 10mg, MOTS-C 10mg, BPC 157 + TB 500 10/10mg.
+
+10.4 Motor (`Padronizacao.gs`): novos acronimos AOD/PT/CJC/BPC/TB/GLOW/MOTS/GHK em caixa
+     alta ("Cu" de cobre NAO e sigla -> fica `GHK-Cu`). `normalizarPalavraSub_` refatorado
+     com `normalizarTokenBase_` pra tratar hifen SEM digito (GHK-Cu, MOTS-C) sem recursao,
+     preservando ET-7/NAD+/NAC N-Acetil. Regressao coberta por teste.
+
+10.5 Glue write-back (`VarreduraSubstancias.gs`, NOVO) — BOTAO pedido pelo CEO:
+     - `runReplicarSubstancias` -> aba REPLICA SUBSTANCIAS (espelho consolidado legivel
+       do CADASTRO + APELIDOS; fonte da verdade continua CADASTRO + APELIDOS).
+     - `runVarreduraPreview` -> aba VARREDURA PREVIEW (dry-run, NAO altera nada): diff
+       BEFORE->AFTER com STATUS/VIA por linha.
+     - `runVarreduraAplicar` -> grava o nome canonico de volta nas abas-alvo, fail-closed
+       (so escreve status OK + que mudou; orfaos ficam intactos).
+     - `ALVOS_VARREDURA` configuravel (aba/coluna/linhaInicio). Vazio = nada e tocado.
+     3 botoes novos no Panel.html (secao "Padronizacao de Substancias").
+
+10.6 Testes: `tests/test_padronizacao.mjs` = 66 OK / 0 FALHA (inclui bateria dos 9
+     peptideos + regressao hifen). `node --check` OK nos 3 .gs + glue novo.
+
+10.7 Code review (architect) = PASS. Ressalva registrada: REPLICA e espelho, nao fonte
+     editavel — comportamento intencional e documentado no cabecalho do glue.

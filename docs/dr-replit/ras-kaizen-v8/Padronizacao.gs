@@ -16,7 +16,9 @@
 
 var ACRONIMOS_SUBSTANCIA = {
   NAC: 1, DMSA: 1, HCG: 1, DHEA: 1, PQQ: 1, ADEK: 1, NAD: 1, DMAE: 1,
-  EV: 1, IM: 1, SC: 1, UI: 1
+  EV: 1, IM: 1, SC: 1, UI: 1,
+  // peptideos (siglas oficiais — ficam em CAIXA ALTA; "Cu" NAO entra, fica "GHK-Cu")
+  AOD: 1, PT: 1, CJC: 1, BPC: 1, TB: 1, GLOW: 1, MOTS: 1, GHK: 1
 };
 
 /** Remove acentos (funciona em node e no Apps Script V8). */
@@ -35,13 +37,27 @@ function ehTokenCodigo_(w) {
   return /[0-9]/.test(w) || w.indexOf('+') >= 0;
 }
 
-/** Normaliza uma palavra do nome conforme as regras. */
-function normalizarPalavraSub_(w) {
+/** Normaliza UM pedaco simples (sem hifen): codigo->caixa alta, letra unica->maiuscula,
+ *  sigla conhecida->caixa alta, senao titulo. Usado nos pedacos de nomes hifenizados. */
+function normalizarTokenBase_(w) {
   if (!w) return '';
   if (ehTokenCodigo_(w)) return w.toUpperCase();
   if (w.length === 1) return w.toUpperCase();
   if (ACRONIMOS_SUBSTANCIA[w.toUpperCase()]) return w.toUpperCase();
-  return w.split('-').map(tituloPalavraSub_).join('-');
+  return tituloPalavraSub_(w);
+}
+
+/** Normaliza uma palavra do nome conforme as regras. */
+function normalizarPalavraSub_(w) {
+  if (!w) return '';
+  // 1) token inteiro com digito/sinal fica em CAIXA ALTA (ET-7, CT-15, NAD+, 9604, 1296)
+  if (ehTokenCodigo_(w)) return w.toUpperCase();
+  if (w.length === 1) return w.toUpperCase();
+  if (ACRONIMOS_SUBSTANCIA[w.toUpperCase()]) return w.toUpperCase();
+  // 2) nome hifenizado SEM digito (GHK-Cu, MOTS-C): normaliza cada pedaco por sigla,
+  //    preservando casos mistos como "Cu" (cobre) que nao sao siglas conhecidas
+  if (w.indexOf('-') >= 0) return w.split('-').map(normalizarTokenBase_).join('-');
+  return tituloPalavraSub_(w);
 }
 
 /** Nome da substancia no formato canonico (sem a dosagem). */

@@ -159,3 +159,15 @@ qualquer toque no Code.gs vira decisão dele.
   integracao github e healthy; pegar token via listConnections('github').settings.access_token
   no code_execution e dar `git push https://x-access-token:<token>@github.com/<repo> HEAD:<branch>`.
   O remote `origin` ja carrega um token embutido tambem. NUNCA imprimir o token.
+
+## Peptideos + hifen no nome canonico + glue write-back — 12/06/2026
+- Siglas de peptideo (AOD/PT/CJC/BPC/TB/GLOW/MOTS/GHK) ficam CAIXA ALTA, mas "Cu" de
+  cobre NAO e sigla: GHK-Cu fica misto. Nome hifenizado SEM digito (GHK-Cu, MOTS-C)
+  precisa normalizar pedaco-a-pedaco por sigla; hifen COM digito (ET-7) ja cai antes em
+  ehTokenCodigo_ (caixa alta inteiro). Cuidado: split por sigla nao pode recursar em
+  normalizarPalavraSub_ (loop) — usar um normalizador de token-base sem split.
+- Glue de write-back: PREVIEW dry-run SEMPRE como default (aba separada, nao toca dado);
+  APLICAR e botao distinto e fail-closed (so grava status OK + que mudou). Lista de
+  abas-alvo CONFIGURAVEL e vazia por default (nada e tocado sem o CEO configurar).
+- **Why:** o CEO clica os botoes na conta dele; um write-back sem preview/sem fail-closed
+  corromperia celulas reais de orcamento/financeiro irreversivelmente.

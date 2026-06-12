@@ -16,10 +16,10 @@ function extrair(nome) {
   for (; j < src.length; j++) { if (src[j] === '{') d++; else if (src[j] === '}') { d--; if (!d) { j++; break; } } }
   return src.slice(m.index, j);
 }
-const PURAS = ['removerAcentosSub_', 'tituloPalavraSub_', 'ehTokenCodigo_', 'normalizarPalavraSub_',
-  'padronizarNomeSubstancia_', 'padronizarDosagem_', 'montarNomeCanonico_', 'chaveBuscaSub_',
+const PURAS = ['removerAcentosSub_', 'tituloPalavraSub_', 'ehTokenCodigo_', 'normalizarTokenBase_',
+  'normalizarPalavraSub_', 'padronizarNomeSubstancia_', 'padronizarDosagem_', 'montarNomeCanonico_', 'chaveBuscaSub_',
   'extrairDoseLivre_', 'indexarApelidos_', 'acharPorCanonico_', 'resolverSubstanciaCanonica_', 'planejarVarredura_'];
-let comb = 'var ACRONIMOS_SUBSTANCIA = { NAC:1,DMSA:1,HCG:1,DHEA:1,PQQ:1,ADEK:1,NAD:1,DMAE:1,EV:1,IM:1,SC:1,UI:1 };\n';
+let comb = 'var ACRONIMOS_SUBSTANCIA = { NAC:1,DMSA:1,HCG:1,DHEA:1,PQQ:1,ADEK:1,NAD:1,DMAE:1,EV:1,IM:1,SC:1,UI:1,AOD:1,PT:1,CJC:1,BPC:1,TB:1,GLOW:1,MOTS:1,GHK:1 };\n';
 PURAS.forEach((n) => { comb += extrair(n) + '\n'; });
 comb += 'return { ' + PURAS.join(', ') + ' };';
 const api = new Function(comb)();
@@ -37,7 +37,11 @@ const catalogo = [
   ['DMSA', '250MG'], ['CURCUMINA', '100MG'], ['FOSFATIDILCOLINA', '500MG'], ['MELATONINA', '3MG'],
   ['DHEA', '50MG'], ['OZONIO TERAPIA', '60ML'], ['ET-7 ENANTATO', '250MG'], ['CT-15 CIPIONATO', '200MG'],
   ['DA-7 DURATESTON', '250MG'], ['MT-7 METENOLONA', '100MG'], ['BD-7 BOLDENONA', '200MG'],
-  ['DN-7 DROSTANOLONA', '100MG']
+  ['DN-7 DROSTANOLONA', '100MG'],
+  // peptideos novos (CEO 12/06): grafia oficial preservada pelo motor (Tesamorelin ja existia acima)
+  ['AOD 9604', '10MG'], ['IPAMORELIN', '5MG'], ['PT 141', '10MG'],
+  ['CJC 1296 + Ipamorelin', '5/5MG'], ['GLOW', '10/10/5MG'], ['GHK-Cu', '100MG'],
+  ['SELANK', '10MG'], ['MOTS-C', '10MG'], ['BPC 157 + TB 500', '10/10MG']
 ].map(([nome, dosagem]) => ({ nome, dosagem }));
 
 // ---- OCORRENCIAS REAIS (nomes livres nas demais abas) ----
@@ -70,7 +74,7 @@ const apelidos = [
   { de: 'VITAMINA B12 2500MG',        para: 'Vitamina B12 2500mcg',  status: 'ATIVO' },
   { de: 'Testosterona bioidentica',   para: '',                      status: 'REVISAR_DOSE' },
   { de: 'Tirzepatida',                para: '',                      status: 'REVISAR_DOSE' },
-  { de: 'Peptideo X (emagrecimento)', para: '',                      status: 'SEM_CADASTRO' }
+  { de: 'Peptideo X (emagrecimento)', para: 'Tesamorelin 10mg',      status: 'ATIVO' }
 ];
 
 console.log('==== CATALOGO CANONICO (CADASTRO SUBSTANCIAS, fonte da verdade) ====\n');

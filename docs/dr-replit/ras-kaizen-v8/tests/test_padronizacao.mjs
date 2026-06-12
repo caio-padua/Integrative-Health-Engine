@@ -23,12 +23,12 @@ function extrair(nome) {
 }
 
 const PURAS = [
-  'removerAcentosSub_', 'tituloPalavraSub_', 'ehTokenCodigo_', 'normalizarPalavraSub_',
-  'padronizarNomeSubstancia_', 'padronizarDosagem_', 'montarNomeCanonico_',
+  'removerAcentosSub_', 'tituloPalavraSub_', 'ehTokenCodigo_', 'normalizarTokenBase_',
+  'normalizarPalavraSub_', 'padronizarNomeSubstancia_', 'padronizarDosagem_', 'montarNomeCanonico_',
   'chaveBuscaSub_', 'extrairDoseLivre_', 'indexarApelidos_', 'acharPorCanonico_',
   'resolverSubstanciaCanonica_', 'planejarVarredura_'
 ];
-let combinado = 'var ACRONIMOS_SUBSTANCIA = { NAC:1,DMSA:1,HCG:1,DHEA:1,PQQ:1,ADEK:1,NAD:1,DMAE:1,EV:1,IM:1,SC:1,UI:1 };\n';
+let combinado = 'var ACRONIMOS_SUBSTANCIA = { NAC:1,DMSA:1,HCG:1,DHEA:1,PQQ:1,ADEK:1,NAD:1,DMAE:1,EV:1,IM:1,SC:1,UI:1,AOD:1,PT:1,CJC:1,BPC:1,TB:1,GLOW:1,MOTS:1,GHK:1 };\n';
 PURAS.forEach((n) => { combinado += extrair(n) + '\n'; });
 combinado += 'return { ' + PURAS.join(', ') + ' };';
 const api = new Function(combinado)();
@@ -57,7 +57,11 @@ const catalogo = [
   { nome: 'ET-7 ENANTATO', dosagem: '250MG' },
   { nome: 'NAC N-ACETIL CISTEINA', dosagem: '300MG' },
   { nome: 'VITAMINA C', dosagem: '10G' },
-  { nome: 'COMPLEXO B', dosagem: 'INJETAVEL' }
+  { nome: 'COMPLEXO B', dosagem: 'INJETAVEL' },
+  { nome: 'TESAMORELIN', dosagem: '10MG' },
+  { nome: 'GHK-Cu', dosagem: '100MG' },
+  { nome: 'MOTS-C', dosagem: '10MG' },
+  { nome: 'CJC 1296 + Ipamorelin', dosagem: '5/5MG' }
 ];
 
 console.log('== nome canonico (formato "Coenzima Q10 100mg") ==');
@@ -69,6 +73,20 @@ ok('letra unica caixa alta', api.padronizarNomeSubstancia_('VITAMINA C'), 'Vitam
 ok('Complexo B', api.padronizarNomeSubstancia_('COMPLEXO B'), 'Complexo B');
 ok('NAD+ preserva sinal', api.padronizarNomeSubstancia_('NAD+'), 'NAD+');
 ok('remove acentos', api.padronizarNomeSubstancia_('Acido Alfa Lipoico'), 'Acido Alfa Lipoico');
+
+console.log('== peptideos (siglas oficiais + combos + hifen, grafia do CEO) ==');
+ok('AOD 9604', api.montarNomeCanonico_('AOD 9604', '10MG'), 'AOD 9604 10mg');
+ok('Ipamorelin', api.montarNomeCanonico_('Ipamorelin', '5MG'), 'Ipamorelin 5mg');
+ok('PT 141', api.montarNomeCanonico_('PT 141', '10MG'), 'PT 141 10mg');
+ok('CJC 1296 + Ipamorelin combo', api.montarNomeCanonico_('CJC 1296 + Ipamorelin', '5/5MG'), 'CJC 1296 + Ipamorelin 5/5mg');
+ok('GLOW combo dose tripla', api.montarNomeCanonico_('GLOW', '10/10/5MG'), 'GLOW 10/10/5mg');
+ok('GHK-Cu (Cu cobre fica misto)', api.montarNomeCanonico_('GHK-Cu', '100MG'), 'GHK-Cu 100mg');
+ok('Selank', api.montarNomeCanonico_('Selank', '10MG'), 'Selank 10mg');
+ok('MOTS-C (sigla + letra unica)', api.montarNomeCanonico_('MOTS-C', '10MG'), 'MOTS-C 10mg');
+ok('BPC 157 + TB 500 combo', api.montarNomeCanonico_('BPC 157 + TB 500', '10/10MG'), 'BPC 157 + TB 500 10/10mg');
+ok('GHK-Cu MAIUSCULO ainda fica GHK-Cu', api.padronizarNomeSubstancia_('GHK-CU'), 'GHK-Cu');
+ok('regressao ET-7 com nova logica', api.padronizarNomeSubstancia_('ET-7 ENANTATO'), 'ET-7 Enantato');
+ok('regressao NAC-hifen com nova logica', api.padronizarNomeSubstancia_('NAC N-ACETIL CISTEINA'), 'NAC N-Acetil Cisteina');
 
 console.log('== dosagem canonica (cola unidade, minuscula) ==');
 ok('100 mg -> 100mg', api.padronizarDosagem_('100 mg'), '100mg');
@@ -108,7 +126,7 @@ const apelidos = [
   { de: 'VITAMINA B12 2500MG',        para: 'Vitamina B12 2500mcg',  status: 'ATIVO' },
   { de: 'Testosterona bioidentica',   para: '',                      status: 'REVISAR_DOSE' },
   { de: 'Tirzepatida',                para: '',                      status: 'REVISAR_DOSE' },
-  { de: 'Peptideo X (emagrecimento)', para: '',                      status: 'SEM_CADASTRO' }
+  { de: 'Peptideo X (emagrecimento)', para: 'Tesamorelin 10mg',      status: 'ATIVO' }
 ];
 // ATIVO resolve pro genotipo inequivoco
 ok('apelido ATIVO: D injetavel -> D3 600.000ui', api.resolverSubstanciaCanonica_('Vitamina D injetavel', catalogo, apelidos).canonico, 'Vitamina D3 600.000ui');
@@ -119,7 +137,7 @@ ok('apelido casa com acento+caixa diferente', api.resolverSubstanciaCanonica_('V
 // orfaos intencionais => null (CEO ainda nao decidiu a dose)
 okTrue('REVISAR_DOSE Testosterona -> null (intencional)', api.resolverSubstanciaCanonica_('Testosterona bioidentica', catalogo, apelidos) === null);
 okTrue('REVISAR_DOSE Tirzepatida -> null (intencional)', api.resolverSubstanciaCanonica_('Tirzepatida', catalogo, apelidos) === null);
-okTrue('SEM_CADASTRO Peptideo X -> null (intencional)', api.resolverSubstanciaCanonica_('Peptideo X (emagrecimento)', catalogo, apelidos) === null);
+ok('Peptideo X -> Tesamorelin 10mg (CEO decidiu)', api.resolverSubstanciaCanonica_('Peptideo X (emagrecimento)', catalogo, apelidos).canonico, 'Tesamorelin 10mg');
 // fail-closed: apelido que aponta pra algo fora do catalogo nao resolve
 okTrue('apelido para inexistente -> null (fail-closed)', api.resolverSubstanciaCanonica_('Algo Estranho', catalogo, [{ de: 'Algo Estranho', para: 'Coenzima Q10 999mg', status: 'ATIVO' }]) === null);
 // apelido tem PRIORIDADE sobre o catalogo
