@@ -115,3 +115,21 @@ qualquer toque no Code.gs vira decisão dele.
   (acentos viram `Â...`, emoji vira `ð`). Já corrompeu o `Panel.html` inteiro.
   **How to apply:** editar via Python `open(..., encoding='utf-8', newline='')`,
   detectar CRLF/LF e preservar; conferir `dupla-cod==0` por contagem de bytes.
+
+## Motor de orcamento (Orcamento.gs) — 12/06/2026
+- Parametros de desconto/entrada sao da PROPRIA planilha do CEO (paciente Luciano,
+  total 15960): a vista 15%, entrada 50% com 10%, entrada 30% com 5%, calculadora
+  livre sobre o TOTAL CHEIO (sem desconto) com taxa de cartao digitavel. Reproduzir
+  esses parametros, nao inventar outros.
+- CADASTRO SUBSTANCIAS ja tem PRECO UNIT + PRECO 3M/6M/12M (preco unitario por faixa
+  de DURACAO do programa em meses, mais barato quanto maior o compromisso) + FREQ/SESSOES.
+  Orcamento puxa preco/freq/sessoes da substancia por NOME+DOSAGEM.
+- Aba ORCAMENTO: col E=INCLUIR (1/vazio) zera o subtotal se vazio; SUBTOTAL = SESSOES x VALOR UNIT.
+- "Quanto recebemos por mes" = receita mensal = saldo/parcelas (entrada) ou total/parcelas
+  (parcelado) ou total (a vista). Lancar no FINANCEIRO so ADITIVO (veto de schema).
+- **Why:** evita ectoplasma — numeros de negocio sao do CEO, nao chutes do agente.
+
+## Push GitHub pode 401 (token expira) — 12/06/2026
+- `git push github` falha com "Password authentication is not supported" quando o token
+  do remoto expira; nenhum agente conserta o token. O CEO precisa RECONECTAR o provedor
+  GitHub no painel Git do Replit. Commits/checkpoints locais ficam seguros enquanto isso.
