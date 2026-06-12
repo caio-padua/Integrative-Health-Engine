@@ -221,3 +221,30 @@
 
 16.8. PARÂMETRO A CONFIRMAR: percentual do degrau (default recomendado **25%**) e se o cruzamento
       manhã↔tarde abre a 100% ("completa") ou também por degrau.
+
+## 17. CONSULTA / RETORNO em agenda SEPARADA do médico (decidido + implementado 12/06/2026)
+
+17.1. CONTEXTO: o Caio cadastrou **CONSULTA** e **RETORNO** como itens da aba
+      CADASTRO SUBSTANCIAS (categoria CONSULTA / RETORNO, **sem via**). Eles NÃO
+      estão no array `CATALOGO_SUBSTANCIAS` (hardcoded) — só na planilha.
+
+17.2. DECISÃO: CONSULTA e RETORNO vão pra **AGENDA MEDICO - CAIO PADUA - LOCAL**;
+      injetáveis continuam na **AGENDA ENFERMAGEM - LOCAL**. Cada um vira **evento
+      SEPARADO** (consulta nunca grudada no injetável).
+
+17.3. IMPLEMENTAÇÃO (`AgendamentoMotor.gs`):
+      - `classificarItemAgenda_` detecta CONSULTA/RETORNO de **dois jeitos**
+        (cinto e suspensório): pela **categoria** E pelo **nome** (`\bCONSULTA\b` /
+        `\bRETORNO\b`), porque categoria pode vir vazia (item 17.1).
+      - `montarMarcacoesAgenda_` divide cada ida por **agenda alvo + grupo** e
+        ordena médico (consulta, depois retorno) antes da enfermagem.
+      - `duracaoGrupoAgenda_`: consulta **60min**, retorno **30min**.
+      - Anti-duplo-agendamento do paciente: `ocupadosPorDia` impede que consulta
+        no médico e injetável na enfermagem caiam no mesmo horário (o paciente é
+        uma pessoa só).
+      - `try/catch` por evento: uma falha não derruba os demais (status PARCIAL,
+        idempotente, retenta na próxima rodada).
+
+17.4. TESTES SEMÂNTICOS (9 a 18) no `testesSemanticosAgenda_` + reforço em
+      `AgendamentoGoogleCalendar.gs` (`TEMPO_POR_TIPO.retorno=30`,
+      `determineCalendarRouting` roteando `retorno` → médico).

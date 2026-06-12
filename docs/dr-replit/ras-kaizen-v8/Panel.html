@@ -431,6 +431,9 @@
     <button class="btn" onclick="run('runReestruturarCockpit')">
       🧭 REESTRUTURAR COCKPIT (coluna INICIO por substancia)
     </button>
+    <button class="btn" onclick="run('runNovoProtocolo')">
+      NOV<span class="hotkey">O</span> PROTOCOLO (limpa so o formulario do cockpit)
+    </button>
     <button class="btn" onclick="run('runLancarProtocolo')">
       🚀 LANCAR <span class="hotkey">P</span>ROTOCOLO (COCKPIT → RAS)
     </button>
@@ -518,6 +521,9 @@
     <hr class="separator">
     <button class="btn" onclick="run('runTestesSemanticosAgenda')">
       RODAR TESTES SEMANTICOS (agenda)
+    </button>
+    <button class="btn" onclick="run('runTestesOrdenacaoRas')">
+      RODAR TESTES SEMANTICOS (ordem por categoria no RAS)
     </button>
   </div>
 </div>
@@ -827,6 +833,7 @@
       case 'c': run('runCorrigirConsulta'); break;
       case 'n': run('runNormalizar'); break;
       case 'v': run('runValidarPastas'); break;
+      case 'o': run('runNovoProtocolo'); break;
       case 'p': run('runLancarProtocolo'); break;
       case 's': runRAS('runGerarRASSelecionado'); break;
       case 'i': runRAS('runGerarInformativo'); break;

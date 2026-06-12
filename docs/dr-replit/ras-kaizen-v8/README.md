@@ -14,7 +14,12 @@
    Monta o evento (título, descrição rica, cor, roteamento).
 4. `AgendamentoMotor.gs` — MÓDULO NOVO (Dr. Replit). Motor que lê a TABELA
    GERAL, expande/consolida sessões e lança no Google Agenda. Idempotente.
-5. `README.md` — este índice.
+   Agora roteia CONSULTA/RETORNO pra agenda do MÉDICO em eventos separados.
+5. `OrdenacaoCategoriaRas.gs` — MÓDULO NOVO. Ordena as substâncias por
+   categoria SÓ na geração do RAS (em memória); nada muda na planilha.
+6. `NovoProtocoloCockpit.gs` — MÓDULO NOVO. Botão que limpa só o formulário
+   do COCKPIT (B4 + B8:D8 + A13:I27) pra começar outro protocolo.
+7. `README.md` — este índice.
 
 ## Contas Google envolvidas
 
@@ -62,6 +67,26 @@
         AGENDA EVENTOS / AGENDA LANCADO EM). Rodar de novo não duplica.
    2.5. 5 botões no Panel: Lançar / Reagendar pendentes / Reagendar tudo /
         Apagar / Testes semânticos.
+   2.6. CONSULTA/RETORNO (cadastrados na aba CADASTRO SUBSTANCIAS, categoria
+        CONSULTA/RETORNO, sem via) → **AGENDA MEDICO - CAIO PADUA - LOCAL**;
+        injetáveis → **AGENDA ENFERMAGEM - LOCAL**. Eventos SEPARADOS, médico
+        antes da enfermagem, anti-duplo-agendamento do paciente, try/catch por
+        evento. Detecção dupla (categoria E nome), pois CONSULTA/RETORNO não
+        estão no array `CATALOGO_SUBSTANCIAS`. Consulta 60min / retorno 30min.
+
+3. `OrdenacaoCategoriaRas.gs` (FEITO em 12/06/2026):
+   3.1. Ordem TRAVADA pelo Caio: 1 antioxidante, 2 vitamina, 3 hormônio,
+        4 esteroide, 5 peptídeo, 6 mineral, 7 demais.
+   3.2. Aplicada SÓ na geração do RAS (em memória), via `ordenarSubstanciasRas_`.
+        A planilha (TABELA GERAL, COCKPIT, CADASTRO) NÃO muda.
+   3.3. LIGAÇÃO necessária (1 linha aditiva no Code.gs, `montarPaginasRAS_`):
+        DE  `var allSubst = paciente.substancias || [];`
+        PARA `var allSubst = ordenarSubstanciasRas_(paciente.substancias || []);`
+   3.4. Botão "RODAR TESTES SEMANTICOS (ordem por categoria no RAS)" no Panel.
+
+4. `NovoProtocoloCockpit.gs` (FEITO em 12/06/2026):
+   4.1. Botão "NOVO PROTOCOLO" (Alt+O) limpa só o formulário do COCKPIT
+        (`clearContent` em B4, B8:D8, A13:I27). Não toca em nenhuma outra aba.
 
 ## O que FALTA (decidir antes de codar)
 

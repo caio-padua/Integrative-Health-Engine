@@ -13,8 +13,10 @@
  *   cai na PRIMEIRA aplicacao daquela semana -> 1 evento por semana.
  * - Cria o evento no Google Agenda com a descricao rica do
  *   AgendamentoGoogleCalendar.gs (criarAgendamentoRAS).
- * - Roteia a agenda por via (determineCalendarRouting):
- *   implante/consulta -> MEDICO ; injetaveis -> ENFERMAGEM.
+ * - Roteia a agenda por classe (classificarItemAgenda_):
+ *   CONSULTA/RETORNO/implante -> AGENDA MEDICO ; injetaveis -> AGENDA
+ *   ENFERMAGEM. CONSULTA e RETORNO viram eventos PROPRIOS (nunca caem
+ *   no mesmo evento dos injetaveis), mesmo quando na mesma semana.
  * - ANTI-COLISAO: acha o proximo horario livre na agenda alvo,
  *   comecando 09:00, dentro das janelas seg-sex 08-12 e 14-18.
  * - IDEMPOTENTE: grava HASH do protocolo + IDs dos eventos +
@@ -44,9 +46,9 @@ var CONFIG_AGENDA = {
   // Nomes EXATOS das agendas no Google Agenda da conta clinica.padua.agenda@gmail.com.
   // Se nao bater, o motor avisa no log e usa a agenda padrao da conta.
   calendarios: {
-    enfermagem: 'ENFERMAGEM',
-    medico:     'MEDICO CAIO',
-    geral:      'GERAL'
+    enfermagem: 'AGENDA ENFERMAGEM - LOCAL',
+    medico:     'AGENDA MEDICO - CAIO PADUA - LOCAL',
+    geral:      'AGENDA GERAL'
   },
   // Endereco da unidade p/ Maps/Waze na descricao. Preencha p/ ativar.
   // Ex: { rua:'Rua X 100', bairro:'Centro', cep:'01000-000', cidade:'Sao Paulo', estado:'SP' }
@@ -85,10 +87,10 @@ function lookupCatalogoAgenda_(nome) {
     var c = CATALOGO_SUBSTANCIAS[i];
     var cn = normalizeHeader_(c[0]);
     if (cn && (alvo.indexOf(cn) !== -1 || cn.indexOf(alvo) !== -1)) {
-      return { via: String(c[3] || '').toLowerCase(), dose: String(c[1] || '') };
+      return { via: String(c[3] || '').toLowerCase(), dose: String(c[1] || ''), categoria: String(c[2] || '').toUpperCase() };
     }
   }
-  return { via: '', dose: '' };
+  return { via: '', dose: '', categoria: '' };
 }
 
 // Duracao do evento consolidado, somando as classes presentes (bate com a
@@ -102,6 +104,63 @@ function calcularDuracaoAgenda_(substancias) {
   if (vias['implant']) total += TEMPO_POR_TIPO.implant;
   if (!total) total = 30;
   return total;
+}
+
+// Classifica um item do protocolo em ROTA (agenda alvo), GRUPO (bucket que vira
+// 1 evento) e TIPO (tipoProcedimento p/ cor + codigo da descricao).
+// Detecta CONSULTA/RETORNO por CATEGORIA *ou* pelo NOME — porque o Caio
+// cadastrou "CONSULTA DE CAIO" / "RETORNO DR CAIO" so na planilha CADASTRO
+// SUBSTANCIAS (nao no array CATALOGO_SUBSTANCIAS); a deteccao por nome garante
+// o roteamento mesmo sem a categoria vir do catalogo. (cinto e suspensorio)
+//   categoria/nome CONSULTA -> agenda MEDICO  (evento de consulta)
+//   categoria/nome RETORNO  -> agenda MEDICO  (evento de retorno/avaliacao)
+//   via implant / nome IMPLANT -> agenda MEDICO  (procedimento implante)
+//   demais (im / ev / sc)   -> agenda ENFERMAGEM (aplicacao injetavel)
+function classificarItemAgenda_(item) {
+  var nome = String(item.nome || '').toUpperCase();
+  var cat  = String(item.categoria || '').toUpperCase();
+  var via  = String(item.via || '').toLowerCase();
+  if (cat.indexOf('CONSULTA') !== -1 || /\bCONSULTA\b/.test(nome)) return { rota: 'medico', grupo: 'CONSULTA', tipo: 'CONSULTA_60_PRESENCIAL' };
+  if (cat.indexOf('RETORNO')  !== -1 || /\bRETORNO\b/.test(nome))  return { rota: 'medico', grupo: 'RETORNO',  tipo: 'RETORNO_30_PRESENCIAL' };
+  if (via === 'implant' || /IMPLANT/.test(nome))                   return { rota: 'medico', grupo: 'IMPLANTE', tipo: 'IMPLANTE_120_PRESENCIAL' };
+  return { rota: 'enfermagem', grupo: 'APLICACAO', tipo: 'APLICACAO_IM_15_PRESENCIAL' };
+}
+
+// Duracao (min) por grupo: consulta 60, retorno 30, implante 60; injetaveis
+// somam por via (IM 15 + EV 30) via calcularDuracaoAgenda_.
+function duracaoGrupoAgenda_(grupo, subs) {
+  if (grupo === 'CONSULTA') return (typeof TEMPO_POR_TIPO !== 'undefined' && TEMPO_POR_TIPO.consulta) ? TEMPO_POR_TIPO.consulta : 60;
+  if (grupo === 'RETORNO')  return (typeof TEMPO_POR_TIPO !== 'undefined' && TEMPO_POR_TIPO.retorno)  ? TEMPO_POR_TIPO.retorno  : 30;
+  if (grupo === 'IMPLANTE') return (typeof TEMPO_POR_TIPO !== 'undefined' && TEMPO_POR_TIPO.implant)  ? TEMPO_POR_TIPO.implant  : 60;
+  return calcularDuracaoAgenda_(subs);
+}
+
+// PURO/TESTAVEL: transforma a agenda consolidada (1 entry por data, com varias
+// substancias) numa lista de MARCACOES, separando por agenda alvo + grupo.
+// Assim CONSULTA/RETORNO (medico) NUNCA caem no mesmo evento dos injetaveis
+// (enfermagem), mesmo na mesma semana. Ordem estavel: no mesmo dia o medico
+// vem primeiro (consulta, retorno, implante) e a enfermagem por ultimo; datas
+// em ordem cronologica.
+var ORDEM_GRUPO_AGENDA = { CONSULTA: 0, RETORNO: 1, IMPLANTE: 2, APLICACAO: 3 };
+function montarMarcacoesAgenda_(agenda) {
+  var marcacoes = [];
+  (agenda || []).forEach(function (entry) {
+    var buckets = {}; // grupo -> { rota, grupo, tipo, date, substancias[] }
+    (entry.substancias || []).forEach(function (s) {
+      var cls = classificarItemAgenda_(s);
+      if (!buckets[cls.grupo]) buckets[cls.grupo] = { rota: cls.rota, grupo: cls.grupo, tipo: cls.tipo, date: entry.date, substancias: [] };
+      buckets[cls.grupo].substancias.push(s);
+    });
+    Object.keys(buckets).forEach(function (k) { marcacoes.push(buckets[k]); });
+  });
+  marcacoes.sort(function (a, b) {
+    var dt = a.date.getTime() - b.date.getTime();
+    if (dt !== 0) return dt;
+    var oa = ORDEM_GRUPO_AGENDA[a.grupo]; oa = (oa == null) ? 9 : oa;
+    var ob = ORDEM_GRUPO_AGENDA[b.grupo]; ob = (ob == null) ? 9 : ob;
+    return oa - ob;
+  });
+  return marcacoes;
 }
 
 // Domingo -> segunda ; sabado -> segunda (salvo atendeSabado=true).
@@ -139,7 +198,7 @@ function expandirAgendaPaciente_(pacRAS) {
     var via = inferirViaPorNome_(s.nome);
     var cat = lookupCatalogoAgenda_(s.nome);
     if (!via) via = cat.via;
-    porNome[s.nome] = { nome: s.nome, via: via, dose: cat.dose };
+    porNome[s.nome] = { nome: s.nome, via: via, dose: cat.dose, categoria: cat.categoria };
   });
 
   // mesmas DATAS do RAS (1 ida por semana, primeira aplicacao da semana)
@@ -147,11 +206,12 @@ function expandirAgendaPaciente_(pacRAS) {
 
   return schedule.map(function (entry) {
     var substancias = Object.keys(entry.sessions).map(function (nome) {
-      var base = porNome[nome] || { nome: nome, via: '', dose: '' };
+      var base = porNome[nome] || { nome: nome, via: '', dose: '', categoria: '' };
       return {
         nome: base.nome,
         via: base.via,
         dose: base.dose,
+        categoria: base.categoria,
         status: 'disp',
         nestaSessao: true,
         sessaoLabel: entry.sessions[nome]
@@ -184,7 +244,7 @@ function resolverCalendarioAgenda_(rota, logArr) {
 }
 
 // Anti-colisao real: le os eventos do dia e acha o 1o horario livre.
-function acharSlotLivreAgenda_(cal, dataBase, duracaoMin) {
+function acharSlotLivreAgenda_(cal, dataBase, duracaoMin, ocupadosPorDia) {
   var dia = ajustarDiaUtilAgenda_(dataBase);
   var janelas = [
     { ini: CONFIG_AGENDA.janelaManhaIni * 60, fim: CONFIG_AGENDA.janelaManhaFim * 60 },
@@ -200,6 +260,13 @@ function acharSlotLivreAgenda_(cal, dataBase, duracaoMin) {
       var s = ev.getStartTime(), e = ev.getEndTime();
       return { ini: s.getHours() * 60 + s.getMinutes(), fim: e.getHours() * 60 + e.getMinutes() };
     });
+    // Tambem evita choque com outras marcacoes do MESMO paciente no mesmo dia
+    // (ex: consulta no medico + injetavel na enfermagem no mesmo dia nao podem
+    // cair no mesmo horario porque o paciente e uma pessoa so).
+    var diaKey = ymd_(dia);
+    if (ocupadosPorDia && ocupadosPorDia[diaKey]) {
+      ocupadosPorDia[diaKey].forEach(function (o) { ocupados.push({ ini: o.ini, fim: o.fim }); });
+    }
     var min = proximoSlotMinuto_(ocupados, baseMin, duracaoMin, janelas);
     if (min >= 0) {
       var inicio = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), Math.floor(min / 60), min % 60, 0);
@@ -277,16 +344,32 @@ function lancarAgendaPaciente_(sheet, row, opts, logArr) {
 
   if (jaLancado) apagarEventosPorIds_(eventosAntigos); // reagendando/retentando: limpa os antigos
 
+  // Separa cada ida em MARCACOES por agenda alvo + grupo. CONSULTA/RETORNO
+  // (medico) saem em eventos PROPRIOS, nunca grudados nos injetaveis (enfermagem).
+  var marcacoes = montarMarcacoesAgenda_(agenda);
   var idsNovos = [];
-  var totalMarc = agenda.length;
-  for (var k = 0; k < agenda.length; k++) {
-    var entry = agenda[k];
-    var vias = entry.substancias.map(function (s) { return s.via; });
-    var rota = determineCalendarRouting(vias);
-    var cal = resolverCalendarioAgenda_(rota, logArr);
-    var duracao = calcularDuracaoAgenda_(entry.substancias);
-    var slot = acharSlotLivreAgenda_(cal, entry.date, duracao);
-    if (!slot) { logArr.push('[AVISO] ' + pacRAS.nome + ': sem horario livre para ' + ymd_(entry.date)); continue; }
+  var totalMarc = marcacoes.length;
+  var ocupadosPorDia = {}; // ymd -> [{ini,fim}] do PROPRIO paciente (anti duplo-agendamento)
+
+  for (var k = 0; k < marcacoes.length; k++) {
+    var m = marcacoes[k];
+    var cal = resolverCalendarioAgenda_(m.rota, logArr);
+    var duracao = duracaoGrupoAgenda_(m.grupo, m.substancias);
+    var slot = acharSlotLivreAgenda_(cal, m.date, duracao, ocupadosPorDia);
+    if (!slot) { logArr.push('[AVISO] ' + pacRAS.nome + ': sem horario livre para ' + ymd_(m.date) + ' (' + m.grupo + ')'); continue; }
+
+    // Reserva o horario do paciente NAQUELE dia p/ a proxima marcacao nao colidir,
+    // mesmo que seja em outra agenda (o paciente e uma pessoa so).
+    var diaKey = ymd_(slot.inicio);
+    if (!ocupadosPorDia[diaKey]) ocupadosPorDia[diaKey] = [];
+    ocupadosPorDia[diaKey].push({
+      ini: slot.inicio.getHours() * 60 + slot.inicio.getMinutes(),
+      fim: slot.fim.getHours() * 60 + slot.fim.getMinutes()
+    });
+
+    // CONSULTA/RETORNO sao eventos do medico: descricao limpa, sem lista de
+    // substancia (a "substancia" aqui e so o gatilho de agendamento).
+    var substanciasEvento = (m.grupo === 'CONSULTA' || m.grupo === 'RETORNO') ? [] : m.substancias;
 
     var email = CONFIG_AGENDA.convidarPaciente ? buscarEmailPaciente_(pac) : '';
     var dados = {
@@ -294,7 +377,7 @@ function lancarAgendaPaciente_(sheet, row, opts, logArr) {
       pacienteNome: pacRAS.nome,
       pacienteCpf: pac.cpf,
       pacienteEmail: email,
-      tipoProcedimento: '',
+      tipoProcedimento: m.tipo,
       duracaoMin: duracao,
       dataAgendada: ymd_(slot.inicio),
       horaAgendada: pad2_(slot.inicio.getHours()) + ':' + pad2_(slot.inicio.getMinutes()),
@@ -302,14 +385,20 @@ function lancarAgendaPaciente_(sheet, row, opts, logArr) {
       numeroMarcacao: k + 1,
       totalMarcacoes: totalMarc,
       unidadeNome: CONFIG_AGENDA.unidadeNome,
-      substancias: entry.substancias,
+      substancias: substanciasEvento,
       endereco: CONFIG_AGENDA.endereco || null
     };
 
-    var id = (email)
-      ? criarAgendamentoRASComConvite(dados)
-      : criarAgendamentoRAS(dados);
-    idsNovos.push(id);
+    // ANTI-ERRO: uma falha num evento NAO derruba os demais; vira PARCIAL e
+    // o motor retenta na proxima rodada (idempotente).
+    try {
+      var id = (email)
+        ? criarAgendamentoRASComConvite(dados)
+        : criarAgendamentoRAS(dados);
+      idsNovos.push(id);
+    } catch (e) {
+      logArr.push('[ERRO] ' + pacRAS.nome + ' ' + ymd_(m.date) + ' (' + m.grupo + '): ' + (e && e.message ? e.message : e));
+    }
   }
 
   var status = (idsNovos.length >= totalMarc) ? 'COMPLETO' : 'PARCIAL';
@@ -434,6 +523,59 @@ function testesSemanticosAgenda_() {
   var cheio = [{ ini: 480, fim: 720 }, { ini: 840, fim: 1080 }];
   var semSlot = proximoSlotMinuto_(cheio, 540, 30, cheio);
   check(semSlot === -1, '8. dia lotado deveria devolver -1, veio ' + semSlot);
+
+  // ── CONSULTA / RETORNO -> AGENDA MEDICO (separados dos injetaveis) ──
+  // 9/10. classifica por categoria
+  check(classificarItemAgenda_({ nome: 'CONSULTA DE CAIO', via: '', categoria: 'CONSULTA' }).rota === 'medico', '9. consulta(cat) deveria ir pro medico');
+  check(classificarItemAgenda_({ nome: 'RETORNO DR CAIO', via: '', categoria: 'RETORNO' }).rota === 'medico', '10. retorno(cat) deveria ir pro medico');
+
+  // 10b/10c. classifica SO pelo nome (CONSULTA/RETORNO nao estao no
+  //          CATALOGO_SUBSTANCIAS hardcoded; vem so da planilha -> categoria vazia)
+  check(classificarItemAgenda_({ nome: 'CONSULTA DE CAIO', via: '', categoria: '' }).grupo === 'CONSULTA', '10b. consulta por nome falhou');
+  check(classificarItemAgenda_({ nome: 'RETORNO DR CAIO', via: '', categoria: '' }).grupo === 'RETORNO', '10c. retorno por nome falhou');
+
+  // 10d. substancia normal NAO pode cair como consulta/retorno por engano
+  check(classificarItemAgenda_({ nome: 'GLUTATIONA', via: 'ev', categoria: 'ANTIOXIDANTE' }).grupo === 'APLICACAO', '10d. glutationa virou consulta/retorno por engano');
+
+  // 11/12. injetavel IM -> enfermagem ; implante -> medico
+  check(classificarItemAgenda_({ nome: 'VITAMINA D3', via: 'im', categoria: 'VITAMINA' }).rota === 'enfermagem', '11. IM deveria ir pra enfermagem');
+  check(classificarItemAgenda_({ nome: 'TESTOSTERONA IMPLANTE', via: 'implant', categoria: 'HORMONIO' }).rota === 'medico', '12. implante deveria ir pro medico');
+
+  // 13. duracoes por grupo
+  check(duracaoGrupoAgenda_('CONSULTA', []) === 60, '13. consulta deveria durar 60min, veio ' + duracaoGrupoAgenda_('CONSULTA', []));
+  check(duracaoGrupoAgenda_('RETORNO', []) === 30, '13b. retorno deveria durar 30min, veio ' + duracaoGrupoAgenda_('RETORNO', []));
+
+  // 14/15. mesma semana: consulta(medico) + injetavel(enfermagem) -> 2 eventos
+  //        SEPARADOS, medico vindo ANTES da enfermagem, cada um com sua substancia.
+  var agendaMix = [{ date: makeDate_(15, 6, 2026), substancias: [
+    { nome: 'VITAMINA D3', via: 'im', categoria: 'VITAMINA', status: 'disp', nestaSessao: true },
+    { nome: 'CONSULTA DE CAIO', via: '', categoria: 'CONSULTA', status: 'disp', nestaSessao: true }
+  ]}];
+  var mix = montarMarcacoesAgenda_(agendaMix);
+  check(mix.length === 2, '14. consulta+injetavel na mesma semana deveria virar 2 eventos, veio ' + mix.length);
+  check(mix.length === 2 && mix[0].rota === 'medico' && mix[1].rota === 'enfermagem', '15. ordem/rotas erradas (medico antes da enfermagem)');
+  check(mix.length === 2 && mix[0].substancias.length === 1 && mix[1].substancias.length === 1, '15b. cada evento deveria ter exatamente sua substancia');
+
+  // 16. consolidacao injetavel preservada: a agenda base (2 injetaveis, 1a semana
+  //     junta) vira 4 marcacoes (1 por semana), nenhuma no medico.
+  var marc = montarMarcacoesAgenda_(ag);
+  check(marc.length === 4, '16. esperado 4 marcacoes de injetavel, veio ' + marc.length);
+  check(marc.every(function (mm) { return mm.rota === 'enfermagem'; }), '16b. injetavel nao deveria ir pro medico');
+
+  // 17. anti-duplo-agendamento do paciente: 09:00-10:00 ja ocupado por ele ->
+  //     a proxima marcacao do mesmo dia comeca 10:00 (600).
+  var slot2 = proximoSlotMinuto_([{ ini: 540, fim: 600 }], 540, 30,
+    [{ ini: 480, fim: 720 }, { ini: 840, fim: 1080 }]);
+  check(slot2 === 600, '17. apos consulta 09-10h, injetavel deveria comecar 10:00 (600), veio ' + slot2);
+
+  // 18. consulta E retorno no mesmo dia -> 2 eventos no medico (consulta antes)
+  var agendaCR = [{ date: makeDate_(15, 6, 2026), substancias: [
+    { nome: 'RETORNO DR CAIO', via: '', categoria: 'RETORNO', status: 'disp', nestaSessao: true },
+    { nome: 'CONSULTA DE CAIO', via: '', categoria: 'CONSULTA', status: 'disp', nestaSessao: true }
+  ]}];
+  var cr = montarMarcacoesAgenda_(agendaCR);
+  check(cr.length === 2 && cr[0].grupo === 'CONSULTA' && cr[1].grupo === 'RETORNO', '18. consulta deveria vir antes do retorno');
+  check(cr.length === 2 && cr[0].rota === 'medico' && cr[1].rota === 'medico', '18b. consulta e retorno deveriam ir ambos pro medico');
 
   var resumo = '[TESTES SEMANTICOS] ' + ok + ' passou, ' + falhas.length + ' falhou';
   if (falhas.length) resumo += '\n - ' + falhas.join('\n - ');

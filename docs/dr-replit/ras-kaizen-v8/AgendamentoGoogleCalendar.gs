@@ -22,7 +22,7 @@
  */
 
 // ── Duracao padrao por via/tipo (minutos) ──────────────────────
-var TEMPO_POR_TIPO = { im: 15, iv: 30, ev: 30, implant: 60, consulta: 60 };
+var TEMPO_POR_TIPO = { im: 15, iv: 30, ev: 30, implant: 60, consulta: 60, retorno: 30 };
 
 // ── Mapa de cor do evento por codigo semantico ─────────────────
 // Os valores "1".."11" sao os mesmos do colorId da API e tambem os
@@ -44,8 +44,8 @@ var CODIGOS_SEMANTICOS = {
   CONSULTA_60_PRESENCIAL:            { codigo: 'CPRE' },
   CONSULTA_30_ONLINE:               { codigo: 'CONL' },
   CONSULTA_30_TELEMEDICINA:         { codigo: 'CONL' },
-  RETORNO_15_PRESENCIAL:            { codigo: 'CAVL' },
-  RETORNO_15_TELEMEDICINA:          { codigo: 'CAVL' },
+  RETORNO_30_PRESENCIAL:            { codigo: 'CAVL' },
+  RETORNO_30_TELEMEDICINA:          { codigo: 'CAVL' },
   AVALIACAO_ENF_30_PRESENCIAL:      { codigo: 'CAVL' },
   AVALIACAO_ENFERMAGEM_20_PRESENCIAL: { codigo: 'CAVL' },
   IMPLANTE_120_PRESENCIAL:          { codigo: 'PROC' },
@@ -278,7 +278,7 @@ function buildEventDescription(opts) {
 // ── Roteamento do calendario (medico x enfermagem) ─────────────
 function determineCalendarRouting(vias) {
   var v = (vias || []).map(function (x) { return (x || '').toLowerCase(); });
-  if (v.indexOf('implant') !== -1 || v.indexOf('consulta') !== -1) return 'medico';
+  if (v.indexOf('implant') !== -1 || v.indexOf('consulta') !== -1 || v.indexOf('retorno') !== -1) return 'medico';
   return 'enfermagem';
 }
 
