@@ -148,3 +148,55 @@ Escopo: sistema PARALELO RAS KAIZEN v8 (Apps Script, conta clinica.padua.agenda)
 8.3. DECISAO 3 (ordem): comecar pela Fase 1+2 (registro + app) antes das cores. Default: **sim**.
 
 8.4. CONFIRMAR a ressalva 3.5: o PIN e confirmacao de presenca, nao assinatura ICP-Brasil. Default: **ciente**.
+
+---
+
+## 9. ECTOPLASMA ENCONTRADO (validacao de paciente JA EXISTE no Pawards)
+
+9.1. O CEO lembrou certo: o Pawards principal **ja tem** validacao de paciente pronta e validada.
+
+9.2. `pacientes.senhaValidacao` — coluna que ja existe para conferencia/PIN do paciente (e o conceito exato pedido).
+
+9.3. `pacientes.senhaPortal` — senha do portal com hash bcrypt.
+
+9.4. OTP por email — tabela `paciente_otp` (`codigo_hash`), service `otpService.ts` (solicitarOtp/validarOtp), identificacao por CPF + data de nascimento.
+
+9.5. `pulsoDiarioToken` — token nanoid(12) com TTL (acesso pontual sem senha), service `pulsoDiarioService.ts`, rota `/portal-paciente/pulso/:token`.
+
+9.6. ZapSign — assinatura real: PACIENTE (assinaturaTela + token WhatsApp), MEDICO (ICP-Brasil).
+
+9.7. CONSEQUENCIA: o "PIN modo tabajara" deve **espelhar o padrao `senhaValidacao` (hash)**, nao inventar mecanismo novo.
+
+9.8. CONSEQUENCIA 2: tudo isso vive no app PRINCIPAL (Postgres/Express), nao no Apps Script; reuso de codigo direto entre os dois stacks nao e possivel, mas o PADRAO e reaproveitado.
+
+9.9. DECISAO NOVA: o app da enfermagem nasce no **Apps Script (rapido, paralelo)** agora, espelhando o padrao validado, com convergencia futura pro portal principal (que ja faz isso direito) para nao virar duplicacao permanente.
+
+---
+
+## 10. REFINAMENTOS DO CEO (12/06/2026)
+
+10.1. DECISAO 1 = **Opcao A** confirmada: o inicio diferente da B12 (21/02) foi **erro de digitacao**; o correto e 07/02/2026.
+
+10.2. Nomenclatura da rubrica do PACIENTE: `Sobrenome, I.N.I.` (sobrenome + iniciais dos demais nomes).
+
+10.3. Exemplo: Caio Henrique Souza Padua -> `Padua, C.H.S.` (CONFIRMAR se as iniciais incluem todos os nomes do meio).
+
+10.4. Sobrenome longo: encurtar **apenas o sobrenome** ate caber na celula deixando folga de 2 caracteres.
+
+10.5. Nome da ENFERMEIRA: por extenso, truncado ate caber na celula com folga de 2 caracteres.
+
+10.6. Marca de "aplicada" no RAS (premium E simples): **nao mudar a cor** da barra pintada.
+
+10.7. Dividir a barra pintada em **3 tercos**; o **terco direito fica SEM pintura** e recebe um **check (vezinho)**.
+
+10.8. **Nao mexer** na estrutura de colunas/celulas do RAS.
+
+10.9. DECISAO 2 reinterpretada: o CEO vetou nova coluna/tabela; logo a **fonte da verdade dos aplicados** passa a ser os **arquivos RAS-FAP versionados** no Drive (`(n/sessao)`), nao uma aba nova (CONFIRMAR).
+
+10.10. Ideia de PIN do CEO: derivar de dado do paciente (ex.: 4 primeiras letras do ultimo sobrenome + ano + mes de nascimento); ex.: Padua 14/11/1978 -> `padu7811`.
+
+10.11. Ressalva honesta sobre 10.10: PIN derivado de dado quase-publico e **fraco/adivinhavel**; aceitavel no "modo tabajara", mas sempre **guardado com hash**.
+
+10.12. Identidade visual: o app carrega **logo e identidade Pawards**, layout **dourado** (tokens PENUMBRA: gold `#C89B3C`, dourado `#9C6E16`/`#FFD27A`) sobre base PENUMBRA ESCURO Navy Ciano.
+
+10.13. Pendencia: **localizar o arquivo do logo Pawards** (nao achei imagem nos assets) antes de montar a UI.
