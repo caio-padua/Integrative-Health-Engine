@@ -199,4 +199,118 @@ Escopo: sistema PARALELO RAS KAIZEN v8 (Apps Script, conta clinica.padua.agenda)
 
 10.12. Identidade visual: o app carrega **logo e identidade Pawards**, layout **dourado** (tokens PENUMBRA: gold `#C89B3C`, dourado `#9C6E16`/`#FFD27A`) sobre base PENUMBRA ESCURO Navy Ciano.
 
-10.13. Pendencia: **localizar o arquivo do logo Pawards** (nao achei imagem nos assets) antes de montar a UI.
+10.13. Pendencia: logo Pawards LOCALIZADO em `artifacts/clinica-motor/public/logo-pawards-medcore-transparent.png`; dourado oficial ja existe no tema PREMIUM (`accentGold: '#C9A84C'`).
+
+---
+
+## 11. DECISOES DE BOM-SENSO (Dr. Replit, 12/06/2026 — CEO autorizou "responda voce mesmo")
+
+11.1. ESTRUTURA DA BARRA (codigo real): cada substancia ocupa 3 colunas — `b.s` e `b.s+1` pintadas (merge) + `b.s+2` = n/sessao.
+
+11.2. MARCA DE APLICADA: para a sessao aplicada, pinto **so `b.s`**, deixo **`b.s+1` branca com o caractere `\u2713`** (check), `b.s+2` continua com n/sessao; zero coluna nova, zero mudanca quando nao ha aplicacao (aditivo puro).
+
+11.3. FONTE DA VERDADE dos aplicados (resolve o veto de nova coluna/tabela): arquivo **`aplicacoes.json`** dentro da subpasta do cliente em CLIENTES — co-localizado com os RAS-FAP, robusto, auditavel, e NAO e coluna/tabela na planilha.
+
+11.4. Os PDFs RAS-FAP versionados `(n/sessao)` continuam sendo o registro humano; o `aplicacoes.json` e o registro de maquina; os dois moram na mesma pasta do cliente.
+
+11.5. RAIZ das pastas: reuso a pasta ja existente `PASTA_RAS_CLIENTES` (sem criar ID novo); subpasta por cliente = `Nome CPF-sem-pontos`.
+
+11.6. PIN: derivado por `derivarPin_` (4 letras do sobrenome + AA + MM do nascimento, ex.: Padua 14/11/1978 -> `padu7811`); guardado SEMPRE como **hash SHA-256 com salt** lido de `PropertiesService` (salt NAO vai pro mirror publico em docs/).
+
+11.7. RUBRICA paciente = `Sobrenome, I.N.I.` (iniciais de TODOS os nomes do meio); sobrenome longo encurta so o sobrenome deixando folga de 2 caracteres; enfermeira por extenso truncada com folga de 2.
+
+11.8. CHAVE de aplicacao = `SUBSTANCIA|sessao` (ex.: `VITAMINA D3|1/7`), normalizada sem acento/caixa.
+
+11.9. CORES da agenda: APLICADA = cinza escuro, PROXIMA = azul ativo, FUTURA = cinza claro (visivel, sem cor ativa) — zero emoji.
+
+11.10. ENTREGA EM ONDAS testaveis: Onda A (nucleo puro + teste semantico Node + check no RAS) primeiro; depois B (app enfermagem), C (RAS-FAP email), D (pastas), E (cores agenda). Cada onda com teste antes de seguir.
+
+## 12. STATUS DE EXECUCAO — 12/06/2026 (Dr. Replit)
+
+12.1. Onda A (nucleo + check no RAS): **FEITA e testada**.
+Funcoes puras em `AppEnfermagemRasFap.gs`; check ligado em `Code.gs`
+(`gerarLayoutRASSimples_`/`Premium_` -> `montarPaginasRAS_` -> `desenharPaginaRAS_`,
+5o argumento `aplicadasSet`); `node tests/test_app_enfermagem.mjs` = 23 OK / 0 FALHA.
+
+12.2. Onda B (app da enfermagem): **FEITA**.
+`doGet` + `abrirAppEnfermagem` (sidebar) + `AppEnfermagem.html`; endpoints
+`appEnfListarPacientes`, `appEnfCarregarPaciente`, `appEnfRegistrarAplicacao`.
+PIN derivado e validado SO no servidor; botao "ABRIR APP DA ENFERMAGEM" no Panel.
+
+12.3. Onda C (RAS-FAP PDF + email): **FEITA**.
+`gerarRasFapPdf_` (PDF PREMIUM versionado `n/total` na pasta do cliente) +
+`enviarRasFapPorEmail_` (paciente + copia clinica). Best-effort: nunca derruba o registro.
+
+12.4. Onda D (pastas CLIENTES): **FEITA** (`getOrCreatePastaCliente_`, reusa `PASTA_RAS_CLIENTES`).
+
+12.5. Onda E (cores agenda): **helper FEITO e testado** (`corSubstanciaAgenda_`);
+a LIGACAO no `AgendamentoMotor.gs` fica pro passo seguinte, apos o Caio validar
+o visual do check no RAS real (evita editar o motor da agenda no escuro).
+
+12.6. Limites honestos (anti-ectoplasma):
+12.6.1. Nao executo Apps Script; o Caio cola os arquivos no editor (conta
+        clinica.padua.agenda@gmail.com) e roda. O que validei aqui foi sintaxe
+        (`node --check`) e as funcoes puras (teste semantico Node).
+12.6.2. PDF/email do RAS-FAP dependem de permissoes do script (Drive + Gmail) no
+        ambiente do Caio; por isso o passo e best-effort e logado no retorno.
+12.6.3. PIN_SALT vive em ScriptProperties do script do Caio — NUNCA no mirror publico em docs/.
+
+## 13. HARDENING DE SEGURANCA — pos code review (12/06/2026)
+
+Em resposta a revisao de codigo (architect), apliquei 4 defesas no app da enfermagem,
+todas aditivas (nenhuma coluna/tabela nova, fonte da verdade segue no Drive):
+
+13.1. Superficie de CPF reduzida.
+`appEnfCarregarPaciente` NAO devolve mais o CPF ao cliente; a tela nao trafega CPF.
+
+13.2. CPF resolvido no servidor.
+`appEnfRegistrarAplicacao` ignora qualquer CPF vindo do cliente e usa SEMPRE o
+`ident.cpf` derivado do CADASTRO PACIENTES (fecha adulteracao de pasta/arquivo).
+
+13.3. Validacao de pertencimento.
+Antes de registrar, o servidor reconstroi as chaves reais do protocolo do paciente
+(`appEnfChavesValidas_`, mesma fonte das opcoes da tela) e rejeita substancia/sessao
+que nao pertenca aquele paciente (anti-injecao de chave no aplicacoes.json).
+
+13.4. Bloqueio anti-forca-bruta do PIN.
+Contador por paciente em `CacheService` (helper puro `avaliarBloqueioPin_`),
+teto `FAP_CONFIG.pinMaxTentativas=5` em janela `pinJanelaSegundos=900` (15 min);
+falha de PIN incrementa, sucesso zera. O PIN derivado e fraco por design (confirmacao
+do paciente presente), entao o bloqueio + o gate de implantacao abaixo sao a defesa real.
+
+13.5. DECISAO DE IMPLANTACAO (acao do Caio, nao codigo).
+Publicar o web app como "Executar como: eu" e "Quem tem acesso: somente eu / minha
+organizacao" — NUNCA "qualquer pessoa com o link". O PIN e um 2o fator de confirmacao
+do paciente, nao o portao primario; o portao primario e o login Google da implantacao.
+
+13.6. Testes.
+`node tests/test_app_enfermagem.mjs` = 28 OK / 0 FALHA (inclui 5 casos do bloqueio).
+
+## 14. NOTA DE INCIDENTE — encoding do Panel.html (12/06/2026)
+
+14.1. Um edit anterior com `perl -0pi` carregando caractere wide (`\u25b8`)
+dupla-codificou o Panel.html inteiro (acentos viraram mojibake, emojis viraram `
+`).
+14.2. Corrigido: Panel.html restaurado do HEAD e o botao "ABRIR APP DA ENFERMAGEM"
+reaplicado via Python UTF-8 (line-ending LF, igual ao HEAD). Mojibake = 0 confirmado.
+14.3. Licao: nunca usar `perl -0pi` com caractere multibyte no replacement; usar
+Python com `open(..., encoding='utf-8', newline='')`.
+
+## 15. AUTORIZACAO EM RUNTIME — 2a rodada do code review (12/06/2026)
+
+15.1. O architect manteve FAIL porque a protecao de acesso era so de deploy (doc),
+nao enforcement em codigo. Implementado gate fail-closed em runtime.
+
+15.2. `exigirAcessoApp_` roda em TODOS os endpoints + `doGet`: autoriza por
+`Session.getActiveUser().getEmail()` contra a allowlist `APP_ENF_EMAILS_PERMITIDOS`
+(ScriptProperties, CSV); o dono do script (`getEffectiveUser`) sempre passa; email
+vazio ou fora da lista = NEGA. Helper puro `emailAutorizadoApp_` (testado).
+
+15.3. ACAO DO CAIO: cadastrar os emails das enfermeiras em
+ScriptProperties > `APP_ENF_EMAILS_PERMITIDOS` (separados por virgula). Enquanto
+vazio, so o dono do script consegue usar (fail-closed proposital).
+
+15.4. Probing de pertencimento: agora so usuarios autorizados alcancam os
+endpoints, entao o vetor de enumeracao sem custo fica fechado pelo gate de acesso.
+
+15.5. Testes: `node tests/test_app_enfermagem.mjs` = 33 OK / 0 FALHA.

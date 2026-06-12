@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PAWARDS - Aplicacao de Enfermagem</title>
+  <style>
+    :root{
+      --tinta:#1B2A4A; --papel:#F4F6FA; --linha:#C7D0DE; --ciano:#1E7FA8;
+      --ativa:#7C7C7C; --ok:#2E7D32; --erro:#B23A3A; --branco:#FFFFFF;
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--papel);color:var(--tinta);
+      font-family:'JetBrains Mono','Courier New',monospace;font-size:13px;line-height:1.5;}
+    .wrap{max-width:560px;margin:0 auto;padding:16px;}
+    h1{font-size:15px;letter-spacing:1px;text-transform:uppercase;margin:0 0 2px;}
+    .sub{font-size:11px;color:var(--ciano);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;}
+    label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:12px 0 4px;}
+    select,input,textarea,button{width:100%;font-family:inherit;font-size:13px;
+      border:1px solid var(--linha);border-radius:0;padding:10px;background:var(--branco);color:var(--tinta);}
+    button{cursor:pointer;background:var(--tinta);color:var(--branco);border:1px solid var(--tinta);
+      text-transform:uppercase;letter-spacing:1px;font-weight:bold;}
+    button:disabled{opacity:.45;cursor:not-allowed;}
+    .caixa{border:1px solid var(--linha);background:var(--branco);padding:12px;margin-top:8px;}
+    .subst{border:1px solid var(--linha);margin-top:8px;}
+    .subst h3{margin:0;padding:8px 10px;font-size:12px;text-transform:uppercase;
+      letter-spacing:1px;background:var(--papel);border-bottom:1px solid var(--linha);}
+    .sessao{display:flex;justify-content:space-between;align-items:center;
+      padding:8px 10px;border-bottom:1px solid var(--linha);}
+    .sessao:last-child{border-bottom:0;}
+    .sessao.aplicada{color:var(--ativa);}
+    .tag{font-size:10px;text-transform:uppercase;letter-spacing:1px;}
+    .tag.ok{color:var(--ok);} .tag.pend{color:var(--ciano);}
+    .pick{width:auto;padding:6px 10px;font-size:11px;}
+    .msg{margin-top:12px;padding:10px;border:1px solid var(--linha);font-size:12px;}
+    .msg.ok{border-color:var(--ok);color:var(--ok);}
+    .msg.erro{border-color:var(--erro);color:var(--erro);}
+    .hint{font-size:10px;color:var(--ativa);margin-top:4px;}
+    .hidden{display:none;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>PAWARDS — Aplicacao</h1>
+    <div class="sub">Modulo de Enfermagem — RAS-FAP</div>
+
+    <label for="enf">Enfermeira responsavel</label>
+    <input id="enf" type="text" placeholder="Nome completo">
+
+    <label for="pac">Paciente</label>
+    <select id="pac"><option value="">Carregando pacientes...</option></select>
+
+    <div id="painel" class="hidden">
+      <div id="lista"></div>
+
+      <div id="formAplica" class="caixa hidden">
+        <label>Confirmar aplicacao</label>
+        <div id="alvo" class="hint"></div>
+        <label for="pin">PIN do paciente</label>
+        <input id="pin" type="text" inputmode="numeric" placeholder="4 letras do sobrenome + ano + mes">
+        <div class="hint">Ex.: sobrenome "Padua", nascido 11/1978 -> padu7811</div>
+        <label for="obs">Observacao (opcional)</label>
+        <textarea id="obs" rows="2"></textarea>
+        <div style="margin-top:10px;">
+          <button id="btnConfirmar" onclick="confirmar()">Registrar aplicacao</button>
+        </div>
+      </div>
+
+      <div id="msg" class="msg hidden"></div>
+    </div>
+  </div>
+
+<script>
+  var estado = { nome:'', alvo:null };
+
+  function el(id){ return document.getElementById(id); }
+  function mostrarMsg(txt, tipo){
+    var m = el('msg'); m.textContent = txt;
+    m.className = 'msg ' + (tipo||''); m.classList.remove('hidden');
+  }
+
+  google.script.run.withSuccessHandler(function(nomes){
+    var s = el('pac');
+    s.innerHTML = '<option value="">Selecione...</option>';
+    (nomes||[]).forEach(function(n){
+      var o = document.createElement('option'); o.value=n; o.textContent=n; s.appendChild(o);
+    });
+  }).appEnfListarPacientes();
+
+  el('pac').addEventListener('change', function(){
+    var nome = this.value;
+    el('painel').classList.add('hidden');
+    el('formAplica').classList.add('hidden');
+    el('msg').classList.add('hidden');
+    if(!nome) return;
+    el('lista').innerHTML = '<div class="hint">Carregando ficha...</div>';
+    el('painel').classList.remove('hidden');
+    google.script.run.withSuccessHandler(renderPaciente)
+      .withFailureHandler(function(e){ mostrarMsg('Erro: '+e.message,'erro'); })
+      .appEnfCarregarPaciente(nome);
+  });
+
+  function renderPaciente(dados){
+    if(!dados || !dados.ok){ mostrarMsg((dados&&dados.erro)||'Falha ao carregar.','erro'); return; }
+    estado.nome = dados.nome;
+    var html = '';
+    (dados.substancias||[]).forEach(function(g){
+      html += '<div class="subst"><h3>'+g.substancia+'</h3>';
+      if(!g.sessoes.length){ html += '<div class="sessao"><span class="hint">Sem sessoes agendadas</span></div>'; }
+      g.sessoes.forEach(function(s){
+        html += '<div class="sessao'+(s.aplicada?' aplicada':'')+'">'
+          + '<span>'+s.label+'</span>'
+          + (s.aplicada
+              ? '<span class="tag ok">APLICADA</span>'
+              : '<button class="pick" onclick="escolher(\''+esc(g.substancia)+'\',\''+esc(s.label)+'\')">Aplicar</button>')
+          + '</div>';
+      });
+      html += '</div>';
+    });
+    el('lista').innerHTML = html || '<div class="hint">Nenhuma substancia no protocolo.</div>';
+  }
+
+  function esc(t){ return String(t).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+  function escolher(substancia, sessao){
+    estado.alvo = { substancia:substancia, sessao:sessao };
+    el('alvo').textContent = substancia + ' — ' + sessao;
+    el('formAplica').classList.remove('hidden');
+    el('msg').classList.add('hidden');
+    el('pin').value=''; el('obs').value='';
+    el('pin').focus();
+  }
+
+  function confirmar(){
+    if(!estado.alvo){ return; }
+    var enf = el('enf').value.trim();
+    var pin = el('pin').value.trim();
+    if(!enf){ mostrarMsg('Informe o nome da enfermeira.','erro'); el('enf').focus(); return; }
+    if(!pin){ mostrarMsg('Informe o PIN do paciente.','erro'); el('pin').focus(); return; }
+    el('btnConfirmar').disabled = true;
+    mostrarMsg('Registrando...','');
+    google.script.run.withSuccessHandler(function(res){
+      el('btnConfirmar').disabled = false;
+      if(!res || !res.ok){ mostrarMsg((res&&res.erro)||'Falha no registro.','erro'); return; }
+      var extra = res.fap && res.fap.gerado ? ' RAS-FAP gerado.' : '';
+      mostrarMsg('Aplicacao registrada.'+extra,'ok');
+      el('formAplica').classList.add('hidden');
+      google.script.run.withSuccessHandler(renderPaciente).appEnfCarregarPaciente(estado.nome);
+    }).withFailureHandler(function(e){
+      el('btnConfirmar').disabled = false; mostrarMsg('Erro: '+e.message,'erro');
+    }).appEnfRegistrarAplicacao({
+      nome: estado.nome,
+      substancia: estado.alvo.substancia, sessao: estado.alvo.sessao,
+      enfermeiraNome: enf, pinDigitado: pin, observacao: el('obs').value.trim()
+    });
+  }
+</script>
+</body>
+</html>

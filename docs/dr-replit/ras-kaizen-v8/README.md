@@ -23,7 +23,14 @@
 7. `MultiCockpitProtocolo.gs` — MÓDULO NOVO (12/06/2026). 4 cockpits
    independentes + nº de protocolo (dropdown 000-100) + apagar protocolo por
    linha (exclusão total c/ backup) + testes semânticos.
-8. `README.md` — este índice.
+8. `AppEnfermagemRasFap.gs` — MÓDULO NOVO (12/06/2026). App da enfermagem
+   (PIN do paciente) + check de sessão aplicada no RAS + pastas CLIENTES +
+   RAS-FAP (PDF versionado + email). Funções puras cobertas por teste Node.
+9. `AppEnfermagem.html` — tela do app da enfermagem (web app `doGet` ou
+   sidebar): seleciona paciente, lista sessões, registra aplicação com PIN.
+10. `tests/test_app_enfermagem.mjs` — teste semântico das funções puras
+    (extrai do `.gs` por brace-match; roda com `node`).
+11. `README.md` — este índice.
 
 ## Contas Google envolvidas
 
@@ -110,19 +117,67 @@
         da agenda + `deleteRow`), com BACKUP datado antes e confirmação dupla.
    5.8. Botão Panel "RODAR TESTES SEMANTICOS (multi-cockpit + protocolo)".
 
+6. `AppEnfermagemRasFap.gs` + `AppEnfermagem.html` (FEITO em 12/06/2026):
+   6.1. Onda A — check de sessão APLICADA no RAS: na barra "batalha naval",
+        a sessão aplicada pinta SÓ `b.s`, deixa `b.s+1` branca com o caractere
+        `\u2713`; `b.s+2` mantém n/sessão. Aditivo puro (set vazio = zero mudança).
+        Fonte da verdade = `aplicacoes.json` na subpasta do cliente (sem coluna nova).
+   6.2. Onda B — app da enfermagem: `doGet` (app da web) + `abrirAppEnfermagem`
+        (sidebar). Endpoints `appEnfListarPacientes`, `appEnfCarregarPaciente`,
+        `appEnfRegistrarAplicacao`. PIN derivado e validado 100% no servidor
+        (nunca trafega o segredo); hash SHA-256 + salt em `PropertiesService`.
+   6.3. Onda C — RAS-FAP: a cada aplicação registrada, `gerarRasFapPdf_` gera o
+        PDF PREMIUM (já com os checks) versionado `(n/total)` na pasta do cliente
+        e `enviarRasFapPorEmail_` envia ao paciente + cópia clínica. Best-effort
+        (try/catch): falha de PDF/email nunca derruba o registro da aplicação.
+   6.4. Onda D — pastas CLIENTES: `getOrCreatePastaCliente_` reusa
+        `PASTA_RAS_CLIENTES` (sem ID novo); subpasta = `Nome CPF-sem-pontos`.
+   6.5. Onda E — `corSubstanciaAgenda_` (APLICADA cinza / PRÓXIMA azul / FUTURA
+        cinza claro). Helper puro + testado; ligar no `AgendamentoMotor.gs` é o
+        próximo passo (decisão de plugar a cor por estado real no lançamento).
+   6.6. Hardening de seguranca (pos code review): CPF nao trafega mais pro cliente
+        e e resolvido no servidor; o registro so aceita substancia/sessao que pertence
+        ao protocolo real do paciente; bloqueio anti-forca-bruta do PIN (5 tentativas
+        por paciente em 15 min via `CacheService`). Gate de autorizacao em RUNTIME
+        (`exigirAcessoApp_`, fail-closed: allowlist `APP_ENF_EMAILS_PERMITIDOS` em
+        ScriptProperties + dono sempre passa) em todos os endpoints e no `doGet`.
+        Implantar tambem como "Executar como: eu" + acesso restrito (PIN = 2o fator).
+   6.7. Testes: `node tests/test_app_enfermagem.mjs` → 33 OK / 0 FALHA.
+        Sintaxe dos `.gs` validada por `node --check` (copia `.js` temporaria).
+
 ## O que FALTA (decidir antes de codar)
 
 1. CONFIRMAR com o Caio os nomes EXATOS das agendas no Google Agenda
    (`CONFIG_AGENDA.calendarios`) e o endereço da unidade (`CONFIG_AGENDA.endereco`,
    ativa Maps/Waze na descrição). Sem isso o motor usa a agenda padrão e omite o endereço.
 
-2. RAS-Contingência (imprimível, conferência manual):
-   2.1. Clonar `gerarRASSelecionado` com cabeçalho EXATO:
-        "RAS - Registro de Administração de Substâncias - FAP - Ficha de Auditoria de Processo".
-   2.2. Selo "CONTINGÊNCIA — conferência manual".
-   2.3. Decidir layout base: Premium (navy/dourado) ou Simples (P&B).
+2. Onda E (ligação): chamar `corSubstanciaAgenda_(estado)` dentro do
+   `AgendamentoMotor.gs`/`AgendamentoGoogleCalendar.gs` para colorir o evento por
+   estado real (aplicada/próxima/futura). Helper já existe e está testado; falta só
+   o ponto de chamada — feito após o Caio validar o visual do check no RAS real.
+
+3. RAS-FAP cabeçalho dedicado (opcional): hoje o RAS-FAP reusa o layout PREMIUM.
+   Se o Caio quiser cabeçalho EXATO "RAS - FAP - Ficha de Auditoria de Processo"
+   + selo "CONTINGÊNCIA — conferência manual", clonar `gerarLayoutRASPremium_`.
 
 ## Regra de ouro deste projeto (do próprio Code.gs)
 
 - Nunca ler coluna por posição fixa — sempre por cabeçalho (`findColByHeader_`).
 - Headers podem ser mesclados (nome do bloco na linha 1, sub-rótulos na linha 2): usar `findBlocoDatas_`.
+
+## Pre-requisito de implantacao do app da enfermagem (CRITICO)
+
+O gate `exigirAcessoApp_` autoriza por `Session.getActiveUser().getEmail()`.
+Esse email so vem preenchido se a implantacao expoe a identidade do usuario:
+
+- Implantar o web app com acesso restrito ao DOMINIO/organizacao ou a usuarios
+  especificos (NUNCA "qualquer pessoa com o link" anonimo) — assim o
+  `ActiveUser().getEmail()` chega populado e a allowlist funciona.
+- Se a implantacao for anonima, `ActiveUser().getEmail()` volta VAZIO e o gate
+  (fail-closed) NEGA todos — comportamento proposital, mas trava o uso legitimo.
+- Cadastrar os emails das enfermeiras em ScriptProperties >
+  `APP_ENF_EMAILS_PERMITIDOS` (CSV). O dono do script sempre passa.
+
+Checklist de validacao antes do rollout:
+1. Allowlist preenchida; 2. acesso da implantacao = dominio/usuarios (nao anonimo);
+3. testar com a conta de uma enfermeira (deve abrir) e uma conta de fora (deve negar).

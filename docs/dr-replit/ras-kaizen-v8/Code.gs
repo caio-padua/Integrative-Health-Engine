@@ -1877,22 +1877,25 @@ function pacienteParaRAS_(pac) {
 // ─── WRAPPERS (mantêm a assinatura usada pelos botões): retornam spreadsheet temp ───
 function gerarLayoutRASSimples_(pac, sheetName) {
   var ss = SpreadsheetApp.create('TEMP_RAS_S_' + String(pac.nome || '').substring(0, 20) + '_' + Date.now());
-  montarPaginasRAS_(ss, pacienteParaRAS_(pac), RAS_THEME.SIMPLES, '');
+  var aplicadas = {}; try { aplicadas = lerSetAplicadasCliente_(pac.nome, pac.cpf); } catch (e) {}
+  montarPaginasRAS_(ss, pacienteParaRAS_(pac), RAS_THEME.SIMPLES, '', aplicadas);
   limparSheetPadrao_(ss);
   return ss;
 }
 
 function gerarLayoutRASPremium_(pac, sheetName) {
   var ss = SpreadsheetApp.create('TEMP_RAS_P_' + String(pac.nome || '').substring(0, 20) + '_' + Date.now());
-  montarPaginasRAS_(ss, pacienteParaRAS_(pac), RAS_THEME.PREMIUM, '');
+  var aplicadas = {}; try { aplicadas = lerSetAplicadasCliente_(pac.nome, pac.cpf); } catch (e) {}
+  montarPaginasRAS_(ss, pacienteParaRAS_(pac), RAS_THEME.PREMIUM, '', aplicadas);
   limparSheetPadrao_(ss);
   return ss;
 }
 
 // ─── MONTAGEM DE PÁGINAS (grupos de 5 substâncias × 20 linhas/página) ───
 // namePrefix garante nomes de aba únicos quando vários pacientes vão no mesmo spreadsheet.
-function montarPaginasRAS_(ss, paciente, theme, namePrefix) {
+function montarPaginasRAS_(ss, paciente, theme, namePrefix, aplicadasSet) {
   namePrefix = namePrefix || '';
+  aplicadasSet = aplicadasSet || {};
   var ROWS_PER_PAGE = 20;
   var allSubst = paciente.substancias || [];
   var created = [];
@@ -1925,7 +1928,7 @@ function montarPaginasRAS_(ss, paciente, theme, namePrefix) {
       var pacienteSet = Object.assign({}, paciente);
       pacienteSet.substancias = substSet;
 
-      desenharPaginaRAS_(sh, pacienteSet, items, globalPage, totalPages, theme);
+      desenharPaginaRAS_(sh, pacienteSet, items, globalPage, totalPages, theme, aplicadasSet);
       created.push(sh);
     });
   });
@@ -1983,8 +1986,9 @@ function montarAgendaParaSubstancias_(paciente, substSet) {
 }
 
 // ─── DESENHO DA PÁGINA RAS (layout validado, 34 cols × 44 rows) ───
-function desenharPaginaRAS_(sh, paciente, agendaRows, pageIndex, totalPages, theme) {
+function desenharPaginaRAS_(sh, paciente, agendaRows, pageIndex, totalPages, theme, aplicadasSet) {
   var T = theme || RAS_THEME.SIMPLES;
+  aplicadasSet = aplicadasSet || {};
   var isPremium = T.name === 'PREMIUM';
   var totalCols = 34;
   var totalRows = 44;
@@ -2134,16 +2138,30 @@ function desenharPaginaRAS_(sh, paciente, agendaRows, pageIndex, totalPages, the
     subst.forEach(function(s, si) {
       var b = blocos[si];
       var session = item && item.sessions ? item.sessions[s.nome] : '';
-      var barRange = sh.getRange(r, b.s, 1, 2);
       var sessRange = sh.getRange(r, b.s + 2);
-      barRange.merge();
+      var aplicada = session && aplicadasSet[chaveAplicacao_(s.nome, session)];
 
-      if (session) {
+      if (session && aplicada) {
+        // APLICADA: pinta so b.s; penultima celula (b.s+1) fica branca com o check.
+        try { sh.getRange(r, b.s, 1, 2).breakApart(); } catch (e) {}
+        sh.getRange(r, b.s).setBackground(T.bar).setValue('');
+        sh.getRange(r, b.s + 1).setBackground(T.bg || '#FFFFFF')
+          .setValue(FAP_CONFIG.marcaCheck).setFontSize(12).setFontWeight('bold')
+          .setHorizontalAlignment('center').setVerticalAlignment('middle')
+          .setFontColor(T.text || T.border);
+        sessRange.setValue(session).setFontSize(11).setFontWeight('bold')
+          .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      } else if (session) {
+        // AGENDADA (nao aplicada): barra batalha naval como sempre (b.s + b.s+1 pintadas).
+        var barRange = sh.getRange(r, b.s, 1, 2);
+        barRange.merge();
         barRange.setBackground(T.bar).setValue('');
         sessRange.setValue(session).setFontSize(11).setFontWeight('bold')
           .setHorizontalAlignment('center').setVerticalAlignment('middle');
       } else {
-        barRange.setValue('');
+        var vazia = sh.getRange(r, b.s, 1, 2);
+        vazia.merge();
+        vazia.setValue('');
         sessRange.setValue('');
       }
     });

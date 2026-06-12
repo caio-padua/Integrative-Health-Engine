@@ -5,7 +5,7 @@ description: Como trabalhar no projeto Apps Script espelhado em docs/dr-replit/r
 
 # RAS KAIZEN v8 — sistema Apps Script PARALELO (NÃO é o PAWARDS)
 
-Projeto Google Apps Script do CEO (conta `clinica.padua.agenda@gmail.com`),
+Projeto Google Apps Script do CEO (conta operacional da clínica — ver replit.md),
 espelhado em `docs/dr-replit/ras-kaizen-v8/` (.gs/.html) só pra versionar e o
 Dr. Code ler via GitHub raw. É ES5-ish, escopo GLOBAL (todos os .gs se enxergam).
 
@@ -66,3 +66,24 @@ qualquer toque no Code.gs vira decisão dele.
   antiga. `sheet.clear()` NAO reseta frozenRows. Regra: sempre `setFrozenRows(0)`
   ANTES de mesclar o topo nos rebuilders (garantirCabecalhoCadastro_,
   estruturarCadastroPacientes_, estruturarCockpit_) e recongelar no fim.
+
+## App da Enfermagem (Onda RAS-FAP) — modelo de segurança (durável)
+
+- Fonte da verdade dos "aplicados" é `aplicacoes.json` na subpasta do cliente no
+  Drive (NÃO coluna nova — honra o veto de schema da planilha). Chave canônica
+  `SUBSTANCIA|sessao`.
+- PIN do paciente é fraco por design (derivado do sobrenome+nascimento); a defesa
+  REAL é dupla: (1) gate de runtime fail-closed `exigirAcessoApp_` (allowlist
+  `APP_ENF_EMAILS_PERMITIDOS` em ScriptProperties + dono sempre passa; email vazio
+  NEGA) em TODOS os endpoints e no `doGet`; (2) PIN como 2º fator.
+  **Why:** deploy "acesso restrito" sozinho não é enforcement — erro de config
+  vazaria dado clínico; o gate em código fecha isso.
+- CPF nunca trafega pro cliente; o servidor sempre re-deriva do CADASTRO PACIENTES.
+
+## Armadilha de encoding ao editar via shell (durável)
+
+- NUNCA usar `perl -0pi` com caractere multibyte (ex.: `\u25b8`) no replacement:
+  ele faz "upgrade" da string e re-grava o arquivo INTEIRO dupla-codificado
+  (acentos viram `Â...`, emoji vira `ð`). Já corrompeu o `Panel.html` inteiro.
+  **How to apply:** editar via Python `open(..., encoding='utf-8', newline='')`,
+  detectar CRLF/LF e preservar; conferir `dupla-cod==0` por contagem de bytes.
