@@ -151,6 +151,12 @@
         FICTICIO auto-limpo, idempotencia, e bloqueio de PIN sem deixar rastro.
         NAO gera PDF/email a paciente real. Decisao + limites em
         `docs/dr-replit/PROPOSTAS/2026-06-12_sonda-integracao-app-enfermagem.md`.
+   6.9. Automacao (zero clique recorrente): `GatilhoSonda.gs` +
+        botoes "INSTALAR/REMOVER GATILHO DA SONDA" no Panel. Um clique instala
+        um gatilho diario que roda a sonda sozinha e manda o resultado por email
+        pro dono. Coordenadas completas e briefing pro Dr. Code em
+        `docs/dr-replit/sistema-paralelo-tabajara/`. Decisao em
+        `docs/dr-replit/PROPOSTAS/2026-06-12_estrategia-validacao-sem-trabalho-manual.md`.
 
 ## O que FALTA (decidir antes de codar)
 

@@ -94,6 +94,20 @@ qualquer toque no Code.gs vira decisão dele.
   resolve os dois. Fabricar linha de paciente na planilha (cobertura máxima, inclui
   PDF) é decisão do CEO com backup antes — não é o default.
 
+## Automacao da sonda + teto do Dr. Code (durável)
+
+- Pra tirar o trabalho manual RECORRENTE: gatilho time-driven instalável
+  (`ScriptApp.newTrigger(handler).timeBased().everyDays(1).atHour(6).create()`)
+  que roda a sonda sozinha e manda o resultado por email pro dono
+  (`Session.getEffectiveUser().getEmail()`). Mínimo de trabalho humano = 1 clique
+  UMA vez ("instalar gatilho"). Instalar deve ser idempotente: apagar triggers do
+  mesmo `getHandlerFunction()` antes de criar, senão duplica a cada clique.
+- NENHUMA IA executa Apps Script — o Dr. Code (Claude) só AUDITA via GitHub raw,
+  nunca roda. "Pedir pro Dr. Code validar no ambiente Apps Script" tem esse teto;
+  execução viva = clique do CEO ou gatilho.
+- Ponte de coordenadas de teste pro Dr. Code: `docs/dr-replit/sistema-paralelo-tabajara/`
+  (README + COORDENADAS_DE_TESTE + BRIEFING_DR_CODE), raw URLs na branch ativa.
+
 ## Armadilha de encoding ao editar via shell (durável)
 
 - NUNCA usar `perl -0pi` com caractere multibyte (ex.: `\u25b8`) no replacement:
