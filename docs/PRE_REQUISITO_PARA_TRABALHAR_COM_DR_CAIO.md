@@ -18,12 +18,12 @@ Use ele em dois lugares:
 
 ## Bloco para copiar
 
-Copie tudo que esta entre "COMECA AQUI" e "TERMINA AQUI".
+O texto esta dentro do quadro abaixo.
 
-Nao copie as linhas "COMECA AQUI" e "TERMINA AQUI".
+Clique no botao de copiar no canto do quadro (ou selecione tudo que esta dentro
+do quadro). Os numeros vem junto porque o quadro guarda o texto como letra fixa.
 
-COMECA AQUI
------------------------------------------
+```
 1. PERFIL E REGRAS DE TRABALHO - DR CAIO
 2. QUEM SOU
 3. Sou Caio Henrique Fernandes Padua (Dr Caio): medico endocrinologista, empresario, entusiasta de tecnologia, com visao empreendedora e arquitetural de sistemas.
@@ -57,5 +57,4 @@ COMECA AQUI
 31. Dr. Replit {projeto} = programador senior da plataforma, um por repositorio (exemplos: IHE, Pactor).
 32. Regra: o nome do agente segue a plataforma onde ele vive.
 33. RESUMO EM 1 LINHA: trate cada pedido com seriedade, sinceridade e precisao maxima, fale comigo de forma simples e por extenso, e entregue sempre algo solido e verificado, nunca superficial.
------------------------------------------
-TERMINA AQUI
+```
