@@ -1,0 +1,152 @@
+# INSTRUCAO_02 — TRANSMUTACAO RAS v8 -> TYPESCRIPT EMBRIAO DO PACTOR
+## De: Dr. Claude (orquestrador) Para: Dr. Replit IHE (senior de producao)
+## Data: 12/06/2026
+## Cacique aprovador: CEO Caio Padua
+## Repo destino: caio-padua/Pactor (branch main, laboratorio por contrato)
+
+---
+
+## 0. CONTEXTO EM 3 LINHAS
+
+0.1 O CEO decidiu acelerar a operacao clinica saindo do RAS KAIZEN v8 (Apps Script) para o Pactor (TypeScript/React).
+0.2 Voce, Dr. Replit IHE, conhece o RAS v8 em profundidade (escreveu cada .gs). Sua missao agora: TRANSMUTAR a logica para TypeScript puro e entregar arquivos prontos em docs/dr-replit/PARA_PACTOR/.
+0.3 O Dr. Replit Pactor (primo seu) vai PUXAR esses arquivos e montar na arquitetura React/Vite/PADCOM dele. Voce NAO toca no repo Pactor. Voce so entrega o material no IHE.
+
+---
+
+## 1. PRINCIPIO DA TRANSMUTACAO (R5 Kaizen-first)
+
+1.1 Voce nao reescreve. Voce TRANSMUTA: a logica e dados ja existem em Apps Script; voce transcreve para TypeScript puro, sem perder o que ja foi validado pelo CEO (32 testes de Padronizacao, numeros reais do Luciano no Orcamento).
+1.2 NAO transcreve glue do Apps Script: SpreadsheetApp, ranges A:G, Panel.html, EmbeddedChartBuilder, UrlFetchApp, PropertiesService — nada disso vai para TypeScript.
+1.3 TRANSCREVE: algoritmos puros, dados estruturados, tipos, testes deterministicos.
+
+---
+
+## 2. ESCOPO LIMITADO — APENAS 3 BRACOS
+
+Por decisao do CEO, esta instrucao cobre APENAS o embriao real do Pactor:
+
+2.1 BRACO A — GERADOR DE PROTOCOLOS (logica do Cockpit do RAS)
+    Origem: docs/dr-replit/ras-kaizen-v8/Code.gs (funcoes estruturarCockpit_, lancarProtocolo, aplicarEstruturaCompleta)
+    Origem: docs/dr-replit/ras-kaizen-v8/MultiCockpitProtocolo.gs
+    Origem: docs/dr-replit/ras-kaizen-v8/NovoProtocoloCockpit.gs
+    Origem: docs/dr-replit/ras-kaizen-v8/OrdenacaoCategoriaRas.gs
+
+2.2 BRACO B — ORCAMENTO
+    Origem: docs/dr-replit/ras-kaizen-v8/Orcamento.gs
+    Reproduzir EXATAMENTE os numeros reais do Luciano:
+    - Total: R$ 15.960
+    - A vista (15% desc): R$ 13.566 — economia R$ 2.394
+    - Entrada 50% + 10% desc: total 14.364, entrada 7.182, saldo 7.182, 2x 3.591, 3x 2.394
+    - Entrada 30% + 5% desc: total 15.162, entrada 4.548,60, saldo 10.613,40, 3x 3.537,80
+    - Calculadora livre 2x-10x com taxa repassada: saldo / (1 - taxa/100)
+
+2.3 BRACO C — CADASTRO DE PACIENTES (dados reais com email, telefone, data de nascimento)
+    Origem: aba CADASTRO PACIENTES do RAS_TRANSFERENCIA_FINAL
+    Origem do schema referencia: lib/db/src/schema/pacientes.ts do IHE
+    Campos confirmados existentes no schema: nome (text notNull), dataNascimento (date), telefone (text notNull), email (text).
+    No Pactor: tudo em mock TypeScript, sem banco. Os dados sao SEED inicial de pacientes reais selecionados pelo CEO (com consentimento).
+
+---
+
+## 3. ESTRUTURA DOS ARQUIVOS QUE VOCE VAI ENTREGAR
+
+Voce cria a pasta: docs/dr-replit/PARA_PACTOR/ no repo IHE, branch ver-l2-dr-claude.
+Estrutura sugerida (voce tem veto):
+
+```
+docs/dr-replit/PARA_PACTOR/
+├── README.md                          # indice do pacote
+├── 01_padronizacao/
+│   ├── padronizacao.ts                # motor puro
+│   ├── canonico.constants.ts          # excecoes caixa alta
+│   └── padronizacao.test.ts           # 32 testes em Vitest
+├── 02_protocolos/
+│   ├── tipos.ts                       # Protocolo, Cockpit, Substancia
+│   ├── motor.ts                       # geracao, ordenacao por categoria
+│   ├── multi-cockpit.ts               # 4 cockpits + numero unico
+│   └── motor.test.ts
+├── 03_orcamento/
+│   ├── tipos.ts                       # Orcamento, ItemOrcamento, Cenario
+│   ├── calculadora.ts                 # cenarios A/B/C + 2x-10x
+│   ├── parametros.constants.ts        # descontos, taxas, default
+│   └── calculadora.test.ts            # teste com numeros reais do Luciano
+└── 04_pacientes/
+    ├── tipos.ts                       # Paciente (alinhado ao schema do IHE)
+    ├── seed-pacientes.ts              # mock com dados reais selecionados
+    └── validacao.ts                   # validar CPF, email, telefone
+```
+
+3.1 TODOS os arquivos .ts: tipos explicitos, zero "any", zero dependencia de framework (puro TypeScript, executavel em Node).
+3.2 TODOS os testes em Vitest (o Pactor usa Vitest).
+3.3 README.md com: o que cada pasta faz, ordem de leitura para o Dr. Replit Pactor, dependencias entre arquivos.
+
+---
+
+## 4. CONTRATO DOS DADOS DE PACIENTES (item delicado)
+
+4.1 Dados reais de pacientes do CEO entram no Pactor como SEED inicial.
+4.2 Campos minimos no seed: nome, dataNascimento, telefone, email.
+4.3 NAO incluir: CPF, dados de saude, prescricoes, financeiro.
+4.4 Quantidade sugerida: 10 a 20 pacientes (CEO escolhe quais — voce nao seleciona; o CEO vai te listar separadamente os nomes).
+4.5 Voce monta o ESQUELETO seed-pacientes.ts com placeholders {{NOME}}, {{NASC}}, {{TEL}}, {{EMAIL}} e o CEO preenche localmente antes de qualquer commit.
+4.6 Resultado: o seed real nunca passa por chat. Vai do CEO direto para o repo via Dr. Code.
+
+---
+
+## 5. ORDEM DE EXECUCAO
+
+5.1 Voce me confirma esta instrucao (aceita ou veta com fundamento).
+5.2 Cria docs/dr-replit/PARA_PACTOR/ + README.md
+5.3 Onda A: 01_padronizacao (mais simples, mais critico — fundacao dos nomes)
+5.4 Onda B: 02_protocolos (gerador de protocolos)
+5.5 Onda C: 03_orcamento (com teste pelos numeros do Luciano)
+5.6 Onda D: 04_pacientes (esqueleto seed + validacao)
+5.7 Cada onda fecha pelo R7: hash no GitHub + teste real passando.
+5.8 Voce me avisa por commit message claro: "PARA_PACTOR onda A entregue, hash {sha}".
+5.9 Eu audito via raw URL contra esta instrucao.
+5.10 O CEO leva ao Dr. Replit Pactor a URL raw de docs/dr-replit/PARA_PACTOR/README.md e diz: "absorve isto".
+
+---
+
+## 6. O QUE VOCE NAO FAZ NESTA INSTRUCAO
+
+6.1 NAO toca no repo Pactor (caio-padua/Pactor).
+6.2 NAO escreve UI, componentes React, telas, CSS — isso e do Pactor.
+6.3 NAO transcreve App de Enfermagem, Sonda, Agendamento — fora do escopo desta instrucao.
+6.4 NAO transcreve o motor de prescricao manipulada (~700 linhas JSX do CEO) — esse vai direto do CEO para o Pactor como Onda 3 da Instrucao 01 anterior, ja combinada.
+6.5 NAO para a fila do PAWARDS (cronograma 27): esta missao roda EM PARALELO, sem furar.
+
+---
+
+## 7. REGRAS DE FERRO (vigentes)
+
+R1: spec antes de codigo (esta instrucao e a spec; nada antes dela)
+R2: tipos sao esqueleto, dados de seed sao sangue
+R3: anti-fantasia (nao anunciar entregue sem hash + teste)
+R4: 1 cacique = Caio
+R5: kaizen-first (transmutar, nao reinventar)
+R6: nomes semanticos completos (quantidade_gramas, nao qtd_g)
+R7: auditoria com dados frescos (git fetch antes de tudo)
+
+---
+
+## 8. CRITERIO DE ACEITE FINAL DA INSTRUCAO
+
+8.1 Pasta docs/dr-replit/PARA_PACTOR/ existe e tem README.md, 4 subpastas, todos os arquivos .ts compilam sem erro.
+8.2 Teste do orcamento reproduz os numeros do Luciano (R$ 15.960 e derivados) com precisao de centavos.
+8.3 32 testes de Padronizacao passam em Vitest.
+8.4 Dr. Replit Pactor consegue ler o README e absorver o pacote sem precisar perguntar nada.
+8.5 Eu (Dr. Claude) audito e dou OK.
+8.6 O CEO testa no Pactor com 1 paciente real do seed e 1 orcamento real — funciona ponta a ponta.
+
+---
+
+## 9. UMA PALAVRA FINAL
+
+Voce ja escreveu tudo isso uma vez no barquinho a remo. Agora voce esta transmutando para a lancha — o que pode ser o trabalho mais economico que voce ja fez no projeto, porque a logica esta toda na sua cabeca. Mas R3 vale mais que velocidade: se em algum ponto sentir que vai entregar pela metade, PARA e fala. O CEO prefere esperar.
+
+Boa transmutacao, primo do Pactor. Te leio nos commits.
+
+Dr. Claude (claude.ai) — orquestrador
+12/06/2026
