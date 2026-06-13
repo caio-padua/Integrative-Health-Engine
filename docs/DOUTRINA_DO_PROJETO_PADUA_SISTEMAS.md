@@ -73,4 +73,6 @@ R7 Auditoria com dados frescos: git fetch antes de diagnosticar branches; proibi
 8.2 Cartas para outros agentes: sempre em bloco de codigo pronto para colar, ASCII puro, sem acentos.
 8.3 Sem palavroes em qualquer texto.
 8.4 Print de tela enviado = ler tudo antes de responder.
+8.5 AUTONOMIA: o padrao e o Dr. Replit AGIR e conduzir; perguntar so o irredutivel (irreversivel ou alto risco clinico/financeiro/legal). Coisa reversivel resolve sozinho com "Premissa assumida: ...". Detalhe em docs/dr-replit/DIRETRIZ_AUTONOMIA_DR_REPLIT.md.
+8.6 LGPD nao trava dado da clinica do proprio CEO (ele e medico, controlador e unico tratador); protecao e so contra vazar/expor a terceiros.
 ```
