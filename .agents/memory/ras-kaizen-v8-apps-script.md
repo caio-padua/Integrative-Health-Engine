@@ -192,6 +192,23 @@ qualquer toque no Code.gs vira decisão dele.
   prometer testar o app do Pactor daqui seria fantasia (R3). Separar "cerebro testado aqui"
   de "ligar no corpo do Pactor la" mata retrabalho e respeita a governanca do CEO.
 
+## Transplante IHE->Pactor: como empurrar pro repo separado — 13/06/2026
+- O codigo nasce no IHE (`lib/pactor-transmutacao/`) mas o destino e o repo SEPARADO
+  caio-padua/Pactor. Mecanismo que funciona: no code_execution, clonar o Pactor em
+  /tmp com o token da integracao github, `git checkout -b ihe-transmutacao`, copiar as
+  pastas dos modulos, `git config user.*` + `git commit` + `git push HEAD:ihe-transmutacao`.
+  Commit num clone /tmp e OK (nao e o repo protegido do workspace; a regra anti-`git commit`
+  vale pro branch do workspace, que a plataforma comita sozinha no fim da task).
+- Dropar a transmutacao no Pactor como pasta `lib/ihe-transmutacao/modules/` SEM
+  package.json nem tsconfig proprios: o pnpm-workspace globa `lib/*`, entao um package.json
+  puxaria a pasta pro lockfile/build do Pactor. Sem package.json = fonte pura aditiva,
+  zero impacto no build existente; o Dr. Replit Pactor faz o merge/integracao depois.
+- **Why:** o IHE certifica a logica (teste verde no MEU ambiente) e entrega pronta numa
+  branch `ihe-*`; tocar o build do Pactor daqui seria invadir a governanca do primo (R3).
+- Realidade do timing: B/C/D ficam no working tree do IHE e so vao pro GitHub IHE no
+  PROXIMO checkpoint (a plataforma comita no fim da task); o push do IHE com elas e na
+  rodada seguinte. O Pactor (clone /tmp) ja recebe TUDO na hora, com SHA real proprio.
+
 ## Peptideos + hifen no nome canonico + glue write-back — 12/06/2026
 - Siglas de peptideo (AOD/PT/CJC/BPC/TB/GLOW/MOTS/GHK) ficam CAIXA ALTA, mas "Cu" de
   cobre NAO e sigla: GHK-Cu fica misto. Nome hifenizado SEM digito (GHK-Cu, MOTS-C)

@@ -1,0 +1,62 @@
+Dr. Replit IHE, do Caio (cacique) — AUTONOMIA TOTAL RATIFICADA:
+
+== 1. RETIFICACAO DA CARTA ANTERIOR ==
+1.1 As travas "auditoria do Dr. Claude ANTES da proxima onda" e
+    "OK do Dr. Claude antes de empurrar pro Pactor" estao
+    REMOVIDAS.
+1.2 Eu, Caio, cacique unico, ASSUMO TODO O RISCO desta decisao.
+1.3 Voce tem AUTONOMIA TOTAL para trabalhar ate 4 horas seguidas,
+    sem me interromper, usando bom senso de engenheiro senior.
+
+== 2. AUTONOMIA CONCEDIDA (decide e executa sozinho) ==
+2.1 Faz as ondas A -> B -> C -> D em sequencia, sem parar pra
+    pedir OK entre elas.
+2.2 Empurra pra branch ihe-transmutacao no repo Pactor por conta
+    propria (sem esperar o Dr. Claude).
+2.3 Escolhe runner, estrutura, nomes, bibliotecas padrao,
+    refatoracoes (kaizen).
+2.4 Corrige bugs que achar no caminho.
+2.5 Decide ordem interna de cada onda.
+2.6 Faz seu proprio code review (architect) como criterio de
+    qualidade.
+
+== 3. AS UNICAS 3 LINHAS QUE PERMANECEM (nao sao travas de
+    velocidade, sao de honestidade) ==
+3.1 NAO anuncia onda "pronta/verde" sem o teste realmente passar
+    (R3 anti-fantasia — sua propria regra). Teste roda em
+    segundos, nao atrasa.
+3.2 NAO toca dado real de paciente — placeholder sempre
+    ({{NOME}}, {{NASC}}, {{TEL}}, {{EMAIL}}). LGPD.
+3.3 NAO muda decisao clinica minha (dose, protocolo, prescricao)
+    — isso e so meu.
+
+== 4. REGISTRO (anti-ectoplasma, leve) ==
+4.1 Cada decisao autonoma vira 1 linha em
+    docs/dr-replit/DECISOES_AUTONOMAS.md (numero | decidi | por que).
+4.2 Cada desvio honesto da spec, registra igual voce fez na Onda A.
+4.3 Nao precisa pedir permissao — so registra e segue.
+
+== 5. ENTREGA NO FIM (4 horas OU quando terminar A-D) ==
+5.1 Empurra tudo: branch ver-l2-dr-claude (logica) + branch
+    ihe-transmutacao no Pactor (transplante).
+5.2 Me devolve os SHAs reais de cada onda.
+5.3 Lista: ondas verdes, desvios honestos, decisoes autonomas,
+    pendencias clinicas (se houver).
+5.4 So entao o Dr. Claude faz UMA auditoria geral de tudo.
+
+== 6. REGRA DE OURO ==
+6.1 Prefiro 4 ondas SOLIDAS a 4 ondas quebradas.
+6.2 Se algo travar de verdade (decisao clinica, bug sem solucao,
+    risco real), PARA, registra, e segue as outras ondas que
+    der pra fazer.
+6.3 Nao force entrega pela metade so pra cumprir 4 horas.
+
+== 7. AGORA ==
+7.1 Empurra a Onda A primeiro (ja esta verde no seu Replit) pra
+    o SHA aparecer no GitHub.
+7.2 Segue direto pras Ondas B, C, D com autonomia total.
+7.3 Trabalha tranquilo. Bom senso de senior. Eu confio.
+7.4 Te leio no fim das 4 horas.
+
+Assinado: Caio Padua, cacique unico, assumindo o risco.
+Com ratificacao do Dr. Claude, orquestrador.

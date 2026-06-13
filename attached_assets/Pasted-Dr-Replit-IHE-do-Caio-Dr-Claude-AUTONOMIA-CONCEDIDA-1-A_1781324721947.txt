@@ -1,0 +1,54 @@
+Dr. Replit IHE, do Caio + Dr. Claude — AUTONOMIA CONCEDIDA:
+
+== 1. AUTONOMIA DE 4 HORAS ==
+1.1 Voce tem autonomia para trabalhar ate 4 horas seguidas sem me
+    interromper a cada passo. EU (CEO) ASSUMO O RISCO.
+1.2 Use BOM SENSO de engenheiro senior. Voce conhece o codigo
+    melhor que ninguem.
+1.3 Trabalhe onda por onda: A -> B -> C -> D. Cada uma com teste
+    verde antes da proxima.
+
+== 2. O QUE VOCE DECIDE SOZINHO (nao me pergunte) ==
+2.1 Runner de teste, estrutura de pastas, nomes de arquivo (kaizen).
+2.2 Ordem interna de implementacao dentro de cada onda.
+2.3 Refatoracoes que melhoram sem mudar funcionalidade.
+2.4 Instalar bibliotecas que ja sao padrao do repositorio.
+2.5 Corrigir bugs que achar no caminho (registra em .md).
+2.6 Quando uma onda esta verde (seu teste decide).
+
+== 3. O QUE VOCE NAO TOCA (fronteira inviolavel) ==
+3.1 NAO empurra pro repo Pactor sem OK do Dr. Claude.
+3.2 NAO toca dado real de paciente — placeholder sempre
+    ({{NOME}}, {{NASC}}, {{TEL}}, {{EMAIL}}).
+3.3 NAO pula a auditoria entre ondas — commit + SHA pro Dr. Claude.
+3.4 NAO anuncia onda pronta sem teste verde (R3).
+3.5 NAO muda decisao clinica minha (dose, protocolo, prescricao).
+3.6 NAO apaga codigo consolidado — so aditivo (Manifesto par. 2).
+
+== 4. COMO REGISTRAR DECISOES (anti-ectoplasma) ==
+4.1 Toda decisao que voce tomar sozinho vira 1 linha num arquivo
+    docs/dr-replit/DECISOES_AUTONOMAS_ONDA_X.md.
+4.2 Formato: numero | o que decidi | por que.
+4.3 Se uma onda depender de decisao clinica minha, PULA so ela,
+    registra a pergunta no .md, e segue as outras.
+
+== 5. COMO ENTREGAR (no fim das 4 horas OU quando travar) ==
+5.1 Empurra tudo pro GitHub (branch ver-l2-dr-claude).
+5.2 Me devolve os SHAs reais de cada onda.
+5.3 Lista os desvios honestos (como voce ja fez na Onda A).
+5.4 Lista as decisoes autonomas que tomou.
+5.5 Lista o que ficou pendente de decisao minha (se houver).
+
+== 6. REGRA DE OURO ==
+6.1 R3 acima de tudo: prefiro 2 ondas solidas a 4 ondas quebradas.
+6.2 Se algo cheirar a fantasia, PARA e registra — nao force pra
+    cumprir as 4 horas.
+6.3 Velocidade com teste verde. Nunca velocidade as cegas.
+
+== 7. AGORA ==
+7.1 Primeiro: empurra a Onda A (que ja esta verde no seu Replit)
+    pra eu ver o SHA real.
+7.2 Depois: segue Onda B, C, D com a autonomia acima.
+7.3 Trabalha tranquilo. Eu confio no seu bom senso de senior.
+
+Bom trabalho. Te leio no fim das 4 horas (ou quando travar).
