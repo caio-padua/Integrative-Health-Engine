@@ -116,3 +116,26 @@ sobrescreve dado ja existente (email/cpf/nascimento ja gravados ficam).
 - Match por nome+nascimento pode falhar em homonimos sem CPF (poucos);
   mitigado por CPF quando existe (200 de 216).
 - Datas com ano de 2 digitos exigem normalizacao (clinicas => 20xx).
+
+## 8. Execucao e correcoes (13/06/2026)
+
+- Executado de verdade na unidade 15.
+- Achado 1 — DUPLICATAS NA PLANILHA: 14 nomes aparecem 2x/3x (cauda de
+  recadastro nas linhas 203-216). Solucao: consolidar linhas da MESMA pessoa
+  antes de gravar e UNIR os itens (dedup por descricao, mantendo o de maior
+  numero de sessoes). 216 linhas => 202 pessoas unicas.
+- Achado 2 — CPF COMPARTILHADO MAE/FILHA: linha 181 (VANDERLANDIA, 1980) e
+  linha 185 (VALENTINA, 2014) tem o MESMO CPF na planilha (mae cadastrou a
+  filha menor com o proprio CPF). Match cego por CPF fundiria as duas pessoas.
+  Solucao: so casar por CPF se o PRIMEIRO NOME tambem bate; senao cai pra
+  nome+nascimento. Mae e filha ficam separadas no banco (ja eram 2 registros
+  distintos: ids 5586 e 5570).
+- Chave de agrupamento que separa mae/filha: CPF + primeiro nome quando ha CPF;
+  senao nome + nascimento; senao nome.
+- Estado final gravado (origem tag "[origem:RAS_TRANSFERENCIA]"):
+  - 79 tratamentos, 360 tratamento_itens, 0 paciente com tratamento duplicado.
+  - 3 itens casados com substancia do catalogo; os demais com substancia_id
+    NULL e descricao preservada (preco historico nao casado, decisao do CEO).
+  - Soma orcamento R$ 220.543,00; soma pago R$ 186.775,00 (verdade historica).
+- Idempotente: reexecucao reusa o tratamento pela tag, faz UPDATE e rebuild
+  dos itens; nao duplica.
