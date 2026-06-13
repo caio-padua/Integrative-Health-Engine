@@ -21,6 +21,12 @@
 
 2.2. Fonte de dados = Opcao A: o Pactor LE do sistema atual (IHE), verdade
      unica, zero duplicacao. NAO tera banco proprio de pacientes.
+     Confirmado pelo CEO (13/06/2026): o Pactor le do IHE TUDO que veio da
+     mesma planilha — pacientes, PROTOCOLOS ja gerados e os VALORES pagos e
+     pendentes. Identidade, cara e codigo do Pactor continuam 100% proprios;
+     "isolado" = produto separado, NAO multi-clinica (atende so o Instituto
+     Padua). "Unidade 15" e apenas o codigo da clinica Instituto Padua no IHE,
+     nao "15 clinicas".
 
 2.3. O que importar do Apps Script: o CODIGO (como referencia pra traduzir a
      logica pro TypeScript). NUNCA a planilha — os pacientes ja estao no banco
@@ -47,17 +53,23 @@
 
 4.1. O IHE (este projeto, `artifacts/api-server`) ja expoe rotas REST sob `/api`.
 
-4.2. Rotas que JA existem e servem ao App de Enfermagem:
-     - `GET /pacientes?unidadeId=15` — lista pacientes da unidade.
+4.2. Rotas que JA existem e servem ao Pactor (verificado em 13/06/2026):
+     - `GET /pacientes?unidadeId=15` — lista pacientes da clinica.
      - `GET /pacientes/:id` — ficha do paciente.
+     - `GET /financeiro/tratamentos` e `GET /financeiro/tratamentos/:id` —
+       protocolos/tratamentos gerados (com itens/sessoes).
+     - `GET /financeiro/resumo-paciente/:pacienteId` — valores pago e pendente
+       por paciente.
+     - `GET /financeiro/pagamentos` — pagamentos.
+     - `GET /protocolos` e `GET /protocolos/:id` — protocolos.
 
-4.3. Rotas que FALTAM (gap a construir no IHE, fase F2/F3):
-     - listar as SESSOES a aplicar de um paciente (vem de `tratamento_itens`
-       com `numero_sessoes`); hoje nao ha endpoint dedicado.
+4.3. Rota que FALTA (unico gap real, fase F3):
      - registrar a APLICACAO de uma sessao com verificacao de PIN; nao existe.
+     - (as SESSOES a aplicar ja sao acessiveis pelos itens do tratamento em
+       `GET /financeiro/tratamentos/:id`; validar o formato na F2.)
 
 4.4. Consequencia da Opcao A: registrar aplicacao GRAVA de volta no IHE (senao
-     nao seria verdade unica). Por isso os 2 endpoints novos moram no IHE, e o
+     nao seria verdade unica). Por isso esse endpoint novo mora no IHE, e o
      Pactor so consome.
 
 ## 5. Design (PENUMBRA)
