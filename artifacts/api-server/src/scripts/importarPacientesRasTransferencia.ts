@@ -235,7 +235,35 @@ function consolidar(pacientes: PacienteRas[]): PacienteRas[] {
       itens: [...itensUnidos.values()],
     });
   }
-  return saida;
+  return desambiguarCpfCompartilhado(saida);
+}
+
+/**
+ * Regra do CEO: quando pessoas DISTINTAS compartilham o mesmo CPF na planilha
+ * (ex.: mae que cadastrou a filha menor com o proprio CPF), mantem o CPF apenas
+ * no titular e deixa os demais EM BRANCO (cpf=null). Nunca grava o mesmo CPF em
+ * duas pessoas.
+ * Premissa assumida: titular = nascimento mais antigo (o adulto); empate/sem
+ * data => a primeira ocorrencia. Nao afeta CPF ja existente no banco (o UPDATE
+ * usa COALESCE e so completa lacuna).
+ */
+function desambiguarCpfCompartilhado(pessoas: PacienteRas[]): PacienteRas[] {
+  const porCpf = new Map<string, PacienteRas[]>();
+  for (const p of pessoas) {
+    if (!p.cpf) continue;
+    if (!porCpf.has(p.cpf)) porCpf.set(p.cpf, []);
+    porCpf.get(p.cpf)!.push(p);
+  }
+  for (const grupo of porCpf.values()) {
+    if (grupo.length < 2) continue;
+    const titular = [...grupo].sort((a, b) => {
+      const da = a.dataNascimento ? a.dataNascimento.getTime() : Infinity;
+      const dbn = b.dataNascimento ? b.dataNascimento.getTime() : Infinity;
+      return da - dbn;
+    })[0];
+    for (const p of grupo) if (p !== titular) p.cpf = null;
+  }
+  return pessoas;
 }
 
 async function carregarCatalogoSubstancias(): Promise<Map<string, number>> {

@@ -29,3 +29,16 @@ só por CPF**.
   origem com idempotência, sem tocar dado pré-existente.
 - Sempre confira a contagem REAL no banco vs o que o script reportou: a
   divergência denuncia colisões de match (linhas colapsando no mesmo registro).
+
+## CPF compartilhado: regra do CEO = deixar UM em branco
+
+Quando 2+ pessoas distintas carregam o MESMO CPF na planilha, NUNCA gravar o
+mesmo CPF nas duas. Mantém o CPF só no **titular** e deixa os demais em branco
+(`cpf=null`). **Premissa:** titular = nascimento mais antigo (o adulto); a filha
+menor fica sem CPF. O CEO confirmou explicitamente "deixar um em branco".
+
+**How to apply:** rodar a desambiguação DEPOIS de consolidar, agrupando por CPF.
+O `UPDATE` de cadastro usa `COALESCE`, então CPF real já existente no banco é
+preservado — a regra do branco só afeta INSERTs novos. (No caso real
+Vanderlandia/Valentina o banco já tinha 2 CPFs próprios e distintos; nada a
+apagar — a duplicação existia só na planilha.)

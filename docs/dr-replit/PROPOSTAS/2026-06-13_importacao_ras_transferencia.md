@@ -139,3 +139,16 @@ sobrescreve dado ja existente (email/cpf/nascimento ja gravados ficam).
   - Soma orcamento R$ 220.543,00; soma pago R$ 186.775,00 (verdade historica).
 - Idempotente: reexecucao reusa o tratamento pela tag, faz UPDATE e rebuild
   dos itens; nao duplica.
+
+## 9. Regra do CPF compartilhado (decisao do CEO 13/06/2026)
+
+- CEO: "deixar um em branco". Quando 2+ pessoas distintas tem o MESMO CPF na
+  planilha, NUNCA gravar o mesmo CPF nas duas.
+- Implementacao: funcao desambiguarCpfCompartilhado roda depois de consolidar,
+  agrupa por CPF e mantem o CPF so no TITULAR (premissa: nascimento mais antigo
+  = o adulto); os demais ficam com cpf=null (em branco).
+- O UPDATE de cadastro usa COALESCE, entao CPF real ja existente no banco e
+  preservado; a regra do branco so afeta INSERTs novos.
+- Caso real (Vanderlandia mae / Valentina filha): no banco ja existiam 2 CPFs
+  proprios e distintos (03362823467 e 24219532862). A duplicacao existia SO na
+  planilha; nada a apagar. Zero CPF repetido na unidade 15 apos a importacao.
