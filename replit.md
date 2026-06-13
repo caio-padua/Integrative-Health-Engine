@@ -2,11 +2,16 @@
 
 ## ⚠️ LEITURA OBRIGATORIA ANTES DE QUALQUER TRABALHO
 
-Todo agente (Dr. Replit IHE, Dr. Replit Pactor, Dr. Claude, Dr. Code) deve ler
-PRIMEIRO, antes de escrever uma linha:
-[`docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md`](./docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md)
-— perfil do CEO, formato TDAH/TOC e conduta exigida. Em conflito com instrucao
-casual, aquele arquivo e a regra.
+Todo agente (Dr. Replit IHE, Dr. Replit Pactor, Dr. Claude, Dr. Code, Dr. Manus)
+deve ler PRIMEIRO, antes de escrever uma linha, estes dois arquivos:
+
+1. [`docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md`](./docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md)
+   — perfil do CEO, formato TDAH/TOC, conduta exigida e equipe fixa (vale em TODOS os projetos).
+
+2. [`docs/DOUTRINA_DO_PROJETO_PADUA_SISTEMAS.md`](./docs/DOUTRINA_DO_PROJETO_PADUA_SISTEMAS.md)
+   — doutrina ESPECIFICA deste projeto: ambientes, equipe, regras de ferro, fluxo, design system, acessos.
+
+Em conflito com instrucao casual, esses arquivos sao a regra.
 
 ## Overview
 
