@@ -11,7 +11,10 @@ export const termosJuridicosTable = pgTable("termos_juridicos", {
   versao: integer("versao").notNull().default(1),
   ativo: boolean("ativo").notNull().default(true),
   categoria: text("categoria", {
-    enum: ["lgpd", "privacidade", "nao_garantia", "tcle_global", "consentimento_especifico", "imagem", "aceite_digital", "ciencia_financeira"],
+    // Categoria 9 "distrato" adicionada em 13/06/2026 (rescisao durante tratamento).
+    // Aditivo: coluna e text puro, sem migration. Texto legal final do distrato
+    // passa por revisao de advogado antes de uso com paciente (decisao do cacique).
+    enum: ["lgpd", "privacidade", "nao_garantia", "tcle_global", "consentimento_especifico", "imagem", "aceite_digital", "ciencia_financeira", "distrato"],
   }).notNull(),
   riscosEspecificos: jsonb("riscos_especificos").default([]),
   metadados: jsonb("metadados").default({}),

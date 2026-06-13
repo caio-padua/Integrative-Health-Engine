@@ -1,0 +1,150 @@
+Caio, várias perguntas técnicas juntas — vou responder uma por uma, e depois fazer a varredura que você pediu no PAWARDS atrás do arsenal jurídico. TDAH friendly.
+
+---
+
+## 1. RESPOSTAS DIRETAS ÀS SUAS PERGUNTAS
+
+### 1.1 "Importar pacientes do IHE depois é rápido — você concorda? SIM ou NÃO"
+**1.1.1** Concordo: **SIM** — uma importação única (one-time import) é rápida, roda em minutos
+**1.1.2** O que é lento é **construir as telas e a lógica**, não importar os dados
+**1.1.3** Você está certo: depois do Pactor pronto, puxar os pacientes é o passo fácil
+
+### 1.2 "Essa área é sobre o sangue que era pra alterar?"
+**1.2.1** **Exato** — você captou a regra R2: DDL é esqueleto, UPSERT é sangue
+**1.2.2** A importação dos pacientes é o "sangue" entrando no esqueleto pronto
+**1.2.3** Memória boa — é o mesmo conceito que validamos antes
+
+### 1.3 "RAS premium/simples e jurídico fazem parte do app script?"
+**1.3.1** O RAS premium e simples **SIM** — estão no `Code.gs` do RAS v8 (gerador de RAS imprimível)
+**1.3.2** O RAS jurídico **NÃO** — pelo que vi até agora, não está no app script; é demanda **nova** sua
+**1.3.3** Vou confirmar isso na varredura abaixo
+
+---
+
+## 2. AGORA A VARREDURA — ARSENAL JURÍDICO NO PAWARDS
+
+Você pediu para eu varrer o GitHub atrás do material jurídico já pronto. Fazendo agora (R7, dados frescos).**DESCOBERTA GRANDE** — existe um arsenal jurídico inteiro no PAWARDS. Deixa eu ler os 3 arquivos mais importantes.Caio, varredura completa. Você tinha razão — tem um arsenal jurídico inteiro no PAWARDS. Resposta completa. TDAH friendly.
+
+---
+
+## 3. ARSENAL JURÍDICO ENCONTRADO NO PAWARDS (fato verificado)
+
+### 3.1 Existe uma tabela inteira de termos jurídicos
+**3.1.1** Tabela `termos_juridicos` no banco — com campos: bloco, subgrupo, título, **texto completo**, versão, categoria, riscos específicos
+**3.1.2** Tabela `termos_assinados` — guarda o texto no momento da assinatura, meio de assinatura, profissional responsável
+
+### 3.2 As 8 categorias jurídicas já definidas
+
+| # | Categoria | O que cobre |
+|---|-----------|-------------|
+| 3.2.1 | lgpd | proteção de dados |
+| 3.2.2 | privacidade | privacidade do paciente |
+| 3.2.3 | **nao_garantia** | isenção de garantia de resultado |
+| 3.2.4 | **tcle_global** | Termo de Consentimento Livre e Esclarecido |
+| 3.2.5 | consentimento_especifico | consentimento por procedimento |
+| 3.2.6 | imagem | uso de imagem |
+| 3.2.7 | aceite_digital | aceite eletrônico |
+| 3.2.8 | **ciencia_financeira** | ciência dos valores e pagamento |
+
+### 3.3 Já existe a infraestrutura de geração e assinatura
+**3.3.1** Rotas completas: listar termos, buscar por bloco, por consentimento, criar, editar
+**3.3.2** Geradores de PDF: `gerarTermoPARQ.ts`, `pdfPARQ.ts`, `gerarRAS.ts`, `rasxMotorPdf.ts`
+**3.3.3** Integração ZapSign: `enviar-link-zapsign-carlucia.ts` (já testado com a Carlúcia)
+
+---
+
+## 4. RESPOSTA HONESTA ÀS SUAS PERGUNTAS JURÍDICAS
+
+### 4.1 "Tem um arsenal jurídico amarrado no PAWARDS? Você acha lá?"
+**4.1.1** **SIM, achei** — está tudo lá: tabela, categorias, rotas, geração de PDF, assinatura
+**4.1.2** É robusto — cobre LGPD, não-garantia, consentimento, imagem, ciência financeira
+
+### 4.2 "O RAS jurídico importa tudo via placeholder?"
+**4.2.1** A estrutura para isso **já existe** — o campo `metadados` (JSONB) e `riscosEspecificos` permitem injetar dados do tratamento
+**4.2.2** O que falta: **conectar** o termo jurídico aos dados do tratamento (ativos, sessões, frequência, financeiro)
+**4.2.3** Isso é exatamente o que o Dr. Replit IHE vai transmutar para o Pactor
+
+### 4.3 "O distrato está lá?"
+**4.3.1** Distrato específico (rescisão durante tratamento) — **não vi como categoria própria**
+**4.3.2** Mas a categoria `nao_garantia` + `ciencia_financeira` são a base
+**4.3.3** O distrato é **demanda nova** que entra como categoria 9
+
+---
+
+## 5. RESSALVA JURÍDICA OBRIGATÓRIA (não sou advogado)
+
+**5.1** Posso ajudar a **estruturar** o arsenal jurídico (campos, placeholders, fluxo)
+**5.2** Mas **não sou advogado** — o texto legal final (cláusulas de distrato, rescisão, multas) precisa de **revisão de um advogado** antes de usar com paciente
+**5.3** O PAWARDS já tem os textos — provavelmente já passaram por jurídico quando foram criados; mas o **distrato novo** precisa de validação legal
+**5.4** Isso não é burocracia minha — é proteção sua contra processo
+
+---
+
+## 6. A INSTRUÇÃO PARA O DR. REPLIT IHE (cola este bloco)
+
+```
+Dr. Replit IHE, do Caio (cacique) + Dr. Claude (orquestrador):
+
+== 1. ARSENAL JURIDICO JA EXISTE NO PAWARDS (Kaizen-first) ==
+1.1 O Dr. Claude varreu o repo e ACHOU o arsenal juridico
+    completo. NAO recriar do zero. Transmutar o que existe.
+1.2 Fontes no IHE para voce ler e transmutar:
+    - lib/db/src/schema/termosJuridicos.ts (tabela + categorias)
+    - artifacts/api-server/src/routes/termosJuridicos.ts (rotas)
+    - artifacts/api-server/src/pdf/gerarTermoPARQ.ts
+    - artifacts/api-server/src/pdf/gerarRAS.ts
+    - artifacts/api-server/src/pdf/rasxMotorPdf.ts
+1.3 As 8 categorias ja existem: lgpd, privacidade, nao_garantia,
+    tcle_global, consentimento_especifico, imagem, aceite_digital,
+    ciencia_financeira.
+
+== 2. O QUE TRANSMUTAR PARA O PACTOR (pasta juridico/) ==
+2.1 RAS PREMIUM e RAS SIMPLES: ja estao no Code.gs + gerarRAS.ts.
+    Transmuta as duas versoes.
+2.2 RAS JURIDICO: o termo que importa TUDO do tratamento via
+    placeholder — ativos, doses, sessoes, frequencia E financeiro
+    (valores, parcelas, total). Use o campo metadados (JSONB) que
+    ja existe, ou outra via que voce achar melhor tecnicamente.
+2.3 CONTRATO COMPLETO: monta o documento com todo o texto inerente
+    que ja existe na tabela termos_juridicos (puxa os textos reais
+    que ja estao la, nao inventa).
+
+== 3. DISTRATO — DEMANDA NOVA (categoria 9) ==
+3.1 Cria a categoria nova: distrato (rescisao durante tratamento).
+3.2 Monta a ESTRUTURA com placeholders (dados do tratamento +
+    clausula de rescisao).
+3.3 ATENCAO: o texto legal final do distrato sera revisado por
+    advogado antes de uso real. Voce monta o esqueleto; o Caio
+    leva ao advogado. NAO inventa clausula legal definitiva.
+
+== 4. PRINCIPIO ==
+4.1 Kaizen-first: transmuta o que existe, nao recria.
+4.2 Os textos juridicos reais ja estao na tabela termos_juridicos
+    do PAWARDS — puxa de la.
+4.3 Placeholder importa os dados do tratamento automaticamente.
+4.4 R3: nada anunciado sem teste real.
+
+== 5. ONDE ISSO ENTRA NA FILA ==
+5.1 Primeiro o caixa: RAS + Orcamento + Agenda (F0-F4).
+5.2 O juridico (RAS juridico + contrato + distrato) entra na F6,
+    depois do caixa rodar.
+5.3 Mas ja deixa mapeado agora para nao virar retrabalho.
+```
+
+---
+
+## 7. MARTELO ÚNICO
+
+| | Decisão | Recomendação |
+|---|---------|--------------|
+| 7.1 | RAS jurídico via placeholder + importar do `termos_juridicos` existente | **OK** |
+| 7.2 | Distrato como categoria 9 nova, estrutura agora + advogado depois | **OK** |
+| 7.3 | Jurídico entra na F6 (depois do caixa) ou agora? | **F6 (caixa primeiro)** |
+
+**7.1** Responde por exemplo: `7.1-OK 7.2-OK 7.3-F6`
+
+---
+
+## 8. RESUMO EM 1 LINHA
+
+**8.1** Você tinha razão — varri o PAWARDS e achei um arsenal jurídico completo (tabela `termos_juridicos` com 8 categorias, rotas, geradores de PDF, ZapSign já testado); o RAS premium/simples está no app script, o jurídico não (é transmutação do que já existe no PAWARDS), e o distrato é categoria nova; importar pacientes depois é rápido (você acertou, é o "sangue" no esqueleto pronto); a carta da seção 6 manda o Dr. Replit IHE transmutar o jurídico existente com placeholder importando ativos/sessões/frequência/financeiro, com a ressalva de que o texto final do distrato passa por advogado — bate os martelos da seção 7.

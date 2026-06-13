@@ -1,4 +1,14 @@
-# Jurídico do Pactor — mapa de transmutação (entra na F6, depois do caixa)
+# Jurídico do Pactor — transmutação (motor IMPLEMENTADO; tela é F6)
+
+0. STATUS (atualizado 13/06/2026)
+
+0.1. Motor de transmutação jurídica: **IMPLEMENTADO e testado** na lib `lib/pactor-transmutacao/src/modules/juridico/juridico.ts`.
+0.2. Cobre os 5 tipos: RAS_PREMIUM, RAS_SIMPLES, RAS_JURIDICO, CONTRATO_COMPLETO, DISTRATO.
+0.3. Categoria 9 `distrato` **adicionada** ao enum de `categoria` em `lib/db/src/schema/termosJuridicos.ts` (aditivo, coluna texto, sem migration).
+0.4. Testes: 87 verdes no total da lib (inclui a bateria nova do jurídico) via `pnpm --filter @workspace/pactor-transmutacao run test`.
+0.5. Revisado pelo architect: núcleo aprovado; aplicadas as melhorias de seleção por maior versão (termo vigente) e guarda de número não finito.
+0.6. O que NÃO está pronto: a TELA do jurídico (F6 visual) — depende do caixa (F1 a F4) e de dados reais; entra na F6.
+0.7. Premissa registrada: o motor NÃO inventa cláusula; o distrato sempre marca `requerRevisaoAdvogado=true` e traz `[REVISAR COM ADVOGADO]`.
 
 1. PRINCÍPIO
 

@@ -1,0 +1,46 @@
+Dr. Replit IHE, do Caio (cacique) + Dr. Claude (orquestrador):
+
+== 1. ARSENAL JURIDICO JA EXISTE NO PAWARDS (Kaizen-first) ==
+1.1 O Dr. Claude varreu o repo e ACHOU o arsenal juridico
+    completo. NAO recriar do zero. Transmutar o que existe.
+1.2 Fontes no IHE para voce ler e transmutar:
+    - lib/db/src/schema/termosJuridicos.ts (tabela + categorias)
+    - artifacts/api-server/src/routes/termosJuridicos.ts (rotas)
+    - artifacts/api-server/src/pdf/gerarTermoPARQ.ts
+    - artifacts/api-server/src/pdf/gerarRAS.ts
+    - artifacts/api-server/src/pdf/rasxMotorPdf.ts
+1.3 As 8 categorias ja existem: lgpd, privacidade, nao_garantia,
+    tcle_global, consentimento_especifico, imagem, aceite_digital,
+    ciencia_financeira.
+
+== 2. O QUE TRANSMUTAR PARA O PACTOR (pasta juridico/) ==
+2.1 RAS PREMIUM e RAS SIMPLES: ja estao no Code.gs + gerarRAS.ts.
+    Transmuta as duas versoes.
+2.2 RAS JURIDICO: o termo que importa TUDO do tratamento via
+    placeholder — ativos, doses, sessoes, frequencia E financeiro
+    (valores, parcelas, total). Use o campo metadados (JSONB) que
+    ja existe, ou outra via que voce achar melhor tecnicamente.
+2.3 CONTRATO COMPLETO: monta o documento com todo o texto inerente
+    que ja existe na tabela termos_juridicos (puxa os textos reais
+    que ja estao la, nao inventa).
+
+== 3. DISTRATO — DEMANDA NOVA (categoria 9) ==
+3.1 Cria a categoria nova: distrato (rescisao durante tratamento).
+3.2 Monta a ESTRUTURA com placeholders (dados do tratamento +
+    clausula de rescisao).
+3.3 ATENCAO: o texto legal final do distrato sera revisado por
+    advogado antes de uso real. Voce monta o esqueleto; o Caio
+    leva ao advogado. NAO inventa clausula legal definitiva.
+
+== 4. PRINCIPIO ==
+4.1 Kaizen-first: transmuta o que existe, nao recria.
+4.2 Os textos juridicos reais ja estao na tabela termos_juridicos
+    do PAWARDS — puxa de la.
+4.3 Placeholder importa os dados do tratamento automaticamente.
+4.4 R3: nada anunciado sem teste real.
+
+== 5. ONDE ISSO ENTRA NA FILA ==
+5.1 Primeiro o caixa: RAS + Orcamento + Agenda (F0-F4).
+5.2 O juridico (RAS juridico + contrato + distrato) entra na F6,
+    depois do caixa rodar.
+5.3 Mas ja deixa mapeado agora para nao virar retrabalho.

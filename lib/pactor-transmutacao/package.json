@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "tsx --test src/modules/padronizacao/padronizacao.test.ts"
+    "test": "tsx --test src/modules/padronizacao/padronizacao.test.ts src/modules/juridico/juridico.test.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",
