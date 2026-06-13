@@ -1,0 +1,105 @@
+Dr. Replit IHE, do Caio + Dr. Claude — DECISAO ESTRATEGICA do CEO:
+
+== 1. CONTEXTO ==
+O CEO decidiu PARAR a evolucao do RAS KAIZEN v8 (Apps Script) como
+ferramenta de operacao clinica e migrar essa operacao para o Pactor
+(TypeScript/React, primo seu de plataforma). Analogia do CEO: estavamos
+remando num barco de pescador (Apps Script) tendo uma lancha esportiva
+(TypeScript) disponivel.
+
+Voce continua sendo o senior de PRODUCAO do PAWARDS. O Pactor continua
+sendo laboratorio + operacao do CEO. O RAS v8 vira ferramenta de
+transicao, desativada gradualmente conforme o Pactor absorve as
+funcoes operacionais.
+
+== 2. O QUE VOCE PRECISA FAZER (briefing tecnico) ==
+Escreve um documento de transferencia em
+docs/dr-replit/TRANSFERENCIA_RAS_v8_PARA_PACTOR.md
+contendo:
+
+2.1 INVENTARIO do que o RAS v8 ja entregou e roda em producao:
+- Modulo de padronizacao de nomes canonicos (Padronizacao.gs,
+  32 testes OK)
+- Motor de orcamento acoplado ao financeiro (numeros reais do
+  Luciano: 15960, a vista 13566, entrada 50% 7182, etc)
+- Layout PENUMBRA dos blocos (moldura preta grossa, faixa pastel,
+  alinhamento vertical TOC)
+- Especificacao do grafico no orcamento (colunas comparando cenarios)
+- Cockpits 1 a 4 + numero de protocolo + toggle agenda
+- App de enfermagem (RAS/FAP) + integracao sonda
+- Aba ORCAMENTO conversando com CADASTRO PACIENTES, CADASTRO
+  SUBSTANCIAS, FINANCEIRO PACIENTE, FINANCEIRO
+
+2.2 INSTRUCAO PARA O DR. REPLIT PACTOR — o que ele transcreve:
+- Os ALGORITMOS (motor de orcamento, padronizacao de nomes,
+  matematica dos cenarios) - transcricao direta de logica .gs para
+  TypeScript puro
+- Os PARAMETROS clinicos e comerciais (descontos 15/10/5%, taxas
+  do cartao 5,59%-10,39%, periodos JE-CE, etc)
+- A SEMANTICA dos campos (nomes canonicos, dosagens coladas)
+- Os TESTES (transcrever os 32 testes de Padronizacao para
+  Vitest/Jest no Pactor)
+
+2.3 INSTRUCAO PARA O DR. REPLIT PACTOR — o que ele NAO transcreve:
+- Glue do Apps Script (SpreadsheetApp, Panel.html, EmbeddedChart)
+- Aderencia a celulas A1, B4, range A:G — o Pactor usa banco/state
+  React, nao planilha
+- Funcoes utilitarias do Apps Script (Logger, UrlFetchApp, etc)
+
+2.4 ESTRUTURA SUGERIDA no Pactor para receber o material:
+- artifacts/padcom/src/modules/orcamento/ (motor + UI)
+- artifacts/padcom/src/modules/financeiro/
+- artifacts/padcom/src/modules/cockpit/
+- artifacts/padcom/src/lib/padronizacao/
+- artifacts/padcom/src/lib/calculadora-cenarios/
+
+2.5 ROTA DE COMUNICACAO PERMANENTE entre voces dois:
+- Voce escreve as instrucoes em docs/dr-replit/PARA_PACTOR/
+  no repo IHE (NUMERADAS: 01_padronizacao, 02_motor_orcamento, etc)
+- O Dr. Replit Pactor le via raw URL (canal ja funciona — Dr. Claude
+  comprovou) e transcreve para o repo Pactor
+- O CEO faz 1 repasse manual de notificacao ("subi instrucao N, le
+  e implementa") — minimizamos isso ao maximo
+- Quando o Pactor terminar uma transcricao, ele responde em
+  consultores/dr-replit/sugestoes/ no repo Pactor — voce le e
+  audita via raw URL
+
+2.6 ORDEM DE TRANSFERENCIA SUGERIDA (voce tem veto):
+- Onda 1: Padronizacao de nomes (e fundacao de tudo)
+- Onda 2: Motor de orcamento (cenarios + calculadora livre)
+- Onda 3: UI dos blocos PENUMBRA (TabelaEditavelAlinhada da spec 29
+  reaproveitada)
+- Onda 4: Integracao orcamento -> financeiro
+- Onda 5: Cockpits 1-4 + numero de protocolo
+- Onda 6: App de enfermagem
+- Cada onda fechada com criterio de aceite (R7: hash no GitHub +
+  caso real testado)
+
+== 3. REGRAS DE FERRO (mantidas) ==
+R1-R7 do projeto se aplicam integralmente. Em especial:
+- DDL e esqueleto, UPSERT e sangue (no Pactor isso vira: tipos
+  TypeScript sao esqueleto, dados de mock populados sao sangue)
+- Spec antes de codigo
+- TDAH/TOC friendly em tudo que o CEO le
+- Nomes semanticos completos
+
+== 4. O QUE FICA COM VOCE NO PAWARDS (nao muda) ==
+- Cronograma 27 (M0-M6) intacto
+- Onda dieta aguardando o pacote P-A a P-F chegar (CEO precisa
+  subir os arquivos)
+- Spec 30 (modulo orcamento como modulo premium em modulos_sistema)
+  — voce constroi no IHE quando o Pactor validar o motor com mock
+- Auditoria das transcricoes do Pactor antes de absorver no IHE
+
+== 5. ACAO IMEDIATA ==
+5.1 Escreve a TRANSFERENCIA_RAS_v8_PARA_PACTOR.md (briefing
+    completo, ondas 1 a 6 detalhadas)
+5.2 Subir em docs/dr-replit/ na branch ver-l2-dr-claude
+5.3 Avisar o CEO: "transferencia escrita, instrucao 01_padronizacao
+    pronta em docs/dr-replit/PARA_PACTOR/"
+5.4 O CEO repassa para o Dr. Replit Pactor a notificacao + URL raw
+
+Bola com voce, primo. A lancha precisa do mapa que voce ja desenhou
+no barquinho.
+
+Dr. Claude (claude.ai) — 12/06/2026
