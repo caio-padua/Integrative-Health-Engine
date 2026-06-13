@@ -1,0 +1,85 @@
+Caio, sim — quero. Mas antes preciso te dizer uma verdade de orquestrador. TDAH friendly.
+
+---
+
+## 1. RESPOSTA DIRETA
+
+**1.1** **SIM**, quero ajudar agora — o rascunho da Instrução 03 (enfermagem + validação) é exatamente o tipo de trabalho que prepara o terreno enquanto ele toca as ondas A-D
+**1.2** Mas tem **uma pergunta arquitetural sua que ficou em aberto** (mensagem anterior) — e sem ela eu posso entregar fantasia em vez de rascunho útil
+
+---
+
+## 2. O QUE FALTA DECIDIR ANTES DE EU ESCREVER
+
+Você me fez **2 perguntas** na mensagem anterior, e respondeu nenhuma das 2 ainda:
+
+### 2.1 DISPOSITIVO DA ENFERMEIRA
+
+| | Opção | Implicação |
+|---|-------|------------|
+| A | App nativo Android/iOS | precisa loja, build, mais robusto |
+| B | **PWA** (site instalável) | Vite faz com 1 plugin, sem loja, offline parcial |
+| C | Site responsivo puro | mais simples, exige internet |
+
+**Recomendação minha**: **B (PWA)** — o Pactor já é Vite/React, encaixa natural
+
+### 2.2 VALIDAÇÃO DO PACIENTE
+
+| | Opção | Implicação |
+|---|-------|------------|
+| A | PIN + rubrica digital (igual hoje no RAS v8) | já validado, sem custo |
+| B | ZapSign para tudo | valor jurídico, custo por documento |
+| C | **Híbrido**: PIN+rubrica no dia a dia, ZapSign nos contratos | melhor dos dois |
+
+**Recomendação minha**: **C (híbrido)**
+
+---
+
+## 3. POR QUE NÃO ESCREVO SEM ESSAS DUAS RESPOSTAS
+
+**3.1** Se eu chutar PWA e você quer app nativo, o rascunho inteiro vira lixo
+**3.2** Se eu chutar híbrido e você quer só ZapSign, mudo arquitetura toda
+**3.3** É R3 (anti-fantasia): não escrevo spec sem decisão clara
+
+---
+
+## 4. O QUE EU ENTREGO ASSIM QUE VOCÊ RESPONDER
+
+**4.1** **Rascunho da Instrução 03** — `INSTRUCAO_03_ENFERMAGEM_VALIDACAO.md`
+**4.2** Cobre:
+- 4.2.1 Onda E.1: motor de validação puro (PIN+rubrica, IHE transmuta do `AppEnfermagemRasFap.gs`)
+- 4.2.2 Onda E.2: PWA da enfermeira (mobile-first, no Pactor)
+- 4.2.3 Onda E.3: tela de rubrica do paciente (Pactor)
+- 4.2.4 Onda E.4: bridge para tabela `avaliacao_enfermagem` do PAWARDS (IHE)
+- 4.2.5 Onda E.5: integração ZapSign para contrato do plano (Pactor)
+**4.3** **Não mando para o Dr. Replit IHE ainda** — guarda no seu Drive até a Onda D fechar
+**4.4** Quando ele terminar a Onda D, você manda a Instrução 03 e ele continua sem parar
+
+---
+
+## 5. EU POSSO TE AJUDAR EM PARALELO TAMBÉM
+
+Enquanto o Dr. Replit IHE toca a Onda A, eu posso fazer 3 coisas úteis (todas sem atrapalhar ninguém):
+
+| | Tarefa | Valor |
+|---|--------|-------|
+| 5.1 | Auditar a Onda A dele assim que ele commitar (R7, raw URL) | garantia de qualidade |
+| 5.2 | Rascunhar a Instrução 03 (enfermagem + validação) | preparar terreno |
+| 5.3 | Mapear o que falta para os 1.557 pacientes virarem orçamento (lista de prioridade) | acelera caixa |
+
+---
+
+## 6. MARTELO DUPLO (só 2 perguntas, rapinho)
+
+| # | Pergunta | Opções | Default |
+|---|----------|--------|---------|
+| 6.1 | Dispositivo da enfermeira? | A (nativo) / **B (PWA)** / C (site) | **B** |
+| 6.2 | Validação do paciente? | A (PIN+rubrica) / B (ZapSign) / **C (híbrido)** | **C** |
+
+**Responda só**: `6.1-B 6.2-C` (se aceitar os defaults) ou outra combinação
+
+---
+
+## 7. RESUMO EM 1 LINHA
+
+**7.1** Sim, quero ajudar agora — mas preciso de 2 respostas rápidas (dispositivo da enfermeira e tipo de validação do paciente) para o rascunho da Instrução 03 não virar fantasia; bate `6.1` e `6.2` e eu escrevo enquanto o Dr. Replit IHE toca a Onda A.
