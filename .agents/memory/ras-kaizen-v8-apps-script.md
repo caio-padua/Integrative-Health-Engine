@@ -108,6 +108,21 @@ qualquer toque no Code.gs vira decisão dele.
 - Ponte de coordenadas de teste pro Dr. Code: `docs/dr-replit/sistema-paralelo-tabajara/`
   (README + COORDENADAS_DE_TESTE + BRIEFING_DR_CODE), raw URLs na branch ativa.
 
+## Pactor = produto SEPARADO (primo do Pawards), nao complementar — 13/06/2026
+- CEO travou: o Pactor e um PRODUTO STANDALONE, "primo" do Pawards/IHE, NAO um
+  complemento. O CEO NUNCA roda os dois ao mesmo tempo. Logo o Pactor precisa ter
+  COPIA PROPRIA de tudo (incl. agendamento) — NAO reusa o motor do IHE.
+- Consequencia: o alvo da transmutacao e o Pactor reincarnar 100% do RAS v8 App
+  Script como TS. Agendamento NAO e "ja existe no IHE, reusa" — pro Pactor e
+  trabalho novo, portado do .gs / usando o google-calendar.ts do IHE so como ref.
+- "Todas as funcionalidades" = todas as FEATURES/capacidades, NAO as ~97 funcoes
+  do Code.gs linha-a-linha (muita coisa e cola de planilha que MORRE). Encanamento
+  troca: SpreadsheetApp->banco, CalendarApp(auto-auth)->Google Calendar API+token,
+  HtmlService->React, ScriptApp trigger->worker, MailApp/GmailApp->Gmail API.
+- **Why:** o CEO teme "misturar estacoes"; produto separado mata a duplicacao SE
+  cada um for autossuficiente. Prometer "1:1 das 97 funcoes" seria fantasia (R3) —
+  o honesto e "feature preservada, encanamento modernizado".
+
 ## Armadilha de encoding ao editar via shell (durável)
 
 - NUNCA usar `perl -0pi` com caractere multibyte (ex.: `\u25b8`) no replacement:
