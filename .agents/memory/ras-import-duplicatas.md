@@ -39,6 +39,6 @@ menor fica sem CPF. O CEO confirmou explicitamente "deixar um em branco".
 
 **How to apply:** rodar a desambiguação DEPOIS de consolidar, agrupando por CPF.
 O `UPDATE` de cadastro usa `COALESCE`, então CPF real já existente no banco é
-preservado — a regra do branco só afeta INSERTs novos. (No caso real
-Vanderlandia/Valentina o banco já tinha 2 CPFs próprios e distintos; nada a
-apagar — a duplicação existia só na planilha.)
+preservado — a regra do branco só afeta INSERTs novos. Atenção ao caso em que o
+banco já tem 2 CPFs próprios e distintos: nada a apagar, pois a duplicação
+existia só na planilha.
