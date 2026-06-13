@@ -1,5 +1,13 @@
 # Pawards — Plataforma de Gestão para Clínica Médica Integrativa
 
+## ⚠️ LEITURA OBRIGATORIA ANTES DE QUALQUER TRABALHO
+
+Todo agente (Dr. Replit IHE, Dr. Replit Pactor, Dr. Claude, Dr. Code) deve ler
+PRIMEIRO, antes de escrever uma linha:
+[`docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md`](./docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md)
+— perfil do CEO, formato TDAH/TOC e conduta exigida. Em conflito com instrucao
+casual, aquele arquivo e a regra.
+
 ## Overview
 
 Pawards is a SaaS clinical engine platform designed for multi-unit integrative medical clinics. It aims to streamline operations, enhance patient care through data-driven suggestions, and improve administrative efficiency. The platform's core functionality includes patient anamnesis, which triggers a clinical engine to generate suggestions for exams, formulas, injectables, implants, and treatment protocols. Key capabilities include TDAH-friendly dashboards with operational queues, medical validation workflows, and dedicated modules for follow-up and financial management. The business vision is to provide an invisible operational consultancy service through a highly efficient and scalable platform, with a comprehensive monetization system for modules and services, targeting multi-unit clinics and consultancy companies.
