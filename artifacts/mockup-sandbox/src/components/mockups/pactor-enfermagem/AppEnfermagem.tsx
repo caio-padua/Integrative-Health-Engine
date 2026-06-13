@@ -159,7 +159,7 @@ export function AppEnfermagem() {
         </span>
         <span style={{ width: 1, height: 18, background: t.border }} />
         <span style={{ fontSize: 11, letterSpacing: "0.08em", color: t.t2 }}>
-          INSTITUTO PADUA
+          INSTITUTO PÁDUA
         </span>
 
         <div style={{ flex: 1 }} />
@@ -202,7 +202,7 @@ export function AppEnfermagem() {
       }}>
         <span style={{ ...LABEL, color: t.t3 }}>PACTOR</span>
         <span style={{ color: t.t3, fontSize: 10 }}>&rsaquo;</span>
-        <span style={{ ...LABEL, color: t.t3 }}>INSTITUTO PADUA</span>
+        <span style={{ ...LABEL, color: t.t3 }}>INSTITUTO PÁDUA</span>
         <span style={{ color: t.t3, fontSize: 10 }}>&rsaquo;</span>
         <span style={{ ...LABEL, color: t.accent }}>ENFERMAGEM</span>
       </div>
@@ -217,7 +217,7 @@ export function AppEnfermagem() {
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="NOME OU CODIGO"
+              placeholder="NOME OU CÓDIGO"
               style={{
                 width: "100%", background: t.bg2, border: `1px solid ${t.border}`,
                 color: t.t1, padding: "7px 10px", fontSize: 11, letterSpacing: "0.06em",
@@ -279,7 +279,7 @@ export function AppEnfermagem() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
               {[
-                { k: "SESSOES A APLICAR", v: String(pendentesDoSel), cor: t.accent },
+                { k: "SESSÕES A APLICAR", v: String(pendentesDoSel), cor: t.accent },
                 { k: "PAGO", v: formatBRL(sel.pago), cor: t.ok },
                 { k: "PENDENTE", v: formatBRL(sel.pendente), cor: sel.pendente ? t.warn : t.t3 },
               ].map((kpi, i) => (
@@ -296,7 +296,7 @@ export function AppEnfermagem() {
           {/* sessoes a aplicar */}
           <div style={{ border: `1px solid ${t.border}`, background: t.bg2 }}>
             <div style={{ padding: "8px 14px", borderBottom: `1px solid ${t.border}`, fontSize: 12, letterSpacing: "0.10em", textTransform: "uppercase", color: t.t2 }}>
-              SESSOES DO PACIENTE
+              SESSÕES DO PACIENTE
             </div>
             <div style={{ display: "flex", flexDirection: "column" }}>
               {sel.sessoes.map((s, i) => (
@@ -333,11 +333,11 @@ export function AppEnfermagem() {
           {/* registrar aplicacao com PIN */}
           <div style={{ border: `1px solid ${t.borderAccent}`, background: t.bg2 }}>
             <div style={{ padding: "8px 14px", borderBottom: `1px solid ${t.border}`, fontSize: 12, letterSpacing: "0.10em", textTransform: "uppercase", color: t.accent }}>
-              REGISTRAR APLICACAO
+              REGISTRAR APLICAÇÃO
             </div>
             <div style={{ padding: 14, display: "flex", alignItems: "flex-end", gap: 16 }}>
               <div style={{ flex: 1 }}>
-                <div style={LABEL}>SESSAO SELECIONADA</div>
+                <div style={LABEL}>SESSÃO SELECIONADA</div>
                 <div style={{ fontSize: 12, color: t.t1, marginTop: 6 }}>
                   {sel.sessoes[0].substancia} · {sel.sessoes[0].via}
                 </div>
@@ -369,7 +369,7 @@ export function AppEnfermagem() {
                   cursor: pin.length < 4 ? "not-allowed" : "pointer",
                 }}
               >
-                CONFIRMAR APLICACAO
+                CONFIRMAR APLICAÇÃO
               </button>
             </div>
           </div>
@@ -387,7 +387,7 @@ export function AppEnfermagem() {
         </span>
         <span style={{ flex: 1 }} />
         <span className="pactor-num" style={{ fontSize: 9, letterSpacing: "0.10em", color: t.t3 }}>
-          VERDADE UNICA · LE DO SISTEMA ATUAL
+          VERDADE ÚNICA · LÊ DO SISTEMA ATUAL
         </span>
       </div>
     </div>

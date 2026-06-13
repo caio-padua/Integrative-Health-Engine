@@ -1,0 +1,66 @@
+Dr. Replit IHE, do Caio (cacique) + Dr. Claude (orquestrador):
+
+== 1. ONDA A APROVADA ==
+1.1 O Dr. Claude auditou via raw URL: padronizacao.ts +
+    padronizacao.test.ts (73 verificacoes, node:test), codigo
+    limpo, fail-closed. Trabalho solido. APROVADO.
+1.2 Os 2 desvios (tsx em vez de Vitest, 66+ testes) aceitos.
+
+== 2. REPOSITORIO EXCLUSIVO (decisao do cacique) ==
+2.1 Cria um braco exclusivo no IHE so para o Pactor:
+    pactor-build/ (ou docs/dr-replit/PARA_PACTOR/, sua escolha).
+2.2 Sub-pastas: padronizacao/, protocolos/, orcamento/, agenda/,
+    enfermagem/, juridico/.
+2.3 A LOGICA pura (.ts) mora nessa doca. As TELAS (React) o
+    Dr. Replit Pactor monta no repo dele, puxando da doca.
+
+== 3. CORRECAO DE PRIORIDADE (importante) ==
+3.1 A primeira tela usavel do v1 NAO e Enfermagem.
+3.2 Minha prioridade real = CAIXA: gerar RAS + Orcamento +
+    Agenda para os pacientes que ja temos.
+3.3 Nova ordem das fases:
+    F0  = tela do Gerador de RAS + Orcamento com dados de exemplo
+    F1  = conexao real: lista pacientes verdadeiros (unidade 15)
+    F2  = gera RAS (premium e simples) do paciente
+    F3  = gera Orcamento (cenarios + parcelas) do paciente
+    F4  = Agenda: lanca os agendamentos das sessoes
+    F5  = App de Enfermagem (PIN + rubrica) — depois do caixa
+    F6  = RAS Juridico + Distrato
+
+== 4. DEMANDAS QUE FALTAM NO SEU PLANO (adicionar) ==
+4.1 RAS PREMIUM e RAS SIMPLES: as duas versoes do gerador.
+4.2 RAS JURIDICO: documento que, via placeholder, importa TUDO
+    do tratamento — ativos, doses, sessoes, frequencia E a parte
+    financeira (valores, parcelas, total).
+4.3 DISTRATO RIGIDO: clausula de rescisao para solicitacoes
+    durante o tratamento. ATENCAO: isto e documento juridico —
+    eu (Caio) vou submeter a revisao de um advogado antes de
+    usar com paciente. Voce monta a ESTRUTURA com placeholders;
+    o texto legal final passa pelo advogado.
+
+== 5. ARQUITETURA — DECISAO DO CACIQUE ==
+5.1 Para velocidade AGORA: o Pactor LE do IHE via API (verdade
+    unica), usando os pacientes reais que ja existem.
+5.2 Estou ciente: isso torna o Pactor v1 um cockpit em cima do
+    PAWARDS (codigo separado, dado compartilhado).
+5.3 Independencia total (banco proprio, vendavel sozinho) fica
+    como evolucao futura, NAO agora.
+
+== 6. AUTONOMIA MANTIDA ==
+6.1 Voce segue com autonomia de ate 4 horas, bom senso de senior.
+6.2 As 2 rotas novas no IHE (listar sessoes + registrar aplicacao
+    com PIN) voce cria no IHE, como ja propos.
+6.3 Registra decisoes autonomas em .md. R3 acima de prazo.
+
+== 7. EXPECTATIVA REALISTA (honesta entre nos) ==
+7.1 F0 (tela com exemplo) em horas — eu quero ver a cara hoje.
+7.2 Conexao real + RAS + Orcamento + Agenda = dias, nao horas.
+7.3 Enquanto isso eu continuo operando no RAS v8 (barquinho).
+7.4 Nao quero entrega pela metade so pra cumprir prazo. R3.
+
+== 8. AGORA ==
+8.1 Confirma esta carta (OK ou veto com fundamento).
+8.2 Toca a F0 (tela Gerador de RAS + Orcamento, dados de exemplo).
+8.3 Me devolve o SHA e o link pra eu ver a cara.
+
+Assinado: Caio Padua, cacique. Ratificado pelo Dr. Claude.
