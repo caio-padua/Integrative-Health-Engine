@@ -175,6 +175,23 @@ qualquer toque no Code.gs vira decisão dele.
   no code_execution e dar `git push https://x-access-token:<token>@github.com/<repo> HEAD:<branch>`.
   O remote `origin` ja carrega um token embutido tambem. NUNCA imprimir o token.
 
+## Transmutacao Pactor — modelo hibrido + runner real — 13/06/2026
+- Modelo aprovado pelo CEO (martelos): o IHE GESTA+TESTA a logica PURA (Ondas A-D)
+  no ambiente IHE ate ficar verde, e TRANSPLANTA pronto pro repo Pactor numa branch
+  que comeca com `ihe-` (ex.: `ihe-transmutacao`), NUNCA no main; o Dr. Replit Pactor
+  faz o merge. Doutrina 6.1 ajustada: IHE so empurra em branches `ihe-*` no Pactor.
+- E (agendamento+Calendly) e F (WhatsApp+Telegram) NAO sao gestadas as cegas no IHE
+  (dependem de OAuth/secrets/webhook do Pactor) — viram Instrucao 03, feitas pelo primo.
+- RUNNER: nem o IHE nem o Pactor usam Vitest. O IHE testa com `tsx --test` (node:test)
+  nos 5 pacotes; o `artifacts/padcom` do Pactor NAO tem runner de teste nenhum. Quando o
+  CEO disser "testes Vitest", e label de "testes verdes" — usar `tsx --test` (kaizen, R5).
+- Utero de estagio: pacote `lib/pactor-transmutacao/`, com `src/modules/<onda>/` espelhando
+  `artifacts/padcom/src/modules/<onda>/` do Pactor (transplante = copiar a pasta). Temporario:
+  pode ser removido do IHE depois do merge no Pactor. Logica em TS puro, zero I/O.
+- **Why:** so da pra CERTIFICAR (teste verde de verdade) o que roda no MEU ambiente;
+  prometer testar o app do Pactor daqui seria fantasia (R3). Separar "cerebro testado aqui"
+  de "ligar no corpo do Pactor la" mata retrabalho e respeita a governanca do CEO.
+
 ## Peptideos + hifen no nome canonico + glue write-back — 12/06/2026
 - Siglas de peptideo (AOD/PT/CJC/BPC/TB/GLOW/MOTS/GHK) ficam CAIXA ALTA, mas "Cu" de
   cobre NAO e sigla: GHK-Cu fica misto. Nome hifenizado SEM digito (GHK-Cu, MOTS-C)

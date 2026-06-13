@@ -1,0 +1,13 @@
+{
+  "name": "@workspace/pactor-transmutacao",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsx --test src/modules/padronizacao/padronizacao.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "^4.20.6"
+  }
+}
