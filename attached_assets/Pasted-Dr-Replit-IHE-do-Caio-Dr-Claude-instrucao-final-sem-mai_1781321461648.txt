@@ -1,0 +1,105 @@
+Dr. Replit IHE, do Caio + Dr. Claude — instrucao final, sem mais
+ajustes:
+
+== 1. DECISAO DO CACIQUE ==
+1.1 Pactor e PRODUTO INDEPENDENTE, single-clinica, altamente
+    funcional. Nao migra para o PAWARDS no futuro.
+1.2 Funcionalidades do Pactor que se provarem boas na pratica
+    PODEM ser absorvidas pelo PAWARDS depois (caminho inverso,
+    opcional, sem compromisso).
+1.3 Prazo do CEO: PRIMEIRA VERSAO USAVEL ATE AMANHA (13/06/2026
+    fim do dia).
+1.4 PAWARDS pausa controlada ate o Pactor entregar a v1.
+
+== 2. OPCAO D — voce entrega DIRETO no repo do Pactor ==
+2.1 Esquece a doca em docs/dr-replit/PARA_PACTOR/ no IHE.
+2.2 Voce escreve os arquivos .ts direto em caio-padua/Pactor,
+    branch main, dentro de artifacts/padcom/src/modules/
+    (estrutura ja existe no Pactor — confere primeiro).
+2.3 Cada commit no Pactor com mensagem clara: "Onda A | Padronizacao"
+    etc, e me mande o SHA pelo CEO.
+
+== 3. ESCOPO MINIMO PARA AMANHA (v1 utilizavel) ==
+ONDA A — Padronizacao (fundacao)
+   .ts puro + 32 testes Vitest passando.
+ONDA B — Protocolos
+   Gerador + multi-cockpit + ordenacao por categoria.
+ONDA C — Orcamento
+   Cenarios A/B/C + calculadora 2x-10x.
+   Aceite: numeros do Luciano em centavos (R$ 15.960,00 e derivados).
+ONDA D — Pacientes
+   Tipos + validacao (CPF/email/telefone) + esqueleto de seed
+   com placeholders {{NOME}}, {{NASC}}, {{TEL}}, {{EMAIL}}.
+   Dados reais entram via Dr. Code depois, nunca por chat.
+
+== 4. ESCOPO QUE ENTRA TAMBEM (CEO pediu na pratica) ==
+ONDA E — Agendamento + Calendly
+   E.1 Transmuta AgendamentoMotor.gs para TypeScript puro.
+   E.2 Adaptador Google Calendar (interface, OAuth proprio do
+       Pactor).
+   E.3 Adaptador Calendly como BRACO/PERNA — paciente agenda no
+       link Calendly publico, evento cai no motor do Pactor via
+       webhook + leitura, e sincroniza com Google Calendar.
+   E.4 Calendly e Google Calendar coexistem (Calendly nao
+       substitui Google — fica em cima).
+ONDA F — Notificacoes ao paciente
+   F.1 WhatsApp ativo (emprestar arquitetura do PAWARDS, adaptada
+       para o banco menor do Pactor).
+   F.2 Telegram ativo (mesmo principio).
+   F.3 Confirmacao de consulta + lembrete 24h antes + envio de
+       PIN de aplicacao.
+
+== 5. ESCOPO QUE FICA PARA INSTRUCAO 03 (depois da v1 rodar) ==
+5.1 PWA mobile da enfermeira (PIN + rubrica + check de sessao).
+5.2 Tela de rubrica do paciente.
+5.3 RAS-FAP completo + pastas de clientes.
+5.4 ZapSign para contratos do plano.
+
+== 6. REGRAS QUE VALEM SEM EXCECAO ==
+R1 spec antes de codigo (esta carta e a spec)
+R2 tipos sao esqueleto, dados de mock/seed sao sangue
+R3 anti-fantasia (nao anunciar entregue sem hash + teste real)
+R4 1 cacique = Caio
+R5 kaizen-first (transmutar, nao reinventar; emprestar do PAWARDS
+   sem clonar dependencia do banco grande)
+R6 nomes semanticos completos
+R7 auditoria do Dr. Claude via raw URL contra esta carta
+
+== 7. EMPRESTIMOS DO PAWARDS (com ressalva tecnica) ==
+7.1 Modulos de WhatsApp e Telegram do PAWARDS dependem do banco
+    grande (304 tabelas). NAO copie igual — adapte para o banco
+    menor/mock do Pactor.
+7.2 Empreste a LOGICA (templates de mensagem, fluxo de envio,
+    fila de retry), nao a infraestrutura.
+7.3 Use a tabela avaliacao_enfermagem do PAWARDS apenas como
+    referencia de tipos.
+
+== 8. CRITERIO DE ACEITE DA v1 (amanha) ==
+8.1 Pactor em main com modulos A+B+C+D+E+F compilando sem erro.
+8.2 Teste do orcamento reproduz numeros do Luciano em centavos.
+8.3 32 testes de padronizacao passam.
+8.4 1 evento criado via Calendly aparece no motor + Google
+    Calendar do CEO.
+8.5 1 mensagem de teste enviada via WhatsApp e Telegram para o
+    proprio CEO.
+8.6 CEO cadastra 1 paciente real + gera 1 protocolo + 1 orcamento
+    ponta a ponta — funciona.
+
+== 9. SOBRE AS PERGUNTAS DO DR. CLAUDE (que voce ja viu) ==
+9.1 PWA da enfermeira: SIM, mas Instrucao 03 (depois da v1).
+9.2 Validacao do paciente: HIBRIDO (PIN+rubrica diario + ZapSign
+    para contrato) — Instrucao 03.
+9.3 Nao trate como bloqueio da v1.
+
+== 10. AGORA ==
+10.1 Confirma esta carta com OK ou veto com fundamento.
+10.2 Se OK: comeca Onda A agora (Padronizacao + 32 testes).
+10.3 Me devolve o numero do commit pelo CEO.
+10.4 O Dr. Claude audita via raw URL e libera Onda B.
+10.5 Velocidade importa, R3 importa mais — se prazo apertar,
+     PARA e fala.
+
+Boa transmutacao. A lancha sai do estaleiro amanha.
+
+Dr. Claude (claude.ai) — orquestrador
+12/06/2026
