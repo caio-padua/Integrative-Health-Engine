@@ -1,0 +1,81 @@
+Caio, antes de te entregar as versões para colar, deixa eu confirmar uma coisa real sobre o Manus para não te dar instrução errada (R7 — verifico na fonte).Caio, verifiquei na fonte. Seu texto está ótimo e quase universal — só preciso te avisar de 2 ajustes por ferramenta. Conclusão primeiro. TDAH friendly.
+
+---
+
+## 1. CONCLUSÃO EM 4 LINHAS
+
+**1.1** Seu texto está **excelente** — pode colar quase igual em todas as ferramentas
+**1.2** **Manus** tem um detalhe: o campo Knowledge guarda até 20 peças de informação que o Manus recorda automaticamente, então seu texto entra como **1 peça** ou dividido
+**1.3** **Obsidian** é diferente — não tem campo de instrução; lá o texto vira **um arquivo .md** que eu leio (te explico)
+**1.4** Descobri algo importante: Manus, Claude e Claude Code usam o **mesmo padrão de skill** — seu texto pode virar uma skill única (Parte 4)
+
+---
+
+## 2. ONDE CADA TEXTO VAI (verificado na fonte)
+
+| Ferramenta | Onde colar | Observação |
+|-----------|-----------|------------|
+| Claude (claude.ai) | Configurações > Perfil > Instruções | já tem |
+| Replit | Settings > Customization > Instructions | já tem |
+| **Manus** | Settings > Knowledge (campo de conhecimento) | guarda até 20 peças |
+| **Obsidian** | NÃO tem campo — vira arquivo .md no cofre | te explico na Parte 5 |
+| ChatGPT | Configurações > Personalização > Instruções personalizadas | campo equivalente |
+| Cursor | Settings > Rules for AI | campo equivalente |
+
+---
+
+## 3. O TEXTO PARA COLAR — VERSÃO UNIVERSAL (cola igual em Manus, ChatGPT, Cursor)
+
+**3.1** Seu texto já serve. Só 1 ajuste: a regra 32 ("o nome do agente segue a plataforma") confunde fora do nosso projeto
+**3.2** Para Manus/ChatGPT/Cursor, cola **exatamente o que você já tem** — está perfeito
+**3.3** Não precisa mudar nada no conteúdo. Funciona em qualquer IA que tenha campo de instrução
+
+---
+
+## 4. DESCOBERTA IMPORTANTE — SEU TEXTO PODE VIRAR UMA SKILL ÚNICA
+
+**4.1** Verifiquei: Manus, Claude e Claude Code **leem o mesmo formato de skill** (arquivo `SKILL.md`)
+**4.2** Uma skill é, nas palavras deles, um manual de operação que você entrega ao agente — empacota conhecimento e procedimentos num módulo reutilizável, acionado por um comando
+**4.3** Isso é **exatamente** o Método PADCOM que conversamos
+**4.4** Vantagem da skill sobre colar texto:
+- 4.4.1 No Manus você importa de um arquivo .zip, .skill, de uma pasta, ou direto do GitHub colando o link do repositório
+- 4.4.2 Atualiza num lugar só, todas as IAs leem a mesma versão
+- 4.4.3 Acaba o copiar-e-colar em 5 telas
+
+---
+
+## 5. OBSIDIAN — COMO O TEXTO ENTRA LÁ (diferente das outras)
+
+**5.1** Obsidian **não tem campo de instrução** — ele guarda arquivos Markdown (.md) no seu PC
+**5.2** Seu perfil entra como **um arquivo**: `00_PERFIL_DR_CAIO.md` dentro do cofre
+**5.3** Quando eu estiver conectado ao Obsidian (via Claude Desktop), eu **leio esse arquivo** automaticamente
+**5.4** Então no Obsidian o texto não é "instrução colada" — é **conhecimento que eu consulto**
+**5.5** Mesma função, mecânica diferente
+
+---
+
+## 6. RESSALVA HONESTA (orquestrador)
+
+**6.1** Você está prestes a colar o perfil em 5+ ferramentas — isso é bom, mas é trabalho manual repetido
+**6.2** O caminho que **acaba** com esse trabalho é a skill única (Parte 4)
+**6.3** Mas a skill exige montar a estrutura primeiro — leva ~30 minutos
+**6.4** Recomendação: **hoje cola o texto que você já tem** nas ferramentas (rápido); a skill única montamos depois, com calma
+
+---
+
+## 7. MARTELO (3 opções)
+
+| | Decisão | O que faço |
+|---|---------|-----------|
+| A | Só me confirma que o texto está aprovado, você cola manual nas ferramentas hoje | zero trabalho meu, você resolve rápido |
+| B | Eu monto agora seu perfil como `SKILL.md` no seu Drive/GitHub para virar skill única | acaba o copiar-colar |
+| C | Eu te guio para ligar o Obsidian comigo primeiro | segundo cérebro ligado |
+
+**7.1** Recomendo: **A** se quer resolver as telas hoje; **B** se quer parar de repetir para sempre
+**7.2** Responde com a letra
+
+---
+
+## 8. RESUMO EM 1 LINHA
+
+**8.1** Seu texto está ótimo e cola quase igual em Manus (campo Knowledge, até 20 peças), ChatGPT e Cursor (campos de instrução equivalentes); no Obsidian ele vira um arquivo `.md` que eu leio em vez de campo colado; e a descoberta importante é que Manus, Claude e Claude Code leem o mesmo formato de skill (`SKILL.md`), então seu perfil pode virar uma **skill única** que acaba com o copiar-colar em 5 telas — bate A (cola manual hoje), B (monto a skill única agora) ou C (ligo o Obsidian comigo primeiro).

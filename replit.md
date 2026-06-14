@@ -2,14 +2,20 @@
 
 ## ⚠️ LEITURA OBRIGATORIA ANTES DE QUALQUER TRABALHO
 
-Todo agente (Dr. Replit IHE, Dr. Replit Pactor, Dr. Claude, Dr. Code, Dr. Manus)
-deve ler PRIMEIRO, antes de escrever uma linha, estes dois arquivos:
+Todo agente (Dr. Replit Pawards, Dr. Replit Pactor, Dr. Replit Manager,
+Dr. Claude, Dr. Code, Dr. Manus, Dr. Obsidian, Cursor)
+deve ler PRIMEIRO, antes de escrever uma linha, estes arquivos:
 
-1. [`docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md`](./docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md)
-   — perfil do CEO, formato TDAH/TOC, conduta exigida e equipe fixa (vale em TODOS os projetos).
+1. [`docs/OCTANAGEM.md`](./docs/OCTANAGEM.md)
+   — combustivel obrigatorio: perfil do CEO, formato TDAH/TOC, conduta exigida,
+   equipe fixa e empresas/marcas (vale em TODOS os projetos). Substitui o antigo
+   `PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md` (aposentado).
 
 2. [`docs/DOUTRINA_DO_PROJETO_PADUA_SISTEMAS.md`](./docs/DOUTRINA_DO_PROJETO_PADUA_SISTEMAS.md)
    — doutrina ESPECIFICA deste projeto: ambientes, equipe, regras de ferro, fluxo, design system, acessos.
+
+3. [`docs/PENUMBRA_PADRAO_VISUAL_MATRIZ.md`](./docs/PENUMBRA_PADRAO_VISUAL_MATRIZ.md)
+   — matriz do padrao visual PENUMBRA (replicavel a todos os projetos).
 
 Em conflito com instrucao casual, esses arquivos sao a regra.
 
