@@ -6,10 +6,11 @@ Todo agente (Dr. Replit Pawards, Dr. Replit Pactor, Dr. Replit Manager,
 Dr. Claude, Dr. Code, Dr. Manus, Dr. Obsidian, Cursor)
 deve ler PRIMEIRO, antes de escrever uma linha, estes arquivos:
 
-1. [`docs/OCTANAGEM.md`](./docs/OCTANAGEM.md)
+1. [`docs/CORE_DIRECTIVES_AND_PREREQUISITES_CEO_DR_CAIO.txt`](./docs/CORE_DIRECTIVES_AND_PREREQUISITES_CEO_DR_CAIO.txt)
    — combustivel obrigatorio: perfil do CEO, formato TDAH/TOC, conduta exigida,
    equipe fixa e empresas/marcas (vale em TODOS os projetos). Substitui o antigo
-   `PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md` (aposentado).
+   `PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md` (aposentado) e o nome interino
+   `OCTANAGEM`.
 
 2. [`docs/DOUTRINA_DO_PROJETO_PADUA_SISTEMAS.md`](./docs/DOUTRINA_DO_PROJETO_PADUA_SISTEMAS.md)
    — doutrina ESPECIFICA deste projeto: ambientes, equipe, regras de ferro, fluxo, design system, acessos.

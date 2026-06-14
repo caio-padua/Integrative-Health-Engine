@@ -1,4 +1,5 @@
-# OCTANAGEM
+CORE_DIRECTIVES_AND_PREREQUISITES_CEO_DR_CAIO
+(Diretrizes centrais e pre-requisitos do CEO Dr. Caio)
 
 > Combustivel de alta octanagem para qualquer LLM (modelo de inteligencia
 > artificial) que vai trabalhar com o Dr. Caio e com a equipe.
@@ -22,8 +23,8 @@ Use ele em dois lugares:
 
 ## 1. BLOCO PARA COPIAR (perfil universal)
 
-Clique no botao de copiar no canto do quadro (ou selecione tudo dentro do quadro).
-Os numeros vem junto de proposito (o quadro guarda como letra fixa).
+Selecione tudo dentro do quadro abaixo e cole no campo de instrucao da ferramenta.
+Os numeros vem junto de proposito (a sequencia ja sai pronta).
 
 ```
 1. PERFIL E REGRAS DE TRABALHO - DR CAIO
@@ -113,7 +114,7 @@ Nao ha conflito entre elas.
         colando o link do repositorio.
    3.2. Atualiza num lugar so; todas as IAs leem a mesma versao.
    3.3. Acaba o copiar-e-colar repetido.
-4. Por isso este OCTANAGEM e o ponto de partida para o Dr. Claude montar a SKILL
+4. Por isso este arquivo e o ponto de partida para o Dr. Claude montar a SKILL
    unica (a "biblia da comunicacao e conceitos"). Ver a carta em
    docs/dr-claude/CARTA_AO_DR_CLAUDE_BIBLIA_DA_COMUNICACAO_26.06.14.md.
 
@@ -126,7 +127,7 @@ docs/PENUMBRA_PADRAO_VISUAL_MATRIZ.md.
 
 ## 7. RESUMO EM 1 LINHA
 
-OCTANAGEM e o combustivel obrigatorio de leitura para qualquer IA da equipe do
+Este arquivo e o combustivel obrigatorio de leitura para qualquer IA da equipe do
 Dr. Caio: traz o perfil/conduta TDAH-TOC, a equipe fixa (com Dr. Obsidian e
 Cursor novos), as empresas (PADCOM mae, PAWARDS engenharia, Padcon Conect
 produto), onde colar em cada ferramenta e o caminho para virar uma skill unica.

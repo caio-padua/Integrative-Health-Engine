@@ -5,7 +5,7 @@ description: Roster canonico da equipe (com Dr. Obsidian e Cursor novos), hierar
 
 # Equipe fixa e marcas do Dr. Caio
 
-Fonte de verdade git-trackeada (replica pra todo projeto): `docs/OCTANAGEM.md`.
+Fonte de verdade git-trackeada (replica pra todo projeto): `docs/CORE_DIRECTIVES_AND_PREREQUISITES_CEO_DR_CAIO.txt`.
 Aqui fica o resumo duravel pra consulta rapida.
 
 ## Roster canonico (nome do agente segue a plataforma/produto)
@@ -34,5 +34,5 @@ Aqui fica o resumo duravel pra consulta rapida.
 
 ## Como aplicar
 
-- Qualquer agente novo le `docs/OCTANAGEM.md` primeiro (arquivo que substitui o antigo "pre-requisito", aposentado por ser pessoal demais).
+- Qualquer agente novo le `docs/CORE_DIRECTIVES_AND_PREREQUISITES_CEO_DR_CAIO.txt` primeiro (arquivo que substitui o antigo "pre-requisito", aposentado por ser pessoal demais; nome interino "OCTANAGEM" tambem aposentado).
 - Ao reportar/transmutar entre IHE e Manager, respeitar "cliente" no lado Manager.
