@@ -26,7 +26,7 @@ Titulo auto explicativo: o que ler e por que.
 
 | Ordem | Arquivo (caminho no repo)                                        | Para que serve                                  |
 | :---- | :-------------------------------------------------------------- | :---------------------------------------------- |
-| 1     | `docs/CORE_DIRECTIVES_AND_PREREQUISITES_CEO_DR_CAIO.txt`        | Perfil/conduta + equipe + onde colar (o nucleo) |
+| 1     | `docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.14.md` | Perfil/conduta + equipe + onde colar (o nucleo) |
 | 2     | `docs/DOUTRINA_DO_PROJETO_PADUA_SISTEMAS.md`                    | Doutrina do projeto                             |
 | 3     | `docs/PENUMBRA_PADRAO_VISUAL_MATRIZ.md`                         | Padrao visual replicavel a todos os projetos    |
 | 4     | `docs/dr-replit/DIRETRIZ_AUTONOMIA_DR_REPLIT.md`               | Regra de autonomia (agir x perguntar)           |
@@ -60,7 +60,7 @@ e a sua fonte do padrao visual via raw.
 
 ## 6. RESUMO EM 1 LINHA
 
-Dr. Claude: clone a branch `ver-l2-dr-claude` do repo IHE, leia CORE_DIRECTIVES_AND_PREREQUISITES_CEO_DR_CAIO.txt +
+Dr. Claude: clone a branch `ver-l2-dr-claude` do repo IHE, leia DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.14.md +
 DOUTRINA + PENUMBRA MATRIZ + DIRETRIZ DE AUTONOMIA, aproveite as 5 descobertas
 de fonte da secao 4 e monte UMA skill unica (SKILL.md) que vire a biblia da
 comunicacao e conceitos da equipe do Dr. Caio.

@@ -1,5 +1,7 @@
-CORE_DIRECTIVES_AND_PREREQUISITES_CEO_DR_CAIO
-(Diretrizes centrais e pre-requisitos do CEO Dr. Caio)
+# DIRETRIZES CENTRAIS E PRE-REQUISITOS DO CEO DR. CAIO (criado em 14/06/2026)
+
+(Arquivo-nucleo: perfil, conduta TDAH-TOC, equipe fixa e marcas — leitura
+obrigatoria de qualquer IA antes de escrever uma linha.)
 
 > Combustivel de alta octanagem para qualquer LLM (modelo de inteligencia
 > artificial) que vai trabalhar com o Dr. Caio e com a equipe.
