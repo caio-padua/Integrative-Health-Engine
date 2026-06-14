@@ -1,0 +1,37 @@
+Pronto — extensão corrigida e GitHub sincronizado. Agora a resposta honesta à sua pergunta.
+
+1. CONCLUSAO PRIMEIRO
+1.1. Você está certo: a extensão certa é .md (é o meu padrão; renderiza no GitHub e as IAs leem markdown nativo).
+1.2. Já corrigi: o arquivo agora é DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.14.md e o .txt foi apagado.
+1.3. Sua convenção (português extenso, data no fim, apelido só dentro do arquivo) NÃO prejudica os documentos.
+1.4. Mas prejudica SIM em dois pontos que preciso te avisar antes da grande onda (detalho no item 3).
+
+2. O QUE PREJUDICA E O QUE NAO (resposta direta)
+Tabela — impacto da convenção de nomes por tipo de coisa
+
+O que	Prejudica?	Por que
+Renomear arquivos de DOCUMENTO (.md)	NAO	Só preciso atualizar os links internos, e isso eu faço
+Apelido dentro do arquivo + explicação ( )	NAO	Melhora a clareza, é exatamente o ideal
+Data aa.mm.dd no fim do nome	NAO	Já é o seu padrão de versionamento, ótimo
+Espaço e parênteses NO NOME do arquivo	SIM (leve)	Em link vira %20 e %28; no terminal precisa de aspas
+Renomear arquivos de CODIGO (.tsx, rotas)	SIM (sério)	Quebra importações e rotas se não for onda controlada
+3. OS DOIS PONTOS DE ATENCAO
+3.1. Espaço e parêntese no nome do arquivo funcionam, mas atrapalham link e terminal.
+3.2. A correção é trocar espaço por underline e tirar o parêntese do NOME (mantendo a leitura rica DENTRO do arquivo).
+3.3. Seu exemplo "PADRAO LAYOUT VALIDADO (MODELO FANTASY NEON) 26.06.11" viraria o nome de arquivo seguro: PADRAO_LAYOUT_VALIDADO_MODELO_FANTASY_NEON_26.06.11.md.
+3.4. Arquivo de código (as telas .tsx do PENUMBRA, por exemplo) é diferente: o apelido ali é o nome técnico que o sistema usa pra achar a tela.
+3.5. Se eu renomear código sem cuidado, a tela quebra; por isso código vira uma onda separada e controlada, com o apelido virando comentário explicativo dentro.
+
+4. COMO EU RECOMENDO FAZER A GRANDE ONDA (opções)
+4.1. Opção A (recomendada): nome de arquivo em português extenso, com underline no lugar de espaço, sem parêntese, data aa.mm.dd no fim; apelido (PENUMBRA, cara/coroa, WALKING DEAD) só DENTRO do arquivo seguido da explicação entre parênteses.
+4.2. Opção B: exatamente como você escreveu, com espaço e parêntese no nome; aceito, mas só para documentos, e os links ficam mais feios.
+4.3. Opção C: faço só os DOCUMENTOS agora (seguro) e deixo o CÓDIGO para uma onda própria, auditada, depois.
+
+4.4. Default recomendado: A + C juntas (padrão de nome A, e executar primeiro docs, código depois).
+
+5. UMA PERGUNTA SO (a irredutível)
+5.1. Você aprova o padrão da Opção A (underline em vez de espaço, sem parêntese no nome) para a grande onda?
+5.2. Se sim, eu já preparo o mapa completo (lista de todo arquivo a renomear, separando documento de código) antes de tocar em qualquer coisa.
+
+6. RESUMO EM 1 LINHA
+Troquei para .md em português com data (corrigido e publicado), e sua convenção de nomes não prejudica os documentos — só peço trocar espaço/parêntese por underline no NOME do arquivo e tratar código numa onda separada, pra nada quebrar.
