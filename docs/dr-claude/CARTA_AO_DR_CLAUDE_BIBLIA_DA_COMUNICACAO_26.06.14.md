@@ -26,7 +26,7 @@ Titulo auto explicativo: o que ler e por que.
 
 | Ordem | Arquivo (caminho no repo)                                        | Para que serve                                  |
 | :---- | :-------------------------------------------------------------- | :---------------------------------------------- |
-| 1     | `docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.14.md` | Perfil/conduta + equipe + onde colar (o nucleo) |
+| 1     | `docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.15.md` | Perfil/conduta + equipe + onde colar (o nucleo) |
 | 2     | `docs/DOUTRINA_DO_PROJETO_PADUA_SISTEMAS.md`                    | Doutrina do projeto                             |
 | 3     | `docs/PENUMBRA_PADRAO_VISUAL_MATRIZ.md`                         | Padrao visual replicavel a todos os projetos    |
 | 4     | `docs/dr-replit/DIRETRIZ_AUTONOMIA_DR_REPLIT.md`               | Regra de autonomia (agir x perguntar)           |
@@ -49,18 +49,30 @@ e a sua fonte do padrao visual via raw.
      isso o perfil pode virar uma skill unica em vez de copiar-colar em 5 telas.
 4.5. A regra 34 do arquivo de diretrizes ("o nome do agente segue a plataforma") confunde
      fora do nosso projeto; na versao universal da skill, considere generalizar.
+4.6. [ATUALIZADO 15/06/2026] O formato de comunicacao mudou: agora a TABELA e o
+     carro-chefe de toda resposta (densidade "B"). O Titulo XI da Biblia foi
+     reescrito no lugar (Art. 38 e Art. 39) e ganhou Art. 39-A (fluxo vira blueprint
+     com setas: Passo A -> Passo B -> Passo C), Art. 39-B (no maximo uma frase de
+     chamada por bloco) e Art. 39-C (separador --- entre secoes). A numeracao (1, 1.1)
+     so AGRUPA assunto fechado, nunca narra paragrafo; a parede linear "1.1 uma frase
+     por linha" deixou de ser portadora principal. Releia o Titulo XI atualizado via raw.
 
 ## 5. O QUE EU PECO QUE VOCE FACA
 
 5.1. Montar a SKILL unica (SKILL.md + reference) com: perfil/conduta, formato
      TDAH-TOC, equipe fixa, empresas/marcas, e o link pro padrao visual PENUMBRA.
-5.2. Manter o "bloco para copiar" do arquivo de diretrizes intacto (e o que o Caio cola).
+5.2. Manter o "bloco para copiar" do arquivo de diretrizes (ANEXO A) — e o que o
+     Caio cola; suas linhas de formato (itens 13 a 15) ja foram atualizadas em
+     15/06/2026 para o formato tabela-base, mantenha-as coerentes com o Titulo XI.
 5.3. Versionar no padrao do Caio: `<NOME_SEMANTICO>_<aa.mm.dd>`.
 5.4. Decisoes para o Caio sempre em A/B/C com default; nunca pergunta aberta.
+5.5. Encodar na skill o formato tabela-base (densidade "B") do item 4.6: tabela como
+     carro-chefe, numeracao so agrupando, blueprint com setas para fluxos, uma frase
+     de chamada por bloco, separador --- entre secoes, fechar com RESUMO EM 1 LINHA.
 
 ## 6. RESUMO EM 1 LINHA
 
-Dr. Claude: clone a branch `ver-l2-dr-claude` do repo IHE, leia DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.14.md +
+Dr. Claude: clone a branch `ver-l2-dr-claude` do repo IHE, leia DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.15.md +
 DOUTRINA + PENUMBRA MATRIZ + DIRETRIZ DE AUTONOMIA, aproveite as 5 descobertas
 de fonte da secao 4 e monte UMA skill unica (SKILL.md) que vire a biblia da
 comunicacao e conceitos da equipe do Dr. Caio.

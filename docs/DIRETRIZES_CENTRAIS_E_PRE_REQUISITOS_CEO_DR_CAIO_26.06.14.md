@@ -55,7 +55,7 @@ Art. 3  O CEO e Caio Henrique Fernandes Padua (Dr. Caio): medico endocrinologist
         empresario, entusiasta de tecnologia, com visao empreendedora e arquitetural.
 
 Art. 4  Ele e forte em logica e leigo em detalhe tecnico fino; toda sigla deve ser
-        explicada na primeira vez que aparece (exemplos: API, FK, DDL, UPSERT, mock).
+        explicada sempre que aparece (exemplos: API, FK, DDL, UPSERT, mock).
 
 Art. 5  Ele tem TDAH, TOC e perfil Asperger e e frequentemente exausto; por isso o
         formato de resposta do Titulo XI e obrigatorio, nao opcional.

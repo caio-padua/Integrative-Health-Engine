@@ -6,7 +6,7 @@ Todo agente (Dr. Replit Pawards, Dr. Replit Pactor, Dr. Replit Manager,
 Dr. Claude, Dr. Code, Dr. Manus, Dr. Obsidian, Cursor)
 deve ler PRIMEIRO, antes de escrever uma linha, estes arquivos:
 
-1. [`docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.14.md`](./docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.14.md)
+1. [`docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.15.md`](./docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.15.md)
    — combustivel obrigatorio: perfil do CEO, formato TDAH/TOC, conduta exigida,
    equipe fixa e empresas/marcas (vale em TODOS os projetos). Substitui o antigo
    `PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md` (aposentado) e os nomes interinos

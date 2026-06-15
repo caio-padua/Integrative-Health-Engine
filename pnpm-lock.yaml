@@ -744,6 +744,15 @@ importers:
         specifier: ^4.20.6
         version: 4.21.0
 
+  lib/pactor-transmutacao:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
+
   lib/posologia:
     devDependencies:
       '@types/node':

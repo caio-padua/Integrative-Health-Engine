@@ -20,6 +20,13 @@ eu havia renomeado.
 Caio, NAO invente nome novo — copie o nome-base e troque so a data. Mantenha a
 versao anterior no mesmo diretorio. Nunca renomeie a base.
 
+ARMADILHA REAL (ja cometida): "atualizar a Biblia" NAO e editar o arquivo da data
+vigente no lugar. E criar um NOVO arquivo com a data de hoje (ex.: copiar
+..._26.06.14.md para ..._26.06.15.md, aplicar a mudanca no novo) e deixar o antigo
+INTACTO/arquivado. Depois reapontar as referencias (replit.md, cartas) para a
+versao de data maior (a vigente). O CEO chama isso de "drible/voleio" e cobra
+explicitamente. Editar in-place a versao antiga viola Art. 28-A, 65, 65-A.
+
 ## Acrescimo sem renumerar (Art. N-A)
 
 Acrescimo a um documento numerado NAO renumera o que ja existe: insere-se um
