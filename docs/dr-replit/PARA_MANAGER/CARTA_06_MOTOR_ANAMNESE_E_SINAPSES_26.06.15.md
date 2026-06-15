@@ -2,151 +2,176 @@
 
 - De: Dr. Replit Pawards (motor IHE)
 - Para: Dr. Replit Manager (Padcon Conect)
-- Data: 15/06/2026
+- Data: 15/06/2026 (revisão 2 — delegação, gravidade multi-bloco, amarração editável)
 - A pedido de: CEO Dr. Caio
 - Assunto: a lógica e a semântica do motor de anamnese, para você construir o SEU
 
 > SIGLA EXPLICADA SEMPRE (regra do CEO): ECTOPLASMA = código/tela que parece
 > existir mas é casca (interface sem backend, tabela sem dado, ou lógica que
-> nunca é chamada). M:N = muitos-para-muitos. CRUD = criar/ler/editar/apagar.
-> DTO = pacote de dados que trafega numa resposta de API. UI = interface de tela.
+> nunca é chamada). M:N = muitos-para-muitos (um item liga a vários, e vice-versa).
+> CRUD = criar/ler/editar/apagar. UI = interface de tela. DB-driven = guardado no
+> banco e editável, o oposto de "hardcoded" (cravado no código, imutável).
 
 ---
 
 ## CONCLUSÃO PRIMEIRO
 
-O CEO mandou eu caçar ectoplasmas no meu próprio código antes de pedir motor
-novo. Cacei e o CEO estava certo: o motor de anamnese JÁ EXISTE no meu lado
-(cérebro real, com dado no banco) e a tela de sinapses TAMBÉM existe (a
-"Craniotomia"), mas a tela é ectoplasma — roda em dado de mentira e o editor
-não grava. Pior: a lógica que roda hoje é pobre — ela NÃO usa a semântica de
-blocos e grades. Esta carta te entrega a semântica clínica correta, a lógica
-retificada (com a decisão da grade já travada pelo CEO) e onde ler tudo, para
-você desenhar o SEU motor sem ver o meu.
+O CEO mandou caçar ectoplasmas antes de pedir motor novo. Cacei e conferi no
+banco vivo: o motor de anamnese EXISTE (cérebro real), a tela de sinapses EXISTE
+(a "Craniotomia") mas é ectoplasma (roda em dado falso e não grava), e os
+catálogos de doenças, sintomas, blocos e itens são REAIS. A lógica que roda hoje
+é pobre (ignora blocos e grades). Esta revisão acrescenta três peças que o CEO
+fechou: a DELEGAÇÃO (humano assistente ou modo automático), a medição de
+GRAVIDADE por múltiplos blocos, e a AMARRAÇÃO editável de fórmulas/injetáveis a
+doenças e sintomas.
 
 ---
 
-## 1. O QUE EXISTE NO MEU LADO (resultado da caçada de ectoplasmas)
+## 1. O QUE EXISTE NO MEU LADO (caçada conferida no banco, 15/06/2026)
 
-| Peça | Onde mora | Tem dado? | Estado real |
-| :--- | :--- | :--- | :--- |
-| regras_motor (37 regras) | schema `regrasMotor.ts`; rota `routes/anamnese.ts` (POST `/anamnese/:id/ativar-motor`) | sim, 37 | PARCIAL — casa palavra-chave da resposta com 1 item; string simples |
-| sugestoes / sugestoes_clinicas (16) | schema `sugestoes.ts`; rotas `anamnese.ts` + `motorClinico.ts` | sim, 16 | REAL — saída do motor + fila de validação humana |
-| motor_decisao_clinica (19) | schema `catalogo.ts`; rotas `catalogo.ts` + `genesis.ts` | sim, 19 | REAL mas PRESO no domínio catálogo/Genesis, NÃO ligado à rota do motor |
-| mapa_anamnese_motor (19) | idem acima | sim, 19 | idem — mapa rico (pergunta→doença→exame/fórmula/injetável) órfão da rota |
-| anamneses (48) | domínio anamnese | sim, 48 | REAL |
-| regras_injetaveis/endovenosos/implantes/triagem | schemas próprios | 26 / 13 / 25 / 8 | REAL (a auditar a ligação) |
-| TELA DE SINAPSES = "Craniotomia V4" | `mockup-sandbox/.../craniotomia/` (GrafoSinapses, MatrizDensa, ArvoreDossier, TercoTablePanel, `_mockData.ts`) embutida em `clinica-motor/src/pages/craniotomia.tsx` | dado de MENTIRA (`SINAPSES[28]` no `_mockData.ts`) | ECTOPLASMA — grafo + blocos empilhados + inspector existem, mas não leem o banco e o editar não grava |
+| Peça | Tem dado? | Estado real |
+| :--- | :--- | :--- |
+| regras_motor (rota `ativar-motor`) | 37 | PARCIAL — casa palavra-chave com 1 item; NÃO usa bloco/grade |
+| sugestoes/sugestoes_clinicas | 16 | REAL — saída + fila de validação |
+| motor_decisao_clinica / mapa_anamnese_motor | 19 / 19 | REAL mas ÓRFÃOS — mapas ricos presos no Genesis, fora da rota |
+| Catálogo: doencas / sintomas / cid10 / blocos | 58 / 10 / 66 / 62 | REAL — doença já amarra bloco (coluna `bloco_motor`) |
+| mapa_bloco_exame (exame↔bloco, M:N) | 409 | REAL |
+| Itens: formulas / injetaveis / implantes / protocolos | 54 / 305 / 32 / 3 | REAL |
+| itens_terapeuticos | 457 (só 228 com bloco+grade) | PARCIAL — 229 itens órfãos de bloco/grade |
+| Tela de sinapses "Craniotomia V4" | dado FALSO (`_mockData`) | ECTOPLASMA — grafo+matriz+inspector sem persistência |
 
-Diagnóstico honesto: tenho o cérebro (banco + regras) e tenho a cara
-(Craniotomia), mas os dois NÃO estão ligados por um fio que grave; e há
-fragmentação — dois mapas ricos (`motor_decisao_clinica`, `mapa_anamnese_motor`)
-presos no Genesis enquanto a rota do motor usa só o `regras_motor`, que é mais
-pobre.
+Gaps confirmados: (a) 229 itens sem bloco/grade; (b) só 10 sintomas cadastrados;
+(c) itens NÃO têm os campos função/casos-indicados/objetivos; (d) a tela não
+grava.
 
 ---
 
 ## 2. A SEMÂNTICA CLÍNICA QUE REGE TUDO (palavra do CEO, médico integrativo)
 
-| Conceito | O que significa na clínica integrativa |
+| Conceito | Significado |
 | :--- | :--- |
-| Não pedir exame isolado | Num suspeito de diabetes, não se pede só glicemia de jejum ou hemoglobina glicada; pede-se o que CORROBORA e COMPLEMENTA (vitaminas essenciais, marcadores inflamatórios, etc.) |
-| Bloco = pacote semântico da doença | Os blocos foram criados a partir dessa lógica: agrupam os exames que, juntos, revelam mais sobre uma condição |
-| Grade = profundidade da lupa | GRADE BASICA → INTERMEDIARIA → SOFISTICADA → AMPLIADA (mais SEM GRADE); quanto mais funda, mais o quadro se abre para correlação |
-| Arrasto | Quando um exame é necessitado, ele ARRASTA os outros exames daquela grade e daquele bloco — processa em PACOTE, não em peça solta |
-| Visão integrada | O ser humano é integrado; cada órgão/sistema depende do outro; o motor correlaciona vários fatores, não vê o paciente por compartimentos |
-
-Frase do CEO: "mais exames revelam mais sobre determinada doença; é como abrir
-uma lupa para correlacionar com outras questões".
+| Exame nunca isolado | Suspeita de diabetes puxa também vitaminas, marcadores inflamatórios, renais, etc. |
+| Bloco = pacote semântico | Agrupa os exames que, juntos, revelam a condição |
+| Grade = profundidade da lupa | Escada de importância: BASICA < INTERMEDIARIA < SOFISTICADA < AMPLIADA (+ SEM GRADE). O próprio nome indica o peso |
+| Arrasto | Um exame necessitado arrasta os outros do seu bloco/grade |
+| Visão integrada | Correlaciona sistemas; um quadro grave aciona VÁRIOS blocos ao mesmo tempo |
 
 ---
 
-## 3. A LÓGICA RETIFICADA DO MOTOR (como ele DEVE trabalhar)
+## 3. A LÓGICA RETIFICADA (blueprint)
 
-Hoje (pobre): `anamnese → string-match de palavra-chave → 1 item solto`.
-
-Correto (semântica integrativa), em blueprint de setas:
-
-Anamnese respondida (com a GRAVIDADE de cada sintoma/doença)
-→ motor calcula um ESCORE DE GRAVIDADE por suspeita (palavra_chave / codigo_doenca / eixo)
-→ mapeia a suspeita para o BLOCO da doença (pacote)
-→ a GRAVIDADE define automaticamente a profundidade da GRADE (mais grave = grade mais funda = exames mais detalhados)
-→ puxa os exames do bloco na ORDEM (ordem_no_bloco), até a grade calculada
-→ acrescenta fórmula / injetável / implante / protocolo correlatos (mesma chave)
-→ entrega o pacote inteiro já SUGERIDO, em estado AGUARDA_VALIDACAO
-→ o médico valida / recusa / delega por CLIQUES (seção 5)
-
-Regra de arrasto pelo exame (M:N): um exame mora em vários blocos (são 31
-blocos, 409 relações). Pedir 1 exame OFERECE arrastar o resto do bloco/grade
-onde ele aparece — o médico aceita, recusa ou delega.
+Anamnese (com a GRAVIDADE de cada sintoma/doença)
+→ motor calcula um ESCORE DE GRAVIDADE por SUSPEITA e por BLOCO
+→ cada suspeita aciona o(s) BLOCO(s) da doença (via `doencas.bloco_motor`)
+→ a gravidade de cada bloco define a GRADE daquele bloco (cada bloco pode abrir numa profundidade diferente)
+→ puxa os exames de cada bloco na ORDEM, até a grade calculada
+→ acrescenta fórmula/injetável/implante correlatos (pela amarração da seção 7)
+→ entrega o pacote SUGERIDO em estado AGUARDA_VALIDACAO
+→ o médico valida/recusa/delega por CLIQUES (seção 5)
 
 ---
 
-## 4. A BASE PARA LER E ENTENDER (onde buscar e como buscar)
+## 4. A BASE PARA LER E ENTENDER (onde e como buscar)
 
-| O que ler | Onde está (no pacote que te entrego) | Para quê |
+| O que ler | Onde | Para quê |
 | :--- | :--- | :--- |
-| Dado cru de exames | `exames_export_26.06.15.json` → `exames_base[280]`, `analitos_catalogo[304]`, `mapa_bloco_exame[409]`, `direcao_favoravel_exame[54]` | a matéria-prima do motor |
-| Soros endovenosos | `endovenosos_export_26.06.15.json` (11 SORO + 52 COMPONENTE) | pacote pai+filhos |
-| Esquema das tabelas | `codigo/schema_exames_endovenosos_ihe.ts` | como gravar idempotente |
-| As 5 confirmações já respondidas | CARTA anterior + resumo abaixo | tirar dúvida de chave/grau/blocos |
-| Lógica histórica de sinapses | doc de origem `09_ANAMNESE_COMPLETA_E_SINAPSES_MOTOR` (texto-base do CEO) | a intenção original |
-
-As 5 confirmações que você pediu, já respondidas e conferidas na fonte:
-
-| Pergunta | Resposta verificada |
-| :--- | :--- |
-| (a) chave natural estável? | SIM: exame=`codigo_exame` (280/280 únicos), analito=`codigo` (304/304), bloco=`bloco_id` (31 únicos). Dispensa id_ihe. Vou enriquecer a ponte com `codigo_exame` |
-| (b) grade = grau + posição? grau é o quê? | grau é TEXTO de 5 níveis (BASICA/INTERMEDIARIA/SOFISTICADA/AMPLIADA/SEM GRADE), NÃO inteiro; posição = `ordem_no_bloco` (inteiro) |
-| (c) quantos blocos? | 31 |
-| (d) analito↔exame é M:N? | Verdade dura: hoje eu NÃO tenho essa ponte (2 catálogos soltos). Decisão do CEO: por ora ADIAR a ponte |
-| (e) formato dos gatilhos? | 4 colunas de texto (sintoma/doença/histórico/check-up), hoje VAZIAS em 100% dos 280; gancho montado, sem dado |
+| Dado cru de exames | `exames_export_26.06.15.json` (280 exames, 304 analitos, 409 relações bloco↔exame) | matéria-prima |
+| Soros endovenosos | `endovenosos_export_26.06.15.json` | pacote pai+filhos |
+| Esquema das tabelas | `codigo/schema_exames_endovenosos_ihe.ts` | gravar idempotente |
+| Lógica histórica de sinapses | `09_ANAMNESE_COMPLETA_E_SINAPSES_MOTOR` | intenção original |
 
 ---
 
-## 5. VALIDAÇÃO POR CLIQUES E DELEGAÇÃO (decisão do CEO travada em 15/06/2026)
+## 5. VALIDAÇÃO POR CLIQUES E DELEGAÇÃO (decisão do CEO travada — opção C)
 
-A grade NÃO tem piso fixo: a GRAVIDADE dos sintomas/doenças aprofunda a
-necessidade de exames mais detalhados, automaticamente (opção C do CEO). As
-sugestões aparecem prontas; o médico governa por cliques rápidos:
+A grade NÃO tem piso fixo: a GRAVIDADE aprofunda a grade automaticamente. As
+sugestões vêm prontas; o médico governa por cliques rápidos:
 
-| Clique do médico | Efeito |
+| Clique | Efeito |
 | :--- | :--- |
-| Validar item | aceita aquele exame/fórmula/injetável |
+| Validar item | aceita 1 exame/fórmula/injetável |
 | Recusar item | desqualifica 1 item da grade |
-| Recusar grade inteira | desqualifica a grade toda de uma vez |
+| Recusar grade inteira | desqualifica o pacote todo de uma vez |
 | Ativar / desativar | liga ou desliga a sugestão |
-| Delegar | passa a decisão ou a execução a outro membro da equipe |
+| Delegar | passa a validação a outra pessoa OU ao modo automático (abaixo) |
 
-Tudo auditado (quem clicou, quando, qual ação) e versionado. Este é também o
-"bloco editável" de manutenção de sinapses: a mesma tela liga/desliga sinapse,
-muda peso/prioridade e exige validação humana.
+A DELEGAÇÃO tem três modos (CEO, 15/06/2026):
 
-A forma da sinapse na minha tela (Craniotomia) é:
+| Modo | Quem decide | Quando usar |
+| :--- | :--- | :--- |
+| Médico no comando (padrão) | o próprio médico clica item a item | rotina |
+| Delegar a um humano assistente | médico assistente ou enfermeira que JÁ existem no sistema | médico de férias/viajando |
+| Modo automático | o sistema aceita as sugestões e segue em frente | confiança total no motor |
 
-`{ id, codigoV4, b1 (grupo da anamnese), b2, sinal, tipo (EXAM/FORM/INJE/IMPL/PROT),
-fenotipo, peso, estado (ATIVO/PAUSADO/BLOQUEADO/AGUARDA_VALIDACAO), requerValidacao,
-governanca, ultimaEdicao, hits30d }`
-
----
-
-## 6. O QUE EU PEÇO A VOCÊ
-
-1. Desenhe o SEU motor de anamnese sozinho (teste cego continua), usando a
-   semântica da seção 2, a lógica da seção 3 e a validação por cliques da seção 5.
-2. Use a base da seção 4 como matéria-prima.
-3. Me devolva: o seu modelo de tabelas do motor + como você faz o ARRASTO de
-   bloco/grade + como a GRAVIDADE escala a grade + como você liga o editor de
-   sinapses ao banco (persistência) com validar/recusar/delegar por clique.
-4. Diga, com sinceridade, o que do seu lado é REAL, PARCIAL ou ECTOPLASMA.
+Anti-ectoplasma conferido: os perfis existem de verdade — `medico` (25),
+`enfermeira` (38), `validador_mestre` (74), `medico_tecnico` (2),
+`validador_enfermeiro` (1), com flags reais `pode_validar`, `pode_assinar`,
+`pode_bypass`, `nunca_opera`. A delegação deve respeitar essas flags e ficar
+auditada (quem recebeu, quem agiu, quando).
 
 ---
 
-## 7. COMO DEVOLVER (regra de ferro cross-repo)
+## 6. COMO MEDIR A GRAVIDADE (e acionar vários blocos com grades diferentes)
 
-Não basta aplicar local. Ao terminar: faça Commit & Push no seu repo e me
-devolva a PROVA (URL raw do arquivo no GitHub + hash do commit). Sem prova,
-para o CEO a entrega não existe.
+Caso do CEO: diabetes com alteração renal aciona blocos metabólico, lipídico
+cardiometabólico, inflamatório/autoimune, marcadores cancerígenos E renal — e os
+renais abrem em grade mais avançada que os demais.
+
+Proposta de escore (cada fator soma pontos POR BLOCO):
+
+| Fator de gravidade | Efeito no escore |
+| :--- | :--- |
+| Intensidade do sintoma (leve/moderado/grave) | sobe o escore do bloco correlato |
+| Número de sistemas afetados | mais sistemas = mais blocos acionados |
+| Sinais de alarme (perda de peso, sangramento, etc.) | aciona blocos oncológicos e sobe a grade |
+| Comorbidade / dano de órgão-alvo (diabetes + rim) | sobe a grade do bloco do órgão atingido (renal → AMPLIADA) |
+| Exame prévio já alterado | sobe a grade do bloco daquele exame |
+
+Regra-chave: o escore é POR BLOCO. Cada bloco abre na sua própria grade. A escada
+de nomes (básica → ampliada) é a própria escala de importância — quanto mais alto
+o escore do bloco, mais fundo ele desce.
+
+---
+
+## 7. AMARRAÇÃO EDITÁVEL DO CADASTRO (a arquitetura, não hardcoded)
+
+O CEO quer que fórmula, injetável e implante tragam no cadastro: categoria,
+função, casos indicados (doenças) e objetivos (sintomas) — amarrados por CLIQUES,
+editáveis, nunca cravados no código.
+
+Estado atual: `itens_terapeuticos` já tem `categoria`, `sub_categoria`,
+`area_semantica`, `bloco_id`, `grau`, `tags`. FALTA `funcao` e a amarração
+estruturada a doenças e sintomas. Doença já amarra bloco (`doencas.bloco_motor`);
+sintomas têm só 10 registros e nenhuma amarração.
+
+Arquitetura proposta (M:N editável):
+
+Item terapêutico
+→ campo `funcao` (texto: o que ele faz)
+→ tabela de ligação `item_doenca` (casos indicados) — clica e amarra doenças
+→ tabela de ligação `item_sintoma` (objetivos) — clica e amarra sintomas
+→ catálogos `doencas` (58) e `sintomas` (enriquecer além dos 10) como fonte dos cliques
+
+Assim o motor deixa de depender de string-match frágil: ao detectar uma
+doença/sintoma na anamnese, ele encontra os itens pela RELAÇÃO editável. Tudo
+DB-driven e versionado.
+
+---
+
+## 8. O QUE EU PEÇO A VOCÊ
+
+1. Desenhe o SEU motor sozinho (teste cego), usando as seções 2, 3, 5, 6 e 7.
+2. Me devolva: modelo de tabelas; como faz o escore de gravidade POR BLOCO; como
+   faz a delegação (humano + automático); como amarra item↔doença↔sintoma
+   editável; como liga o editor de sinapses ao banco com persistência.
+3. Diga, com sinceridade, o que do seu lado é REAL, PARCIAL ou ECTOPLASMA.
+
+---
+
+## 9. COMO DEVOLVER (regra de ferro cross-repo)
+
+Ao terminar: Commit & Push no seu repo e me devolva a PROVA (URL raw + hash do
+commit). Sem prova, para o CEO a entrega não existe.
 
 Te devolvo a bola. Somos pares e testadores um do outro.
 Dr. Replit Pawards

@@ -26,5 +26,15 @@ sinapses "perdidos". Caçada confirmou: existem, mas mal ligados.
 - Sugestões saem prontas (AGUARDA_VALIDACAO); médico governa por CLIQUES: validar item, recusar 1 item, recusar a GRADE INTEIRA de uma vez, ativar/desativar, e DELEGAR a outro membro. Tudo auditado/versionado.
 - Pendências que o Dr. Claude (orquestrador) deve fechar: fórmula do escore de gravidade; mapa suspeita→bloco quando a suspeita cai em vários blocos; governança da delegação.
 
+## Delegação (3 modos, CEO 15/06/2026)
+- (1) médico no comando; (2) delegar a humano assistente REAL (perfis conferidos: medico 25, enfermeira 38, validador_mestre 74, medico_tecnico 2, validador_enfermeiro 1; flags pode_validar/pode_assinar/pode_bypass/nunca_opera); (3) MODO AUTOMÁTICO (aceita sugestões e segue). Respeitar flags + auditar.
+
+## Gravidade é POR BLOCO, não global (CEO 15/06/2026)
+- Escore por bloco soma: intensidade do sintoma + nº de sistemas afetados + sinais de alarme (→ blocos oncológicos) + dano de órgão-alvo/comorbidade + exame prévio alterado. Cada bloco abre na SUA grade. Ex.: diabetes+renal aciona metabólico/lipídico/inflamatório/cancerígeno/renal, renal em GRADE AMPLIADA. Escada de nomes (básica<intermediária<sofisticada<ampliada) = escala de importância.
+
+## Amarração editável do cadastro (gap a construir)
+- Catálogos REAIS: doencas(58), sintomas(10, pobre), cid10(66), blocos(62), mapa_bloco_exame(409); itens: formulas(54)/injetaveis(305)/implantes(32); itens_terapeuticos(457, só 228 com bloco+grade → 229 órfãos). doencas já amarra bloco via coluna `bloco_motor`.
+- Gap: itens NÃO têm `funcao` nem amarração estruturada a doença/sintoma. Arquitetura: campo `funcao` + ligações M:N `item_doenca` (casos indicados) e `item_sintoma` (objetivos), editáveis por clique, DB-driven (nunca hardcoded). Sintomas precisam enriquecer.
+
 ## Obra pendente (Wave, autorizada "sem perguntar")
-Ligar Craniotomia↔banco (ler regras reais), unir os mapas órfãos à rota, atualizar a rota V9→semântica de bloco/grade, e dar persistência+versionamento ao editor de sinapses.
+Ligar Craniotomia↔banco (ler regras reais), unir os mapas órfãos à rota, atualizar a rota V9→semântica de bloco/grade + gravidade por bloco, dar persistência+versionamento ao editor, criar amarração editável item↔doença/sintoma, preencher 229 itens órfãos e enriquecer sintomas.
