@@ -38,7 +38,7 @@ export const periodosDiaTable = pgTable("periodos_dia", {
 // --- catalogo generico de itens terapeuticos (457) ---
 export const catalogoItensTable = pgTable("catalogo_itens", {
   id: serial("id").primaryKey(),
-  idIhe: integer("id_ihe"),
+  idIhe: integer("id_ihe").notNull().unique(),
   nome: text("nome").notNull(),
   descricao: text("descricao"),
   categoria: text("categoria"),
@@ -64,7 +64,7 @@ export const catalogoItensTable = pgTable("catalogo_itens", {
 // --- formulas magistrais (54) ---
 export const catalogoFormulasTable = pgTable("catalogo_formulas", {
   id: serial("id").primaryKey(),
-  idIhe: integer("id_ihe"),
+  idIhe: integer("id_ihe").notNull().unique(),
   codigoPadcom: text("codigo_padcom"),
   identificador: text("identificador"),
   conteudo: text("conteudo"),
@@ -74,7 +74,7 @@ export const catalogoFormulasTable = pgTable("catalogo_formulas", {
   tipoLinha: text("tipo_linha"),
   valorUnidade: text("valor_unidade"),
   origemValor: text("origem_valor"),
-  codigoSemantico: text("codigo_semantico").notNull().unique(),
+  codigoSemantico: text("codigo_semantico"),
   b1: text("b1"),
   b2: text("b2"),
   b3: text("b3"),
@@ -92,7 +92,7 @@ export const catalogoFormulasTable = pgTable("catalogo_formulas", {
 // --- injetaveis IM / EV / SC (305) ---
 export const catalogoInjetaveisTable = pgTable("catalogo_injetaveis", {
   id: serial("id").primaryKey(),
-  idIhe: integer("id_ihe"),
+  idIhe: integer("id_ihe").notNull().unique(),
   codigoPadcom: text("codigo_padcom"),
   tipoLinha: text("tipo_linha"),
   nomeAmpola: text("nome_ampola"),
@@ -108,7 +108,7 @@ export const catalogoInjetaveisTable = pgTable("catalogo_injetaveis", {
   classificacao: text("classificacao"),
   eixoIntegrativo: text("eixo_integrativo"),
   palavraChaveMotor: text("palavra_chave_motor"),
-  codigoSemantico: text("codigo_semantico").notNull().unique(),
+  codigoSemantico: text("codigo_semantico"),
   b1: text("b1"),
   b2: text("b2"),
   b3: text("b3"),
@@ -122,7 +122,7 @@ export const catalogoInjetaveisTable = pgTable("catalogo_injetaveis", {
 // --- implantes (32) — DOMINIO NOVO no Manager ---
 export const catalogoImplantesTable = pgTable("catalogo_implantes", {
   id: serial("id").primaryKey(),
-  idIhe: integer("id_ihe"),
+  idIhe: integer("id_ihe").notNull().unique(),
   codigoPadcom: text("codigo_padcom"),
   nomeImplante: text("nome_implante"),
   substanciaAtiva: text("substancia_ativa"),
@@ -139,7 +139,7 @@ export const catalogoImplantesTable = pgTable("catalogo_implantes", {
   origemValor: text("origem_valor"),
   statusCadastro: text("status_cadastro"),
   observacao: text("observacao"),
-  codigoSemantico: text("codigo_semantico").notNull().unique(),
+  codigoSemantico: text("codigo_semantico"),
   b1: text("b1"),
   b2: text("b2"),
   b3: text("b3"),
@@ -152,7 +152,7 @@ export const catalogoImplantesTable = pgTable("catalogo_implantes", {
 // --- blends: cabecalho (12) ---
 export const catalogoBlendsTable = pgTable("catalogo_blends", {
   id: serial("id").primaryKey(),
-  idIhe: integer("id_ihe"),
+  idIhe: integer("id_ihe").notNull().unique(),
   codigoBlend: text("codigo_blend").notNull().unique(),
   nomeBlend: text("nome_blend"),
   funcao: text("funcao"),

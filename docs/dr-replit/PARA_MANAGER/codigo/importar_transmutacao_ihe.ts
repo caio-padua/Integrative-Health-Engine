@@ -136,15 +136,15 @@ async function importarCatalogo() {
       posologiaEstruturada: it.posologia_estruturada ?? null,
       origemTransmutacao: ORIGEM,
     };
-    const { codigoPadcom, ...upd } = row;
+    const { idIhe, ...upd } = row;
     await db
       .insert(catalogoItensTable)
       .values(row)
-      .onConflictDoUpdate({ target: catalogoItensTable.codigoPadcom, set: upd });
+      .onConflictDoUpdate({ target: catalogoItensTable.idIhe, set: upd });
   }
   rel.itens_terapeuticos = (cat.itens_terapeuticos ?? []).length;
 
-  // 1.3 formulas (chave: codigo_semantico)
+  // 1.3 formulas (chave de idempotencia: id de origem do IHE; codigo_semantico NAO e unico)
   for (const f of cat.formulas ?? []) {
     const row = {
       idIhe: f.id ?? null,
@@ -170,15 +170,15 @@ async function importarCatalogo() {
       efeitosColaterais: f.efeitos_colaterais ?? null,
       origemTransmutacao: ORIGEM,
     };
-    const { codigoSemantico, ...upd } = row;
+    const { idIhe, ...upd } = row;
     await db
       .insert(catalogoFormulasTable)
       .values(row)
-      .onConflictDoUpdate({ target: catalogoFormulasTable.codigoSemantico, set: upd });
+      .onConflictDoUpdate({ target: catalogoFormulasTable.idIhe, set: upd });
   }
   rel.formulas = (cat.formulas ?? []).length;
 
-  // 1.4 injetaveis (chave: codigo_semantico)
+  // 1.4 injetaveis (chave de idempotencia: id de origem do IHE; codigo_semantico NAO e unico)
   for (const inj of cat.injetaveis ?? []) {
     const row = {
       idIhe: inj.id ?? null,
@@ -206,15 +206,15 @@ async function importarCatalogo() {
       substanciaBase: s(inj.substancia_base),
       origemTransmutacao: ORIGEM,
     };
-    const { codigoSemantico, ...upd } = row;
+    const { idIhe, ...upd } = row;
     await db
       .insert(catalogoInjetaveisTable)
       .values(row)
-      .onConflictDoUpdate({ target: catalogoInjetaveisTable.codigoSemantico, set: upd });
+      .onConflictDoUpdate({ target: catalogoInjetaveisTable.idIhe, set: upd });
   }
   rel.injetaveis = (cat.injetaveis ?? []).length;
 
-  // 1.5 implantes (chave: codigo_semantico)
+  // 1.5 implantes (chave de idempotencia: id de origem do IHE; codigo_semantico NAO e unico)
   for (const im of cat.implantes ?? []) {
     const row = {
       idIhe: im.id ?? null,
@@ -242,11 +242,11 @@ async function importarCatalogo() {
       seq: s(im.seq),
       origemTransmutacao: ORIGEM,
     };
-    const { codigoSemantico, ...upd } = row;
+    const { idIhe, ...upd } = row;
     await db
       .insert(catalogoImplantesTable)
       .values(row)
-      .onConflictDoUpdate({ target: catalogoImplantesTable.codigoSemantico, set: upd });
+      .onConflictDoUpdate({ target: catalogoImplantesTable.idIhe, set: upd });
   }
   rel.implantes = (cat.implantes ?? []).length;
 

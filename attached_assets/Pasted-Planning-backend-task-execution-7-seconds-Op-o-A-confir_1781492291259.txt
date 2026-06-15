@@ -1,0 +1,118 @@
+Planning backend task execution (7 seconds)
+Opção A confirmada: sem tag de origem, idempotência por chave natural. Vou ler a carta inteira e inspecionar a estrutura real das duas bases antes de desenhar o schema.
+
+
+Ran cd
+Carta e bases baixadas. Vou ler a carta inteira e inspecionar a estrutura (chaves, não valores) das duas bases.
+
+
+2 actions
+Carta lida por completo. Agora inspeciono a estrutura real das duas bases (chaves, sem expor dados pessoais).
+
+
+2 actions
+Catálogo mapeado. Agora inspeciono a estrutura de pacientes (só chaves e estatísticas, sem expor dados pessoais) e o sub-objeto de ativos dos blends.
+
+
+4 actions
+Tenho o quadro completo dos dados. Antes de codar, vou estudar a estrutura do banco e do servidor para seguir as convenções do repositório.
+
+Estatísticas reais confirmam a necessidade do afrouxamento: 1.247 pacientes sem CPF, 1.764 sem e-mail, 1 CPF repetido. Vou ler os arquivos-chave em paralelo.
+
+
+7 actions
+Vou ver como as rotas são registradas (barrel + app.ts) para encaixar o importador na convenção.
+
+
+2 actions
+Tenho toda a estrutura. Antes de escrever o schema, confirmo os tipos reais dos campos (booleano, número, array, objeto) para não errar as colunas.
+
+
+2 actions
+Tipos confirmados: a maioria dos valores do IHE são texto (preservo como texto para não perder fidelidade). Vou registrar o plano da sessão e verificar o runtime do servidor.
+
+
+Updated plan
+
+2 actions
+api-server não tem tsx. Vou adicioná-lo como dependência de desenvolvimento para rodar o script de validação, e agora escrevo o schema-depósito e o afrouxamento da tabela clients.
+
+
+3 actions
+Notei um erro de digitação no schema (campo b1 dos injetáveis ficou com nome errado). Vou corrigir e fazer o afrouxamento da tabela clients e o barrel.
+
+
+Edited catalogo.ts
+Agora o afrouxamento da tabela clients e o barrel.
+
+
+2 actions
+The integer import is now unused in clients.ts. Let me check and update the barrel.
+
+
+Ran cd
+integer agora é usado só na importação (não mais nas colunas). Vou removê-lo, atualizar o barrel e rodar o push.
+
+
+2 actions
+Schema escrito. Agora rodo o push para aplicar as mudanças no banco (novas tabelas + afrouxamento de clients).
+
+
+2 actions
+Push aplicado. Vou confirmar que o afrouxamento da clients foi aplicado (cpf/email/phone nullable, unique removido) e que as tabelas-depósito existem.
+
+
+Ran cd
+pg está no node_modules do pacote db. Vou usar o caminho correto.
+
+
+2 actions
+Schema confirmado: cpf/email/phone agora nullable, unique removido, 3 colunas novas, 7 tabelas-depósito criadas, e os 12 clientes operacionais preservados.
+
+Antes de escrever o importador, verifico a presença de codigo_semantico nos pacientes — é a chave de idempotência (garante que rodar 2x não duplique).
+
+
+2 actions
+Achado importante: só 3.858 dos 5.416 pacientes têm codigo_semantico. Preciso medir quantos ficariam sem chave de idempotência estável (risco de duplicar em re-execução) para decidir o desenho. Vou calcular a cobertura combinada das chaves.
+
+
+2 actions
+Decisão tomada: apenas 1 registro (de 5.416) ficaria sem chave estável — ele recebe needsReview e será revisado por humano. Para cobrir o resto, uso precedência de chaves: codigo_semantico → codigo_externo → CPF+nome → nome+nasc+telefone. Agora escrevo o importador.
+
+
+Created transmutacao.ts
+Agora a rota com token de admin e o registro no barrel, mais o script de validação.
+
+
+Created transmutacao.ts
+Agora registro a rota no barrel e crio o script de validação, além de adicionar tsx.
+
+
+3 actions
+Agora o script de validação e a dependência tsx.
+
+
+4 actions
+tsx instalado. Vou rodar o typecheck do api-server e do db para pegar erros antes de executar.
+
+
+2 actions
+O typecheck do api-server tem erros PRÉ-EXISTENTES (exports faltando em @workspace/api-zod, codegen desatualizado) — nada nos meus arquivos novos. Isso bate com minha memória (typecheck global pré-quebrado; validar por runtime). O servidor está rodando normalmente. Vou executar o importador via script (tsx transpila por arquivo, não bloqueia).
+
+
+2 actions
+Primeira execução bateu certo: catálogo com as contagens exatas esperadas (9/457/54/305/32/12/63), e pacientes somando 5.256 + 156 + 4 = 5.416. Os 156 "atualizados" são duplicatas internas da própria base IHE (mesma pessoa repetida) que casaram com linhas já criadas na mesma execução.
+
+Agora o teste decisivo: idempotência. Vou registrar a contagem atual, rodar de novo e confirmar que não duplica.
+
+
+2 actions
+Anomalia grave: catalogo_injetaveis tem só 162 linhas, mas deveriam ser 305. Isso indica que codigo_semantico NÃO é único nos injetáveis — meu upsert colapsou linhas distintas (perda de dado). Preciso investigar a unicidade real das chaves antes de prosseguir.
+
+
+2 actions
+Achado crítico que muda o desenho: nenhuma das chaves que escolhi é única para fórmulas, injetáveis e implantes. Meu upsert por codigo_semantico colapsou linhas distintas — perda de dado. Preciso achar a chave natural REAL que preserve todas as linhas (54/305/32). Vou testar chaves compostas.
+
+
+3 actions
+Antes de decidir, preciso de um último fato: se eu remover o id de origem, o conteúdo completo da linha é único? Isso determina se um hash de conteúdo (chave nativa, sem tag de origem) preserva todas as linhas.
