@@ -1,0 +1,81 @@
+RESPOSTA DIRETA (dinheiro e tempo)
+
+Em dinheiro: as duas opções custam praticamente zero.
+
+Não há serviço pago envolvido — é só código meu. Nenhuma das duas chega perto de 1 dólar, muito menos 10.
+
+Em tempo, a diferença é esta:
+
+3.a. Manter o hash: zero trabalho agora (já está pronto), mas gera retrabalho recorrente — toda vez que o IHE editar uma linha do catálogo e reenviar, a reimportação deixa lixo (linha velha órfã) que alguém terá de limpar.
+
+3.b. Usar o id de origem do IHE: gasto uns 10 a 15 minutos agora, e depois nunca mais — edição na origem atualiza a mesma linha, sem lixo, sem limpeza futura.
+
+CONCLUSÃO
+
+A opção mais econômica no conjunto (dinheiro + tempo ao longo do tempo) é o id de origem do IHE.
+
+O senhor já autorizou ("pode manter") e o custo está muito abaixo dos 10 dólares.
+
+Vou executar a Opção do id de origem agora.
+
+Aplico isto só nas três coleções que não tinham chave própria (fórmulas, injetáveis, implantes). Itens, blends e períodos já têm chave de negócio nativa e ficam como estão.
+
+
+Edited catalogo.ts
+Agora os outros dois ajustes de schema (injetáveis e implantes) em paralelo.
+
+
+3 actions
+Schema pronto. Agora o importador: adiciono o helper numId e troco as três seções para usar o id de origem.
+
+
+Edited transmutacao.ts
+Agora as três seções do importador. Faço as seis edições (cabeçalho + conflito de cada coleção) em paralelo.
+
+
+2 actions
+Agora as edições de injetáveis e implantes.
+
+
+4 actions
+Falta a seção de implantes. Faço as duas edições finais.
+
+
+Edited transmutacao.ts
+Falta o bloco de conflito de implantes.
+
+
+2 actions
+Código pronto. Vou verificar referências remanescentes e a estrutura do report antes de truncar e re-rodar.
+
+
+2 actions
+Tudo certo — hashConteudo continua só nos pacientes (linhas 457 e 596), correto. Agora trunco as três tabelas do catálogo, aplico o push e re-rodo.
+
+
+Ran psql
+Tabelas truncadas. Agora aplico o push do schema.
+
+
+2 actions
+O push é interativo e perguntou se id_ihe é coluna nova ou renomeada. Como truncamos as tabelas, quero criar coluna (não renomear). Vou responder isso para as três tabelas enviando Enter (opção já destacada).
+
+
+2 actions
+O prompt interativo do drizzle-kit precisa de um terminal real e não aceita o Enter via pipe. Vou aplicar as colunas direto via SQL (tabelas já estão vazias) e depois o push reconcilia sem perguntas.
+
+
+2 actions
+Colunas aplicadas. Confirmo que o push não acusa mais diferença e re-rodo o importador.
+
+
+Ran printf
+Push limpo, sem diferenças pendentes. Agora re-rodo o importador.
+
+
+2 actions
+Contagens corretas: fórmulas 54, injetáveis 305 (antes vinham 162 errados pelo hash), implantes 32. Vou confirmar a idempotência rodando mais uma vez e checar as contagens reais no banco.
+
+
+2 actions
+Idempotência comprovada: 2ª execução = 0 criados, tudo atualizado. Confirmo as contagens reais no banco e ausência de duplicatas.
