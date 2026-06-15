@@ -41,5 +41,10 @@ sinapses "perdidos". Caçada confirmou: existem, mas mal ligados.
 - Espinha ampliada (14 blocos) em `docs/dr-replit/ESPEC_MEGA_ANAMNESE_INTEGRATIVA_26.06.15.md`: identificação, QP+HMA(OPQRST), revisão por sistemas(ISDA 13 aparelhos), antecedentes, cirurgias, alergias, medicações, imunizações, hábitos/vícios(tabagismo maços-ano, etilismo AUDIT-C/CAGE, sono Epworth, Bristol), história familiar, psicossocial, gineco/andrológica, eixos IFM, preferências. Escalas: PHQ-9, GAD-7, AUDIT-C, CAGE, Epworth, Bristol, IPSS.
 - Cada pergunta = gatilho → sintoma/doença → bloco → escore de gravidade → grade. Modelo de dados ADITIVO em questionario_master: colunas sistema/escala_validada/peso_gravidade/e_sinal_alarme + ligações M:N pergunta_sintoma/pergunta_doenca. Cartas de encaminhamento: CARTA_07 (Manager) e CARTA_MEGA_ANAMNESE (Dr. Claude).
 
+## Briefings mestres + export de dados (15/06/2026)
+- Export de catálogos (sem PII) em `docs/dr-replit/PARA_MANAGER/motor_anamnese_sinapses_export_26.06.15.json`: questionario_master/doencas/sintomas/blocos/cid10/regras_motor/motor_decisao_clinica/mapa_anamnese_motor/mapa_bloco_exame.
+- BRIEFING MESTRE por agente (índice único + braços de dados + porquê de cada campo + evolução/roadmap + mandato kaizen + sinapses divergentes + layout Craniotomia + ordem de implementar/rodar): `docs/dr-claude/BRIEFING_MESTRE_MOTOR_ANAMNESE_SINAPSES_26.06.15.md` e `docs/dr-replit/PARA_MANAGER/BRIEFING_MESTRE_MOTOR_ANAMNESE_SINAPSES_26.06.15.md`.
+- Branch: working branch atual = `ver-l2-dr-claude` (a skill do Dr. Claude já usa essa nos raws); README dr-claude lista `feat/dominio-pawards`/`main`. Push só após auto-commit do fim da task; devolver prova (raw URL + hash). NÃO commit manual (destrutivo p/ regras).
+
 ## Obra pendente (Wave, autorizada "sem perguntar")
 Ligar Craniotomia↔banco (ler regras reais), unir os mapas órfãos à rota, atualizar a rota V9→semântica de bloco/grade + gravidade por bloco, dar persistência+versionamento ao editor, criar amarração editável item↔doença/sintoma, preencher 229 itens órfãos e enriquecer sintomas.
