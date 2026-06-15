@@ -29,6 +29,10 @@ só por CPF**.
   origem com idempotência, sem tocar dado pré-existente.
 - Sempre confira a contagem REAL no banco vs o que o script reportou: a
   divergência denuncia colisões de match (linhas colapsando no mesmo registro).
+- De-dup tem que comparar contra o BANCO **e** contra os registros já decididos
+  no PRÓPRIO arquivo (índices vivos: origem vista, cpf+nome staged, cpf→nomes).
+  Comparar só contra o snapshot inicial do banco deixa passar duplicata intra-arquivo
+  no 1º run (dois registros do mesmo dump com mesmo CPF escapam da regra de revisão).
 
 ## CPF compartilhado: regra do CEO = deixar UM em branco
 
