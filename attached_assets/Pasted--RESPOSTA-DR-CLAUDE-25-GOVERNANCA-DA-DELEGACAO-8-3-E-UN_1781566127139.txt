@@ -1,0 +1,173 @@
+# RESPOSTA DR CLAUDE 25 — GOVERNANCA DA DELEGACAO (8.3) E UNIAO DOS 3 MOTORES (8.4)
+
+- De: Dr. Claude (orquestrador, engenheiro e codador)
+- Para: CEO Dr. Caio + Dr. Replit Pawards
+- Data: 15/06/2026
+- Responde: CARTA_06 secao 8.3 e 8.4 (Fase C, escolhida pelo CEO)
+- Continua: RESPOSTA_DR_CLAUDE_24 (motor de gravidade, Fase 1)
+
+> SIGLA SEMPRE: fail-closed = nega por padrao, so libera com regra. Contrato =
+> a "lingua" (formato de entrada/saida) que todos falam. Canon = a unica
+> implementacao oficial. DB-driven = vem do banco, editavel, nao cravado no codigo.
+
+---
+
+## CONCLUSAO PRIMEIRO
+
+Fechei as duas pecas que faltavam no cerebro logico do motor:
+8.3 (governanca da delegacao) virou MOTOR rodando, fail-closed, com 8/8 testes
+verdes; 8.4 (unir os 3 motores) virou ARQUITETURA — um contrato unico, um canon
+eleito, e as diferencas viram dado (nunca um 4o motor). Somando a Fase 1, o
+conjunto roda com 15/15 testes verdes. A calibragem clinica e as flags reais sao
+do CEO (Art. 18 par. 6); eu entreguei a maquina.
+
+---
+
+## 1. GOVERNANCA DA DELEGACAO — MOTOR RODANDO (fecha 8.3)
+
+Pergunta da CARTA_06 8.3: quem pode delegar para quem, e quando o modo automatico
+e permitido. Resposta: um motor de politica fail-closed que decide pelas FLAGS do
+PERFIL (campo "perfil", nunca "role" — Art. 36).
+
+| Regra | O que faz |
+| :--- | :--- |
+| R1 trava permanente | perfil com `nunca_opera` NUNCA recebe operacao (nada o libera) |
+| R2 modo automatico | exige `pode_bypass` em quem LIGA o automatico (a origem) |
+| R3 delegar a humano | exige autoridade na origem (`pode_validar`) |
+| R4 acao delegar | so quem pode validar pode delegar |
+| R5 capacidade do executor | assinar exige `pode_assinar`; validar/recusar/ativar exige `pode_validar` |
+| Sempre | toda decisao (sim ou nao) e auditada e versionada, com motivo explicito |
+
+Perfis reais usados (CARTA_06 4): medico, enfermeira, validador_mestre,
+medico_tecnico, validador_enfermeiro. As flags reais vem do banco.
+
+Governanca dos 3 modos:
+
+| Modo | Quem decide | Trava de seguranca |
+| :--- | :--- | :--- |
+| Medico no comando (padrao) | o proprio medico, clique a clique | precisa das flags da acao |
+| Delegar a humano assistente | medico/validador delega; assistente executa | origem com autoridade + executor com a flag |
+| Modo automatico | o sistema aceita e segue | so quem tem `pode_bypass` pode ligar |
+
+---
+
+## 2. UNIR OS 3 MOTORES SEM CRIAR UM 4o PADRAO (fecha 8.4)
+
+Principio em uma frase: UM CONTRATO, UM CANON, o resto vira DADO.
+
+| Passo | Decisao de arquitetura |
+| :--- | :--- |
+| 1. Contrato unico | os 3 agentes falam a MESMA lingua: entra (respostas / pedido) -> sai (resultado por bloco / decisao de delegacao). E a interface, nao a implementacao |
+| 2. Eleger UM canon | vira oficial a implementacao com PROVA (testada, rodando e DB-driven). Hoje, o motor desta entrega ja roda com teste verde |
+| 3. Diferencas viram dado | a melhor ideia de cada agente nao vira um motor paralelo: vira CONFIG (pesos, limiares, mapas, perfis) alimentando o canon |
+| 4. Proibido o 4o padrao | nao se cria engine novo (kaizen, Art. 1 par.6); a reconciliacao e aditiva e append-only (Art. 56) |
+
+Blueprint da uniao:
+
+```
+Motor IHE        Motor Manager        Motor Dr. Claude (com prova)
+    \                 |                       /
+     \                |                      /
+      ----> CONTRATO UNICO (mesma entrada/saida) <----
+                        |
+                        v
+            CANON = a implementacao testada
+                        |
+        diferencas dos outros 2 entram como DADO
+        (pesos, limiares, mapas, perfis) — nunca como 4o motor
+```
+
+Quem decide qual vira canon e o CEO (escolher o padrao oficial e do cacique,
+Art. 15 par. 8). Eu recomendo, com fundamento, o motor desta entrega como base,
+por ser DB-driven e ja ter prova verde — mas o martelo e seu.
+
+---
+
+## 3. PROVA QUE RODA (teste cego, node:test)
+
+| Suite | Testes | Passou |
+| :--- | :--- | :--- |
+| Motor de gravidade (Fase 1) | 7 | 7 |
+| Governanca da delegacao (Fase C) | 8 | 8 |
+| CONSOLIDADO | 15 | 15 |
+
+Casos de governanca cobertos: enfermeira nao assina mesmo delegada; validador_mestre
+valida; perfil `nunca_opera` bloqueado; modo automatico exige bypass; medico no
+comando assina; delegar a quem nao pode validar e negado com motivo; tudo exige
+auditoria; idempotencia.
+
+---
+
+## 4. AS 4 LENTES
+
+| Lente | Leitura |
+| :--- | :--- |
+| Medico | a delegacao tem trilho de seguranca: red flags do perfil (nunca_opera) e exigencia de pode_assinar/pode_validar; o modo automatico so liga com permissao explicita; tudo auditado |
+| CEO | a peca 8.3 e 8.4 da CARTA_06 fechada: a 8.3 rodando com teste verde, a 8.4 como arquitetura que evita retrabalho (um motor, nao quatro) |
+| Empresario | governanca DB-driven: a clinica ajusta quem pode o que sem programador; e a uniao por contrato evita reescrever motor a cada agente |
+| Investidor | politica de acesso fail-closed e auditavel + um unico engine canonico = base segura e escalavel para multi-clinica, sem divida de motores paralelos |
+
+---
+
+## 5. ONDE ESTAMOS NO BRIEFING
+
+| Item | Estado |
+| :--- | :--- |
+| 8.1 formula do escore | FEITO (rodando) |
+| 8.2 suspeita -> N blocos | FEITO (rodando) |
+| 8.3 governanca da delegacao | FEITO (rodando) |
+| 8.4 unir os 3 motores | FEITO (arquitetura; canon a confirmar pelo CEO) |
+| Semantica das sinapses (>=3 modelos) | proxima (desenho) |
+| Layout da Craniotomia (PENUMBRA) | proxima (desenho) |
+
+O cerebro logico do motor esta fechado. O que resta e a CARA (sinapses e Craniotomia).
+
+---
+
+## 6. CARTA PARA O DR. REPLIT PAWARDS (acrescimo ao commit da Fase 1)
+
+```
+DR. REPLIT PAWARDS - PEDIDO DE COMMIT (Fase C: governanca da delegacao)
+De: Dr. Claude (orquestrador) | A pedido do CEO Dr. Caio
+
+== 1. O QUE E ==
+1.1 Motor de governanca da delegacao, TypeScript puro, fail-closed, DB-driven.
+1.2 Fecha a CARTA_06 secao 8.3. A 8.4 (uniao) esta como arquitetura nesta spec.
+1.3 Roda com 8/8 testes verdes (15/15 somando o motor de gravidade).
+
+== 2. ARQUIVOS (3 de codigo + esta spec) ==
+2.1 motor/governancaDelegacao.ts          (a politica pura)
+2.2 motor/configExemploDelegacao.ts       (perfis reais, flags ilustrativas)
+2.3 motor/governancaDelegacao.test.ts     (teste cego)
+2.4 docs/dr-claude/RESPOSTA_DR_CLAUDE_25_GOVERNANCA_DELEGACAO_26.06.15.md (esta spec)
+
+== 3. COMO RODAR (prova) ==
+3.1 node --test motor/governancaDelegacao.test.ts
+3.2 Esperado: # pass 8  # fail 0
+
+== 4. INTEGRACAO REAL (proximo passo seu) ==
+4.1 Trocar os perfis-exemplo pela leitura da tabela de perfis do banco,
+    com as flags reais pode_validar / pode_assinar / pode_bypass / nunca_opera.
+4.2 Registrar cada decisao (permitida ou negada) na auditoria/versionamento.
+4.3 Nada destrutivo: so ADITIVO.
+
+== 5. DECISAO DO CEO PENDENTE (8.4) ==
+5.1 Eleger o canon (qual dos 3 motores vira a implementacao oficial).
+5.2 Recomendacao do Dr. Claude: o motor desta entrega (DB-driven + prova verde).
+
+== 6. DEVOLVER ==
+6.1 Commit & push na ver-l2-dr-claude (junto com a Fase 1).
+6.2 Devolva ao CEO o raw URL + o hash (a prova).
+```
+
+---
+
+## RESUMO EM 1 LINHA
+
+Fechei o cerebro logico do motor: a governanca da delegacao (CARTA_06 8.3) virou
+motor fail-closed e DB-driven rodando com 8/8 testes verdes (15/15 com a Fase 1),
+respeitando os 3 modos e as flags reais do perfil; e a uniao dos 3 motores (8.4)
+virou arquitetura — um contrato unico, um canon eleito (recomendo o motor com prova)
+e as diferencas viram dado, nunca um 4o motor; entrego o codigo testado + esta spec
++ a carta para o Dr. Replit commitar, e o que resta agora e so a CARA (sinapses e
+Craniotomia).
