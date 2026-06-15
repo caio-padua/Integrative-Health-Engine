@@ -36,5 +36,10 @@ sinapses "perdidos". Caçada confirmou: existem, mas mal ligados.
 - Catálogos REAIS: doencas(58), sintomas(10, pobre), cid10(66), blocos(62), mapa_bloco_exame(409); itens: formulas(54)/injetaveis(305)/implantes(32); itens_terapeuticos(457, só 228 com bloco+grade → 229 órfãos). doencas já amarra bloco via coluna `bloco_motor`.
 - Gap: itens NÃO têm `funcao` nem amarração estruturada a doença/sintoma. Arquitetura: campo `funcao` + ligações M:N `item_doenca` (casos indicados) e `item_sintoma` (objetivos), editáveis por clique, DB-driven (nunca hardcoded). Sintomas precisam enriquecer.
 
+## Mega Anamnese — espinha de classe mundial (CEO 15/06/2026)
+- Anamnese atual POBRE: questionario_master só 19 perguntas (blocos IDENTIFICACAO/CLINICO/PREFERENCIA(S)/FINANCEIRO); dívidas: PREFERENCIA vs PREFERENCIAS duplicado + Q030 repetido. anamneses=48, questionario_respostas=1.
+- Espinha ampliada (14 blocos) em `docs/dr-replit/ESPEC_MEGA_ANAMNESE_INTEGRATIVA_26.06.15.md`: identificação, QP+HMA(OPQRST), revisão por sistemas(ISDA 13 aparelhos), antecedentes, cirurgias, alergias, medicações, imunizações, hábitos/vícios(tabagismo maços-ano, etilismo AUDIT-C/CAGE, sono Epworth, Bristol), história familiar, psicossocial, gineco/andrológica, eixos IFM, preferências. Escalas: PHQ-9, GAD-7, AUDIT-C, CAGE, Epworth, Bristol, IPSS.
+- Cada pergunta = gatilho → sintoma/doença → bloco → escore de gravidade → grade. Modelo de dados ADITIVO em questionario_master: colunas sistema/escala_validada/peso_gravidade/e_sinal_alarme + ligações M:N pergunta_sintoma/pergunta_doenca. Cartas de encaminhamento: CARTA_07 (Manager) e CARTA_MEGA_ANAMNESE (Dr. Claude).
+
 ## Obra pendente (Wave, autorizada "sem perguntar")
 Ligar Craniotomia↔banco (ler regras reais), unir os mapas órfãos à rota, atualizar a rota V9→semântica de bloco/grade + gravidade por bloco, dar persistência+versionamento ao editor, criar amarração editável item↔doença/sintoma, preencher 229 itens órfãos e enriquecer sintomas.
