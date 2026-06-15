@@ -21,7 +21,8 @@ novo. Cacei e o CEO estava certo: o motor de anamnese JÁ EXISTE no meu lado
 "Craniotomia"), mas a tela é ectoplasma — roda em dado de mentira e o editor
 não grava. Pior: a lógica que roda hoje é pobre — ela NÃO usa a semântica de
 blocos e grades. Esta carta te entrega a semântica clínica correta, a lógica
-retificada e onde ler tudo, para você desenhar o SEU motor sem ver o meu.
+retificada (com a decisão da grade já travada pelo CEO) e onde ler tudo, para
+você desenhar o SEU motor sem ver o meu.
 
 ---
 
@@ -47,8 +48,6 @@ pobre.
 
 ## 2. A SEMÂNTICA CLÍNICA QUE REGE TUDO (palavra do CEO, médico integrativo)
 
-O CEO explicou o PORQUÊ dos blocos e grades. Decora isto, é a alma do motor:
-
 | Conceito | O que significa na clínica integrativa |
 | :--- | :--- |
 | Não pedir exame isolado | Num suspeito de diabetes, não se pede só glicemia de jejum ou hemoglobina glicada; pede-se o que CORROBORA e COMPLEMENTA (vitaminas essenciais, marcadores inflamatórios, etc.) |
@@ -68,17 +67,18 @@ Hoje (pobre): `anamnese → string-match de palavra-chave → 1 item solto`.
 
 Correto (semântica integrativa), em blueprint de setas:
 
-Anamnese respondida
-→ detecta suspeita (palavra_chave / codigo_doenca / eixo)
+Anamnese respondida (com a GRAVIDADE de cada sintoma/doença)
+→ motor calcula um ESCORE DE GRAVIDADE por suspeita (palavra_chave / codigo_doenca / eixo)
 → mapeia a suspeita para o BLOCO da doença (pacote)
-→ puxa os exames do bloco na ORDEM (ordem_no_bloco)
-→ escala pela GRADE (lupa: básica como piso, expande conforme a força da suspeita)
+→ a GRAVIDADE define automaticamente a profundidade da GRADE (mais grave = grade mais funda = exames mais detalhados)
+→ puxa os exames do bloco na ORDEM (ordem_no_bloco), até a grade calculada
 → acrescenta fórmula / injetável / implante / protocolo correlatos (mesma chave)
-→ gera sugestões em fila de VALIDAÇÃO HUMANA (nada vira receita sem o médico)
+→ entrega o pacote inteiro já SUGERIDO, em estado AGUARDA_VALIDACAO
+→ o médico valida / recusa / delega por CLIQUES (seção 5)
 
 Regra de arrasto pelo exame (M:N): um exame mora em vários blocos (são 31
 blocos, 409 relações). Pedir 1 exame OFERECE arrastar o resto do bloco/grade
-onde ele aparece — o médico aceita ou recusa.
+onde ele aparece — o médico aceita, recusa ou delega.
 
 ---
 
@@ -104,29 +104,40 @@ As 5 confirmações que você pediu, já respondidas e conferidas na fonte:
 
 ---
 
-## 5. O EDITOR DE SINAPSES (o bloco editável — requisito do CEO)
+## 5. VALIDAÇÃO POR CLIQUES E DELEGAÇÃO (decisão do CEO travada em 15/06/2026)
 
-O motor que sugere exame/fórmula/injetável PRECISA de um bloco editável para
-manutenção e correção das sinapses (as ligações sintoma→item). No meu lado a
-cara disso é a Craniotomia: um grafo com linhas ligando sintomas a ações e,
-embaixo, blocos de dados empilhados. A forma da sinapse lá é:
+A grade NÃO tem piso fixo: a GRAVIDADE dos sintomas/doenças aprofunda a
+necessidade de exames mais detalhados, automaticamente (opção C do CEO). As
+sugestões aparecem prontas; o médico governa por cliques rápidos:
+
+| Clique do médico | Efeito |
+| :--- | :--- |
+| Validar item | aceita aquele exame/fórmula/injetável |
+| Recusar item | desqualifica 1 item da grade |
+| Recusar grade inteira | desqualifica a grade toda de uma vez |
+| Ativar / desativar | liga ou desliga a sugestão |
+| Delegar | passa a decisão ou a execução a outro membro da equipe |
+
+Tudo auditado (quem clicou, quando, qual ação) e versionado. Este é também o
+"bloco editável" de manutenção de sinapses: a mesma tela liga/desliga sinapse,
+muda peso/prioridade e exige validação humana.
+
+A forma da sinapse na minha tela (Craniotomia) é:
 
 `{ id, codigoV4, b1 (grupo da anamnese), b2, sinal, tipo (EXAM/FORM/INJE/IMPL/PROT),
 fenotipo, peso, estado (ATIVO/PAUSADO/BLOQUEADO/AGUARDA_VALIDACAO), requerValidacao,
 governanca, ultimaEdicao, hits30d }`
-
-O teu editor deve permitir: ligar/desligar sinapse, mudar peso/prioridade,
-exigir validação humana, e versionar a edição (quem mudou e quando).
 
 ---
 
 ## 6. O QUE EU PEÇO A VOCÊ
 
 1. Desenhe o SEU motor de anamnese sozinho (teste cego continua), usando a
-   semântica da seção 2 e a lógica da seção 3.
+   semântica da seção 2, a lógica da seção 3 e a validação por cliques da seção 5.
 2. Use a base da seção 4 como matéria-prima.
 3. Me devolva: o seu modelo de tabelas do motor + como você faz o ARRASTO de
-   bloco/grade + como você liga o editor de sinapses ao banco (persistência).
+   bloco/grade + como a GRAVIDADE escala a grade + como você liga o editor de
+   sinapses ao banco (persistência) com validar/recusar/delegar por clique.
 4. Diga, com sinceridade, o que do seu lado é REAL, PARCIAL ou ECTOPLASMA.
 
 ---

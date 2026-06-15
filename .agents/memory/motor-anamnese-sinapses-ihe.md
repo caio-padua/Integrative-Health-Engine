@@ -21,8 +21,10 @@ sinapses "perdidos". Caçada confirmou: existem, mas mal ligados.
 - **Why:** exame nunca é isolado; bloco = pacote semântico da doença; grade = profundidade da lupa (BASICA→INTERMEDIARIA→SOFISTICADA→AMPLIADA, + SEM GRADE). Um exame necessitado ARRASTA os outros do seu bloco/grade (M:N: 31 blocos, 409 relações). Mais exames = mais correlação.
 - **How to apply:** motor correto = anamnese→suspeita(palavra_chave/codigo_doenca)→BLOCO da doença→exames na `ordem_no_bloco`→escala pela GRADE→+fórmula/injetável correlatos→fila de validação humana. NÃO é string-match de 1 item.
 
-## Decisão clínica pendente (CEO)
-- "Lupa de grade": como a grade inicial é escolhida. Default proposto: prioridade da regra define o piso (baixa→básica … urgente→ampliada), médico expande na tela.
+## Decisão clínica TRAVADA pelo CEO (15/06/2026) — opção C
+- Grade SEM piso fixo: a GRAVIDADE dos sintomas/doenças aprofunda a grade automaticamente (mais grave = grade mais funda = exames mais detalhados).
+- Sugestões saem prontas (AGUARDA_VALIDACAO); médico governa por CLIQUES: validar item, recusar 1 item, recusar a GRADE INTEIRA de uma vez, ativar/desativar, e DELEGAR a outro membro. Tudo auditado/versionado.
+- Pendências que o Dr. Claude (orquestrador) deve fechar: fórmula do escore de gravidade; mapa suspeita→bloco quando a suspeita cai em vários blocos; governança da delegação.
 
 ## Obra pendente (Wave, autorizada "sem perguntar")
 Ligar Craniotomia↔banco (ler regras reais), unir os mapas órfãos à rota, atualizar a rota V9→semântica de bloco/grade, e dar persistência+versionamento ao editor de sinapses.
