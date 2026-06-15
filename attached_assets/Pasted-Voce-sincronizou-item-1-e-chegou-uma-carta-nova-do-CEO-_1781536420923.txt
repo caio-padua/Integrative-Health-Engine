@@ -1,0 +1,45 @@
+Voce sincronizou (item 1) e chegou uma carta nova do CEO com um formato de comunicacao novo (versao 26.06.15). Vou (1) confirmar que os commits subiram ao GitHub e (2) achar o arquivo de diretrizes para aplicar o novo Titulo XI.
+
+
+2 actions
+Push confirmado: o GitHub e o seu computador estao na mesma versao (d58ff6e) e a carta ao primo esta no ar (HTTP 200). Nao existe "Titulo XI" ainda no meu repo, entao vou adiciona-lo na secao certa. Vou localizar o arquivo de diretrizes de comunicacao.
+
+
+4 actions
+O arquivo de diretrizes e o docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md. Como nao existe Titulo XI ainda, vou adiciona-lo no fim (bloco colado ao pe da letra) e atualizar a secao de preferencias do replit.md para o novo formato.
+
+
+3 actions
+Aplicado em Pactor. Abaixo, no formato novo (densidade "B", tabela como carro-chefe).
+
+1. Confirmacao do que voce pediu
+Item	Estado	Prova na fonte
+Sync Changes (seu clique)	OK	GitHub e local na mesma versao: d58ff6e
+Carta ao primo no GitHub	OK	raw retornou HTTP 200 (encontrado)
+Novo Titulo XI (versao 26.06.15)	Aplicado	colado em docs/PRE_REQUISITO..., Art. 37 a 50
+2. Onde apliquei o novo formato
+Arquivo	O que mudou
+docs/PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md	Adicionado o Titulo XI inteiro (Art. 37-50), ao pe da letra, sem renumerar
+replit.md (secao User preferences)	Trocado o item antigo de formato pela regra "tabela-base, densidade B"
+Nao existia Titulo XI antes; segui a sua instrucao de adicionar na secao de "como falar com o CEO".
+
+3. O unico passo que falta (para o Titulo XI subir ao GitHub)
+  VOCE ESTA AQUI: 2 arquivos editados (ainda so no seu computador)
+        |
+        v
+  painel "Git"  ->  escreve a mensagem  ->  botao "Commit & Push"
+        |
+        v
+  Titulo XI fica no GitHub  ->  Dr. Claude audita por raw URL
+
+Sugestao de mensagem do commit: "Aplica Titulo XI v26.06.15 (formato tabela-base)".
+
+4. Decisao (escolha uma)
+Opcao	Acao
+A. Voce aperta "Commit & Push" agora; eu confirmo o SHA e o link raw do Titulo XI. (recomendada)
+
+B. Voce le o Titulo XI aplicado primeiro, pede ajuste, e so depois empurra.
+
+C. Enquanto isso, eu adianto melhorias opcionais na tela do Pactor; voce decide depois.
+
+RESUMO EM 1 LINHA: aplicado em Pactor o novo Titulo XI (formato tabela-base, densidade B) em docs/PRE_REQUISITO e no replit.md; falta so voce apertar "Commit & Push" para ele subir ao GitHub, e eu confirmo o SHA em seguida.

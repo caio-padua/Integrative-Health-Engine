@@ -1,0 +1,44 @@
+Vou localizar o arquivo de diretrizes de comunicação e checar se existe um "TITULO XI".
+
+
+Ran echo
+Existe o "TITULO XI" (linha 351). Vou ler o bloco atual para substituí-lo exatamente.
+
+
+2 actions
+Existe o "TITULO XI" e o conteúdo bate com o formato antigo. Vou substituir o bloco inteiro pelo novo (densidade "B"), mantendo a numeração dos artigos. Também vou alinhar o replit.md (que ainda carrega o formato linear antigo, agora proibido como carro-chefe).
+
+
+2 actions
+Agora alinho o replit.md, que ainda descreve o formato linear antigo. Vou ler a seção de preferências.
+
+
+3 actions
+Vou atualizar o item 8 do replit.md para refletir a densidade "B" (tabela como carro-chefe) e apontar para o Titulo XI 26.06.15.
+
+
+2 actions
+APLICADO EM: Manager (Padcon Conect).
+
+O QUE FOI FEITO (uma acao, conforme a carta)
+
+Mudanca aplicada	Arquivo	Detalhe
+Substituido o TITULO XI antigo pelo bloco novo (densidade "B")	DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.14.md	Numeracao dos artigos preservada; acrescidos Art. 39-A, 39-B, 39-C
+Alinhado o cofre de regras do dia a dia	replit.md	Item novo no topo: tabela vira carro-chefe; parede linear proibida
+O QUE MUDOU NA PRATICA (como passo a falar com o senhor)
+
+Antes (formato antigo)	Agora (densidade "B", travada 15/06/2026)
+Parede de texto: "1.1 uma frase por linha" como portadora	TABELA emoldurada e o carro-chefe; carrega o dado
+Numeracao narrava o paragrafo	Numeracao so AGRUPA assunto (esqueleto)
+Fluxo descrito em texto corrido	Fluxo vira blueprint com setas (Passo A -> Passo B)
+Secoes coladas	Cada secao separada por regua "---"
+POR QUE MEXI EM DOIS ARQUIVOS, NAO SO UM
+
+Arquivo	Motivo
+DIRETRIZES (a Biblia)	Acao pedida explicitamente na carta
+replit.md	E o que o sistema carrega de fato na minha cabeca a cada sessao; o item 8 antigo ("uma frase por linha") contradizia a nova regra. Sem alinhar, eu violaria a densidade "B"
+Aviso de transparencia (Art. 50): mexer no replit.md nao muda decisao sua — apenas aplica a sua decisao nova nos dois lugares.
+
+RESUMO EM 1 LINHA
+
+Titulo XI substituido pela densidade "B" na Biblia e replicado no replit.md do Manager — tabela e o carro-chefe, numeracao so agrupa, fluxo com setas; aplicado em Manager (Padcon Conect).
