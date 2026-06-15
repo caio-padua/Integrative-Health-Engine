@@ -1,0 +1,86 @@
+Vou rodar as verificações reais no banco e ler o código de deduplicação dos pacientes para responder com precisão.
+
+
+Ran psql
+Confirmação 1 pronta. Agora leio o código real de deduplicação dos pacientes para responder a confirmação 2 com precisão.
+
+
+2 actions
+Confirmação 1 está completa. Para a confirmação 2, li o código real e vou quantificar quantos pacientes dependem do hash (último recurso).
+
+
+2 actions
+Tenho tudo verificado na fonte. Seguem as duas confirmações.
+
+CONFIRMAÇÃO 1 — CONTAGENS, DUPLICATAS E UNIQUE (saída real do banco)
+
+Contagem real de cada tabela do catálogo:
+Tabela do catálogo	count(*) real
+periodos_dia	9
+catalogo_itens	457
+catalogo_formulas	54
+catalogo_injetaveis	305
+catalogo_implantes	32
+catalogo_blends	12
+catalogo_blend_ativos	63
+Checagem de duplicata por id_ihe (GROUP BY id_ihe HAVING count > 1):
+
+2.a. Resultado: 0 linhas (zero duplicatas) nas três tabelas (fórmulas, injetáveis, implantes).
+
+Restrição UNIQUE de id_ihe — confirmada como ativa no banco:
+
+Tabela	Nome da constraint	Tipo
+catalogo_formulas	catalogo_formulas_id_ihe_unique	UNIQUE
+catalogo_injetaveis	catalogo_injetaveis_id_ihe_unique	UNIQUE
+catalogo_implantes	catalogo_implantes_id_ihe_unique	UNIQUE
+Ou seja: além da deduplicação no importador, o próprio banco agora REJEITA fisicamente qualquer id_ihe repetido.
+CONFIRMAÇÃO 2 — IDEMPOTÊNCIA DOS PACIENTES
+
+CONCLUSÃO PRIMEIRO: o hash NÃO é a chave da pessoa.
+
+5.a. Ele é apenas o último recurso, usado só quando o registro não tem nenhuma chave de negócio.
+
+5.b. O defeito que você teme (editar + reimportar = linha órfã) só atinge esses registros sem chave, e hoje isso é exatamente 1 paciente entre 5.268.
+
+A chave do paciente é uma CASCATA de precedência (a pessoa casa na primeira que existir):
+
+6.a. Passo 1 — codigo_semantico.
+
+6.b. Passo 2 — codigo_externo.
+
+6.c. Passo 3 — CPF + primeiro nome (a chave é cpf|primeiro_nome).
+
+6.d. Passo 4 — sem CPF: primeiro nome + data de nascimento + telefone.
+
+6.e. Passo 5 — só se faltarem TODAS as anteriores: hash do snapshot bruto.
+
+CPF sozinho NUNCA funde — exatamente o seu cenário (mãe cadastra filha com o próprio CPF):
+
+7.a. A chave é cpf + primeiro nome, nunca o CPF puro.
+
+7.b. Se chega o mesmo CPF com nome diferente, o sistema NÃO funde: cria registro novo e marca needsReview (em revisão).
+
+7.c. No banco isso já aparece: 1.095 pacientes estão marcados "em revisão" justamente por casos de CPF repetido com nome diferente (famílias compartilhando CPF).
+
+Cobertura real das chaves de negócio (de 5.268 pacientes):
+
+Chave de negócio	Pacientes que a possuem
+codigo_semantico	3.701
+codigo_externo	3.684
+CPF	4.175
+Dependem SÓ do hash (sem nenhuma das acima)	1
+Sobre o defeito de "linha órfã ao editar":
+
+9.a. Para os 5.267 pacientes com chave de negócio (passos 1 a 4): editar um campo e reimportar continua casando pela chave estável → faz UPDATE, sem órfã. Seguro.
+
+9.b. Para o 1 paciente sem nenhuma chave (passo 5): editar o snapshot muda o hash → não casa → criaria órfã. É o mesmo defeito do catálogo, porém isolado a 1 registro keyless (que já está marcado em revisão).
+
+RECOMENDAÇÃO (uma decisão, opções A / B / C):
+
+10.a. Opção A (recomendada): o IHE garantir codigo_semantico (ou codigo_externo) para 100% dos pacientes no próximo export. Isso elimina o passo 5 e zera o risco de órfã — solução na origem, custo zero do meu lado.
+
+10.b. Opção B: eu adicionar um aviso no relatório listando quem caiu no passo 5, para você auditar manualmente. Resolve a visibilidade, não a causa.
+
+10.c. Opção C: deixar como está (risco hoje = 1 registro, já marcado em revisão).
+
+RESUMO EM 1 LINHA: catálogo com 0 duplicatas e UNIQUE de id_ihe ativo no banco; a chave do paciente é a cascata codigo_semantico → codigo_externo → CPF+nome (CPF sozinho nunca funde, 1.095 em revisão), e o hash é só último recurso para 1 único paciente sem chave.

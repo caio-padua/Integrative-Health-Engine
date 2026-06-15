@@ -1,0 +1,82 @@
+Entendido. Mudo só o passo 5: de hash do snapshot para id_ihe (campo id do export), mantendo-o como último recurso e sem nunca promovê-lo. Primeiro verifico que o id realmente vem 100% preenchido e único nos pacientes.
+
+
+2 actions
+Atenção a um ponto: dos 5.268 clientes, 5.258 têm o campo id (e todos os 5.258 são únicos). Os 10 sem id são clientes nativos do Manager (não vieram do IHE), então não passam pela cascata. Vou aplicar a troca do passo 5 e checar o import do createHash.
+
+
+2 actions
+Agora a troca do passo 5 em si, e checo o uso de createHash.
+
+
+2 actions
+Agora hashConteudo deve estar sem uso. Confirmo e removo a função e o import de createHash se ficarem órfãos.
+
+
+Ran rg
+hashConteudo ficou sem uso (só se referencia a si mesma). Removo a função e o import de createHash.
+
+
+Edited transmutacao.ts
+Removo o import de createHash.
+
+
+Edited transmutacao.ts
+Código alterado. Agora re-rodo o importador e confirmo a idempotência e a população do passo 5.
+
+
+2 actions
+Idempotente (0 criados). Confirmo a população do passo 5 e se ela está protegida pelo id_ihe.
+
+
+2 actions
+O 1 paciente do passo 5 tem id_ihe (protegido). Atualizo a memória e rodo a revisão de código em paralelo.
+
+
+2 actions
+Agora a revisão de código sobre a mudança do passo 5.
+
+
+3 actions
+Feito. A revisão de código aprovou (Pass), sem promoção indevida do id_ihe e com a cascata preservada.
+
+CONCLUSÃO PRIMEIRO
+
+Troquei só o passo 5, exatamente como pedido.
+
+1.a. Antes: passo 5 = hash do snapshot bruto (recriava órfã ao editar).
+
+1.b. Agora: passo 5 = id_ihe (o campo id do export do IHE, gravado em ficha_clinica), estável entre reimportações.
+
+O id_ihe NÃO foi promovido. A cascata segue intacta e nessa ordem:
+
+2.a. codigo_semantico → codigo_externo → CPF+primeiro nome → nome+nascimento+telefone → id_ihe (só por último).
+
+2.b. Isso preserva a fusão das fichas duplicadas da mesma pessoa (que casam pelos passos 1 a 4).
+
+Removi o hash da cascata por completo (função e import), então ninguém mais depende dele.
+
+CONFIRMAÇÃO PEDIDA — QUEM CAI NO PASSO 5 (saída real do banco)
+
+Métrica do passo 5	Valor
+Pacientes que dependem do hash	0 (hash removido)
+Pacientes que chegam ao passo 5	1
+Desses, com id_ihe (protegidos contra órfã)	1
+Desses, sem id_ihe (risco de órfã)	0
+Ou seja: zero pacientes dependendo de hash, e o único que chega ao passo 5 está protegido pelo id de origem.
+IDEMPOTÊNCIA (reexecução real)
+
+Segunda execução: 0 criados, 5.412 atualizados, 4 pulados (is_teste e sem nome). Estável.
+OBSERVAÇÃO DE SEGURANÇA (uma decisão, opções A / B / C)
+
+A revisão levantou um ponto de auditoria: se um dia a premissa "id vem 100% preenchido" quebrar, um registro sem id no passo 5 viraria inserção nova (risco de duplicar em reimport futuro).
+
+6.a. Opção A (recomendada): eu adicionar ao relatório um contador "passo5_sem_id_ihe" para você monitorar — barato e dá visibilidade contínua.
+
+6.b. Opção B: além do contador, marcar esses casos como needsReview (em revisão) para revisão manual.
+
+6.c. Opção C: deixar como está (hoje o valor é zero, sem risco ativo).
+
+Hoje o risco é zero; a opção A é só uma rede de segurança preventiva. Me diga se quer que eu implemente.
+
+RESUMO EM 1 LINHA: passo 5 agora usa id_ihe (não mais hash), cascata e fusão preservadas, zero pacientes dependem de hash e o único que chega ao passo 5 está protegido pelo id de origem.
