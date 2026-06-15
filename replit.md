@@ -111,6 +111,8 @@ The user (Caio) defined the canonical communication FORMAT on 15/06/2026 (densit
 
 The user (Caio) explicitly granted the agent **autonomy to conduct**: the default is to ACT and drive the work forward, asking only the *irreducible* questions — those that are both undiscoverable from the source AND irreversible/high-risk (clinical, financial, legal). Reversible, low-cost decisions (names, structure, equivalent libraries, defaults, dry-runs, specs) must be decided alone, recording any assumption as "Premissa assumida: ...". Asking for confirmation on reversible matters is a violation of this preference. **LGPD does not block the CEO's own clinic data** — he is the physician, controller, and sole processor; protection applies only against leaking/exposing to third parties. Full rule: `docs/dr-replit/DIRETRIZ_AUTONOMIA_DR_REPLIT.md`.
 
+The user (Caio) confirmed on 15/06/2026 that every acronym/sigla must be explained **SEMPRE** (every single time it appears), not only the first time — he learns by repetition and wants the reinforcement. This is the canonical reading of Art. 4 of the Bíblia (DIRETRIZES_CENTRAIS..._26.06.15), which already states "sempre"; when any agent's copy of the Bíblia diverges to "primeira vez", "sempre" is the correct wording to converge to.
+
 ## System Architecture
 
 The system is built as a monorepo using `pnpm workspaces`, Node.js 24, and TypeScript 5.9. The frontend utilizes React, Vite, Tailwind CSS, and shadcn/ui, while the backend is powered by Express 5. PostgreSQL serves as the database, managed with Drizzle ORM and validated using Zod. API code generation is handled by Orval, charts by Recharts, and routing by Wouter.
