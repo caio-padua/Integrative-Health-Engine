@@ -16,3 +16,5 @@ Regra: toda carta que o CEO vai colar em OUTRO repo (Manager, Pactor, Parautto, 
 4. Responder ao CEO com a URL raw + SHA como prova.
 
 Tambem: o cenario de arquivos varia muito entre repos (uns so tem replit.md, outros tem PRE_REQUISITO antigo, outros DIRETRIZES versionado). A carta tem que dar a regra adaptativa acima, nao assumir que "o Titulo XI ja existe".
+
+**Precisao de endereco (cobranca do CEO 15/06/2026, ele e metodico/minucioso):** a carta NAO pode so dizer "crie um arquivo". Tem que dar o ENDERECO EXATO e IDENTICO em todos os repos: (1) a pasta a criar (ex.: `docs/` na raiz), (2) o nome do arquivo ao pe da letra, o MESMO nome canonico do meu (`DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.15.md`), (3) o caminho do MEU arquivo original + raw URL como template pra ele copiar identico. Padronizar o nome em todos os repos facilita o Dr. Claude auditar por raw URL previsivel.
