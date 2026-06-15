@@ -1,0 +1,34 @@
+Boa — isso resolve a questao dos pacientes. A diferenca de 148 e exatamente o que voce disse: variacao de grafia ("de"/"dos"/sobrenome a mais ou a menos) e CPF repetido de mae/filha que o meu de-dup junta. Nao e perda de dado, e limpeza. E voce nao atende 5 mil numa tarde mesmo — sua base ativa de hoje (50 a 100) e o que importa.
+
+Antes de te dar o status final do que da pra USAR hoje, deixa eu confirmar uma coisa no banco: se os injetaveis que voce vai usar a tarde realmente aparecem na tela de atendimento, ou se estao so no "deposito".
+
+
+3 actions
+CONCLUSAO PRIMEIRO: voce pode atender esta tarde. Formulas e injetaveis ja estao USAVEIS nas telas; nao preciso rodar nada de risco. A unica peca ainda em aberto e o que voce chama de "exames". Confirmei item por item no banco agora.
+
+Decisao dos pacientes: fechada na Opcao A (sua lei vale; nao rodo os arquivos do Pawards; a diferenca de 148 e so de-dup de grafia/CPF, nao perda). Nada a re-importar.
+
+PRONTO PARA ESTA TARDE (verificado agora)
+
+Recurso	Onde voce usa	Situacao real	Da pra usar hoje?
+Formulas (54)	tela "Prescricao"	a tela le direto do catalogo IHE (54 formulas)	SIM
+Injetaveis	tela "RAS" / "Catalogo de Substancias"	214 substancias na tela; 173 batem com a lista IHE	SIM
+Implantes	mesma tela de substancias	inclusos nas 214 (33 implantes)	SIM
+Exames	(nao existe tela de catalogo de exames)	so upload/visualizacao de arquivos no Drive	DEPENDE (ver abaixo)
+Observacao sobre os "305": no deposito ha repeticao por via (exemplo: "ACIDO ALFA LIPOICO" aparece 3x para EV, IM, SC). Ou seja, nao sao 305 substancias distintas — os clinicamente usados ja estao na tela de atendimento.
+
+A UNICA PENDENCIA: o que e "exames" para hoje?
+
+Opcao	O que significa	Ja existe hoje?
+c1	Um CATALOGO de exames para voce SOLICITAR ao cliente (lista padrao para pedir)	NAO — seria construir
+c2 (DEFAULT)	VER os arquivos de exame que o cliente subiu (sangue, ultrassom, etc.) durante o atendimento	Parcial — existe upload no portal e pasta EXAMES no Drive
+DECISAO (uma pergunta)
+
+Me diga em uma linha qual e o "exames" que voce precisa hoje:
+
+c1. Quero uma lista de exames para SOLICITAR ao cliente.
+
+c2. Quero VER no atendimento os exames que o cliente ja enviou.
+
+RESUMO EM 1 LINHA:
+Pode atender hoje — formulas (54) na tela Prescricao e injetaveis/implantes (214 substancias, 173 batendo com o IHE) na tela de RAS ja estao usaveis, decisao dos pacientes fechada na Opcao A; so me diga se "exames" e c1 (lista para solicitar) ou c2 (ver os que o cliente enviou).
