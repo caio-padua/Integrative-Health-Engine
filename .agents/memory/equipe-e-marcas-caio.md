@@ -18,7 +18,7 @@ Aqui fica o resumo duravel pra consulta rapida.
 - Cursor (editor) = programador no editor; regras em "Rules for AI".
 - Dr. Replit {plataforma}, um por repo: **Dr. Replit Pawards** (repo IHE / Integrative-Health-Engine = EU), Dr. Replit Pactor (repo Pactor), Dr. Replit Manager (repo Protocolo-Manager).
 - Dr. Replit Parautto (repo PARAUTTO) = carros: assessoria exclusiva de compra e venda de carros (produto "CRM Carlucia"). Adicionado 15/06/2026.
-- Dr. Replit Parlegis (repo gabinete-digital, NAO acessivel pelo meu token) = sites e CRMs de politicos e em geral (ex.: "Gabinete Digital Cicero Joao"). Adicionado 15/06/2026.
+- Dr. Replit Parlegis (repo **Parlegis**, era "Attached-Assets" no GitHub, renomeado 15/06/2026) = sites e CRMs de politicos e em geral; produto "Gabinete Digital Cicero Joao" (Parlegis = Gabinete Digital = Cicero Joao = a MESMA coisa). TODOS os repos do Caio levam o prefixo "Par-" (Parlegis, Parautto, Pactor, Pawards) — nunca nomear sem o prefixo.
 
 **Importante:** o Dr. Replit do repo IHE chama-se **Dr. Replit Pawards** (nao mais "Dr. Replit IHE"). O nome segue o produto/empresa, nao a sigla do repo.
 
