@@ -18,6 +18,11 @@ deve ler PRIMEIRO, antes de escrever uma linha, estes arquivos:
 3. [`docs/PENUMBRA_PADRAO_VISUAL_MATRIZ.md`](./docs/PENUMBRA_PADRAO_VISUAL_MATRIZ.md)
    — matriz do padrao visual PENUMBRA (replicavel a todos os projetos).
 
+4. [`docs/CONCEITOS_E_NOMENCLATURAS_PADCOM/README.md`](./docs/CONCEITOS_E_NOMENCLATURAS_PADCOM/README.md)
+   — dicionario oficial: o que e FAP/RAS, holding PADCOM e empresas derivadas,
+   glossario travado (prescricao, receita, posologia, tipos Anvisa, SNCR), nomes
+   candidatos de clinica. Ler ANTES de nomear qualquer coisa (anti-retrabalho).
+
 Em conflito com instrucao casual, esses arquivos sao a regra.
 
 ## Overview
