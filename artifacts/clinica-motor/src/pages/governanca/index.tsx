@@ -1,8 +1,8 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   Shield,
   AlertTriangle,
@@ -26,9 +26,12 @@ import {
   X,
   ShieldCheck,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 import { apiFetch } from "@/lib/api-fetch";
+// PENUMBRA face ESCURA "Navy Ciano" — fonte unica dos tokens (mesma usada na
+// Craniotomia). Nao inventar hex novo aqui: tudo vem de PW / MONO.
+import { PW, MONO } from "../craniotomia-shared";
+
 interface KpiData {
   valor: number;
   status: "VERDE" | "AMARELO" | "VERMELHO";
@@ -124,49 +127,76 @@ interface DashboardExamesPaciente {
   exames: ExamePaciente[];
 }
 
-const corDeFundo: Record<string, string> = {
-  VERDE: "bg-emerald-500/15 border-emerald-500/40",
-  AMARELO: "bg-amber-500/15 border-amber-500/40",
-  VERMELHO: "bg-red-500/15 border-red-500/40",
+// ── Mapa de status -> tokens PENUMBRA (cor + glow). CINZA = neutro/apagado. ──
+const STATUS_COR: Record<string, string> = {
+  VERDE: PW.ok,
+  AMARELO: PW.warn,
+  VERMELHO: PW.danger,
+  CINZA: PW.muted,
+};
+const STATUS_GLOW: Record<string, string> = {
+  VERDE: PW.cianoGlow,
+  AMARELO: "rgba(255,210,122,0.50)",
+  VERMELHO: "rgba(208,138,138,0.50)",
+  CINZA: "transparent",
+};
+const SELO_COR = STATUS_COR;
+
+// ── Estilos compartilhados (botoes / vazios) ────────────────────────────────
+const btnOutline: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "7px 12px",
+  background: PW.bg2,
+  border: `1px solid ${PW.border}`,
+  borderRadius: 0,
+  color: PW.t2,
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  fontFamily: MONO,
+};
+const btnGhost: CSSProperties = {
+  ...btnOutline,
+  background: "transparent",
+  color: PW.muted,
+};
+const btnIcon: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 6,
+  background: "transparent",
+  border: `1px solid ${PW.border}`,
+  borderRadius: 0,
+  color: PW.t2,
 };
 
-const corDeTexto: Record<string, string> = {
-  VERDE: "text-emerald-400",
-  AMARELO: "text-amber-400",
-  VERMELHO: "text-red-400",
-};
-
-const corDeSemaforo: Record<string, string> = {
-  VERDE: "bg-emerald-500 shadow-emerald-500/50",
-  AMARELO: "bg-amber-500 shadow-amber-500/50",
-  VERMELHO: "bg-red-500 shadow-red-500/50",
-};
-
-const corDeSemaforoApagado: Record<string, string> = {
-  VERDE: "bg-emerald-900/30",
-  AMARELO: "bg-amber-900/30",
-  VERMELHO: "bg-red-900/30",
-};
-
-const corDeBarra: Record<string, string> = {
-  VERDE: "bg-emerald-500",
-  AMARELO: "bg-amber-500",
-  VERMELHO: "bg-red-500",
-};
-
-const corSeloDot: Record<string, string> = {
-  VERDE: "bg-emerald-500",
-  AMARELO: "bg-amber-500",
-  VERMELHO: "bg-red-500",
-  CINZA: "bg-zinc-600",
-};
-
-const corSeloTexto: Record<string, string> = {
-  VERDE: "text-emerald-400",
-  AMARELO: "text-amber-400",
-  VERMELHO: "text-red-400",
-  CINZA: "text-zinc-400",
-};
+const PENUMBRA_CSS = `
+@keyframes gvSpin { to { transform: rotate(360deg); } }
+@keyframes gvPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+.gv-spin { animation: gvSpin 1s linear infinite; }
+.gv-pulse { animation: gvPulse 2s ease-in-out infinite; }
+.gv-painel { transition: border-color .25s, box-shadow .25s; }
+.gv-painel:hover { border-color: ${PW.borderNeon}; box-shadow: 0 0 32px -14px ${PW.cianoGlow}; }
+.gv-card { position: relative; isolation: isolate; transition: box-shadow .2s, transform .12s; }
+.gv-card:hover { box-shadow: 0 0 30px -10px var(--gv-glow); }
+.gv-card-click:hover { transform: translateY(-1px); }
+.gv-row { transition: background .15s; }
+.gv-row:hover { background: ${PW.bg3}; }
+.gv-exrow { transition: background .15s; }
+.gv-exrow:hover { background: ${PW.bg3}; }
+.gv-btn { transition: border-color .2s, color .2s, box-shadow .2s; cursor: pointer; }
+.gv-btn:hover:not(:disabled) { border-color: ${PW.ciano}; color: ${PW.ciano}; box-shadow: 0 0 18px -8px ${PW.cianoGlow}; }
+.gv-btn:disabled { opacity: .45; cursor: not-allowed; }
+.gv-top { display: grid; gap: 24px; grid-template-columns: 1fr; }
+@media (min-width: 1024px) { .gv-top { grid-template-columns: 1fr 4fr; } }
+.gv-kpis { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+@media (min-width: 768px) { .gv-kpis { grid-template-columns: repeat(4, 1fr); } }
+.gv-two { display: grid; gap: 24px; grid-template-columns: 1fr; }
+@media (min-width: 1024px) { .gv-two { grid-template-columns: 1fr 1fr; } }
+`;
 
 const baseUrl = import.meta.env.BASE_URL || "/";
 const apiBase = `${baseUrl}api`.replace(/\/\//g, "/");
@@ -177,27 +207,143 @@ async function fetchApi<T>(path: string): Promise<T> {
   return res.json();
 }
 
+// ── Painel PENUMBRA (retangulo-dentro-retangulo + faixa de titulo + neon) ────
+function Painel({
+  titulo,
+  icon: Icon,
+  acessorio,
+  children,
+  bodyStyle,
+}: {
+  titulo: string;
+  icon: typeof Shield;
+  acessorio?: ReactNode;
+  children: ReactNode;
+  bodyStyle?: CSSProperties;
+}) {
+  return (
+    <section
+      className="gv-painel"
+      style={{
+        background: PW.bg2,
+        border: `1px solid ${PW.border}`,
+        borderLeft: `3px solid ${PW.ciano}`,
+        borderRadius: 0,
+      }}
+    >
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "12px 16px",
+          borderBottom: `1px solid ${PW.border}`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon style={{ width: 16, height: 16, color: PW.ciano }} />
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: PW.t2,
+            }}
+          >
+            {titulo}
+          </span>
+        </div>
+        {acessorio}
+      </header>
+      <div style={{ padding: 16, ...bodyStyle }}>{children}</div>
+    </section>
+  );
+}
+
+function Vazio({ texto }: { texto: string }) {
+  return (
+    <div style={{ textAlign: "center", padding: "24px 0", color: PW.muted, fontSize: 13 }}>
+      {texto}
+    </div>
+  );
+}
+
 function SemaforoGrande({ status }: { status: "VERDE" | "AMARELO" | "VERMELHO" }) {
   const luzes: ("VERMELHO" | "AMARELO" | "VERDE")[] = ["VERMELHO", "AMARELO", "VERDE"];
+  const label =
+    status === "VERDE"
+      ? "OPERACAO NORMAL"
+      : status === "AMARELO"
+        ? "ATENCAO NECESSARIA"
+        : "INTERVENCAO URGENTE";
   return (
-    <div className="flex flex-col items-center gap-3 p-4 bg-card border border-border rounded-none">
-      <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-1">
-        Estado da Clinica
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
+        padding: 16,
+        background: PW.bg2,
+        border: `1px solid ${PW.border}`,
+        borderRadius: 0,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: PW.muted,
+        }}
+      >
+        ESTADO DA CLINICA
       </span>
-      <div className="flex flex-col gap-2 p-3 bg-zinc-900 border border-border rounded-none">
-        {luzes.map((cor) => (
-          <div
-            key={cor}
-            className={`w-14 h-14 rounded-full transition-all duration-500 ${
-              status === cor
-                ? `${corDeSemaforo[cor]} shadow-lg animate-pulse`
-                : corDeSemaforoApagado[cor]
-            }`}
-          />
-        ))}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          padding: 14,
+          background: PW.bg,
+          border: `1px solid ${PW.border}`,
+          borderRadius: 0,
+        }}
+      >
+        {luzes.map((cor) => {
+          const ativo = status === cor;
+          const c = STATUS_COR[cor];
+          return (
+            <div
+              key={cor}
+              className={ativo ? "gv-pulse" : undefined}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                background: ativo ? c : PW.bg3,
+                border: `1px solid ${ativo ? c : PW.border}`,
+                boxShadow: ativo ? `0 0 26px 2px ${STATUS_GLOW[cor]}` : "none",
+                transition: "all .5s",
+              }}
+            />
+          );
+        })}
       </div>
-      <span className={`text-sm font-bold tracking-wide uppercase ${corDeTexto[status]}`}>
-        {status === "VERDE" ? "Operacao Normal" : status === "AMARELO" ? "Atencao Necessaria" : "Intervencao Urgente"}
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: STATUS_COR[status],
+          textShadow: `0 0 12px ${STATUS_GLOW[status]}`,
+        }}
+      >
+        {label}
       </span>
     </div>
   );
@@ -218,33 +364,66 @@ function KpiCard({
   icon: typeof Shield;
   onClick?: () => void;
 }) {
+  const cor = STATUS_COR[status];
+  const glow = STATUS_GLOW[status];
   return (
-    <Card
-      className={`border ${corDeFundo[status]} rounded-none ${onClick ? "cursor-pointer hover:brightness-110 transition-all" : ""}`}
+    <div
+      className={`gv-card${onClick ? " gv-card-click" : ""}`}
       onClick={onClick}
+      style={{
+        background: PW.bg2,
+        border: `1px solid ${PW.border}`,
+        borderLeft: `3px solid ${cor}`,
+        borderRadius: 0,
+        padding: 16,
+        cursor: onClick ? "pointer" : "default",
+        ["--gv-glow" as keyof CSSProperties]: glow,
+      } as CSSProperties}
     >
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{titulo}</CardTitle>
-        <div className="flex items-center gap-1">
-          {onClick && <ChevronDown className="w-3 h-3 text-muted-foreground" />}
-          <Icon className={`w-5 h-5 ${corDeTexto[status]}`} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+            color: PW.muted,
+          }}
+        >
+          {titulo}
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {onClick && <ChevronDown style={{ width: 12, height: 12, color: PW.muted }} />}
+          <Icon style={{ width: 18, height: 18, color: cor }} />
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className={`text-4xl font-bold tracking-tighter ${corDeTexto[status]}`}>{valor}</div>
-        <p className="text-xs text-muted-foreground mt-2">{descricao}</p>
-      </CardContent>
-    </Card>
+      </div>
+      <div
+        style={{
+          fontSize: 36,
+          fontWeight: 700,
+          letterSpacing: "-0.02em",
+          lineHeight: 1,
+          color: cor,
+          textShadow: `0 0 16px ${glow}`,
+        }}
+      >
+        {valor}
+      </div>
+      <p style={{ fontSize: 11, color: PW.t2, marginTop: 8 }}>{descricao}</p>
+    </div>
   );
 }
 
 function TimelineEventos({ eventos }: { eventos: EventoTimeline[] }) {
   if (eventos.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground text-sm">
-        Nenhum evento clinico registrado ainda
-      </div>
-    );
+    return <Vazio texto="Nenhum evento clinico registrado ainda" />;
   }
 
   const iconeEvento: Record<string, typeof Activity> = {
@@ -256,7 +435,7 @@ function TimelineEventos({ eventos }: { eventos: EventoTimeline[] }) {
   };
 
   return (
-    <div className="space-y-1">
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {eventos.map((evento) => {
         const Icon = iconeEvento[evento.tipo] || Activity;
         const data = new Date(evento.criadoEm);
@@ -264,16 +443,48 @@ function TimelineEventos({ eventos }: { eventos: EventoTimeline[] }) {
         const dataFormatada = data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
         return (
-          <div key={evento.id} className="flex items-start gap-3 px-3 py-2 hover:bg-muted/30 transition-colors border-l-2 border-border">
-            <Icon className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-foreground truncate">{evento.descricao}</p>
-              <p className="text-xs text-muted-foreground">
+          <div
+            key={evento.id}
+            className="gv-row"
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 12,
+              padding: "8px 12px",
+              borderLeft: `2px solid ${PW.border}`,
+            }}
+          >
+            <Icon style={{ width: 16, height: 16, color: PW.muted, marginTop: 2, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: PW.text,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  margin: 0,
+                }}
+              >
+                {evento.descricao}
+              </p>
+              <p style={{ fontSize: 11, color: PW.muted, margin: 0 }}>
                 {evento.usuarioNome && <span>{evento.usuarioNome} — </span>}
                 {dataFormatada} {horaFormatada}
               </p>
             </div>
-            <span className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground font-mono uppercase">
+            <span
+              style={{
+                fontSize: 10,
+                padding: "2px 6px",
+                background: PW.bg3,
+                color: PW.t2,
+                fontFamily: MONO,
+                textTransform: "uppercase",
+                border: `1px solid ${PW.border}`,
+                flexShrink: 0,
+              }}
+            >
               {evento.tipo}
             </span>
           </div>
@@ -287,33 +498,56 @@ function FilaPreceptorStats({ stats }: { stats: FilaStats | null }) {
   if (!stats) return null;
 
   const statusMap: Record<string, { label: string; cor: string; icon: typeof Clock }> = {
-    AGUARDANDO: { label: "Aguardando", cor: "text-amber-400", icon: Clock },
-    HOMOLOGADO: { label: "Homologado", cor: "text-emerald-400", icon: CheckCircle2 },
-    REJEITADO: { label: "Rejeitado", cor: "text-red-400", icon: XCircle },
+    AGUARDANDO: { label: "Aguardando", cor: PW.warn, icon: Clock },
+    HOMOLOGADO: { label: "Homologado", cor: PW.ok, icon: CheckCircle2 },
+    REJEITADO: { label: "Rejeitado", cor: PW.danger, icon: XCircle },
   };
 
   return (
-    <div className="space-y-3">
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {stats.porStatus.map((item) => {
-        const config = statusMap[item.status] || { label: item.status, cor: "text-muted-foreground", icon: Activity };
+        const config = statusMap[item.status] || { label: item.status, cor: PW.muted, icon: Activity };
         const Icon = config.icon;
         return (
-          <div key={item.status} className="flex items-center justify-between px-3 py-2 border-l-2 border-border">
-            <div className="flex items-center gap-2">
-              <Icon className={`w-4 h-4 ${config.cor}`} />
-              <span className="text-sm text-foreground">{config.label}</span>
+          <div
+            key={item.status}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "8px 12px",
+              borderLeft: `2px solid ${config.cor}`,
+              background: PW.bg3,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon style={{ width: 16, height: 16, color: config.cor }} />
+              <span style={{ fontSize: 13, color: PW.text }}>{config.label}</span>
             </div>
-            <span className={`text-lg font-bold ${config.cor}`}>{Number(item.total)}</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: config.cor, fontFamily: MONO }}>
+              {Number(item.total)}
+            </span>
           </div>
         );
       })}
       {stats.expirados > 0 && (
-        <div className="flex items-center justify-between px-3 py-2 bg-red-500/10 border-l-2 border-red-500">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <span className="text-sm text-red-400 font-semibold">Prazo Expirado</span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "8px 12px",
+            borderLeft: `2px solid ${PW.danger}`,
+            background: "rgba(208,138,138,0.10)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <AlertTriangle style={{ width: 16, height: 16, color: PW.danger }} />
+            <span style={{ fontSize: 13, color: PW.danger, fontWeight: 700 }}>Prazo Expirado</span>
           </div>
-          <span className="text-lg font-bold text-red-400">{stats.expirados}</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: PW.danger, fontFamily: MONO }}>
+            {stats.expirados}
+          </span>
         </div>
       )}
     </div>
@@ -322,19 +556,19 @@ function FilaPreceptorStats({ stats }: { stats: FilaStats | null }) {
 
 function TendenciaIcon({ tendencia, delta }: { tendencia: string | null; delta: number | null }) {
   if (!tendencia || tendencia === "ESTAVEL") {
-    return <Minus className="w-4 h-4 text-muted-foreground" />;
+    return <Minus style={{ width: 16, height: 16, color: PW.muted }} />;
   }
   if (tendencia === "SUBINDO") {
     return (
-      <span className="flex items-center gap-1 text-xs text-amber-400">
-        <TrendingUp className="w-4 h-4" />
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: PW.warn }}>
+        <TrendingUp style={{ width: 16, height: 16 }} />
         {delta !== null && <span>+{delta}%</span>}
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-1 text-xs text-sky-400">
-      <TrendingDown className="w-4 h-4" />
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: PW.ciano }}>
+      <TrendingDown style={{ width: 16, height: 16 }} />
       {delta !== null && <span>{delta}%</span>}
     </span>
   );
@@ -344,18 +578,43 @@ function BarraVisualTerco({ valor, min, max, cor }: { valor: number; min: number
   const range = max - min;
   const clamped = Math.max(min, Math.min(max, valor));
   const percent = range > 0 ? ((clamped - min) / range) * 100 : 50;
+  const c = STATUS_COR[cor] || PW.muted;
 
   return (
-    <div className="relative w-full h-3 bg-zinc-800 rounded-none border border-border">
-      <div className="absolute top-0 left-[33%] w-px h-full bg-zinc-600" />
-      <div className="absolute top-0 left-[66%] w-px h-full bg-zinc-600" />
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: 12,
+        background: PW.bg,
+        borderRadius: 0,
+        border: `1px solid ${PW.border}`,
+      }}
+    >
+      <div style={{ position: "absolute", top: 0, left: "33%", width: 1, height: "100%", background: PW.border }} />
+      <div style={{ position: "absolute", top: 0, left: "66%", width: 1, height: "100%", background: PW.border }} />
       <div
-        className={`absolute top-0 left-0 h-full ${corDeBarra[cor] || "bg-zinc-500"} transition-all duration-500`}
-        style={{ width: `${percent}%` }}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          height: "100%",
+          width: `${percent}%`,
+          background: c,
+          boxShadow: `0 0 10px ${c}`,
+          transition: "width .5s",
+        }}
       />
       <div
-        className="absolute top-[-2px] w-2 h-[calc(100%+4px)] bg-white/80 rounded-none"
-        style={{ left: `calc(${percent}% - 4px)` }}
+        style={{
+          position: "absolute",
+          top: -2,
+          height: "calc(100% + 4px)",
+          width: 8,
+          background: PW.text,
+          borderRadius: 0,
+          left: `calc(${percent}% - 4px)`,
+        }}
       />
     </div>
   );
@@ -387,93 +646,192 @@ function SubDashboardExames({
   if (!aberto) return null;
 
   return (
-    <Card className="rounded-none border-border border-t-2 border-t-primary">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <TestTube className="w-4 h-4 text-primary" />
+    <section
+      style={{
+        background: PW.bg2,
+        border: `1px solid ${PW.border}`,
+        borderTop: `3px solid ${PW.ciano}`,
+        borderRadius: 0,
+      }}
+    >
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 16px",
+          borderBottom: `1px solid ${PW.border}`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <TestTube style={{ width: 16, height: 16, color: PW.ciano }} />
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: PW.t2,
+            }}
+          >
             Exames do Paciente #{pacienteId} — Sub-Dashboard
-          </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onFechar} className="rounded-none">
-            <ChevronUp className="w-4 h-4" />
-          </Button>
+          </span>
         </div>
-      </CardHeader>
-      <CardContent>
+        <button className="gv-btn" onClick={onFechar} style={btnIcon}>
+          <ChevronUp style={{ width: 16, height: 16 }} />
+        </button>
+      </header>
+      <div style={{ padding: 16 }}>
         {carregando && (
-          <div className="text-center py-6 text-muted-foreground text-sm animate-pulse">
+          <div className="gv-pulse" style={{ textAlign: "center", padding: "24px 0", color: PW.muted, fontSize: 13 }}>
             Carregando exames...
           </div>
         )}
 
         {!carregando && dados && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-3 bg-card border border-border rounded-none">
-              <div className={`w-4 h-4 rounded-full ${corDeSemaforo[dados.semaforoGeral]}`} />
-              <span className={`text-sm font-bold ${corDeTexto[dados.semaforoGeral]}`}>
-                {dados.semaforoGeral === "VERDE" ? "Todos exames normais" : dados.semaforoGeral === "AMARELO" ? "Exames requerem atencao" : "Exames criticos detectados"}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                padding: 12,
+                background: PW.bg3,
+                border: `1px solid ${PW.border}`,
+              }}
+            >
+              <div
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: "50%",
+                  background: STATUS_COR[dados.semaforoGeral],
+                  boxShadow: `0 0 12px ${STATUS_GLOW[dados.semaforoGeral]}`,
+                }}
+              />
+              <span style={{ fontSize: 13, fontWeight: 700, color: STATUS_COR[dados.semaforoGeral] }}>
+                {dados.semaforoGeral === "VERDE"
+                  ? "Todos exames normais"
+                  : dados.semaforoGeral === "AMARELO"
+                    ? "Exames requerem atencao"
+                    : "Exames criticos detectados"}
               </span>
-              <div className="flex-1" />
-              <div className="flex items-center gap-3 text-xs">
-                <span className="text-emerald-400">{dados.resumo.verdes} verdes</span>
-                <span className="text-amber-400">{dados.resumo.amarelos} amarelos</span>
-                <span className="text-red-400">{dados.resumo.vermelhos} vermelhos</span>
+              <div style={{ flex: 1 }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11 }}>
+                <span style={{ color: PW.ok }}>{dados.resumo.verdes} verdes</span>
+                <span style={{ color: PW.warn }}>{dados.resumo.amarelos} amarelos</span>
+                <span style={{ color: PW.danger }}>{dados.resumo.vermelhos} vermelhos</span>
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {dados.exames.map((exame) => {
                 const expandido = exameExpandido === exame.nome_exame;
                 return (
-                  <div key={exame.id} className="border border-border rounded-none">
+                  <div key={exame.id} style={{ border: `1px solid ${PW.border}` }}>
                     <button
-                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors text-left"
+                      className="gv-exrow"
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "10px 12px",
+                        textAlign: "left",
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        color: PW.text,
+                        fontFamily: MONO,
+                      }}
                       onClick={() => setExameExpandido(expandido ? null : exame.nome_exame)}
                     >
-                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${corDeSemaforo[exame.corFinal]}`} />
-                      <span className="text-sm font-medium text-foreground flex-1">{exame.nome_exame}</span>
-                      <span className="text-sm font-bold text-foreground">{exame.valor}</span>
-                      <span className="text-xs text-muted-foreground">{exame.unidade}</span>
+                      <div
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          flexShrink: 0,
+                          background: STATUS_COR[exame.corFinal] || PW.muted,
+                          boxShadow: `0 0 8px ${STATUS_GLOW[exame.corFinal] || "transparent"}`,
+                        }}
+                      />
+                      <span style={{ fontSize: 13, fontWeight: 500, color: PW.text, flex: 1 }}>{exame.nome_exame}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: PW.text }}>{exame.valor}</span>
+                      <span style={{ fontSize: 11, color: PW.muted }}>{exame.unidade}</span>
                       <TendenciaIcon tendencia={exame.tendencia} delta={exame.delta_percentual} />
-                      {expandido ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
+                      {expandido ? (
+                        <ChevronUp style={{ width: 12, height: 12, color: PW.muted }} />
+                      ) : (
+                        <ChevronDown style={{ width: 12, height: 12, color: PW.muted }} />
+                      )}
                     </button>
 
                     {expandido && (
-                      <div className="px-3 pb-3 pt-1 bg-muted/10 border-t border-border space-y-3">
+                      <div
+                        style={{
+                          padding: "4px 12px 12px",
+                          background: PW.bg,
+                          borderTop: `1px solid ${PW.border}`,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 12,
+                        }}
+                      >
                         <BarraVisualTerco
                           valor={exame.valor}
                           min={exame.valor_minimo}
                           max={exame.valor_maximo}
                           cor={exame.corFinal}
                         />
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            fontSize: 11,
+                            color: PW.muted,
+                          }}
+                        >
                           <span>Min: {exame.valor_minimo}</span>
-                          <span className="text-[10px]">T1 | T2 | T3</span>
+                          <span style={{ fontSize: 10 }}>T1 | T2 | T3</span>
                           <span>Max: {exame.valor_maximo}</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11 }}>
                           <div>
-                            <span className="text-muted-foreground">Categoria:</span>{" "}
-                            <span className="text-foreground">{exame.categoria || "—"}</span>
+                            <span style={{ color: PW.muted }}>Categoria:</span>{" "}
+                            <span style={{ color: PW.text }}>{exame.categoria || "—"}</span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Laboratorio:</span>{" "}
-                            <span className="text-foreground">{exame.laboratorio || "—"}</span>
+                            <span style={{ color: PW.muted }}>Laboratorio:</span>{" "}
+                            <span style={{ color: PW.text }}>{exame.laboratorio || "—"}</span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Data Coleta:</span>{" "}
-                            <span className="text-foreground">{exame.data_coleta || "—"}</span>
+                            <span style={{ color: PW.muted }}>Data Coleta:</span>{" "}
+                            <span style={{ color: PW.text }}>{exame.data_coleta || "—"}</span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Terco:</span>{" "}
-                            <span className={`font-bold ${corDeTexto[exame.corFinal]}`}>
-                              {exame.terco === 1 ? "Inferior" : exame.terco === 2 ? "Medio" : exame.terco === 3 ? "Superior" : exame.terco === 0 ? "Abaixo min" : exame.terco === 4 ? "Acima max" : "—"}
+                            <span style={{ color: PW.muted }}>Terco:</span>{" "}
+                            <span style={{ fontWeight: 700, color: STATUS_COR[exame.corFinal] || PW.text }}>
+                              {exame.terco === 1
+                                ? "Inferior"
+                                : exame.terco === 2
+                                  ? "Medio"
+                                  : exame.terco === 3
+                                    ? "Superior"
+                                    : exame.terco === 0
+                                      ? "Abaixo min"
+                                      : exame.terco === 4
+                                        ? "Acima max"
+                                        : "—"}
                             </span>
                           </div>
                           {exame.formula_vigente && (
-                            <div className="col-span-2">
-                              <span className="text-muted-foreground">Formula Vigente:</span>{" "}
-                              <span className="text-foreground font-mono text-[11px]">{exame.formula_vigente}</span>
+                            <div style={{ gridColumn: "span 2" }}>
+                              <span style={{ color: PW.muted }}>Formula Vigente:</span>{" "}
+                              <span style={{ color: PW.text, fontFamily: MONO, fontSize: 11 }}>
+                                {exame.formula_vigente}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -484,15 +842,13 @@ function SubDashboardExames({
               })}
 
               {dados.exames.length === 0 && (
-                <div className="text-center py-6 text-muted-foreground text-sm">
-                  Nenhum exame registrado para este paciente
-                </div>
+                <Vazio texto="Nenhum exame registrado para este paciente" />
               )}
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -503,71 +859,107 @@ function CascatasCard({ painel }: { painel: CascataPainel | null }) {
     MEDICO03: "MED",
     MEDICO_SENIOR: "SEN",
   };
-  const statusPill: Record<string, string> = {
-    APROVADO: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
-    PENDENTE: "bg-zinc-800 text-zinc-400 border-border",
-    REJEITADO: "bg-red-500/15 text-red-400 border-red-500/40",
+  const pill = (status: string): { color: string; border: string; bg: string } => {
+    if (status === "APROVADO") return { color: PW.ok, border: PW.ok, bg: "rgba(95,230,204,0.12)" };
+    if (status === "REJEITADO") return { color: PW.danger, border: PW.danger, bg: "rgba(208,138,138,0.12)" };
+    return { color: PW.muted, border: PW.border, bg: PW.bg3 };
   };
 
   return (
-    <Card className="rounded-none border-border">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-primary" />
-            Cascatas de Validacao — Ao Vivo
-          </CardTitle>
-          {painel && painel.total > 0 && (
-            <div className="flex items-center gap-3 text-xs font-mono">
-              <span className="text-emerald-400">{painel.resumo.verde} selo verde</span>
-              <span className="text-amber-400">{painel.resumo.amarelo} em andamento</span>
-              <span className="text-red-400">{painel.resumo.vermelho} rejeitada</span>
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {!painel || painel.total === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            Nenhuma cascata de validacao aberta — o farol acende quando a primeira for iniciada
+    <Painel
+      titulo="Cascatas de Validacao — Ao Vivo"
+      icon={ShieldCheck}
+      acessorio={
+        painel && painel.total > 0 ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11, fontFamily: MONO }}>
+            <span style={{ color: PW.ok }}>{painel.resumo.verde} selo verde</span>
+            <span style={{ color: PW.warn }}>{painel.resumo.amarelo} em andamento</span>
+            <span style={{ color: PW.danger }}>{painel.resumo.vermelho} rejeitada</span>
           </div>
-        ) : (
-          <div className="space-y-1">
-            {painel.cascatas.map((c) => (
+        ) : undefined
+      }
+    >
+      {!painel || painel.total === 0 ? (
+        <Vazio texto="Nenhuma cascata de validacao aberta — o farol acende quando a primeira for iniciada" />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {painel.cascatas.map((c) => (
+            <div
+              key={`${c.entidadeTipo}#${c.entidadeId}`}
+              className="gv-row"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 12px",
+                border: `1px solid ${PW.border}`,
+              }}
+            >
               <div
-                key={`${c.entidadeTipo}#${c.entidadeId}`}
-                className="flex items-center gap-3 px-3 py-2.5 border border-border hover:bg-muted/30 transition-colors"
-              >
-                <div className={`w-3 h-3 rounded-full flex-shrink-0 ${corSeloDot[c.selo]}`} />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-mono text-foreground">
-                    {c.entidadeTipo} #{c.entidadeId}
-                  </span>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {c.pacienteNome ? c.pacienteNome : `Paciente #${c.pacienteId ?? "—"}`}
-                  </span>
-                </div>
-                <div className="flex-1" />
-                <div className="flex items-center gap-1">
-                  {c.etapas.map((e) => (
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  background: SELO_COR[c.selo] || PW.muted,
+                  boxShadow: `0 0 8px ${STATUS_GLOW[c.selo] || "transparent"}`,
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <span style={{ fontSize: 13, fontFamily: MONO, color: PW.text }}>
+                  {c.entidadeTipo} #{c.entidadeId}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: PW.muted,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {c.pacienteNome ? c.pacienteNome : `Paciente #${c.pacienteId ?? "—"}`}
+                </span>
+              </div>
+              <div style={{ flex: 1 }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {c.etapas.map((e) => {
+                  const p = pill(e.status);
+                  return (
                     <span
                       key={e.etapa}
-                      className={`text-[10px] font-mono px-1.5 py-0.5 border ${statusPill[e.status]}`}
                       title={`${e.etapa}: ${e.status}`}
+                      style={{
+                        fontSize: 10,
+                        fontFamily: MONO,
+                        padding: "2px 6px",
+                        border: `1px solid ${p.border}`,
+                        color: p.color,
+                        background: p.bg,
+                      }}
                     >
                       {etapaLabel[e.etapa] ?? e.etapa}
                     </span>
-                  ))}
-                </div>
-                <span className={`text-xs font-mono font-bold w-12 text-right ${corSeloTexto[c.selo]}`}>
-                  {c.aprovadas}/{c.total}
-                </span>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: MONO,
+                  fontWeight: 700,
+                  width: 48,
+                  textAlign: "right",
+                  color: SELO_COR[c.selo] || PW.muted,
+                }}
+              >
+                {c.aprovadas}/{c.total}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Painel>
   );
 }
 
@@ -649,44 +1041,53 @@ export default function Governanca() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <style>{PENUMBRA_CSS}</style>
+      <div style={{ fontFamily: MONO, color: PW.text, display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Governanca Clinica</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h1
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+                color: PW.text,
+                margin: 0,
+                textTransform: "uppercase",
+              }}
+            >
+              Governanca Clinica
+            </h1>
+            <p style={{ fontSize: 12, color: PW.muted, marginTop: 4 }}>
               Painel de soberania operacional — Pawards
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {ultimaAtualizacao && (
-              <span className="text-xs text-muted-foreground">
+              <span style={{ fontSize: 11, color: PW.muted }}>
                 Atualizado: {ultimaAtualizacao.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={carregarDados}
-              disabled={carregando}
-              className="rounded-none border-border"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${carregando ? "animate-spin" : ""}`} />
+            <button className="gv-btn" onClick={carregarDados} disabled={carregando} style={btnOutline}>
+              <RefreshCw
+                className={carregando ? "gv-spin" : undefined}
+                style={{ width: 14, height: 14, marginRight: 8 }}
+              />
               Atualizar
-            </Button>
+            </button>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-1">
+        <div className="gv-top">
+          <div>
             <SemaforoGrande status={semaforo?.semaforo || painel?.statusGeral || "VERDE"} />
             {semaforo && (
-              <p className="text-xs text-muted-foreground text-center mt-2 px-2">
+              <p style={{ fontSize: 11, color: PW.muted, textAlign: "center", marginTop: 8, padding: "0 8px" }}>
                 {semaforo.descricao}
               </p>
             )}
           </div>
 
-          <div className="lg:col-span-4 grid gap-4 md:grid-cols-4">
+          <div className="gv-kpis">
             {painel && (
               <>
                 <KpiCard
@@ -724,46 +1125,42 @@ export default function Governanca() {
 
         <CascatasCard painel={cascataPainel} />
 
-        <Card className="rounded-none border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <TestTube className="w-4 h-4 text-primary" />
-              Consulta Rapida — Exames por Paciente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                placeholder="ID do Paciente"
-                value={pacienteIdInput}
-                onChange={(e) => setPacienteIdInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && abrirSubDashboardExames()}
-                className="w-40 px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={abrirSubDashboardExames}
-                className="rounded-none border-border"
-                disabled={!pacienteIdInput || parseInt(pacienteIdInput, 10) <= 0}
-              >
-                <TestTube className="w-4 h-4 mr-2" />
-                Ver Exames
-              </Button>
-              {subDashboardAberto && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSubDashboardAberto(false)}
-                  className="rounded-none"
-                >
-                  Fechar
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <Painel titulo="Consulta Rapida — Exames por Paciente" icon={TestTube}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <input
+              type="number"
+              placeholder="ID do Paciente"
+              value={pacienteIdInput}
+              onChange={(e) => setPacienteIdInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && abrirSubDashboardExames()}
+              style={{
+                width: 160,
+                background: PW.bg3,
+                border: `1px solid ${PW.border}`,
+                borderRadius: 0,
+                color: PW.text,
+                padding: "8px 10px",
+                fontSize: 13,
+                fontFamily: MONO,
+                outline: "none",
+              }}
+            />
+            <button
+              className="gv-btn"
+              onClick={abrirSubDashboardExames}
+              disabled={!pacienteIdInput || parseInt(pacienteIdInput, 10) <= 0}
+              style={btnOutline}
+            >
+              <TestTube style={{ width: 14, height: 14, marginRight: 8 }} />
+              Ver Exames
+            </button>
+            {subDashboardAberto && (
+              <button className="gv-btn" onClick={() => setSubDashboardAberto(false)} style={btnGhost}>
+                Fechar
+              </button>
+            )}
+          </div>
+        </Painel>
 
         <SubDashboardExames
           pacienteId={subDashboardPacienteId}
@@ -771,87 +1168,94 @@ export default function Governanca() {
           onFechar={() => setSubDashboardAberto(false)}
         />
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="rounded-none border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Activity className="w-4 h-4 text-primary" />
-                Timeline de Eventos Clinicos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-0 pb-3 max-h-[400px] overflow-y-auto">
-              <TimelineEventos eventos={timeline} />
-            </CardContent>
-          </Card>
+        <div className="gv-two">
+          <Painel
+            titulo="Timeline de Eventos Clinicos"
+            icon={Activity}
+            bodyStyle={{ padding: "12px 0", maxHeight: 400, overflowY: "auto" }}
+          >
+            <TimelineEventos eventos={timeline} />
+          </Painel>
 
-          <Card className="rounded-none border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Shield className="w-4 h-4 text-primary" />
-                Fila do Preceptor — Estatisticas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FilaPreceptorStats stats={filaStats} />
-              {filaStats && filaStats.porStatus.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  Nenhum item na fila do preceptor
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <Painel titulo="Fila do Preceptor — Estatisticas" icon={Shield}>
+            <FilaPreceptorStats stats={filaStats} />
+            {filaStats && filaStats.porStatus.length === 0 && (
+              <Vazio texto="Nenhum item na fila do preceptor" />
+            )}
+          </Painel>
         </div>
 
-        <Card className="rounded-none border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-primary" />
-              WhatsApp — Status de Entregas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {whatsappMensagens.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground text-sm">
-                Nenhuma mensagem WhatsApp enviada recentemente
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {whatsappMensagens.map((msg) => {
-                  const statusConfig: Record<string, { icon: typeof Check; cor: string; label: string }> = {
-                    PENDENTE: { icon: Clock, cor: "text-muted-foreground", label: "Pendente" },
-                    ENVIADO: { icon: Check, cor: "text-muted-foreground", label: "Enviado" },
-                    ENTREGUE: { icon: CheckCheck, cor: "text-muted-foreground", label: "Entregue" },
-                    LIDO: { icon: CheckCheck, cor: "text-blue-400", label: "Lido" },
-                    FALHOU: { icon: X, cor: "text-red-400", label: "Falhou" },
-                  };
-                  const cfg = statusConfig[msg.status] || statusConfig.PENDENTE;
-                  const StatusIcon = cfg.icon;
-                  return (
-                    <div key={msg.id} className="flex items-center gap-3 px-3 py-2 bg-card/50 border border-border">
-                      <StatusIcon className={`w-4 h-4 flex-shrink-0 ${cfg.cor}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-muted-foreground">{msg.telefoneDestino}</span>
-                          {msg.templateNome && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20">{msg.templateNome}</span>
-                          )}
-                          <span className={`text-[10px] font-semibold ${cfg.cor}`}>{cfg.label}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{msg.mensagem}</p>
-                        {msg.erroDetalhes && (
-                          <p className="text-[10px] text-red-400 mt-0.5">{msg.erroDetalhes}</p>
+        <Painel titulo="WhatsApp — Status de Entregas" icon={MessageSquare}>
+          {whatsappMensagens.length === 0 ? (
+            <Vazio texto="Nenhuma mensagem WhatsApp enviada recentemente" />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {whatsappMensagens.map((msg) => {
+                const statusConfig: Record<string, { icon: typeof Check; cor: string; label: string }> = {
+                  PENDENTE: { icon: Clock, cor: PW.muted, label: "Pendente" },
+                  ENVIADO: { icon: Check, cor: PW.t2, label: "Enviado" },
+                  ENTREGUE: { icon: CheckCheck, cor: PW.t2, label: "Entregue" },
+                  LIDO: { icon: CheckCheck, cor: PW.ciano, label: "Lido" },
+                  FALHOU: { icon: X, cor: PW.danger, label: "Falhou" },
+                };
+                const cfg = statusConfig[msg.status] || statusConfig.PENDENTE;
+                const StatusIcon = cfg.icon;
+                return (
+                  <div
+                    key={msg.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "8px 12px",
+                      background: PW.bg3,
+                      border: `1px solid ${PW.border}`,
+                    }}
+                  >
+                    <StatusIcon style={{ width: 16, height: 16, flexShrink: 0, color: cfg.cor }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, fontFamily: MONO, color: PW.muted }}>{msg.telefoneDestino}</span>
+                        {msg.templateNome && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              padding: "2px 6px",
+                              background: "rgba(95,230,204,0.10)",
+                              color: PW.ciano,
+                              border: `1px solid ${PW.borderNeon}`,
+                            }}
+                          >
+                            {msg.templateNome}
+                          </span>
                         )}
+                        <span style={{ fontSize: 10, fontWeight: 700, color: cfg.cor }}>{cfg.label}</span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                        {new Date(msg.criadoEm).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
-                      </span>
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: PW.muted,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          marginTop: 2,
+                        }}
+                      >
+                        {msg.mensagem}
+                      </p>
+                      {msg.erroDetalhes && (
+                        <p style={{ fontSize: 10, color: PW.danger, marginTop: 2 }}>{msg.erroDetalhes}</p>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <span style={{ fontSize: 10, color: PW.muted, flexShrink: 0 }}>
+                      {new Date(msg.criadoEm).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Painel>
       </div>
     </Layout>
   );
