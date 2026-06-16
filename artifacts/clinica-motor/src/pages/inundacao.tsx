@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 
 import { apiFetch } from "@/lib/api-fetch";
 const PALETA = {

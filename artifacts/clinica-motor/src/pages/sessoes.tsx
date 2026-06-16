@@ -1,4 +1,4 @@
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { Stethoscope } from "lucide-react";
 
 export default function SessoesPage() {

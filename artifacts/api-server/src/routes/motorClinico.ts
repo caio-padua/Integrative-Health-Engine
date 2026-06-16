@@ -3,6 +3,7 @@ import {
   db, sugestoesTable, pacientesTable, itensTerapeuticosTable, usuariosTable,
   injetaveisTable, endovenososTable, implantesTable, formulasTable,
   protocolosMasterTable, examesBaseTable, regrasMotorTable,
+  questionarioMasterTable,
 } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod/v4";
@@ -485,6 +486,51 @@ router.post("/motor-clinico/sync-catalogo", async (_req, res): Promise<void> => 
     console.error("Erro no sync-catalogo:", error);
     res.status(500).json({ error: "Falha na sincronizacao do catalogo" });
   }
+});
+
+// GET — "loteamento": catalogo cru para a prancheta visual da Craniotomia.
+// Devolve as PERGUNTAS da anamnese (gatilhos possiveis = lado "SE") e os
+// ITENS terapeuticos (casas disponiveis = lado "ENTAO"), com o segmento ja
+// normalizado (injetavel_im / injetavel_ev -> injetavel) para casar 1:1 com
+// o vocabulario de `regras_motor`. Tela liga SE -> ENTAO sem digitar codigo:
+// o codigo_padcom da casa clicada vira o codigo_referencia da sinapse.
+router.get("/motor-clinico/loteamento", async (_req, res): Promise<void> => {
+  const [perguntas, itens] = await Promise.all([
+    db
+      .select({
+        id: questionarioMasterTable.id,
+        perguntaId: questionarioMasterTable.perguntaId,
+        bloco: questionarioMasterTable.bloco,
+        pergunta: questionarioMasterTable.pergunta,
+      })
+      .from(questionarioMasterTable)
+      .orderBy(questionarioMasterTable.bloco, questionarioMasterTable.perguntaId),
+    db
+      .select({
+        id: itensTerapeuticosTable.id,
+        codigoPadcom: itensTerapeuticosTable.codigoPadcom,
+        nome: itensTerapeuticosTable.nome,
+        categoria: itensTerapeuticosTable.categoria,
+        disponivel: itensTerapeuticosTable.disponivel,
+      })
+      .from(itensTerapeuticosTable)
+      .orderBy(itensTerapeuticosTable.nome),
+  ]);
+
+  const normalizarSegmento = (cat: string): string =>
+    cat === "injetavel_im" || cat === "injetavel_ev" ? "injetavel" : cat;
+
+  res.json({
+    perguntas,
+    itens: itens.map((i) => ({
+      id: i.id,
+      codigoPadcom: i.codigoPadcom,
+      nome: i.nome,
+      categoria: i.categoria,
+      segmento: normalizarSegmento(i.categoria),
+      disponivel: i.disponivel,
+    })),
+  });
 });
 
 export default router;

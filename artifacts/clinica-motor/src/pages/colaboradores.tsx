@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 import { useClinic } from "@/contexts/ClinicContext";
 import { apiFetch, ensureArray } from "@/lib/api-fetch";
 import {
@@ -367,7 +367,7 @@ function ColorLegend() {
 }
 
 export default function ColaboradoresPage() {
-  const { selectedUnidade } = useClinic();
+  const { unidadeSelecionada } = useClinic();
   const [tab, setTab] = useState<"equipe" | "organograma" | "posicoes" | "comissoes" | "disciplinar" | "semantica">("equipe");
   const [members, setMembers] = useState<Member[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -378,7 +378,7 @@ export default function ColaboradoresPage() {
   const [seeding, setSeeding] = useState(false);
   const [cargoFilter, setCargoFilter] = useState<string>("");
 
-  const unidadeParam = selectedUnidade?.id ? `?unidadeId=${selectedUnidade.id}` : "";
+  const unidadeParam = unidadeSelecionada ? `?unidadeId=${unidadeSelecionada}` : "";
 
   const fetchAll = useCallback(async () => {
     const [mRes, pRes, cRes, crRes, dRes] = await Promise.all([

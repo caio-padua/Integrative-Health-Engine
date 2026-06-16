@@ -23,19 +23,23 @@ import {
 import {
   Activity, Plus, Power, PowerOff, Pencil, Search, ArrowRight, AlertTriangle,
 } from "lucide-react";
+import PranchetaLoteamento from "./craniotomia-loteamento";
+import type { Pergunta, ItemLote } from "./craniotomia-shared";
 
 // ── Paleta PENUMBRA (face escura Navy Ciano) ─────────────────────────
+// PENUMBRA face escura "Navy Ciano" (tokens reais; ver skill penumbra-design-system).
 const PW = {
-  bg: "#0B1220",
-  panel: "#111B2E",
-  panelAlt: "#0E1726",
-  border: "#1E2A3F",
-  borderNeon: "rgba(56,189,248,0.35)",
-  ciano: "#38BDF8",
-  gold: "#D4AF37",
-  text: "#E5EAF2",
-  muted: "#8193AB",
-  red: "#EF4444",
+  bg: "#020A14",
+  panel: "#061824",
+  panelAlt: "#0A2030",
+  border: "#1A3848",
+  borderNeon: "rgba(95,230,204,0.40)",
+  ciano: "#5FE6CC",
+  gold: "#FFD27A",
+  text: "#D8EEEE",
+  muted: "#557A82",
+  ok: "#7CC4A0",
+  red: "#D08A8A",
 };
 
 type Segmento = "exame" | "formula" | "injetavel" | "implante" | "protocolo";
@@ -66,11 +70,11 @@ const SEGMENTO_LABEL: Record<Segmento, string> = {
 };
 
 const SEGMENTO_COR: Record<Segmento, string> = {
-  exame: "#38BDF8",
-  formula: "#34D399",
-  injetavel: "#A78BFA",
-  implante: "#F59E0B",
-  protocolo: "#F472B6",
+  exame: "#9CC2EA",
+  formula: "#7CC4A0",
+  injetavel: "#A89DFF",
+  implante: "#FFD27A",
+  protocolo: "#FFA3C8",
 };
 
 const PRIORIDADE_LABEL: Record<Prioridade, string> = {
@@ -89,6 +93,16 @@ const PRIORIDADE_COR: Record<Prioridade, string> = {
 
 const SEGMENTOS: Segmento[] = ["exame", "formula", "injetavel", "implante", "protocolo"];
 const PRIORIDADES: Prioridade[] = ["baixa", "media", "alta", "urgente"];
+
+// Proximo codigo de regra automatico — o CEO NUNCA digita codigo na prancheta.
+function proximoRegraId(regras: Regra[]): string {
+  let max = 0;
+  for (const r of regras) {
+    const m = /(\d+)/.exec(r.regraId);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return "R" + String(max + 1).padStart(3, "0");
+}
 
 // ── Form de criar / editar sinapse ───────────────────────────────────
 interface FormState {
@@ -429,6 +443,66 @@ export default function CraniotomiaPage() {
 
   const regras = useMemo(() => data ?? [], [data]);
 
+  const [modo, setModo] = useState<"prancheta" | "tabela">("prancheta");
+
+  // Loteamento = catalogo cru (perguntas + casas reais) para a prancheta.
+  const {
+    data: lote,
+    isLoading: loteLoading,
+    isError: loteError,
+    refetch: refetchLote,
+  } = useQuery({
+    queryKey: ["motor-loteamento"],
+    queryFn: async () => {
+      const r = await apiFetch("/api/motor-clinico/loteamento");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return (await r.json()) as { perguntas: Pergunta[]; itens: ItemLote[] };
+    },
+  });
+  const perguntas = useMemo(() => lote?.perguntas ?? [], [lote]);
+  const itens = useMemo(() => lote?.itens ?? [], [lote]);
+
+  // Criar sinapse por clique na casa real — codigo vem do item, nao do teclado.
+  const criarRapido = useMutation({
+    mutationFn: async (p: {
+      perguntaId: string; palavraChave: string; segmento: Segmento;
+      codigoReferencia: string; itemNome: string;
+    }) => {
+      const payload = {
+        regraId: proximoRegraId(regras),
+        perguntaId: p.perguntaId,
+        palavraChave: p.palavraChave,
+        segmento: p.segmento,
+        codigoReferencia: p.codigoReferencia,
+        blocoReferencia: null,
+        prioridade: "media",
+        observacao: null,
+        ativo: "SIM",
+      };
+      const r = await apiFetch("/api/motor-clinico/regras", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => null);
+        throw new Error(e?.error || `Falha (HTTP ${r.status})`);
+      }
+      return r.json();
+    },
+    onSuccess: (_d, p) => {
+      queryClient.invalidateQueries({ queryKey: ["motor-regras"] });
+      toast({ title: "Sinapse criada", description: `Gatilho ligado a ${p.itemNome}.` });
+    },
+    onError: (err: unknown) => {
+      toast({
+        title: "Erro ao criar sinapse",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    },
+  });
+
   const toggle = useMutation({
     mutationFn: async (regra: Regra) => {
       const novoAtivo = regra.ativo === "SIM" ? "NAO" : "SIM";
@@ -492,10 +566,18 @@ export default function CraniotomiaPage() {
   const btnFiltro = (ativo: boolean): React.CSSProperties => ({
     height: 34, padding: "0 12px", borderRadius: 0,
     border: `1px solid ${ativo ? PW.ciano : PW.border}`,
-    background: ativo ? "rgba(56,189,248,0.16)" : "transparent",
+    background: ativo ? "rgba(95,230,204,0.14)" : "transparent",
     color: ativo ? PW.ciano : PW.muted,
     fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em",
     fontWeight: 700, cursor: "pointer",
+  });
+
+  const segBtn = (on: boolean): React.CSSProperties => ({
+    height: 38, padding: "0 14px", border: "none", borderRight: `1px solid ${PW.border}`,
+    background: on ? "rgba(95,230,204,0.14)" : "transparent",
+    color: on ? PW.ciano : PW.muted, fontSize: 11, textTransform: "uppercase",
+    letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer",
+    fontFamily: "'JetBrains Mono', monospace",
   });
 
   return (
@@ -527,31 +609,82 @@ export default function CraniotomiaPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={abrirNova}
-            style={{
-              height: 38, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6,
-              border: `1px solid ${PW.gold}`, background: "rgba(212,175,55,0.14)", color: PW.gold,
-              borderRadius: 0, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
-              fontWeight: 700, cursor: "pointer",
-            }}
-            data-testid="btn-nova-sinapse"
-          >
-            <Plus style={{ width: 15, height: 15 }} />
-            Nova sinapse
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", border: `1px solid ${PW.border}` }}>
+              <button onClick={() => setModo("prancheta")} style={segBtn(modo === "prancheta")} data-testid="modo-prancheta">
+                Prancheta
+              </button>
+              <button onClick={() => setModo("tabela")} style={{ ...segBtn(modo === "tabela"), borderRight: "none" }} data-testid="modo-tabela">
+                Tabela
+              </button>
+            </div>
+            <button
+              onClick={abrirNova}
+              style={{
+                height: 38, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6,
+                border: `1px solid ${PW.gold}`, background: "rgba(255,210,122,0.14)", color: PW.gold,
+                borderRadius: 0, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
+                fontWeight: 700, cursor: "pointer",
+              }}
+              data-testid="btn-nova-sinapse"
+            >
+              <Plus style={{ width: 15, height: 15 }} />
+              Nova sinapse
+            </button>
+          </div>
         </div>
 
         {/* KPIs */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
           <Kpi rotulo="Total sinapses" valor={resumo.total} cor={PW.ciano} />
-          <Kpi rotulo="Ativas" valor={resumo.ativas} cor="#34D399" />
+          <Kpi rotulo="Ativas" valor={resumo.ativas} cor={PW.ok} />
           <Kpi rotulo="Pausadas" valor={resumo.pausadas} cor={PW.muted} />
           {SEGMENTOS.map((s) => (
             <Kpi key={s} rotulo={SEGMENTO_LABEL[s]} valor={resumo.porSegmento[s] ?? 0} cor={SEGMENTO_COR[s]} />
           ))}
         </div>
 
+        {modo === "prancheta" && (
+          <>
+            {(isLoading || loteLoading) && (
+              <div style={{ padding: 40, textAlign: "center", color: PW.muted, fontSize: 13 }}>
+                Carregando prancheta de loteamento...
+              </div>
+            )}
+            {!isLoading && !loteLoading && (isError || loteError) && (
+              <div style={{ padding: 24, border: `1px solid ${PW.red}`, color: PW.red, display: "flex", gap: 10, alignItems: "center" }}>
+                <AlertTriangle style={{ width: 18, height: 18 }} />
+                <span style={{ fontSize: 13 }}>
+                  {isError && loteError
+                    ? "Falha ao ler as regras e o catalogo do motor."
+                    : isError
+                    ? "Falha ao ler as regras do motor."
+                    : "Falha ao ler o catalogo (loteamento) do motor."}
+                </span>
+                <button
+                  onClick={() => { if (isError) refetch(); if (loteError) refetchLote(); }}
+                  style={{ ...btnFiltro(false), height: 30 }}
+                >
+                  Tentar de novo
+                </button>
+              </div>
+            )}
+            {!isLoading && !isError && !loteLoading && !loteError && (
+              <PranchetaLoteamento
+                regras={regras}
+                perguntas={perguntas}
+                itens={itens}
+                criando={criarRapido.isPending}
+                onEditar={abrirEditar}
+                onToggle={(r) => toggle.mutate(r)}
+                onCriarRapido={(p) => criarRapido.mutate(p)}
+              />
+            )}
+          </>
+        )}
+
+        {modo === "tabela" && (
+          <>
         {/* FILTROS */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
           <div style={{ position: "relative", flex: "1 1 240px", minWidth: 200 }}>
@@ -682,7 +815,7 @@ export default function CraniotomiaPage() {
                         </span>
                       </td>
                       <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
-                        <span style={{ color: ativa ? "#34D399" : PW.muted, fontWeight: 700 }}>
+                        <span style={{ color: ativa ? PW.ok : PW.muted, fontWeight: 700 }}>
                           {ativa ? "ATIVA" : "PAUSADA"}
                         </span>
                       </td>
@@ -694,8 +827,8 @@ export default function CraniotomiaPage() {
                             title={ativa ? "Pausar sinapse" : "Ativar sinapse"}
                             style={{
                               width: 30, height: 30, display: "inline-flex", alignItems: "center", justifyContent: "center",
-                              border: `1px solid ${ativa ? PW.border : "#34D399"}`, borderRadius: 0,
-                              background: "transparent", color: ativa ? PW.muted : "#34D399", cursor: "pointer",
+                              border: `1px solid ${ativa ? PW.border : PW.ok}`, borderRadius: 0,
+                              background: "transparent", color: ativa ? PW.muted : PW.ok, cursor: "pointer",
                             }}
                             data-testid={`btn-toggle-${r.id}`}
                           >
@@ -727,6 +860,8 @@ export default function CraniotomiaPage() {
         <div style={{ marginTop: 12, fontSize: 10, color: PW.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Mostrando {filtradas.length} de {resumo.total} sinapses · alteracoes propagam a todas as unidades que herdam do Genesis (ID 14).
         </div>
+          </>
+        )}
       </div>
 
       <RegraFormDialog
