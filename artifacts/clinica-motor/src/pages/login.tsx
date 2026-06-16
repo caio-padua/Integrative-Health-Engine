@@ -32,7 +32,7 @@ const INK_MUTED = "#9CA3AF";
 const HAIRLINE = "#1F2937";
 
 export default function Login() {
-  const { user, login, isLoading, pendingTwoFactor, cancelTwoFactor, verifyTwoFactor } = useAuth();
+  const { user, login, isLoading, pendingTwoFactor, cancelTwoFactor, verifyTwoFactor, loginDev } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [codigo2fa, setCodigo2fa] = useState("");
@@ -251,6 +251,7 @@ export default function Login() {
                   </button>
                 </div>
               ) : (
+                <>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                     <FormField
@@ -348,6 +349,23 @@ export default function Login() {
                     </Button>
                   </form>
                 </Form>
+                {import.meta.env.DEV && (
+                  <button
+                    type="button"
+                    onClick={() => void loginDev()}
+                    className="w-full h-11 mt-3 font-bold uppercase tracking-[0.18em] text-[11px] flex items-center justify-center gap-2 transition-all"
+                    style={{
+                      background: "transparent",
+                      color: CYAN,
+                      border: `1px dashed ${CYAN}88`,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                    data-testid="button-login-dev"
+                  >
+                    Entrar em modo teste (DEV) — sem email nem senha
+                  </button>
+                )}
+                </>
               )}
             </div>
           </div>

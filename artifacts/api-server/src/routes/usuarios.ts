@@ -191,6 +191,62 @@ router.post("/usuarios/login", async (req, res): Promise<void> => {
   });
 });
 
+// MODO TESTE (DEV) — atalho de login SEM email/senha, SO em desenvolvimento.
+// Pedido CEO 16/06/2026: "entrar sem email e sem nada apenas para testar".
+// Emite um JWT REAL pra um usuario real (default id 1 = CEO) usando exatamente
+// o mesmo fluxo do login normal (jti + registrarSessao + signJwt), pra que
+// escopo, kill-switch de sessao e auditoria continuem valendo. BLOQUEADO em
+// producao via NODE_ENV — em prod responde 404 como se nao existisse.
+router.post("/usuarios/dev-login", async (req, res): Promise<void> => {
+  // FAIL-CLOSED contra producao (code review architect 16/06/2026): bloqueia
+  // se for um deploy Replit — REPLIT_DEPLOYMENT e SEMPRE setado pela plataforma
+  // em producao — OU se NODE_ENV=production. So no workspace de dev (nenhum dos
+  // dois existe) a rota responde. Em prod responde 404 como se nao existisse.
+  if (process.env["REPLIT_DEPLOYMENT"] || process.env["NODE_ENV"] === "production") {
+    res.status(404).json({ error: "Nao encontrado" });
+    return;
+  }
+  // SEM usuarioId vindo do body (evita impersonar qualquer conta por ID —
+  // achado IDOR do code review): fixo no CEO id 1, que ja tem escopo global.
+  const usuarioId = 1;
+  const [usuario] = await db
+    .select()
+    .from(usuariosTable)
+    .where(eq(usuariosTable.id, usuarioId));
+  if (!usuario) {
+    res.status(404).json({ error: "Usuario de teste nao encontrado" });
+    return;
+  }
+  const { senha: _senha, ...safeUsuario } = usuario;
+  const vinculosConsultor = await db
+    .select({ unidadeId: consultorUnidadesTable.unidadeId, unidadeNome: unidadesTable.nome, unidadeCor: unidadesTable.cor })
+    .from(consultorUnidadesTable)
+    .leftJoin(unidadesTable, eq(consultorUnidadesTable.unidadeId, unidadesTable.id))
+    .where(and(eq(consultorUnidadesTable.usuarioId, usuario.id), eq(consultorUnidadesTable.ativo, true)));
+  const jti = novoJti();
+  await registrarSessao({
+    usuarioId: usuario.id,
+    jti,
+    userAgent: extrairUserAgent(req),
+    ip: extrairIp(req),
+  });
+  const token = signJwt({
+    sub: usuario.id,
+    email: usuario.email,
+    perfil: usuario.perfil,
+    escopo: usuario.escopo ?? null,
+    unidadeId: usuario.unidadeId ?? null,
+    consultoriaId: usuario.consultoriaId ?? null,
+    perfilPlataforma: usuario.perfilPlataforma ?? "tenant_user",
+    jti,
+  });
+  res.json({
+    token,
+    usuario: { ...safeUsuario, unidadesVinculadas: vinculosConsultor },
+    modoTeste: true,
+  });
+});
+
 router.get("/usuarios/perfil-atual", async (req, res): Promise<void> => {
   if (!req.user) {
     res.status(401).json({ error: "Nao autenticado" });

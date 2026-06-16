@@ -45,6 +45,9 @@ interface AuthContextType {
     codigosRecuperacao2faRestantes?: number;
     codigosRecuperacao2faTotal?: number;
   }>;
+  // MODO TESTE (DEV) — entra sem email/senha chamando /usuarios/dev-login.
+  // So funciona em desenvolvimento (o botao some em build de producao).
+  loginDev: () => Promise<{ ok: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -192,6 +195,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // MODO TESTE (DEV) — atalho de login sem credenciais. Chama a rota
+  // /usuarios/dev-login (bloqueada em producao no backend), persiste o JWT
+  // real e dispara perfil-atual igual ao login normal.
+  const loginDev = async (): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const r = await fetch("/api/usuarios/dev-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: "{}",
+      });
+      if (!r.ok) {
+        const erro = (await r.json().catch(() => ({}) as ErroJson)) as ErroJson;
+        return { ok: false, error: erro.error ?? `Falha (${r.status})` };
+      }
+      const j = (await r.json()) as LoginRespostaSemSegundaEtapa;
+      if (j.token) {
+        writeToken(j.token);
+        setHasToken(true);
+      }
+      if (j.usuario) setUser(j.usuario);
+      setPendingTwoFactor(null);
+      queryClient.invalidateQueries({ queryKey: ["/usuarios/perfil-atual"] });
+      toast({ title: "Modo teste — entrou sem credenciais (DEV)." });
+      return { ok: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Sem conexao com o servidor";
+      return { ok: false, error: msg };
+    }
+  };
+
   const cancelTwoFactor = () => {
     setPendingTwoFactor(null);
   };
@@ -214,6 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pendingTwoFactor,
         cancelTwoFactor,
         verifyTwoFactor,
+        loginDev,
       }}
     >
       {children}

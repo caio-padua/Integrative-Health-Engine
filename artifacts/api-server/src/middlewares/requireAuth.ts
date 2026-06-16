@@ -19,6 +19,10 @@ const PUBLIC_EXACT = new Set<string>([
   "/health",
   "/usuarios/login",
   "/usuarios/login/2fa-verificar",
+  // MODO TESTE (DEV) — atalho de login sem credenciais. A propria rota
+  // /usuarios/dev-login se bloqueia em producao (checa NODE_ENV); aqui so
+  // a liberamos do requireAuth pra poder emitir o token no ambiente de dev.
+  "/usuarios/dev-login",
   "/portal/categorias",
   "/portal/identificar",
   "/portal/definir-senha",
