@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/services/whatsappTemplates.test.ts src/services/prescricaoLembreteService.test.ts src/routes/assinaturas.parseTokensOrdenacao.test.ts src/middlewares/requirePlataforma.test.ts src/middlewares/requireAuth.test.ts src/middlewares/require2faRecente.test.ts src/middlewares/filtroTenant.test.ts src/lib/auth/totp.test.ts src/lib/auth/rateLimitTotp.test.ts src/lib/auth/alertaBruteForceTotp.test.ts src/lib/recorrencia/alertaBruteForceRetryEnvio.test.ts src/routes/notifAssinatura.silenciados.test.ts src/lib/recorrencia/notifAssinatura.tickQuietCEO.test.ts src/routes/notifAssinatura.ceoPrefsRoute.test.ts src/lib/whatsapp/testeCanalCeo.test.ts"
+    "test": "tsx --test src/services/whatsappTemplates.test.ts src/services/prescricaoLembreteService.test.ts src/routes/assinaturas.parseTokensOrdenacao.test.ts src/middlewares/requirePlataforma.test.ts src/middlewares/requireAuth.test.ts src/middlewares/require2faRecente.test.ts src/middlewares/filtroTenant.test.ts src/lib/auth/totp.test.ts src/lib/auth/rateLimitTotp.test.ts src/lib/auth/alertaBruteForceTotp.test.ts src/lib/recorrencia/alertaBruteForceRetryEnvio.test.ts src/routes/notifAssinatura.silenciados.test.ts src/lib/recorrencia/notifAssinatura.tickQuietCEO.test.ts src/routes/notifAssinatura.ceoPrefsRoute.test.ts src/lib/whatsapp/testeCanalCeo.test.ts src/lib/governanca/avaliarDelegacao.test.ts src/lib/governanca/motorCascata.test.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

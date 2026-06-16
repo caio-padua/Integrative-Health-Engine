@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, real, boolean, timestamp, date, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, real, boolean, timestamp, date, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { pacientesTable } from "./pacientes";
@@ -249,7 +249,12 @@ export const validacoesCascataTable = pgTable("validacoes_cascata", {
   validadoEm: timestamp("validado_em", { withTimezone: true }),
   assinaturaA1: text("assinatura_a1"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  // Blindagem de concorrencia (migration 082): impede etapa duplicada para a
+  // mesma entidade sob race condition (condicao de corrida). Usado com
+  // ON CONFLICT DO NOTHING no motorCascata.abrirCascata.
+  uniqueIndex("validacoes_cascata_entidade_etapa_uq").on(t.entidadeTipo, t.entidadeId, t.etapa),
+]);
 
 export const insertValidacoesCascataSchema = createInsertSchema(validacoesCascataTable).omit({ id: true, criadoEm: true });
 export type InsertValidacoesCascata = z.infer<typeof insertValidacoesCascataSchema>;
