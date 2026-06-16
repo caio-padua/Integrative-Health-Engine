@@ -13,9 +13,11 @@ sinapses "perdidos". Caçada confirmou: existem, mas mal ligados.
 - `sugestoes`/`sugestoes_clinicas` (`sugestoes.ts`, `routes/motorClinico.ts`) = saída do motor + fila de validação humana.
 - `motor_decisao_clinica` e `mapa_anamnese_motor` (`schema/catalogo.ts`, usadas em `routes/catalogo.ts` + `genesis.ts`): mapas RICOS (pergunta/doença/eixo → exame+fórmula+injetável+implante+protocolo) mas ÓRFÃOS — presos no domínio catálogo/Genesis, fora da rota do motor.
 
-## Tela de sinapses = "Craniotomia V4" — ECTOPLASMA
-- `mockup-sandbox/src/components/mockups/craniotomia/` (GrafoSinapses, MatrizDensa, ArvoreDossier, TercoTablePanel, `_mockData.ts`), embutida via `clinica-motor/src/pages/craniotomia.tsx`.
-- Grafo (linhas sintoma→ação) + blocos empilhados + inspector existem, mas rodam em `_mockData.SINAPSES` (mentira) e o editar NÃO grava. Forma da sinapse: `{b1,b2,sinal,tipo(EXAM/FORM/INJE/IMPL/PROT),peso,estado(ATIVO/PAUSADO/BLOQUEADO/AGUARDA_VALIDACAO),requerValidacao,governanca,hits30d}`.
+## Tela de sinapses = "Craniotomia" — agora REAL (16/06/2026), era ECTOPLASMA
+- `clinica-motor/src/pages/craniotomia.tsx` foi REESCRITA (não é mais iframe do mockup): página real com react-query (useQuery/useMutation), apiFetch, tema PENUMBRA, KPIs, filtros, tabela SE→ENTÃO, criar/editar/toggle persistidos. Estados loading/erro/vazio honestos (sem login mostra "Falha ao ler" = 401 esperado).
+- Backend: 3 rotas em `routes/motorClinico.ts` — GET/POST/PATCH `/motor-clinico/regras` sobre `regras_motor`. Mock antigo (`mockup-sandbox/.../craniotomia/_mockData.ts`) ficou só no sandbox.
+- **REGRA DE OURO descoberta no code review (16/06/2026):** `regras_motor` é GLOBAL (Genesis, sem unidade_id) e propaga a TODAS as unidades → as rotas de ESCRITA exigem `requirePlataforma("platform_owner")` (perfil "admin" do ADMIN_TOKEN passa); só `requireAuth` deixaria qualquer tenant_user alterar o motor global. GET pode ficar só com requireAuth (leitura da base clínica).
+- **Bug de JOIN evitado:** leftJoin `regras_motor.codigo_referencia = itens_terapeuticos.codigo_padcom` MULTIPLICA a mesma regra em N linhas (codigo_padcom NÃO é único) → inflava KPIs. Solução: sem JOIN; montar Map codigo_padcom→item (1ª ocorrência = canônica) e colar nome em memória (1 regra = 1 linha). Filtros segmento/ativo validados e aplicados no SQL (where), não em memória.
 
 ## A semântica que a lógica atual IGNORA (alma do motor, palavra do CEO médico integrativo)
 - **Why:** exame nunca é isolado; bloco = pacote semântico da doença; grade = profundidade da lupa (BASICA→INTERMEDIARIA→SOFISTICADA→AMPLIADA, + SEM GRADE). Um exame necessitado ARRASTA os outros do seu bloco/grade (M:N: 31 blocos, 409 relações). Mais exames = mais correlação.

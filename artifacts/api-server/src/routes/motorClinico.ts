@@ -2,12 +2,144 @@ import { Router } from "express";
 import {
   db, sugestoesTable, pacientesTable, itensTerapeuticosTable, usuariosTable,
   injetaveisTable, endovenososTable, implantesTable, formulasTable,
-  protocolosMasterTable, examesBaseTable,
+  protocolosMasterTable, examesBaseTable, regrasMotorTable,
 } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
+import { z } from "zod/v4";
 import { ValidarSugestaoBody, CriarItemTerapeuticoBody, ToggleItemTerapeuticoBody } from "@workspace/api-zod";
+import { requirePlataforma } from "../middlewares/requirePlataforma";
 
 const router = Router();
+
+// ══════════════════════════════════════════════════════════════════════
+// CRANIOTOMIA — leitura e escrita REAL do grafo de regras do motor.
+// `regras_motor` e GLOBAL (escopo Genesis, sem unidade_id): cada regra =
+// uma sinapse "SE (pergunta + palavra-chave da anamnese) ENTAO (item
+// terapeutico do segmento)". Alterar aqui propaga a todas as unidades que
+// herdam do Genesis. Antes (ate 16/06/2026) a tela Craniotomia era um
+// iframe de mockup com dados estaticos; estas rotas a tornam persistente.
+// ══════════════════════════════════════════════════════════════════════
+
+const SEGMENTOS = ["exame", "formula", "injetavel", "implante", "protocolo"] as const;
+const PRIORIDADES = ["baixa", "media", "alta", "urgente"] as const;
+
+const CriarRegraMotorBody = z.object({
+  regraId: z.string().min(1, "regraId obrigatorio"),
+  perguntaId: z.string().min(1, "perguntaId obrigatorio"),
+  palavraChave: z.string().min(1, "palavraChave obrigatoria"),
+  segmento: z.enum(SEGMENTOS),
+  codigoReferencia: z.string().trim().min(1).nullish(),
+  blocoReferencia: z.string().trim().min(1).nullish(),
+  prioridade: z.enum(PRIORIDADES).default("media"),
+  observacao: z.string().trim().min(1).nullish(),
+  ativo: z.enum(["SIM", "NAO"]).default("SIM"),
+});
+
+const AtualizarRegraMotorBody = CriarRegraMotorBody.partial();
+
+// GET — lista o grafo completo de sinapses (regras) com o nome do item
+// terapeutico de destino. NAO usa JOIN: como `codigo_padcom` nao tem
+// unicidade garantida em `itens_terapeuticos`, um leftJoin multiplicaria a
+// MESMA regra em N linhas (inflando KPIs e a tabela da Craniotomia). Em vez
+// disso, monta um mapa codigo_padcom -> item (primeira ocorrencia = item
+// canonico) e cola o nome em memoria, de forma deterministica (1 regra = 1
+// linha). Filtros `segmento`/`ativo` sao validados e aplicados no SQL.
+router.get("/motor-clinico/regras", async (req, res): Promise<void> => {
+  const segmentoQuery = req.query.segmento as string | undefined;
+  const ativoQuery = req.query.ativo as string | undefined;
+
+  const condicoes = [];
+  if (segmentoQuery && (SEGMENTOS as readonly string[]).includes(segmentoQuery)) {
+    condicoes.push(eq(regrasMotorTable.segmento, segmentoQuery as (typeof SEGMENTOS)[number]));
+  }
+  if (ativoQuery === "SIM" || ativoQuery === "NAO") {
+    condicoes.push(eq(regrasMotorTable.ativo, ativoQuery));
+  }
+
+  const regras = await db
+    .select({
+      id: regrasMotorTable.id,
+      regraId: regrasMotorTable.regraId,
+      perguntaId: regrasMotorTable.perguntaId,
+      palavraChave: regrasMotorTable.palavraChave,
+      segmento: regrasMotorTable.segmento,
+      codigoReferencia: regrasMotorTable.codigoReferencia,
+      blocoReferencia: regrasMotorTable.blocoReferencia,
+      prioridade: regrasMotorTable.prioridade,
+      observacao: regrasMotorTable.observacao,
+      ativo: regrasMotorTable.ativo,
+      criadoEm: regrasMotorTable.criadoEm,
+    })
+    .from(regrasMotorTable)
+    .where(condicoes.length ? and(...condicoes) : undefined)
+    .orderBy(regrasMotorTable.perguntaId, regrasMotorTable.regraId);
+
+  const itens = await db
+    .select({
+      codigoPadcom: itensTerapeuticosTable.codigoPadcom,
+      nome: itensTerapeuticosTable.nome,
+      categoria: itensTerapeuticosTable.categoria,
+    })
+    .from(itensTerapeuticosTable);
+
+  const mapaItem = new Map<string, { nome: string; categoria: string }>();
+  for (const it of itens) {
+    if (it.codigoPadcom && !mapaItem.has(it.codigoPadcom)) {
+      mapaItem.set(it.codigoPadcom, { nome: it.nome, categoria: it.categoria });
+    }
+  }
+
+  const result = regras.map((r) => {
+    const item = r.codigoReferencia ? mapaItem.get(r.codigoReferencia) : undefined;
+    return { ...r, itemNome: item?.nome ?? null, itemCategoria: item?.categoria ?? null };
+  });
+
+  res.json(result);
+});
+
+// POST — cria uma nova sinapse (regra) e persiste no banco.
+// GATE: escrita numa tabela GLOBAL (Genesis) que propaga a TODAS as unidades
+// => exige platform_owner (perfil "admin" do ADMIN_TOKEN tambem passa). Um
+// usuario de clinica (tenant_user/tenant_admin) NAO altera o motor global.
+router.post("/motor-clinico/regras", requirePlataforma("platform_owner"), async (req, res): Promise<void> => {
+  const parsed = CriarRegraMotorBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [regra] = await db.insert(regrasMotorTable).values(parsed.data).returning();
+  res.status(201).json(regra);
+});
+
+// PATCH — atualiza campos de uma sinapse existente (inclui ligar/desligar
+// via `ativo`). Aceita atualizacao parcial: so grava o que veio no corpo.
+router.patch("/motor-clinico/regras/:id", requirePlataforma("platform_owner"), async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "id invalido" });
+    return;
+  }
+  const parsed = AtualizarRegraMotorBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (Object.keys(parsed.data).length === 0) {
+    res.status(400).json({ error: "nenhum campo para atualizar" });
+    return;
+  }
+  const [regra] = await db
+    .update(regrasMotorTable)
+    .set(parsed.data)
+    .where(eq(regrasMotorTable.id, id))
+    .returning();
+  if (!regra) {
+    res.status(404).json({ error: "Regra nao encontrada" });
+    return;
+  }
+  res.json(regra);
+});
 
 router.get("/motor-clinico/sugestoes", async (req, res): Promise<void> => {
   const pacienteId = req.query.pacienteId ? parseInt(req.query.pacienteId as string, 10) : undefined;
