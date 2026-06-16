@@ -94,19 +94,19 @@ export default function Dashboard() {
   });
 
   const StatCard = ({ title, value, icon: Icon, colorClass, subtitle, loading }: any) => (
-    <Card className="pw-card rounded-none bg-white">
+    <Card className="rounded-none border border-[#1a2d4f] bg-[#0f1e36]">
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-[var(--pw-tinta)]">{title}</CardTitle>
-        <Icon className={`w-5 h-5 ${colorClass || "text-[var(--pw-petroleo)]"}`} />
+        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-[#94a3b8]" style={{ fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace" }}>{title}</CardTitle>
+        <Icon className={`w-5 h-5 ${colorClass || "text-[#00d4ff]"}`} />
       </CardHeader>
       <CardContent>
         {loading ? (
           <Skeleton className="h-8 w-20 mb-1" />
         ) : (
-          <div className="pw-numero-display text-3xl font-bold text-[var(--pw-petroleo)]" data-testid={`stat-${title}`}>{value}</div>
+          <div className="text-3xl font-bold text-[#e6eaf2]" style={{ fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace" }} data-testid={`stat-${title}`}>{value}</div>
         )}
         {subtitle && (
-          <p className="text-xs text-[var(--pw-cinza-bruma)] mt-1">{subtitle}</p>
+          <p className="text-xs text-[#64748b] mt-1">{subtitle}</p>
         )}
       </CardContent>
     </Card>
@@ -163,10 +163,10 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <BotaoImprimirFlutuante titulo="Dashboard Unidade · PADCON Local" />
-                  <h1 className="pw-titulo-manifesto text-3xl">Dashboard Unidade</h1>
+                  <h1 className="pw-titulo-manifesto text-3xl" style={{ color: "#e6eaf2" }}>Dashboard Unidade</h1>
                   <span className="pw-selo-dourado px-2 py-1 text-[10px] tracking-[0.2em]">PADCON · VISÃO LOCAL</span>
                 </div>
-                <p className="text-sm mt-1 font-semibold" style={{ color: corUnidadeSelecionada || "var(--pw-petroleo)" }}>{nomeUnidadeSelecionada}</p>
+                <p className="text-sm mt-1 font-semibold" style={{ color: corUnidadeSelecionada || "#5EE6E6" }}>{nomeUnidadeSelecionada}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm" style={{ color: corUnidadeSelecionada || "#6B7280" }}>
