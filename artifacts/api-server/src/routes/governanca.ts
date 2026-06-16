@@ -6,8 +6,8 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
-import { resolverFiltroTenant } from "../lib/auth/filtroTenant";
-import { abrirCascata, validarEtapa, obterSeloCascata, type EntidadeTipo } from "../lib/governanca/motorCascata";
+import { resolverFiltroTenant, resolverFiltroTenantEstrito } from "../lib/auth/filtroTenant";
+import { abrirCascata, validarEtapa, obterSeloCascata, calcularSelo, ORDEM_ETAPAS, type EntidadeTipo, type EtapaCascata, type StatusEtapa, type EtapaStatus } from "../lib/governanca/motorCascata";
 import type { JwtPayload } from "../lib/auth/jwt";
 
 // A augmentation global de Request nao e confiavel neste tsconfig (ver
@@ -226,6 +226,115 @@ router.get("/governanca/cascata/selo/:entidadeTipo/:entidadeId", requireAuth, as
   }
   const resultado = await obterSeloCascata({ entidadeTipo, entidadeId });
   res.json(resultado);
+});
+
+// Painel AO VIVO das cascatas: lista cada cascata em andamento/concluida com seu
+// selo e o progresso das 4 etapas. Tenant-filtrado (so cascatas da unidade do
+// usuario; platform_owner pode refinar por ?unidadeId). Alimenta a tela de
+// governanca sem virar ectoplasma: estado vazio honesto quando nao ha cascata.
+router.get("/governanca/cascata/painel", requireAuth, async (req: AuthedRequest, res: Response): Promise<void> => {
+  const { unidadeId, isPlatformOwner } = resolverFiltroTenantEstrito(req);
+
+  // Guarda de tenant (unidade/clinica) FAIL-CLOSED, aplicada no SQL via
+  // resolverFiltroTenantEstrito (rota sensivel: dados clinicos multiunidade):
+  // - platform_owner: ve tudo; pode refinar por unidade (?unidadeId).
+  // - nao-owner COM unidade no JWT: so enxerga cascatas cujo paciente pertence
+  //   aquela unidade (WHERE no banco). O ?unidadeId e IGNORADO (anti-IDOR).
+  // - nao-owner SEM unidade no JWT (legado/consultor global): NEGA por padrao
+  //   (lista vazia) — nao cai em "ver tudo" nem aceita ?unidadeId=<alvo>.
+  //   Empty-state honesto na tela.
+  const respostaVazia = {
+    total: 0,
+    resumo: { verde: 0, amarelo: 0, vermelho: 0, cinza: 0 },
+    cascatas: [],
+    timestamp: new Date(),
+  };
+  if (!isPlatformOwner && unidadeId === null) {
+    res.json(respostaVazia);
+    return;
+  }
+
+  const condicaoUnidade =
+    unidadeId !== null ? eq(pacientesTable.unidadeId, unidadeId) : undefined;
+
+  const linhas = await db
+    .select({
+      id: validacoesCascataTable.id,
+      entidadeTipo: validacoesCascataTable.entidadeTipo,
+      entidadeId: validacoesCascataTable.entidadeId,
+      etapa: validacoesCascataTable.etapa,
+      status: validacoesCascataTable.status,
+      pacienteId: validacoesCascataTable.pacienteId,
+      pacienteNome: pacientesTable.nome,
+      unidadePaciente: pacientesTable.unidadeId,
+    })
+    .from(validacoesCascataTable)
+    .leftJoin(pacientesTable, eq(validacoesCascataTable.pacienteId, pacientesTable.id))
+    .where(condicaoUnidade)
+    .orderBy(desc(validacoesCascataTable.id));
+
+  type Grupo = {
+    entidadeTipo: string;
+    entidadeId: number;
+    pacienteId: number | null;
+    pacienteNome: string | null;
+    maxId: number;
+    etapasMap: Map<EtapaCascata, StatusEtapa>;
+  };
+  const grupos = new Map<string, Grupo>();
+
+  for (const l of linhas) {
+    const chave = `${l.entidadeTipo}#${l.entidadeId}`;
+    let g = grupos.get(chave);
+    if (!g) {
+      g = {
+        entidadeTipo: l.entidadeTipo,
+        entidadeId: l.entidadeId,
+        pacienteId: l.pacienteId,
+        pacienteNome: l.pacienteNome,
+        maxId: l.id,
+        etapasMap: new Map(),
+      };
+      grupos.set(chave, g);
+    }
+    // Linhas chegam em desc(id): a 1a ocorrencia de cada etapa e a mais recente.
+    // So grava se ainda nao vista, para nao sobrescrever com status historico.
+    if (!g.etapasMap.has(l.etapa as EtapaCascata)) {
+      g.etapasMap.set(l.etapa as EtapaCascata, l.status as StatusEtapa);
+    }
+    if (l.id > g.maxId) g.maxId = l.id;
+  }
+
+  const cascatas = [...grupos.values()]
+    .sort((a, b) => b.maxId - a.maxId)
+    .slice(0, 50)
+    .map((g) => {
+      const etapas: EtapaStatus[] = ORDEM_ETAPAS.filter((e) => g.etapasMap.has(e)).map((e) => ({
+        etapa: e,
+        status: g.etapasMap.get(e) as StatusEtapa,
+      }));
+      const aprovadas = etapas.filter((e) => e.status === "APROVADO").length;
+      return {
+        entidadeTipo: g.entidadeTipo,
+        entidadeId: g.entidadeId,
+        pacienteId: g.pacienteId,
+        pacienteNome: g.pacienteNome,
+        selo: calcularSelo(etapas),
+        etapas,
+        aprovadas,
+        total: etapas.length,
+      };
+    });
+
+  const resumo = { verde: 0, amarelo: 0, vermelho: 0, cinza: 0 };
+  for (const c of cascatas) {
+    if (c.selo === "VERDE") resumo.verde++;
+    else if (c.selo === "AMARELO") resumo.amarelo++;
+    else if (c.selo === "VERMELHO") resumo.vermelho++;
+    else resumo.cinza++;
+  }
+
+  res.json({ total: cascatas.length, resumo, cascatas, timestamp: new Date() });
 });
 
 export default router;

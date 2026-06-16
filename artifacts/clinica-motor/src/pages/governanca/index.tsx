@@ -24,6 +24,7 @@ import {
   Check,
   CheckCheck,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -63,6 +64,29 @@ interface EventoTimeline {
 interface FilaStats {
   porStatus: { status: string; total: number }[];
   expirados: number;
+}
+
+interface CascataEtapa {
+  etapa: "ENFERMEIRA03" | "CONSULTOR03" | "MEDICO03" | "MEDICO_SENIOR";
+  status: "PENDENTE" | "APROVADO" | "REJEITADO";
+}
+
+interface CascataItem {
+  entidadeTipo: string;
+  entidadeId: number;
+  pacienteId: number | null;
+  pacienteNome: string | null;
+  selo: "VERDE" | "AMARELO" | "VERMELHO" | "CINZA";
+  etapas: CascataEtapa[];
+  aprovadas: number;
+  total: number;
+}
+
+interface CascataPainel {
+  total: number;
+  resumo: { verde: number; amarelo: number; vermelho: number; cinza: number };
+  cascatas: CascataItem[];
+  timestamp: string;
 }
 
 interface ExamesSemaforoGeral {
@@ -128,6 +152,20 @@ const corDeBarra: Record<string, string> = {
   VERDE: "bg-emerald-500",
   AMARELO: "bg-amber-500",
   VERMELHO: "bg-red-500",
+};
+
+const corSeloDot: Record<string, string> = {
+  VERDE: "bg-emerald-500",
+  AMARELO: "bg-amber-500",
+  VERMELHO: "bg-red-500",
+  CINZA: "bg-zinc-600",
+};
+
+const corSeloTexto: Record<string, string> = {
+  VERDE: "text-emerald-400",
+  AMARELO: "text-amber-400",
+  VERMELHO: "text-red-400",
+  CINZA: "text-zinc-400",
 };
 
 const baseUrl = import.meta.env.BASE_URL || "/";
@@ -458,6 +496,81 @@ function SubDashboardExames({
   );
 }
 
+function CascatasCard({ painel }: { painel: CascataPainel | null }) {
+  const etapaLabel: Record<string, string> = {
+    ENFERMEIRA03: "ENF",
+    CONSULTOR03: "CON",
+    MEDICO03: "MED",
+    MEDICO_SENIOR: "SEN",
+  };
+  const statusPill: Record<string, string> = {
+    APROVADO: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
+    PENDENTE: "bg-zinc-800 text-zinc-400 border-border",
+    REJEITADO: "bg-red-500/15 text-red-400 border-red-500/40",
+  };
+
+  return (
+    <Card className="rounded-none border-border">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-primary" />
+            Cascatas de Validacao — Ao Vivo
+          </CardTitle>
+          {painel && painel.total > 0 && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-emerald-400">{painel.resumo.verde} selo verde</span>
+              <span className="text-amber-400">{painel.resumo.amarelo} em andamento</span>
+              <span className="text-red-400">{painel.resumo.vermelho} rejeitada</span>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {!painel || painel.total === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            Nenhuma cascata de validacao aberta — o farol acende quando a primeira for iniciada
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {painel.cascatas.map((c) => (
+              <div
+                key={`${c.entidadeTipo}#${c.entidadeId}`}
+                className="flex items-center gap-3 px-3 py-2.5 border border-border hover:bg-muted/30 transition-colors"
+              >
+                <div className={`w-3 h-3 rounded-full flex-shrink-0 ${corSeloDot[c.selo]}`} />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-mono text-foreground">
+                    {c.entidadeTipo} #{c.entidadeId}
+                  </span>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {c.pacienteNome ? c.pacienteNome : `Paciente #${c.pacienteId ?? "—"}`}
+                  </span>
+                </div>
+                <div className="flex-1" />
+                <div className="flex items-center gap-1">
+                  {c.etapas.map((e) => (
+                    <span
+                      key={e.etapa}
+                      className={`text-[10px] font-mono px-1.5 py-0.5 border ${statusPill[e.status]}`}
+                      title={`${e.etapa}: ${e.status}`}
+                    >
+                      {etapaLabel[e.etapa] ?? e.etapa}
+                    </span>
+                  ))}
+                </div>
+                <span className={`text-xs font-mono font-bold w-12 text-right ${corSeloTexto[c.selo]}`}>
+                  {c.aprovadas}/{c.total}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Governanca() {
   const { user } = useAuth();
   const { unidadeSelecionada } = useClinic();
@@ -465,6 +578,7 @@ export default function Governanca() {
   const [semaforo, setSemaforo] = useState<SemaforoData | null>(null);
   const [timeline, setTimeline] = useState<EventoTimeline[]>([]);
   const [filaStats, setFilaStats] = useState<FilaStats | null>(null);
+  const [cascataPainel, setCascataPainel] = useState<CascataPainel | null>(null);
   const [examesSemaforo, setExamesSemaforo] = useState<ExamesSemaforoGeral | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
@@ -487,13 +601,14 @@ export default function Governanca() {
     const uf = unidadeSelecionada ? `unidadeId=${unidadeSelecionada}` : "";
     const q = (base: string) => base.includes("?") ? `${base}&${uf}` : `${base}?${uf}`;
     try {
-      const [painelRes, semaforoRes, timelineRes, filaRes, examesRes, whatsappRes] = await Promise.all([
+      const [painelRes, semaforoRes, timelineRes, filaRes, examesRes, whatsappRes, cascataRes] = await Promise.all([
         fetchApi<PainelData>(uf ? q("/governanca/painel") : "/governanca/painel"),
         fetchApi<SemaforoData>(uf ? q("/governanca/semaforo") : "/governanca/semaforo"),
         fetchApi<{ eventos: EventoTimeline[] }>(uf ? q("/governanca/timeline?limite=15") : "/governanca/timeline?limite=15"),
         fetchApi<FilaStats>(uf ? q("/fila-preceptor/stats") : "/fila-preceptor/stats"),
         fetchApi<ExamesSemaforoGeral>(uf ? q("/exames/semaforo-geral") : "/exames/semaforo-geral"),
         fetchApi<typeof whatsappMensagens>(uf ? q("/whatsapp/mensagens?limite=10") : "/whatsapp/mensagens?limite=10").catch(() => []),
+        fetchApi<CascataPainel>(uf ? q("/governanca/cascata/painel") : "/governanca/cascata/painel").catch(() => null),
       ]);
       setPainel(painelRes);
       setSemaforo(semaforoRes);
@@ -501,6 +616,7 @@ export default function Governanca() {
       setFilaStats(filaRes);
       setExamesSemaforo(examesRes);
       setWhatsappMensagens(whatsappRes);
+      setCascataPainel(cascataRes);
       setUltimaAtualizacao(new Date());
     } catch (e) {
       console.error("Erro ao carregar governanca:", e);
@@ -605,6 +721,8 @@ export default function Governanca() {
             />
           </div>
         </div>
+
+        <CascatasCard painel={cascataPainel} />
 
         <Card className="rounded-none border-border">
           <CardHeader className="pb-3">
