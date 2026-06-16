@@ -53,6 +53,38 @@ o gatilho real de cada uma ainda nao rodou:
 ja tem writer. Se tem, encher = exercitar o controle real (ex: toggle de config),
 nao escrever codigo novo. count(0) prova "ainda nao usado", nao "mock".
 
+## Kill-switch (suspender/reativar unidade) — como e protegido e como provar
+- Endpoints: `POST /api/plataforma/clinicas/:id/suspender` e `.../reativar` (motivo>=8).
+  Guardas (plataforma.ts ~ln72): requirePlataforma('platform_owner') + requirePlatform
+  OwnerEstrito (perfilPlataforma==='platform_owner' LITERAL, sem atalho admin) +
+  require2faRecente(). => So o CEO (unico platform_owner) com 2FA recente dispara.
+  No sandbox NAO da pra disparar via HTTP (nao forjar JWT, nao passar 2FA) — e correto.
+- Writer: `registrarAuditoria(exec, {...})` faz INSERT em `auditoria_kill_switch`
+  (colunas: acao, unidade_id, executado_por_usuario_id, motivo, ip, user_agent,
+  metadata jsonb NOT NULL; motivo tambem entra no metadata). Enum acao: SUSPENDER,
+  REASSUMIR, EXPORTAR_LGPD, EXCLUIR_*, PROMOVER/REBAIXAR_ADMIN, FORCAR_LOGOUT,
+  EXPORT_CSV_AVISOS_2FA. Genesis (genesis_seed, id 14) nao pode ser suspenso.
+- Provar vivo SEM ser o CEO: (1) provar 403/401 do guarda com user comum/sem token;
+  (2) exercitar a transacao fiel (UPDATE unidades status + INSERT auditoria_kill_switch
+  SUSPENDER, depois REASSUMIR) numa UNIDADE DE TESTE DESCARTAVEL (criar uma nova; nunca
+  14/15), atribuindo a um usuario de teste (nunca ao CEO id 1 — anti-fantasia).
+
+## Subsistema IA/LLM (agentes virtuais) — "oco": cerebro+musculos, falta a sinapse
+- Configs (cerebro) populadas via seed: agentes_clinica, agentes_personalidade
+  (formalidade/empatia/autoridade/calor_humano 0-10), agentes_motor_escrita.
+- Schema de acao/validacao (musculos) existe mas VAZIO e SEM inserter no runtime:
+  execucao_agente, memorias_contextuais_agente, validacoes_humanas_agente (fila
+  human-in-the-loop: tipo_validacao, status_validacao aguardando/aprovado/rejeitado/
+  corrigido, pergunta_ao_humano/resposta_humano, validado_por_id).
+- Falta a "sinapse": um service (ex agenteEngine) que carrega as 3 configs, monta o
+  system prompt e chama o LLM, disparado da entrada (routes/whatsapp.ts inbound /
+  sessoes). Hoje NENHUMA rota chama LLM. agentesVirtuais.ts e 100% CRUD+seed+stats.
+- LLM disponivel SEM key do usuario via Replit AI Integrations (skills ai-integrations-
+  anthropic/openai/gemini). => "pre-pronto" = configs seedadas + fila pronta + proxy LLM
+  disponivel + 1 ponto de plug documentado. NAO escrever scaffold morto (=ectoplasma).
+- NUNCA encher validacoes_humanas_agente/execucao_agente a forca: sem execucao real de
+  agente, seria fabricar atividade que nao houve (fantasia proibida pelo CEO).
+
 ## Seguranca confirmada (read do codigo)
 - `config.ativa` so e lida no `abrir` do motor (recusa abrir se desativada). NAO gateia
   nenhuma outra rota. `abrir` so e chamado pelo endpoint manual (sem auto-trigger).
