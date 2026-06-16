@@ -2,9 +2,14 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Search, Filter, Clock, CheckCircle2, AlertTriangle, User, ChevronRight } from "lucide-react";
+import type { CSSProperties } from "react";
+import { Search, Clock, CheckCircle2, AlertTriangle, User, ChevronRight } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
+// PENUMBRA face ESCURA "Navy Ciano" — fonte unica dos tokens (mesma usada na
+// Craniotomia/Governanca). Nao inventar hex novo aqui: tudo vem de PW / MONO.
+import { PW, MONO } from "../craniotomia-shared";
+
 interface Sessao {
   id: string;
   pacienteId: string;
@@ -19,17 +24,44 @@ interface Sessao {
   validadaEm: string | null;
 }
 
-const BANDAS_CONFIG: Record<string, { cor: string; bg: string; label: string }> = {
-  verde: { cor: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/30", label: "Verde — Manutenção" },
-  amarela: { cor: "text-amber-400", bg: "bg-amber-400/10 border-amber-400/30", label: "Amarela — Atenção" },
-  laranja: { cor: "text-orange-400", bg: "bg-orange-400/10 border-orange-400/30", label: "Laranja — Intervenção" },
-  vermelha: { cor: "text-red-400", bg: "bg-red-400/10 border-red-400/30", label: "Vermelha — Urgência" },
+// ── Bandas -> tokens PENUMBRA (cor + glow). Severidade verde->vermelha. ──
+const BANDAS_CONFIG: Record<string, { cor: string; glow: string; label: string }> = {
+  verde: { cor: PW.ok, glow: PW.cianoGlow, label: "Verde — Manutenção" },
+  amarela: { cor: PW.warn, glow: "rgba(255,210,122,0.50)", label: "Amarela — Atenção" },
+  laranja: { cor: PW.rosa, glow: "rgba(255,163,200,0.50)", label: "Laranja — Intervenção" },
+  vermelha: { cor: PW.danger, glow: "rgba(208,138,138,0.50)", label: "Vermelha — Urgência" },
 };
 
 const STATUS_CONFIG: Record<string, { icone: any; cor: string; label: string }> = {
-  em_andamento: { icone: Clock, cor: "text-blue-400", label: "Em andamento" },
-  finalizada: { icone: AlertTriangle, cor: "text-amber-400", label: "Aguardando validação" },
-  validada: { icone: CheckCircle2, cor: "text-emerald-400", label: "Validada" },
+  em_andamento: { icone: Clock, cor: PW.t2, label: "Em andamento" },
+  finalizada: { icone: AlertTriangle, cor: PW.warn, label: "Aguardando validação" },
+  validada: { icone: CheckCircle2, cor: PW.ok, label: "Validada" },
+};
+
+const PENUMBRA_CSS = `
+@keyframes paPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+.pa-pulse { animation: paPulse 1.4s ease-in-out infinite; }
+.pa-card { transition: border-color .25s, box-shadow .25s; }
+.pa-card:hover { box-shadow: 0 0 30px -10px var(--pa-glow); }
+.pa-row { position: relative; isolation: isolate; transition: border-color .2s, box-shadow .2s, background .2s; }
+.pa-row:hover { border-color: ${PW.borderNeon}; background: ${PW.bg3}; box-shadow: 0 0 28px -12px ${PW.cianoGlow}; }
+.pa-row:hover .pa-chevron { color: ${PW.ciano}; }
+.pa-btn { transition: border-color .2s, color .2s, box-shadow .2s; cursor: pointer; }
+.pa-btn:hover { border-color: ${PW.ciano}; color: ${PW.ciano}; box-shadow: 0 0 18px -8px ${PW.cianoGlow}; }
+.pa-field { transition: border-color .2s, box-shadow .2s; }
+.pa-field:focus { border-color: ${PW.ciano}; box-shadow: 0 0 18px -10px ${PW.cianoGlow}; }
+.pa-grid { display: grid; gap: 12px; grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 768px) { .pa-grid { grid-template-columns: 1fr 1fr; } }
+`;
+
+const fieldStyle: CSSProperties = {
+  background: PW.bg3,
+  border: `1px solid ${PW.border}`,
+  borderRadius: 0,
+  color: PW.text,
+  fontSize: 13,
+  fontFamily: MONO,
+  outline: "none",
 };
 
 export default function PadcomAdmin() {
@@ -64,56 +96,126 @@ export default function PadcomAdmin() {
 
   return (
     <Layout>
-      <div className="p-6 space-y-6">
+      <style>{PENUMBRA_CSS}</style>
+      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24, fontFamily: MONO, background: PW.bg, minHeight: "100%" }}>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
           <div>
-            <h1 className="text-3xl font-bold text-[hsl(var(--pawards-cyan))]">
+            <h1
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: PW.ciano,
+                textShadow: `0 0 16px ${PW.cianoGlow}`,
+                margin: 0,
+              }}
+            >
               PADCOM Admin
             </h1>
-            <p className="text-slate-400 mt-1">
+            <p style={{ fontSize: 13, color: PW.t2, marginTop: 6 }}>
               Fila de sessões de anamnese — gerencie, valide e acompanhe o motor clínico
             </p>
           </div>
           <button
+            className="pa-btn"
             onClick={() => navigate("/padcom-admin/dashboard")}
-            className="px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition-colors text-sm font-medium"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "8px 14px",
+              background: PW.bg2,
+              border: `1px solid ${PW.border}`,
+              borderRadius: 0,
+              color: PW.t2,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              fontFamily: MONO,
+            }}
           >
             Ver Dashboard
           </button>
         </div>
 
         {/* Funil de status — chips */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="pa-grid">
           {[
-            { label: "Total", valor: contadores.total, cor: "border-slate-600 bg-slate-800/50" },
-            { label: "Em andamento", valor: contadores.emAndamento, cor: "border-blue-500/30 bg-blue-500/10" },
-            { label: "Aguardando validação", valor: contadores.aguardando, cor: "border-amber-500/30 bg-amber-500/10" },
-            { label: "Validadas", valor: contadores.validadas, cor: "border-emerald-500/30 bg-emerald-500/10" },
+            { label: "Total", valor: contadores.total, cor: PW.muted, glow: "transparent" },
+            { label: "Em andamento", valor: contadores.emAndamento, cor: PW.t2, glow: PW.cianoGlow },
+            { label: "Aguardando validação", valor: contadores.aguardando, cor: PW.warn, glow: "rgba(255,210,122,0.50)" },
+            { label: "Validadas", valor: contadores.validadas, cor: PW.ok, glow: PW.cianoGlow },
           ].map((item, idx) => (
-            <div key={idx} className={`rounded-xl border px-4 py-3 ${item.cor}`}>
-              <p className="text-2xl font-bold text-white">{item.valor}</p>
-              <p className="text-xs text-slate-400">{item.label}</p>
+            <div
+              key={idx}
+              className="pa-card"
+              style={{
+                background: PW.bg2,
+                border: `1px solid ${PW.border}`,
+                borderLeft: `3px solid ${item.cor}`,
+                borderRadius: 0,
+                padding: "12px 16px",
+                ["--pa-glow" as keyof CSSProperties]: item.glow,
+              } as CSSProperties}
+            >
+              <p
+                style={{
+                  fontSize: 28,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  color: item.cor,
+                  textShadow: `0 0 14px ${item.glow}`,
+                  fontFamily: MONO,
+                  margin: 0,
+                }}
+              >
+                {item.valor}
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: PW.muted,
+                  marginTop: 6,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {item.label}
+              </p>
             </div>
           ))}
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+            <Search
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 16,
+                height: 16,
+                color: PW.muted,
+              }}
+            />
             <input
               type="text"
               placeholder="Buscar por paciente..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none text-sm"
+              className="pa-field"
+              style={{ ...fieldStyle, width: "100%", padding: "8px 16px 8px 36px" }}
             />
           </div>
           <select
             value={filtroStatus}
             onChange={(e) => setFiltroStatus(e.target.value)}
-            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-400 focus:outline-none"
+            className="pa-field"
+            style={{ ...fieldStyle, padding: "8px 12px" }}
           >
             <option value="todos">Todos os status</option>
             <option value="em_andamento">Em andamento</option>
@@ -123,7 +225,8 @@ export default function PadcomAdmin() {
           <select
             value={filtroBanda}
             onChange={(e) => setFiltroBanda(e.target.value)}
-            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-400 focus:outline-none"
+            className="pa-field"
+            style={{ ...fieldStyle, padding: "8px 12px" }}
           >
             <option value="todas">Todas as bandas</option>
             <option value="verde">Verde</option>
@@ -135,18 +238,22 @@ export default function PadcomAdmin() {
 
         {/* Lista de sessões */}
         {isLoading ? (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-20 bg-slate-800/50 rounded-xl animate-pulse" />
+              <div
+                key={i}
+                className="pa-pulse"
+                style={{ height: 72, background: PW.bg2, border: `1px solid ${PW.border}`, borderRadius: 0 }}
+              />
             ))}
           </div>
         ) : sessoesFiltradas.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">
-            <User className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>Nenhuma sessão encontrada</p>
+          <div style={{ textAlign: "center", padding: "48px 0", color: PW.muted }}>
+            <User style={{ width: 48, height: 48, margin: "0 auto 12px", opacity: 0.5 }} />
+            <p style={{ fontSize: 13, margin: 0 }}>Nenhuma sessão encontrada</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {sessoesFiltradas.map(sessao => {
               const bandaConfig = sessao.banda ? BANDAS_CONFIG[sessao.banda] : null;
               const statusConfig = STATUS_CONFIG[sessao.status] ?? STATUS_CONFIG.em_andamento;
@@ -155,29 +262,84 @@ export default function PadcomAdmin() {
               return (
                 <button
                   key={sessao.id}
+                  className="pa-row"
                   onClick={() => navigate(`/padcom-admin/${sessao.id}`)}
-                  className="w-full flex items-center gap-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl px-4 py-3 transition-all group text-left"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    background: PW.bg2,
+                    border: `1px solid ${PW.border}`,
+                    borderRadius: 0,
+                    padding: "12px 16px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontFamily: MONO,
+                  }}
                 >
                   {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
-                    <User className="w-5 h-5 text-slate-400" />
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 0,
+                      background: PW.bg3,
+                      border: `1px solid ${PW.border}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <User style={{ width: 20, height: 20, color: PW.muted }} />
                   </div>
 
                   {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-white truncate">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: PW.text,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontSize: 14,
+                        }}
+                      >
                         {sessao.pacienteId}
                       </span>
                       {bandaConfig && (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${bandaConfig.bg} ${bandaConfig.cor}`}>
+                        <span
+                          style={{
+                            padding: "2px 8px",
+                            borderRadius: 0,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.06em",
+                            textTransform: "uppercase",
+                            border: `1px solid ${bandaConfig.cor}`,
+                            color: bandaConfig.cor,
+                            background: PW.bg3,
+                          }}
+                        >
                           {sessao.banda}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-                      <span className={`flex items-center gap-1 ${statusConfig.cor}`}>
-                        <StatusIcon className="w-3 h-3" />
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        marginTop: 4,
+                        fontSize: 11,
+                        color: PW.muted,
+                      }}
+                    >
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: statusConfig.cor }}>
+                        <StatusIcon style={{ width: 12, height: 12 }} />
                         {statusConfig.label}
                       </span>
                       {sessao.scoreFinal != null && (
@@ -185,7 +347,15 @@ export default function PadcomAdmin() {
                       )}
                       <span>{sessao.perguntasRespondidas}/{sessao.totalPerguntas} respostas</span>
                       {sessao.origemCanal && (
-                        <span className="px-1.5 py-0.5 bg-slate-700 rounded text-slate-400">
+                        <span
+                          style={{
+                            padding: "1px 6px",
+                            background: PW.bg3,
+                            border: `1px solid ${PW.border}`,
+                            borderRadius: 0,
+                            color: PW.t2,
+                          }}
+                        >
                           {sessao.origemCanal}
                         </span>
                       )}
@@ -193,7 +363,10 @@ export default function PadcomAdmin() {
                   </div>
 
                   {/* Seta */}
-                  <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" />
+                  <ChevronRight
+                    className="pa-chevron"
+                    style={{ width: 20, height: 20, color: PW.muted, flexShrink: 0, transition: "color .2s" }}
+                  />
                 </button>
               );
             })}

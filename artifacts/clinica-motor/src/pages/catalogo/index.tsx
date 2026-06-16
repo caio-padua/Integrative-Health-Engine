@@ -1,12 +1,13 @@
 import { useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Search, ChevronDown, ChevronRight, Syringe, Droplets, CircleDot, FlaskConical, Stethoscope, Brain, Microscope, Pencil, X, Trash2, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-fetch";
+// PENUMBRA face ESCURA "Navy Ciano" — fonte unica dos tokens (mesma usada na
+// Craniotomia e na Governanca). Nao inventar hex novo aqui: tudo vem de PW / MONO.
+import { PW, MONO } from "../craniotomia-shared";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
@@ -61,6 +62,185 @@ const TABS: { key: TabKey; label: string; icon: typeof Syringe }[] = [
   { key: "doencas", label: "Doencas", icon: Brain },
 ];
 
+// ── CSS PENUMBRA: hover "luz por tras", reveal de pincel, foco neon ──────────
+const CAT_CSS = `
+@keyframes catSpin { to { transform: rotate(360deg); } }
+.cat-acc { transition: border-color .25s, box-shadow .25s; }
+.cat-acc:hover { border-color: ${PW.borderNeon}; box-shadow: 0 0 32px -14px ${PW.cianoGlow}; }
+.cat-head { transition: background .15s; cursor: pointer; }
+.cat-head:hover { background: ${PW.bg3}; }
+.cat-row { transition: background .15s; }
+.cat-row:hover { background: ${PW.bg3}; }
+.cat-card { transition: border-color .25s, box-shadow .25s; }
+.cat-card:hover { border-color: ${PW.borderNeon}; box-shadow: 0 0 30px -12px ${PW.cianoGlow}; }
+.cat-btn { transition: border-color .2s, color .2s, box-shadow .2s; cursor: pointer; }
+.cat-btn:hover:not(:disabled) { border-color: ${PW.ciano}; color: ${PW.ciano}; box-shadow: 0 0 18px -8px ${PW.cianoGlow}; }
+.cat-btn:disabled { opacity: .45; cursor: not-allowed; }
+.cat-icon-btn { transition: opacity .15s, border-color .2s, color .2s, box-shadow .2s; cursor: pointer; }
+.cat-icon-btn:hover { border-color: ${PW.ciano}; color: ${PW.ciano}; box-shadow: 0 0 14px -6px ${PW.cianoGlow}; }
+.cat-input { transition: border-color .2s, box-shadow .2s; }
+.cat-input:focus { border-color: ${PW.ciano}; box-shadow: 0 0 18px -8px ${PW.cianoGlow}; outline: none; }
+.cat-tab { transition: color .2s, border-color .2s; cursor: pointer; }
+.cat-tab:hover { color: ${PW.text}; }
+.cat-pencil { opacity: 0; }
+.cat-rowgroup:hover .cat-pencil { opacity: 1; }
+`;
+
+// ── Estilos compartilhados ──────────────────────────────────────────────────
+const accStyle: CSSProperties = {
+  background: PW.bg2,
+  border: `1px solid ${PW.border}`,
+  borderLeft: `3px solid ${PW.ciano}`,
+  borderRadius: 0,
+};
+const headBtnStyle: CSSProperties = {
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  padding: "12px 16px",
+  background: "transparent",
+  border: "none",
+  borderRadius: 0,
+  color: PW.text,
+  fontFamily: MONO,
+  textAlign: "left",
+};
+const iconBtnStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 4,
+  background: "transparent",
+  border: `1px solid ${PW.border}`,
+  borderRadius: 0,
+  color: PW.muted,
+};
+const thStyle: CSSProperties = {
+  padding: "8px 16px",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: PW.muted,
+  textAlign: "left",
+  fontFamily: MONO,
+};
+const tdStyle: CSSProperties = {
+  padding: "10px 16px",
+  fontSize: 13,
+  color: PW.text,
+  fontFamily: MONO,
+};
+
+function Chip({ children, variant = "outline" }: { children: ReactNode; variant?: "outline" | "secondary" | "default" | "destructive" }) {
+  const map = {
+    outline: { bg: "transparent", color: PW.t2, border: PW.border },
+    secondary: { bg: PW.bg3, color: PW.t2, border: PW.border },
+    default: { bg: "rgba(95,230,204,0.12)", color: PW.ciano, border: PW.ciano },
+    destructive: { bg: "rgba(208,138,138,0.12)", color: PW.danger, border: PW.danger },
+  }[variant];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 8px",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        color: map.color,
+        border: `1px solid ${map.border}`,
+        background: map.bg,
+        borderRadius: 0,
+        fontFamily: MONO,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Btn({ children, onClick, variant = "primary", disabled, style }: {
+  children: ReactNode;
+  onClick?: () => void;
+  variant?: "primary" | "outline" | "destructive";
+  disabled?: boolean;
+  style?: CSSProperties;
+}) {
+  const map = {
+    primary: { bg: "rgba(95,230,204,0.12)", color: PW.ciano, border: PW.ciano },
+    outline: { bg: PW.bg2, color: PW.t2, border: PW.border },
+    destructive: { bg: "rgba(208,138,138,0.12)", color: PW.danger, border: PW.danger },
+  }[variant];
+  return (
+    <button
+      className="cat-btn"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        padding: "8px 14px",
+        background: map.bg,
+        border: `1px solid ${map.border}`,
+        borderRadius: 0,
+        color: map.color,
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        fontFamily: MONO,
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <div style={{ position: "relative", flex: 1 }}>
+      <Search style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, color: PW.muted }} />
+      <input
+        className="cat-input"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          background: PW.bg3,
+          border: `1px solid ${PW.border}`,
+          borderRadius: 0,
+          color: PW.text,
+          padding: "9px 12px 9px 34px",
+          fontSize: 13,
+          fontFamily: MONO,
+          outline: "none",
+        }}
+      />
+    </div>
+  );
+}
+
+function PencilBtn({ onClick, reveal = false }: { onClick: (e: any) => void; reveal?: boolean }) {
+  return (
+    <button onClick={onClick} className={`cat-icon-btn${reveal ? " cat-pencil" : ""}`} style={iconBtnStyle}>
+      <Pencil style={{ width: 13, height: 13 }} />
+    </button>
+  );
+}
+
+function Carregando() {
+  return <div style={{ textAlign: "center", padding: "32px 0", color: PW.muted, fontSize: 13, fontFamily: MONO }}>Carregando...</div>;
+}
+
 function EditModal({ item, fields, onClose, onSave, onDelete, title }: {
   item: any;
   fields: { key: string; label: string; type?: string; options?: string[] }[];
@@ -82,39 +262,57 @@ function EditModal({ item, fields, onClose, onSave, onDelete, title }: {
     setSaving(false);
   };
 
+  const fieldInputStyle: CSSProperties = {
+    width: "100%",
+    background: PW.bg3,
+    border: `1px solid ${PW.border}`,
+    borderRadius: 0,
+    padding: "8px 10px",
+    fontSize: 12,
+    color: PW.text,
+    fontFamily: MONO,
+    outline: "none",
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">{title}</h3>
-          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(2,10,20,0.80)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderTop: `3px solid ${PW.ciano}`, borderRadius: 0, width: "100%", maxWidth: 672, maxHeight: "90vh", overflowY: "auto" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: `1px solid ${PW.border}` }}>
+          <h3 style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: PW.t2, margin: 0, fontFamily: MONO }}>{title}</h3>
+          <button onClick={onClose} className="cat-icon-btn" style={iconBtnStyle}><X style={{ width: 14, height: 14 }} /></button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: 16 }}>
           {fields.map(field => (
-            <div key={field.key} className={`space-y-1 ${field.type === "textarea" ? "col-span-2" : ""}`}>
-              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{field.label}</label>
+            <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: field.type === "textarea" ? "span 2" : undefined }}>
+              <label style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700, color: PW.muted, fontFamily: MONO }}>{field.label}</label>
               {field.type === "textarea" ? (
-                <textarea value={form[field.key] || ""} onChange={e => setForm({...form, [field.key]: e.target.value})}
-                  rows={2} className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none resize-none" />
+                <textarea className="cat-input" value={form[field.key] || ""} onChange={e => setForm({...form, [field.key]: e.target.value})}
+                  rows={2} style={{ ...fieldInputStyle, resize: "none" }} />
               ) : field.options ? (
-                <select value={form[field.key] || ""} onChange={e => setForm({...form, [field.key]: e.target.value})}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none">
-                  {field.options.map(o => <option key={o} value={o}>{o}</option>)}
+                <select className="cat-input" value={form[field.key] || ""} onChange={e => setForm({...form, [field.key]: e.target.value})}
+                  style={fieldInputStyle}>
+                  {field.options.map(o => <option key={o} value={o} style={{ background: PW.bg2, color: PW.text }}>{o}</option>)}
                 </select>
               ) : (
-                <input type={field.type || "text"} value={form[field.key] || ""} onChange={e => setForm({...form, [field.key]: e.target.value})}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+                <input className="cat-input" type={field.type || "text"} value={form[field.key] || ""} onChange={e => setForm({...form, [field.key]: e.target.value})}
+                  style={fieldInputStyle} />
               )}
             </div>
           ))}
         </div>
 
-        <div className="flex gap-2 pt-2 border-t border-border">
-          <Button className="flex-1 text-xs h-9" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar Alteracoes"}</Button>
-          <Button variant="outline" className="text-xs h-9" onClick={onClose}>Cancelar</Button>
+        <div style={{ display: "flex", gap: 8, padding: 16, borderTop: `1px solid ${PW.border}` }}>
+          <Btn variant="primary" onClick={handleSave} disabled={saving} style={{ flex: 1 }}>{saving ? "Salvando..." : "Salvar Alteracoes"}</Btn>
+          <Btn variant="outline" onClick={onClose}>Cancelar</Btn>
           {onDelete && (
-            <Button variant="destructive" className="text-xs h-9 gap-1" onClick={onDelete}><Trash2 className="w-3 h-3" /> Excluir</Button>
+            <Btn variant="destructive" onClick={onDelete}><Trash2 style={{ width: 13, height: 13 }} /> Excluir</Btn>
           )}
         </div>
       </div>
@@ -177,54 +375,48 @@ function InjetaveisTab() {
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-injetaveis"] });
   };
 
-  if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
+  if (isLoading) return <Carregando />;
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por codigo, nome, eixo ou palavra-chave..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} itens</Badge>
-        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Injetavel</Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <SearchBar placeholder="Buscar por codigo, nome, eixo ou palavra-chave..." value={search} onChange={setSearch} />
+        <Chip variant="outline">{filtered.length} itens</Chip>
+        <Btn variant="primary" onClick={() => setCreating(true)}><Plus style={{ width: 14, height: 14 }} /> Novo Injetavel</Btn>
       </div>
-      <div className="space-y-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([eixo, items]) => (
-          <div key={eixo} className="border rounded-lg">
-            <button onClick={() => setExpandedEixo(expandedEixo === eixo ? null : eixo)}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-              <div className="flex items-center gap-3">
-                {expandedEixo === eixo ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <span className="font-semibold text-sm uppercase tracking-wider">{eixo}</span>
-                <Badge variant="secondary" className="text-xs">{items.length}</Badge>
+          <div key={eixo} className="cat-acc" style={accStyle}>
+            <button onClick={() => setExpandedEixo(expandedEixo === eixo ? null : eixo)} className="cat-head" style={headBtnStyle}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {expandedEixo === eixo ? <ChevronDown style={{ width: 16, height: 16, color: PW.ciano }} /> : <ChevronRight style={{ width: 16, height: 16, color: PW.muted }} />}
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", color: PW.text }}>{eixo}</span>
+                <Chip variant="secondary">{items.length}</Chip>
               </div>
             </button>
             {expandedEixo === eixo && (
-              <div className="border-t">
-                <table className="w-full text-sm">
-                  <thead><tr className="bg-muted/30 text-left">
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Codigo</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Nome</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Dosagem</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Via</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Valor</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Motor</th>
-                    <th className="px-2 py-2 w-8"></th>
+              <div style={{ borderTop: `1px solid ${PW.border}` }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead><tr style={{ background: PW.bg3 }}>
+                    <th style={thStyle}>Codigo</th>
+                    <th style={thStyle}>Nome</th>
+                    <th style={thStyle}>Dosagem</th>
+                    <th style={thStyle}>Via</th>
+                    <th style={thStyle}>Valor</th>
+                    <th style={thStyle}>Motor</th>
+                    <th style={{ ...thStyle, width: 32 }}></th>
                   </tr></thead>
                   <tbody>
                     {items.map((item: any) => (
-                      <tr key={item.id} className="border-t hover:bg-muted/20 transition-colors group">
-                        <td className="px-4 py-2.5 font-mono text-xs text-primary font-medium">{item.codigoPadcom}</td>
-                        <td className="px-4 py-2.5 font-medium">{item.nomeExibicao}</td>
-                        <td className="px-4 py-2.5 text-muted-foreground">{item.dosagem} {item.volume ? `/ ${item.volume}` : ""}</td>
-                        <td className="px-4 py-2.5"><Badge variant="outline" className="text-xs">{item.via}</Badge></td>
-                        <td className="px-4 py-2.5 text-muted-foreground">{item.valorUnidade}</td>
-                        <td className="px-4 py-2.5 text-xs text-muted-foreground">{item.palavraChaveMotor}</td>
-                        <td className="px-2 py-2.5">
-                          <button onClick={() => setEditing(item)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded">
-                            <Pencil className="w-3 h-3 text-muted-foreground" />
-                          </button>
+                      <tr key={item.id} className="cat-row cat-rowgroup" style={{ borderTop: `1px solid ${PW.border}` }}>
+                        <td style={{ ...tdStyle, fontSize: 12, color: PW.ciano }}>{item.codigoPadcom}</td>
+                        <td style={{ ...tdStyle, color: PW.text }}>{item.nomeExibicao}</td>
+                        <td style={{ ...tdStyle, color: PW.t2 }}>{item.dosagem} {item.volume ? `/ ${item.volume}` : ""}</td>
+                        <td style={tdStyle}><Chip variant="outline">{item.via}</Chip></td>
+                        <td style={{ ...tdStyle, color: PW.t2 }}>{item.valorUnidade}</td>
+                        <td style={{ ...tdStyle, fontSize: 11, color: PW.muted }}>{item.palavraChaveMotor}</td>
+                        <td style={{ padding: "10px 8px" }}>
+                          <PencilBtn reveal onClick={() => setEditing(item)} />
                         </td>
                       </tr>
                     ))}
@@ -308,55 +500,47 @@ function EndovenososTab() {
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-endovenosos"] });
   };
 
-  if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
+  if (isLoading) return <Carregando />;
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar soro por codigo, nome ou eixo..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Badge variant="outline" className="text-sm px-3 py-1.5">{Object.keys(soros).length} soros</Badge>
-        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Endovenoso</Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <SearchBar placeholder="Buscar soro por codigo, nome ou eixo..." value={search} onChange={setSearch} />
+        <Chip variant="outline">{Object.keys(soros).length} soros</Chip>
+        <Btn variant="primary" onClick={() => setCreating(true)}><Plus style={{ width: 14, height: 14 }} /> Novo Endovenoso</Btn>
       </div>
-      <div className="space-y-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {Object.entries(soros).map(([codigo, { principal, componentes }]) => (
-          <div key={codigo} className="border rounded-lg">
-            <button onClick={() => setExpandedSoro(expandedSoro === codigo ? null : codigo)}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors text-left">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-1">
-                  {expandedSoro === codigo ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <span className="font-mono text-xs text-primary font-medium">{codigo}</span>
-                  <Badge variant="secondary" className="text-xs">{principal?.eixoIntegrativo}</Badge>
+          <div key={codigo} className="cat-acc" style={accStyle}>
+            <button onClick={() => setExpandedSoro(expandedSoro === codigo ? null : codigo)} className="cat-head cat-rowgroup" style={headBtnStyle}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                  {expandedSoro === codigo ? <ChevronDown style={{ width: 16, height: 16, color: PW.ciano }} /> : <ChevronRight style={{ width: 16, height: 16, color: PW.muted }} />}
+                  <span style={{ fontSize: 12, color: PW.ciano, fontFamily: MONO }}>{codigo}</span>
+                  <Chip variant="secondary">{principal?.eixoIntegrativo}</Chip>
                 </div>
-                <div className="ml-7 font-semibold">{principal?.nomeSoro || componentes[0]?.nomeSoro}</div>
+                <div style={{ marginLeft: 28, fontWeight: 700, color: PW.text }}>{principal?.nomeSoro || componentes[0]?.nomeSoro}</div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="font-medium">{principal?.valorUnidade}</div>
-                  <div className="text-xs text-muted-foreground">{principal?.frequenciaPadrao}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 700, color: PW.text, fontFamily: MONO }}>{principal?.valorUnidade}</div>
+                  <div style={{ fontSize: 11, color: PW.muted }}>{principal?.frequenciaPadrao}</div>
                 </div>
                 {principal && (
-                  <button onClick={e => { e.stopPropagation(); setEditing(principal); }} className="p-1.5 hover:bg-muted rounded opacity-60 hover:opacity-100">
-                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
+                  <PencilBtn reveal onClick={(e: any) => { e.stopPropagation(); setEditing(principal); }} />
                 )}
               </div>
             </button>
             {expandedSoro === codigo && componentes.length > 0 && (
-              <div className="border-t bg-muted/10 px-4 py-3">
-                <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Composicao</div>
-                <div className="space-y-1.5">
+              <div style={{ borderTop: `1px solid ${PW.border}`, background: PW.bg, padding: "12px 16px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: PW.muted, marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO }}>Composicao</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {componentes.map((c: any) => (
-                    <div key={c.id} className="flex items-center justify-between text-sm pl-4 border-l-2 border-primary/20 group">
-                      <span>{c.nomeExibicao} — <span className="text-muted-foreground">{c.dosagem}</span></span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">{c.valorUnidade}</span>
-                        <button onClick={() => setEditing(c)} className="opacity-0 group-hover:opacity-100 p-0.5">
-                          <Pencil className="w-3 h-3 text-muted-foreground" />
-                        </button>
+                    <div key={c.id} className="cat-rowgroup" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13, paddingLeft: 16, borderLeft: `2px solid ${PW.border}`, color: PW.text }}>
+                      <span>{c.nomeExibicao} — <span style={{ color: PW.muted }}>{c.dosagem}</span></span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: PW.muted }}>{c.valorUnidade}</span>
+                        <PencilBtn reveal onClick={() => setEditing(c)} />
                       </div>
                     </div>
                   ))}
@@ -429,42 +613,37 @@ function ImplantesTab() {
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-implantes"] });
   };
 
-  if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
+  if (isLoading) return <Carregando />;
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar implante por codigo, nome, substancia ou indicacao..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} implantes</Badge>
-        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Implante</Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <SearchBar placeholder="Buscar implante por codigo, nome, substancia ou indicacao..." value={search} onChange={setSearch} />
+        <Chip variant="outline">{filtered.length} implantes</Chip>
+        <Btn variant="primary" onClick={() => setCreating(true)}><Plus style={{ width: 14, height: 14 }} /> Novo Implante</Btn>
       </div>
-      <div className="space-y-2">
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.map((item: any) => (
-          <div key={item.id} className="border rounded-lg p-4 hover:bg-muted/20 transition-colors group">
-            <div className="flex items-start justify-between">
+          <div key={item.id} className="cat-card cat-rowgroup" style={{ ...accStyle, padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="font-mono text-xs text-primary font-medium">{item.codigoPadcom}</span>
-                  <Badge variant="secondary" className="text-xs">{item.via}</Badge>
-                  <Badge variant="outline" className="text-xs">{item.trocarte}</Badge>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: PW.ciano, fontFamily: MONO }}>{item.codigoPadcom}</span>
+                  <Chip variant="secondary">{item.via}</Chip>
+                  <Chip variant="outline">{item.trocarte}</Chip>
                 </div>
-                <div className="font-semibold">{item.nomeImplante}</div>
-                <div className="text-sm text-muted-foreground mt-1"><span className="font-medium">Substancia:</span> {item.substanciaAtiva} — {item.dosagem} {item.unidade}</div>
-                <div className="text-sm text-muted-foreground"><span className="font-medium">Liberacao:</span> {item.liberacaoDiaria} | <span className="font-medium">Dose:</span> {item.doseRecomendada} pellets | <span className="font-medium">Duracao:</span> {item.tempoAcao}</div>
-                <div className="text-sm text-muted-foreground mt-1"><span className="font-medium">Indicacao:</span> {item.indicacao}</div>
-                {item.observacao && <div className="text-xs text-muted-foreground/70 mt-1 italic">{item.observacao}</div>}
+                <div style={{ fontWeight: 700, color: PW.text }}>{item.nomeImplante}</div>
+                <div style={{ fontSize: 13, color: PW.t2, marginTop: 4 }}><span style={{ fontWeight: 700 }}>Substancia:</span> {item.substanciaAtiva} — {item.dosagem} {item.unidade}</div>
+                <div style={{ fontSize: 13, color: PW.t2 }}><span style={{ fontWeight: 700 }}>Liberacao:</span> {item.liberacaoDiaria} | <span style={{ fontWeight: 700 }}>Dose:</span> {item.doseRecomendada} pellets | <span style={{ fontWeight: 700 }}>Duracao:</span> {item.tempoAcao}</div>
+                <div style={{ fontSize: 13, color: PW.t2, marginTop: 4 }}><span style={{ fontWeight: 700 }}>Indicacao:</span> {item.indicacao}</div>
+                {item.observacao && <div style={{ fontSize: 11, color: PW.muted, marginTop: 4, fontStyle: "italic" }}>{item.observacao}</div>}
               </div>
-              <div className="flex items-start gap-3 shrink-0 ml-4">
-                <div className="text-right">
-                  <div className="font-medium text-lg">{item.valorUnidade}</div>
-                  <div className="text-xs text-muted-foreground">{item.origemValor}</div>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexShrink: 0, marginLeft: 16 }}>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 700, fontSize: 18, color: PW.text, fontFamily: MONO }}>{item.valorUnidade}</div>
+                  <div style={{ fontSize: 11, color: PW.muted }}>{item.origemValor}</div>
                 </div>
-                <button onClick={() => setEditing(item)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded">
-                  <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
+                <PencilBtn reveal onClick={() => setEditing(item)} />
               </div>
             </div>
           </div>
@@ -533,19 +712,16 @@ function FormulasTab() {
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-formulas"] });
   };
 
-  if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
+  if (isLoading) return <Carregando />;
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar formula por codigo, nome ou area..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Badge variant="outline" className="text-sm px-3 py-1.5">{Object.keys(grouped).length} formulas</Badge>
-        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Nova Formula</Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <SearchBar placeholder="Buscar formula por codigo, nome ou area..." value={search} onChange={setSearch} />
+        <Chip variant="outline">{Object.keys(grouped).length} formulas</Chip>
+        <Btn variant="primary" onClick={() => setCreating(true)}><Plus style={{ width: 14, height: 14 }} /> Nova Formula</Btn>
       </div>
-      <div className="space-y-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {Object.entries(grouped).map(([codigo, { titulo, componentes }]) => {
           const substancias = componentes.filter(c => c.identificador?.startsWith("SUBS"));
           const via = componentes.find(c => c.identificador === "VIA");
@@ -553,50 +729,45 @@ function FormulasTab() {
           const poso = componentes.find(c => c.identificador?.startsWith("POSO"));
           const obs = componentes.find(c => c.identificador === "OBS");
           return (
-            <div key={codigo} className="border rounded-lg">
-              <button onClick={() => setExpandedFormula(expandedFormula === codigo ? null : codigo)}
-                className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors text-left">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    {expandedFormula === codigo ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    <span className="font-mono text-xs text-primary font-medium">{codigo}</span>
-                    {titulo?.area && <Badge variant="secondary" className="text-xs uppercase">{titulo.area}</Badge>}
-                    {titulo?.funcao && <Badge variant="outline" className="text-xs uppercase">{titulo.funcao}</Badge>}
+            <div key={codigo} className="cat-acc" style={accStyle}>
+              <button onClick={() => setExpandedFormula(expandedFormula === codigo ? null : codigo)} className="cat-head cat-rowgroup" style={headBtnStyle}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                    {expandedFormula === codigo ? <ChevronDown style={{ width: 16, height: 16, color: PW.ciano }} /> : <ChevronRight style={{ width: 16, height: 16, color: PW.muted }} />}
+                    <span style={{ fontSize: 12, color: PW.ciano, fontFamily: MONO }}>{codigo}</span>
+                    {titulo?.area && <Chip variant="secondary">{titulo.area}</Chip>}
+                    {titulo?.funcao && <Chip variant="outline">{titulo.funcao}</Chip>}
                   </div>
-                  <div className="ml-7 font-semibold">{titulo?.conteudo || codigo}</div>
+                  <div style={{ marginLeft: 28, fontWeight: 700, color: PW.text }}>{titulo?.conteudo || codigo}</div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="font-medium">{titulo?.valorUnidade}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ fontWeight: 700, color: PW.text, fontFamily: MONO }}>{titulo?.valorUnidade}</div>
                   {titulo && (
-                    <button onClick={e => { e.stopPropagation(); setEditing(titulo); }} className="p-1.5 hover:bg-muted rounded opacity-60 hover:opacity-100">
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
+                    <PencilBtn reveal onClick={(e: any) => { e.stopPropagation(); setEditing(titulo); }} />
                   )}
                 </div>
               </button>
               {expandedFormula === codigo && (
-                <div className="border-t bg-muted/10 px-4 py-3 space-y-3">
+                <div style={{ borderTop: `1px solid ${PW.border}`, background: PW.bg, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
                   {substancias.length > 0 && (
                     <div>
-                      <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Composicao</div>
-                      <div className="space-y-1">
+                      <div style={{ fontSize: 10, fontWeight: 700, color: PW.muted, marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO }}>Composicao</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                         {substancias.map((s: any) => (
-                          <div key={s.id} className="flex items-center justify-between text-sm pl-4 border-l-2 border-primary/20 group">
+                          <div key={s.id} className="cat-rowgroup" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13, paddingLeft: 16, borderLeft: `2px solid ${PW.border}`, color: PW.text }}>
                             <span>{s.conteudo}</span>
-                            <button onClick={() => setEditing(s)} className="opacity-0 group-hover:opacity-100 p-0.5">
-                              <Pencil className="w-3 h-3 text-muted-foreground" />
-                            </button>
+                            <PencilBtn reveal onClick={() => setEditing(s)} />
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                    {via && <span><span className="font-medium text-muted-foreground">Via:</span> {via.conteudo}</span>}
-                    {apre && <span><span className="font-medium text-muted-foreground">Apresentacao:</span> {apre.conteudo}</span>}
-                    {poso && <span><span className="font-medium text-muted-foreground">Posologia:</span> {poso.conteudo}</span>}
+                  <div style={{ display: "flex", flexWrap: "wrap", columnGap: 24, rowGap: 4, fontSize: 13, color: PW.text }}>
+                    {via && <span><span style={{ fontWeight: 700, color: PW.muted }}>Via:</span> {via.conteudo}</span>}
+                    {apre && <span><span style={{ fontWeight: 700, color: PW.muted }}>Apresentacao:</span> {apre.conteudo}</span>}
+                    {poso && <span><span style={{ fontWeight: 700, color: PW.muted }}>Posologia:</span> {poso.conteudo}</span>}
                   </div>
-                  {obs && <div className="text-xs text-muted-foreground/70 italic">{obs.conteudo}</div>}
+                  {obs && <div style={{ fontSize: 11, color: PW.muted, fontStyle: "italic" }}>{obs.conteudo}</div>}
                 </div>
               )}
             </div>
@@ -656,67 +827,66 @@ function ProtocolosTab() {
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-protocolos"] });
   };
 
-  if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
+  if (isLoading) return <Carregando />;
+
+  const cellBox: CSSProperties = { border: `1px solid ${PW.border}`, borderRadius: 0, padding: 8, textAlign: "center" };
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Badge variant="outline" className="text-sm px-3 py-1.5">{data.length} protocolos</Badge>
-        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Protocolo</Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <Chip variant="outline">{data.length} protocolos</Chip>
+        <Btn variant="primary" onClick={() => setCreating(true)}><Plus style={{ width: 14, height: 14 }} /> Novo Protocolo</Btn>
       </div>
-      <div className="space-y-3 mt-4">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
         {data.map((p: any) => (
-          <div key={p.id} className="border rounded-lg">
-            <button onClick={() => setExpandedProto(expandedProto === p.codigoProtocolo ? null : p.codigoProtocolo)}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors text-left">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-1">
-                  {expandedProto === p.codigoProtocolo ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <span className="font-mono text-xs text-primary font-medium">{p.codigoProtocolo}</span>
-                  <Badge variant="secondary" className="text-xs uppercase">{p.area}</Badge>
-                  <Badge variant="outline" className="text-xs">{p.modoOferta}</Badge>
+          <div key={p.id} className="cat-acc" style={accStyle}>
+            <button onClick={() => setExpandedProto(expandedProto === p.codigoProtocolo ? null : p.codigoProtocolo)} className="cat-head cat-rowgroup" style={headBtnStyle}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                  {expandedProto === p.codigoProtocolo ? <ChevronDown style={{ width: 16, height: 16, color: PW.ciano }} /> : <ChevronRight style={{ width: 16, height: 16, color: PW.muted }} />}
+                  <span style={{ fontSize: 12, color: PW.ciano, fontFamily: MONO }}>{p.codigoProtocolo}</span>
+                  <Chip variant="secondary">{p.area}</Chip>
+                  <Chip variant="outline">{p.modoOferta}</Chip>
                 </div>
-                <div className="ml-7 font-semibold">{p.nome}</div>
-                <div className="ml-7 text-sm text-muted-foreground">{p.objetivo}</div>
+                <div style={{ marginLeft: 28, fontWeight: 700, color: PW.text }}>{p.nome}</div>
+                <div style={{ marginLeft: 28, fontSize: 13, color: PW.t2 }}>{p.objetivo}</div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="font-medium text-lg">{p.valorTotal}</div>
-                  <div className="text-xs text-muted-foreground">total estimado</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 700, fontSize: 18, color: PW.text, fontFamily: MONO }}>{p.valorTotal}</div>
+                  <div style={{ fontSize: 11, color: PW.muted }}>total estimado</div>
                 </div>
-                <button onClick={e => { e.stopPropagation(); setEditing(p); }} className="p-1.5 hover:bg-muted rounded opacity-60 hover:opacity-100">
-                  <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
+                <PencilBtn reveal onClick={(e: any) => { e.stopPropagation(); setEditing(p); }} />
               </div>
             </button>
             {expandedProto === p.codigoProtocolo && (
-              <div className="border-t bg-muted/10 px-4 py-3 space-y-4">
-                <div className="grid grid-cols-4 gap-3 text-sm">
-                  <div className="border rounded p-2 text-center"><div className="text-xs text-muted-foreground mb-1">Exames</div><div className="font-medium">{p.valorExames}</div></div>
-                  <div className="border rounded p-2 text-center"><div className="text-xs text-muted-foreground mb-1">Formulas</div><div className="font-medium">{p.valorFormulas}</div></div>
-                  <div className="border rounded p-2 text-center"><div className="text-xs text-muted-foreground mb-1">Injetaveis</div><div className="font-medium">{p.valorInjetaveis}</div></div>
-                  <div className="border rounded p-2 text-center"><div className="text-xs text-muted-foreground mb-1">Implantes</div><div className="font-medium">{p.valorImplantes}</div></div>
+              <div style={{ borderTop: `1px solid ${PW.border}`, background: PW.bg, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, fontSize: 13 }}>
+                  <div style={cellBox}><div style={{ fontSize: 11, color: PW.muted, marginBottom: 4 }}>Exames</div><div style={{ fontWeight: 700, color: PW.text, fontFamily: MONO }}>{p.valorExames}</div></div>
+                  <div style={cellBox}><div style={{ fontSize: 11, color: PW.muted, marginBottom: 4 }}>Formulas</div><div style={{ fontWeight: 700, color: PW.text, fontFamily: MONO }}>{p.valorFormulas}</div></div>
+                  <div style={cellBox}><div style={{ fontSize: 11, color: PW.muted, marginBottom: 4 }}>Injetaveis</div><div style={{ fontWeight: 700, color: PW.text, fontFamily: MONO }}>{p.valorInjetaveis}</div></div>
+                  <div style={cellBox}><div style={{ fontSize: 11, color: PW.muted, marginBottom: 4 }}>Implantes</div><div style={{ fontWeight: 700, color: PW.text, fontFamily: MONO }}>{p.valorImplantes}</div></div>
                 </div>
                 {p.fases?.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Fases</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: PW.muted, marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO }}>Fases</div>
                     {p.fases.map((f: any, idx: number) => (
-                      <div key={idx} className="flex items-center gap-3 text-sm pl-4 border-l-2 border-primary/20 mb-1">
-                        <Badge variant="outline" className="text-xs shrink-0">{f.fase}</Badge>
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 13, paddingLeft: 16, borderLeft: `2px solid ${PW.border}`, marginBottom: 4, color: PW.text }}>
+                        <Chip variant="outline">{f.fase}</Chip>
                         <span>Dia {f.diaInicio} a {f.diaFim}</span>
-                        <span className="text-muted-foreground">— {f.marco}</span>
+                        <span style={{ color: PW.muted }}>— {f.marco}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {p.acoes?.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Acoes</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: PW.muted, marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO }}>Acoes</div>
                     {p.acoes.map((a: any, idx: number) => (
-                      <div key={idx} className="flex items-center gap-3 text-sm pl-4 border-l-2 border-blue-200 mb-1">
-                        <Badge variant="secondary" className="text-xs shrink-0">{a.tipoAcao}</Badge>
-                        <span className="font-mono text-xs">{a.codigoReferencia}</span>
-                        {a.obrigatorio === "SIM" && <Badge variant="destructive" className="text-xs">Obrigatorio</Badge>}
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 13, paddingLeft: 16, borderLeft: `2px solid ${PW.ciano}`, marginBottom: 4, color: PW.text }}>
+                        <Chip variant="secondary">{a.tipoAcao}</Chip>
+                        <span style={{ fontSize: 11, fontFamily: MONO, color: PW.t2 }}>{a.codigoReferencia}</span>
+                        {a.obrigatorio === "SIM" && <Chip variant="destructive">Obrigatorio</Chip>}
                       </div>
                     ))}
                   </div>
@@ -795,54 +965,48 @@ function ExamesTab() {
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-exames-base"] });
   };
 
-  if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
+  if (isLoading) return <Carregando />;
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar exame por codigo, nome, grupo, bloco ou modalidade..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} exames</Badge>
-        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Novo Exame</Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <SearchBar placeholder="Buscar exame por codigo, nome, grupo, bloco ou modalidade..." value={search} onChange={setSearch} />
+        <Chip variant="outline">{filtered.length} exames</Chip>
+        <Btn variant="primary" onClick={() => setCreating(true)}><Plus style={{ width: 14, height: 14 }} /> Novo Exame</Btn>
       </div>
-      <div className="space-y-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([grupo, items]) => (
-          <div key={grupo} className="border rounded-lg">
-            <button onClick={() => setExpandedGrupo(expandedGrupo === grupo ? null : grupo)}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-              <div className="flex items-center gap-3">
-                {expandedGrupo === grupo ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <span className="font-semibold text-sm uppercase tracking-wider">{grupo}</span>
-                <Badge variant="secondary" className="text-xs">{items.length}</Badge>
+          <div key={grupo} className="cat-acc" style={accStyle}>
+            <button onClick={() => setExpandedGrupo(expandedGrupo === grupo ? null : grupo)} className="cat-head" style={headBtnStyle}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {expandedGrupo === grupo ? <ChevronDown style={{ width: 16, height: 16, color: PW.ciano }} /> : <ChevronRight style={{ width: 16, height: 16, color: PW.muted }} />}
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", color: PW.text }}>{grupo}</span>
+                <Chip variant="secondary">{items.length}</Chip>
               </div>
             </button>
             {expandedGrupo === grupo && (
-              <div className="border-t">
-                <table className="w-full text-sm">
-                  <thead><tr className="bg-muted/30 text-left">
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Codigo</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Nome</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Modalidade</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Bloco</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Grau</th>
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Prioridade</th>
-                    <th className="px-2 py-2 w-8"></th>
+              <div style={{ borderTop: `1px solid ${PW.border}` }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead><tr style={{ background: PW.bg3 }}>
+                    <th style={thStyle}>Codigo</th>
+                    <th style={thStyle}>Nome</th>
+                    <th style={thStyle}>Modalidade</th>
+                    <th style={thStyle}>Bloco</th>
+                    <th style={thStyle}>Grau</th>
+                    <th style={thStyle}>Prioridade</th>
+                    <th style={{ ...thStyle, width: 32 }}></th>
                   </tr></thead>
                   <tbody>
                     {items.map((ex: any) => (
-                      <tr key={ex.id} className="border-t hover:bg-muted/20 transition-colors group">
-                        <td className="px-4 py-2.5 font-mono text-xs text-primary font-medium">{ex.codigoExame}</td>
-                        <td className="px-4 py-2.5 font-medium">{ex.nomeExame}</td>
-                        <td className="px-4 py-2.5"><Badge variant="outline" className="text-xs">{ex.modalidade}</Badge></td>
-                        <td className="px-4 py-2.5 text-xs text-muted-foreground">{ex.blocoOficial}</td>
-                        <td className="px-4 py-2.5 text-xs text-muted-foreground">{ex.grauDoBloco}</td>
-                        <td className="px-4 py-2.5"><Badge variant={ex.prioridade === "ALTA" ? "destructive" : "secondary"} className="text-xs">{ex.prioridade}</Badge></td>
-                        <td className="px-2 py-2.5">
-                          <button onClick={() => setEditing(ex)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded">
-                            <Pencil className="w-3 h-3 text-muted-foreground" />
-                          </button>
+                      <tr key={ex.id} className="cat-row cat-rowgroup" style={{ borderTop: `1px solid ${PW.border}` }}>
+                        <td style={{ ...tdStyle, fontSize: 12, color: PW.ciano }}>{ex.codigoExame}</td>
+                        <td style={{ ...tdStyle, color: PW.text }}>{ex.nomeExame}</td>
+                        <td style={tdStyle}><Chip variant="outline">{ex.modalidade}</Chip></td>
+                        <td style={{ ...tdStyle, fontSize: 11, color: PW.muted }}>{ex.blocoOficial}</td>
+                        <td style={{ ...tdStyle, fontSize: 11, color: PW.muted }}>{ex.grauDoBloco}</td>
+                        <td style={tdStyle}><Chip variant={ex.prioridade === "ALTA" ? "destructive" : "secondary"}>{ex.prioridade}</Chip></td>
+                        <td style={{ padding: "10px 8px" }}>
+                          <PencilBtn reveal onClick={() => setEditing(ex)} />
                         </td>
                       </tr>
                     ))}
@@ -911,35 +1075,30 @@ function DoencasTab() {
     setEditing(null); qc.invalidateQueries({ queryKey: ["catalogo-doencas"] });
   };
 
-  if (isLoading) return <div className="text-muted-foreground py-8 text-center">Carregando...</div>;
+  if (isLoading) return <Carregando />;
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar doenca por codigo, nome, grupo ou eixo..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Badge variant="outline" className="text-sm px-3 py-1.5">{filtered.length} doencas</Badge>
-        <Button size="sm" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-1" /> Nova Doenca</Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <SearchBar placeholder="Buscar doenca por codigo, nome, grupo ou eixo..." value={search} onChange={setSearch} />
+        <Chip variant="outline">{filtered.length} doencas</Chip>
+        <Btn variant="primary" onClick={() => setCreating(true)}><Plus style={{ width: 14, height: 14 }} /> Nova Doenca</Btn>
       </div>
-      <div className="space-y-4">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([grupo, items]) => (
           <div key={grupo}>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{grupo}</h3>
-            <div className="border rounded-lg divide-y">
-              {items.map((d: any) => (
-                <div key={d.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs text-primary font-medium w-40">{d.codigoDoenca}</span>
-                    <span className="font-medium text-sm">{d.nomeDoenca}</span>
+            <h3 style={{ fontSize: 10, fontWeight: 700, color: PW.muted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8, paddingLeft: 4, fontFamily: MONO }}>{grupo}</h3>
+            <div className="cat-acc" style={accStyle}>
+              {items.map((d: any, idx: number) => (
+                <div key={d.id} className="cat-row cat-rowgroup" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: idx === 0 ? "none" : `1px solid ${PW.border}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 12, color: PW.ciano, width: 160, fontFamily: MONO }}>{d.codigoDoenca}</span>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: PW.text }}>{d.nomeDoenca}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{d.eixo}</Badge>
-                    <span className="text-xs text-muted-foreground font-mono">{d.blocoMotor}</span>
-                    <button onClick={() => setEditing(d)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded">
-                      <Pencil className="w-3 h-3 text-muted-foreground" />
-                    </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Chip variant="outline">{d.eixo}</Chip>
+                    <span style={{ fontSize: 11, color: PW.muted, fontFamily: MONO }}>{d.blocoMotor}</span>
+                    <PencilBtn reveal onClick={() => setEditing(d)} />
                   </div>
                 </div>
               ))}
@@ -978,23 +1137,40 @@ export default function CatalogoPage() {
 
   return (
     <Layout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Catalogo Pawards</h1>
-        <p className="text-muted-foreground mt-1">Base completa de itens terapeuticos, protocolos e regras do motor clinico</p>
-        {resumo?.total && <div className="mt-2 text-sm text-muted-foreground">{resumo.total} registros no total</div>}
+      <style>{CAT_CSS}</style>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.01em", color: PW.text, margin: 0, fontFamily: MONO }}>Catalogo Pawards</h1>
+        <p style={{ color: PW.muted, marginTop: 4, fontSize: 13 }}>Base completa de itens terapeuticos, protocolos e regras do motor clinico</p>
+        {resumo?.total && <div style={{ marginTop: 8, fontSize: 13, color: PW.muted, fontFamily: MONO }}>{resumo.total} registros no total</div>}
       </div>
 
-      <div className="flex gap-1 border-b mb-6 overflow-x-auto">
+      <div style={{ display: "flex", gap: 4, borderBottom: `1px solid ${PW.border}`, marginBottom: 24, overflowX: "auto" }}>
         {TABS.map(tab => {
           const Icon = tab.icon;
+          const ativo = activeTab === tab.key;
           return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
-              }`}>
-              <Icon className="h-4 w-4" />
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="cat-tab"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 16px",
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                background: "transparent",
+                border: "none",
+                borderBottom: `2px solid ${ativo ? PW.ciano : "transparent"}`,
+                borderRadius: 0,
+                color: ativo ? PW.ciano : PW.muted,
+                whiteSpace: "nowrap",
+                fontFamily: MONO,
+                textShadow: ativo ? `0 0 12px ${PW.cianoGlow}` : "none",
+              }}>
+              <Icon style={{ width: 16, height: 16 }} />
               {tab.label}
-              <Badge variant={activeTab === tab.key ? "default" : "secondary"} className="text-xs ml-1">{tabCounts[tab.key]}</Badge>
+              <Chip variant={ativo ? "default" : "secondary"}>{tabCounts[tab.key]}</Chip>
             </button>
           );
         })}

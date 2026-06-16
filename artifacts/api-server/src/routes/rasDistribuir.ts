@@ -58,8 +58,8 @@ router.post("/ras/distribuir/:sessaoId", async (req, res) => {
         pacienteNome: pacientesTable.nome,
         pacienteCpf: pacientesTable.cpf,
         pacienteEmail: pacientesTable.email,
-        pacienteCelular: pacientesTable.celular,
-        pacienteIdade: pacientesTable.idade,
+        pacienteCelular: pacientesTable.telefone,
+        pacienteDataNascimento: pacientesTable.dataNascimento,
         pacienteDriveFolderId: pacientesTable.googleDriveFolderId,
         profissionalNome: usuariosTable.nome,
         profissionalCrm: usuariosTable.crm,
@@ -155,7 +155,11 @@ router.post("/ras/distribuir/:sessaoId", async (req, res) => {
       nomePaciente: sessaoData.pacienteNome || 'PACIENTE',
       cpfPaciente: sessaoData.pacienteCpf || '',
       celularPaciente: sessaoData.pacienteCelular || '',
-      idadePaciente: sessaoData.pacienteIdade || null,
+      idadePaciente: (() => {
+        if (!sessaoData.pacienteDataNascimento) return null;
+        const anos = Math.floor((Date.now() - new Date(sessaoData.pacienteDataNascimento).getTime()) / 31557600000);
+        return Number.isFinite(anos) ? anos : null;
+      })(),
       medicoResponsavel: sessaoData.profissionalNome || 'EQUIPE MEDICA',
       crmMedico: sessaoData.profissionalCrm || '',
       enfermeira: 'N/A',
