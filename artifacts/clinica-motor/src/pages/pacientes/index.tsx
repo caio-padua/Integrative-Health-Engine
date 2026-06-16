@@ -400,7 +400,7 @@ export default function Pacientes() {
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-[#5B8DEF] hover:bg-[#4978d4] text-white rounded-none">
+              <Button className="bg-[#5B8DEF] hover:bg-[#4978d4] text-white rounded-none" data-testid="botao-novo-paciente">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Novo Paciente
               </Button>
