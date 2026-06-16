@@ -6,7 +6,7 @@ Todo agente (Dr. Replit Pawards, Dr. Replit Pactor, Dr. Replit Manager,
 Dr. Claude, Dr. Code, Dr. Manus, Dr. Obsidian, Cursor)
 deve ler PRIMEIRO, antes de escrever uma linha, estes arquivos:
 
-1. [`docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.15.md`](./docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.15.md)
+1. [`docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.16.md`](./docs/DIRETRIZES_CENTRAIS_E_PRE_REQUISITOS_CEO_DR_CAIO_26.06.16.md)
    — combustivel obrigatorio: perfil do CEO, formato TDAH/TOC, conduta exigida,
    equipe fixa e empresas/marcas (vale em TODOS os projetos). Substitui o antigo
    `PRE_REQUISITO_PARA_TRABALHAR_COM_DR_CAIO.md` (aposentado) e os nomes interinos
@@ -111,7 +111,7 @@ The user (Caio) defined the canonical communication FORMAT on 15/06/2026 (densit
 
 The user (Caio) explicitly granted the agent **autonomy to conduct**: the default is to ACT and drive the work forward, asking only the *irreducible* questions — those that are both undiscoverable from the source AND irreversible/high-risk (clinical, financial, legal). Reversible, low-cost decisions (names, structure, equivalent libraries, defaults, dry-runs, specs) must be decided alone, recording any assumption as "Premissa assumida: ...". Asking for confirmation on reversible matters is a violation of this preference. **LGPD does not block the CEO's own clinic data** — he is the physician, controller, and sole processor; protection applies only against leaking/exposing to third parties. Full rule: `docs/dr-replit/DIRETRIZ_AUTONOMIA_DR_REPLIT.md`.
 
-The user (Caio) confirmed on 15/06/2026 that every acronym/sigla must be explained **SEMPRE** (every single time it appears), not only the first time — he learns by repetition and wants the reinforcement. This is the canonical reading of Art. 4 of the Bíblia (DIRETRIZES_CENTRAIS..._26.06.15), which already states "sempre"; when any agent's copy of the Bíblia diverges to "primeira vez", "sempre" is the correct wording to converge to.
+The user (Caio) confirmed on 15/06/2026 that every acronym/sigla must be explained **SEMPRE** (every single time it appears), not only the first time — he learns by repetition and wants the reinforcement. This is the canonical reading of Art. 4 of the Bíblia; on 16/06/2026 the new dated version `DIRETRIZES_CENTRAIS..._26.06.16` was created (lineage rule: same base name, only the date suffix changes) to harmonize Art. 4, Art. 40 and the appended instructions all to "sempre" (every time the acronym appears, never only the first), with each example acronym now spelled out inline. When any agent's copy diverges to "primeira vez", "sempre" is the correct wording to converge to.
 
 ## System Architecture
 
