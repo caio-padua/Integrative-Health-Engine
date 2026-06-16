@@ -30,6 +30,29 @@ owner-espelho pra teste. Tambem existe `chk_tenant_admin_requer_unidade_id`.
   pra bcrypt no 1o acesso. Pra provar regras de OUTRO usuario (ex: nunca_opera do CEO,
   acesso cross-unidade), crie usuarios-espelho com a flag desejada e logue como eles.
 
+## "Ectoplasmas" do Item 6 NAO sao mock — sao tabelas com gatilho proprio
+Erro de premissa comum: achar que tabela com count(0) = ectoplasma/mock. As 4
+tabelas-alvo do Item 6 TODAS tem gravador real no codigo; estao vazias so porque
+o gatilho real de cada uma ainda nao rodou:
+- `auditoria_cascata`: audita MUDANCA DE CONFIG da cascata, NAO decisao. Coluna
+  `acao` e enum ['LIGOU','DESLIGOU','ALTEROU'] e `valor_anterior/valor_novo` sao
+  BOOLEAN (o flag requer_* que mudou). Gravador: `POST /auditoria-cascata/toggle`
+  (so validador_mestre). Forcar decisao da juiza aqui (como o T002 pedia ao pe da
+  letra) seria ERRADO: o enum nem aceita "AUTORIZOU/NEGOU". Decisao de etapa vai
+  pra `eventos_clinicos` (tipo VALIDACAO_CASCATA) — e isso esta CORRETO.
+- `validacoes_humanas_agente`: validacao humana de execucao de agente de IA
+  (routes/agentesVirtuais.ts). Outro subsistema (Carta Magna PADCOM).
+- `padcom_validacoes_cascata`: cascata PROPRIA do produto PADCOM (UUID varchar,
+  sessao_id, certificado_digital; routes/padcom.ts, CRUD completo). Outro produto.
+- `auditoria_kill_switch`: auditoria do kill-switch (desligar/religar unidade) —
+  apelidada `ln` em todo o codigo (routes/plataforma.ts + workers de recorrencia +
+  alerta email CEO). Gatilho = acao de kill-switch numa unidade (destrutivo; NAO
+  exercitar em unidade real so pra encher tabela).
+
+**Por que importa:** antes de "exterminar ectoplasma" recriando, cheque se a tabela
+ja tem writer. Se tem, encher = exercitar o controle real (ex: toggle de config),
+nao escrever codigo novo. count(0) prova "ainda nao usado", nao "mock".
+
 ## Seguranca confirmada (read do codigo)
 - `config.ativa` so e lida no `abrir` do motor (recusa abrir se desativada). NAO gateia
   nenhuma outra rota. `abrir` so e chamado pelo endpoint manual (sem auto-trigger).
