@@ -342,10 +342,23 @@ function drawHeader(doc: PDFKit.PDFDocument, titulo: string, codigo: string, isL
   doc.fontSize(5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
     .text("INSTITUTO PADUA", logoX - 8, logoY + logoH + 2, { width: logoW + 16, align: "center", characterSpacing: 1.2 });
 
-  // Linha 1: titulo humano (13pt bold off-white)
+  // Linha 1: titulo humano — AUTO-AJUSTE de fonte (bug 17/06/2026).
+  // As linhas 2/3/4 abaixo tem y FIXO (28/40/51). A 13pt, titulos juridicos
+  // longos (ex.: LGPD com ~127 chars) quebravam em 3 linhas e invadiam o
+  // codigo/tagline. Reduzimos a fonte ate o titulo caber no slot vertical
+  // y=5..27 (22px ~= 2 linhas), centralizando-o nesse slot.
   const tituloW = width - logoW - 40;
-  doc.fontSize(13).font("Helvetica-Bold").fillColor(CORES.offWhite)
-    .text(titulo.toUpperCase(), 14, 8, { width: tituloW });
+  const tituloUpper = titulo.toUpperCase();
+  const SLOT_TITULO_H = 22;
+  let tSize = 13;
+  doc.font("Helvetica-Bold");
+  while (tSize > 7 && doc.fontSize(tSize).heightOfString(tituloUpper, { width: tituloW }) > SLOT_TITULO_H) {
+    tSize -= 0.5;
+  }
+  const hTitulo = doc.fontSize(tSize).heightOfString(tituloUpper, { width: tituloW });
+  const yTitulo = 5 + Math.max(0, (SLOT_TITULO_H - hTitulo) / 2);
+  doc.fontSize(tSize).font("Helvetica-Bold").fillColor(CORES.offWhite)
+    .text(tituloUpper, 14, yTitulo, { width: tituloW });
   // Linha 2: codigo tecnico + caderno X/Y inline (gold 7pt)
   ctx.atual += 1;
   const paginacao = ctx.total > 0
@@ -715,26 +728,45 @@ function drawFooter(doc: PDFKit.PDFDocument, isLandscape: boolean) {
   const width = isLandscape ? 842 : 595;
   const height = isLandscape ? 595 : 842;
   const footerY = height - 28;
-  // Faixa navy slim 22px com selo gold
-  doc.rect(0, footerY, width, 22).fill(CORES.azulPetroleo);
-  doc.rect(0, footerY, width, 1).fill(CORES.douradoQueimado);
-  // Esquerda: token + codigo semantico
-  doc.fontSize(5.8).font("Helvetica").fillColor(CORES.offWhite)
-    .text(`token ${ctx.tokenHash || "—"}  ·  ${ctx.codigoSemantico || ""}`, 14, footerY + 4, { width: 280 });
-  // Centro: legenda semaforos
-  doc.fontSize(5.5).font("Helvetica").fillColor(CORES.offWhite)
-    .text("Legenda  ▮ verde=meta atingida   ▮ amarelo=em curso   ▮ vermelho=critico", 14, footerY + 13, { width: width - 200 });
-  // Direita: paginacao + assinatura institucional COMPACTA (1 linha inline,
-  // tema navy-gold — adaptado ao fundo navy do rodape).
-  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
-    .text(`Caderno ${ctx.atual.toString().padStart(2, "0")}/${(ctx.total || ctx.atual).toString().padStart(2, "0")}`,
-      width - 110, footerY + 3, { width: 100, align: "right" });
-  drawAssinaturaInstitucional(doc, {
-    centerX: width - 130,
-    bottomY: footerY + 13,
-    theme: "navy-gold",
-    variant: "compacta",
-  });
+  // CAUSA-RAIZ DAS PAGINAS-FANTASMA (bug 17/06/2026: caderno de 96 paginas com
+  // 48 em branco). O rodape desenha texto em y ~818-827, ABAIXO de
+  // maxY() = height - margem_inferior (= 842 - 40 = 802). Qualquer doc.text()
+  // que receba a opcao `width` passa pelo LineWrapper do PDFKit, que AUTO-PAGINA
+  // quando y > maxY() — mesmo com lineBreak:false. (A assinatura institucional
+  // nao paginava porque desenha SEM `width`, indo pelo caminho simples.)
+  // Solucao: zerar a margem inferior SO durante o rodape, fazendo maxY() virar a
+  // borda real da pagina (842). Assim o rodape cabe e nenhuma pagina e criada.
+  // Restauramos a margem no fim para nao afetar o resto do documento.
+  const margemInferiorSalva = doc.page.margins.bottom;
+  doc.page.margins.bottom = 0;
+  // try/finally garante o restore da margem mesmo se algum doc.text() lancar
+  // excecao — senao a margem ficaria em 0 pro resto do page context (regressao
+  // de layout silenciosa apontada no code review 17/06/2026).
+  try {
+    // Faixa navy slim 22px com selo gold
+    doc.rect(0, footerY, width, 22).fill(CORES.azulPetroleo);
+    doc.rect(0, footerY, width, 1).fill(CORES.douradoQueimado);
+    // Esquerda: token + codigo semantico (lineBreak:false mantem em 1 linha)
+    doc.fontSize(5.8).font("Helvetica").fillColor(CORES.offWhite)
+      .text(`token ${ctx.tokenHash || "—"}  ·  ${ctx.codigoSemantico || ""}`, 14, footerY + 4, { width: 280, lineBreak: false });
+    // Centro: legenda semaforos
+    doc.fontSize(5.5).font("Helvetica").fillColor(CORES.offWhite)
+      .text("Legenda  ▮ verde=meta atingida   ▮ amarelo=em curso   ▮ vermelho=critico", 14, footerY + 13, { width: width - 200, lineBreak: false });
+    // Direita: paginacao + assinatura institucional COMPACTA (1 linha inline,
+    // tema navy-gold — adaptado ao fundo navy do rodape).
+    doc.fontSize(6.5).font("Helvetica-Bold").fillColor(CORES.douradoQueimado)
+      .text(`Caderno ${ctx.atual.toString().padStart(2, "0")}/${(ctx.total || ctx.atual).toString().padStart(2, "0")}`,
+        width - 110, footerY + 3, { width: 100, align: "right", lineBreak: false });
+    drawAssinaturaInstitucional(doc, {
+      centerX: width - 130,
+      bottomY: footerY + 13,
+      theme: "navy-gold",
+      variant: "compacta",
+    });
+  } finally {
+    // Restaura a margem inferior original (ver bloco causa-raiz acima).
+    doc.page.margins.bottom = margemInferiorSalva;
+  }
 }
 
 function drawSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number, metricaDireita?: string): number {
@@ -1265,13 +1297,20 @@ export interface TermoJuridicoDb {
   bloco: string;
   consentimento: string | null;
   titulo: string;
-  texto_completo: string;
-  riscos_especificos?: Array<{ titulo?: string; descricao?: string } | string> | null;
+  // ATENCAO: nomes em camelCase porque o Drizzle retorna as PROPRIEDADES JS do
+  // schema (textoCompleto / riscosEspecificos), nao os nomes de coluna do banco
+  // (texto_completo / riscos_especificos). Acessar em snake_case devolvia
+  // undefined e zerava o corpo juridico e os riscos no PDF (bug 17/06/2026).
+  textoCompleto: string;
+  riscosEspecificos?: Array<{ titulo?: string; descricao?: string } | string> | null;
 }
 
 function drawRacjParagraph(doc: PDFKit.PDFDocument, text: string, y: number, width: number): number {
   doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(text, 50, y, { width, lineGap: 3 });
-  return y + doc.heightOfString(text, { width }) + 8;
+  // heightOfString DEVE usar o mesmo lineGap do .text acima, senao a altura e
+  // subestimada e o cursor "deriva" para baixo do limite sem cabecalho de
+  // continuacao (causa de quebra de pagina suja no meio do texto juridico).
+  return y + doc.heightOfString(text, { width, lineGap: 3 }) + 8;
 }
 
 function drawRacjCheckbox(doc: PDFKit.PDFDocument, label: string, y: number): number {
@@ -1468,27 +1507,42 @@ function drawRacjBlocoTexto(doc: PDFKit.PDFDocument, texto: string, y: number, w
       .replace(/\{\{\s*CPF_PACIENTE\s*\}\}/gi, paciente.cpf || "_____________");
   }
   const paragrafos = renderText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-  for (const par of paragrafos) {
-    const trimmed = par.trim();
-    const altura = doc.fontSize(8).font("Helvetica").heightOfString(trimmed, { width, lineGap: 3 }) + 8;
-    if (y + altura > PAGE_BOTTOM_LIMIT) {
-      drawFooter(doc, false);
-      addPageRetrato(doc);
-      drawHeader(doc, "(continuacao)", "RACJ", false);
-      y = 80;
-    }
+  const ALTURA_TITULO = 18;
+  const quebrarPagina = () => {
+    drawFooter(doc, false);
+    addPageRetrato(doc);
+    drawHeader(doc, "(continuacao)", "RACJ", false);
+    return 80;
+  };
+  for (let i = 0; i < paragrafos.length; i++) {
+    const trimmed = paragrafos[i].trim();
     const ehTitulo = (trimmed.length < 110 && /^[A-Z0-9 IVXÇÃÕÉÊÍÓÚÁÂÔÀ\.\-—]{6,}$/.test(trimmed)) ||
                      (/^\d+\.\s+[A-ZÇÃ]/.test(trimmed) && trimmed.length < 80);
     if (ehTitulo) {
+      // KEEP-TOGETHER: um titulo de secao NUNCA pode ficar orfao no pe da
+      // pagina, separado do corpo. Reservamos o titulo + o inicio do proximo
+      // paragrafo (no maximo ~70px) na MESMA pagina; senao, quebra ANTES do
+      // titulo. Resolve a quebra de pagina das partes juridicas reportada.
+      const prox = paragrafos[i + 1]?.trim();
+      const alturaProx = prox
+        ? Math.min(doc.fontSize(8).font("Helvetica").heightOfString(prox, { width, lineGap: 3 }) + 8, 70)
+        : 24;
+      if (y + ALTURA_TITULO + alturaProx > PAGE_BOTTOM_LIMIT) {
+        y = quebrarPagina();
+      }
       y = drawSectionTitle(doc, trimmed, y);
     } else {
+      const altura = doc.fontSize(8).font("Helvetica").heightOfString(trimmed, { width, lineGap: 3 }) + 8;
+      if (y + altura > PAGE_BOTTOM_LIMIT) {
+        y = quebrarPagina();
+      }
       y = drawRacjParagraph(doc, trimmed, y, width);
     }
   }
   return y;
 }
 
-function drawRacjRiscos(doc: PDFKit.PDFDocument, riscos: TermoJuridicoDb["riscos_especificos"], y: number, width: number): number {
+function drawRacjRiscos(doc: PDFKit.PDFDocument, riscos: TermoJuridicoDb["riscosEspecificos"], y: number, width: number): number {
   if (!riscos || !Array.isArray(riscos) || riscos.length === 0) return y;
   if (y + 60 > PAGE_BOTTOM_LIMIT) {
     drawFooter(doc, false); addPageRetrato(doc);
@@ -1550,8 +1604,8 @@ export function gerarRacjPdfFromBanco(data: RacjPdfData, termos: TermoJuridicoDb
     drawHeader(doc, String(termo.titulo || "Termo"), codigo, false);
     let y = 80;
     y = drawPacienteBlock(doc, data as any, y, 595);
-    y = drawRacjBlocoTexto(doc, String(termo.texto_completo || ""), y, W, data.paciente);
-    y = drawRacjRiscos(doc, termo.riscos_especificos, y, W);
+    y = drawRacjBlocoTexto(doc, String(termo.textoCompleto || ""), y, W, data.paciente);
+    y = drawRacjRiscos(doc, termo.riscosEspecificos, y, W);
 
     if (codigo === "RACJ CGLO" && (data.patologias.length > 0 || data.medicamentos.length > 0)) {
       if (y + 100 > PAGE_BOTTOM_LIMIT) {
