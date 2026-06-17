@@ -467,3 +467,21 @@ id = "3Egc0zHpQtz7Ox9ZNMtOD"
 uri = "file://docs/dr-claude/BRIEF_DR_REPLIT_PROTOCOLO_ALIMENTAR_PARAMETRICO.md"
 type = "text"
 title = "Carta para o Dr. Claude — Protocolo Alimentar Paramétrico e Editável"
+
+[[outputs]]
+id = "gKo2E-4ad3jYVEMUBFMx1"
+uri = "file://.local/.audit_work/prescricao_213_pdf_1_branco_76dc4275fb84ce7c.pdf"
+type = "pdf"
+title = "Prescricao 213 - PDF 1 (Formula Suporte Tireoide)"
+
+[[outputs]]
+id = "cccOmbACQ-ZrjN2Lacj79"
+uri = "file://.local/.audit_work/prescricao_213_pdf_2_branco_b89817adecbd3b22.pdf"
+type = "pdf"
+title = "Prescricao 213 - PDF 2 (Injetavel Acido Alfa Lipoico EV)"
+
+[[outputs]]
+id = "4HxefRyfjIe2FdOoBp8Nu"
+uri = "file://.local/.audit_work/ras_paciente_3104.pdf"
+type = "pdf"
+title = "RAS Paciente 3104 - Caio (17 paginas)"
