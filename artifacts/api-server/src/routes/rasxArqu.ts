@@ -682,6 +682,12 @@ router.get("/rasx/:pacienteId/arqu/pdf/:categoria", async (req, res): Promise<vo
       dataBase: collected.pdfData.dataBase,
       patologias: collected.patologias.map(p => p.nome),
       medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
+      medicamentosDetalhados: collected.medicamentos.map((m: any) => ({
+        inline: m.medicamentoDoseInline || m.nome,
+        via: m.viaAdministracao ?? null,
+        tipo: m.tipoMed ?? null,
+        forma: m.formaFarmaceutica ?? null,
+      })),
     };
     const termosBanco = await db.select().from(termosJuridicosTable)
       .where(eq(termosJuridicosTable.ativo, true))
@@ -767,6 +773,12 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
         dataBase: collected.pdfData.dataBase,
         patologias: collected.patologias.map(p => p.nome),
         medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
+        medicamentosDetalhados: collected.medicamentos.map((m: any) => ({
+          inline: m.medicamentoDoseInline || m.nome,
+          via: m.viaAdministracao ?? null,
+          tipo: m.tipoMed ?? null,
+          forma: m.formaFarmaceutica ?? null,
+        })),
       };
       const termosBanco = await db.select().from(termosJuridicosTable)
         .where(eq(termosJuridicosTable.ativo, true))
@@ -988,6 +1000,12 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
     paciente: base.paciente, medico: base.medico, unidade: base.unidade, dataBase: base.dataBase,
     patologias: collected.patologias.map(p => p.nome),
     medicamentos: collected.medicamentos.map(m => m.medicamentoDoseInline || m.nome),
+    medicamentosDetalhados: collected.medicamentos.map((m: any) => ({
+      inline: m.medicamentoDoseInline || m.nome,
+      via: m.viaAdministracao ?? null,
+      tipo: m.tipoMed ?? null,
+      forma: m.formaFarmaceutica ?? null,
+    })),
   };
   const termosBancoCompleto = await db.select().from(termosJuridicosTable)
     .where(eq(termosJuridicosTable.ativo, true))

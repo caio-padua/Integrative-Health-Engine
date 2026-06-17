@@ -1285,6 +1285,11 @@ interface RacjPdfData {
   dataBase: string;
   patologias: string[];
   medicamentos: string[];
+  // ITEM 7 (CEO 17/06/2026 — "data binds"): itens prescritos com via/tipo, pra
+  // casar cada termo especifico (CFOR/CIMU/CEND/CIMP) com o que foi prescrito
+  // ao paciente (ex.: o termo do implante traz o implante prescrito). Opcional
+  // e ADITIVO — gerarRacjPdf (hardcoded) ignora; so o gerarRacjPdfFromBanco usa.
+  medicamentosDetalhados?: Array<{ inline: string; via?: string | null; tipo?: string | null; forma?: string | null }>;
 }
 
 /**
@@ -1295,6 +1300,10 @@ interface RacjPdfData {
 export interface TermoJuridicoDb {
   id: number;
   bloco: string;
+  // subgrupo e GROSSO ("JURI.CONS" para todos os 7 consentimentos especificos),
+  // NAO diferencia o tipo. O discriminador REAL e o codigo entre parenteses no
+  // titulo (CFOR/CIMU/CEND/CIMP/CEIN/CETE), lido por codigoEspecificoDoTermo().
+  subgrupo?: string | null;
   consentimento: string | null;
   titulo: string;
   // ATENCAO: nomes em camelCase porque o Drizzle retorna as PROPRIEDADES JS do
@@ -1577,6 +1586,51 @@ function deriveCodigoRacj(termo: TermoJuridicoDb): string {
 }
 
 /**
+ * ITEM 7 (CEO 17/06/2026): extrai o codigo do consentimento ESPECIFICO embutido
+ * no titulo do termo entre parenteses — ex.: "...Formulas Manipuladas (CFOR)",
+ * "...Via Intramuscular (CIMU)", "...Via Endovenosa (CEND)", "...Pellets (CIMP)".
+ * A coluna subgrupo do banco e grossa demais ("JURI.CONS" para todos os 7
+ * consentimentos especificos), por isso o discriminador real e o codigo do titulo.
+ */
+export function codigoEspecificoDoTermo(t: TermoJuridicoDb): string | null {
+  const m = String(t.titulo || "").match(/\((CFOR|CIMU|CEND|CIMP|CEIN|CETE)\)/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/**
+ * ITEM 7 (CEO 17/06/2026): casa um termo ESPECIFICO (pelo codigo do titulo) com
+ * os itens que foram REALMENTE prescritos ao paciente, pela via/tipo de
+ * administracao. Assim o termo do implante traz o implante prescrito, o termo IM
+ * traz o injetavel intramuscular, etc. via_administracao no banco e texto livre
+ * ("Intramuscular profunda...", "Endovenosa lenta..."), por isso casamos por regex.
+ */
+export function termoCasaMedicamento(
+  codigoEspecifico: string | null | undefined,
+  m: { via?: string | null; tipo?: string | null; forma?: string | null },
+): boolean {
+  const sg = (codigoEspecifico || "").toUpperCase();
+  const via = (m.via || "").toLowerCase();
+  const forma = (m.forma || "").toLowerCase();
+  const tipo = (m.tipo || "").toLowerCase();
+  // Casa por via (texto livre) E TAMBEM por tipo, pois itens legados (REVO antigo)
+  // gravam o tipo ("implante"/"endovenoso") mas deixam via_administracao vazia.
+  const ehInjetavel = /intramuscular|endovenosa|intravenosa|subcut|implante|pellet|\bim\b|\bev\b|\bsc\b/.test(`${via} ${tipo}`);
+  switch (sg) {
+    case "CFOR": // Formulas manipuladas (orais/capsulas/blend) — exclui injetaveis
+      return (tipo === "formula" || /capsula|cápsula|oral|\bvo\b|blend|composta|sublingual/.test(`${via} ${forma}`)) && !ehInjetavel;
+    case "CIMU": // Injetavel por via intramuscular
+      return /intramuscular|\bim\b/.test(`${via} ${tipo}`);
+    case "CEND": // Substancias por via endovenosa
+      return /endovenosa|intravenosa|endovenoso|intravenoso|\bev\b/.test(`${via} ${tipo}`);
+    case "CIMP": // Implantes subcutaneos / pellets — SO implante/pellet, NUNCA
+      // injetavel subcutaneo puro (SC sem implante e de outro termo, nao deste).
+      return /implante|pellet/.test(`${via} ${forma} ${tipo}`);
+    default:
+      return false;
+  }
+}
+
+/**
  * RACJ "anastomosado" — le termos_juridicos do banco (3.000-6.800 chars cada,
  * baseados em CFM 1931/2009, LGPD 13.709/2018, CDC, ANVISA RDC 67/2007).
  * Cada termo gera 1+ pagina(s) com header proprio, texto rebuscado, riscos
@@ -1606,6 +1660,32 @@ export function gerarRacjPdfFromBanco(data: RacjPdfData, termos: TermoJuridicoDb
     y = drawPacienteBlock(doc, data as any, y, 595);
     y = drawRacjBlocoTexto(doc, String(termo.textoCompleto || ""), y, W, data.paciente);
     y = drawRacjRiscos(doc, termo.riscosEspecificos, y, W);
+
+    // ITEM 7: bloco "Itens Prescritos a Voce Sob Este Termo" nos termos
+    // ESPECIFICOS (CFOR/CIMU/CEND/CIMP), casando via/tipo. So aparece se houver
+    // item casado (sem ectoplasma: zero bloco vazio).
+    const codigoEspecifico = codigoEspecificoDoTermo(termo);
+    const itensCasados = codigoEspecifico
+      ? (data.medicamentosDetalhados || []).filter(m => termoCasaMedicamento(codigoEspecifico, m))
+      : [];
+    if (itensCasados.length > 0) {
+      if (y + 80 > PAGE_BOTTOM_LIMIT) {
+        drawFooter(doc, false); addPageRetrato(doc);
+        drawHeader(doc, `${termo.titulo} (itens prescritos)`, codigo, false); y = 80;
+      }
+      y = drawSectionTitle(doc, "Itens Prescritos a Voce Sob Este Termo", y);
+      for (const it of itensCasados) {
+        const linha = it.via ? `${it.inline}  —  via ${it.via}` : it.inline;
+        const alturaItem = doc.fontSize(8).font("Helvetica").heightOfString(`  \u2022 ${linha}`, { width: W, lineGap: 3 }) + 6;
+        if (y + alturaItem > PAGE_BOTTOM_LIMIT) {
+          drawFooter(doc, false); addPageRetrato(doc);
+          drawHeader(doc, `${termo.titulo} (itens prescritos)`, codigo, false); y = 80;
+        }
+        doc.fontSize(8).font("Helvetica").fillColor(CORES.cinzaTexto).text(`  \u2022 ${linha}`, 50, y, { width: W, lineGap: 3 });
+        y += alturaItem;
+      }
+      y += 6;
+    }
 
     if (codigo === "RACJ CGLO" && (data.patologias.length > 0 || data.medicamentos.length > 0)) {
       if (y + 100 > PAGE_BOTTOM_LIMIT) {
