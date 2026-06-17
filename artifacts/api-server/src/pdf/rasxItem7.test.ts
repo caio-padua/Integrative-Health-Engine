@@ -25,6 +25,10 @@ describe("codigoEspecificoDoTermo · extrai codigo do titulo", () => {
     assert.equal(codigoEspecificoDoTermo(mk("Implantes Subcutaneos Hormonais e Pellets (CIMP)")), "CIMP");
   });
 
+  it("acha (CSUB) no termo de peptideos/GLP-1/GH", () => {
+    assert.equal(codigoEspecificoDoTermo(mk("Consentimento Especifico — Peptideos, Agonistas de GLP-1 e Hormonio do Crescimento (CSUB)")), "CSUB");
+  });
+
   it("retorna null em termo SEM codigo (LGPD, TCLE global)", () => {
     assert.equal(codigoEspecificoDoTermo(mk("Consentimento Livre para Tratamento de Dados Pessoais (LGPD)")), null);
     assert.equal(codigoEspecificoDoTermo(mk("TCLE Global do Protocolo Terapeutico Integrado")), null);
@@ -41,6 +45,13 @@ describe("termoCasaMedicamento · casa item prescrito ao termo certo", () => {
   const testoImplanteLegado = { via: null, tipo: "implante", forma: null };
   // injetavel subcutaneo PURO (NAO e implante) — nao deve cair em CIMP
   const scPuro = { via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
+  // ITEM CSUB: peptideos / agonistas de GLP-1 / hormonio do crescimento (pelo NOME)
+  const semaglutidaSC = { inline: "Semaglutida 2,4mg", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel (caneta)" };
+  const bpc157 = { inline: "BPC-157 250mcg", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
+  const ghSomatropina = { inline: "Somatropina (hormonio do crescimento) 4UI", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
+  const tirzepatidaIM = { inline: "Tirzepatida 5mg", via: "Intramuscular", tipo: "remedio", forma: "Solucao injetavel" };
+  // GH lancado pela sigla isolada "GH" (sem "somatropina") — alias minimo critico
+  const ghSiglaIsolada = { inline: "GH 4UI", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
 
   it("CFOR casa formula oral e EXCLUI qualquer injetavel", () => {
     assert.equal(termoCasaMedicamento("CFOR", formulaOral), true);
@@ -66,6 +77,25 @@ describe("termoCasaMedicamento · casa item prescrito ao termo certo", () => {
     assert.equal(termoCasaMedicamento("CIMP", testoImplanteLegado), true);
     assert.equal(termoCasaMedicamento("CIMP", scPuro), false);
     assert.equal(termoCasaMedicamento("CIMP", b12IM), false);
+  });
+
+  it("CSUB casa peptideos/GLP-1/GH pelo NOME (semaglutida, BPC-157, somatropina)", () => {
+    assert.equal(termoCasaMedicamento("CSUB", semaglutidaSC), true);
+    assert.equal(termoCasaMedicamento("CSUB", bpc157), true);
+    assert.equal(termoCasaMedicamento("CSUB", ghSomatropina), true);
+    assert.equal(termoCasaMedicamento("CSUB", tirzepatidaIM), true);
+    assert.equal(termoCasaMedicamento("CSUB", ghSiglaIsolada), true);
+    assert.equal(termoCasaMedicamento("CSUB", formulaOral), false);
+    assert.equal(termoCasaMedicamento("CSUB", b12IM), false);
+  });
+
+  it("peptideo NAO aparece em CFOR/CIMU/CEND/CIMP (so no CSUB, sem dupla listagem)", () => {
+    for (const cod of ["CFOR", "CIMU", "CEND", "CIMP"] as const) {
+      assert.equal(termoCasaMedicamento(cod, semaglutidaSC), false);
+    }
+    // tirzepatida via IM: mesmo sendo intramuscular, vai SO pro CSUB, nao pro CIMU
+    assert.equal(termoCasaMedicamento("CIMU", tirzepatidaIM), false);
+    assert.equal(termoCasaMedicamento("CSUB", tirzepatidaIM), true);
   });
 
   it("codigo nulo/desconhecido nunca casa (sem ectoplasma)", () => {

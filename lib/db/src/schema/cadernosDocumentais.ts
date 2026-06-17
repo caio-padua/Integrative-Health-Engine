@@ -15,7 +15,7 @@ export const SIGLAS_RACL = [
 
 export const SIGLAS_RACJ = [
   "CMST", "CFIN", "COPE", "CREM", "CGLO",
-  "CIMP", "CIMU", "CEND", "CFORM", "CCOMB",
+  "CIMP", "CIMU", "CEND", "CFORM", "CCOMB", "CSUB",
   "LGPD", "RPAC", "RISC", "TPOS", "TFIN",
   "IMAG", "NGAR",
 ] as const;
@@ -43,6 +43,7 @@ export const SIGLA_LABELS: Record<string, string> = {
   CEND: "Consentimento Endovenoso",
   CFORM: "Consentimento Formula",
   CCOMB: "Consentimento Combinado",
+  CSUB: "Consentimento Peptideos/GLP-1/GH",
   LGPD: "Termo LGPD",
   RPAC: "Riscos do Paciente",
   RISC: "Declaracao de Riscos",

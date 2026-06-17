@@ -1593,7 +1593,7 @@ function deriveCodigoRacj(termo: TermoJuridicoDb): string {
  * consentimentos especificos), por isso o discriminador real e o codigo do titulo.
  */
 export function codigoEspecificoDoTermo(t: TermoJuridicoDb): string | null {
-  const m = String(t.titulo || "").match(/\((CFOR|CIMU|CEND|CIMP|CEIN|CETE)\)/i);
+  const m = String(t.titulo || "").match(/\((CFOR|CIMU|CEND|CIMP|CEIN|CETE|CSUB)\)/i);
   return m ? m[1].toUpperCase() : null;
 }
 
@@ -1606,25 +1606,33 @@ export function codigoEspecificoDoTermo(t: TermoJuridicoDb): string | null {
  */
 export function termoCasaMedicamento(
   codigoEspecifico: string | null | undefined,
-  m: { via?: string | null; tipo?: string | null; forma?: string | null },
+  m: { via?: string | null; tipo?: string | null; forma?: string | null; inline?: string | null; nome?: string | null },
 ): boolean {
   const sg = (codigoEspecifico || "").toUpperCase();
   const via = (m.via || "").toLowerCase();
   const forma = (m.forma || "").toLowerCase();
   const tipo = (m.tipo || "").toLowerCase();
+  const nome = `${m.inline || ""} ${m.nome || ""}`.toLowerCase();
+  // ITEM CSUB (CEO 17/06/2026): peptideos, agonistas de GLP-1 e hormonio do
+  // crescimento sao identificados pelo NOME da substancia (a via sozinha e
+  // ambigua: a maioria e subcutanea, mas implante tambem e SC). Um item peptideo
+  // pertence SO ao termo CSUB e e EXCLUIDO dos demais (sem dupla listagem).
+  const ehPeptideo = /semaglutid|ozempic|wegovy|rybelsus|tirzepatid|mounjaro|zepbound|retatrutid|liraglutid|saxenda|victoza|dulaglutid|exenatid|bpc[\s-]?157|tb[\s-]?500|pept[ií]de|somatropin|\bhgh\b|\bgh\b|hormonio do crescimento|hormônio do crescimento|growth hormone|ghrp|cjc[\s-]?1295|ipamorelin|tesamorelin|sermorelin|hexarelin|igf[\s-]?1|melanotan|pt[\s-]?141|aod[\s-]?9604/.test(nome);
   // Casa por via (texto livre) E TAMBEM por tipo, pois itens legados (REVO antigo)
   // gravam o tipo ("implante"/"endovenoso") mas deixam via_administracao vazia.
   const ehInjetavel = /intramuscular|endovenosa|intravenosa|subcut|implante|pellet|\bim\b|\bev\b|\bsc\b/.test(`${via} ${tipo}`);
   switch (sg) {
-    case "CFOR": // Formulas manipuladas (orais/capsulas/blend) — exclui injetaveis
-      return (tipo === "formula" || /capsula|cápsula|oral|\bvo\b|blend|composta|sublingual/.test(`${via} ${forma}`)) && !ehInjetavel;
-    case "CIMU": // Injetavel por via intramuscular
-      return /intramuscular|\bim\b/.test(`${via} ${tipo}`);
-    case "CEND": // Substancias por via endovenosa
-      return /endovenosa|intravenosa|endovenoso|intravenoso|\bev\b/.test(`${via} ${tipo}`);
+    case "CFOR": // Formulas manipuladas (orais/capsulas/blend) — exclui injetaveis e peptideos
+      return (tipo === "formula" || /capsula|cápsula|oral|\bvo\b|blend|composta|sublingual/.test(`${via} ${forma}`)) && !ehInjetavel && !ehPeptideo;
+    case "CIMU": // Injetavel por via intramuscular (peptideo vai pro CSUB)
+      return /intramuscular|\bim\b/.test(`${via} ${tipo}`) && !ehPeptideo;
+    case "CEND": // Substancias por via endovenosa (peptideo vai pro CSUB)
+      return /endovenosa|intravenosa|endovenoso|intravenoso|\bev\b/.test(`${via} ${tipo}`) && !ehPeptideo;
     case "CIMP": // Implantes subcutaneos / pellets — SO implante/pellet, NUNCA
-      // injetavel subcutaneo puro (SC sem implante e de outro termo, nao deste).
-      return /implante|pellet/.test(`${via} ${forma} ${tipo}`);
+      // injetavel subcutaneo puro; peptideo em pellet ainda vai pro CSUB.
+      return /implante|pellet/.test(`${via} ${forma} ${tipo}`) && !ehPeptideo;
+    case "CSUB": // Peptideos, agonistas de GLP-1 e hormonio do crescimento — pelo NOME
+      return ehPeptideo;
     default:
       return false;
   }

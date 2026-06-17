@@ -119,11 +119,11 @@ router.get("/termos-juridicos/assinaturas/:pacienteId", async (req, res): Promis
 });
 
 router.post("/termos-juridicos/seed", async (_req, res): Promise<void> => {
+  // Seed IDEMPOTENTE por titulo (CEO 17/06/2026): nao aborta se a tabela ja tem
+  // dados. Insere apenas os termos AINDA ausentes (ex.: o CSUB novo num ambiente
+  // ja semeado). Aditivo, nunca dropa, nunca duplica — roda quantas vezes precisar.
   const existing = await db.select().from(termosJuridicosTable);
-  if (existing.length > 0) {
-    res.json({ mensagem: "Seed ja executado", total: existing.length });
-    return;
-  }
+  const titulosExistentes = new Set(existing.map((t) => t.titulo));
 
   const termosSeed = [
     {
@@ -227,6 +227,27 @@ router.post("/termos-juridicos/seed", async (_req, res): Promise<void> => {
       ],
     },
     {
+      bloco: "JURI", subgrupo: "JURI.CONS", consentimento: "CSUB",
+      titulo: "Consentimento Especifico — Peptideos, Agonistas de GLP-1 e Hormonio do Crescimento (CSUB)",
+      categoria: "consentimento_especifico" as const,
+      textoCompleto: "Declaro que fui informado(a) de forma clara, em linguagem acessivel, sobre a natureza, os objetivos, os beneficios esperados e os riscos do uso de peptideos e substancias correlatas que me foram prescritos, podendo abranger, conforme o caso: agonistas do receptor de GLP-1 e co-agonistas GIP/GLP-1 (por exemplo semaglutida, liraglutida e tirzepatida), hormonio do crescimento humano (somatropina) e secretagogos, e peptideos de reparo ou pesquisa (por exemplo BPC-157 e TB-500). 1. USO OFF-LABEL: estou ciente de que parte destas substancias pode ser prescrita fora da indicacao aprovada em bula (uso off-label), por exemplo agonistas de GLP-1 cuja bula aprovada pela ANVISA (Agencia Nacional de Vigilancia Sanitaria) destina-se ao diabetes tipo 2 e que, quando usados para emagrecimento sem essa indicacao, configuram uso off-label, conduta permitida no Brasil sob responsabilidade e autonomia do medico prescritor, amparada no Codigo de Etica Medica e em resolucoes do CFM (Conselho Federal de Medicina), desde que fundamentada em evidencia cientifica e em decisao compartilhada. 2. SUBSTANCIAS SEM REGISTRO NA ANVISA: fui especificamente informado(a) de que determinados peptideos de pesquisa, notadamente BPC-157 e TB-500, NAO possuem registro como medicamento na ANVISA nem aprovacao do FDA ou EMA, nao tem eficacia e seguranca estabelecidas em ensaios clinicos amplos em humanos e tem manipulacao e comercializacao restritas ou vedadas pela ANVISA. Compreendo o carater experimental e os riscos adicionais e desconhecidos decorrentes da ausencia de registro. 3. AGONISTAS DE GLP-1 (CANETAS): estou ciente das regras sanitarias vigentes, incluindo retencao de receita e criterios de dispensacao e manipulacao estabelecidos pela ANVISA (entre eles a RDC no 973/2025, a IN no 360/2025 e notas tecnicas correlatas), bem como dos alertas de farmacovigilancia sobre uso indevido fora das indicacoes de bula. 4. HORMONIO DO CRESCIMENTO (SOMATROPINA): compreendo que a somatropina e medicamento registrado na ANVISA com indicacoes especificas e que seu uso para performance, estetica ou longevidade, quando fora da bula, e off-label, exige investigacao previa, monitoramento laboratorial e acompanhamento medico continuo, sendo contraindicado em situacoes como neoplasia ativa. 5. RISCOS, MONITORAMENTO E ALTERNATIVAS: fui informado(a) dos principais efeitos adversos possiveis, da necessidade de exames previos e de acompanhamento periodico, das alternativas terapeuticas disponiveis (inclusive a opcao de nao tratar) e de que os resultados variam individualmente, sem garantia de resultado (obrigacao de meio, nao de fim). 6. ARMAZENAMENTO E ADESAO: comprometo-me a seguir as orientacoes de conservacao (cadeia de frio quando aplicavel), tecnica de aplicacao, doses e intervalos prescritos, e a comunicar imediatamente qualquer reacao adversa. Declaro que tive oportunidade de fazer perguntas, que todas foram respondidas a meu contento, e que consinto de forma livre e esclarecida com o protocolo proposto, podendo revoga-lo a qualquer tempo sem prejuizo da continuidade do meu cuidado.",
+      riscosEspecificos: [
+        "Efeitos gastrointestinais (nausea, vomito, diarreia, constipacao) comuns nos agonistas de GLP-1",
+        "Risco de pancreatite aguda, colelitiase, desidratacao e perda de massa magra com agonistas de GLP-1",
+        "Reacao no local da aplicacao subcutanea (dor, vermelhidao, nodulo, prurido)",
+        "Hipoglicemia quando associado a outros antidiabeticos",
+        "BPC-157 e TB-500 sem registro na ANVISA/FDA/EMA: eficacia e seguranca nao estabelecidas, riscos desconhecidos",
+        "Somatropina off-label: retencao hidrica, artralgia, sindrome do tunel do carpo, resistencia insulinica; contraindicada em neoplasia ativa",
+        "Necessidade de exames previos e monitoramento laboratorial periodico",
+        "Variabilidade individual de resposta e ausencia de garantia de resultado",
+      ],
+      metadados: {
+        revisaoJuridica: "PENDENTE",
+        revisadoPorAdvogadoEm: null,
+        baseLegal: "GLP-1 off-label (bula = diabetes tipo 2): RDC 973/2025, IN 360/2025, NT 200/2025, Alerta 02/2026; BPC-157/TB-500 sem registro ANVISA/FDA/EMA (peptideos de pesquisa); somatropina registrada na ANVISA, uso estetico/performance off-label.",
+      },
+    },
+    {
       bloco: "JURI", subgrupo: "JURI.IMAG", consentimento: null,
       titulo: "Autorizacao de Uso de Imagem",
       categoria: "imagem" as const,
@@ -249,12 +270,19 @@ router.post("/termos-juridicos/seed", async (_req, res): Promise<void> => {
     },
   ];
 
-  const inserted = await db.insert(termosJuridicosTable).values(termosSeed).returning();
+  const termosFaltantes = termosSeed.filter((t) => !titulosExistentes.has(t.titulo));
+  if (termosFaltantes.length === 0) {
+    res.json({ mensagem: "Seed ja completo — nenhum termo novo a inserir", total: existing.length });
+    return;
+  }
+
+  const inserted = await db.insert(termosJuridicosTable).values(termosFaltantes).returning();
 
   res.status(201).json({
     sucesso: true,
-    mensagem: `Seed concluido: ${inserted.length} termos juridicos criados`,
-    total: inserted.length,
+    mensagem: `Seed concluido: ${inserted.length} termos juridicos criados (${existing.length} ja existiam)`,
+    total: existing.length + inserted.length,
+    inseridos: inserted.length,
     termos: inserted.map(t => ({ id: t.id, titulo: t.titulo, bloco: t.bloco, subgrupo: t.subgrupo, consentimento: t.consentimento, versao: t.versao })),
   });
 });
