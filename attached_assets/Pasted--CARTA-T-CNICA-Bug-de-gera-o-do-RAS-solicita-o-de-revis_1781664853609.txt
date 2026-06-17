@@ -1,0 +1,278 @@
+# CARTA TÉCNICA — Bug de geração do RAS + solicitação de revisão de código
+
+**De:** Dr. Caio Pádua (Instituto Pádua)
+**Para:** Dr. Replit Manager (responsável pela implementação TypeScript do RAS)
+**Assunto:** Bug confirmado na coluna SEM da página 2 do PDF + alinhamento de especificação + solicitação de acesso ao repositório para revisão
+**Anexos:** 2 PDFs gerados (SIMPLES e PREMIUM) do paciente FABIO MORGON
+
+> *Carta pré-editada — Dr. Caio: ajuste a saudação e os detalhes pessoais antes de encaminhar.*
+
+---
+
+## 1. Contexto
+
+Estamos finalizando a arquitetura do **RAS (Registro de Administração de Substâncias)**. A primeira leva de PDFs foi gerada e identifiquei um bug que precisa de correção antes da impressão em produção. Quero, ao mesmo tempo, **alinhar a especificação completa** (para evitar interpretações divergentes) e **revisar o código** com o time do Claude (chat e/ou Claude Code).
+
+Esta carta tem três objetivos:
+1. **Descrever o bug** de forma reproduzível, com evidência.
+2. **Reapresentar a especificação técnica** do RAS de forma compacta.
+3. **Solicitar acesso a partes específicas do repositório** para revisão pelo Claude.
+
+---
+
+## 2. Bug confirmado — coluna `SEM` na página 2
+
+### 2.1. Evidência (PDF do paciente FABIO MORGON, protocolo 2)
+
+**Página 1** — substâncias COENZIMA Q10, PQQ 20MG, VITAMINA D3 600K, VITAMINA B12 2500MG, TIRZEPATIDA 2,5MG. Numeração da coluna `SEM` correta: **1 a 16**, datas 13/06/26 → 23/01/27.
+
+**Página 2** — substância TESTOSTERONA BIO 25MG (8 sessões, 15/15 dias, início 13/06/26).
+
+Esperado: numeração começando em 1 (ou no número da semana correta do protocolo).
+Observado:
+
+```
+SEM 21 → 13/06/26 → 1/8
+SEM 22 → 28/06/26 → 2/8
+SEM 23 → 13/07/26 → 3/8
+SEM 24 → 28/07/26 → 4/8
+SEM 25 → 12/08/26 → 5/8
+SEM 26 → 27/08/26 → 6/8
+SEM 27 → 11/09/26 → 7/8
+SEM 28 → 26/09/26 → 8/8
+```
+
+**As datas estão corretas. A numeração da coluna `SEM` está errada.** O renderizador da página 2 está continuando o contador da página 1 (que reservou 20 linhas, mesmo com só 16 ocupadas), em vez de calcular o número da semana baseado na data da sessão.
+
+### 2.2. Causa-raiz provável
+
+A função que renderiza a página 2 está usando um contador acumulado (algo como `weekIndex = previousPageLastWeek + 1`) em vez de derivar o número da semana da própria data da sessão (algo como `weekNumber = Math.floor((sessionDate - protocolStartDate) / 7) + 1`).
+
+### 2.3. Comportamento esperado — preciso da sua decisão de produto
+
+Há **duas leituras válidas** da coluna `SEM`. Preciso definir qual você implementou e qual queremos:
+
+| Opção | Definição | Como ficaria a página 2 |
+|---|---|---|
+| **A** | `SEM` = número sequencial da **ida do paciente à clínica** | TESTOSTERONA SEM 1 = 13/06 (mesma ida da pág 1), SEM 2 = 28/06 (ida nova), SEM 3 = 13/07 (mesma ida da pág 1 SEM 3), etc. **A confluência semanal cruza páginas.** |
+| **B** | `SEM` = número da semana **do protocolo a partir da data de início da substância** | TESTOSTERONA SEM 1 = 13/06, SEM 3 = 28/06 (15 dias = 2 semanas depois), SEM 5 = 13/07, etc. **Cada substância tem sua própria contagem.** |
+| **C (atual, errado)** | Contador acumulado das linhas reservadas | 21, 22, 23… |
+
+**Minha posição:** prefiro **A** — `SEM` representa **ida à clínica**, e a confluência semanal (Regra Ouro: uma única ida agrupando todas as substâncias daquela semana) deve **cruzar páginas**. Assim a equipe de enfermagem cruza-referência entre as páginas pelo número da semana. Se você implementou **B** ou tem outra leitura, me diga **antes** de corrigir.
+
+### 2.4. Bugs secundários (mesmos PDFs)
+
+| Campo | Estado | O que deveria fazer |
+|---|---|---|
+| `IDADE` | em branco | Calcular a partir de `dataNascimento` (`hoje - dataNascimento` em anos) |
+| `DATA ATENDIMENTO` | em branco | Puxar da consulta médica registrada **ou** usar a data de início do protocolo como fallback |
+| `VALOR TRATAMENTO` | `R$ 0,00` | Pode ser dado faltante na origem (não bug). Confirmar pela sua leitura do schema. |
+
+---
+
+## 3. Especificação do RAS — versão de referência
+
+Reapresento aqui para que **fonte única da verdade** fique sem ambiguidade. Se algo diverge da sua implementação atual, sinaliza.
+
+### 3.1. Layout da página (grid)
+
+- **Grid:** 34 colunas × 44 linhas por página.
+- **Cabeçalho fixo** (linhas 1–8): identificação do paciente, médico, unidade, protocolo, valor do tratamento, datas.
+- **Linha de substâncias** (linhas 9–11): até **5 substâncias por página**. Cada substância exibe: NOME · APLICAÇÕES (totais) · FREQUÊNCIA (X/X DIAS) · INÍCIO DA APLICAÇÃO (DD/MM/AA).
+- **Tabela de sessões** (linhas 12–40, 20 linhas úteis por página): colunas `SEM` · `DATA AGEND.` · `HORA` · `CIÊNCIA/RUBRICA PACIENTE` · `RUBRICA ENF.` · `DATA EFETIVA` · `OBS` · uma coluna por substância (até 5).
+- **Rodapé** (linhas 41–44): assinatura paciente, médico responsável (com carimbo), enfermagem responsável (com carimbo), `PÁG. X / Y`.
+- **Paginação:** se houver mais de 5 substâncias, abre nova página com mesmo cabeçalho/rodapé e novas substâncias.
+
+### 3.2. Variantes
+
+- **SIMPLES:** preto e branco, sem temas.
+- **PREMIUM:** tema navy (#1B2A4A) + dourado (#D4AF37) + faixas zebra.
+- **JURÍDICO:** documento de consentimento (LGPD), gerado em fluxo separado mas com a mesma identificação do paciente.
+
+### 3.3. Regra Ouro — confluência semanal
+
+> **Definição:** numa mesma semana ISO (segunda a domingo), o paciente vai **uma única vez** à clínica. Todas as substâncias que cairiam em datas diferentes daquela semana são consolidadas no **primeiro dia previsto** dessa semana.
+
+Algoritmo de referência (pseudocódigo):
+
+```typescript
+type Substance = {
+  name: string;
+  totalSessions: number;
+  frequencyDays: number;   // ex.: 15 ou 30
+  startDate: Date;          // data de início desta substância
+};
+
+type ProtocolSession = {
+  date: Date;
+  substances: Array<{ name: string; sessionIndex: number; total: number }>;
+};
+
+function generateAgenda(substances: Substance[]): ProtocolSession[] {
+  // 1) Gera todas as datas brutas por substância
+  const raw: Array<{ date: Date; sub: Substance; sessionIndex: number }> = [];
+  for (const sub of substances) {
+    for (let i = 0; i < sub.totalSessions; i++) {
+      const d = addDays(sub.startDate, i * sub.frequencyDays);
+      raw.push({ date: d, sub, sessionIndex: i + 1 });
+    }
+  }
+
+  // 2) Agrupa por semana ISO (segunda como dia 1)
+  const byWeek = groupBy(raw, item => isoWeekKey(item.date));
+
+  // 3) Para cada semana, elege a PRIMEIRA data e consolida
+  const result: ProtocolSession[] = [];
+  for (const [weekKey, items] of byWeek) {
+    const earliest = items.reduce((a, b) => a.date < b.date ? a : b).date;
+    result.push({
+      date: earliest,
+      substances: items.map(it => ({
+        name: it.sub.name,
+        sessionIndex: it.sessionIndex,
+        total: it.sub.totalSessions,
+      })),
+    });
+  }
+  return result.sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+```
+
+### 3.4. Data de início **por substância**
+
+Importante: cada substância tem **sua própria data de início** (campo opcional). Comportamento:
+- **Vazio** → usa a data de início do **protocolo** (campo principal).
+- **Preenchido** → começa naquela data específica (caso de uso: intercalar VIT B12 começando 1 semana depois para distribuir as idas semanais).
+
+### 3.5. Numeração da coluna `SEM`
+
+**Cumprindo a Opção A da seção 2.3:**
+
+```typescript
+// Após gerar a agenda com confluência semanal, numerar sequencialmente:
+const numbered = agenda.map((session, idx) => ({
+  semNumber: idx + 1,  // numeração CONTÍNUA cruzando páginas
+  ...session,
+}));
+
+// Ao paginar (5 substâncias por página, 20 linhas por página),
+// preservar semNumber — NUNCA recalcular ou continuar contador da linha.
+```
+
+A página 2 que renderiza TESTOSTERONA reaproveita o `semNumber` da agenda consolidada. Se TESTOSTERONA cai em semanas 1, 3, 5, 7… do protocolo, a página 2 mostra `SEM 1`, `SEM 3`, `SEM 5`, `SEM 7`…
+
+---
+
+## 4. Arquivos do repositório que preciso revisar
+
+Para auditar a implementação atual e propor patch sem chutar, preciso de **acesso a estes itens**. Quanto mais completo, mais profunda a revisão.
+
+### 4.1. Estrutura e tipos
+1. `package.json` — dependências (saber se usa `pdfkit`, `puppeteer`, `react-pdf`, `pdf-lib`, etc).
+2. `tsconfig.json` — configuração TS.
+3. Arquivos de tipo: `src/types/` ou equivalentes — interfaces `Patient`, `Protocol`, `Substance`, `Session`, `RASDocument`.
+
+### 4.2. Lógica de negócio (onde está o bug)
+4. **Função que gera a agenda** (provavelmente em `src/services/agenda*.ts` ou `src/protocol/*.ts`).
+5. **Função de confluência semanal** (se separada da geração de agenda).
+6. **Função que numera as semanas** (`SEM`) — esta é a função com bug.
+7. **Função de paginação** — como decide quais substâncias vão em qual página.
+
+### 4.3. Renderização do PDF
+8. **Renderer do PDF** — arquivo que monta a saída final. Quero ver tanto SIMPLES quanto PREMIUM.
+9. Templates/layouts se forem arquivos separados (`.html`, `.tsx`, ou definições de PDFKit).
+
+### 4.4. Testes
+10. Testes existentes da geração de agenda e do renderer (`*.test.ts`, `*.spec.ts`).
+11. Fixtures/mocks de paciente usados nos testes.
+
+### 4.5. Configuração e dados
+12. Schema do banco/JSON de paciente (sample anonimizado é suficiente).
+13. Como o `IDADE` e `DATA ATENDIMENTO` são populados hoje (se houver função, mandar).
+
+---
+
+## 5. Formato de entrega
+
+Em ordem de preferência:
+
+**Opção 1 (recomendada) — ZIP do repositório**
+- Compacta o repo (sem `node_modules`, sem `dist`, sem `.git`).
+- Envia anexado no próximo turno do chat.
+- Dr. Caio repassa para mim.
+
+**Opção 2 — link do GitHub**
+- Se o repo for público ou tiver acesso por link, manda a URL.
+- Eu fetcho diretamente.
+
+**Opção 3 — arquivos colados**
+- Cola os arquivos da lista da seção 4 (priorizando 4 → 6 → 8 → 10) em um único bloco, separados por `--- FILE: caminho/do/arquivo.ts ---`.
+
+**Opção 4 — Claude Code**
+- Se você usa Claude Code, roda `claude` no diretório do repo e pede uma auditoria com base nesta carta. Claude Code tem acesso direto ao filesystem e dá uma revisão mais ampla. Dr. Caio pode te passar este documento para você usar como prompt.
+
+---
+
+## 6. Critérios de aceite (testes que **devem** passar)
+
+Independente de como o patch seja feito, estes testes precisam ser **adicionados** e passar:
+
+```typescript
+describe('Numeração da coluna SEM cruzando páginas', () => {
+  it('TESTOSTERONA na pág 2 com início igual ao protocolo numera SEM 1, 3, 5...', () => {
+    const patient = makePatient({
+      protocolStart: new Date('2026-06-13'),
+      substances: [
+        { name: 'COENZIMA Q10',   total: 8, freq: 30 },
+        { name: 'PQQ 20MG',       total: 8, freq: 30 },
+        { name: 'VIT D3 600K',    total: 8, freq: 30 },
+        { name: 'VIT B12 2500MG', total: 8, freq: 30 },
+        { name: 'TIRZEPATIDA',    total: 8, freq: 15 },
+        { name: 'TESTOSTERONA',   total: 8, freq: 15 }, // 6ª subst -> pág 2
+      ],
+    });
+    const ras = generateRAS(patient);
+    const testoSessions = ras.pages[1].sessions.filter(s =>
+      s.substances.some(x => x.name === 'TESTOSTERONA')
+    );
+    expect(testoSessions[0].semNumber).toBe(1);  // NÃO 21
+    expect(testoSessions[1].semNumber).toBe(3);  // NÃO 22
+    expect(testoSessions[2].semNumber).toBe(5);
+  });
+
+  it('numeração SEM nunca depende da posição na grid da página', () => {
+    // Mesmo paciente com 1 substância só na pág 2 — SEM ainda usa
+    // o número real da semana do protocolo.
+  });
+});
+
+describe('Campos populados', () => {
+  it('IDADE é calculada a partir de dataNascimento', () => {
+    const patient = makePatient({ dataNascimento: new Date('1980-06-13') });
+    const ras = generateRAS(patient);
+    expect(ras.header.idade).toBeGreaterThan(0);
+  });
+
+  it('DATA ATENDIMENTO usa consulta medica OU fallback para protocolStart', () => {
+    const patient = makePatient({
+      consultaMedica: new Date('2026-06-10'),
+      protocolStart:  new Date('2026-06-13'),
+    });
+    expect(generateRAS(patient).header.dataAtendimento)
+      .toEqual(new Date('2026-06-10'));
+  });
+});
+```
+
+---
+
+## 7. Próximos passos
+
+1. **Decisão de produto:** confirma se a Opção A da seção 2.3 (`SEM` = ida sequencial cruzando páginas) bate com sua leitura.
+2. **Envio do código:** escolhe uma das 4 opções da seção 5 e manda.
+3. **Janela de revisão:** assim que receber, faço a revisão e devolvo um patch + lista de mudanças. Estimo 1 ciclo de revisão para o bug principal + 1 ciclo para os 3 secundários.
+
+Obrigado. Estou disponível para alinhar dúvidas antes do envio.
+
+— Dr. Caio Pádua
+Instituto Pádua · CRM 125.475

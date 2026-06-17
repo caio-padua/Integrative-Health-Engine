@@ -185,10 +185,13 @@ export async function gerarRasFapExcel(dados: DadosRasFap): Promise<Buffer> {
     });
     subs.forEach((s, i) => {
       const c = ws.getCell(r, nFix + 1 + i);
-      c.value = ln.contadores[i] ?? "";
-      c.font = { name: "Arial", size: 9, bold: true, color: { argb: "FF0E7490" } };
+      const v = ln.contadores[i];
+      c.value = v ?? "";
+      c.font = { name: "Arial", size: 9, bold: true, color: { argb: "FF0A2540" } };
       c.alignment = { vertical: "middle", horizontal: "center" };
       c.border = borda();
+      // Aplicacao = celula pintada (equivalente Excel da "batalha naval" do PDF).
+      if (v) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF6A9BD1" } };
     });
     ws.getRow(r).height = 16;
     r += 1;

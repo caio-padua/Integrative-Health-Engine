@@ -22,9 +22,21 @@ de visita distinta entre todas as substâncias; cada célula = "N/total" se a
 substância se aplica naquela data. Mix de frequências (ex.: 7 e 15 dias) não tem
 cadência comum, por isso união e não cadência fixa.
 
-**Regra de ferro da paginação:** o padding até 20 linhas é POR PÁGINA, nunca
-global — senão a última página de um protocolo longo (>20 datas) sai incompleta.
-Chame `montarGrade(g, 0)` (raw, sem padding) e complete cada chunk de 20.
+**Confluência semanal (Regra Ouro):** `montarGrade` agrupa as datas por semana
+ISO (segunda-domingo), elege a 1ª data prevista da semana e consolida ali os
+contadores de todas as substâncias daquela semana. SEM = número da IDA do
+paciente à clínica, não da dose. Se 2+ doses da MESMA substância caem na mesma
+semana (frequência < 7 dias), a célula lista TODAS com `·` (ex.: `1·2·3/4`) —
+nunca usar `Math.min` (perde dose silenciosamente).
+
+**Paginação Opção A (SEM cruza páginas):** use `planejarPaginasRasFap(subs)`,
+que monta UMA agenda global (`montarGrade(subs, 0)` de TODAS as substâncias) e,
+por grupo de até 5 substâncias (colunas), PROJETA as colunas sobre essa agenda
+preservando o `numero` (SEM) global e descartando idas vazias do grupo (página 2
+sai com lacunas: SEM 1, 3, 5...). NUNCA chamar `montarGrade` por grupo (reinicia
+o SEM por página = bug antigo). Padding até 20 linhas por página com `numero: 0`
+= SEM em branco (linha de escrita, não é ida real); `desenharGrade` rende vazio
+quando `numero <= 0`. Testes de aceite em `rasFap.test.ts` (node:test, 3 casos).
 
 **Premissas do XLSX:** é uma grade horizontal única (Excel rola), não replica o
 corte "5 substâncias x 20 linhas por página" do PDF — decisão deliberada.

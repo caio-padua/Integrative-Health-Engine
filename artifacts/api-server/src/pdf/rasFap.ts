@@ -64,8 +64,14 @@ function semAcento(s: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Motor da grade: uma linha por data de visita (uniao das datas de todas as
-// substancias). Cada celula = "N/total" se a substancia se aplica naquela data.
+// Motor da grade — REGRA OURO (confluencia semanal).
+//
+// Regra Ouro: numa mesma semana ISO (segunda a domingo) o paciente vai UMA
+// unica vez a clinica. Todas as substancias cujas datas brutas caem naquela
+// semana sao consolidadas no PRIMEIRO dia previsto da semana. A coluna SEM e o
+// numero sequencial da ida (Opcao A da carta tecnica do CEO 17/06/2026):
+// numeracao continua que cruza paginas, nunca contador acumulado de linha.
+// Cada celula = "N/total" da substancia naquela ida (e pintada no PDF).
 // ---------------------------------------------------------------------------
 export interface LinhaGrade {
   numero: number;
@@ -73,28 +79,55 @@ export interface LinhaGrade {
   contadores: (string | null)[]; // por substancia (na ordem do grupo)
 }
 
+// Segunda-feira (inicio) da semana ISO da data informada.
+function segundaDaSemana(d: Date): Date {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dow = (r.getDay() + 6) % 7; // 0 = segunda ... 6 = domingo
+  r.setDate(r.getDate() - dow);
+  return r;
+}
+
 export function montarGrade(subs: SubstanciaFap[], minLinhas = 20): LinhaGrade[] {
-  const todasDatas = new Map<string, Date>();
-  const datasPorSub: string[][] = subs.map((s) => {
-    const chaves: string[] = [];
+  // 1) Datas brutas por substancia (com indice da sessao).
+  interface Bruta { data: Date; si: number; sessao: number }
+  const brutas: Bruta[] = [];
+  subs.forEach((s, si) => {
     for (let k = 0; k < s.sessoes; k++) {
-      const d = addDays(s.inicio, k * s.frequenciaDias);
-      const c = chaveDia(d);
-      chaves.push(c);
-      if (!todasDatas.has(c)) todasDatas.set(c, d);
+      brutas.push({ data: addDays(s.inicio, k * s.frequenciaDias), si, sessao: k + 1 });
     }
-    return chaves;
   });
 
-  const ordenadas = Array.from(todasDatas.values()).sort((a, b) => a.getTime() - b.getTime());
-  const linhas: LinhaGrade[] = ordenadas.map((d, idx) => {
-    const c = chaveDia(d);
+  // 2) Agrupa por semana ISO (segunda como dia 1).
+  const semanas = new Map<string, Bruta[]>();
+  for (const b of brutas) {
+    const chave = chaveDia(segundaDaSemana(b.data));
+    const arr = semanas.get(chave);
+    if (arr) arr.push(b);
+    else semanas.set(chave, [b]);
+  }
+
+  // 3) Para cada semana: 1a data prevista + consolida os contadores das subs.
+  const consolidadas = Array.from(semanas.values()).map((items) => {
+    const data = items.reduce((a, b) => (a.data <= b.data ? a : b)).data;
     const contadores = subs.map((s, si) => {
-      const pos = datasPorSub[si].indexOf(c);
-      return pos >= 0 ? `${pos + 1}/${s.sessoes}` : null;
+      const sessoes = items
+        .filter((it) => it.si === si)
+        .map((it) => it.sessao)
+        .sort((a, b) => a - b);
+      if (sessoes.length === 0) return null;
+      // Em geral 1 sessao por semana. Se a frequencia for < 7 dias e cair mais de
+      // uma na mesma semana, lista TODAS (ex.: "1\u00b72\u00b73/4") — nunca perde dado.
+      return `${sessoes.join("\u00b7")}/${s.sessoes}`;
     });
-    return { numero: idx + 1, data: d, contadores };
+    return { data, contadores };
   });
+  consolidadas.sort((a, b) => a.data.getTime() - b.data.getTime());
+
+  const linhas: LinhaGrade[] = consolidadas.map((c, idx) => ({
+    numero: idx + 1,
+    data: c.data,
+    contadores: c.contadores,
+  }));
 
   while (linhas.length < minLinhas) {
     linhas.push({ numero: linhas.length + 1, contadores: subs.map(() => null) });
@@ -116,6 +149,8 @@ interface Paleta {
   protoInk: string;
   zebra: string | null;
   sessaoInk: string;
+  aplic: string;     // pintura da celula de aplicacao (3/4 esquerdos "batalha naval")
+  aplicInk: string;  // cor da fracao N/total sobre a pintura
 }
 const PALETAS: Record<ModoRasFap, Paleta> = {
   PREMIUM: {
@@ -129,6 +164,8 @@ const PALETAS: Record<ModoRasFap, Paleta> = {
     protoInk: "#ffffff",
     zebra: "#f3f7fa",
     sessaoInk: "#0e7490",
+    aplic: "#6a9bd1",
+    aplicInk: "#0a2540",
   },
   SIMPLES: {
     ink: "#000000",
@@ -141,6 +178,8 @@ const PALETAS: Record<ModoRasFap, Paleta> = {
     protoInk: "#000000",
     zebra: null,
     sessaoInk: "#000000",
+    aplic: "#c8c8c8",
+    aplicInk: "#000000",
   },
 };
 
@@ -351,7 +390,7 @@ function desenharGrade(
     const zebra = pal.zebra && idx % 2 === 1 ? pal.zebra : undefined;
     let cx = M;
     const fixedVals: Record<string, string> = {
-      sem: String(ln.numero),
+      sem: ln.numero > 0 ? String(ln.numero) : "",
       agend: ln.data ? fmtData(ln.data) : "",
       hora: "",
       cienciaPac: "",
@@ -372,14 +411,28 @@ function desenharGrade(
     grupo.forEach((s, i) => {
       const sx = M + FIXED_W + i * subW;
       const v = ln.contadores[i];
-      celula(doc, pal, sx, ry, subW, rowH, {
-        text: v ?? "",
-        bold: true,
-        size: 7.2,
-        align: "center",
-        color: pal.sessaoInk,
-        fill: zebra,
-      });
+      if (v) {
+        // Celula com aplicacao: "batalha naval" — pinta os 3/4 esquerdos e
+        // mantem a fracao N/total no 1/4 direito.
+        const pintW = subW * 0.74;
+        celula(doc, pal, sx, ry, subW, rowH, { fill: zebra });
+        doc.save();
+        doc
+          .rect(sx + 0.6, ry + 0.6, pintW - 0.6, rowH - 1.2)
+          .fillAndStroke(pal.aplic, pal.border);
+        doc.restore();
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(6.8)
+          .fillColor(pal.aplicInk)
+          .text(v, sx + pintW, ry + (rowH - 6.8) / 2 - 0.3, {
+            width: subW - pintW,
+            align: "center",
+            lineBreak: false,
+          });
+      } else {
+        celula(doc, pal, sx, ry, subW, rowH, { fill: zebra });
+      }
     });
     ry += rowH;
   });
@@ -418,6 +471,46 @@ function chunk<T>(arr: T[], n: number): T[][] {
   return out;
 }
 
+export interface PaginaRasFap {
+  grupo: SubstanciaFap[];
+  linhas: LinhaGrade[];
+}
+
+/**
+ * Planeja as paginas do RAS FAP a partir de uma AGENDA GLOBAL unica (Opcao A da
+ * carta tecnica do CEO 17/06/2026): o numero da ida (SEM) e a data sao
+ * consolidados de TODAS as substancias do protocolo e a numeracao e sequencial,
+ * continua e CRUZA paginas. Cada grupo de ate 5 substancias apenas PROJETA suas
+ * colunas sobre essa agenda, preservando o SEM global e descartando as idas em
+ * que nenhuma substancia do grupo se aplica (pagina 2 sai com lacunas: SEM 1, 3,
+ * 5...). Padding ate 20 linhas POR PAGINA com SEM em branco (linha de escrita,
+ * nao e ida real — nunca renumera a agenda).
+ */
+export function planejarPaginasRasFap(subs: SubstanciaFap[]): PaginaRasFap[] {
+  const grupos = chunk(subs, MAX_SUBS_POR_PAGINA);
+  const gradeGlobal = montarGrade(subs, 0);
+  const plano: PaginaRasFap[] = [];
+  for (const g of grupos) {
+    const idxGlobais = g.map((s) => subs.indexOf(s));
+    const linhasGrupo: LinhaGrade[] = gradeGlobal
+      .map((ln) => ({
+        numero: ln.numero,
+        data: ln.data,
+        contadores: idxGlobais.map((gi) => ln.contadores[gi]),
+      }))
+      .filter((ln) => ln.contadores.some((c) => c !== null));
+    const paginasLinhas = chunk(linhasGrupo, LINHAS_POR_PAGINA);
+    if (paginasLinhas.length === 0) paginasLinhas.push([]);
+    for (const pl of paginasLinhas) {
+      while (pl.length < LINHAS_POR_PAGINA) {
+        pl.push({ numero: 0, contadores: g.map(() => null) });
+      }
+      plano.push({ grupo: g, linhas: pl });
+    }
+  }
+  return plano;
+}
+
 export function gerarRasFapPdf(dados: DadosRasFap, modo: ModoRasFap = "PREMIUM"): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const pal = PALETAS[modo];
@@ -427,23 +520,7 @@ export function gerarRasFapPdf(dados: DadosRasFap, modo: ModoRasFap = "PREMIUM")
     doc.on("end", () => resolve(Buffer.concat(bufs)));
     doc.on("error", reject);
 
-    const grupos = chunk(dados.substancias, MAX_SUBS_POR_PAGINA);
-    // calcula paginas: cada grupo gera ceil(linhas/LINHAS_POR_PAGINA) paginas.
-    // Padding ate 20 linhas e feito POR PAGINA (nao global) — a ultima pagina de
-    // um protocolo longo (>20 datas) tambem sai completa com 20 linhas.
-    const planoPaginas: { grupo: SubstanciaFap[]; linhas: LinhaGrade[] }[] = [];
-    for (const g of grupos) {
-      const grade = montarGrade(g, 0); // sem padding global
-      const paginasLinhas = chunk(grade, LINHAS_POR_PAGINA);
-      if (paginasLinhas.length === 0) paginasLinhas.push([]);
-      for (const pl of paginasLinhas) {
-        let prox = (pl.length ? pl[pl.length - 1].numero : 0) + 1;
-        while (pl.length < LINHAS_POR_PAGINA) {
-          pl.push({ numero: prox++, contadores: g.map(() => null) });
-        }
-        planoPaginas.push({ grupo: g, linhas: pl });
-      }
-    }
+    const planoPaginas = planejarPaginasRasFap(dados.substancias);
     const totalPages = planoPaginas.length;
 
     planoPaginas.forEach((p, idx) => {
