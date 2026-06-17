@@ -1,0 +1,91 @@
+// ============================================================================
+// GOVERNANCA DA DELEGACAO  —  motor de politica puro, deterministico, fail-closed
+// ----------------------------------------------------------------------------
+// Fecha a CARTA_06 secao 8.3: quem pode delegar para quem, e quando o modo
+// automatico e permitido. Decide com base nas FLAGS do PERFIL (campo "perfil",
+// nunca "role" — Art. 36). Nada cravado: as flags vem do banco (DB-driven).
+// Fail-closed: nega por padrao; so libera quando uma regra autoriza.
+// Autor: Dr. Claude (orquestrador). Nomes em portugues (Art. 27).
+// ============================================================================
+
+// Acoes possiveis (os cliques de validacao da CARTA_06 secao 5).
+export type Acao =
+  | "validar"
+  | "assinar"
+  | "recusar_item"
+  | "recusar_grade"
+  | "ativar_desativar"
+  | "delegar";
+
+// Modos de operacao (CARTA_06 secao 4).
+export type Modo = "medico_no_comando" | "delegado_humano" | "modo_automatico";
+
+// Perfil real do banco, com as 4 flags reais (prefixo pode_/nunca_, Art. 36).
+export interface Perfil {
+  codigoPerfil: string;   // ex: "medico", "enfermeira", "validador_mestre"
+  podeValidar: boolean;
+  podeAssinar: boolean;
+  podeBypass: boolean;    // pode ligar/usar o modo automatico (bypass)
+  nuncaOpera: boolean;    // restricao PERMANENTE: nunca opera (nada o libera)
+}
+
+export interface PedidoDelegacao {
+  origem: Perfil;   // quem comanda / autoriza (em regra, o medico)
+  destino: Perfil;  // quem vai executar a acao
+  acao: Acao;
+  modo: Modo;
+}
+
+export interface ResultadoDelegacao {
+  permitido: boolean;
+  motivo: string;          // o "porque" — sempre explicito, para auditoria
+  exigeAuditoria: boolean; // sempre true: tudo e auditado e versionado
+}
+
+// Qual flag o EXECUTOR precisa para cada acao.
+function flagExigida(acao: Acao): "podeValidar" | "podeAssinar" | null {
+  switch (acao) {
+    case "assinar":
+      return "podeAssinar";
+    case "validar":
+    case "recusar_item":
+    case "recusar_grade":
+    case "ativar_desativar":
+      return "podeValidar";
+    case "delegar":
+      return null; // delegar e governado pela autoridade da origem (abaixo)
+  }
+}
+
+export function avaliarDelegacao(p: PedidoDelegacao): ResultadoDelegacao {
+  const aud = { exigeAuditoria: true as const };
+
+  // R1 — restricao permanente: destino que nunca opera bloqueia tudo.
+  if (p.destino.nuncaOpera) {
+    return { permitido: false, motivo: `destino '${p.destino.codigoPerfil}' tem nunca_opera (restricao permanente)`, ...aud };
+  }
+
+  // R2 — modo automatico exige que a ORIGEM (quem liga o automatico) tenha bypass.
+  if (p.modo === "modo_automatico" && !p.origem.podeBypass) {
+    return { permitido: false, motivo: `modo automatico exige pode_bypass na origem '${p.origem.codigoPerfil}'`, ...aud };
+  }
+
+  // R3 — delegar a humano exige AUTORIDADE na origem (poder validar).
+  if (p.modo === "delegado_humano" && !p.origem.podeValidar) {
+    return { permitido: false, motivo: `origem '${p.origem.codigoPerfil}' nao tem autoridade para delegar (pode_validar=false)`, ...aud };
+  }
+
+  // R4 — a acao "delegar" em si: a origem precisa poder validar (autoridade).
+  if (p.acao === "delegar" && !p.origem.podeValidar) {
+    return { permitido: false, motivo: `origem '${p.origem.codigoPerfil}' nao pode delegar (pode_validar=false)`, ...aud };
+  }
+
+  // R5 — o EXECUTOR precisa da flag exigida pela acao.
+  const flag = flagExigida(p.acao);
+  if (flag && !p.destino[flag]) {
+    return { permitido: false, motivo: `destino '${p.destino.codigoPerfil}' nao tem ${flag === "podeAssinar" ? "pode_assinar" : "pode_validar"} para '${p.acao}'`, ...aud };
+  }
+
+  // Passou em todas as travas -> autorizado (e auditado).
+  return { permitido: true, motivo: `ok: '${p.acao}' autorizada em modo '${p.modo}'`, ...aud };
+}

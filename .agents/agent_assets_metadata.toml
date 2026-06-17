@@ -485,3 +485,21 @@ id = "4HxefRyfjIe2FdOoBp8Nu"
 uri = "file://.local/.audit_work/ras_paciente_3104.pdf"
 type = "pdf"
 title = "RAS Paciente 3104 - Caio (17 paginas)"
+
+[[outputs]]
+id = "0dbPPR6liUZo94VgYMb_D"
+uri = "file://.local/.audit_work/RAS_FAP_CAIO_PREMIUM_26.06.17.pdf"
+type = "pdf"
+title = "RAS FAP — PDF PREMIUM (cor + branding)"
+
+[[outputs]]
+id = "-Z9YMIYH6QdBj6oHfHLO9"
+uri = "file://.local/.audit_work/RAS_FAP_CAIO_SIMPLES_26.06.17.pdf"
+type = "pdf"
+title = "RAS FAP — PDF SIMPLES (preto e branco, p/ impressão)"
+
+[[outputs]]
+id = "FtisuYFtiYvJhatYQD8qw"
+uri = "file://.local/.audit_work/RAS_FAP_CAIO_26.06.17.xlsx"
+type = "table"
+title = "RAS FAP — Planilha Excel (.xlsx)"
