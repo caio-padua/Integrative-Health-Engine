@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Receipt, Shield, KeyRound, Image as ImageIcon, CheckCircle2 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 export default function CredenciaisNfePage() {
   const qc = useQueryClient();
   const [adminToken, setAdminToken] = useState<string>(localStorage.getItem("padcon_admin_token") ?? "");
@@ -87,6 +88,7 @@ export default function CredenciaisNfePage() {
   });
 
   return (
+    <Layout>
     <div className="space-y-4">
       <header className="flex items-center gap-3 pb-3 border-b border-border">
         <Receipt className="w-7 h-7 text-[#1F4E5F]" />
@@ -216,5 +218,6 @@ export default function CredenciaisNfePage() {
         </div>
       </Card>
     </div>
+    </Layout>
   );
 }

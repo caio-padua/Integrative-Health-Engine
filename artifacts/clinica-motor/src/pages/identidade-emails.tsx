@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { AtSign, Shield, AlertTriangle, CheckCircle2, Power, Sparkles, ListChecks, Eraser, Filter } from "lucide-react";
 
 import { apiFetch, ensureArray } from "@/lib/api-fetch";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 const STATUS_COLORS: Record<string, string> = {
   available: "bg-slate-100 text-slate-700",
   selected: "bg-amber-100 text-amber-800",
@@ -136,7 +137,8 @@ export default function IdentidadeEmailsPage() {
   });
 
   return (
-    <div className="p-6 space-y-6 bg-[var(--pw-pergaminho)] min-h-screen">
+    <Layout>
+    <div className="p-6 space-y-6 bg-[var(--pw-pergaminho)] min-h-full">
       <div className="flex items-start gap-4 pw-borda-sagrada pl-4 py-1">
         <AtSign className="w-7 h-7 text-[var(--pw-petroleo)] mt-1" />
         <div className="flex-1">
@@ -391,5 +393,6 @@ export default function IdentidadeEmailsPage() {
         </Card>
       )}
     </div>
+    </Layout>
   );
 }

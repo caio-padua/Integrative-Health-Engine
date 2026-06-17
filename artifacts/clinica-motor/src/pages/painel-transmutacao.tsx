@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { PainelSinapticoBanner } from "@/components/sinaptico";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 
 type Linha = { antes: string; depois: string; nome: string; leitura?: string };
 type Bloco = { titulo: string; cor: string; total: number; regra: string; linhas: Linha[] };
@@ -178,7 +179,8 @@ export default function PainelTransmutacao() {
   const totalCatalogoPT = blocosKpi.reduce((s, b) => s + b.v, 0);
 
   return (
-    <div style={{ background: PALETA.offwhite, minHeight: "100vh", color: PALETA.carvao, fontFamily: "Georgia, 'Times New Roman', serif" }}>
+    <Layout>
+    <div style={{ background: PALETA.offwhite, minHeight: "100%", color: PALETA.carvao, fontFamily: "Georgia, 'Times New Roman', serif" }}>
       <div style={{ padding: "16px 24px 0", background: "#0B1220" }}>
         <PainelSinapticoBanner
           titulo="Sinapses · Transmutação Semântica V16"
@@ -273,6 +275,7 @@ export default function PainelTransmutacao() {
         </footer>
       </main>
     </div>
+    </Layout>
   );
 }
 

@@ -9,6 +9,7 @@ import { FileText, Ban, Pencil, Trash2, Shield, Eye, RefreshCcw, AlertTriangle }
 
 import { apiFetch } from "@/lib/api-fetch";
 import { PainelSinapticoBanner } from "@/components/sinaptico";
+import { LayoutPawards as Layout } from "@/components/LayoutPawards";
 const fmt = (v: any) => `R$ ${Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleString("pt-BR") : "—";
 
@@ -81,6 +82,7 @@ export default function PainelNfePage() {
   const valorMesNfe = Number(stats?.valor_mes ?? stats?.valorMes ?? 0);
 
   return (
+    <Layout>
     <div className="space-y-4">
       <PainelSinapticoBanner
         titulo="Sinapses · NFe"
@@ -336,5 +338,6 @@ export default function PainelNfePage() {
         </Card>
       )}
     </div>
+    </Layout>
   );
 }
