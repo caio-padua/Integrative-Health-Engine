@@ -1,9 +1,6 @@
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-fetch";
 import {
@@ -17,6 +14,9 @@ import {
   FUNCOES_OBJETIVO_SUGERIDAS, FINALIDADES_SUGERIDAS, ORIGEM_DADO_LABELS, UNIDADES_DOSE,
   type NaturezaAtivo,
 } from "@/lib/naturezaAtivo";
+// PENUMBRA face ESCURA "Navy Ciano" — fonte unica dos tokens (mesma usada na
+// Craniotomia, na Governanca e no Catalogo). Nao inventar hex novo aqui.
+import { PW, MONO, inputStyle, labelStyle } from "../craniotomia-shared";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
@@ -91,24 +91,144 @@ const VIA_LABELS: Record<string, string> = {
   topico: "Topico",
 };
 
-const VIA_COLORS: Record<string, string> = {
-  iv: "bg-blue-100 text-blue-800 border-blue-300",
-  im: "bg-green-100 text-green-800 border-green-300",
-  implant: "bg-purple-100 text-purple-800 border-purple-300",
-  oral: "bg-amber-100 text-amber-800 border-amber-300",
-  topico: "bg-rose-100 text-rose-800 border-rose-300",
+// Cores das vias na face escura (pasteis-neon da familia Penumbra, nao os
+// claros bg-blue-100/bg-green-100). Reusam as cores de dominio da craniotomia.
+const VIA_COR: Record<string, string> = {
+  iv: PW.azul,        // azul
+  im: PW.verde,       // verde
+  implant: PW.lilas,  // lilas
+  oral: PW.gold,      // dourado
+  topico: PW.rosa,    // rosa
 };
 
 const CATEGORIA_FILTERS = ["Todos", "antioxidante", "vitamina", "lipolitico", "coenzima", "terapia", "mineral", "complexo"];
 
+// ── CSS PENUMBRA: hover "luz por tras", foco neon, reveal de pincel ──────────
+const SUB_CSS = `
+.sub-card { transition: border-color .25s, box-shadow .25s; }
+.sub-card:hover { border-color: ${PW.borderNeon}; box-shadow: 0 0 30px -12px ${PW.cianoGlow}; }
+.sub-head { transition: background .15s; cursor: pointer; }
+.sub-head:hover { background: ${PW.bg3}; }
+.sub-btn { transition: border-color .2s, color .2s, box-shadow .2s; cursor: pointer; }
+.sub-btn:hover:not(:disabled) { border-color: ${PW.ciano}; color: ${PW.ciano}; box-shadow: 0 0 18px -8px ${PW.cianoGlow}; }
+.sub-btn:disabled { opacity: .45; cursor: not-allowed; }
+.sub-icon-btn { transition: opacity .15s, border-color .2s, color .2s, box-shadow .2s; cursor: pointer; }
+.sub-icon-btn:hover { border-color: ${PW.ciano}; color: ${PW.ciano}; box-shadow: 0 0 14px -6px ${PW.cianoGlow}; }
+.sub-pencil { opacity: 0; }
+.sub-rowgroup:hover .sub-pencil { opacity: 1; }
+.sub-overlay { position: fixed; inset: 0; background: rgba(2,10,20,0.82); display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; z-index: 60; overflow: auto; }
+.sub-tag-btn { transition: border-color .2s, color .2s; cursor: pointer; }
+.sub-tag-btn:hover { border-color: ${PW.ciano}; color: ${PW.ciano}; }
+`;
+
+// ── Estilos compartilhados ──────────────────────────────────────────────────
+const btnOutline: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  padding: "8px 14px",
+  background: PW.bg2,
+  border: `1px solid ${PW.border}`,
+  borderRadius: 0,
+  color: PW.t2,
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  fontFamily: MONO,
+};
+const btnPrimario: CSSProperties = {
+  ...btnOutline,
+  background: "rgba(95,230,204,0.12)",
+  border: `1px solid ${PW.ciano}`,
+  color: PW.ciano,
+};
+const btnDanger: CSSProperties = {
+  ...btnOutline,
+  background: "rgba(208,138,138,0.12)",
+  border: `1px solid ${PW.danger}`,
+  color: PW.danger,
+};
+const iconBtnStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 5,
+  background: "transparent",
+  border: `1px solid ${PW.border}`,
+  borderRadius: 0,
+  color: PW.muted,
+};
+const subHeadingStyle: CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: PW.muted,
+  fontFamily: MONO,
+  margin: 0,
+};
+
+function Chip({ children, cor }: { children: ReactNode; cor?: string }) {
+  const c = cor || PW.t2;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "1px 8px",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        color: c,
+        border: `1px solid ${c}`,
+        borderRadius: 0,
+        fontFamily: MONO,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ToggleBtn({ ativo, onClick, children }: { ativo: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      className="sub-btn"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "6px 12px",
+        background: ativo ? "rgba(95,230,204,0.12)" : "transparent",
+        border: `1px solid ${ativo ? PW.ciano : PW.border}`,
+        borderRadius: 0,
+        color: ativo ? PW.ciano : PW.t2,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        fontFamily: MONO,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function BeneficioItem({ icon: Icon, label, value }: { icon: any; label: string; value: string | null }) {
   if (!value) return null;
   return (
-    <div className="flex items-start gap-2 py-1.5 border-b border-border/40 last:border-0">
-      <Icon className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0", borderBottom: `1px solid ${PW.border}` }}>
+      <Icon style={{ width: 14, height: 14, marginTop: 2, color: PW.muted, flexShrink: 0 }} />
       <div>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-        <p className="text-sm text-foreground">{value}</p>
+        <span style={{ fontSize: 10, fontWeight: 700, color: PW.muted, textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</span>
+        <p style={{ fontSize: 12, color: PW.text, margin: 0 }}>{value}</p>
       </div>
     </div>
   );
@@ -116,120 +236,118 @@ function BeneficioItem({ icon: Icon, label, value }: { icon: any; label: string;
 
 function SubstanciaCard({ sub, onEdit }: { sub: Substancia; onEdit: (s: Substancia) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const natCor = corDaNatureza(sub.naturezaAtivo, "escuro");
 
   return (
-    <Card className="border transition-all hover:shadow-md group">
+    <section className="sub-card sub-rowgroup" style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0 }}>
       <div
-        className="flex items-center gap-3 p-4 cursor-pointer select-none"
+        className="sub-head"
+        style={{ display: "flex", alignItems: "center", gap: 12, padding: 16 }}
         onClick={() => setExpanded(!expanded)}
       >
         <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-          style={{ backgroundColor: sub.cor }}
+          style={{ width: 40, height: 40, borderRadius: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 13, fontFamily: MONO, flexShrink: 0, backgroundColor: sub.cor }}
         >
           {sub.abreviacao || sub.nome.substring(0, 2).toUpperCase()}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-sm truncate">{sub.nome}</h3>
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${VIA_COLORS[sub.via] || ""}`}>
-              {VIA_LABELS[sub.via] || sub.via}
-            </Badge>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: PW.text, margin: 0, fontFamily: MONO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub.nome}</h3>
+            <Chip cor={VIA_COR[sub.via] || PW.t2}>{VIA_LABELS[sub.via] || sub.via}</Chip>
             {sub.naturezaAtivo && (
               <span
-                className="text-[10px] px-1.5 py-0 border font-mono uppercase tracking-wide"
-                style={{ color: corDaNatureza(sub.naturezaAtivo, "claro") ?? undefined, borderColor: corDaNatureza(sub.naturezaAtivo, "claro") ?? undefined }}
+                style={{ fontSize: 10, padding: "1px 8px", border: `1px solid ${natCor ?? PW.muted}`, color: natCor ?? PW.muted, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.06em", borderRadius: 0 }}
               >
                 {labelDaNatureza(sub.naturezaAtivo)}
               </span>
             )}
             {sub.origemDado === "SEED_RASCUNHO" && (
-              <span className="text-[10px] px-1.5 py-0 border border-amber-400 text-amber-600 font-mono uppercase tracking-wide flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> rascunho
+              <span style={{ fontSize: 10, padding: "1px 8px", border: `1px solid ${PW.gold}`, color: PW.gold, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.06em", borderRadius: 0, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <AlertTriangle style={{ width: 11, height: 11 }} /> rascunho
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6, fontSize: 11, color: PW.muted, flexWrap: "wrap" }}>
             {sub.codigoSemantico && (
-              <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{sub.codigoSemantico}</span>
+              <span style={{ fontFamily: MONO, background: PW.bg3, padding: "1px 6px", color: PW.t2, border: `1px solid ${PW.border}` }}>{sub.codigoSemantico}</span>
             )}
             {sub.dosePadrao && (
-              <span className="flex items-center gap-1">
-                <Syringe className="h-3 w-3" />
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <Syringe style={{ width: 12, height: 12 }} />
                 {sub.dosePadrao}{sub.unidadeDose ? ` ${sub.unidadeDose}` : ""}
               </span>
             )}
             {(sub.doseMinima || sub.doseMaxima) && (
-              <span className="flex items-center gap-1 font-mono">
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: MONO }}>
                 faixa {sub.doseMinima || "?"}–{sub.doseMaxima || "?"}
               </span>
             )}
             {typeof sub.potencia === "number" && (
-              <span className="flex items-center gap-1">
-                <Gauge className="h-3 w-3" />
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <Gauge style={{ width: 12, height: 12 }} />
                 pot {sub.potencia}/5
               </span>
             )}
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <Clock style={{ width: 12, height: 12 }} />
               {sub.duracaoMinutos}min
             </span>
             {sub.precoReferencia && (
-              <span className="flex items-center gap-1">
-                <DollarSign className="h-3 w-3" />
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <DollarSign style={{ width: 12, height: 12 }} />
                 R$ {sub.precoReferencia.toFixed(2)}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex items-center gap-0.5">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {Array.from({ length: 5 }).map((_, i) => (
               <Star
                 key={i}
-                className={`h-3 w-3 ${i < sub.classificacaoEstrelas ? "text-amber-400 fill-amber-400" : "text-gray-200"}`}
+                style={{ width: 12, height: 12, color: i < sub.classificacaoEstrelas ? PW.gold : PW.border, fill: i < sub.classificacaoEstrelas ? PW.gold : "none" }}
               />
             ))}
           </div>
-          <button onClick={e => { e.stopPropagation(); onEdit(sub); }} className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded">
-            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+          <button onClick={e => { e.stopPropagation(); onEdit(sub); }} className="sub-icon-btn sub-pencil" style={iconBtnStyle}>
+            <Pencil style={{ width: 13, height: 13 }} />
           </button>
-          {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          {expanded ? <ChevronDown style={{ width: 16, height: 16, color: PW.ciano }} /> : <ChevronRight style={{ width: 16, height: 16, color: PW.muted }} />}
         </div>
       </div>
 
       {expanded && (
-        <CardContent className="pt-0 pb-4 px-4 border-t">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+        <div style={{ padding: "16px", borderTop: `1px solid ${PW.border}` }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
             <div>
               {sub.funcaoPrincipal && (
-                <div className="mb-3">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Funcao Principal</h4>
-                  <p className="text-sm">{sub.funcaoPrincipal}</p>
+                <div style={{ marginBottom: 12 }}>
+                  <h4 style={subHeadingStyle}>Funcao Principal</h4>
+                  <p style={{ fontSize: 12, color: PW.text, margin: "4px 0 0" }}>{sub.funcaoPrincipal}</p>
                 </div>
               )}
               {sub.descricao && (
-                <div className="mb-3">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Descricao</h4>
-                  <p className="text-sm">{sub.descricao}</p>
+                <div style={{ marginBottom: 12 }}>
+                  <h4 style={subHeadingStyle}>Descricao</h4>
+                  <p style={{ fontSize: 12, color: PW.text, margin: "4px 0 0" }}>{sub.descricao}</p>
                 </div>
               )}
               {sub.efeitosPercebidos && (
-                <div className="mb-3">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Efeitos Percebidos</h4>
-                  <p className="text-sm">{sub.efeitosPercebidos}</p>
+                <div style={{ marginBottom: 12 }}>
+                  <h4 style={subHeadingStyle}>Efeitos Percebidos</h4>
+                  <p style={{ fontSize: 12, color: PW.text, margin: "4px 0 0" }}>{sub.efeitosPercebidos}</p>
                 </div>
               )}
               {sub.contraindicacoes && (
-                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-red-700 mb-1">Contraindicacoes</h4>
-                  <p className="text-sm text-red-800">{sub.contraindicacoes}</p>
+                <div style={{ marginBottom: 12, padding: 10, background: "rgba(208,138,138,0.10)", border: `1px solid ${PW.danger}`, borderLeft: `3px solid ${PW.danger}` }}>
+                  <h4 style={{ ...subHeadingStyle, color: PW.danger }}>Contraindicacoes</h4>
+                  <p style={{ fontSize: 12, color: PW.danger, margin: "4px 0 0" }}>{sub.contraindicacoes}</p>
                 </div>
               )}
             </div>
 
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Beneficios</h4>
+              <h4 style={{ ...subHeadingStyle, marginBottom: 8 }}>Beneficios</h4>
               <BeneficioItem icon={Heart} label="Longevidade" value={sub.beneficioLongevidade} />
               <BeneficioItem icon={Activity} label="Qualidade de Vida" value={sub.impactoQualidadeVida} />
               <BeneficioItem icon={Moon} label="Sono" value={sub.beneficioSono} />
@@ -243,19 +361,19 @@ function SubstanciaCard({ sub, onEdit }: { sub: Substancia; onEdit: (s: Substanc
             </div>
           </div>
 
-          <div className="flex items-center gap-4 mt-3 pt-3 border-t text-xs text-muted-foreground">
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${PW.border}`, fontSize: 11, color: PW.muted, flexWrap: "wrap" }}>
             {sub.tempoParaEfeito && <span>Efeito em: {sub.tempoParaEfeito}</span>}
             {sub.maxSessoesPorSemana && <span>Max {sub.maxSessoesPorSemana}x/semana</span>}
             {sub.intervaloDias && <span>Intervalo: {sub.intervaloDias} dias</span>}
-            <span className="flex items-center gap-1">
-              <Package className="h-3 w-3" />
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <Package style={{ width: 12, height: 12 }} />
               Estoque: {sub.estoqueQuantidade} {sub.estoqueUnidade || "un"}
             </span>
             {sub.evidenciaCientifica && <span>Evidencia: {sub.evidenciaCientifica}</span>}
           </div>
-        </CardContent>
+        </div>
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -269,14 +387,14 @@ function TagMultiField({ label, values, suggestions, onChange }: {
     onChange([...values, t]); setInput("");
   };
   return (
-    <div className="space-y-1 col-span-3">
-      <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{label}</label>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: "span 3" }}>
+      <label style={labelStyle}>{label}</label>
       {values.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-1">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
           {values.map(v => (
-            <span key={v} className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-border bg-muted flex items-center gap-1">
+            <span key={v} style={{ fontSize: 10, fontFamily: MONO, textTransform: "uppercase", padding: "1px 6px", border: `1px solid ${PW.border}`, background: PW.bg3, color: PW.t2, display: "inline-flex", alignItems: "center", gap: 4 }}>
               {v}
-              <button type="button" onClick={() => onChange(values.filter(x => x !== v))}><X className="w-3 h-3" /></button>
+              <button type="button" onClick={() => onChange(values.filter(x => x !== v))} style={{ background: "transparent", border: "none", color: PW.muted, cursor: "pointer", padding: 0, display: "inline-flex" }}><X style={{ width: 11, height: 11 }} /></button>
             </span>
           ))}
         </div>
@@ -286,12 +404,12 @@ function TagMultiField({ label, values, suggestions, onChange }: {
         onChange={e => setInput(e.target.value)}
         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(input); } }}
         placeholder="Digite e tecle Enter para adicionar"
-        className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+        style={inputStyle}
       />
-      <div className="flex flex-wrap gap-1 mt-1">
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
         {suggestions.filter(s => !values.includes(s)).map(s => (
-          <button key={s} type="button" onClick={() => add(s)}
-            className="text-[10px] font-mono px-1.5 py-0.5 border border-dashed border-border text-muted-foreground hover:bg-muted">
+          <button key={s} type="button" onClick={() => add(s)} className="sub-tag-btn"
+            style={{ fontSize: 10, fontFamily: MONO, padding: "1px 6px", border: `1px dashed ${PW.border}`, color: PW.muted, background: "transparent", borderRadius: 0 }}>
             + {s}
           </button>
         ))}
@@ -378,147 +496,151 @@ function SubstanciaEditModal({ item, onClose, onSave, onDelete }: { item: Substa
     { key: "peleCabeloUnhas", label: "Pele/Cabelo/Unhas" }, { key: "suporteImunologico", label: "Suporte Imunologico" },
   ];
 
+  const subPanel: CSSProperties = { border: `1px solid ${PW.border}`, padding: 12, display: "flex", flexDirection: "column", gap: 12, background: PW.bg };
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border w-full max-w-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">{isCreate ? "Nova Substancia" : "Editar Substancia"}</h3>
-          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
-        </div>
+    <div className="sub-overlay" onClick={onClose}>
+      <div
+        style={{ width: "100%", maxWidth: 768, background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${PW.border}` }}>
+          <h3 style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", color: PW.ciano, margin: 0, fontFamily: MONO }}>{isCreate ? "Nova Substancia" : "Editar Substancia"}</h3>
+          <button onClick={onClose} className="sub-icon-btn" style={iconBtnStyle} aria-label="Fechar"><X style={{ width: 14, height: 14 }} /></button>
+        </header>
 
-        <div className="border border-border p-3 space-y-3">
-          <h4 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Classificacao do Ativo</h4>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Natureza (define a cor)</label>
-              <div className="flex items-center gap-2">
-                <span className="w-7 h-7 flex-shrink-0 border border-border" style={{ background: form.cor || "transparent" }} />
+        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={subPanel}>
+            <h4 style={subHeadingStyle}>Classificacao do Ativo</h4>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={labelStyle}>Natureza (define a cor)</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 28, height: 28, flexShrink: 0, border: `1px solid ${PW.border}`, background: form.cor || "transparent" }} />
+                  <select
+                    value={form.naturezaAtivo || ""}
+                    onChange={e => escolherNatureza(e.target.value)}
+                    style={{ ...inputStyle, flex: 1 }}
+                  >
+                    <option value="">— sem natureza —</option>
+                    {NATUREZA_KEYS.map(k => <option key={k} value={k}>{NATUREZAS_ATIVO[k].label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={labelStyle}>Potencia (1-5)</label>
                 <select
-                  value={form.naturezaAtivo || ""}
-                  onChange={e => escolherNatureza(e.target.value)}
-                  className="flex-1 bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                >
-                  <option value="">— sem natureza —</option>
-                  {NATUREZA_KEYS.map(k => <option key={k} value={k}>{NATUREZAS_ATIVO[k].label}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Potencia (1-5)</label>
-              <select
-                value={form.potencia ?? ""}
-                onChange={e => setForm({ ...form, potencia: e.target.value })}
-                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-              >
-                <option value="">—</option>
-                {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Procedencia do dado</label>
-              <select
-                value={form.origemDado || "OPERADOR"}
-                onChange={e => setForm({ ...form, origemDado: e.target.value })}
-                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-              >
-                {Object.entries(ORIGEM_DADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Eficacia (estrelas 1-5)</label>
-              <select
-                value={form.classificacaoEstrelas ?? ""}
-                onChange={e => setForm({ ...form, classificacaoEstrelas: e.target.value === "" ? null : Number(e.target.value) })}
-                className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-              >
-                <option value="">—</option>
-                {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <TagMultiField
-              label="Funcoes Objetivo (multi)"
-              values={form.funcoesObjetivo || []}
-              suggestions={FUNCOES_OBJETIVO_SUGERIDAS}
-              onChange={v => setForm({ ...form, funcoesObjetivo: v })}
-            />
-            <TagMultiField
-              label="Finalidades (multi)"
-              values={form.finalidades || []}
-              suggestions={FINALIDADES_SUGERIDAS}
-              onChange={v => setForm({ ...form, finalidades: v })}
-            />
-          </div>
-
-          <div className="border border-border p-3 space-y-2">
-            <h4 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Faixa de Dose</h4>
-            <div className="grid grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Minima</label>
-                <input value={form.doseMinima || ""} onChange={e => setForm({ ...form, doseMinima: e.target.value })}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Media</label>
-                <input value={form.doseMedia || ""} onChange={e => setForm({ ...form, doseMedia: e.target.value })}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Dose Maxima</label>
-                <input value={form.doseMaxima || ""} onChange={e => setForm({ ...form, doseMaxima: e.target.value })}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Unidade (min/media/max)</label>
-                <select
-                  value={form.unidadeDose || ""}
-                  onChange={e => setForm({ ...form, unidadeDose: e.target.value })}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                  value={form.potencia ?? ""}
+                  onChange={e => setForm({ ...form, potencia: e.target.value })}
+                  style={inputStyle}
                 >
                   <option value="">—</option>
-                  {UNIDADES_DOSE.map(u => <option key={u} value={u}>{u}</option>)}
+                  {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={labelStyle}>Procedencia do dado</label>
+                <select
+                  value={form.origemDado || "OPERADOR"}
+                  onChange={e => setForm({ ...form, origemDado: e.target.value })}
+                  style={inputStyle}
+                >
+                  {Object.entries(ORIGEM_DADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={labelStyle}>Eficacia (estrelas 1-5)</label>
+                <select
+                  value={form.classificacaoEstrelas ?? ""}
+                  onChange={e => setForm({ ...form, classificacaoEstrelas: e.target.value === "" ? null : Number(e.target.value) })}
+                  style={inputStyle}
+                >
+                  <option value="">—</option>
+                  {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <TagMultiField
+                label="Funcoes Objetivo (multi)"
+                values={form.funcoesObjetivo || []}
+                suggestions={FUNCOES_OBJETIVO_SUGERIDAS}
+                onChange={v => setForm({ ...form, funcoesObjetivo: v })}
+              />
+              <TagMultiField
+                label="Finalidades (multi)"
+                values={form.finalidades || []}
+                suggestions={FINALIDADES_SUGERIDAS}
+                onChange={v => setForm({ ...form, finalidades: v })}
+              />
+            </div>
+
+            <div style={{ border: `1px solid ${PW.border}`, padding: 12, display: "flex", flexDirection: "column", gap: 8, background: PW.bg2 }}>
+              <h4 style={subHeadingStyle}>Faixa de Dose</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={labelStyle}>Dose Minima</label>
+                  <input value={form.doseMinima || ""} onChange={e => setForm({ ...form, doseMinima: e.target.value })} style={inputStyle} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={labelStyle}>Dose Media</label>
+                  <input value={form.doseMedia || ""} onChange={e => setForm({ ...form, doseMedia: e.target.value })} style={inputStyle} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={labelStyle}>Dose Maxima</label>
+                  <input value={form.doseMaxima || ""} onChange={e => setForm({ ...form, doseMaxima: e.target.value })} style={inputStyle} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={labelStyle}>Unidade (min/media/max)</label>
+                  <select
+                    value={form.unidadeDose || ""}
+                    onChange={e => setForm({ ...form, unidadeDose: e.target.value })}
+                    style={inputStyle}
+                  >
+                    <option value="">—</option>
+                    {UNIDADES_DOSE.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          {fields.map(f => (
-            <div key={f.key} className={`space-y-1 ${f.type === "textarea" ? "col-span-3" : ""}`}>
-              <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{f.label}</label>
-              {f.type === "textarea" ? (
-                <textarea value={form[f.key] || ""} onChange={e => setForm({...form, [f.key]: e.target.value})}
-                  rows={2} className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none resize-none" />
-              ) : (f as any).options ? (
-                <select value={form[f.key] || ""} onChange={e => setForm({...form, [f.key]: e.target.value})}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none">
-                  {(f as any).options.map((o: string) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              ) : (
-                <input type={f.type || "text"} value={form[f.key] ?? ""} onChange={e => setForm({...form, [f.key]: f.type === "number" ? Number(e.target.value) : e.target.value})}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
-              )}
-            </div>
-          ))}
-        </div>
-        <div>
-          <h4 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">Beneficios</h4>
-          <div className="grid grid-cols-2 gap-3">
-            {beneficioFields.map(f => (
-              <div key={f.key} className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{f.label}</label>
-                <input value={form[f.key] || ""} onChange={e => setForm({...form, [f.key]: e.target.value})}
-                  className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none" />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            {fields.map(f => (
+              <div key={f.key} style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: f.type === "textarea" ? "span 3" : undefined }}>
+                <label style={labelStyle}>{f.label}</label>
+                {f.type === "textarea" ? (
+                  <textarea value={form[f.key] || ""} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                    rows={2} style={{ ...inputStyle, resize: "none" }} />
+                ) : (f as any).options ? (
+                  <select value={form[f.key] || ""} onChange={e => setForm({ ...form, [f.key]: e.target.value })} style={inputStyle}>
+                    {(f as any).options.map((o: string) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type || "text"} value={form[f.key] ?? ""} onChange={e => setForm({ ...form, [f.key]: f.type === "number" ? Number(e.target.value) : e.target.value })}
+                    style={inputStyle} />
+                )}
               </div>
             ))}
           </div>
-        </div>
-        <div className="flex gap-2 pt-2 border-t border-border">
-          <Button className="flex-1 text-xs h-9" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : isCreate ? "Cadastrar Substancia" : "Salvar Alteracoes"}</Button>
-          <Button variant="outline" className="text-xs h-9" onClick={onClose}>Cancelar</Button>
-          {!isCreate && (
-            <Button variant="destructive" className="text-xs h-9 gap-1" onClick={onDelete}><Trash2 className="w-3 h-3" /> Excluir</Button>
-          )}
+
+          <div>
+            <h4 style={{ ...subHeadingStyle, marginBottom: 8 }}>Beneficios</h4>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+              {beneficioFields.map(f => (
+                <div key={f.key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={labelStyle}>{f.label}</label>
+                  <input value={form[f.key] || ""} onChange={e => setForm({ ...form, [f.key]: e.target.value })} style={inputStyle} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, paddingTop: 12, borderTop: `1px solid ${PW.border}` }}>
+            <button className="sub-btn" style={{ ...btnPrimario, flex: 1 }} onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : isCreate ? "Cadastrar Substancia" : "Salvar Alteracoes"}</button>
+            <button className="sub-btn" style={btnOutline} onClick={onClose}>Cancelar</button>
+            {!isCreate && (
+              <button className="sub-btn" style={btnDanger} onClick={onDelete}><Trash2 style={{ width: 13, height: 13 }} /> Excluir</button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -558,96 +680,81 @@ export default function Substancias() {
 
   return (
     <Layout>
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Substancias Pawards</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Catalogo unificado de substancias para sessoes (IV, IM, Implantes)
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <FlaskConical className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium">{substancias.length} substancias</span>
-            </div>
-            <Button size="sm" className="text-xs gap-1" onClick={() => setEditing(novaSubstanciaVazia())}>
-              <Plus className="h-4 w-4" /> Nova Substancia
-            </Button>
-          </div>
-        </div>
+      <style>{SUB_CSS}</style>
+      <div style={{ padding: 24, minHeight: "100%", background: PW.bg, color: PW.text, fontFamily: MONO }}>
+        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
 
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+          {/* Cabecalho */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap", borderLeft: `3px solid ${PW.ciano}`, paddingLeft: 14 }}>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "0.04em", color: PW.text, margin: 0 }}>
+                SUBSTANCIAS PAWARDS
+              </h1>
+              <p style={{ fontSize: 12, color: PW.t2, marginTop: 6, maxWidth: 760, lineHeight: 1.5 }}>
+                Catalogo unificado de substancias para sessoes (IV, IM, Implantes)
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: PW.t2 }}>
+                <FlaskConical style={{ width: 18, height: 18, color: PW.ciano }} />
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{substancias.length} substancias</span>
+              </div>
+              <button className="sub-btn" style={btnPrimario} onClick={() => setEditing(novaSubstanciaVazia())}>
+                <Plus style={{ width: 14, height: 14 }} /> Nova Substancia
+              </button>
+            </div>
+          </div>
+
+          {/* Painel de filtros */}
+          <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0, padding: 16 }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+                <Search style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, color: PW.muted }} />
+                <input
                   placeholder="Buscar por nome..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10"
+                  style={{ ...inputStyle, paddingLeft: 34 }}
                 />
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {CATEGORIA_FILTERS.map((cat) => (
-                  <Button
-                    key={cat}
-                    variant={categoriaFiltro === cat ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCategoriaFiltro(cat)}
-                    className="text-xs"
-                  >
+                  <ToggleBtn key={cat} ativo={categoriaFiltro === cat} onClick={() => setCategoriaFiltro(cat)}>
                     {cat === "Todos" ? "Todos" : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </Button>
+                  </ToggleBtn>
                 ))}
               </div>
             </div>
-            <div className="flex gap-2 mt-3 flex-wrap">
-              <Button
-                variant={viaFiltro === "Todos" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViaFiltro("Todos")}
-                className="text-xs"
-              >
-                Todas Vias
-              </Button>
+            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              <ToggleBtn ativo={viaFiltro === "Todos"} onClick={() => setViaFiltro("Todos")}>Todas Vias</ToggleBtn>
               {Object.entries(VIA_LABELS).map(([key, label]) => (
-                <Button
-                  key={key}
-                  variant={viaFiltro === key ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViaFiltro(key)}
-                  className="text-xs"
-                >
+                <ToggleBtn key={key} ativo={viaFiltro === key} onClick={() => setViaFiltro(key)}>
                   {label} {viaCount[key] ? `(${viaCount[key]})` : ""}
-                </Button>
+                </ToggleBtn>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </section>
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="h-20 animate-pulse bg-muted" />
-            ))}
+          {isLoading ? (
+            <div style={{ textAlign: "center", padding: "32px 0", color: PW.muted, fontSize: 13, fontFamily: MONO }}>Carregando...</div>
+          ) : substancias.length === 0 ? (
+            <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0, padding: "48px 24px", textAlign: "center" }}>
+              <FlaskConical style={{ width: 48, height: 48, margin: "0 auto 16px", color: PW.muted }} />
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: PW.text, margin: "0 0 4px" }}>Nenhuma substancia encontrada</h3>
+              <p style={{ fontSize: 12, color: PW.muted, margin: 0 }}>Ajuste os filtros ou adicione novas substancias</p>
+            </section>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {substancias.map((sub) => (
+                <SubstanciaCard key={sub.id} sub={sub} onEdit={setEditing} />
+              ))}
+            </div>
+          )}
+
+          <div style={{ fontSize: 10, color: PW.muted, textAlign: "center", paddingTop: 8, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Developed and Supervised by PADCON
           </div>
-        ) : substancias.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <FlaskConical className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
-              <h3 className="font-semibold text-lg mb-1">Nenhuma substancia encontrada</h3>
-              <p className="text-sm text-muted-foreground">Ajuste os filtros ou adicione novas substancias</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {substancias.map((sub) => (
-              <SubstanciaCard key={sub.id} sub={sub} onEdit={setEditing} />
-            ))}
-          </div>
-        )}
+        </div>
 
         {editing && (
           <SubstanciaEditModal

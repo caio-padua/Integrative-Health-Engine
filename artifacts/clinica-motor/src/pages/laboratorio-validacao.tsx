@@ -1,16 +1,12 @@
 import { Fragment, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Edit3, ShieldCheck, History, AlertCircle } from "lucide-react";
+import { Edit3, ShieldCheck, History, AlertCircle, Search, X } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
-const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
+// PENUMBRA face ESCURA "Navy Ciano" — fonte unica dos tokens (mesma usada na
+// Craniotomia e na Governanca). Nao inventar hex novo aqui.
+import { PW, MONO, inputStyle, labelStyle } from "./craniotomia-shared";
 
 type Analito = {
   codigo: string; nome: string; grupo: string;
@@ -21,21 +17,86 @@ type Analito = {
   ativo: boolean;
 };
 
+// Cores dos tercos na face escura (pasteis-neon, nao os verdes/azuis claros).
 const COR_TERCO: Record<string, string> = {
-  SUPERIOR: "#16a34a",
-  MEDIO:    "#facc15",
-  INFERIOR: "#2563eb",
+  SUPERIOR: PW.ciano,   // excelente "para cima"
+  MEDIO:    PW.gold,    // janela estreita do meio
+  INFERIOR: PW.azul,    // invertido (azul da face)
 };
 
 const ROTULO_TERCO: Record<string, string> = {
-  SUPERIOR: "Terço SUPERIOR é excelente",
-  MEDIO:    "Terço MÉDIO é excelente (janela estreita)",
-  INFERIOR: "Terço INFERIOR é excelente (analito INVERTIDO)",
+  SUPERIOR: "Terco SUPERIOR e excelente",
+  MEDIO:    "Terco MEDIO e excelente (janela estreita)",
+  INFERIOR: "Terco INFERIOR e excelente (analito INVERTIDO)",
+};
+
+const LV_CSS = `
+.lv-painel { transition: border-color .25s, box-shadow .25s; }
+.lv-painel:hover { border-color: ${PW.borderNeon}; box-shadow: 0 0 32px -14px ${PW.cianoGlow}; }
+.lv-row { transition: background .15s; }
+.lv-row:hover { background: ${PW.bg3}; }
+.lv-btn { transition: border-color .2s, color .2s, box-shadow .2s; cursor: pointer; }
+.lv-btn:hover:not(:disabled) { border-color: ${PW.ciano}; color: ${PW.ciano}; box-shadow: 0 0 18px -8px ${PW.cianoGlow}; }
+.lv-btn:disabled { opacity:.45; cursor:not-allowed; }
+.lv-overlay { position: fixed; inset: 0; background: rgba(2,10,20,0.82); display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; z-index: 60; overflow: auto; }
+`;
+
+const th: CSSProperties = {
+  textAlign: "left",
+  padding: "8px 12px",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+  color: PW.muted,
+  borderBottom: `1px solid ${PW.border}`,
+};
+const td: CSSProperties = {
+  padding: "10px 12px",
+  fontSize: 12,
+  color: PW.text,
+  borderBottom: `1px solid ${PW.border}`,
+  verticalAlign: "top",
+};
+
+const btnOutline: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "6px 12px",
+  background: "transparent",
+  border: `1px solid ${PW.border}`,
+  borderRadius: 0,
+  color: PW.t2,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  fontFamily: MONO,
+};
+const btnPrimario: CSSProperties = {
+  ...btnOutline,
+  border: `1px solid ${PW.ciano}`,
+  color: PW.ciano,
 };
 
 function badgeTerco(t: string) {
+  const c = COR_TERCO[t] ?? PW.muted;
   return (
-    <span className="px-2 py-0.5 rounded-full text-xs font-medium text-white" style={{ background: COR_TERCO[t] ?? "#6b7280" }}>
+    <span
+      style={{
+        display: "inline-block",
+        padding: "1px 8px",
+        border: `1px solid ${c}`,
+        borderRadius: 0,
+        color: c,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        fontFamily: MONO,
+      }}
+    >
       {t}
     </span>
   );
@@ -106,140 +167,178 @@ export default function LaboratorioValidacao() {
 
   return (
     <Layout>
-      <div className="p-6 space-y-4 max-w-6xl mx-auto">
-        <div className="flex items-baseline justify-between flex-wrap gap-2">
-          <div>
-            <h1 className="text-2xl font-bold" style={{ color: "#1F4E5F" }}>
-              Validação semântica de analitos
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Para cada analito, defina qual <strong>terço da faixa de referência é o excelente</strong> na medicina integrativa.
-              A maioria favorece o terço superior; alguns (SHBG, TSH, insulina, PCR, glicose, homocisteína) são <strong>invertidos</strong>; potássio e ferritina favorecem o terço médio.
-            </p>
+      <style>{LV_CSS}</style>
+      <div style={{ padding: 24, minHeight: "100%", background: PW.bg, color: PW.text, fontFamily: MONO }}>
+        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Cabecalho */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap", borderLeft: `3px solid ${PW.ciano}`, paddingLeft: 14 }}>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "0.04em", color: PW.text, margin: 0 }}>
+                VALIDACAO SEMANTICA DE ANALITOS
+              </h1>
+              <p style={{ fontSize: 12, color: PW.t2, marginTop: 6, maxWidth: 760, lineHeight: 1.5 }}>
+                Para cada analito, defina qual <strong style={{ color: PW.ciano }}>terco da faixa de referencia e o excelente</strong> na medicina integrativa.
+                A maioria favorece o terco superior; alguns (SHBG, TSH, insulina, PCR, glicose, homocisteina) sao <strong style={{ color: PW.text }}>invertidos</strong>; potassio e ferritina favorecem o terco medio.
+              </p>
+            </div>
+            <ShieldCheck style={{ width: 28, height: 28, color: PW.ciano, flexShrink: 0 }} />
           </div>
-          <ShieldCheck className="h-8 w-8" style={{ color: "#1F4E5F" }} />
-        </div>
 
-        {erro && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-red-700 text-sm flex items-center gap-2"><AlertCircle className="h-4 w-4" />{erro}</div>}
+          {erro && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: PW.bg2, border: `1px solid ${PW.danger}`, borderLeft: `3px solid ${PW.danger}`, color: PW.danger, fontSize: 12 }}>
+              <AlertCircle style={{ width: 16, height: 16 }} />{erro}
+            </div>
+          )}
 
-        <Card>
-          <CardHeader className="pb-3">
-            <Input placeholder="Buscar por nome, código ou grupo..." value={busca} onChange={e => setBusca(e.target.value)} className="max-w-md" />
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Analito</TableHead>
-                  <TableHead>Grupo</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Terço excelente</TableHead>
-                  <TableHead>Origem da regra</TableHead>
-                  <TableHead className="text-right">Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {grupos.map(g => (
-                  <Fragment key={g}>
-                    <TableRow className="bg-muted/30">
-                      <TableCell colSpan={6} className="text-xs font-bold uppercase tracking-wider text-muted-foreground py-1">{g}</TableCell>
-                    </TableRow>
-                    {filtrados.filter(a => a.grupo === g).map(a => (
-                      <TableRow key={a.codigo}>
-                        <TableCell>
-                          <div className="font-medium">{a.nome}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{a.codigo}</div>
-                        </TableCell>
-                        <TableCell className="text-sm">{a.grupo}</TableCell>
-                        <TableCell className="text-sm">{a.unidade_padrao_integrativa}</TableCell>
-                        <TableCell>
-                          {badgeTerco(a.terco_excelente)}
-                          <div className="text-xs text-muted-foreground mt-1">{ROTULO_TERCO[a.terco_excelente]}</div>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {a.origem_referencia || <span className="text-muted-foreground italic">sem origem</span>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button size="sm" variant="outline" onClick={() => abrirEdicao(a)}>
-                            <Edit3 className="h-3 w-3 mr-1" /> Validar
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+          {/* Painel da tabela */}
+          <section className="lv-painel" style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0 }}>
+            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${PW.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ShieldCheck style={{ width: 16, height: 16, color: PW.ciano }} />
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: PW.t2 }}>
+                  Analitos cadastrados ({filtrados.length})
+                </span>
+              </div>
+              <div style={{ position: "relative", maxWidth: 320, width: "100%" }}>
+                <Search style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: PW.muted }} />
+                <input
+                  placeholder="Buscar por nome, codigo ou grupo..."
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
+                  style={{ ...inputStyle, paddingLeft: 28 }}
+                />
+              </div>
+            </header>
 
-        <div className="text-xs text-muted-foreground text-center pt-4 tracking-wider">
-          Developed and Supervised by PADCON
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: MONO }}>
+                <thead>
+                  <tr>
+                    <th style={th}>Analito</th>
+                    <th style={th}>Grupo</th>
+                    <th style={th}>Unidade</th>
+                    <th style={th}>Terco excelente</th>
+                    <th style={th}>Origem da regra</th>
+                    <th style={{ ...th, textAlign: "right" }}>Acao</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grupos.map(g => (
+                    <Fragment key={g}>
+                      <tr style={{ background: PW.bg3 }}>
+                        <td colSpan={6} style={{ ...td, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: PW.muted, padding: "6px 12px" }}>{g}</td>
+                      </tr>
+                      {filtrados.filter(a => a.grupo === g).map(a => (
+                        <tr key={a.codigo} className="lv-row">
+                          <td style={td}>
+                            <div style={{ fontWeight: 700, color: PW.text }}>{a.nome}</div>
+                            <div style={{ fontSize: 10, color: PW.muted }}>{a.codigo}</div>
+                          </td>
+                          <td style={{ ...td, color: PW.t2 }}>{a.grupo}</td>
+                          <td style={{ ...td, color: PW.t2 }}>{a.unidade_padrao_integrativa}</td>
+                          <td style={td}>
+                            {badgeTerco(a.terco_excelente)}
+                            <div style={{ fontSize: 10, color: PW.muted, marginTop: 4 }}>{ROTULO_TERCO[a.terco_excelente]}</div>
+                          </td>
+                          <td style={{ ...td, color: PW.t2 }}>
+                            {a.origem_referencia || <span style={{ color: PW.muted, fontStyle: "italic" }}>sem origem</span>}
+                          </td>
+                          <td style={{ ...td, textAlign: "right" }}>
+                            <button className="lv-btn" style={btnOutline} onClick={() => abrirEdicao(a)}>
+                              <Edit3 style={{ width: 12, height: 12 }} /> Validar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                  {grupos.length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ ...td, textAlign: "center", color: PW.muted, padding: "24px 0" }}>Nenhum analito encontrado</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <div style={{ fontSize: 10, color: PW.muted, textAlign: "center", paddingTop: 8, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Developed and Supervised by PADCON
+          </div>
         </div>
       </div>
 
-      <Dialog open={!!editando} onOpenChange={(o) => !o && setEditando(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle style={{ color: "#1F4E5F" }}>
-              Validar regra integrativa: {editando?.nome}
-            </DialogTitle>
-          </DialogHeader>
-          {editando && (
-            <div className="space-y-4">
+      {/* Modal de validacao (PENUMBRA proprio, substitui shadcn Dialog) */}
+      {editando && (
+        <div className="lv-overlay" onClick={() => setEditando(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 640, background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0 }}
+          >
+            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${PW.border}` }}>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", color: PW.ciano }}>
+                Validar regra integrativa: {editando.nome}
+              </span>
+              <button className="lv-btn" style={{ ...btnOutline, padding: 6 }} onClick={() => setEditando(null)} aria-label="Fechar">
+                <X style={{ width: 14, height: 14 }} />
+              </button>
+            </header>
+
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
-                <label className="text-sm font-medium block mb-1">Qual terço da faixa é o excelente?</label>
-                <Select value={tercoEx} onValueChange={(v) => setTercoEx(v as any)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SUPERIOR">SUPERIOR — terço de cima (padrão para hormônios, vitaminas, minerais)</SelectItem>
-                    <SelectItem value="INFERIOR">INFERIOR — terço de baixo (INVERTIDO: SHBG, TSH, insulina, PCR, glicose)</SelectItem>
-                    <SelectItem value="MEDIO">MÉDIO — terço do meio (janela estreita: potássio, ferritina)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label style={labelStyle}>Qual terco da faixa e o excelente?</label>
+                <select value={tercoEx} onChange={(e) => setTercoEx(e.target.value as any)} style={inputStyle}>
+                  <option value="SUPERIOR">SUPERIOR — terco de cima (padrao para hormonios, vitaminas, minerais)</option>
+                  <option value="INFERIOR">INFERIOR — terco de baixo (INVERTIDO: SHBG, TSH, insulina, PCR, glicose)</option>
+                  <option value="MEDIO">MEDIO — terco do meio (janela estreita: potassio, ferritina)</option>
+                </select>
               </div>
 
               <div>
-                <label className="text-sm font-medium block mb-1">Observação clínica (aparece no gráfico do paciente)</label>
-                <Textarea value={obs} onChange={e => setObs(e.target.value)} rows={3}
-                  placeholder="Ex: SHBG alto sequestra testosterona livre. Terço inferior = excelente." />
+                <label style={labelStyle}>Observacao clinica (aparece no grafico do paciente)</label>
+                <textarea value={obs} onChange={e => setObs(e.target.value)} rows={3}
+                  placeholder="Ex: SHBG alto sequestra testosterona livre. Terco inferior = excelente."
+                  style={{ ...inputStyle, resize: "vertical" }} />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label className="text-sm font-medium block mb-1">Origem da regra</label>
-                  <Input value={origem} onChange={e => setOrigem(e.target.value)} placeholder="ex: JOAO_HIPOCONDRIACO, INSTITUTO_PADUA" />
+                  <label style={labelStyle}>Origem da regra</label>
+                  <input value={origem} onChange={e => setOrigem(e.target.value)} placeholder="ex: JOAO_HIPOCONDRIACO, INSTITUTO_PADUA" style={inputStyle} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium block mb-1">Quem está validando</label>
-                  <Input value={validador} onChange={e => setValidador(e.target.value)} placeholder="ex: Dr. Caio" />
+                  <label style={labelStyle}>Quem esta validando</label>
+                  <input value={validador} onChange={e => setValidador(e.target.value)} placeholder="ex: Dr. Caio" style={inputStyle} />
                 </div>
               </div>
 
               {historico.length > 0 && (
-                <div className="rounded-md border bg-muted/20 p-3">
-                  <div className="text-xs font-bold flex items-center gap-1 mb-2"><History className="h-3 w-3" /> Validações anteriores</div>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                <div style={{ background: PW.bg, border: `1px solid ${PW.border}`, borderRadius: 0, padding: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: PW.t2, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    <History style={{ width: 12, height: 12 }} /> Validacoes anteriores
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 128, overflowY: "auto" }}>
                     {historico.map((h: any) => (
-                      <div key={h.id} className="text-xs flex justify-between gap-2 border-b border-dashed pb-1">
-                        <span><strong>{h.validado_por || "anon"}</strong> → {h.terco_excelente_novo || "(sem mudança)"}</span>
-                        <span className="text-muted-foreground">{new Date(h.criado_em).toLocaleString("pt-BR")}</span>
+                      <div key={h.id} style={{ fontSize: 11, display: "flex", justifyContent: "space-between", gap: 8, borderBottom: `1px dashed ${PW.border}`, paddingBottom: 4 }}>
+                        <span style={{ color: PW.text }}><strong style={{ color: PW.ciano }}>{h.validado_por || "anon"}</strong> &rarr; {h.terco_excelente_novo || "(sem mudanca)"}</span>
+                        <span style={{ color: PW.muted }}>{new Date(h.criado_em).toLocaleString("pt-BR")}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>
-                <Button onClick={salvar} disabled={salvando} style={{ background: "#1F4E5F" }}>
-                  {salvando ? "Salvando..." : "Salvar validação"}
-                </Button>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 4 }}>
+                <button className="lv-btn" style={btnOutline} onClick={() => setEditando(null)}>Cancelar</button>
+                <button className="lv-btn" style={btnPrimario} onClick={salvar} disabled={salvando}>
+                  {salvando ? "Salvando..." : "Salvar validacao"}
+                </button>
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

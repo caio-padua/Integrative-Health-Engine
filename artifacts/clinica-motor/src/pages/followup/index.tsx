@@ -1,7 +1,7 @@
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  useListarFollowups, getListarFollowupsQueryKey, 
+import type { CSSProperties } from "react";
+import {
+  useListarFollowups, getListarFollowupsQueryKey,
   useCriarFollowup,
   useConcluirFollowup,
   FollowupTipo,
@@ -10,26 +10,21 @@ import {
   useListarPacientes,
   getListarPacientesQueryKey
 } from "@workspace/api-client-react";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, CalendarClock, CheckCircle, Clock, Pencil, X, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/contexts/ClinicContext";
 
 import { apiFetch } from "@/lib/api-fetch";
+// PENUMBRA face ESCURA "Navy Ciano" — fonte unica dos tokens (mesma usada na
+// Craniotomia, Governanca e Laboratorio-Validacao). Nao inventar hex novo aqui.
+import { PW, MONO, inputStyle, labelStyle } from "../craniotomia-shared";
+
 const followupSchema = z.object({
   pacienteId: z.coerce.number().min(1, "Paciente é obrigatório"),
   tipo: z.nativeEnum(CriarFollowupBodyTipo),
@@ -39,12 +34,126 @@ const followupSchema = z.object({
   unidadeId: z.coerce.number().default(1),
 });
 
+// ── CSS PENUMBRA: hover "luz por tras", foco neon, linhas de tabela ──────────
+const FU_CSS = `
+.fu-painel { transition: border-color .25s, box-shadow .25s; }
+.fu-painel:hover { border-color: ${PW.borderNeon}; box-shadow: 0 0 32px -14px ${PW.cianoGlow}; }
+.fu-row { transition: background .15s; }
+.fu-row:hover { background: ${PW.bg3}; }
+.fu-row .fu-pencil { opacity: 0; transition: opacity .15s; }
+.fu-row:hover .fu-pencil { opacity: 1; }
+.fu-btn { transition: border-color .2s, color .2s, box-shadow .2s; cursor: pointer; }
+.fu-btn:hover:not(:disabled) { border-color: ${PW.ciano}; color: ${PW.ciano}; box-shadow: 0 0 18px -8px ${PW.cianoGlow}; }
+.fu-btn:disabled { opacity: .45; cursor: not-allowed; }
+.fu-input:focus { border-color: ${PW.ciano}; box-shadow: 0 0 18px -8px ${PW.cianoGlow}; outline: none; }
+.fu-overlay { position: fixed; inset: 0; background: rgba(2,10,20,0.82); display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; z-index: 60; overflow: auto; }
+`;
+
+const th: CSSProperties = {
+  textAlign: "left",
+  padding: "8px 12px",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+  color: PW.muted,
+  borderBottom: `1px solid ${PW.border}`,
+};
+const td: CSSProperties = {
+  padding: "10px 12px",
+  fontSize: 12,
+  color: PW.text,
+  borderBottom: `1px solid ${PW.border}`,
+  verticalAlign: "top",
+};
+
+const btnOutline: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "6px 12px",
+  background: "transparent",
+  border: `1px solid ${PW.border}`,
+  borderRadius: 0,
+  color: PW.t2,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  fontFamily: MONO,
+};
+const btnPrimario: CSSProperties = {
+  ...btnOutline,
+  border: `1px solid ${PW.ciano}`,
+  color: PW.ciano,
+};
+const btnDanger: CSSProperties = {
+  ...btnOutline,
+  border: `1px solid ${PW.danger}`,
+  color: PW.danger,
+};
+
+// ── Status -> tokens da face escura (neon sobre fundo escuro) ────────────────
+const STATUS_COR: Record<string, string> = {
+  realizado: PW.ok,
+  cancelado: PW.danger,
+  atrasado: PW.danger,
+  agendado: PW.warn,
+};
+
+function badgeStatus(status: string) {
+  const c = STATUS_COR[status] ?? PW.muted;
+  const solido = status === "atrasado";
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "1px 8px",
+        border: `1px solid ${c}`,
+        borderRadius: 0,
+        color: solido ? PW.bg : c,
+        background: solido ? c : "transparent",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        fontFamily: MONO,
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
+function badgeTipo(tipo: string) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "1px 8px",
+        border: `1px solid ${PW.border}`,
+        borderRadius: 0,
+        color: PW.t2,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        fontFamily: MONO,
+      }}
+    >
+      {tipo}
+    </span>
+  );
+}
+
+const erroStyle: CSSProperties = { fontSize: 10, color: PW.danger, marginTop: 4, letterSpacing: "0.04em" };
+
 export default function FollowupPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { unidadeSelecionada } = useClinic();
   const queryClient = useQueryClient();
-  
+
   const clinicFilter = unidadeSelecionada ? { unidadeId: unidadeSelecionada } : {};
   const { data: followups, isLoading } = useListarFollowups(clinicFilter, {
     query: { queryKey: getListarFollowupsQueryKey(clinicFilter) }
@@ -53,7 +162,7 @@ export default function FollowupPage() {
   const { data: pacientes } = useListarPacientes(clinicFilter, {
     query: { queryKey: getListarPacientesQueryKey(clinicFilter) }
   });
-  
+
   const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
   const [open, setOpen] = useState(false);
   const [concluirId, setConcluirId] = useState<number | null>(null);
@@ -150,310 +259,319 @@ export default function FollowupPage() {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "realizado": return "bg-green-500/20 text-green-500 border-none";
-      case "cancelado": return "bg-red-500/20 text-red-500 border-none";
-      case "atrasado": return "bg-red-500 text-white";
-      default: return "bg-yellow-500/20 text-yellow-500 border-none";
-    }
-  };
+  const errors = form.formState.errors;
+  const concluirFw = followups?.find((fw) => fw.id === concluirId) || null;
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <CalendarClock className="h-8 w-8 text-primary" />
-              Follow-up
-            </h1>
-            <p className="text-muted-foreground mt-1">Acompanhamento contínuo e agendamentos.</p>
+      <style>{FU_CSS}</style>
+      <div style={{ padding: 24, minHeight: "100%", background: PW.bg, color: PW.text, fontFamily: MONO }}>
+        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Cabecalho */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap", borderLeft: `3px solid ${PW.ciano}`, paddingLeft: 14 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <CalendarClock style={{ width: 28, height: 28, color: PW.ciano, flexShrink: 0 }} />
+              <div>
+                <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "0.04em", color: PW.text, margin: 0 }}>
+                  FOLLOW-UP
+                </h1>
+                <p style={{ fontSize: 12, color: PW.t2, marginTop: 6, maxWidth: 760, lineHeight: 1.5 }}>
+                  Acompanhamento continuo e agendamentos.
+                </p>
+              </div>
+            </div>
+            <button className="fu-btn" style={btnPrimario} onClick={() => setOpen(true)}>
+              <Plus style={{ width: 14, height: 14 }} /> Agendar
+            </button>
           </div>
-          
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Agendar
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Novo Follow-up</DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="pacienteId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Paciente</FormLabel>
-                        <Select 
-                          onValueChange={(val) => field.onChange(parseInt(val))} 
-                          defaultValue={field.value ? field.value.toString() : ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um paciente..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {pacientes?.map(p => (
-                              <SelectItem key={p.id} value={p.id.toString()}>{p.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="tipo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tipo</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {Object.values(CriarFollowupBodyTipo).map(t => (
-                                <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="recorrencia"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Recorrência</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {Object.values(CriarFollowupBodyRecorrencia).map(r => (
-                                <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="dataAgendada"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Data Agendada</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="observacoes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Observações</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={criarFollowup.isPending}>
-                    {criarFollowup.isPending ? "Agendando..." : "Agendar"}
-                  </Button>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-        </div>
 
-        <Card className="bg-card">
-          <CardContent className="p-0">
+          {/* Painel da tabela */}
+          <section className="fu-painel" style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0 }}>
+            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${PW.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <CalendarClock style={{ width: 16, height: 16, color: PW.ciano }} />
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: PW.t2 }}>
+                  Acompanhamentos agendados ({followups?.length ?? 0})
+                </span>
+              </div>
+            </header>
+
             {isLoading ? (
-              <div className="p-4 space-y-4">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
-              </div>
+              <div style={{ textAlign: "center", padding: "32px 0", color: PW.muted, fontSize: 13 }}>Carregando...</div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Tipo / Data</TableHead>
-                    <TableHead>Recorrência</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {followups?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                        Nenhum follow-up agendado.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    followups?.map((fw) => (
-                      <TableRow key={fw.id} className="group">
-                        <TableCell className="font-medium">
-                          {fw.pacienteNome}
-                          {fw.observacoes && <div className="text-xs text-muted-foreground">{fw.observacoes}</div>}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className="w-fit capitalize text-xs">{fw.tipo}</Badge>
-                            <span className="text-sm flex items-center gap-1 text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              {new Date(fw.dataAgendada).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="capitalize text-sm text-muted-foreground">{fw.recorrencia}</span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(fw.status)}>
-                            <span className="capitalize">{fw.status}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {fw.status === 'agendado' || fw.status === 'atrasado' ? (
-                            <Dialog open={concluirId === fw.id} onOpenChange={(open) => !open && setConcluirId(null)}>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" className="border-green-500/30 text-green-500 hover:bg-green-500/10" onClick={() => setConcluirId(fw.id)}>
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                  Concluir
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Concluir Follow-up</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4 pt-4">
-                                  <div className="space-y-2">
-                                    <label className="text-sm font-medium">Observações sobre a interação (opcional)</label>
-                                    <Textarea 
-                                      value={obsConcluir}
-                                      onChange={(e) => setObsConcluir(e.target.value)}
-                                      placeholder="Ex: Paciente relatou melhora nos sintomas..."
-                                    />
-                                  </div>
-                                  <Button 
-                                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                                    onClick={() => handleConcluir(fw.id)}
-                                    disabled={concluirFollowup.isPending}
-                                  >
-                                    Confirmar Conclusão
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )}
-                          <button
-                            onClick={() => openEditFw(fw)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded ml-2"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: MONO }}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Paciente</th>
+                      <th style={th}>Tipo / Data</th>
+                      <th style={th}>Recorrencia</th>
+                      <th style={th}>Status</th>
+                      <th style={{ ...th, textAlign: "right" }}>Acoes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {followups?.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ ...td, textAlign: "center", color: PW.muted, padding: "32px 0" }}>
+                          Nenhum follow-up agendado.
+                        </td>
+                      </tr>
+                    ) : (
+                      followups?.map((fw) => (
+                        <tr key={fw.id} className="fu-row">
+                          <td style={td}>
+                            <div style={{ fontWeight: 700, color: PW.text }}>{fw.pacienteNome}</div>
+                            {fw.observacoes && <div style={{ fontSize: 10, color: PW.muted, marginTop: 2 }}>{fw.observacoes}</div>}
+                          </td>
+                          <td style={td}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              {badgeTipo(fw.tipo)}
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: PW.t2 }}>
+                                <Clock style={{ width: 12, height: 12 }} />
+                                {new Date(fw.dataAgendada).toLocaleDateString("pt-BR")}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ ...td, color: PW.t2, textTransform: "capitalize" }}>{fw.recorrencia}</td>
+                          <td style={td}>{badgeStatus(fw.status)}</td>
+                          <td style={{ ...td, textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+                              {fw.status === 'agendado' || fw.status === 'atrasado' ? (
+                                <button className="fu-btn" style={btnPrimario} onClick={() => setConcluirId(fw.id)}>
+                                  <CheckCircle style={{ width: 12, height: 12 }} /> Concluir
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: 12, color: PW.muted }}>-</span>
+                              )}
+                              <button className="fu-btn fu-pencil" style={{ ...btnOutline, padding: 6 }} onClick={() => openEditFw(fw)} aria-label="Editar">
+                                <Pencil style={{ width: 13, height: 13 }} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </CardContent>
-        </Card>
+          </section>
 
-        {editingFw && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setEditingFw(null)}>
-            <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Follow-up</h3>
-                <button onClick={() => setEditingFw(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
-              </div>
-              <div className="text-sm text-muted-foreground">Paciente: <strong>{editingFw.pacienteNome}</strong></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tipo</label>
-                  <Select value={editForm.tipo} onValueChange={v => setEditForm({...editForm, tipo: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.values(CriarFollowupBodyTipo).map(t => (
-                        <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+          <div style={{ fontSize: 10, color: PW.muted, textAlign: "center", paddingTop: 8, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Developed and Supervised by PADCON
+          </div>
+        </div>
+      </div>
+
+      {/* Modal de novo follow-up (PENUMBRA proprio, substitui shadcn Dialog) */}
+      {open && (
+        <div className="fu-overlay" onClick={() => setOpen(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 480, background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0 }}
+          >
+            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${PW.border}` }}>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", color: PW.ciano }}>
+                Novo follow-up
+              </span>
+              <button className="fu-btn" style={{ ...btnOutline, padding: 6 }} onClick={() => setOpen(false)} aria-label="Fechar">
+                <X style={{ width: 14, height: 14 }} />
+              </button>
+            </header>
+
+            <form onSubmit={form.handleSubmit(onSubmit)} style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Paciente</label>
+                <Controller
+                  control={form.control}
+                  name="pacienteId"
+                  render={({ field }) => (
+                    <select
+                      className="fu-input"
+                      value={field.value ? String(field.value) : ""}
+                      onChange={(e) => field.onChange(parseInt(e.target.value))}
+                      style={inputStyle}
+                    >
+                      <option value="">Selecione um paciente...</option>
+                      {pacientes?.map(p => (
+                        <option key={p.id} value={p.id} style={{ background: PW.bg2, color: PW.text }}>{p.nome}</option>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </select>
+                  )}
+                />
+                {errors.pacienteId && <div style={erroStyle}>{errors.pacienteId.message}</div>}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Tipo</label>
+                  <Controller
+                    control={form.control}
+                    name="tipo"
+                    render={({ field }) => (
+                      <select className="fu-input" value={field.value} onChange={(e) => field.onChange(e.target.value)} style={{ ...inputStyle, textTransform: "capitalize" }}>
+                        {Object.values(CriarFollowupBodyTipo).map(t => (
+                          <option key={t} value={t} style={{ background: PW.bg2, color: PW.text }}>{t}</option>
+                        ))}
+                      </select>
+                    )}
+                  />
+                  {errors.tipo && <div style={erroStyle}>{errors.tipo.message}</div>}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Status</label>
-                  <Select value={editForm.status} onValueChange={v => setEditForm({...editForm, status: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="agendado">Agendado</SelectItem>
-                      <SelectItem value="realizado">Realizado</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
-                      <SelectItem value="atrasado">Atrasado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Data Agendada</label>
-                  <Input type="date" value={editForm.dataAgendada} onChange={e => setEditForm({...editForm, dataAgendada: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Recorrencia</label>
-                  <Select value={editForm.recorrencia} onValueChange={v => setEditForm({...editForm, recorrencia: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.values(CriarFollowupBodyRecorrencia).map(r => (
-                        <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1 col-span-2">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Observacoes</label>
-                  <Textarea value={editForm.observacoes} onChange={e => setEditForm({...editForm, observacoes: e.target.value})} rows={3} />
+                <div>
+                  <label style={labelStyle}>Recorrencia</label>
+                  <Controller
+                    control={form.control}
+                    name="recorrencia"
+                    render={({ field }) => (
+                      <select className="fu-input" value={field.value} onChange={(e) => field.onChange(e.target.value)} style={{ ...inputStyle, textTransform: "capitalize" }}>
+                        {Object.values(CriarFollowupBodyRecorrencia).map(r => (
+                          <option key={r} value={r} style={{ background: PW.bg2, color: PW.text }}>{r}</option>
+                        ))}
+                      </select>
+                    )}
+                  />
+                  {errors.recorrencia && <div style={erroStyle}>{errors.recorrencia.message}</div>}
                 </div>
               </div>
-              <div className="flex gap-2 pt-2 border-t border-border">
-                <Button className="flex-1 text-xs h-9" onClick={saveEditFw} disabled={editSaving}>
-                  {editSaving ? "Salvando..." : "Salvar Alteracoes"}
-                </Button>
-                <Button variant="outline" className="text-xs h-9" onClick={() => setEditingFw(null)}>Cancelar</Button>
-                <Button variant="destructive" className="text-xs h-9" onClick={deleteEditFw}>
-                  <Trash2 className="w-3 h-3 mr-1" />Excluir
-                </Button>
+
+              <div>
+                <label style={labelStyle}>Data agendada</label>
+                <input type="date" className="fu-input" style={inputStyle} {...form.register("dataAgendada")} />
+                {errors.dataAgendada && <div style={erroStyle}>{errors.dataAgendada.message}</div>}
+              </div>
+
+              <div>
+                <label style={labelStyle}>Observacoes</label>
+                <input className="fu-input" style={inputStyle} {...form.register("observacoes")} />
+                {errors.observacoes && <div style={erroStyle}>{errors.observacoes.message}</div>}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 4 }}>
+                <button type="button" className="fu-btn" style={btnOutline} onClick={() => setOpen(false)}>Cancelar</button>
+                <button type="submit" className="fu-btn" style={btnPrimario} disabled={criarFollowup.isPending}>
+                  {criarFollowup.isPending ? "Agendando..." : "Agendar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de conclusao (PENUMBRA proprio, substitui shadcn Dialog) */}
+      {concluirFw && (
+        <div className="fu-overlay" onClick={() => setConcluirId(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 480, background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0 }}
+          >
+            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${PW.border}` }}>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", color: PW.ciano }}>
+                Concluir follow-up
+              </span>
+              <button className="fu-btn" style={{ ...btnOutline, padding: 6 }} onClick={() => setConcluirId(null)} aria-label="Fechar">
+                <X style={{ width: 14, height: 14 }} />
+              </button>
+            </header>
+
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Observacoes sobre a interacao (opcional)</label>
+                <textarea
+                  className="fu-input"
+                  value={obsConcluir}
+                  onChange={(e) => setObsConcluir(e.target.value)}
+                  placeholder="Ex: Paciente relatou melhora nos sintomas..."
+                  rows={3}
+                  style={{ ...inputStyle, resize: "vertical" }}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button className="fu-btn" style={btnOutline} onClick={() => setConcluirId(null)}>Cancelar</button>
+                <button
+                  className="fu-btn"
+                  style={btnPrimario}
+                  onClick={() => handleConcluir(concluirFw.id)}
+                  disabled={concluirFollowup.isPending}
+                >
+                  Confirmar conclusao
+                </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Modal de edicao (PENUMBRA proprio) */}
+      {editingFw && (
+        <div className="fu-overlay" onClick={() => setEditingFw(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 560, background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}`, borderRadius: 0 }}
+          >
+            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${PW.border}` }}>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", color: PW.ciano }}>
+                Editar follow-up
+              </span>
+              <button className="fu-btn" style={{ ...btnOutline, padding: 6 }} onClick={() => setEditingFw(null)} aria-label="Fechar">
+                <X style={{ width: 14, height: 14 }} />
+              </button>
+            </header>
+
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ fontSize: 12, color: PW.t2 }}>Paciente: <strong style={{ color: PW.text }}>{editingFw.pacienteNome}</strong></div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Tipo</label>
+                  <select className="fu-input" value={editForm.tipo} onChange={e => setEditForm({ ...editForm, tipo: e.target.value })} style={{ ...inputStyle, textTransform: "capitalize" }}>
+                    {Object.values(CriarFollowupBodyTipo).map(t => (
+                      <option key={t} value={t} style={{ background: PW.bg2, color: PW.text }}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Status</label>
+                  <select className="fu-input" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} style={inputStyle}>
+                    <option value="agendado" style={{ background: PW.bg2, color: PW.text }}>Agendado</option>
+                    <option value="realizado" style={{ background: PW.bg2, color: PW.text }}>Realizado</option>
+                    <option value="cancelado" style={{ background: PW.bg2, color: PW.text }}>Cancelado</option>
+                    <option value="atrasado" style={{ background: PW.bg2, color: PW.text }}>Atrasado</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Data agendada</label>
+                  <input type="date" className="fu-input" value={editForm.dataAgendada} onChange={e => setEditForm({ ...editForm, dataAgendada: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Recorrencia</label>
+                  <select className="fu-input" value={editForm.recorrencia} onChange={e => setEditForm({ ...editForm, recorrencia: e.target.value })} style={{ ...inputStyle, textTransform: "capitalize" }}>
+                    {Object.values(CriarFollowupBodyRecorrencia).map(r => (
+                      <option key={r} value={r} style={{ background: PW.bg2, color: PW.text }}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={labelStyle}>Observacoes</label>
+                  <textarea className="fu-input" value={editForm.observacoes} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: `1px solid ${PW.border}` }}>
+                <button className="fu-btn" style={{ ...btnPrimario, flex: 1, justifyContent: "center" }} onClick={saveEditFw} disabled={editSaving}>
+                  {editSaving ? "Salvando..." : "Salvar alteracoes"}
+                </button>
+                <button className="fu-btn" style={btnOutline} onClick={() => setEditingFw(null)}>Cancelar</button>
+                <button className="fu-btn" style={btnDanger} onClick={deleteEditFw}>
+                  <Trash2 style={{ width: 13, height: 13 }} /> Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

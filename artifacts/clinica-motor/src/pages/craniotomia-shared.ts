@@ -28,6 +28,9 @@ export const PW = {
   warn: "#FFD27A",
   danger: "#D08A8A",
   rosa: "#FFA3C8",
+  azul: "#9CC2EA",
+  verde: "#7CC4A0",
+  lilas: "#A89DFF",
 } as const;
 
 export type Segmento = "exame" | "formula" | "injetavel" | "implante" | "protocolo";
