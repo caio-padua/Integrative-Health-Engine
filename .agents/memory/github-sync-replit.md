@@ -31,5 +31,8 @@ apontam pro repo real" — falso hoje.)
 - **Raw URL so funciona sem token em repo PUBLICO.** `raw.githubusercontent.com/...`
   do GENESIS (privado) da 404; do IHE e Manager (publicos) abre 200. Logo o endereco
   oficial pro Dr. Claude (que le por raw) deve apontar pro IHE publico, nao pro Genesis.
-- `.local/**` e `.agents/**` nao vao pro GitHub via os fluxos normais; `.local` esta no
-  `.gitignore`.
+- **So `.local/` esta no `.gitignore`** (verificado 18/06/2026 via `git check-ignore`).
+  `.agents/**` NAO esta ignorado e E RASTREADO pelo git (`git ls-files` lista a skill);
+  logo a skill `.agents/skills/penumbra-design-system/` VAI pro GitHub e pode ser clonada
+  por outro agente (ex.: Paxter) sem precisar espelhar em `docs/`. (Corrige a nota antiga
+  errada de que `.agents/**` nao subia.)
