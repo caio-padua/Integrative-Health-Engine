@@ -1,20 +1,31 @@
 /**
  * LayoutPawards.tsx
  *
- * Layout oficial PAWARDS — aprovado por Caio no canvas (mockup L2ComE4).
+ * Casca oficial PAWARDS — agora portada do layout-referência "CARA"
+ * (PenumbraClara2_PaperCiano, aprovado por Caio no canvas em 18/06/2026).
  *
- * ARQUITETURA:
- *   ┌────────────────────────────────────────────────────────────────┐
- *   │  E4 strip 1: PINS rápidos + ⌘K + alertas + unidade + perfil   │ sticky
- *   ├────────────────────────────────────────────────────────────────┤
- *   │  E4 strip 2: Cockpit mega-header (contexto + 3 KPIs)          │ sticky
- *   ├──────┬─────────────────────────────────────┬──────────────────┤
- *   │ L2:  │  L2: trabalho central (children)    │ L2: contexto     │
- *   │ menu │                                     │ (colapsável)     │
- *   └──────┴─────────────────────────────────────┴──────────────────┘
+ * O QUE MUDOU NESTA VERSÃO (Opção B do CEO):
+ *   A chrome (moldura) virou a do CARA: 3 faixas horizontais + menu lateral
+ *   com níveis 1·2·3 + painel de contexto. TODA a lógica real foi preservada
+ *   (login, troca de unidade, rotas, dados, busca ⌘K, 2FA, som).
  *
- * Construído a partir de LayoutTripleFocus + chrome E4 do mockup oficial.
- * Reusa hooks reais (useAuth, useClinic, useSound) e CommandPalette/TopProgressBar.
+ * ARQUITETURA (3 faixas):
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ FAIXA 1 · TOPO: logo · LOCAL/GLOBAL · níveis · CLARO/ESCURO ·        │
+ *   │          busca ENTIDADES · busca EVENTOS · operador · som · sair     │
+ *   ├────────────────────────────────────────────────────────────────────┤
+ *   │ FAIXA 2 · TRILHA (breadcrumb) + KPIs reais (agenda/alertas)         │
+ *   ├────────────────────────────────────────────────────────────────────┤
+ *   │ FAIXA 3 · PACIENTE ATIVO + abas (ou atalhos quando sem paciente)    │
+ *   ├──────┬─────────────────────────────────────┬───────────────────────┤
+ *   │ menu │  trabalho central (children)        │ contexto (colapsável) │
+ *   └──────┴─────────────────────────────────────┴───────────────────────┘
+ *
+ * Contrato público inalterado: <LayoutPawards face? children>. As 97 telas
+ * que usam <Layout> continuam funcionando sem tocar em nada.
+ *
+ * Hooks reais reusados: useAuth, useClinic, useSound, CommandPalette,
+ * TopProgressBar, Platform2faFooterIndicator, useObterPaciente.
  */
 
 import { ReactNode, useState, useEffect, useMemo, createContext, useContext } from "react";
@@ -29,9 +40,9 @@ import {
   Users, ClipboardList, Stethoscope, FlaskConical, FileText, ListChecks,
   CreditCard, FileSignature, TrendingUp, Receipt, Wallet,
   CalendarClock, CalendarDays, Calendar,
-  BookOpen, Beaker, Pill, BadgeAlert,
+  BookOpen, Beaker, Pill,
   Building2, Settings, ShieldCheck, GitBranch, Activity,
-  Command as CommandIcon, Bell, ChevronLeft, ChevronRight, LogOut, Diamond, Search, Home,
+  Bell, LogOut, Search, Home,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
@@ -41,33 +52,35 @@ import { TopProgressBar } from "./TopProgressBar";
 import { Platform2faFooterIndicator } from "@/lib/Platform2faFooterIndicator";
 
 // ═══════════════════════════════════════════════════════════════════════
-// DESIGN TOKENS — aprovado por Caio (deep navy + neon ciano + dourado)
+// DESIGN TOKENS — face ESCURA (PENUMBRA Navy Ciano) — aprovado por Caio.
+// doms[] = 8 cores de domínio (mesmo array do perfil do canvas).
 // ═══════════════════════════════════════════════════════════════════════
 const PW = {
-  navyDeep: "#050d1a",
-  navy: "#0a1628",
-  navyPanel: "#0f1e36",
-  bg3: "#1e3a5f",
-  border: "#1a2d4f",
-  text: "#e6eaf2",
-  textMute: "#94a3b8",
-  textDim: "#64748b",
-  gold: "#facc15",
+  navyDeep: "#020A14",
+  navy: "#061824",
+  navyPanel: "#0A2030",
+  bg3: "#0E2838",
+  border: "#1A3848",
+  text: "#D8EEEE",
+  textMute: "#88B8BE",
+  textDim: "#557A82",
+  gold: "#FFD27A",
   goldDeep: "#D4AF37",
-  cyan: "#00d4ff",
-  neon: "#5EE6E6",
-  orange: "#fb923c",
-  green: "#34d399",
-  red: "#f87171",
-  brand: "#a78bfa",
+  cyan: "#5FE6CC",
+  neon: "#5ee6e6",
+  orange: "#FFD27A",
+  green: "#7cc4a0",
+  red: "#d08a8a",
+  brand: "#A89DFF",
+  doms: ["#FFD27A", "#9CC2EA", "#5FE6CC", "#A89DFF", "#5ee6e6", "#FFA3C8", "#7cc4a0", "#d08a8a"],
   mono: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
 } as const;
 
 export type PWPalette = typeof PW;
 export type PawardsFace = "escuro" | "claro";
 
-// PENUMBRA face CLARA "Paper Ciano" — mesmas chaves de PW (escuro), valores
-// do PERFIL_PAPER_CIANO aprovado por Caio. NAO inventar hex novo.
+// PENUMBRA face CLARA "Paper Ciano" — mesmas chaves de PW, valores do
+// PERFIL_PAPER_CIANO aprovado por Caio. NAO inventar hex novo.
 const PW_CLARO: PWPalette = {
   navyDeep: "#EEF2F4",
   navy: "#F8FBFC",
@@ -85,6 +98,7 @@ const PW_CLARO: PWPalette = {
   green: "#3F6E3F",
   red: "#8A2A2A",
   brand: "#5A4A82",
+  doms: ["#9C6E16", "#2E5C92", "#1E7A6E", "#5A4A82", "#2A9D8F", "#8A3F5C", "#3F6E3F", "#8A3F3F"],
   mono: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
 };
 
@@ -93,6 +107,9 @@ const PW_ESCURO = PW;
 // Contexto da face ativa. Default = escuro (comportamento atual inalterado).
 const FaceContext = createContext<PWPalette>(PW_ESCURO);
 function useFace() { return useContext(FaceContext); }
+
+// Nível de visualização (1·2·3) compartilhado entre faixa 1 e menu lateral.
+type NivelViz = 1 | 2 | 3;
 
 // ═══════════════════════════════════════════════════════════════════════
 // MENU L2 — rotas REAIS do App.tsx (sem links quebrados)
@@ -188,241 +205,376 @@ function injectStyles() {
   const style = document.createElement("style");
   style.id = STYLE_TAG_ID;
   style.textContent = `
-    :root {
-      --pwx-navy: ${PW.navy};
-      --pwx-navy-deep: ${PW.navyDeep};
-      --pwx-navy-panel: ${PW.navyPanel};
-      --pwx-border: ${PW.border};
-      --pwx-text: ${PW.text};
-      --pwx-text-mute: ${PW.textMute};
-      --pwx-gold: ${PW.gold};
-      --pwx-cyan: ${PW.cyan};
-      --pwx-neon: ${PW.neon};
-      --pwx-mono: ${PW.mono};
-    }
-    .pwx-btn {
-      display: flex; align-items: center; gap: 10px;
-      padding: 7px 14px 7px 20px;
-      font-family: var(--pwx-mono);
-      font-size: 11px; font-weight: 600;
-      letter-spacing: 0.5px; text-transform: uppercase;
-      color: var(--pwx-btn-color, #cbd5e1);
-      background: transparent;
-      border-left: 3px solid transparent;
-      border-radius: 0;
-      cursor: pointer;
-      transition: all 0.12s ease;
-      width: 100%; text-align: left;
-      text-decoration: none;
-    }
-    .pwx-btn:hover {
-      background: var(--pwx-hover-bg, #0e2540);
-      border-left-color: color-mix(in srgb, var(--cor) 70%, transparent);
-      color: var(--cor);
-    }
-    .pwx-btn.active {
-      background: var(--pwx-hover-bg, #0e2540);
-      border-left-color: var(--cor);
-      color: var(--cor);
-      font-weight: 800;
-    }
-    .pwx-section {
-      padding: 4px 14px;
-      font-family: var(--pwx-mono);
-      font-size: 9px;
-      letter-spacing: 1.5px;
-      color: var(--cor);
-      border-bottom: 1px solid color-mix(in srgb, var(--cor) 25%, transparent);
-      margin: 14px 0 4px;
-    }
-    .pwx-pin {
-      border: 1px solid var(--cor);
-      background: color-mix(in srgb, var(--cor) 8%, transparent);
-      padding: 6px 14px;
-      font-family: var(--pwx-mono);
-      text-align: center;
-      min-width: 86px;
-      cursor: pointer;
-      text-decoration: none;
-      display: block;
-      transition: all 0.15s ease;
-    }
-    .pwx-pin:hover {
-      background: color-mix(in srgb, var(--cor) 18%, transparent);
-      box-shadow: 0 0 14px color-mix(in srgb, var(--cor) 35%, transparent);
-    }
-    .pwx-scroll::-webkit-scrollbar { width: 6px; }
+    .pwx-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
     .pwx-scroll::-webkit-scrollbar-track { background: transparent; }
     .pwx-scroll::-webkit-scrollbar-thumb {
-      background: color-mix(in srgb, var(--pwx-neon) 25%, transparent);
+      background: var(--pwx-neon-30, rgba(94,230,230,0.25));
       border-radius: 0;
     }
     .pwx-scroll::-webkit-scrollbar-thumb:hover {
-      background: color-mix(in srgb, var(--pwx-neon) 50%, transparent);
+      background: var(--pwx-neon-50, rgba(94,230,230,0.5));
     }
-    .pwx-cockpit-btn {
-      margin: 0 14px 12px;
-      padding: 10px;
-      border: 1px solid var(--pwx-cyan);
-      background: color-mix(in srgb, var(--pwx-cyan) 8%, transparent);
-      text-align: center;
-      cursor: pointer;
+    /* Elemento de chrome com hover "luz por trás" (neon nos 4 lados) */
+    .pwx-elem {
+      transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
+      position: relative;
+    }
+    .pwx-elem:hover {
+      border-color: var(--cor, currentColor) !important;
+      box-shadow:
+        0 0 0 1px var(--cor, currentColor),
+        0 0 8px 2px color-mix(in srgb, var(--cor, #5ee6e6) 32%, transparent);
+      z-index: 2;
+    }
+    /* Item de menu (cartão com borda + accent à esquerda) */
+    .pwx-menucard {
+      transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
       text-decoration: none;
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 3px 8px;
+      padding: 7px 10px;
+      border: 1px solid var(--card-border);
+      border-left: 4px solid var(--card-accent);
+      background: var(--card-bg);
+      cursor: pointer;
       font-family: var(--pwx-mono);
-      transition: all 0.15s ease;
     }
-    .pwx-cockpit-btn:hover {
-      background: color-mix(in srgb, var(--pwx-cyan) 16%, transparent);
-      box-shadow: 0 0 14px color-mix(in srgb, var(--pwx-cyan) 35%, transparent);
+    .pwx-menucard:hover {
+      border-color: var(--cor) !important;
+      box-shadow: 0 0 0 1px var(--cor), 0 0 10px 2px color-mix(in srgb, var(--cor) 30%, transparent);
+      z-index: 2;
     }
   `;
   document.head.appendChild(style);
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// E4 STRIP 1 — PINS + utilitários + unidade + perfil
-// ═══════════════════════════════════════════════════════════════════════
-function StripPins() {
-  const PW = useFace();
-  const { user, logout } = useAuth();
-  const { nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas } = useClinic();
-  const sound = useSound();
+// Formata o nome do operador: primeiro nome + iniciais dos meios + sobrenome.
+// Ex.: "Caio Henrique Fernandes Pádua" → "CAIO H. F. PÁDUA".
+function formatarOperador(nomeCompleto?: string | null): string {
+  const partes = (nomeCompleto || "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "OPERADOR";
+  if (partes.length === 1) return partes[0].toUpperCase();
+  const primeiro = partes[0];
+  const ultimo = partes[partes.length - 1];
+  const meios = partes.slice(1, -1).map((m) => `${m[0].toUpperCase()}.`);
+  return [primeiro, ...meios, ultimo].join(" ").toUpperCase();
+}
 
-  const openCmdK = () => {
-    sound.open();
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
-  };
-
-  const pins: { label: string; sub: string; href: string; color: string }[] = [
-    { label: "PRESC", sub: "receita", href: "/prescricao-rapida", color: PW.cyan },
-    { label: "ANAME", sub: "form", href: "/anamnese/nova", color: PW.green },
-    { label: "PACIEN", sub: "pessoa", href: "/pacientes", color: PW.orange },
-    { label: "AGENDA", sub: "horário", href: "/agenda-motor", color: PW.brand },
-  ];
-
-  const iniciais = (user?.nome || "??")
+function iniciaisDe(nome?: string | null): string {
+  return (nome || "??")
     .split(" ")
-    .map((n: string) => n[0])
+    .map((n) => n[0])
     .filter(Boolean)
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
+
+function calcularIdade(nasc?: string | null): number | null {
+  if (!nasc) return null;
+  const d = new Date(nasc);
+  if (isNaN(d.getTime())) return null;
+  const diff = Date.now() - d.getTime();
+  const idade = Math.floor(diff / (365.25 * 24 * 3600 * 1000));
+  return idade >= 0 && idade < 140 ? idade : null;
+}
+
+// Deriva rótulo/título contextual a partir da rota atual.
+function tituloDaRota(location: string, isTodasClinicas: boolean, modoLabel?: string): {
+  label: string; titulo: string; cor: (PW: PWPalette) => string;
+} {
+  if (location.startsWith("/pacientes/") && /\d/.test(location)) {
+    return { label: "PACIENTE", titulo: "FICHA DO PACIENTE", cor: (p) => p.cyan };
+  }
+  if (location.startsWith("/agenda")) {
+    return { label: "AGENDA", titulo: "AGENDA DO DIA", cor: (p) => p.brand };
+  }
+  if (location.startsWith("/financeiro") || location === "/painel-nfe") {
+    return { label: "FINANCEIRO", titulo: "PAINEL FINANCEIRO", cor: (p) => p.green };
+  }
+  if (location.startsWith("/pacientes")) {
+    return { label: "PACIENTES", titulo: "LISTA DE PACIENTES", cor: (p) => p.cyan };
+  }
+  if (location.startsWith("/catalogo") || location.startsWith("/substancias") || location.startsWith("/itens-terapeuticos")) {
+    return { label: "CATÁLOGO", titulo: "CATÁLOGO CLÍNICO", cor: (p) => p.orange };
+  }
+  if (location === "/dashboard") {
+    return { label: "COCKPIT", titulo: "DASHBOARD", cor: (p) => p.gold };
+  }
+  return {
+    label: isTodasClinicas ? "VISÃO GLOBAL" : "PAINEL LOCAL",
+    titulo: (modoLabel || "PAINEL DA CLÍNICA").toUpperCase(),
+    cor: (p) => p.gold,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FAIXA 1 · TOPO — ferramentas (portado do CARA, ligado à lógica real)
+// ═══════════════════════════════════════════════════════════════════════
+function FaixaTopo({ face, setFace, nivelViz, setNivelViz }: {
+  face: PawardsFace;
+  setFace: (f: PawardsFace) => void;
+  nivelViz: NivelViz;
+  setNivelViz: (n: NivelViz) => void;
+}) {
+  const PW = useFace();
+  const { user, logout } = useAuth();
+  const {
+    unidadeSelecionada, setUnidadeSelecionada, unidadesDisponiveis,
+    nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, escopo,
+  } = useClinic();
+  const sound = useSound();
+
+  // GATE DE ESCOPO (controle de acesso): só perfis com escopo de consultoria
+  // podem alternar para "Visão Global" / trocar de unidade. Perfil operacional
+  // (unidade única) fica TRAVADO na própria unidade — sem botão GLOBAL, sem
+  // setUnidadeSelecionada(null). Espelha a regra do ClinicContext e evita
+  // elevação de escopo pela interface (broken access control).
+  const podeVerGlobal = escopo === "consultoria_master" || escopo === "consultor_campo";
+  const podeTrocarUnidade = podeVerGlobal || unidadesDisponiveis.length > 1;
+
+  const abrirBusca = () => {
+    sound.open();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+  };
+
+  // LOCAL → entra numa unidade real (Instituto Pádua 15 se houver, senão a 1ª).
+  const entrarLocal = () => {
+    if (!isTodasClinicas) return;
+    const padua = unidadesDisponiveis.find((u) => u.unidadeId === 15);
+    const alvo = padua || unidadesDisponiveis[0];
+    if (alvo) setUnidadeSelecionada(alvo.unidadeId);
+  };
+
+  const operador = formatarOperador(user?.nome);
+  const perfilLabel = ((user as any)?.perfil || "").toString().toUpperCase();
+
+  const seg = (ativo: boolean, cor: string): React.CSSProperties => ({
+    height: 26, padding: "0 11px",
+    border: `1px solid ${ativo ? cor : PW.border}`,
+    background: ativo ? `${cor}1f` : "transparent",
+    color: ativo ? cor : PW.textDim,
+    fontFamily: PW.mono, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+    cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+    ["--cor" as any]: cor,
+  });
 
   return (
     <div
       data-testid="pwx-strip-pins"
       style={{
-        background: PW.navy,
-        borderBottom: `1px solid ${PW.border}`,
-        padding: "8px 16px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        position: "sticky",
-        top: 0,
-        zIndex: 20,
-        flexShrink: 0,
+        height: 42, background: PW.navy, borderBottom: `1px solid ${PW.border}`,
+        display: "flex", alignItems: "center", gap: 8, padding: "0 16px",
+        position: "sticky", top: 0, zIndex: 21, flexShrink: 0, fontFamily: PW.mono,
       }}
     >
       <Link
         href="/inicio"
-        style={{
-          fontFamily: PW.mono,
-          fontSize: 13,
-          color: PW.gold,
-          letterSpacing: 3,
-          fontWeight: 900,
-          textDecoration: "none",
-          marginRight: 8,
-        }}
         data-testid="pwx-logo"
+        style={{
+          fontFamily: PW.mono, fontSize: 13, color: PW.gold, letterSpacing: 3,
+          fontWeight: 900, textDecoration: "none", marginRight: 4, whiteSpace: "nowrap",
+        }}
       >
         ◇ PAWARDS
       </Link>
 
-      <div style={{ display: "flex", gap: 8, marginLeft: 8 }}>
-        {pins.map((p) => (
-          <Link
-            key={p.label}
-            href={p.href}
-            className="pwx-pin"
-            style={{ ["--cor" as any]: p.color } as React.CSSProperties}
-            data-testid={`pwx-pin-${p.label.toLowerCase()}`}
-            onClick={() => sound.tap()}
-          >
-            <div style={{ fontSize: 10, color: p.color, letterSpacing: 1, fontWeight: 700 }}>{p.label}</div>
-            <div style={{ fontSize: 9, color: PW.text, marginTop: 2 }}>{p.sub}</div>
-          </Link>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", gap: 14, marginLeft: "auto", fontSize: 10, color: PW.textMute, alignItems: "center" }}>
-        <button
-          onClick={openCmdK}
-          data-testid="pwx-cmdk"
+      {/* LOCAL / GLOBAL — troca de unidade real, só para quem tem escopo.
+          Perfil operacional (sem podeVerGlobal) vê apenas a unidade fixa. */}
+      {podeVerGlobal ? (
+        <>
+          <button className="pwx-elem" style={seg(!isTodasClinicas, PW.cyan)} onClick={entrarLocal} title="Focar numa unidade">
+            LOCAL
+          </button>
+          <button className="pwx-elem" style={seg(isTodasClinicas, PW.doms[1])} onClick={() => setUnidadeSelecionada(null)} title="Ver todas as clínicas">
+            GLOBAL
+          </button>
+        </>
+      ) : (
+        <span
+          title="Sua unidade"
           style={{
-            background: PW.navyDeep,
-            border: `1px solid ${PW.border}`,
-            color: PW.textMute,
-            fontFamily: PW.mono,
-            fontSize: 10,
-            padding: "5px 10px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            letterSpacing: 1,
+            height: 26, padding: "0 11px", border: `1px solid ${corUnidadeSelecionada || PW.cyan}`,
+            background: `${corUnidadeSelecionada || PW.cyan}1f`, color: corUnidadeSelecionada || PW.cyan,
+            fontFamily: PW.mono, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+            display: "flex", alignItems: "center", maxWidth: 220, overflow: "hidden",
+            whiteSpace: "nowrap", textOverflow: "ellipsis",
           }}
         >
-          <Search size={11} /> BUSCAR <span style={{ color: PW.textDim }}>⌘K</span>
-        </button>
+          {(nomeUnidadeSelecionada || "MINHA CLÍNICA").toUpperCase()}
+        </span>
+      )}
 
+      {/* Seletor de unidade (só quando LOCAL e o perfil pode trocar) */}
+      {podeTrocarUnidade && !isTodasClinicas && unidadesDisponiveis.length > 1 && (
+        <select
+          value={unidadeSelecionada ?? ""}
+          onChange={(e) => setUnidadeSelecionada(Number(e.target.value))}
+          className="pwx-elem"
+          title="Trocar de unidade"
+          style={{
+            height: 26, background: PW.navyPanel, border: `1px solid ${corUnidadeSelecionada || PW.border}`,
+            color: corUnidadeSelecionada || PW.text, fontFamily: PW.mono, fontSize: 10,
+            padding: "0 6px", cursor: "pointer", maxWidth: 180, ["--cor" as any]: corUnidadeSelecionada || PW.cyan,
+          }}
+        >
+          {unidadesDisponiveis.map((u) => (
+            <option key={u.unidadeId} value={u.unidadeId}>{u.unidadeNome}</option>
+          ))}
+        </select>
+      )}
+
+      {/* NÍVEIS 1·2·3 — densidade do menu lateral */}
+      <div style={{ display: "flex", gap: 3, marginLeft: 4 }}>
+        {([1, 2, 3] as const).map((n) => {
+          const act = nivelViz === n;
+          return (
+            <button
+              key={n}
+              onClick={() => setNivelViz(n)}
+              className="pwx-elem"
+              title={n === 1 ? "Nível 1 · menu recolhido" : n === 2 ? "Nível 2 · só ícones" : "Nível 3 · menu completo"}
+              style={{
+                width: 26, height: 26, border: `1px solid ${act ? PW.gold : PW.border}`,
+                background: act ? `${PW.gold}22` : "transparent", color: act ? PW.gold : PW.textDim,
+                fontFamily: PW.mono, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", ["--cor" as any]: PW.gold,
+              }}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* CLARO / ESCURO — troca de face em tempo real */}
+      <div style={{ display: "flex", gap: 3, marginLeft: 4 }}>
+        <button className="pwx-elem" style={seg(face === "claro", PW.neon)} onClick={() => setFace("claro")} title="Modo claro · papel">
+          CLARO
+        </button>
+        <button className="pwx-elem" style={seg(face === "escuro", PW.neon)} onClick={() => setFace("escuro")} title="Modo escuro · tinta">
+          ESCURO
+        </button>
+      </div>
+
+      {/* BUSCA A · ENTIDADES — abre a busca real (⌘K) */}
+      <button
+        className="pwx-elem"
+        data-testid="pwx-cmdk"
+        onClick={abrirBusca}
+        title="Buscar paciente, receita, fatura (⌘K)"
+        style={{
+          height: 26, padding: "0 10px", background: PW.navyPanel, border: `1px solid ${PW.border}`,
+          display: "flex", gap: 6, alignItems: "center", cursor: "text", marginLeft: 8,
+          flex: 1, minWidth: 150, maxWidth: 300, ["--cor" as any]: PW.cyan,
+        }}
+      >
+        <Search size={11} style={{ color: PW.cyan }} />
+        <span style={{ color: PW.cyan, fontSize: 9, fontWeight: 700, letterSpacing: 1 }}>ENTIDADES</span>
+        <span style={{ flex: 1, textAlign: "left", color: PW.textDim, fontSize: 10, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+          paciente · CPF · receita...
+        </span>
+        <span style={{ color: PW.textDim, fontSize: 9 }}>⌘K</span>
+      </button>
+
+      {/* BUSCA B · EVENTOS — abre a mesma busca real (⌘K) */}
+      <button
+        className="pwx-elem"
+        onClick={abrirBusca}
+        title="Buscar mensagem, alerta, log (⌘K)"
+        style={{
+          height: 26, padding: "0 10px", background: PW.navyPanel, border: `1px solid ${PW.border}`,
+          display: "flex", gap: 6, alignItems: "center", cursor: "text",
+          flex: 1, minWidth: 130, maxWidth: 250, ["--cor" as any]: PW.gold,
+        }}
+      >
+        <Search size={11} style={{ color: PW.gold }} />
+        <span style={{ color: PW.gold, fontSize: 9, fontWeight: 700, letterSpacing: 1 }}>EVENTOS</span>
+        <span style={{ flex: 1, textAlign: "left", color: PW.textDim, fontSize: 10, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+          msg · alerta · notif...
+        </span>
+      </button>
+
+      {/* CLUSTER OPERADOR — encostado à direita */}
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
         <Link
           href="/filas"
           data-testid="pwx-alertas"
-          style={{ display: "flex", alignItems: "center", gap: 4, color: PW.red, textDecoration: "none", fontFamily: PW.mono }}
+          title="Pendências e alertas"
+          className="pwx-elem"
+          style={{
+            height: 26, padding: "0 8px", display: "flex", alignItems: "center", gap: 4,
+            color: PW.red, textDecoration: "none", border: `1px solid ${PW.red}55`,
+            fontFamily: PW.mono, fontSize: 10, fontWeight: 700, ["--cor" as any]: PW.red,
+          }}
         >
           <Bell size={12} /> 3
         </Link>
-
-        <div style={{ textAlign: "right", fontFamily: PW.mono }}>
-          <div style={{ fontSize: 8, color: PW.textDim, letterSpacing: 1 }}>
-            {isTodasClinicas ? "GLOBAL" : "UNIDADE"}
-          </div>
-          <div style={{ fontSize: 10, color: corUnidadeSelecionada || PW.cyan, fontWeight: 700, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {nomeUnidadeSelecionada || "Todas Clínicas"}
-          </div>
-        </div>
 
         <Link
           href="/plataforma/perfil"
           data-testid="pwx-perfil"
           title={user?.nome || "Perfil"}
+          className="pwx-elem"
           style={{
-            width: 28,
-            height: 28,
-            border: `1px solid ${PW.cyan}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: PW.cyan,
-            fontFamily: PW.mono,
-            fontSize: 10,
-            fontWeight: 700,
-            textDecoration: "none",
+            height: 26, padding: "0 10px", border: `1px solid ${PW.cyan}66`, color: PW.cyan,
+            fontSize: 10, fontWeight: 700, letterSpacing: 1, textDecoration: "none",
+            display: "flex", alignItems: "center", gap: 7, ["--cor" as any]: PW.cyan,
           }}
         >
-          {iniciais}
+          <span>{operador}</span>
+          {perfilLabel && (
+            <span style={{ color: PW.textMute, fontSize: 9, fontWeight: 700, letterSpacing: 1.5, paddingLeft: 7, borderLeft: `1px solid ${PW.cyan}44` }}>
+              {perfilLabel}
+            </span>
+          )}
+        </Link>
+
+        <div style={{ width: 1, height: 16, background: PW.border }} />
+
+        {/* SOM · ON/MUDO — toggle real */}
+        <button
+          onClick={() => sound.toggle()}
+          className="pwx-elem"
+          title={sound.enabled ? "Som ativo · clique para silenciar" : "Som mudo · clique para ativar"}
+          style={{
+            height: 26, padding: "0 9px", border: `1px solid ${sound.enabled ? PW.green : PW.border}`,
+            background: sound.enabled ? `${PW.green}14` : "transparent", color: sound.enabled ? PW.green : PW.textDim,
+            fontFamily: PW.mono, fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 5, ["--cor" as any]: sound.enabled ? PW.green : PW.textDim,
+          }}
+        >
+          <span style={{ fontSize: 12, lineHeight: 1, textDecoration: sound.enabled ? "none" : "line-through" }}>♪</span>
+          <span>{sound.enabled ? "SOM" : "MUDO"}</span>
+        </button>
+
+        <Link
+          href="/configuracoes"
+          className="pwx-elem"
+          title="Configurações"
+          style={{
+            height: 26, padding: "0 9px", fontSize: 10, color: PW.gold, border: `1px solid ${PW.gold}55`,
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 5, letterSpacing: 1, fontWeight: 700,
+            textDecoration: "none", ["--cor" as any]: PW.gold,
+          }}
+        >
+          <Settings size={11} /> CONFIG
         </Link>
 
         <button
           onClick={() => logout()}
-          title="Sair"
           data-testid="pwx-logout"
-          style={{ background: "transparent", border: "none", color: PW.textMute, cursor: "pointer", padding: 4 }}
+          className="pwx-elem"
+          title="Sair"
+          style={{
+            height: 26, padding: "0 9px", fontSize: 10, color: PW.red, border: `1px solid ${PW.red}55`,
+            background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+            letterSpacing: 1, fontWeight: 700, fontFamily: PW.mono, ["--cor" as any]: PW.red,
+          }}
         >
-          <LogOut size={12} />
+          <LogOut size={11} /> SAIR
         </button>
       </div>
     </div>
@@ -430,31 +582,21 @@ function StripPins() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// E4 STRIP 2 — Cockpit mega-header (contextual)
+// FAIXA 2 · TRILHA (breadcrumb) + KPIs reais
 // ═══════════════════════════════════════════════════════════════════════
-function StripCockpit() {
+function FaixaTrilha() {
   const PW = useFace();
   const { user } = useAuth();
   const [location] = useLocation();
-  const { nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, modoLabel, unidadeSelecionada } = useClinic();
+  const { nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, unidadeSelecionada, modoLabel } = useClinic();
 
-  // Extrai ID do paciente se rota /pacientes/:id...
-  const matchPaciente = location.match(/^\/pacientes\/(\d+)/);
-  const pacienteId = matchPaciente ? matchPaciente[1] : null;
-  const pacienteIdNum = pacienteId ? Number(pacienteId) : 0;
+  const ctx = tituloDaRota(location, isTodasClinicas, modoLabel);
+  const corCtx = ctx.cor(PW);
 
-  // ────────────── KPIs REAIS (Task #483) ──────────────
-  // KPI AGENDA: conta sessões agendadas para HOJE (endpoint /api/agenda/semanal
-  // com janela = hoje..hoje). Respeita unidade selecionada quando aplicável.
-  // Importante: usar data LOCAL do navegador (não UTC). toISOString() devolve
-  // UTC e perto da meia-noite (≈21h-03h BRT) puxaria o dia errado, fazendo o
-  // KPI mostrar agenda de amanhã/ontem (architect review Task #483).
+  // KPI AGENDA — sessões agendadas para HOJE (data local, não UTC).
   const hoje = useMemo(() => {
     const d = new Date();
-    const ano = d.getFullYear();
-    const mes = String(d.getMonth() + 1).padStart(2, "0");
-    const dia = String(d.getDate()).padStart(2, "0");
-    return `${ano}-${mes}-${dia}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
   const { data: agendaHoje } = useQuery({
     queryKey: ["layout-pawards", "agenda-hoje", hoje, unidadeSelecionada ?? null],
@@ -466,141 +608,196 @@ function StripCockpit() {
       const res = await apiFetch(`/api/agenda/semanal?${params.toString()}`);
       if (!res.ok) throw new Error("falha ao carregar agenda");
       const json = await res.json();
-      // resposta pode vir como { dias: { '2026-05-26': [...] } } ou similar — defensivo.
       const dias = json?.dias ?? json?.porDia ?? json ?? {};
       const lista = (dias && typeof dias === "object" && dias[hoje]) || [];
       return Array.isArray(lista) ? lista.length : 0;
     },
   });
 
-  // KPI ALERTAS: endpoint leve já existente (contagem de alertas CEO não lidos).
-  // Retorna 403 pra perfis sem permissão — nesse caso ficamos com "—".
+  // KPI ALERTAS — contagem de alertas de segurança não lidos (403 → "—").
   const { data: alertasContagem } = useQuery({
     queryKey: ["layout-pawards", "alertas-contagem"],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
       const res = await apiFetch(`/api/plataforma/alertas-seguranca/contagem`);
-      if (!res.ok) return null; // 403/401 → "—"
+      if (!res.ok) return null;
       const json = await res.json();
       return typeof json?.total === "number" ? json.total : null;
     },
   });
 
-  // Nome real do paciente quando rota /pacientes/:id.
-  const { data: pacienteData, isLoading: pacienteCarregando } = useObterPaciente(pacienteIdNum, {
+  const trilha = ["PAWARDS", (nomeUnidadeSelecionada || "TODAS AS CLÍNICAS").toUpperCase()];
+
+  return (
+    <div
+      data-testid="pwx-strip-cockpit"
+      style={{
+        height: 40, background: PW.navy, borderBottom: `1px solid ${PW.border}`,
+        display: "flex", alignItems: "center", padding: "0 16px", flexShrink: 0,
+        position: "sticky", top: 42, zIndex: 20, fontFamily: PW.mono,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", fontSize: 10, letterSpacing: 1.2, color: PW.text }}>
+        {trilha.map((x, i) => (
+          <span key={i} style={{ display: "flex", alignItems: "center" }}>
+            <span className="pwx-elem" style={{ padding: "2px 6px", cursor: "default", ["--cor" as any]: PW.cyan }}>{x}</span>
+            <span style={{ color: PW.textDim, margin: "0 3px" }}>▸</span>
+          </span>
+        ))}
+        <span
+          className="pwx-elem"
+          style={{
+            background: "transparent", color: corCtx, border: `1px solid ${corCtx}`,
+            padding: "2px 8px", fontWeight: 700, fontSize: 10, letterSpacing: 1, ["--cor" as any]: corCtx,
+          }}
+        >
+          {ctx.label}
+        </span>
+      </div>
+
+      {/* KPIs reais à direita */}
+      <div style={{ marginLeft: "auto", display: "flex", gap: 0, fontFamily: PW.mono }}>
+        <KpiTopo label="AGENDA" valor={typeof agendaHoje === "number" ? String(agendaHoje) : "—"} cor={PW.cyan} title="Sessões agendadas hoje" />
+        <KpiTopo
+          label="ALERTAS"
+          valor={typeof alertasContagem === "number" ? String(alertasContagem) : "—"}
+          cor={typeof alertasContagem === "number" ? (alertasContagem > 0 ? PW.red : PW.textDim) : PW.textMute}
+          title="Alertas de segurança não lidos"
+        />
+        <KpiTopo label="POTENCIAL" valor="—" cor={PW.green} title="Em apuração — fonte agregada não definida ainda" />
+      </div>
+    </div>
+  );
+}
+
+function KpiTopo({ label, valor, cor, title }: { label: string; valor: string; cor: string; title?: string }) {
+  const PW = useFace();
+  return (
+    <div title={title} style={{ textAlign: "center", padding: "0 14px", borderLeft: `1px solid ${PW.border}` }}>
+      <div style={{ fontSize: 8, color: PW.textDim, letterSpacing: 1 }}>{label}</div>
+      <div style={{ fontSize: 15, color: cor, fontWeight: 700, lineHeight: 1.1 }}>{valor}</div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FAIXA 3 · PACIENTE ATIVO + abas (ou atalhos quando sem paciente)
+// ═══════════════════════════════════════════════════════════════════════
+function FaixaPaciente() {
+  const PW = useFace();
+  const { user } = useAuth();
+  const [location] = useLocation();
+
+  const matchPaciente = location.match(/^\/pacientes\/(\d+)/);
+  const pacienteIdNum = matchPaciente ? Number(matchPaciente[1]) : 0;
+
+  const { data: pacienteData, isLoading } = useObterPaciente(pacienteIdNum, {
     query: {
       enabled: !!user && pacienteIdNum > 0,
       queryKey: getObterPacienteQueryKey(pacienteIdNum),
     },
   });
 
-  // Decide o título contextual
-  let titulo = "PAWARDS · PAINEL DA CLÍNICA";
-  let subtitulo = nomeUnidadeSelecionada || "Todas as Clínicas";
-  let label = isTodasClinicas ? "✦ VISÃO GLOBAL · CONSULTORIA" : "✦ COCKPIT · PAINEL LOCAL";
+  const temPaciente = pacienteIdNum > 0;
+  const idade = calcularIdade((pacienteData as any)?.dataNascimento);
+  const sexo = (pacienteData as any)?.sexo as string | undefined;
 
-  if (pacienteId) {
-    label = "✦ COCKPIT · PAINEL TÁTICO DO PACIENTE";
-    // Loading state breve enquanto o nome real chega — evita flash do
-    // "PACIENTE #id" pra usuários com rede rápida (architect review).
-    titulo = pacienteData?.nome
-      ? pacienteData.nome.toUpperCase()
-      : pacienteCarregando
-        ? "···"
-        : `PACIENTE #${pacienteId}`;
-    subtitulo = "Ficha completa · trajetória integrativa";
-  } else if (location === "/agenda" || location === "/agenda-motor" || location.startsWith("/agenda")) {
-    label = "✦ AGENDA · MOTOR OPERACIONAL";
-    titulo = "AGENDA DO DIA";
-    subtitulo = nomeUnidadeSelecionada || "Todas as Clínicas";
-  } else if (location.startsWith("/financeiro") || location === "/painel-nfe") {
-    label = "✦ FINANCEIRO · COCKPIT DE RECEITAS";
-    titulo = "PAINEL FINANCEIRO";
-  } else if (location.startsWith("/pacientes")) {
-    label = "✦ CLÍNICA · LISTA DE PACIENTES";
-    titulo = "PACIENTES";
-  } else if (location === "/dashboard") {
-    label = "✦ COCKPIT · " + (modoLabel?.toUpperCase() || "PAINEL");
-    titulo = "DASHBOARD";
-  }
+  const abas: { label: string; href: string; cor: string }[] = [
+    { label: "PACIENTE", href: temPaciente ? `/pacientes/${pacienteIdNum}` : "/pacientes", cor: PW.doms[2] },
+    { label: "AGENDA", href: "/agenda", cor: PW.doms[1] },
+    { label: "PRESCRIÇÃO", href: "/prescricao-rapida", cor: PW.doms[0] },
+    { label: "FATURAMENTO", href: "/financeiro", cor: PW.doms[6] },
+  ];
+
+  const pins: { label: string; sub: string; href: string; cor: string }[] = [
+    { label: "PRESC", sub: "receita", href: "/prescricao-rapida", cor: PW.cyan },
+    { label: "ANAME", sub: "form", href: "/anamnese/nova", cor: PW.green },
+    { label: "PACIEN", sub: "pessoa", href: "/pacientes", cor: PW.orange },
+    { label: "AGENDA", sub: "horário", href: "/agenda-motor", cor: PW.brand },
+  ];
 
   return (
     <div
-      data-testid="pwx-strip-cockpit"
       style={{
-        background: PW.navy,
-        borderBottom: `2px solid ${PW.gold}`,
-        padding: "14px 24px",
-        position: "sticky",
-        top: 41,
-        zIndex: 19,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexShrink: 0,
-        fontFamily: PW.mono,
+        height: 42, background: PW.navy, borderBottom: `2px solid ${PW.gold}`,
+        display: "flex", alignItems: "center", padding: "0 16px", gap: 10, flexShrink: 0,
+        position: "sticky", top: 82, zIndex: 19, fontFamily: PW.mono,
       }}
     >
-      <div>
-        <div style={{ fontSize: 10, color: PW.gold, letterSpacing: 3, fontWeight: 700 }}>{label}</div>
-        <div style={{ fontSize: 18, color: PW.text, marginTop: 2, fontWeight: 600, letterSpacing: 1 }}>{titulo}</div>
-        <div style={{ fontSize: 10, color: corUnidadeSelecionada || PW.textMute, marginTop: 2 }}>{subtitulo}</div>
-      </div>
-      <div style={{ display: "flex", gap: 18, fontFamily: PW.mono, fontSize: 11 }}>
-        <KpiCockpit
-          label="AGENDA"
-          valor={typeof agendaHoje === "number" ? String(agendaHoje) : "—"}
-          cor={PW.cyan}
-          title="Sessões agendadas hoje (na unidade selecionada)"
-        />
-        <KpiCockpit
-          label="ALERTAS"
-          valor={typeof alertasContagem === "number" ? String(alertasContagem) : "—"}
-          cor={
-            typeof alertasContagem === "number"
-              ? alertasContagem > 0
-                ? PW.red
-                : PW.textDim
-              : PW.textMute
-          }
-          title="Alertas de segurança não lidos"
-        />
-        <KpiCockpit
-          label="POTENCIAL"
-          valor="—"
-          cor={PW.green}
-          title="Em apuração — fonte agregada não definida ainda"
-        />
-      </div>
-    </div>
-  );
-}
-
-function KpiCockpit({ label, valor, cor, title }: { label: string; valor: string; cor: string; title?: string }) {
-  const PW = useFace();
-  return (
-    <div title={title} style={{ textAlign: "center", padding: "4px 14px", borderLeft: `1px solid ${PW.border}` }}>
-      <div style={{ fontSize: 8, color: PW.textDim, letterSpacing: 1 }}>{label}</div>
-      <div style={{ fontSize: 18, color: cor, fontWeight: 700 }}>{valor}</div>
+      {temPaciente ? (
+        <>
+          <span style={{ fontSize: 10, color: PW.green, fontWeight: 700, letterSpacing: 1, padding: "2px 6px", border: `1px solid ${PW.green}66` }}>
+            ATIVO
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: PW.cyan, letterSpacing: 1 }}>
+            {(pacienteData as any)?.nome ? String((pacienteData as any).nome).toUpperCase() : isLoading ? "···" : `PACIENTE #${pacienteIdNum}`}
+          </span>
+          {(idade !== null || sexo) && (
+            <span style={{ fontSize: 10, color: PW.textMute }}>
+              {[idade !== null ? `${idade}A` : null, sexo ? sexo.toUpperCase() : null].filter(Boolean).join(" · ")}
+            </span>
+          )}
+          <div style={{ display: "flex", gap: 4, marginLeft: 14 }}>
+            {abas.map((aba) => {
+              const act = location === aba.href || (aba.label === "PACIENTE" && temPaciente && location.startsWith(`/pacientes/${pacienteIdNum}`));
+              return (
+                <Link
+                  key={aba.label}
+                  href={aba.href}
+                  className="pwx-elem"
+                  style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "3px 9px",
+                    border: `1px solid ${act ? aba.cor : PW.border}`, color: act ? aba.cor : PW.textMute,
+                    background: act ? `${aba.cor}14` : "transparent", cursor: "pointer", textDecoration: "none",
+                    ["--cor" as any]: aba.cor,
+                  }}
+                >
+                  {aba.label}
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <>
+          <span style={{ fontSize: 9, color: PW.textDim, letterSpacing: 2, fontWeight: 700 }}>ATALHOS RÁPIDOS</span>
+          <div style={{ display: "flex", gap: 6, marginLeft: 6 }}>
+            {pins.map((p) => (
+              <Link
+                key={p.label}
+                href={p.href}
+                className="pwx-elem"
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1.1,
+                  padding: "3px 12px", border: `1px solid ${p.cor}`, background: `${p.cor}12`,
+                  textDecoration: "none", cursor: "pointer", ["--cor" as any]: p.cor,
+                }}
+              >
+                <span style={{ fontSize: 10, color: p.cor, letterSpacing: 1, fontWeight: 700 }}>{p.label}</span>
+                <span style={{ fontSize: 8, color: PW.textMute }}>{p.sub}</span>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// L2 — Sidebar esquerda
+// L2 — Menu lateral (níveis 1·2·3) — rotas reais + modo enxuto/avançado
 // ═══════════════════════════════════════════════════════════════════════
-function SidebarL2({ collapsed }: { collapsed: boolean }) {
+function SidebarL2({ nivelViz, setNivelViz }: { nivelViz: NivelViz; setNivelViz: (n: NivelViz) => void }) {
   const PW = useFace();
-  const NAV_GROUPS = getNavGroups(PW);
   const [location] = useLocation();
   const sound = useSound();
-  const width = collapsed ? 64 : 230;
   const [search, setSearch] = useState("");
   const [menuModo, setMenuModo] = useState<"enxuto" | "avancado">(
     () => (typeof window !== "undefined" && localStorage.getItem("pwx.menu.modo") === "avancado") ? "avancado" : "enxuto"
   );
-  const grupos = menuModo === "enxuto" ? getNavEnxuto(PW) : NAV_GROUPS;
+  const grupos = menuModo === "enxuto" ? getNavEnxuto(PW) : getNavGroups(PW);
+
   const alternarModo = () => {
     setMenuModo((prev) => {
       const next = prev === "enxuto" ? "avancado" : "enxuto";
@@ -612,89 +809,106 @@ function SidebarL2({ collapsed }: { collapsed: boolean }) {
   const matchesSearch = (item: NavItem) =>
     !search || item.label.toLowerCase().includes(search.toLowerCase());
 
+  // NÍVEL 1 · menu recolhido → barra fina vertical clicável pra reabrir.
+  if (nivelViz === 1) {
+    return (
+      <div
+        onClick={() => setNivelViz(3)}
+        className="pwx-elem"
+        data-testid="pwx-sidebar"
+        style={{
+          width: 22, background: PW.navy, borderRight: `1px solid ${PW.border}`,
+          display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 8,
+          cursor: "pointer", writingMode: "vertical-rl", fontSize: 10, color: PW.cyan,
+          letterSpacing: 4, fontWeight: 900, flexShrink: 0, ["--cor" as any]: PW.cyan,
+        }}
+        title="Reabrir menu"
+      >
+        MENU
+      </div>
+    );
+  }
+
+  const compacto = nivelViz === 2;
+  const width = compacto ? 66 : 232;
+
   return (
     <aside
       data-testid="pwx-sidebar"
       className="pwx-scroll"
       style={{
-        width,
-        minWidth: width,
-        background: PW.navy,
-        borderRight: `1px solid ${PW.border}`,
-        overflowY: "auto",
-        overflowX: "hidden",
-        transition: "width 0.2s ease",
-        display: "flex",
-        flexDirection: "column",
-        padding: "16px 0",
-        fontFamily: PW.mono,
+        width, minWidth: width, background: PW.navy, borderRight: `1px solid ${PW.border}`,
+        overflowY: "auto", overflowX: "hidden", transition: "width 0.2s ease",
+        display: "flex", flexDirection: "column", padding: "10px 0", fontFamily: PW.mono, flexShrink: 0,
       }}
     >
       <Link
         href="/cockpit"
-        className="pwx-cockpit-btn"
         data-testid="pwx-cockpit-btn"
         onClick={() => sound.open()}
+        className="pwx-elem"
+        style={{
+          margin: "0 8px 10px", padding: compacto ? "8px 4px" : "10px",
+          border: `1px solid ${PW.cyan}`, background: `${PW.cyan}14`, textAlign: "center",
+          textDecoration: "none", display: "block", ["--cor" as any]: PW.cyan,
+        }}
       >
-        <Diamond size={collapsed ? 16 : 18} style={{ color: PW.cyan, display: "inline-block" }} />
-        {!collapsed && (
-          <>
-            <div style={{ fontSize: 10, color: PW.cyan, letterSpacing: 2, marginTop: 4, fontWeight: 700 }}>$ COCKPIT</div>
-            <div style={{ fontSize: 9, color: PW.textMute, marginTop: 2 }}>ABRIR PACIENTE</div>
-          </>
-        )}
+        <div style={{ fontSize: 10, color: PW.cyan, letterSpacing: 2, fontWeight: 700 }}>◆ {compacto ? "" : "COCKPIT"}</div>
+        {!compacto && <div style={{ fontSize: 9, color: PW.textMute, marginTop: 2 }}>ABRIR PACIENTE</div>}
       </Link>
 
-      {!collapsed && (
-        <div style={{ padding: "0 14px 10px" }}>
+      {!compacto && (
+        <div style={{ padding: "0 8px 10px" }}>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Pesquisar menu..."
             data-testid="pwx-menu-search"
             style={{
-              width: "100%",
-              background: PW.navyDeep,
-              border: `1px solid ${PW.border}`,
-              color: PW.text,
-              padding: "6px 10px",
-              fontFamily: PW.mono,
-              fontSize: 11,
-              borderRadius: 0,
-              outline: "none",
+              width: "100%", background: PW.navyDeep, border: `1px solid ${PW.border}`, color: PW.text,
+              padding: "6px 10px", fontFamily: PW.mono, fontSize: 11, borderRadius: 0, outline: "none",
             }}
           />
         </div>
       )}
 
-      <nav style={{ flex: 1, paddingBottom: 16 }}>
+      <nav style={{ flex: 1, paddingBottom: 12 }}>
         {grupos.map((group) => {
           const visibleItems = group.items.filter(matchesSearch);
           if (visibleItems.length === 0) return null;
           return (
             <div key={group.id} style={{ marginBottom: 6 }}>
-              {!collapsed && (
-                <div className="pwx-section" style={{ ["--cor" as any]: group.color } as React.CSSProperties}>
+              {!compacto && (
+                <div style={{
+                  padding: "4px 12px", fontSize: 9, letterSpacing: 1.5, color: group.color,
+                  borderBottom: `1px solid ${group.color}40`, margin: "12px 8px 4px",
+                }}>
                   § {group.label}
                 </div>
               )}
               {visibleItems.map((item) => {
                 const Icon = item.icon;
-                const active =
-                  location === item.href ||
-                  (item.href !== "/" && location.startsWith(item.href + "/"));
+                const active = location === item.href || (item.href !== "/" && location.startsWith(item.href + "/"));
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`pwx-btn ${active ? "active" : ""}`}
-                    style={{ ["--cor" as any]: group.color } as React.CSSProperties}
+                    className="pwx-menucard"
                     data-testid={`pwx-nav-${item.href.replace(/\//g, "-")}`}
                     title={item.label}
                     onClick={() => sound.tap()}
+                    style={{
+                      justifyContent: compacto ? "center" : "flex-start",
+                      ["--cor" as any]: group.color,
+                      ["--card-border" as any]: active ? group.color : PW.border,
+                      ["--card-accent" as any]: active ? group.color : `${group.color}44`,
+                      ["--card-bg" as any]: active ? `${group.color}18` : PW.navyPanel,
+                      color: active ? group.color : PW.textMute,
+                      fontSize: 11, fontWeight: active ? 800 : 600,
+                    }}
                   >
                     <Icon size={13} style={{ flexShrink: 0 }} />
-                    {!collapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</span>}
+                    {!compacto && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>}
                   </Link>
                 );
               })}
@@ -703,26 +917,15 @@ function SidebarL2({ collapsed }: { collapsed: boolean }) {
         })}
       </nav>
 
-      {!collapsed && (
+      {!compacto && (
         <button
           onClick={alternarModo}
           data-testid="pwx-menu-modo"
-          title={menuModo === "enxuto"
-            ? "Mostrar todos os menus do sistema (modo avançado)"
-            : "Voltar ao menu simples do dia a dia"}
+          title={menuModo === "enxuto" ? "Mostrar todos os menus do sistema (modo avançado)" : "Voltar ao menu simples do dia a dia"}
           style={{
-            margin: "0 14px 10px",
-            padding: "8px 10px",
-            background: "transparent",
-            border: `1px solid ${PW.border}`,
-            color: PW.textMute,
-            fontFamily: PW.mono,
-            fontSize: 10,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            cursor: "pointer",
-            borderRadius: 0,
-            textAlign: "center",
+            margin: "0 8px 10px", padding: "8px 10px", background: "transparent",
+            border: `1px solid ${PW.border}`, color: PW.textMute, fontFamily: PW.mono, fontSize: 10,
+            letterSpacing: 1, textTransform: "uppercase", cursor: "pointer", borderRadius: 0, textAlign: "center",
           }}
         >
           {menuModo === "enxuto" ? "Modo avançado →" : "← Modo simples"}
@@ -756,26 +959,11 @@ function PainelContextoL2({ collapsed }: { collapsed: boolean }) {
       <aside
         data-testid="pwx-context-collapsed"
         style={{
-          width: 40,
-          background: PW.navy,
-          borderLeft: `1px solid ${PW.border}`,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          paddingTop: 14,
-          flexShrink: 0,
+          width: 40, background: PW.navy, borderLeft: `1px solid ${PW.border}`,
+          display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 14, flexShrink: 0,
         }}
       >
-        <div
-          style={{
-            fontSize: 9,
-            color: PW.cyan,
-            writingMode: "vertical-rl",
-            letterSpacing: 3,
-            marginTop: 10,
-            fontFamily: PW.mono,
-          }}
-        >
+        <div style={{ fontSize: 9, color: PW.cyan, writingMode: "vertical-rl", letterSpacing: 3, marginTop: 10, fontFamily: PW.mono }}>
           ◆ CONTEXTO
         </div>
       </aside>
@@ -787,14 +975,8 @@ function PainelContextoL2({ collapsed }: { collapsed: boolean }) {
       data-testid="pwx-context-panel"
       className="pwx-scroll"
       style={{
-        width: 320,
-        minWidth: 320,
-        background: PW.navy,
-        borderLeft: `1px solid ${PW.border}`,
-        overflowY: "auto",
-        padding: 18,
-        fontFamily: PW.mono,
-        flexShrink: 0,
+        width: 320, minWidth: 320, background: PW.navy, borderLeft: `1px solid ${PW.border}`,
+        overflowY: "auto", padding: 18, fontFamily: PW.mono, flexShrink: 0,
       }}
     >
       <div style={{ fontSize: 9, color: PW.cyan, letterSpacing: 2, marginBottom: 14, fontWeight: 800 }}>
@@ -829,11 +1011,8 @@ function ContextoPacienteAtivo() {
     <>
       <div
         style={{
-          border: `1px solid ${PW.border}`,
-          borderLeft: `3px solid ${PW.cyan}`,
-          padding: 12,
-          marginBottom: 16,
-          background: PW.navyPanel,
+          border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.cyan}`,
+          padding: 12, marginBottom: 16, background: PW.navyPanel,
         }}
       >
         <div style={{ fontSize: 13, color: PW.text, fontWeight: 600 }}>PACIENTE ATIVO</div>
@@ -908,7 +1087,7 @@ function ContextoPadrao() {
   return (
     <ContextoSecao titulo="DICA" cor={PW.textMute}>
       <ContextoItem>Pressione ⌘K pra buscar qualquer comando, paciente ou tela.</ContextoItem>
-      <ContextoItem>Use [ pra colapsar o menu e ] pra colapsar este painel.</ContextoItem>
+      <ContextoItem>Use as teclas 1·2·3 pra mudar o nível do menu e ] pra colapsar este painel.</ContextoItem>
     </ContextoSecao>
   );
 }
@@ -917,15 +1096,10 @@ function BotaoContexto({ children }: { children: ReactNode }) {
   const PW = useFace();
   return (
     <div
+      className="pwx-elem"
       style={{
-        fontSize: 10,
-        color: PW.cyan,
-        padding: "5px 10px",
-        border: `1px solid ${PW.cyan}30`,
-        marginBottom: 4,
-        cursor: "pointer",
-        fontFamily: PW.mono,
-        letterSpacing: 0.5,
+        fontSize: 10, color: PW.cyan, padding: "5px 10px", border: `1px solid ${PW.cyan}30`,
+        marginBottom: 4, cursor: "pointer", fontFamily: PW.mono, letterSpacing: 0.5, ["--cor" as any]: PW.cyan,
       }}
     >
       {children}
@@ -934,31 +1108,56 @@ function BotaoContexto({ children }: { children: ReactNode }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// COMPONENTE PRINCIPAL
+// COMPONENTE PRINCIPAL — contrato inalterado { children, face }
 // ═══════════════════════════════════════════════════════════════════════
 export function LayoutPawards({ children, face = "escuro" }: { children: ReactNode; face?: PawardsFace }) {
   const { user } = useAuth();
-  const PW = face === "claro" ? PW_CLARO : PW_ESCURO;
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(
-    () => typeof window !== "undefined" && localStorage.getItem("pwx.sidebar") === "collapsed"
-  );
+  // Face efetiva: a escolha do usuário (CLARO/ESCURO no topo) sobrepõe a prop
+  // da tela; se nunca escolheu nada, vale a prop que a tela passou.
+  const [faceOverride, setFaceOverride] = useState<PawardsFace | null>(() => {
+    if (typeof window === "undefined") return null;
+    const v = localStorage.getItem("pwx.face");
+    return v === "claro" || v === "escuro" ? v : null;
+  });
+  const faceEfetiva: PawardsFace = faceOverride ?? face;
+  const PW = faceEfetiva === "claro" ? PW_CLARO : PW_ESCURO;
+  const aplicarFace = (f: PawardsFace) => {
+    try { localStorage.setItem("pwx.face", f); } catch { /* ignore */ }
+    setFaceOverride(f);
+  };
+
+  // Nível de visualização do menu (1·2·3), persistido.
+  const [nivelViz, setNivelVizState] = useState<NivelViz>(() => {
+    if (typeof window === "undefined") return 3;
+    const v = Number(localStorage.getItem("pwx.nivel"));
+    return v === 1 || v === 2 ? (v as NivelViz) : 3;
+  });
+  const setNivelViz = (n: NivelViz) => {
+    try { localStorage.setItem("pwx.nivel", String(n)); } catch { /* ignore */ }
+    setNivelVizState(n);
+  };
+
   const [rightCollapsed, setRightCollapsed] = useState<boolean>(
     () => typeof window !== "undefined" && localStorage.getItem("pwx.right") === "collapsed"
   );
 
   useEffect(() => { injectStyles(); }, []);
 
-  // Atalhos [ ]
+  // Atalhos: 1·2·3 = nível do menu · [ alterna recolhido · ] alterna contexto
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "1" || e.key === "2" || e.key === "3") {
+        e.preventDefault();
+        setNivelViz(Number(e.key) as NivelViz);
+      }
       if (e.key === "[") {
         e.preventDefault();
-        setSidebarCollapsed((prev) => {
-          const next = !prev;
-          localStorage.setItem("pwx.sidebar", next ? "collapsed" : "expanded");
+        setNivelVizState((prev) => {
+          const next: NivelViz = prev === 1 ? 3 : 1;
+          try { localStorage.setItem("pwx.nivel", String(next)); } catch { /* ignore */ }
           return next;
         });
       }
@@ -966,7 +1165,7 @@ export function LayoutPawards({ children, face = "escuro" }: { children: ReactNo
         e.preventDefault();
         setRightCollapsed((prev) => {
           const next = !prev;
-          localStorage.setItem("pwx.right", next ? "collapsed" : "expanded");
+          try { localStorage.setItem("pwx.right", next ? "collapsed" : "expanded"); } catch { /* ignore */ }
           return next;
         });
       }
@@ -979,54 +1178,37 @@ export function LayoutPawards({ children, face = "escuro" }: { children: ReactNo
 
   return (
     <FaceContext.Provider value={PW}>
-    <div
-      data-testid="pwx-layout-root"
-      style={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        background: PW.navyDeep,
-        color: PW.text,
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        ["--pwx-navy" as any]: PW.navy,
-        ["--pwx-navy-deep" as any]: PW.navyDeep,
-        ["--pwx-navy-panel" as any]: PW.navyPanel,
-        ["--pwx-border" as any]: PW.border,
-        ["--pwx-text" as any]: PW.text,
-        ["--pwx-text-mute" as any]: PW.textMute,
-        ["--pwx-gold" as any]: PW.gold,
-        ["--pwx-cyan" as any]: PW.cyan,
-        ["--pwx-neon" as any]: PW.neon,
-        ["--pwx-btn-color" as any]: face === "claro" ? PW.textMute : "#cbd5e1",
-        ["--pwx-hover-bg" as any]: face === "claro" ? PW.navyPanel : "#0e2540",
-      }}
-    >
-      <TopProgressBar />
-      <CommandPalette />
+      <div
+        data-testid="pwx-layout-root"
+        style={{
+          height: "100vh", display: "flex", flexDirection: "column",
+          background: PW.navyDeep, color: PW.text, fontFamily: PW.mono,
+          ["--pwx-mono" as any]: PW.mono,
+          ["--pwx-neon-30" as any]: `${PW.neon}40`,
+          ["--pwx-neon-50" as any]: `${PW.neon}80`,
+        }}
+      >
+        <TopProgressBar />
+        <CommandPalette />
 
-      <StripPins />
-      <StripCockpit />
+        <FaixaTopo face={faceEfetiva} setFace={aplicarFace} nivelViz={nivelViz} setNivelViz={setNivelViz} />
+        <FaixaTrilha />
+        <FaixaPaciente />
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-        <SidebarL2 collapsed={sidebarCollapsed} />
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+          <SidebarL2 nivelViz={nivelViz} setNivelViz={setNivelViz} />
 
-        <main
-          data-testid="pwx-main"
-          className="pwx-scroll"
-          style={{
-            flex: 1,
-            overflow: "auto",
-            background: PW.navyDeep,
-            position: "relative",
-            minWidth: 0,
-          }}
-        >
-          {children}
-        </main>
+          <main
+            data-testid="pwx-main"
+            className="pwx-scroll"
+            style={{ flex: 1, overflow: "auto", background: PW.navyDeep, position: "relative", minWidth: 0 }}
+          >
+            {children}
+          </main>
 
-        <PainelContextoL2 collapsed={rightCollapsed} />
+          <PainelContextoL2 collapsed={rightCollapsed} />
+        </div>
       </div>
-    </div>
     </FaceContext.Provider>
   );
 }
