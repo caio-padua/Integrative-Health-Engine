@@ -1,20 +1,14 @@
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
+import {
   useObterFilasOperacionais, getObterFilasOperacionaisQueryKey,
   useMoverItemFila
 } from "@workspace/api-client-react";
-import { Badge } from "@/components/ui/badge";
-import { Activity, ClipboardList, CheckSquare, AlertTriangle, DollarSign, CalendarClock, ArrowRight } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Activity, ClipboardList, CheckSquare, DollarSign, CalendarClock, ArrowRight, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { useClinic } from "@/contexts/ClinicContext";
+import { PW, MONO, inputStyle, labelStyle } from "../craniotomia-shared";
 
 export default function Filas() {
   const { unidadeSelecionada } = useClinic();
@@ -22,7 +16,7 @@ export default function Filas() {
   const { data: filas, isLoading } = useObterFilasOperacionais(queryParams, {
     query: { queryKey: getObterFilasOperacionaisQueryKey(queryParams) }
   });
-  
+
   const moverItemFila = useMoverItemFila();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -31,11 +25,17 @@ export default function Filas() {
   const [novoStatus, setNovoStatus] = useState("concluido");
   const [obs, setObs] = useState("");
 
+  const fecharModal = () => {
+    setSelectedItem(null);
+    setNovoStatus("concluido");
+    setObs("");
+  };
+
   const handleMoverFila = () => {
     if (!selectedItem) return;
-    
+
     moverItemFila.mutate({
-      id: selectedItem.id,
+      itemId: selectedItem.id,
       data: {
         novoStatus,
         observacao: obs
@@ -43,9 +43,7 @@ export default function Filas() {
     }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getObterFilasOperacionaisQueryKey({}) });
-        setSelectedItem(null);
-        setNovoStatus("concluido");
-        setObs("");
+        fecharModal();
         toast({ title: "Item movido com sucesso." });
       }
     });
@@ -53,144 +51,329 @@ export default function Filas() {
 
   const getPrioridadeColor = (prioridade: string) => {
     switch (prioridade) {
-      case "urgente": return "bg-red-500 text-white";
-      case "alta": return "bg-orange-500 text-white";
-      case "media": return "bg-yellow-500 text-black";
-      default: return "bg-green-500 text-white";
+      case "urgente": return PW.danger;
+      case "alta": return PW.warn;
+      case "media": return PW.ciano;
+      default: return PW.muted;
     }
   };
 
-  const FilaColumn = ({ title, icon: Icon, items, colorClass }: any) => (
-    <Card className="bg-card flex flex-col h-full border-t-4 border-t-primary/50" style={{ borderTopColor: colorClass }}>
-      <CardHeader className="py-4">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Icon className="w-5 h-5" style={{ color: colorClass }} />
+  const FilaColumn = ({ title, icon: Icon, items, cor }: any) => (
+    <section
+      className="fl-col"
+      style={{
+        background: PW.bg2,
+        border: `1px solid ${PW.border}`,
+        borderLeft: `3px solid ${cor}`,
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "12px 14px",
+          borderBottom: `1px solid ${PW.border}`,
+        }}
+      >
+        <Icon className="w-4 h-4" style={{ color: cor }} />
+        <span
+          style={{
+            fontFamily: MONO,
+            fontSize: 12,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: PW.text,
+            fontWeight: 700,
+          }}
+        >
           {title}
-          <Badge variant="secondary" className="ml-auto">{items?.length || 0}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-3 pt-0">
+        </span>
+        <span
+          style={{
+            marginLeft: "auto",
+            fontFamily: MONO,
+            fontSize: 12,
+            fontWeight: 700,
+            color: cor,
+            background: PW.bg3,
+            border: `1px solid ${PW.border}`,
+            padding: "1px 8px",
+          }}
+        >
+          {items?.length || 0}
+        </span>
+      </header>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
         {isLoading ? (
-          Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
-        ) : items?.length === 0 ? (
-          <div className="text-center text-muted-foreground text-sm py-8">Fila vazia</div>
+          <div style={{ color: PW.muted, fontFamily: MONO, fontSize: 12, textAlign: "center", padding: "24px 0" }}>
+            Carregando...
+          </div>
+        ) : !items || items.length === 0 ? (
+          <div style={{ color: PW.muted, fontFamily: MONO, fontSize: 12, textAlign: "center", padding: "24px 0" }}>
+            Fila vazia
+          </div>
         ) : (
-          items?.map((item: any) => (
-            <div key={item.id} className="p-3 bg-muted/30 border border-border rounded-lg shadow-sm hover:bg-muted/50 transition-colors group relative">
-              <div className="flex justify-between items-start mb-2">
-                <span className="font-medium text-sm truncate pr-2">{item.pacienteNome}</span>
-                <Badge className={`text-[10px] ${getPrioridadeColor(item.prioridade)}`}>
+          items.map((item: any) => (
+            <div
+              key={item.id}
+              className="fl-card"
+              style={{
+                position: "relative",
+                background: PW.bg3,
+                border: `1px solid ${PW.border}`,
+                padding: 10,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 13,
+                    color: PW.text,
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.pacienteNome}
+                </span>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontFamily: MONO,
+                    fontSize: 9,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: getPrioridadeColor(item.prioridade),
+                    border: `1px solid ${getPrioridadeColor(item.prioridade)}`,
+                    padding: "1px 6px",
+                  }}
+                >
                   {item.prioridade}
-                </Badge>
+                </span>
               </div>
+
               {item.descricao && (
-                <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{item.descricao}</p>
+                <p
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    color: PW.t2,
+                    marginBottom: 6,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {item.descricao}
+                </p>
               )}
-              <div className="flex justify-between items-center text-[10px] text-muted-foreground">
-                <span className="capitalize">{item.status}</span>
-                <span>{new Date(item.criadoEm).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: MONO, fontSize: 10, color: PW.muted }}>
+                <span style={{ textTransform: "capitalize" }}>{item.status}</span>
+                <span>{new Date(item.criadoEm).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
               </div>
-              
-              <div className="absolute inset-0 bg-background/80 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-lg">
-                <Dialog open={selectedItem?.id === item.id} onOpenChange={(open) => !open && setSelectedItem(null)}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="secondary" onClick={() => setSelectedItem(item)}>
-                      Mover <ArrowRight className="ml-2 w-3 h-3" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Atualizar Status na Fila</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                      <div>
-                        <p className="text-sm font-medium mb-1">Paciente: {item.pacienteNome}</p>
-                        <p className="text-xs text-muted-foreground">Fila: {title}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Novo Status</label>
-                        <Select value={novoStatus} onValueChange={setNovoStatus}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pendente">Pendente</SelectItem>
-                            <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                            <SelectItem value="concluido">Concluído</SelectItem>
-                            <SelectItem value="cancelado">Cancelado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Observação (opcional)</label>
-                        <Input 
-                          value={obs} 
-                          onChange={(e) => setObs(e.target.value)} 
-                          placeholder="Motivo da mudança..."
-                        />
-                      </div>
-                      <Button 
-                        className="w-full" 
-                        onClick={handleMoverFila}
-                        disabled={moverItemFila.isPending}
-                      >
-                        Confirmar
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+
+              <button
+                className="fl-mover"
+                onClick={() => setSelectedItem(item)}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: "rgba(2,10,20,0.82)",
+                  border: "none",
+                  color: PW.ciano,
+                  fontFamily: MONO,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  opacity: 0,
+                }}
+              >
+                Mover <ArrowRight className="w-3 h-3" />
+              </button>
             </div>
           ))
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 
   return (
     <Layout>
-      <div className="space-y-6 h-full flex flex-col">
+      <style>{`
+        .fl-card .fl-mover { transition: opacity .15s ease; }
+        .fl-card:hover .fl-mover { opacity: 1; }
+        .fl-col { transition: border-color .15s ease; }
+        .fl-confirm { transition: box-shadow .15s ease, border-color .15s ease; }
+        .fl-confirm:hover { border-color: ${PW.ciano}; box-shadow: 0 0 0 1px ${PW.cianoGlow}, 0 0 18px ${PW.cianoGlow}; }
+        .fl-x:hover { color: ${PW.text}; }
+      `}</style>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 18, minHeight: 0, height: "100%" }}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Activity className="h-8 w-8 text-primary" />
+          <h1
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontFamily: MONO,
+              fontSize: 22,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: PW.text,
+              fontWeight: 700,
+            }}
+          >
+            <Activity className="h-6 w-6" style={{ color: PW.ciano }} />
             Central de Filas
           </h1>
-          <p className="text-muted-foreground mt-1">Visão operacional completa do fluxo da clínica.</p>
+          <p style={{ fontFamily: MONO, fontSize: 12, color: PW.muted, marginTop: 4 }}>
+            Visão operacional completa do fluxo da clínica.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 flex-1 h-[calc(100vh-200px)]">
-          <FilaColumn 
-            title="Anamnese" 
-            icon={ClipboardList} 
-            items={filas?.filaAnamnese} 
-            colorClass="var(--color-primary)" 
-          />
-          <FilaColumn 
-            title="Validação" 
-            icon={CheckSquare} 
-            items={filas?.filaValidacao} 
-            colorClass="#ef4444" // red
-          />
-          <FilaColumn 
-            title="Procedimento" 
-            icon={Activity} 
-            items={filas?.filaProcedimento} 
-            colorClass="#3b82f6" // blue
-          />
-          <FilaColumn 
-            title="Follow-up" 
-            icon={CalendarClock} 
-            items={filas?.filaFollowup} 
-            colorClass="#8b5cf6" // indigo
-          />
-          <FilaColumn 
-            title="Pagamento" 
-            icon={DollarSign} 
-            items={filas?.filaPagamento} 
-            colorClass="#10b981" // green
-          />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
+          <FilaColumn title="Anamnese" icon={ClipboardList} items={filas?.filaAnamnese} cor={PW.azul} />
+          <FilaColumn title="Validação" icon={CheckSquare} items={filas?.filaValidacao} cor={PW.danger} />
+          <FilaColumn title="Procedimento" icon={Activity} items={filas?.filaProcedimento} cor={PW.lilas} />
+          <FilaColumn title="Follow-up" icon={CalendarClock} items={filas?.filaFollowup} cor={PW.gold} />
+          <FilaColumn title="Pagamento" icon={DollarSign} items={filas?.filaPagamento} cor={PW.verde} />
         </div>
       </div>
+
+      {selectedItem && (
+        <div
+          onClick={fecharModal}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,10,20,0.82)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              background: PW.bg2,
+              border: `1px solid ${PW.border}`,
+              borderLeft: `3px solid ${PW.ciano}`,
+            }}
+          >
+            <header
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 14px",
+                borderBottom: `1px solid ${PW.border}`,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: PW.text,
+                  fontWeight: 700,
+                }}
+              >
+                Atualizar Status na Fila
+              </span>
+              <button
+                className="fl-x"
+                onClick={fecharModal}
+                style={{ background: "none", border: "none", color: PW.muted, cursor: "pointer", lineHeight: 0 }}
+                aria-label="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </header>
+
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <p style={{ fontFamily: MONO, fontSize: 13, color: PW.text, fontWeight: 600 }}>
+                  Paciente: {selectedItem.pacienteNome}
+                </p>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Novo Status</label>
+                <select
+                  value={novoStatus}
+                  onChange={(e) => setNovoStatus(e.target.value)}
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                >
+                  <option value="pendente">Pendente</option>
+                  <option value="em_andamento">Em Andamento</option>
+                  <option value="concluido">Concluído</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Observação (opcional)</label>
+                <input
+                  value={obs}
+                  onChange={(e) => setObs(e.target.value)}
+                  placeholder="Motivo da mudança..."
+                  style={inputStyle}
+                />
+              </div>
+
+              <button
+                className="fl-confirm"
+                onClick={handleMoverFila}
+                disabled={moverItemFila.isPending}
+                style={{
+                  width: "100%",
+                  background: PW.bg3,
+                  border: `1px solid ${PW.border}`,
+                  color: PW.ciano,
+                  fontFamily: MONO,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  padding: "10px 12px",
+                  cursor: moverItemFila.isPending ? "not-allowed" : "pointer",
+                  opacity: moverItemFila.isPending ? 0.5 : 1,
+                }}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
