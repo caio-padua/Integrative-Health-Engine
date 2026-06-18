@@ -17,7 +17,7 @@
  * Reusa hooks reais (useAuth, useClinic, useSound) e CommandPalette/TopProgressBar.
  */
 
-import { ReactNode, useState, useEffect, useMemo } from "react";
+import { ReactNode, useState, useEffect, useMemo, createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -63,13 +63,45 @@ const PW = {
   mono: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
 } as const;
 
+export type PWPalette = typeof PW;
+export type PawardsFace = "escuro" | "claro";
+
+// PENUMBRA face CLARA "Paper Ciano" — mesmas chaves de PW (escuro), valores
+// do PERFIL_PAPER_CIANO aprovado por Caio. NAO inventar hex novo.
+const PW_CLARO: PWPalette = {
+  navyDeep: "#EEF2F4",
+  navy: "#F8FBFC",
+  navyPanel: "#E2E8EC",
+  bg3: "#D2DCE0",
+  border: "#B8C4CA",
+  text: "#0F1A1F",
+  textMute: "#3F5258",
+  textDim: "#6E8088",
+  gold: "#9C6E16",
+  goldDeep: "#7A5612",
+  cyan: "#1E7A6E",
+  neon: "#2A9D8F",
+  orange: "#9C6E16",
+  green: "#3F6E3F",
+  red: "#8A2A2A",
+  brand: "#5A4A82",
+  mono: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
+};
+
+const PW_ESCURO = PW;
+
+// Contexto da face ativa. Default = escuro (comportamento atual inalterado).
+const FaceContext = createContext<PWPalette>(PW_ESCURO);
+function useFace() { return useContext(FaceContext); }
+
 // ═══════════════════════════════════════════════════════════════════════
 // MENU L2 — rotas REAIS do App.tsx (sem links quebrados)
 // ═══════════════════════════════════════════════════════════════════════
 type NavItem = { label: string; href: string; icon: typeof Users };
 type NavGroup = { id: string; label: string; color: string; items: NavItem[] };
 
-const NAV_GROUPS: NavGroup[] = [
+function getNavGroups(PW: PWPalette): NavGroup[] {
+  return [
   {
     id: "clinica", label: "CLÍNICA & PACIENTES", color: PW.cyan,
     items: [
@@ -120,7 +152,8 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Sessões", href: "/sessoes", icon: Activity },
     ],
   },
-];
+  ];
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // CSS INLINE — injetado uma vez
@@ -150,7 +183,7 @@ function injectStyles() {
       font-family: var(--pwx-mono);
       font-size: 11px; font-weight: 600;
       letter-spacing: 0.5px; text-transform: uppercase;
-      color: #cbd5e1;
+      color: var(--pwx-btn-color, #cbd5e1);
       background: transparent;
       border-left: 3px solid transparent;
       border-radius: 0;
@@ -160,12 +193,12 @@ function injectStyles() {
       text-decoration: none;
     }
     .pwx-btn:hover {
-      background: #0e2540;
+      background: var(--pwx-hover-bg, #0e2540);
       border-left-color: color-mix(in srgb, var(--cor) 70%, transparent);
       color: var(--cor);
     }
     .pwx-btn.active {
-      background: #0e2540;
+      background: var(--pwx-hover-bg, #0e2540);
       border-left-color: var(--cor);
       color: var(--cor);
       font-weight: 800;
@@ -228,6 +261,7 @@ function injectStyles() {
 // E4 STRIP 1 — PINS + utilitários + unidade + perfil
 // ═══════════════════════════════════════════════════════════════════════
 function StripPins() {
+  const PW = useFace();
   const { user, logout } = useAuth();
   const { nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas } = useClinic();
   const sound = useSound();
@@ -295,7 +329,7 @@ function StripPins() {
             onClick={() => sound.tap()}
           >
             <div style={{ fontSize: 10, color: p.color, letterSpacing: 1, fontWeight: 700 }}>{p.label}</div>
-            <div style={{ fontSize: 9, color: "#fff", marginTop: 2 }}>{p.sub}</div>
+            <div style={{ fontSize: 9, color: PW.text, marginTop: 2 }}>{p.sub}</div>
           </Link>
         ))}
       </div>
@@ -376,6 +410,7 @@ function StripPins() {
 // E4 STRIP 2 — Cockpit mega-header (contextual)
 // ═══════════════════════════════════════════════════════════════════════
 function StripCockpit() {
+  const PW = useFace();
   const { user } = useAuth();
   const [location] = useLocation();
   const { nomeUnidadeSelecionada, corUnidadeSelecionada, isTodasClinicas, modoLabel, unidadeSelecionada } = useClinic();
@@ -486,7 +521,7 @@ function StripCockpit() {
     >
       <div>
         <div style={{ fontSize: 10, color: PW.gold, letterSpacing: 3, fontWeight: 700 }}>{label}</div>
-        <div style={{ fontSize: 18, color: "#fff", marginTop: 2, fontWeight: 600, letterSpacing: 1 }}>{titulo}</div>
+        <div style={{ fontSize: 18, color: PW.text, marginTop: 2, fontWeight: 600, letterSpacing: 1 }}>{titulo}</div>
         <div style={{ fontSize: 10, color: corUnidadeSelecionada || PW.textMute, marginTop: 2 }}>{subtitulo}</div>
       </div>
       <div style={{ display: "flex", gap: 18, fontFamily: PW.mono, fontSize: 11 }}>
@@ -520,6 +555,7 @@ function StripCockpit() {
 }
 
 function KpiCockpit({ label, valor, cor, title }: { label: string; valor: string; cor: string; title?: string }) {
+  const PW = useFace();
   return (
     <div title={title} style={{ textAlign: "center", padding: "4px 14px", borderLeft: `1px solid ${PW.border}` }}>
       <div style={{ fontSize: 8, color: PW.textDim, letterSpacing: 1 }}>{label}</div>
@@ -532,6 +568,8 @@ function KpiCockpit({ label, valor, cor, title }: { label: string; valor: string
 // L2 — Sidebar esquerda
 // ═══════════════════════════════════════════════════════════════════════
 function SidebarL2({ collapsed }: { collapsed: boolean }) {
+  const PW = useFace();
+  const NAV_GROUPS = getNavGroups(PW);
   const [location] = useLocation();
   const sound = useSound();
   const width = collapsed ? 64 : 230;
@@ -584,7 +622,7 @@ function SidebarL2({ collapsed }: { collapsed: boolean }) {
               width: "100%",
               background: PW.navyDeep,
               border: `1px solid ${PW.border}`,
-              color: "#fff",
+              color: PW.text,
               padding: "6px 10px",
               fontFamily: PW.mono,
               fontSize: 11,
@@ -642,6 +680,7 @@ function SidebarL2({ collapsed }: { collapsed: boolean }) {
 // L2 — Painel direito (contexto)
 // ═══════════════════════════════════════════════════════════════════════
 function PainelContextoL2({ collapsed }: { collapsed: boolean }) {
+  const PW = useFace();
   const [location] = useLocation();
 
   const conteudo = useMemo(() => {
@@ -716,14 +755,16 @@ function ContextoSecao({ titulo, cor, children }: { titulo: string; cor: string;
 }
 
 function ContextoItem({ children, danger }: { children: ReactNode; danger?: boolean }) {
+  const PW = useFace();
   return (
-    <div style={{ fontSize: 10, color: danger ? "#fca5a5" : "#cbd5e1", padding: "3px 0", lineHeight: 1.5 }}>
+    <div style={{ fontSize: 10, color: danger ? PW.red : PW.textMute, padding: "3px 0", lineHeight: 1.5 }}>
       {children}
     </div>
   );
 }
 
 function ContextoPacienteAtivo() {
+  const PW = useFace();
   return (
     <>
       <div
@@ -735,7 +776,7 @@ function ContextoPacienteAtivo() {
           background: PW.navyPanel,
         }}
       >
-        <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>PACIENTE ATIVO</div>
+        <div style={{ fontSize: 13, color: PW.text, fontWeight: 600 }}>PACIENTE ATIVO</div>
         <div style={{ fontSize: 10, color: PW.textMute, marginTop: 4 }}>Carregando dados clínicos...</div>
       </div>
       <ContextoSecao titulo="ÚLTIMAS AÇÕES" cor={PW.orange}>
@@ -753,6 +794,7 @@ function ContextoPacienteAtivo() {
 }
 
 function ContextoListaPacientes() {
+  const PW = useFace();
   return (
     <>
       <ContextoSecao titulo="ATALHOS DE LISTA" cor={PW.cyan}>
@@ -769,6 +811,7 @@ function ContextoListaPacientes() {
 }
 
 function ContextoAgenda() {
+  const PW = useFace();
   return (
     <>
       <ContextoSecao titulo="PRÓXIMOS HORÁRIOS" cor={PW.cyan}>
@@ -785,6 +828,7 @@ function ContextoAgenda() {
 }
 
 function ContextoFinanceiro() {
+  const PW = useFace();
   return (
     <>
       <ContextoSecao titulo="RESUMO DO MÊS" cor={PW.gold}>
@@ -800,6 +844,7 @@ function ContextoFinanceiro() {
 }
 
 function ContextoPadrao() {
+  const PW = useFace();
   return (
     <ContextoSecao titulo="DICA" cor={PW.textMute}>
       <ContextoItem>Pressione ⌘K pra buscar qualquer comando, paciente ou tela.</ContextoItem>
@@ -809,6 +854,7 @@ function ContextoPadrao() {
 }
 
 function BotaoContexto({ children }: { children: ReactNode }) {
+  const PW = useFace();
   return (
     <div
       style={{
@@ -830,8 +876,9 @@ function BotaoContexto({ children }: { children: ReactNode }) {
 // ═══════════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════
-export function LayoutPawards({ children }: { children: ReactNode }) {
+export function LayoutPawards({ children, face = "escuro" }: { children: ReactNode; face?: PawardsFace }) {
   const { user } = useAuth();
+  const PW = face === "claro" ? PW_CLARO : PW_ESCURO;
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(
     () => typeof window !== "undefined" && localStorage.getItem("pwx.sidebar") === "collapsed"
@@ -871,6 +918,7 @@ export function LayoutPawards({ children }: { children: ReactNode }) {
   if (!user) return <>{children}</>;
 
   return (
+    <FaceContext.Provider value={PW}>
     <div
       data-testid="pwx-layout-root"
       style={{
@@ -880,6 +928,17 @@ export function LayoutPawards({ children }: { children: ReactNode }) {
         background: PW.navyDeep,
         color: PW.text,
         fontFamily: "system-ui, -apple-system, sans-serif",
+        ["--pwx-navy" as any]: PW.navy,
+        ["--pwx-navy-deep" as any]: PW.navyDeep,
+        ["--pwx-navy-panel" as any]: PW.navyPanel,
+        ["--pwx-border" as any]: PW.border,
+        ["--pwx-text" as any]: PW.text,
+        ["--pwx-text-mute" as any]: PW.textMute,
+        ["--pwx-gold" as any]: PW.gold,
+        ["--pwx-cyan" as any]: PW.cyan,
+        ["--pwx-neon" as any]: PW.neon,
+        ["--pwx-btn-color" as any]: face === "claro" ? PW.textMute : "#cbd5e1",
+        ["--pwx-hover-bg" as any]: face === "claro" ? PW.navyPanel : "#0e2540",
       }}
     >
       <TopProgressBar />
@@ -908,6 +967,7 @@ export function LayoutPawards({ children }: { children: ReactNode }) {
         <PainelContextoL2 collapsed={rightCollapsed} />
       </div>
     </div>
+    </FaceContext.Provider>
   );
 }
 

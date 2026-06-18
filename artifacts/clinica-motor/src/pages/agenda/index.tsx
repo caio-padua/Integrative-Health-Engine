@@ -1,7 +1,4 @@
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -12,34 +9,28 @@ import {
   MessageSquare, CalendarSync, ClipboardCheck, KeyRound,
   Download, CheckCheck, X, Pencil
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { apiFetch } from "@/lib/api-fetch";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuTrigger, DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
+import { PW, MONO, inputStyle, labelStyle } from "../penumbra-claro";
 
 const BASE_URL = import.meta.env.BASE_URL || "/clinica-motor/";
 
 const DIAS_SEMANA_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; borderColor: string; bgClass: string }> = {
-  agendada: { label: "Agendada", color: "text-blue-400", icon: Circle, borderColor: "border-l-blue-400", bgClass: "" },
-  confirmada: { label: "Confirmada", color: "text-emerald-400", icon: CheckCircle2, borderColor: "border-l-emerald-400", bgClass: "" },
-  em_andamento: { label: "Em Andamento", color: "text-amber-400", icon: AlertCircle, borderColor: "border-l-amber-400", bgClass: "bg-amber-500/5" },
-  parcial: { label: "Parcial", color: "text-orange-400", icon: AlertCircle, borderColor: "border-l-orange-400", bgClass: "bg-orange-500/5" },
-  concluida: { label: "Concluida", color: "text-green-400", icon: CheckCircle2, borderColor: "border-l-green-400", bgClass: "bg-green-500/5" },
-  cancelada: { label: "Cancelada", color: "text-red-400/60", icon: XCircle, borderColor: "border-l-red-400/60", bgClass: "opacity-50" },
-  nao_compareceu: { label: "Falta", color: "text-red-400", icon: XCircle, borderColor: "border-l-red-400", bgClass: "opacity-60 bg-red-500/5" },
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; dim?: boolean }> = {
+  agendada: { label: "Agendada", color: PW.azul, icon: Circle },
+  confirmada: { label: "Confirmada", color: PW.ciano, icon: CheckCircle2 },
+  em_andamento: { label: "Em Andamento", color: PW.gold, icon: AlertCircle },
+  parcial: { label: "Parcial", color: PW.warn, icon: AlertCircle },
+  concluida: { label: "Concluida", color: PW.verde, icon: CheckCircle2 },
+  cancelada: { label: "Cancelada", color: PW.danger, icon: XCircle, dim: true },
+  nao_compareceu: { label: "Falta", color: PW.danger, icon: XCircle, dim: true },
 };
 
-const PILL_STATUS: Record<string, { dot: string; ring: string; label: string }> = {
-  aplicada: { dot: "bg-blue-500", ring: "ring-2 ring-blue-400/50", label: "APLICADA" },
-  nao_aplicada: { dot: "bg-red-500", ring: "", label: "N/A" },
-  pendente_disp: { dot: "bg-yellow-500", ring: "", label: "DISP" },
-  pendente_prox: { dot: "bg-amber-800", ring: "", label: "PROX" },
+const PILL_STATUS: Record<string, { dot: string; ring: boolean; label: string }> = {
+  aplicada: { dot: PW.azul, ring: true, label: "APLICADA" },
+  nao_aplicada: { dot: PW.danger, ring: false, label: "N/A" },
+  pendente_disp: { dot: PW.gold, ring: false, label: "DISP" },
+  pendente_prox: { dot: PW.warn, ring: false, label: "PROX" },
 };
 
 function getWeekRange(date: Date): { from: string; to: string; days: Date[] } {
@@ -111,29 +102,73 @@ function SubstancePill({ ap, sessaoId, onConfirm }: {
   const canConfirm = status === "pendente" && disp === "disp";
 
   return (
-    <div className="flex items-center gap-1.5 group">
+    <div className="ag-pill-wrap" style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <div
-        className="flex items-center gap-1.5 px-2 py-1 text-[10px] border border-border/60 bg-card/50 transition-all"
-        style={{ borderLeftColor: ap.substanciaCor || "#888", borderLeftWidth: 3 }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "2px 6px",
+          fontSize: 10,
+          fontFamily: MONO,
+          background: PW.bg2,
+          border: `1px solid ${PW.border}`,
+          borderLeft: `3px solid ${ap.substanciaCor || PW.muted}`,
+        }}
       >
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot} ${cfg.ring}`} />
-        <span className="font-medium truncate max-w-[80px]">{ap.substanciaNome}</span>
-        <span className="text-muted-foreground font-mono text-[9px]">
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            flexShrink: 0,
+            background: cfg.dot,
+            boxShadow: cfg.ring ? `0 0 0 2px ${PW.cianoGlow}` : "none",
+          }}
+        />
+        <span
+          style={{
+            fontWeight: 600,
+            color: PW.text,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: 80,
+          }}
+        >
+          {ap.substanciaNome}
+        </span>
+        <span style={{ color: PW.muted, fontSize: 9 }}>
           {ap.aplicacao.numeroSessao}/{ap.aplicacao.totalSessoes}
         </span>
-        {status === "aplicada" && <CheckCheck className="h-3 w-3 text-blue-400" />}
+        {status === "aplicada" && <CheckCheck className="h-3 w-3" style={{ color: PW.azul }} />}
       </div>
       {canConfirm && (
-        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="ag-pill-actions" style={{ display: "flex", gap: 2 }}>
           <button
-            className="p-0.5 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400"
+            className="ag-pill-ok"
+            style={{
+              padding: 2,
+              background: PW.bg3,
+              border: `1px solid ${PW.border}`,
+              color: PW.verde,
+              cursor: "pointer",
+              lineHeight: 0,
+            }}
             onClick={(e) => { e.stopPropagation(); onConfirm(sessaoId, ap.aplicacao.substanciaId, true); }}
             title="Confirmar aplicacao"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
           </button>
           <button
-            className="p-0.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400"
+            className="ag-pill-no"
+            style={{
+              padding: 2,
+              background: PW.bg3,
+              border: `1px solid ${PW.border}`,
+              color: PW.danger,
+              cursor: "pointer",
+              lineHeight: 0,
+            }}
             onClick={(e) => { e.stopPropagation(); onConfirm(sessaoId, ap.aplicacao.substanciaId, false); }}
             title="Nao aplicada"
           >
@@ -151,6 +186,7 @@ function SessaoCard({ sessao, onConfirm, onEdit }: {
   onEdit: (s: SessaoAgenda) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const config = STATUS_CONFIG[sessao.sessao.status] || STATUS_CONFIG.agendada;
   const StatusIcon = config.icon;
   const { toast } = useToast();
@@ -200,88 +236,186 @@ function SessaoCard({ sessao, onConfirm, onEdit }: {
     } catch { toast({ title: "Erro ao enviar email", variant: "destructive" }); }
   };
 
+  const menuItemStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    padding: "8px 10px",
+    background: "none",
+    border: "none",
+    color: PW.text,
+    fontFamily: MONO,
+    fontSize: 12,
+    textAlign: "left",
+    cursor: "pointer",
+  };
+
   return (
     <div
-      className={`border border-border/60 p-3 cursor-pointer transition-all hover:border-border group/card border-l-[3px] ${config.borderColor} ${config.bgClass} ${isToday ? "shadow-md shadow-primary/10 border-primary/30" : ""}`}
+      className="ag-card"
+      style={{
+        position: "relative",
+        background: PW.bg2,
+        border: `1px solid ${PW.border}`,
+        borderLeft: `3px solid ${config.color}`,
+        padding: 10,
+        cursor: "pointer",
+        opacity: config.dim ? 0.55 : 1,
+        boxShadow: isToday ? `0 0 0 1px ${PW.cianoGlow}` : "none",
+      }}
       onClick={() => setExpanded(!expanded)}
     >
-      <div className="flex items-start justify-between gap-1">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {sessao.sessao.horaAgendada && (
-              <span className="text-xs font-mono font-bold text-foreground">
+              <span style={{ fontSize: 12, fontFamily: MONO, fontWeight: 700, color: PW.text }}>
                 {sessao.sessao.horaAgendada.substring(0, 5)}
-                {horaFim && <span className="text-muted-foreground font-normal"> - {horaFim}</span>}
+                {horaFim && <span style={{ color: PW.muted, fontWeight: 400 }}> - {horaFim}</span>}
               </span>
             )}
-            {isToday && <Badge className="text-[8px] px-1 py-0 bg-primary/20 text-primary border-primary/30">HOJE</Badge>}
+            {isToday && (
+              <span
+                style={{
+                  fontSize: 8,
+                  fontFamily: MONO,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  color: PW.ciano,
+                  border: `1px solid ${PW.ciano}`,
+                  padding: "0 3px",
+                }}
+              >
+                HOJE
+              </span>
+            )}
           </div>
-          <div className="text-sm font-semibold truncate mt-0.5">{sessao.pacienteNome || "Cliente"}</div>
+          <div style={{ fontSize: 13, fontFamily: MONO, fontWeight: 600, color: PW.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+            {sessao.pacienteNome || "Cliente"}
+          </div>
           {sessao.pacienteCpf && (
-            <div className="text-[10px] text-muted-foreground font-mono">{sessao.pacienteCpf}</div>
+            <div style={{ fontSize: 10, color: PW.muted, fontFamily: MONO }}>{sessao.pacienteCpf}</div>
           )}
 
           {tipoProcedimento && (
-            <div className="mt-1 text-[9px] font-bold tracking-wider text-primary uppercase">
+            <div style={{ marginTop: 4, fontSize: 9, fontFamily: MONO, fontWeight: 700, letterSpacing: "0.06em", color: PW.ciano, textTransform: "uppercase" }}>
               {tipoProcedimento}
-              {duracaoMin ? <span className="text-muted-foreground font-normal ml-1">({duracaoMin}min)</span> : null}
+              {duracaoMin ? <span style={{ color: PW.muted, fontWeight: 400, marginLeft: 4 }}>({duracaoMin}min)</span> : null}
             </div>
           )}
 
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${config.color}`}>
-              <StatusIcon className="h-3 w-3 mr-0.5" />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                fontSize: 10,
+                fontFamily: MONO,
+                color: config.color,
+                border: `1px solid ${PW.border}`,
+                padding: "0 5px",
+              }}
+            >
+              <StatusIcon className="h-3 w-3" />
               {config.label}
-            </Badge>
+            </span>
             {sessao.sessao.tipoServico === "homecare" && (
-              <Badge variant="outline" className="text-[9px] px-1 py-0 text-teal-400 border-teal-400/30">
-                <Heart className="h-2.5 w-2.5 mr-0.5" />NURSE CARE
-              </Badge>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 9,
+                  fontFamily: MONO,
+                  color: PW.ciano,
+                  border: `1px solid ${PW.border}`,
+                  padding: "0 4px",
+                }}
+              >
+                <Heart className="h-2.5 w-2.5" />NURSE CARE
+              </span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
           {sessao.unidadeCor && (
-            <div className="w-3 h-3 flex-shrink-0" style={{ backgroundColor: sessao.unidadeCor }} title={sessao.unidadeNome || ""} />
+            <div style={{ width: 12, height: 12, flexShrink: 0, backgroundColor: sessao.unidadeCor }} title={sessao.unidadeNome || ""} />
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover/card:opacity-100">
-                <MoreVertical className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={handleSyncCalendar}>
-                <CalendarSync className="h-4 w-4 mr-2" />Sincronizar Google Agenda
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleIcsDownload}>
-                <Download className="h-4 w-4 mr-2" />Baixar ICS
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handlePreEmail}>
-                <MessageSquare className="h-4 w-4 mr-2" />Email Pre-Sessao
-              </DropdownMenuItem>
-              {sessao.sessao.status === "concluida" && (
-                <DropdownMenuItem onClick={handlePostEmail}>
-                  <FileDown className="h-4 w-4 mr-2" />Email Pos-Sessao (RAS)
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleWhatsApp}>
-                <MessageSquare className="h-4 w-4 mr-2" />Lembrete WhatsApp
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(sessao); }}>
-                <Pencil className="h-4 w-4 mr-2" />Editar Sessao
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <button
+            className="ag-menu-trigger"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+            style={{
+              height: 22,
+              width: 22,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "none",
+              border: "none",
+              color: PW.muted,
+              cursor: "pointer",
+              lineHeight: 0,
+            }}
+            aria-label="Acoes"
+          >
+            <MoreVertical className="h-3.5 w-3.5" />
+          </button>
+
+          {menuOpen && (
+            <>
+              <div
+                onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+                style={{ position: "fixed", inset: 0, zIndex: 40 }}
+              />
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  right: 0,
+                  marginTop: 4,
+                  width: 224,
+                  background: PW.bg2,
+                  border: `1px solid ${PW.border}`,
+                  zIndex: 41,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <button className="ag-menu-item" style={menuItemStyle} onClick={(e) => { handleSyncCalendar(e); setMenuOpen(false); }}>
+                  <CalendarSync className="h-4 w-4" />Sincronizar Google Agenda
+                </button>
+                <button className="ag-menu-item" style={menuItemStyle} onClick={(e) => { handleIcsDownload(e); setMenuOpen(false); }}>
+                  <Download className="h-4 w-4" />Baixar ICS
+                </button>
+                <div style={{ borderTop: `1px solid ${PW.border}` }} />
+                <button className="ag-menu-item" style={menuItemStyle} onClick={(e) => { handlePreEmail(e); setMenuOpen(false); }}>
+                  <MessageSquare className="h-4 w-4" />Email Pre-Sessao
+                </button>
+                {sessao.sessao.status === "concluida" && (
+                  <button className="ag-menu-item" style={menuItemStyle} onClick={(e) => { handlePostEmail(e); setMenuOpen(false); }}>
+                    <FileDown className="h-4 w-4" />Email Pos-Sessao (RAS)
+                  </button>
+                )}
+                <div style={{ borderTop: `1px solid ${PW.border}` }} />
+                <button className="ag-menu-item" style={menuItemStyle} onClick={(e) => { handleWhatsApp(e); setMenuOpen(false); }}>
+                  <MessageSquare className="h-4 w-4" />Lembrete WhatsApp
+                </button>
+                <div style={{ borderTop: `1px solid ${PW.border}` }} />
+                <button className="ag-menu-item" style={menuItemStyle} onClick={(e) => { e.stopPropagation(); onEdit(sessao); setMenuOpen(false); }}>
+                  <Pencil className="h-4 w-4" />Editar Sessao
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {sessao.aplicacoes && sessao.aplicacoes.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 4 }}>
           {sessao.aplicacoes.map((ap) => (
             <SubstancePill key={ap.aplicacao.id} ap={ap} sessaoId={sessao.sessao.id} onConfirm={onConfirm} />
           ))}
@@ -289,19 +423,19 @@ function SessaoCard({ sessao, onConfirm, onEdit }: {
       )}
 
       {expanded && (
-        <div className="mt-3 pt-2 border-t border-border/30 space-y-1.5">
-          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+        <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${PW.border}`, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 10, fontFamily: MONO, color: PW.muted, flexWrap: "wrap" }}>
             {sessao.profissionalNome && (
-              <span className="flex items-center gap-1"><User className="h-3 w-3" />{sessao.profissionalNome}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><User className="h-3 w-3" />{sessao.profissionalNome}</span>
             )}
             {sessao.unidadeNome && (
-              <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{sessao.unidadeNome}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Building2 className="h-3 w-3" />{sessao.unidadeNome}</span>
             )}
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Marcacao {sessao.sessao.numeroSemana}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock className="h-3 w-3" />Marcacao {sessao.sessao.numeroSemana}</span>
           </div>
           {sessao.unidadeEndereco && (
-            <div className="mt-1 text-[10px] text-muted-foreground/70 flex items-start gap-1">
-              <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <div style={{ fontSize: 10, fontFamily: MONO, color: PW.muted, display: "flex", alignItems: "flex-start", gap: 4 }}>
+              <MapPin className="h-3 w-3" style={{ marginTop: 2, flexShrink: 0 }} />
               <span>{sessao.unidadeEndereco}{sessao.unidadeBairro ? `, ${sessao.unidadeBairro}` : ""}{sessao.unidadeCep ? ` - ${sessao.unidadeCep}` : ""}</span>
             </div>
           )}
@@ -396,40 +530,93 @@ export default function AgendaSemanal() {
     window.open(`/api/sessoes/ics-semana?dataFrom=${week.from}&dataTo=${week.to}`, "_blank");
   };
 
+  const navBtnStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    background: PW.bg2,
+    border: `1px solid ${PW.border}`,
+    color: PW.t2,
+    fontFamily: MONO,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    padding: "7px 10px",
+    cursor: "pointer",
+  };
+  const navIconStyle: React.CSSProperties = {
+    height: 32,
+    width: 32,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: PW.bg2,
+    border: `1px solid ${PW.border}`,
+    color: PW.t2,
+    cursor: "pointer",
+  };
+
   return (
-    <Layout>
-      <div className="p-4 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
+    <Layout face="claro">
+      <style>{`
+        .ag-card { transition: border-color .15s ease, box-shadow .15s ease; }
+        .ag-card:hover { border-color: ${PW.ciano}; box-shadow: 0 0 0 1px ${PW.cianoGlow}, 0 0 18px ${PW.cianoGlow}; }
+        .ag-nav { transition: box-shadow .15s ease, border-color .15s ease; }
+        .ag-nav:hover { border-color: ${PW.ciano}; box-shadow: 0 0 0 1px ${PW.cianoGlow}, 0 0 14px ${PW.cianoGlow}; }
+        .ag-menu-item:hover { background: ${PW.bg3}; }
+        .ag-pill-ok:hover { box-shadow: 0 0 10px ${PW.cianoGlow}; }
+        .ag-pill-no:hover { border-color: ${PW.danger}; }
+        .ag-save:hover { box-shadow: 0 0 0 1px ${PW.cianoGlow}, 0 0 18px ${PW.cianoGlow}; }
+        .ag-cancel:hover { border-color: ${PW.ciano}; }
+        .ag-x:hover { color: ${PW.text}; }
+      `}</style>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Agenda Semanal</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <h1
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                fontFamily: MONO,
+                fontSize: 22,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: PW.text,
+                fontWeight: 700,
+              }}
+            >
+              <Calendar className="h-6 w-6" style={{ color: PW.ciano }} />
+              Agenda Semanal
+            </h1>
+            <p style={{ fontFamily: MONO, fontSize: 12, color: PW.muted, marginTop: 4 }}>
               {week.from.split("-").reverse().join("/")} a {week.to.split("-").reverse().join("/")} — {totalSessoes} sessoes
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleIcsSemana} className="text-xs">
-              <Download className="h-3.5 w-3.5 mr-1" />ICS Semana
-            </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => goWeek(-1)}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="ag-nav" style={navBtnStyle} onClick={handleIcsSemana}>
+              <Download className="h-3.5 w-3.5" />ICS Semana
+            </button>
+            <button className="ag-nav" style={navIconStyle} onClick={() => goWeek(-1)} aria-label="Semana anterior">
               <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={goToday} className="text-xs">
-              <Calendar className="h-3.5 w-3.5 mr-1" />Hoje
-            </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => goWeek(1)}>
+            </button>
+            <button className="ag-nav" style={navBtnStyle} onClick={goToday}>
+              <Calendar className="h-3.5 w-3.5" />Hoje
+            </button>
+            <button className="ag-nav" style={navIconStyle} onClick={() => goWeek(1)} aria-label="Proxima semana">
               <ChevronRight className="h-4 w-4" />
-            </Button>
+            </button>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-7 gap-2">
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <Card key={i} className="h-48 animate-pulse bg-muted/30" />
-            ))}
+          <div style={{ color: PW.muted, fontFamily: MONO, fontSize: 12, textAlign: "center", padding: "48px 0" }}>
+            Carregando...
           </div>
         ) : (
-          <div className="grid grid-cols-7 gap-2">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8 }}>
             {week.days.map((day, idx) => {
               const dateStr = day.toISOString().split("T")[0];
               const sessoesDia = data?.dias[dateStr] || [];
@@ -437,29 +624,49 @@ export default function AgendaSemanal() {
               const isWeekend = idx >= 5;
 
               return (
-                <div key={dateStr} className="min-h-[180px]">
-                  <div className={`text-center py-1.5 border-b-2 ${
-                    isToday ? "bg-primary/20 text-primary border-primary" :
-                    isWeekend ? "bg-muted/30 text-muted-foreground border-border/50" :
-                    "bg-card border-border/50"
-                  }`}>
-                    <div className="text-[10px] font-semibold uppercase tracking-widest">
+                <div key={dateStr} style={{ minHeight: 180 }}>
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "6px 0",
+                      background: isToday ? PW.bg3 : isWeekend ? PW.bg3 : PW.bg2,
+                      borderBottom: isToday ? `2px solid ${PW.ciano}` : `1px solid ${PW.border}`,
+                      border: `1px solid ${PW.border}`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontFamily: MONO,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        color: isToday ? PW.ciano : isWeekend ? PW.muted : PW.t2,
+                      }}
+                    >
                       {DIAS_SEMANA_CURTO[day.getDay()]}
                     </div>
-                    <div className={`text-base font-bold ${isToday ? "text-primary" : ""}`}>
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontFamily: MONO,
+                        fontWeight: 700,
+                        color: isToday ? PW.ciano : PW.text,
+                      }}
+                    >
                       {formatDate(day)}
                     </div>
                     {sessoesDia.length > 0 && (
-                      <div className="text-[9px] mt-0.5 text-muted-foreground">
+                      <div style={{ fontSize: 9, fontFamily: MONO, marginTop: 2, color: PW.muted }}>
                         {sessoesDia.length} sessao{sessoesDia.length > 1 ? "es" : ""}
                       </div>
                     )}
                   </div>
-                  <div className="space-y-1.5 pt-1.5">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 6 }}>
                     {sessoesDia.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground/30">
-                        <Calendar className="h-5 w-5 mx-auto mb-1" />
-                        <span className="text-[9px]">Sem sessoes</span>
+                      <div style={{ textAlign: "center", padding: "32px 0", color: PW.muted, fontFamily: MONO }}>
+                        <Calendar className="h-5 w-5" style={{ margin: "0 auto 4px", display: "block", opacity: 0.5 }} />
+                        <span style={{ fontSize: 9 }}>Sem sessoes</span>
                       </div>
                     ) : (
                       sessoesDia.map((s) => <SessaoCard key={s.sessao.id} sessao={s} onConfirm={handleConfirm} onEdit={openEditSessao} />)
@@ -471,73 +678,191 @@ export default function AgendaSemanal() {
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-3 text-[10px] text-muted-foreground border-t border-border/50 pt-3">
-          <span className="font-semibold uppercase tracking-wider mr-1">Status:</span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            fontSize: 10,
+            fontFamily: MONO,
+            color: PW.muted,
+            borderTop: `1px solid ${PW.border}`,
+            paddingTop: 12,
+          }}
+        >
+          <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 4, color: PW.t2 }}>Status:</span>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
             const Icon = cfg.icon;
             return (
-              <span key={key} className={`flex items-center gap-0.5 ${cfg.color}`}>
+              <span key={key} style={{ display: "flex", alignItems: "center", gap: 3, color: cfg.color }}>
                 <Icon className="h-3 w-3" />{cfg.label}
               </span>
             );
           })}
-          <span className="ml-2 font-semibold uppercase tracking-wider">Pills:</span>
+          <span style={{ marginLeft: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: PW.t2 }}>Pills:</span>
           {Object.entries(PILL_STATUS).map(([key, cfg]) => (
-            <span key={key} className="flex items-center gap-0.5">
-              <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />{cfg.label}
+            <span key={key} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <span style={{ width: 8, height: 8, background: cfg.dot }} />{cfg.label}
             </span>
           ))}
         </div>
 
         {editingSessao && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setEditingSessao(null)}>
-            <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Editar Sessao</h3>
-                <button onClick={() => setEditingSessao(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
-              </div>
-              <div className="text-sm text-muted-foreground">Paciente: <strong>{editingSessao.pacienteNome}</strong></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Status</label>
-                  <Select value={editSessaoForm.status} onValueChange={v => setEditSessaoForm({...editSessaoForm, status: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
+          <div
+            onClick={() => setEditingSessao(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15,26,31,0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 50,
+              padding: 16,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: 512,
+                maxHeight: "90vh",
+                overflowY: "auto",
+                background: PW.bg2,
+                border: `1px solid ${PW.border}`,
+                borderLeft: `3px solid ${PW.ciano}`,
+              }}
+            >
+              <header
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 14px",
+                  borderBottom: `1px solid ${PW.border}`,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 12,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: PW.text,
+                    fontWeight: 700,
+                  }}
+                >
+                  Editar Sessao
+                </span>
+                <button
+                  className="ag-x"
+                  onClick={() => setEditingSessao(null)}
+                  style={{ background: "none", border: "none", color: PW.muted, cursor: "pointer", lineHeight: 0 }}
+                  aria-label="Fechar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </header>
+
+              <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ fontFamily: MONO, fontSize: 13, color: PW.t2 }}>
+                  Paciente: <strong style={{ color: PW.text }}>{editingSessao.pacienteNome}</strong>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={labelStyle}>Status</label>
+                    <select
+                      value={editSessaoForm.status}
+                      onChange={(e) => setEditSessaoForm({ ...editSessaoForm, status: e.target.value })}
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                    >
                       {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                        <option key={k} value={k}>{v.label}</option>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Tipo Servico</label>
+                    <select
+                      value={editSessaoForm.tipoServico}
+                      onChange={(e) => setEditSessaoForm({ ...editSessaoForm, tipoServico: e.target.value })}
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                    >
+                      <option value="presencial">Presencial</option>
+                      <option value="homecare">Homecare</option>
+                      <option value="teleconsulta">Teleconsulta</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Data</label>
+                    <input
+                      type="date"
+                      value={editSessaoForm.dataAgendada}
+                      onChange={(e) => setEditSessaoForm({ ...editSessaoForm, dataAgendada: e.target.value })}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Hora</label>
+                    <input
+                      type="time"
+                      value={editSessaoForm.horaAgendada?.substring(0, 5) || ""}
+                      onChange={(e) => setEditSessaoForm({ ...editSessaoForm, horaAgendada: e.target.value ? e.target.value + ":00" : null })}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div style={{ gridColumn: "span 2" }}>
+                    <label style={labelStyle}>Notas</label>
+                    <textarea
+                      value={editSessaoForm.notas}
+                      onChange={(e) => setEditSessaoForm({ ...editSessaoForm, notas: e.target.value })}
+                      rows={3}
+                      style={{ ...inputStyle, resize: "vertical" }}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tipo Servico</label>
-                  <Select value={editSessaoForm.tipoServico} onValueChange={v => setEditSessaoForm({...editSessaoForm, tipoServico: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="presencial">Presencial</SelectItem>
-                      <SelectItem value="homecare">Homecare</SelectItem>
-                      <SelectItem value="teleconsulta">Teleconsulta</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: `1px solid ${PW.border}` }}>
+                  <button
+                    className="ag-save"
+                    onClick={saveEditSessao}
+                    disabled={editSessaoSaving}
+                    style={{
+                      flex: 1,
+                      background: PW.bg3,
+                      border: `1px solid ${PW.ciano}`,
+                      color: PW.ciano,
+                      fontFamily: MONO,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      padding: "9px 12px",
+                      cursor: editSessaoSaving ? "not-allowed" : "pointer",
+                      opacity: editSessaoSaving ? 0.5 : 1,
+                    }}
+                  >
+                    {editSessaoSaving ? "Salvando..." : "Salvar Alteracoes"}
+                  </button>
+                  <button
+                    className="ag-cancel"
+                    onClick={() => setEditingSessao(null)}
+                    style={{
+                      background: "transparent",
+                      border: `1px solid ${PW.border}`,
+                      color: PW.t2,
+                      fontFamily: MONO,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      padding: "9px 14px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancelar
+                  </button>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Data</label>
-                  <Input type="date" value={editSessaoForm.dataAgendada} onChange={e => setEditSessaoForm({...editSessaoForm, dataAgendada: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Hora</label>
-                  <Input type="time" value={editSessaoForm.horaAgendada?.substring(0, 5) || ""} onChange={e => setEditSessaoForm({...editSessaoForm, horaAgendada: e.target.value ? e.target.value + ":00" : null})} />
-                </div>
-                <div className="space-y-1 col-span-2">
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Notas</label>
-                  <Textarea value={editSessaoForm.notas} onChange={e => setEditSessaoForm({...editSessaoForm, notas: e.target.value})} rows={3} />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-2 border-t border-border">
-                <Button className="flex-1 text-xs h-9" onClick={saveEditSessao} disabled={editSessaoSaving}>
-                  {editSessaoSaving ? "Salvando..." : "Salvar Alteracoes"}
-                </Button>
-                <Button variant="outline" className="text-xs h-9" onClick={() => setEditingSessao(null)}>Cancelar</Button>
               </div>
             </div>
           </div>

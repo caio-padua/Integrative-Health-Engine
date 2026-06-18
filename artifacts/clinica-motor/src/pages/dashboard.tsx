@@ -1,7 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
 import { LayoutPawards as Layout } from "@/components/LayoutPawards";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   useObterResumoDashboard, 
   useObterMetricasMotor, 
@@ -13,11 +12,11 @@ import {
   getObterResumoFilasQueryKey
 } from "@workspace/api-client-react";
 import { Activity, Users, ClipboardList, CheckSquare, TrendingUp, AlertTriangle, Clock, Building2, ArrowUpRight, ArrowDownRight, Diamond, Award, Shield, Coins, FileText, DollarSign, Target, Zap, Search, ArrowLeft, BarChart3, Gauge, CircleDollarSign, Flame, Trophy } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { BotaoImprimirFlutuante } from "@/components/BotaoImprimirRelatorio";
 import { PainelSinapticoBanner } from "@/components/sinaptico";
+import { PW, MONO, inputStyle, labelStyle } from "./penumbra-claro";
 
 import { apiFetch } from "@/lib/api-fetch";
 const API_BASE = "/api";
@@ -42,6 +41,23 @@ const MODELO_LABEL: Record<string, { label: string; cor: string }> = {
 };
 
 const R = (v: number) => `R$ ${v.toLocaleString("pt-BR")}`;
+
+const tituloPainel: React.CSSProperties = {
+  fontFamily: MONO,
+  fontSize: 12,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: PW.text,
+  fontWeight: 700,
+};
+
+const headerPainel: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "12px 14px",
+  borderBottom: `1px solid ${PW.border}`,
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -93,29 +109,34 @@ export default function Dashboard() {
     enabled: !!user && !!unidadeSelecionada && modoVisao === "dono_clinica",
   });
 
-  const StatCard = ({ title, value, icon: Icon, colorClass, subtitle, loading }: any) => (
-    <Card className="rounded-none border border-[#1a2d4f] bg-[#0f1e36]">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-[#94a3b8]" style={{ fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace" }}>{title}</CardTitle>
-        <Icon className={`w-5 h-5 ${colorClass || "text-[#00d4ff]"}`} />
-      </CardHeader>
-      <CardContent>
+  const StatCard = ({ title, value, icon: Icon, cor, subtitle, loading }: any) => (
+    <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${cor || PW.ciano}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 6px" }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: PW.muted, fontWeight: 700 }}>{title}</span>
+        <Icon className="w-5 h-5" style={{ color: cor || PW.ciano }} />
+      </div>
+      <div style={{ padding: "0 14px 12px" }}>
         {loading ? (
-          <Skeleton className="h-8 w-20 mb-1" />
+          <div style={{ fontFamily: MONO, fontSize: 12, color: PW.muted }}>Carregando...</div>
         ) : (
-          <div className="text-3xl font-bold text-[#e6eaf2]" style={{ fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace" }} data-testid={`stat-${title}`}>{value}</div>
+          <div style={{ fontFamily: MONO, fontSize: 28, fontWeight: 700, color: PW.text }} data-testid={`stat-${title}`}>{value}</div>
         )}
         {subtitle && (
-          <p className="text-xs text-[#64748b] mt-1">{subtitle}</p>
+          <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 4 }}>{subtitle}</p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 
   if (modoVisao === "dono_clinica" && unidadeSelecionada) {
     return (
-      <Layout>
-        <div className="space-y-6">
+      <Layout face="claro">
+        <style>{`
+          .db-back:hover { color: ${PW.text}; border-color: ${PW.ciano}; }
+          .db-clinica { transition: box-shadow .15s ease, border-color .15s ease; }
+          .db-clinica:hover { box-shadow: 0 0 0 1px ${PW.cianoGlow}, 0 0 18px ${PW.cianoGlow}; }
+        `}</style>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {/* Wave Sináptico — banner topo TDAH-friendly Caio (CEO) */}
           <PainelSinapticoBanner
             titulo={`Sinapses · ${nomeUnidadeSelecionada ?? "Unidade"}`}
@@ -148,200 +169,213 @@ export default function Dashboard() {
               },
             ]}
           />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {escopo === "consultoria_master" && (
                 <button
+                  className="db-back"
                   onClick={() => setUnidadeSelecionada(null)}
-                  className="p-2 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+                  style={{ background: "none", border: `1px solid ${PW.border}`, color: PW.muted, cursor: "pointer", padding: 6, lineHeight: 0 }}
                   title="Voltar ao Dashboard Global"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
               )}
-              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }} />
+              <div style={{ width: 14, height: 14, flexShrink: 0, background: corUnidadeSelecionada || PW.muted }} />
               <div>
-                <div className="flex items-center gap-3 flex-wrap">
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   <BotaoImprimirFlutuante titulo="Dashboard Unidade · PADCON Local" />
-                  <h1 className="pw-titulo-manifesto text-3xl" style={{ color: "#e6eaf2" }}>Dashboard Unidade</h1>
-                  <span className="pw-selo-dourado px-2 py-1 text-[10px] tracking-[0.2em]">PADCON · VISÃO LOCAL</span>
+                  <h1 style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: PW.text }}>Dashboard Unidade</h1>
+                  <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: PW.gold, border: `1px solid ${PW.border}`, padding: "2px 8px", fontWeight: 700 }}>PADCON · VISÃO LOCAL</span>
                 </div>
-                <p className="text-sm mt-1 font-semibold" style={{ color: corUnidadeSelecionada || "#5EE6E6" }}>{nomeUnidadeSelecionada}</p>
+                <p style={{ fontFamily: MONO, fontSize: 13, marginTop: 4, fontWeight: 600, color: corUnidadeSelecionada || PW.ciano }}>{nomeUnidadeSelecionada}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-sm" style={{ color: corUnidadeSelecionada || "#6B7280" }}>
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }}></span>
-                <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: corUnidadeSelecionada || "#6B7280" }}></span>
-              </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: MONO, fontSize: 12, color: corUnidadeSelecionada || PW.muted }}>
+              <span style={{ width: 10, height: 10, background: corUnidadeSelecionada || PW.muted }} />
               Visao Local
             </div>
           </div>
 
           {loadingDono ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 w-full" />)}
+            <div style={{ fontFamily: MONO, fontSize: 12, color: PW.muted, padding: "24px 0" }}>
+              Carregando...
             </div>
           ) : donoClinica ? (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatCard title="Pacientes Ativos" value={donoClinica.pacientes.ativos} icon={Users} colorClass="text-blue-500" loading={false} subtitle={`${donoClinica.pacientes.total} total`} />
-                <StatCard title="Demandas Abertas" value={donoClinica.demandas.abertas} icon={FileText} colorClass="text-orange-500" loading={false} subtitle={`${donoClinica.demandas.total} total`} />
-                <StatCard title="Taxa Resolucao" value={`${donoClinica.delegacoes.taxaResolucao}%`} icon={TrendingUp} colorClass="text-emerald-500" loading={false} subtitle={`${donoClinica.delegacoes.concluidas}/${donoClinica.delegacoes.total} delegacoes`} />
-                <StatCard title="Custo Demandas" value={`R$ ${donoClinica.demandas.custoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={DollarSign} colorClass="text-amber-500" loading={false} subtitle={`${donoClinica.demandas.concluidas} concluidas`} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                <StatCard title="Pacientes Ativos" value={donoClinica.pacientes.ativos} icon={Users} cor={PW.azul} loading={false} subtitle={`${donoClinica.pacientes.total} total`} />
+                <StatCard title="Demandas Abertas" value={donoClinica.demandas.abertas} icon={FileText} cor={PW.gold} loading={false} subtitle={`${donoClinica.demandas.total} total`} />
+                <StatCard title="Taxa Resolucao" value={`${donoClinica.delegacoes.taxaResolucao}%`} icon={TrendingUp} cor={PW.verde} loading={false} subtitle={`${donoClinica.delegacoes.concluidas}/${donoClinica.delegacoes.total} delegacoes`} />
+                <StatCard title="Custo Demandas" value={`R$ ${donoClinica.demandas.custoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={DollarSign} cor={PW.gold} loading={false} subtitle={`${donoClinica.demandas.concluidas} concluidas`} />
               </div>
 
               {donoClinica.delegacoes.atrasadas > 0 && (
-                <Card className="bg-red-950/30 border-red-500/30">
-                  <CardContent className="py-4 flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                    <span className="text-sm font-medium text-red-400">
-                      {donoClinica.delegacoes.atrasadas} delegacoes atrasadas nesta clinica
-                    </span>
-                  </CardContent>
-                </Card>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.danger}`, display: "flex", alignItems: "center", gap: 10, padding: "14px 16px" }}>
+                  <AlertTriangle className="w-5 h-5" style={{ color: PW.danger }} />
+                  <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: PW.danger }}>
+                    {donoClinica.delegacoes.atrasadas} delegacoes atrasadas nesta clinica
+                  </span>
+                </section>
               )}
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card className="border-border/50">
-                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><Diamond className="w-4 h-4 text-cyan-300" />Distribuicao de Planos</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}` }}>
+                  <header style={headerPainel}>
+                    <Diamond className="w-4 h-4" style={{ color: PW.ciano }} />
+                    <span style={tituloPainel}>Distribuicao de Planos</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
                       {Object.entries(donoClinica.pacientes.distribuicaoPlanos).map(([key, val]) => {
                         const cfg = PLANO_CORES[key];
                         if (!cfg) return null;
                         const Icon = cfg.icon;
                         return (
-                          <div key={key} className="flex items-center justify-between p-3 bg-muted/30 rounded border border-border/50">
-                            <div className="flex items-center gap-2">
+                          <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <Icon className="w-4 h-4" style={{ color: cfg.cor }} />
-                              <span className="text-sm font-medium">{cfg.label}</span>
+                              <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: PW.text }}>{cfg.label}</span>
                             </div>
-                            <span className="text-xl font-bold" style={{ color: cfg.cor }}>{val as number}</span>
+                            <span style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: cfg.cor }}>{val as number}</span>
                           </div>
                         );
                       })}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
 
-                <Card className="border-border/50">
-                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><Zap className="w-4 h-4 text-green-400" />Demandas por Complexidade</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.verde}` }}>
+                  <header style={headerPainel}>
+                    <Zap className="w-4 h-4" style={{ color: PW.verde }} />
+                    <span style={tituloPainel}>Demandas por Complexidade</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {Object.entries(donoClinica.demandas.porComplexidade).map(([key, val]) => {
                         const cfg = COMPLEX_CORES[key];
                         if (!cfg) return null;
                         const total = donoClinica.demandas.total || 1;
                         const pct = Math.round(((val as number) / total) * 100);
                         return (
-                          <div key={key} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cfg.cor }} />
-                                <span className="text-sm">{cfg.label}</span>
+                          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{ width: 10, height: 10, background: cfg.cor }} />
+                                <span style={{ fontFamily: MONO, fontSize: 13, color: PW.text }}>{cfg.label}</span>
                               </div>
-                              <span className="text-sm font-bold">{val as number}</span>
+                              <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: PW.text }}>{val as number}</span>
                             </div>
-                            <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: cfg.cor }} />
+                            <div style={{ height: 8, background: PW.bg3, border: `1px solid ${PW.border}`, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: cfg.cor }} />
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                    <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Tempo total investido</span>
-                      <span className="text-sm font-bold">{Math.round(donoClinica.demandas.tempoTotalMin / 60)}h {donoClinica.demandas.tempoTotalMin % 60}min</span>
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${PW.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontFamily: MONO, fontSize: 11, color: PW.muted }}>Tempo total investido</span>
+                      <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: PW.text }}>{Math.round(donoClinica.demandas.tempoTotalMin / 60)}h {donoClinica.demandas.tempoTotalMin % 60}min</span>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card className="border-border/50">
-                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" />Delegacoes</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-yellow-500/5 rounded border border-border/50 text-center">
-                        <p className="text-2xl font-bold text-yellow-400">{donoClinica.delegacoes.pendentes}</p>
-                        <p className="text-[10px] text-muted-foreground">Pendentes</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.azul}` }}>
+                  <header style={headerPainel}>
+                    <Target className="w-4 h-4" style={{ color: PW.azul }} />
+                    <span style={tituloPainel}>Delegacoes</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+                      <div style={{ padding: 12, background: PW.bg3, border: `1px solid ${PW.border}`, textAlign: "center" }}>
+                        <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.gold }}>{donoClinica.delegacoes.pendentes}</p>
+                        <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 4 }}>Pendentes</p>
                       </div>
-                      <div className="p-3 bg-blue-500/5 rounded border border-border/50 text-center">
-                        <p className="text-2xl font-bold text-blue-400">{donoClinica.delegacoes.emAndamento}</p>
-                        <p className="text-[10px] text-muted-foreground">Em Andamento</p>
+                      <div style={{ padding: 12, background: PW.bg3, border: `1px solid ${PW.border}`, textAlign: "center" }}>
+                        <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.azul }}>{donoClinica.delegacoes.emAndamento}</p>
+                        <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 4 }}>Em Andamento</p>
                       </div>
-                      <div className="p-3 bg-green-500/5 rounded border border-border/50 text-center">
-                        <p className="text-2xl font-bold text-green-400">{donoClinica.delegacoes.concluidas}</p>
-                        <p className="text-[10px] text-muted-foreground">Concluidas</p>
+                      <div style={{ padding: 12, background: PW.bg3, border: `1px solid ${PW.border}`, textAlign: "center" }}>
+                        <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.verde }}>{donoClinica.delegacoes.concluidas}</p>
+                        <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 4 }}>Concluidas</p>
                       </div>
-                      <div className="p-3 bg-red-500/5 rounded border border-border/50 text-center">
-                        <p className="text-2xl font-bold text-red-400">{donoClinica.delegacoes.atrasadas}</p>
-                        <p className="text-[10px] text-muted-foreground">Atrasadas</p>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-muted-foreground">Taxa de resolucao</span>
-                        <span className="text-sm font-bold">{donoClinica.delegacoes.taxaResolucao}%</span>
-                      </div>
-                      <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${donoClinica.delegacoes.taxaResolucao}%`, backgroundColor: corUnidadeSelecionada || "#6B7280" }} />
+                      <div style={{ padding: 12, background: PW.bg3, border: `1px solid ${PW.border}`, textAlign: "center" }}>
+                        <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.danger }}>{donoClinica.delegacoes.atrasadas}</p>
+                        <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 4 }}>Atrasadas</p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ fontFamily: MONO, fontSize: 11, color: PW.muted }}>Taxa de resolucao</span>
+                        <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: PW.text }}>{donoClinica.delegacoes.taxaResolucao}%</span>
+                      </div>
+                      <div style={{ height: 8, background: PW.bg3, border: `1px solid ${PW.border}`, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${donoClinica.delegacoes.taxaResolucao}%`, background: corUnidadeSelecionada || PW.ciano }} />
+                      </div>
+                    </div>
+                  </div>
+                </section>
 
-                <Card className="border-border/50">
-                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="w-4 h-4 text-orange-400" />Filas Operacionais</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-muted/30 rounded border border-border/50">
-                        <span className="text-sm">Anamnese</span>
-                        <span className="text-lg font-bold">{donoClinica.filas.anamnese}</span>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.gold}` }}>
+                  <header style={headerPainel}>
+                    <ClipboardList className="w-4 h-4" style={{ color: PW.gold }} />
+                    <span style={tituloPainel}>Filas Operacionais</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                        <span style={{ fontFamily: MONO, fontSize: 13, color: PW.text }}>Anamnese</span>
+                        <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: PW.text }}>{donoClinica.filas.anamnese}</span>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-muted/30 rounded border border-border/50">
-                        <span className="text-sm">Validacao</span>
-                        <span className="text-lg font-bold">{donoClinica.filas.validacao}</span>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                        <span style={{ fontFamily: MONO, fontSize: 13, color: PW.text }}>Validacao</span>
+                        <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: PW.text }}>{donoClinica.filas.validacao}</span>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-muted/30 rounded border border-border/50">
-                        <span className="text-sm">Procedimento</span>
-                        <span className="text-lg font-bold">{donoClinica.filas.procedimento}</span>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                        <span style={{ fontFamily: MONO, fontSize: 13, color: PW.text }}>Procedimento</span>
+                        <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: PW.text }}>{donoClinica.filas.procedimento}</span>
                       </div>
                       {donoClinica.filas.urgentes > 0 && (
-                        <div className="flex items-center justify-between p-3 bg-red-900/20 rounded border border-red-500/50">
-                          <span className="text-sm font-medium text-red-400">Urgencias</span>
-                          <span className="text-lg font-bold text-red-400">{donoClinica.filas.urgentes}</span>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, background: PW.bg3, border: `1px solid ${PW.danger}` }}>
+                          <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: PW.danger }}>Urgencias</span>
+                          <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: PW.danger }}>{donoClinica.filas.urgentes}</span>
                         </div>
                       )}
                     </div>
-                    <div className="mt-3 pt-3 border-t border-border/50">
-                      <span className="text-xs text-muted-foreground">{donoClinica.anamnesesPendentes} anamneses pendentes</span>
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${PW.border}` }}>
+                      <span style={{ fontFamily: MONO, fontSize: 11, color: PW.muted }}>{donoClinica.anamnesesPendentes} anamneses pendentes</span>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
               </div>
 
               {donoClinica.demandas.recentes?.length > 0 && (
-                <Card className="border-border/50">
-                  <CardHeader><CardTitle className="text-base">Ultimas Demandas</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {donoClinica.demandas.recentes.map((d: any) => (
-                        <div key={d.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded border border-border/50">
-                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COMPLEX_CORES[d.complexidade]?.cor || "#6B7280" }} />
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm font-medium truncate block">{d.titulo}</span>
-                            <span className="text-[10px] text-muted-foreground">{d.tipo.replace(/_/g, " ")}</span>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}` }}>
+                  <header style={headerPainel}>
+                    <span style={tituloPainel}>Ultimas Demandas</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {donoClinica.demandas.recentes.map((d: any) => {
+                        const corStatus = d.status === "concluida" ? PW.verde : d.status === "aberta" ? PW.gold : PW.azul;
+                        return (
+                          <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                            <div style={{ width: 10, height: 10, flexShrink: 0, background: COMPLEX_CORES[d.complexidade]?.cor || PW.muted }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{ display: "block", fontFamily: MONO, fontSize: 13, fontWeight: 600, color: PW.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.titulo}</span>
+                              <span style={{ fontFamily: MONO, fontSize: 10, color: PW.muted }}>{d.tipo.replace(/_/g, " ")}</span>
+                            </div>
+                            <span style={{ fontFamily: MONO, fontSize: 10, padding: "1px 8px", border: `1px solid ${corStatus}`, color: corStatus, fontWeight: 600, textTransform: "capitalize" }}>
+                              {d.status.replace(/_/g, " ")}
+                            </span>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${d.status === "concluida" ? "bg-green-500/10 text-green-400" : d.status === "aberta" ? "bg-orange-500/10 text-orange-400" : "bg-blue-500/10 text-blue-400"}`}>
-                            {d.status.replace(/_/g, " ")}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
               )}
             </>
           ) : null}
@@ -353,103 +387,102 @@ export default function Dashboard() {
   if (isTodasClinicas && escopo === "consultoria_master") {
     const isLoadingGlobal = loadingConsultoria || loadingCockpit;
     return (
-      <Layout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
+      <Layout face="claro">
+        <style>{`
+          .db-clinica { transition: box-shadow .15s ease, border-color .15s ease; }
+          .db-clinica:hover { box-shadow: 0 0 0 1px ${PW.cianoGlow}, 0 0 18px ${PW.cianoGlow}; }
+        `}</style>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Global</h1>
-              <p className="text-sm text-muted-foreground mt-1">Cockpit operacional do ecossistema</p>
+              <h1 style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: PW.text }}>Dashboard Global</h1>
+              <p style={{ fontFamily: MONO, fontSize: 12, color: PW.muted, marginTop: 4 }}>Cockpit operacional do ecossistema</p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-              </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: MONO, fontSize: 12, color: PW.muted }}>
+              <span style={{ width: 10, height: 10, background: PW.ciano }} />
               Visao Global
             </div>
           </div>
 
           {isLoadingGlobal ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-28 w-full" />)}
+            <div style={{ fontFamily: MONO, fontSize: 12, color: PW.muted, padding: "24px 0" }}>
+              Carregando...
             </div>
           ) : (
             <>
               <DuploEspelhoPaduaGenesis />
 
-              <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-                <Card className="bg-card border-border/50 border-l-4 border-l-green-500">
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Receita</span>
-                      <CircleDollarSign className="w-4 h-4 text-green-500" />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.verde}` }}>
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, fontWeight: 700 }}>Receita</span>
+                      <CircleDollarSign className="w-4 h-4" style={{ color: PW.verde }} />
                     </div>
-                    <p className="text-2xl font-bold text-green-400">{cockpit ? R(cockpit.financeiro.receitaMes) : "---"}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{cockpit?.financeiro.contratosAtivos || 0} contratos ativos</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-card border-border/50 border-l-4 border-l-emerald-500">
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Lucro</span>
-                      <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.verde }}>{cockpit ? R(cockpit.financeiro.receitaMes) : "---"}</p>
+                    <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 2 }}>{cockpit?.financeiro.contratosAtivos || 0} contratos ativos</p>
+                  </div>
+                </section>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}` }}>
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, fontWeight: 700 }}>Lucro</span>
+                      <TrendingUp className="w-4 h-4" style={{ color: PW.ciano }} />
                     </div>
-                    <p className="text-2xl font-bold text-emerald-400">{cockpit ? R(cockpit.financeiro.lucroMes) : "---"}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Margem {cockpit?.financeiro.margemLucro || 0}%</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-card border-border/50 border-l-4 border-l-blue-500">
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Clinicas</span>
-                      <Building2 className="w-4 h-4 text-blue-500" />
+                    <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.ciano }}>{cockpit ? R(cockpit.financeiro.lucroMes) : "---"}</p>
+                    <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 2 }}>Margem {cockpit?.financeiro.margemLucro || 0}%</p>
+                  </div>
+                </section>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.azul}` }}>
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, fontWeight: 700 }}>Clinicas</span>
+                      <Building2 className="w-4 h-4" style={{ color: PW.azul }} />
                     </div>
-                    <p className="text-2xl font-bold text-blue-400">{cockpit?.totalClinicas || 0}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{cockpit?.totalPacientes || 0} pacientes</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-card border-border/50 border-l-4 border-l-orange-500">
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Demandas</span>
-                      <Flame className="w-4 h-4 text-orange-500" />
+                    <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.azul }}>{cockpit?.totalClinicas || 0}</p>
+                    <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 2 }}>{cockpit?.totalPacientes || 0} pacientes</p>
+                  </div>
+                </section>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.gold}` }}>
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, fontWeight: 700 }}>Demandas</span>
+                      <Flame className="w-4 h-4" style={{ color: PW.gold }} />
                     </div>
-                    <p className="text-2xl font-bold text-orange-400">{cockpit?.demandas.abertas || 0}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{cockpit?.demandas.total || 0} total | {cockpit?.demandas.concluidas || 0} concl.</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-card border-border/50 border-l-4 border-l-yellow-500">
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Resolucao</span>
-                      <Gauge className="w-4 h-4 text-yellow-500" />
+                    <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.gold }}>{cockpit?.demandas.abertas || 0}</p>
+                    <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 2 }}>{cockpit?.demandas.total || 0} total | {cockpit?.demandas.concluidas || 0} concl.</p>
+                  </div>
+                </section>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.gold}` }}>
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, fontWeight: 700 }}>Resolucao</span>
+                      <Gauge className="w-4 h-4" style={{ color: PW.gold }} />
                     </div>
-                    <p className="text-2xl font-bold text-yellow-400">{consultoria?.totalGeral.taxaResolucaoGeral || 0}%</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{consultoria?.totalGeral.delegacoesConcluidas || 0}/{consultoria?.totalGeral.delegacoesTotal || 0}</p>
-                  </CardContent>
-                </Card>
-                <Card className={`bg-card border-border/50 border-l-4 ${(cockpit?.delegacoesAtrasadas || 0) > 0 ? "border-l-red-500" : "border-l-green-500"}`}>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Atrasadas</span>
-                      <AlertTriangle className={`w-4 h-4 ${(cockpit?.delegacoesAtrasadas || 0) > 0 ? "text-red-500" : "text-green-500"}`} />
+                    <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: PW.gold }}>{consultoria?.totalGeral.taxaResolucaoGeral || 0}%</p>
+                    <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 2 }}>{consultoria?.totalGeral.delegacoesConcluidas || 0}/{consultoria?.totalGeral.delegacoesTotal || 0}</p>
+                  </div>
+                </section>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${(cockpit?.delegacoesAtrasadas || 0) > 0 ? PW.danger : PW.verde}` }}>
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, fontWeight: 700 }}>Atrasadas</span>
+                      <AlertTriangle className="w-4 h-4" style={{ color: (cockpit?.delegacoesAtrasadas || 0) > 0 ? PW.danger : PW.verde }} />
                     </div>
-                    <p className={`text-2xl font-bold ${(cockpit?.delegacoesAtrasadas || 0) > 0 ? "text-red-400" : "text-green-400"}`}>{cockpit?.delegacoesAtrasadas || 0}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">delegacoes vencidas</p>
-                  </CardContent>
-                </Card>
+                    <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: (cockpit?.delegacoesAtrasadas || 0) > 0 ? PW.danger : PW.verde }}>{cockpit?.delegacoesAtrasadas || 0}</p>
+                    <p style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, marginTop: 2 }}>delegacoes vencidas</p>
+                  </div>
+                </section>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="border-border/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-green-400" />
-                      Pipeline de Demandas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.verde}` }}>
+                  <header style={headerPainel}>
+                    <Zap className="w-4 h-4" style={{ color: PW.verde }} />
+                    <span style={tituloPainel}>Pipeline de Demandas</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {[
                         { label: "Abertas", value: cockpit?.demandas.abertas || 0, cor: "#F59E0B" },
                         { label: "Em Atendimento", value: cockpit?.demandas.emAtendimento || 0, cor: "#3B82F6" },
@@ -458,97 +491,96 @@ export default function Dashboard() {
                         const total = cockpit?.demandas.total || 1;
                         const pct = Math.round((item.value / total) * 100);
                         return (
-                          <div key={item.label} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
-                                <span className="text-sm">{item.label}</span>
+                          <div key={item.label} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{ width: 9, height: 9, background: item.cor }} />
+                                <span style={{ fontFamily: MONO, fontSize: 13, color: PW.text }}>{item.label}</span>
                               </div>
-                              <span className="text-sm font-bold">{item.value}</span>
+                              <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: PW.text }}>{item.value}</span>
                             </div>
-                            <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: item.cor }} />
+                            <div style={{ height: 6, background: PW.bg3, border: `1px solid ${PW.border}`, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: item.cor }} />
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                    <div className="mt-4 pt-3 border-t border-border/50">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2">Complexidade</p>
-                      <div className="flex gap-3">
+                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${PW.border}` }}>
+                      <p style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, marginBottom: 8 }}>Complexidade</p>
+                      <div style={{ display: "flex", gap: 12 }}>
                         {Object.entries(cockpit?.demandas.porComplexidade || { verde: 0, amarela: 0, vermelha: 0 }).map(([key, val]) => {
                           const cfg = COMPLEX_CORES[key];
                           if (!cfg) return null;
                           return (
-                            <div key={key} className="flex items-center gap-1.5">
-                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.cor }} />
-                              <span className="text-xs text-muted-foreground">{cfg.label}</span>
-                              <span className="text-xs font-bold">{val as number}</span>
+                            <div key={key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <div style={{ width: 9, height: 9, background: cfg.cor }} />
+                              <span style={{ fontFamily: MONO, fontSize: 11, color: PW.muted }}>{cfg.label}</span>
+                              <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: PW.text }}>{val as number}</span>
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
 
-                <Card className="border-border/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Trophy className="w-4 h-4 text-yellow-400" />
-                      Consultores — Ranking
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.gold}` }}>
+                  <header style={headerPainel}>
+                    <Trophy className="w-4 h-4" style={{ color: PW.gold }} />
+                    <span style={tituloPainel}>Consultores — Ranking</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
                     {cockpit?.consultores?.length > 0 ? (
-                      <div className="space-y-3">
-                        {cockpit.consultores.map((c: any, idx: number) => (
-                          <div key={c.id} className="p-3 bg-muted/30 rounded border border-border/50">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center ${idx === 0 ? "bg-yellow-500/20 text-yellow-400" : idx === 1 ? "bg-gray-400/20 text-gray-300" : "bg-orange-700/20 text-orange-500"}`}>
-                                  {idx + 1}
-                                </span>
-                                <span className="text-sm font-medium truncate">{c.nome}</span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {cockpit.consultores.map((c: any, idx: number) => {
+                          const corRank = idx === 0 ? PW.gold : idx === 1 ? PW.muted : PW.t2;
+                          return (
+                            <div key={c.id} style={{ padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${corRank}`, color: corRank }}>
+                                    {idx + 1}
+                                  </span>
+                                  <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: PW.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.nome}</span>
+                                </div>
+                                <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: PW.verde }}>{R(c.comissao)}</span>
                               </div>
-                              <span className="text-xs font-bold text-green-400">{R(c.comissao)}</span>
-                            </div>
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <div className="flex-1 h-1.5 bg-muted/50 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-all"
-                                  style={{
-                                    width: `${c.progressoMeta}%`,
-                                    backgroundColor: c.progressoMeta >= 100 ? "#22C55E" : c.progressoMeta >= 75 ? "#EAB308" : c.progressoMeta >= 50 ? "#F59E0B" : "#EF4444",
-                                  }}
-                                />
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                <div style={{ flex: 1, height: 6, background: PW.bg2, border: `1px solid ${PW.border}`, overflow: "hidden" }}>
+                                  <div
+                                    style={{
+                                      height: "100%",
+                                      width: `${c.progressoMeta}%`,
+                                      background: c.progressoMeta >= 100 ? "#22C55E" : c.progressoMeta >= 75 ? "#EAB308" : c.progressoMeta >= 50 ? "#F59E0B" : "#EF4444",
+                                    }}
+                                  />
+                                </div>
+                                <span style={{ fontFamily: MONO, fontSize: 10, color: PW.muted, width: 32, textAlign: "right" }}>{c.progressoMeta}%</span>
                               </div>
-                              <span className="text-[10px] text-muted-foreground w-8 text-right">{c.progressoMeta}%</span>
+                              <div style={{ display: "flex", gap: 8, fontFamily: MONO, fontSize: 10 }}>
+                                <span style={{ color: PW.verde }}>{c.verdes}V</span>
+                                <span style={{ color: PW.gold }}>{c.amarelas}A</span>
+                                <span style={{ color: PW.danger }}>{c.vermelhas}R</span>
+                                <span style={{ color: PW.muted, marginLeft: "auto" }}>{c.total}/40 meta</span>
+                              </div>
                             </div>
-                            <div className="flex gap-2 text-[10px]">
-                              <span className="text-green-400">{c.verdes}V</span>
-                              <span className="text-yellow-400">{c.amarelas}A</span>
-                              <span className="text-red-400">{c.vermelhas}R</span>
-                              <span className="text-muted-foreground ml-auto">{c.total}/40 meta</span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Nenhum consultor registrado</p>
+                      <p style={{ fontFamily: MONO, fontSize: 13, color: PW.muted }}>Nenhum consultor registrado</p>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
 
-                <Card className="border-border/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Diamond className="w-4 h-4 text-cyan-300" />
-                      Saude SLA — Planos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}` }}>
+                  <header style={headerPainel}>
+                    <Diamond className="w-4 h-4" style={{ color: PW.ciano }} />
+                    <span style={tituloPainel}>Saude SLA — Planos</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       {Object.entries(cockpit?.sla || { diamante: 0, ouro: 0, prata: 0, cobre: 0 }).map(([key, val]) => {
                         const cfg = PLANO_CORES[key];
                         if (!cfg) return null;
@@ -556,138 +588,134 @@ export default function Dashboard() {
                         const totalPac = Object.values(cockpit?.sla || {}).reduce((a: number, b: any) => a + (b as number), 0) as number;
                         const pct = totalPac > 0 ? Math.round(((val as number) / totalPac) * 100) : 0;
                         return (
-                          <div key={key} className="flex items-center gap-3 p-3 bg-muted/30 rounded border border-border/50">
-                            <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.cor }} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{cfg.label}</span>
-                                <span className="text-lg font-bold" style={{ color: cfg.cor }}>{val as number}</span>
+                          <div key={key} style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                            <Icon className="w-4 h-4" style={{ flexShrink: 0, color: cfg.cor }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: PW.text }}>{cfg.label}</span>
+                                <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: cfg.cor }}>{val as number}</span>
                               </div>
-                              <div className="flex items-center justify-between mt-0.5">
-                                <span className="text-[10px] text-muted-foreground">SLA {cfg.sla}</span>
-                                <span className="text-[10px] text-muted-foreground">{pct}%</span>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                                <span style={{ fontFamily: MONO, fontSize: 10, color: PW.muted }}>SLA {cfg.sla}</span>
+                                <span style={{ fontFamily: MONO, fontSize: 10, color: PW.muted }}>{pct}%</span>
                               </div>
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
               </div>
 
               {cockpit?.porClinicaFinanceiro?.length > 0 && (
-                <Card className="border-border/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-blue-400" />
-                      Receita por Clinica
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
+                <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.azul}` }}>
+                  <header style={headerPainel}>
+                    <BarChart3 className="w-4 h-4" style={{ color: PW.azul }} />
+                    <span style={tituloPainel}>Receita por Clinica</span>
+                  </header>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       {cockpit.porClinicaFinanceiro.map((c: any) => {
                         const maxReceita = Math.max(...cockpit.porClinicaFinanceiro.map((x: any) => x.receita));
                         const pct = maxReceita > 0 ? Math.round((c.receita / maxReceita) * 100) : 0;
-                        const modeloCfg = MODELO_LABEL[c.modelo] || { label: c.modelo, cor: "#6B7280" };
+                        const modeloCfg = MODELO_LABEL[c.modelo] || { label: c.modelo, cor: PW.muted };
                         return (
-                          <div key={c.unidadeId} className="p-3 bg-muted/30 rounded border border-border/50">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.cor }} />
-                                <span className="text-sm font-medium">{c.nome}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: `${modeloCfg.cor}15`, color: modeloCfg.cor }}>{modeloCfg.label}</span>
+                          <div key={c.unidadeId} style={{ padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{ width: 10, height: 10, background: c.cor }} />
+                                <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: PW.text }}>{c.nome}</span>
+                                <span style={{ fontFamily: MONO, fontSize: 10, padding: "1px 6px", border: `1px solid ${modeloCfg.cor}`, color: modeloCfg.cor }}>{modeloCfg.label}</span>
                               </div>
-                              <span className="text-sm font-bold text-green-400">{R(c.receita)}</span>
+                              <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: PW.verde }}>{R(c.receita)}</span>
                             </div>
-                            <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-2">
-                              <span>Lucro: <span className="text-emerald-400 font-medium">{R(c.lucro)}</span></span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 16, fontFamily: MONO, fontSize: 11, color: PW.muted, marginBottom: 8 }}>
+                              <span>Lucro: <span style={{ color: PW.ciano, fontWeight: 600 }}>{R(c.lucro)}</span></span>
                               <span>{c.demandas} demandas</span>
                             </div>
-                            <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.cor }} />
+                            <div style={{ height: 6, background: PW.bg2, border: `1px solid ${PW.border}`, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: c.cor }} />
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
               )}
 
-              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-blue-400" />
+              <h2 style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: MONO, fontSize: 16, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: PW.text }}>
+                <Building2 className="w-5 h-5" style={{ color: PW.azul }} />
                 Clinicas do Ecossistema
               </h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
                 {consultoria?.porClinica?.map((c: any) => (
-                  <Card
+                  <section
                     key={c.unidadeId}
-                    className="bg-card border-border/50 relative overflow-hidden cursor-pointer hover:border-border transition-all hover:shadow-lg hover:shadow-black/20 group"
+                    className="db-clinica"
+                    style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${c.unidadeCor || PW.muted}`, cursor: "pointer" }}
                     onClick={() => setUnidadeSelecionada(c.unidadeId)}
                   >
-                    <div className="absolute left-0 top-0 bottom-0 w-1 transition-all group-hover:w-1.5" style={{ backgroundColor: c.unidadeCor || "#6B7280" }} />
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.unidadeCor || "#6B7280" }} />
-                          <CardTitle className="text-sm font-semibold">{c.unidadeNome}</CardTitle>
-                        </div>
-                        <Search className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderBottom: `1px solid ${PW.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 10, height: 10, background: c.unidadeCor || PW.muted }} />
+                        <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: PW.text }}>{c.unidadeNome}</span>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <Search className="w-3.5 h-3.5" style={{ color: PW.muted }} />
+                    </div>
+                    <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
                         <div>
-                          <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Pacientes</div>
-                          <div className="text-xl font-bold">{c.totalPacientes}</div>
+                          <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted }}>Pacientes</div>
+                          <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: PW.text }}>{c.totalPacientes}</div>
                         </div>
                         <div>
-                          <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Resolucao</div>
-                          <div className="text-xl font-bold flex items-center gap-1">
+                          <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted }}>Resolucao</div>
+                          <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: PW.text, display: "flex", alignItems: "center", gap: 4 }}>
                             {c.taxaResolucao}%
                             {c.taxaResolucao >= 70 ? (
-                              <ArrowUpRight className="w-4 h-4 text-green-500" />
+                              <ArrowUpRight className="w-4 h-4" style={{ color: PW.verde }} />
                             ) : (
-                              <ArrowDownRight className="w-4 h-4 text-red-500" />
+                              <ArrowDownRight className="w-4 h-4" style={{ color: PW.danger }} />
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2 text-[11px]">
-                        <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 rounded">{c.delegacoes.pendentes} pendentes</span>
-                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded">{c.delegacoes.emAndamento} em andamento</span>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontFamily: MONO, fontSize: 10 }}>
+                        <span style={{ padding: "1px 8px", border: `1px solid ${PW.gold}`, color: PW.gold }}>{c.delegacoes.pendentes} pendentes</span>
+                        <span style={{ padding: "1px 8px", border: `1px solid ${PW.azul}`, color: PW.azul }}>{c.delegacoes.emAndamento} em andamento</span>
                         {c.delegacoes.atrasadas > 0 && (
-                          <span className="px-2 py-0.5 bg-red-500/10 text-red-400 rounded">{c.delegacoes.atrasadas} atrasadas</span>
+                          <span style={{ padding: "1px 8px", border: `1px solid ${PW.danger}`, color: PW.danger }}>{c.delegacoes.atrasadas} atrasadas</span>
                         )}
                       </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${c.taxaResolucao}%`, backgroundColor: c.unidadeCor || "#6B7280" }} />
+                      <div style={{ height: 6, background: PW.bg3, border: `1px solid ${PW.border}`, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${c.taxaResolucao}%`, background: c.unidadeCor || PW.muted }} />
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </section>
                 ))}
               </div>
 
-              <Card className="bg-card border-border/50">
-                <CardHeader>
-                  <CardTitle>Delegacoes por Clinica</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[300px]">
+              <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}` }}>
+                <header style={headerPainel}>
+                  <span style={tituloPainel}>Delegacoes por Clinica</span>
+                </header>
+                <div style={{ padding: 14, height: 300 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={consultoria?.porClinica || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                      <XAxis dataKey="unidadeNome" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }} />
-                      <Bar dataKey="delegacoes.total" name="Total" radius={[4, 4, 0, 0]}>
+                      <XAxis dataKey="unidadeNome" stroke={PW.muted} fontSize={11} tickLine={false} axisLine={false} style={{ fontFamily: MONO }} />
+                      <YAxis stroke={PW.muted} fontSize={12} tickLine={false} axisLine={false} style={{ fontFamily: MONO }} />
+                      <RechartsTooltip contentStyle={{ backgroundColor: PW.bg2, borderColor: PW.border, borderRadius: 0, color: PW.text, fontFamily: MONO }} />
+                      <Bar dataKey="delegacoes.total" name="Total" radius={[0, 0, 0, 0]}>
                         {(consultoria?.porClinica || []).map((c: any, i: number) => (
-                          <Cell key={`cell-${i}`} fill={c.unidadeCor || "hsl(var(--primary))"} />
+                          <Cell key={`cell-${i}`} fill={c.unidadeCor || PW.ciano} />
                         ))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             </>
           )}
         </div>
@@ -696,56 +724,58 @@ export default function Dashboard() {
   }
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+    <Layout face="claro">
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Visao Geral do Motor</h1>
-            {unidadeSelecionada && <p className="text-sm text-muted-foreground mt-1">{nomeUnidadeSelecionada}</p>}
+            <h1 style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: PW.text }}>Visao Geral do Motor</h1>
+            {unidadeSelecionada && <p style={{ fontFamily: MONO, fontSize: 12, color: PW.muted, marginTop: 4 }}>{nomeUnidadeSelecionada}</p>}
           </div>
         </div>
         <DuploEspelhoPaduaGenesis />
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Pacientes" value={dashboard?.totalPacientes ?? "..."} icon={Users} colorClass="text-blue-500" loading={loadingDash} subtitle="total cadastrados" />
-          <StatCard title="Anamneses Pendentes" value={dashboard?.anamnesesPendentes ?? "..."} icon={ClipboardList} colorClass="text-orange-500" loading={loadingDash} />
-          <StatCard title="Validacoes" value={dashboard?.sugestoesPendentesValidacao ?? "..."} icon={CheckSquare} colorClass="text-green-500" loading={loadingDash} subtitle="aguardando validacao" />
-          <StatCard title="Follow-ups Atrasados" value={dashboard?.followupAtrasados ?? "..."} icon={Clock} colorClass="text-red-500" loading={loadingDash} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          <StatCard title="Pacientes" value={dashboard?.totalPacientes ?? "..."} icon={Users} cor={PW.azul} loading={loadingDash} subtitle="total cadastrados" />
+          <StatCard title="Anamneses Pendentes" value={dashboard?.anamnesesPendentes ?? "..."} icon={ClipboardList} cor={PW.gold} loading={loadingDash} />
+          <StatCard title="Validacoes" value={dashboard?.sugestoesPendentesValidacao ?? "..."} icon={CheckSquare} cor={PW.verde} loading={loadingDash} subtitle="aguardando validacao" />
+          <StatCard title="Follow-ups Atrasados" value={dashboard?.followupAtrasados ?? "..."} icon={Clock} cor={PW.danger} loading={loadingDash} />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Procedimentos Hoje" value={dashboard?.procedimentosHoje ?? "..."} icon={Activity} colorClass="text-purple-500" loading={loadingDash} />
-          <StatCard title="Receita Hoje" value={`R$ ${(dashboard?.receitaHoje ?? 0).toFixed(2)}`} icon={DollarSign} colorClass="text-green-500" loading={loadingDash} />
-          <StatCard title="Taxa Validacao" value={`${metricas?.taxaValidacao ?? 0}%`} icon={TrendingUp} colorClass="text-emerald-500" loading={loadingMetricas} subtitle={`${metricas?.sugestoesValidadas ?? 0} de ${metricas?.totalSugestoes ?? 0}`} />
-          <StatCard title="Pagamentos Pendentes" value={dashboard?.pagamentosPendentes ?? "..."} icon={AlertTriangle} colorClass="text-yellow-500" loading={loadingDash} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          <StatCard title="Procedimentos Hoje" value={dashboard?.procedimentosHoje ?? "..."} icon={Activity} cor={PW.lilas} loading={loadingDash} />
+          <StatCard title="Receita Hoje" value={`R$ ${(dashboard?.receitaHoje ?? 0).toFixed(2)}`} icon={DollarSign} cor={PW.verde} loading={loadingDash} />
+          <StatCard title="Taxa Validacao" value={`${metricas?.taxaValidacao ?? 0}%`} icon={TrendingUp} cor={PW.verde} loading={loadingMetricas} subtitle={`${metricas?.sugestoesValidadas ?? 0} de ${metricas?.totalSugestoes ?? 0}`} />
+          <StatCard title="Pagamentos Pendentes" value={dashboard?.pagamentosPendentes ?? "..."} icon={AlertTriangle} cor={PW.gold} loading={loadingDash} />
         </div>
 
         {filas && (
-          <Card className="bg-card border-border/50">
-            <CardHeader><CardTitle>Filas Operacionais</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.ciano}` }}>
+            <header style={headerPainel}>
+              <span style={tituloPainel}>Filas Operacionais</span>
+            </header>
+            <div style={{ padding: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
                 {[
-                  { label: "Anamnese", value: filas.anamnese, color: "text-blue-400" },
-                  { label: "Validacao", value: filas.validacao, color: "text-green-400" },
-                  { label: "Procedimento", value: filas.procedimento, color: "text-purple-400" },
-                  { label: "Follow-up", value: filas.followup, color: "text-orange-400" },
-                  { label: "Pagamento", value: filas.pagamento, color: "text-emerald-400" },
+                  { label: "Anamnese", value: filas.anamnese, cor: PW.azul },
+                  { label: "Validacao", value: filas.validacao, cor: PW.verde },
+                  { label: "Procedimento", value: filas.procedimento, cor: PW.lilas },
+                  { label: "Follow-up", value: filas.followup, cor: PW.gold },
+                  { label: "Pagamento", value: filas.pagamento, cor: PW.verde },
                 ].map(f => (
-                  <div key={f.label} className="text-center p-3 bg-muted/30 rounded border border-border/50">
-                    <p className={`text-2xl font-bold ${f.color}`}>{f.value}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{f.label}</p>
+                  <div key={f.label} style={{ textAlign: "center", padding: 12, background: PW.bg3, border: `1px solid ${PW.border}` }}>
+                    <p style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: f.cor }}>{f.value}</p>
+                    <p style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, marginTop: 4 }}>{f.label}</p>
                   </div>
                 ))}
               </div>
               {(filas.totalUrgente ?? 0) > 0 && (
-                <div className="mt-3 flex items-center gap-2 text-red-400">
+                <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, color: PW.danger }}>
                   <AlertTriangle className="w-4 h-4" />
-                  <span className="text-sm font-medium">{filas.totalUrgente} urgencia(s) na fila</span>
+                  <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600 }}>{filas.totalUrgente} urgencia(s) na fila</span>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         )}
       </div>
     </Layout>
@@ -771,68 +801,62 @@ function DuploEspelhoPaduaGenesis() {
   const genAg = genesis?.total_agendas ?? "...";
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card className="bg-gradient-to-br from-[#1F4E5F]/30 to-[#1F4E5F]/10 border-2 border-[#FFD700]/60 shadow-lg">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-[#FFD700]">
-              <Trophy className="w-5 h-5" />
-              INSTITUTO PADUA
-              <span className="text-xl">⭐</span>
-            </CardTitle>
-            <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-[#FFD700]/20 text-[#FFD700] font-bold">
-              CLINICA ATIVA · ONDE EU TRABALHO
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+      <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.gold}` }}>
+        <header style={{ ...headerPainel, justifyContent: "space-between" }}>
+          <span style={{ ...tituloPainel, display: "flex", alignItems: "center", gap: 8, color: PW.gold }}>
+            <Trophy className="w-5 h-5" />
+            Instituto Padua
+          </span>
+          <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", border: `1px solid ${PW.gold}`, color: PW.gold, fontWeight: 700 }}>
+            Clinica Ativa · Onde Eu Trabalho
+          </span>
+        </header>
+        <div style={{ padding: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
             <div>
-              <p className="text-3xl font-bold text-foreground">{paduaPac ?? "..."}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Pacientes Reais</p>
+              <p style={{ fontFamily: MONO, fontSize: 28, fontWeight: 700, color: PW.text }}>{paduaPac ?? "..."}</p>
+              <p style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, marginTop: 4 }}>Pacientes Reais</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-foreground">{paduaAg ?? "..."}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Agendas Ativas</p>
+              <p style={{ fontFamily: MONO, fontSize: 28, fontWeight: 700, color: PW.text }}>{paduaAg ?? "..."}</p>
+              <p style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, marginTop: 4 }}>Agendas Ativas</p>
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3 italic">
+          <p style={{ fontFamily: MONO, fontSize: 11, color: PW.muted, marginTop: 12, fontStyle: "italic" }}>
             Toda validacao visual aparece aqui — Dr Caio Padua, dados de producao
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card className="bg-gradient-to-br from-purple-950/40 to-fuchsia-950/20 border-2 border-purple-400/60 shadow-lg">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-purple-300">
-              <Flame className="w-5 h-5" />
-              INSTITUTO GENESIS
-              <span className="text-xl">🧬</span>
-            </CardTitle>
-            <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-purple-400/20 text-purple-200 font-bold">
-              COFRE-MAE · BASE ANATOMICA
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+      <section style={{ background: PW.bg2, border: `1px solid ${PW.border}`, borderLeft: `3px solid ${PW.lilas}` }}>
+        <header style={{ ...headerPainel, justifyContent: "space-between" }}>
+          <span style={{ ...tituloPainel, display: "flex", alignItems: "center", gap: 8, color: PW.lilas }}>
+            <Flame className="w-5 h-5" />
+            Instituto Genesis
+          </span>
+          <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", border: `1px solid ${PW.lilas}`, color: PW.lilas, fontWeight: 700 }}>
+            Cofre-Mae · Base Anatomica
+          </span>
+        </header>
+        <div style={{ padding: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
             <div>
-              <p className="text-3xl font-bold text-foreground">{genPac ?? "..."}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Pacientes Semente</p>
+              <p style={{ fontFamily: MONO, fontSize: 28, fontWeight: 700, color: PW.text }}>{genPac ?? "..."}</p>
+              <p style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, marginTop: 4 }}>Pacientes Semente</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-foreground">{genAg ?? "..."}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Agendas-Espelho</p>
+              <p style={{ fontFamily: MONO, fontSize: 28, fontWeight: 700, color: PW.text }}>{genAg ?? "..."}</p>
+              <p style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: PW.muted, marginTop: 4 }}>Agendas-Espelho</p>
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2 text-[11px] text-purple-200/80">
+          <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, fontFamily: MONO, fontSize: 11, color: PW.muted }}>
             <span>Sangue · Linfa · Ossos · Musculo · Cerebro</span>
-            <span className="text-purple-400">→</span>
-            <span className="font-bold">espelha PADUA automaticamente</span>
+            <span style={{ color: PW.lilas }}>→</span>
+            <span style={{ fontWeight: 700, color: PW.text }}>espelha PADUA automaticamente</span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

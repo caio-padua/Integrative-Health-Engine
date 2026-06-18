@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, BrainCircuit, X } from "lucide-react";
 import { useState } from "react";
-import { PW, MONO, inputStyle, labelStyle } from "../craniotomia-shared";
+import { PW, MONO, inputStyle, labelStyle } from "../penumbra-claro";
 
 export default function Validacao() {
   const { user } = useAuth();
@@ -43,11 +43,11 @@ export default function Validacao() {
   };
 
   return (
-    <Layout>
+    <Layout face="claro">
       <style>{`
         .vl-btn { transition: box-shadow .15s ease, border-color .15s ease; }
         .vl-aprovar:hover { box-shadow: 0 0 0 1px ${PW.cianoGlow}, 0 0 18px ${PW.cianoGlow}; }
-        .vl-rejeitar:hover { border-color: ${PW.danger}; box-shadow: 0 0 14px rgba(208,138,138,0.35); }
+        .vl-rejeitar:hover { border-color: ${PW.danger}; box-shadow: 0 0 14px rgba(138,42,42,0.22); }
         .vl-x:hover { color: ${PW.text}; }
       `}</style>
 
@@ -273,7 +273,7 @@ export default function Validacao() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(2,10,20,0.82)",
+            background: "rgba(15,26,31,0.45)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

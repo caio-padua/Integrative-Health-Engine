@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useClinic } from "@/contexts/ClinicContext";
-import { PW, MONO, inputStyle, labelStyle } from "../craniotomia-shared";
+import { PW, MONO, inputStyle, labelStyle } from "../penumbra-claro";
 
 export default function Filas() {
   const { unidadeSelecionada } = useClinic();
@@ -191,7 +191,7 @@ export default function Filas() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 6,
-                  background: "rgba(2,10,20,0.82)",
+                  background: "rgba(238,242,244,0.90)",
                   border: "none",
                   color: PW.ciano,
                   fontFamily: MONO,
@@ -213,7 +213,7 @@ export default function Filas() {
   );
 
   return (
-    <Layout>
+    <Layout face="claro">
       <style>{`
         .fl-card .fl-mover { transition: opacity .15s ease; }
         .fl-card:hover .fl-mover { opacity: 1; }
@@ -269,7 +269,7 @@ export default function Filas() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(2,10,20,0.82)",
+            background: "rgba(15,26,31,0.45)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
