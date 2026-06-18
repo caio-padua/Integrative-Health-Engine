@@ -63,6 +63,40 @@ export function _resetEnviarWhatsappParaTestes(): void {
   enviarWhatsappImpl = enviarWhatsapp;
 }
 
+// Seam de injecao pro UNIVERSO de telefones do canal WhatsApp. Em producao a
+// lista de telefones brutos vem do DB (ownerRows.telefone). Em testes a suite
+// injeta uma lista deterministica via `_setTelefonesOwnersParaTestes` — assim a
+// cobertura exercita normalizacao, dedupe e fallback CEO_WHATSAPP sem depender
+// do estado real de telefones de owners no banco de desenvolvimento
+// compartilhado (que tem owners reais com telefone da onda "WhatsApp do CEO").
+// Mesmo padrao dos seams de gmail/whatsapp acima.
+let telefonesOwnersBrutosOverride: (() => Array<string | null>) | null = null;
+export function _setTelefonesOwnersParaTestes(
+  f: () => Array<string | null>,
+): void {
+  telefonesOwnersBrutosOverride = f;
+}
+export function _resetTelefonesOwnersParaTestes(): void {
+  telefonesOwnersBrutosOverride = null;
+}
+
+/**
+ * Normaliza uma lista de telefones brutos pro canal WhatsApp: mantem so digitos,
+ * descarta tudo com menos de 10 digitos (guarda contra lixo) e remove duplicatas.
+ * Exportada pra ser testavel de forma pura, sem tocar o DB.
+ */
+export function normalizarTelefonesWpp(
+  brutos: Array<string | null>,
+): string[] {
+  return Array.from(
+    new Set(
+      brutos
+        .map((t) => (t ?? "").replace(/\D/g, ""))
+        .filter((t) => t.length >= 10),
+    ),
+  );
+}
+
 const FROM_LABEL = "PAWARDS - Seguranca";
 const FROM_ADDR =
   process.env["PAWARDS_EMAIL_FROM"] || "clinica.padua.agenda@gmail.com";
@@ -201,13 +235,12 @@ export async function dispararAlertaBruteForceTotp(
     // tudo que nao e digito; descarta vazios e duplicatas. CEO_WHATSAPP entra
     // como fallback explicito quando nenhum owner tem telefone cadastrado
     // (transicao ate a Task de cadastro estruturado completar).
-    const destinatariosWpp = Array.from(
-      new Set(
-        (ownerRows.rows ?? [])
-          .map((r) => (r.telefone ?? "").replace(/\D/g, ""))
-          .filter((t) => t.length >= 10),
-      ),
-    );
+    // O universo de telefones brutos vem do DB em producao; em testes pode ser
+    // injetado via seam (deixa a normalizacao/dedupe/fallback deterministicos).
+    const telefonesBrutos = telefonesOwnersBrutosOverride
+      ? telefonesOwnersBrutosOverride()
+      : (ownerRows.rows ?? []).map((r) => r.telefone);
+    const destinatariosWpp = normalizarTelefonesWpp(telefonesBrutos);
     if (destinatariosWpp.length === 0) {
       const ceoEnv = lerCeoWhatsappEnv();
       if (ceoEnv) {

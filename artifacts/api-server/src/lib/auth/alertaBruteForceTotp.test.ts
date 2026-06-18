@@ -32,6 +32,8 @@ import {
   _resetGmailClientFactoryParaTestes,
   _setEnviarWhatsappParaTestes,
   _resetEnviarWhatsappParaTestes,
+  _setTelefonesOwnersParaTestes,
+  _resetTelefonesOwnersParaTestes,
 } from "./alertaBruteForceTotp";
 import type { EnvioResult } from "../../services/whatsappService";
 
@@ -326,11 +328,17 @@ describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)",
     await db.execute(sql`DELETE FROM alertas_ceo_seguranca WHERE usuario_id = ${alvoUsuarioId}`);
     await db.execute(sql`DELETE FROM usuarios WHERE id = ${validadorComTelefoneId}`);
     _resetEnviarWhatsappParaTestes();
+    _resetTelefonesOwnersParaTestes();
   });
 
   beforeEach(async () => {
     await limparAlertasDoAlvo();
     wppCalls.length = 0;
+    // Universo de telefones DETERMINISTICO: por padrao so o validador de teste
+    // tem telefone. Sem isso, owners reais com telefone no banco de dev
+    // compartilhado (onda "WhatsApp do CEO") poluem a contagem. Testes que
+    // precisam de outro universo (dedupe/filtro, fallback) sobrescrevem inline.
+    _setTelefonesOwnersParaTestes(() => [TELEFONE_VALIDADOR]);
   });
 
   it("(a) provedor WhatsApp lancando excecao NAO derruba o fluxo nem o canal email", async () => {
@@ -425,9 +433,16 @@ describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)",
   });
 
   it("(a-strict) 1 unico WhatsApp por destinatario com telefone cadastrado (telefone normalizado)", async () => {
-    // Arrange: provedor sucesso. So `validadorComTelefoneId` tem telefone
-    // entre todos os elegiveis (perfil_plataforma=platform_owner OR
-    // perfil=validador_mestre AND ativo=true). Logo: exatamente 1 envio.
+    // Arrange: provedor sucesso. Universo de telefones brutos injetado com
+    // (i) duplicata do mesmo numero e (ii) numero curto (< 10 digitos) —
+    // assim o teste exercita DETERMINISTICAMENTE o dedupe (Set) e o filtro
+    // `length >= 10`, sem depender do estado real de telefones de owners no
+    // banco de dev compartilhado. Resultado esperado: exatamente 1 envio.
+    _setTelefonesOwnersParaTestes(() => [
+      TELEFONE_VALIDADOR,
+      TELEFONE_VALIDADOR, // duplicata -> dedupe
+      "55119",            // curto demais -> filtrado
+    ]);
     _setEnviarWhatsappParaTestes(async (telefone, mensagem): Promise<EnvioResult> => {
       wppCalls.push({ telefone, mensagem });
       return { sucesso: true, provedorMsgId: "stub-strict" };
@@ -471,16 +486,15 @@ describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)",
   });
 
   it("(c) fallback CEO_WHATSAPP entra quando NENHUM owner tem telefone cadastrado", async () => {
-    // Arrange: zera o telefone do unico validador com telefone, e seta o
-    // env CEO_WHATSAPP. O helper le o env lazy (lerCeoWhatsappEnv) entao
-    // a mudanca em runtime e suficiente — sem reimportar o modulo.
+    // Arrange: simula "nenhum owner tem telefone" injetando universo VAZIO
+    // (sem tocar dado real no banco), e seta o env CEO_WHATSAPP. O helper le
+    // o env lazy (lerCeoWhatsappEnv) entao a mudanca em runtime e suficiente
+    // — sem reimportar o modulo. Assim o caminho de fallback roda de verdade.
     const ENV_PREVIO = process.env["CEO_WHATSAPP"];
     const FALLBACK_NUMERO_BRUTO = "+55 (11) 9 9999-1111"; // formato humano
     const FALLBACK_NORMALIZADO = "5511999991111";         // so digitos
     process.env["CEO_WHATSAPP"] = FALLBACK_NUMERO_BRUTO;
-    await db.execute(sql`
-      UPDATE usuarios SET telefone = NULL WHERE id = ${validadorComTelefoneId}
-    `);
+    _setTelefonesOwnersParaTestes(() => []);
 
     _setEnviarWhatsappParaTestes(async (telefone, mensagem): Promise<EnvioResult> => {
       wppCalls.push({ telefone, mensagem });
@@ -516,11 +530,8 @@ describe("dispararAlertaBruteForceTotp · canal WhatsApp defensivo (Task #166)",
       // de telefone) — protege contra coupling indevido entre os canais.
       assert.ok(r.rows![0]!.email_enviados >= 1, "canal email indep do telefone");
     } finally {
-      // Restaura estado (proximos testes assumem telefone cadastrado).
-      await db.execute(sql`
-        UPDATE usuarios SET telefone = ${TELEFONE_VALIDADOR}
-         WHERE id = ${validadorComTelefoneId}
-      `);
+      // Restaura so o env. O universo de telefones e governado pelo seam
+      // (resetado no beforeEach), entao nao ha estado de banco a restaurar.
       if (ENV_PREVIO === undefined) delete process.env["CEO_WHATSAPP"];
       else process.env["CEO_WHATSAPP"] = ENV_PREVIO;
     }
