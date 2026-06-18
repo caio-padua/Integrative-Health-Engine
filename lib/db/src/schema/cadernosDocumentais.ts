@@ -18,6 +18,10 @@ export const SIGLAS_RACJ = [
   "CIMP", "CIMU", "CEND", "CFORM", "CCOMB", "CSUB",
   "LGPD", "RPAC", "RISC", "TPOS", "TFIN",
   "IMAG", "NGAR",
+  // Subclassificacao dos subcutaneos (18/06/2026, decisao CEO).
+  // CSUB acima vira "guarda-chuva antigo" (nao usar em casos novos);
+  // permanece intacto por compatibilidade. As tres siglas abaixo o subdividem:
+  "CINC", "CPEP", "CLIP",
 ] as const;
 
 export const TODAS_SIGLAS = [...new Set([...SIGLAS_RACL, ...SIGLAS_RACJ])] as const;
@@ -43,7 +47,10 @@ export const SIGLA_LABELS: Record<string, string> = {
   CEND: "Consentimento Endovenoso",
   CFORM: "Consentimento Formula",
   CCOMB: "Consentimento Combinado",
-  CSUB: "Consentimento Peptideos/GLP-1/GH",
+  CSUB: "Consentimento Peptideos/GLP-1/GH", // guarda-chuva antigo (18/06/2026): subdividido em CINC/CPEP/CLIP
+  CINC: "Consentimento de Incretinas (GLP-1)",
+  CPEP: "Consentimento de Peptideos e Secretagogos de GH",
+  CLIP: "Consentimento de Lipoliticos Injetaveis",
   LGPD: "Termo LGPD",
   RPAC: "Riscos do Paciente",
   RISC: "Declaracao de Riscos",
