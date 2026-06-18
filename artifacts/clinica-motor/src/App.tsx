@@ -9,6 +9,7 @@ import { SessaoExpiradaProvider } from "@/components/SessaoExpiradaProvider";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
+import InicioClinico from "@/pages/inicio";
 import Dashboard from "@/pages/dashboard";
 import Anamneses from "@/pages/anamnese";
 import NovaAnamnese from "@/pages/anamnese/nova";
@@ -151,6 +152,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Login} />
+      <Route path="/inicio" component={InicioClinico} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/identidade-visual" component={IdentidadeVisual} />
       <Route path="/preview-parametrizacao-exames" component={PreviewParametrizacaoExames} />

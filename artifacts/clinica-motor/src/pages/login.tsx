@@ -49,7 +49,7 @@ export default function Login() {
   });
 
   useEffect(() => {
-    if (user && !avisoRecuperacao) setLocation("/dashboard");
+    if (user && !avisoRecuperacao) setLocation("/inicio");
   }, [user, avisoRecuperacao, setLocation]);
 
   const onSubmit = (data: LoginFormValues) => login(data);

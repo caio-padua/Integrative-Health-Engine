@@ -31,7 +31,7 @@ import {
   CalendarClock, CalendarDays, Calendar,
   BookOpen, Beaker, Pill, BadgeAlert,
   Building2, Settings, ShieldCheck, GitBranch, Activity,
-  Command as CommandIcon, Bell, ChevronLeft, ChevronRight, LogOut, Diamond, Search,
+  Command as CommandIcon, Bell, ChevronLeft, ChevronRight, LogOut, Diamond, Search, Home,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClinic } from "@/contexts/ClinicContext";
@@ -152,6 +152,29 @@ function getNavGroups(PW: PWPalette): NavGroup[] {
       { label: "Sessões", href: "/sessoes", icon: Activity },
     ],
   },
+  ];
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MENU ENXUTO — "Modo Clínico" do dia a dia (PT-BR, sem siglas).
+// É o menu padrão ao logar. O botão "Modo avançado" no rodapé da sidebar
+// revela o menu completo (getNavGroups) sem mexer em nenhuma rota.
+// ═══════════════════════════════════════════════════════════════════════
+function getNavEnxuto(PW: PWPalette): NavGroup[] {
+  return [
+    {
+      id: "diaadia", label: "DIA A DIA", color: PW.cyan,
+      items: [
+        { label: "Início", href: "/inicio", icon: Home },
+        { label: "Pacientes", href: "/pacientes", icon: Users },
+        { label: "Atendimento", href: "/cockpit", icon: Stethoscope },
+        { label: "Agenda", href: "/agenda", icon: CalendarClock },
+        { label: "Pendências", href: "/filas", icon: ListChecks },
+        { label: "Validação", href: "/validacao", icon: ShieldCheck },
+        { label: "Acompanhamentos", href: "/followup", icon: Activity },
+        { label: "Prescrição Rápida", href: "/prescricao-rapida", icon: Pill },
+      ],
+    },
   ];
 }
 
@@ -303,7 +326,7 @@ function StripPins() {
       }}
     >
       <Link
-        href="/dashboard"
+        href="/inicio"
         style={{
           fontFamily: PW.mono,
           fontSize: 13,
@@ -574,6 +597,17 @@ function SidebarL2({ collapsed }: { collapsed: boolean }) {
   const sound = useSound();
   const width = collapsed ? 64 : 230;
   const [search, setSearch] = useState("");
+  const [menuModo, setMenuModo] = useState<"enxuto" | "avancado">(
+    () => (typeof window !== "undefined" && localStorage.getItem("pwx.menu.modo") === "avancado") ? "avancado" : "enxuto"
+  );
+  const grupos = menuModo === "enxuto" ? getNavEnxuto(PW) : NAV_GROUPS;
+  const alternarModo = () => {
+    setMenuModo((prev) => {
+      const next = prev === "enxuto" ? "avancado" : "enxuto";
+      try { localStorage.setItem("pwx.menu.modo", next); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const matchesSearch = (item: NavItem) =>
     !search || item.label.toLowerCase().includes(search.toLowerCase());
@@ -634,7 +668,7 @@ function SidebarL2({ collapsed }: { collapsed: boolean }) {
       )}
 
       <nav style={{ flex: 1, paddingBottom: 16 }}>
-        {NAV_GROUPS.map((group) => {
+        {grupos.map((group) => {
           const visibleItems = group.items.filter(matchesSearch);
           if (visibleItems.length === 0) return null;
           return (
@@ -668,6 +702,32 @@ function SidebarL2({ collapsed }: { collapsed: boolean }) {
           );
         })}
       </nav>
+
+      {!collapsed && (
+        <button
+          onClick={alternarModo}
+          data-testid="pwx-menu-modo"
+          title={menuModo === "enxuto"
+            ? "Mostrar todos os menus do sistema (modo avançado)"
+            : "Voltar ao menu simples do dia a dia"}
+          style={{
+            margin: "0 14px 10px",
+            padding: "8px 10px",
+            background: "transparent",
+            border: `1px solid ${PW.border}`,
+            color: PW.textMute,
+            fontFamily: PW.mono,
+            fontSize: 10,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            cursor: "pointer",
+            borderRadius: 0,
+            textAlign: "center",
+          }}
+        >
+          {menuModo === "enxuto" ? "Modo avançado →" : "← Modo simples"}
+        </button>
+      )}
 
       <div style={{ padding: 8, borderTop: `1px solid ${PW.border}` }}>
         <Platform2faFooterIndicator />
