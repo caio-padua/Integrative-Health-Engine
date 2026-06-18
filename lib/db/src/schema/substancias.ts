@@ -54,6 +54,15 @@ export const substanciasTable = pgTable("substancias", {
   doseMedia: text("dose_media"),
   potencia: integer("potencia"),
   origemDado: text("origem_dado").notNull().default("OPERADOR"),
+  // Aditivo 18/06/2026 — campos importados da planilha de peptideos do Drive
+  // e ligacao da substancia ao caderno de consentimento RACJ (etapa B do
+  // pedido anti-ectoplasma). Todos opcionais, nenhuma coluna existente alterada.
+  apresentacao: text("apresentacao"),                     // frasco/dose comercial + tabela de precos
+  consentimentoSigla: text("consentimento_sigla"),        // CINC/CPEP/CLIP/CEND/CIMP — dirige a emissao do motor
+  comoAtua: text("como_atua"),                            // mecanismo de acao (resumo)
+  monitorar: text("monitorar"),                          // parametros e exames de monitoramento
+  riscosAlertas: text("riscos_alertas"),                 // riscos e alertas clinicos
+  fonteUrl: text("fonte_url"),                            // fonte/referencia (URL)
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 

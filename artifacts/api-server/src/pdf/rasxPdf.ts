@@ -1289,7 +1289,7 @@ interface RacjPdfData {
   // casar cada termo especifico (CFOR/CIMU/CEND/CIMP) com o que foi prescrito
   // ao paciente (ex.: o termo do implante traz o implante prescrito). Opcional
   // e ADITIVO — gerarRacjPdf (hardcoded) ignora; so o gerarRacjPdfFromBanco usa.
-  medicamentosDetalhados?: Array<{ inline: string; via?: string | null; tipo?: string | null; forma?: string | null }>;
+  medicamentosDetalhados?: Array<{ inline: string; via?: string | null; tipo?: string | null; forma?: string | null; consentimentoSigla?: string | null }>;
 }
 
 /**
@@ -1593,7 +1593,12 @@ function deriveCodigoRacj(termo: TermoJuridicoDb): string {
  * consentimentos especificos), por isso o discriminador real e o codigo do titulo.
  */
 export function codigoEspecificoDoTermo(t: TermoJuridicoDb): string | null {
-  const m = String(t.titulo || "").match(/\((CFOR|CIMU|CEND|CIMP|CEIN|CETE|CSUB)\)/i);
+  // CSUB e o termo LEGADO combinado (peptideos + GLP-1 + GH). Em 18/06/2026 o
+  // CEO dividiu CSUB em tres termos especificos: CINC (analogos de incretinas /
+  // agonistas de GLP-1), CPEP (peptideos, secretagogos de GH e moleculas
+  // metabolicas) e CLIP (agentes lipoliticos subcutaneos). Aceitamos os quatro
+  // codigos para nao quebrar documentos antigos nem os novos.
+  const m = String(t.titulo || "").match(/\((CFOR|CIMU|CEND|CIMP|CEIN|CETE|CSUB|CINC|CPEP|CLIP)\)/i);
   return m ? m[1].toUpperCase() : null;
 }
 
@@ -1606,33 +1611,61 @@ export function codigoEspecificoDoTermo(t: TermoJuridicoDb): string | null {
  */
 export function termoCasaMedicamento(
   codigoEspecifico: string | null | undefined,
-  m: { via?: string | null; tipo?: string | null; forma?: string | null; inline?: string | null; nome?: string | null },
+  m: { via?: string | null; tipo?: string | null; forma?: string | null; inline?: string | null; nome?: string | null; consentimentoSigla?: string | null },
 ): boolean {
   const sg = (codigoEspecifico || "").toUpperCase();
   const via = (m.via || "").toLowerCase();
   const forma = (m.forma || "").toLowerCase();
   const tipo = (m.tipo || "").toLowerCase();
   const nome = `${m.inline || ""} ${m.nome || ""}`.toLowerCase();
-  // ITEM CSUB (CEO 17/06/2026): peptideos, agonistas de GLP-1 e hormonio do
-  // crescimento sao identificados pelo NOME da substancia (a via sozinha e
-  // ambigua: a maioria e subcutanea, mas implante tambem e SC). Um item peptideo
-  // pertence SO ao termo CSUB e e EXCLUIDO dos demais (sem dupla listagem).
-  const ehPeptideo = /semaglutid|ozempic|wegovy|rybelsus|tirzepatid|mounjaro|zepbound|retatrutid|liraglutid|saxenda|victoza|dulaglutid|exenatid|bpc[\s-]?157|tb[\s-]?500|pept[ií]de|somatropin|\bhgh\b|\bgh\b|hormonio do crescimento|hormônio do crescimento|growth hormone|ghrp|cjc[\s-]?1295|ipamorelin|tesamorelin|sermorelin|hexarelin|igf[\s-]?1|melanotan|pt[\s-]?141|aod[\s-]?9604/.test(nome);
+
+  // PORTAO DATA-DRIVEN (18/06/2026, anti-ectoplasma): se o item carrega a sigla
+  // de consentimento cadastrada na substancia (substancias.consentimento_sigla),
+  // ela VENCE o regex. Substancia especial casa SO o seu termo (CSUB legado
+  // agrega CINC+CPEP) e e excluida de qualquer termo de modalidade.
+  const sigCadastrada = String(m.consentimentoSigla || "").trim().toUpperCase();
+  const ESPECIAIS = new Set(["CINC", "CPEP", "CLIP", "CSUB"]);
+  if (ESPECIAIS.has(sigCadastrada)) {
+    if (sg === sigCadastrada) return true;
+    if (sg === "CSUB" && (sigCadastrada === "CINC" || sigCadastrada === "CPEP")) return true;
+    return false;
+  }
+
+  // Classificacao por NOME (fallback quando o item nao traz a sigla cadastrada).
+  // CINC = analogos de incretinas / agonistas de GLP-1.
+  const ehIncretina = /semaglutid|ozempic|wegovy|rybelsus|tirzepatid|mounjaro|zepbound|retatrutid|liraglutid|saxenda|victoza|dulaglutid|trulicity|exenatid|byetta|bydureon|agonista de glp|glp[\s-]?1|incretina/.test(nome);
+  // CLIP = agentes lipoliticos injetaveis subcutaneos.
+  const ehLipolitico = /lipo\s?c\b|lipo\s?b\b|fosfatidilcolina|desoxicolato|deoxicolato|[aá]cido deoxic[oó]lico|deoxychol|lipol[ií]tic/.test(nome);
+  // CPEP = peptideos, secretagogos de GH e moleculas metabolicas (o que NAO for
+  // incretina nem lipolitico). Identificados pelo NOME (a via sozinha e ambigua:
+  // a maioria e subcutanea, mas implante tambem e SC).
+  const ehPeptideoBase = /bpc[\s-]?157|tb[\s-]?500|pept[ií]de|somatropin|\bhgh\b|\bgh\b|hormonio do crescimento|hormônio do crescimento|growth hormone|ghrp|cjc[\s-]?1295|ipamorelin|tesamorelin|sermorelin|hexarelin|igf[\s-]?1|melanotan|pt[\s-]?141|aod[\s-]?9604|mots[\s-]?c|5[\s-]?amino[\s-]?1mq|slu[\s-]?pp|ss[\s-]?31|elamipretide|epithalon|epitalon|\bdsip\b|selank|semax|\bkpv\b|peg[\s-]?mgf|\bvip\b|aviptadil|nad\+|secretagog/.test(nome);
+  const ehPeptideo = ehPeptideoBase && !ehIncretina && !ehLipolitico;
+  // Qualquer substancia "especial" (peptideo/incretina/lipolitico) tem termo
+  // proprio e e EXCLUIDA dos termos de modalidade — sem dupla listagem.
+  const ehEspecial = ehPeptideo || ehIncretina || ehLipolitico;
+
   // Casa por via (texto livre) E TAMBEM por tipo, pois itens legados (REVO antigo)
   // gravam o tipo ("implante"/"endovenoso") mas deixam via_administracao vazia.
   const ehInjetavel = /intramuscular|endovenosa|intravenosa|subcut|implante|pellet|\bim\b|\bev\b|\bsc\b/.test(`${via} ${tipo}`);
   switch (sg) {
-    case "CFOR": // Formulas manipuladas (orais/capsulas/blend) — exclui injetaveis e peptideos
-      return (tipo === "formula" || /capsula|cápsula|oral|\bvo\b|blend|composta|sublingual/.test(`${via} ${forma}`)) && !ehInjetavel && !ehPeptideo;
-    case "CIMU": // Injetavel por via intramuscular (peptideo vai pro CSUB)
-      return /intramuscular|\bim\b/.test(`${via} ${tipo}`) && !ehPeptideo;
-    case "CEND": // Substancias por via endovenosa (peptideo vai pro CSUB)
-      return /endovenosa|intravenosa|endovenoso|intravenoso|\bev\b/.test(`${via} ${tipo}`) && !ehPeptideo;
+    case "CFOR": // Formulas manipuladas (orais/capsulas/blend) — exclui injetaveis e especiais
+      return (tipo === "formula" || /capsula|cápsula|oral|\bvo\b|blend|composta|sublingual/.test(`${via} ${forma}`)) && !ehInjetavel && !ehEspecial;
+    case "CIMU": // Injetavel por via intramuscular (especial vai pro seu termo)
+      return /intramuscular|\bim\b/.test(`${via} ${tipo}`) && !ehEspecial;
+    case "CEND": // Substancias por via endovenosa (especial vai pro seu termo)
+      return /endovenosa|intravenosa|endovenoso|intravenoso|\bev\b/.test(`${via} ${tipo}`) && !ehEspecial;
     case "CIMP": // Implantes subcutaneos / pellets — SO implante/pellet, NUNCA
-      // injetavel subcutaneo puro; peptideo em pellet ainda vai pro CSUB.
-      return /implante|pellet/.test(`${via} ${forma} ${tipo}`) && !ehPeptideo;
-    case "CSUB": // Peptideos, agonistas de GLP-1 e hormonio do crescimento — pelo NOME
+      // injetavel subcutaneo puro; especial em pellet ainda vai pro seu termo.
+      return /implante|pellet/.test(`${via} ${forma} ${tipo}`) && !ehEspecial;
+    case "CINC": // Analogos de incretinas / agonistas de GLP-1 — pelo NOME
+      return ehIncretina;
+    case "CPEP": // Peptideos, secretagogos de GH e moleculas metabolicas — pelo NOME
       return ehPeptideo;
+    case "CLIP": // Agentes lipoliticos injetaveis subcutaneos — pelo NOME
+      return ehLipolitico;
+    case "CSUB": // LEGADO combinado: peptideos + agonistas de GLP-1 + GH
+      return ehPeptideo || ehIncretina;
     default:
       return false;
   }

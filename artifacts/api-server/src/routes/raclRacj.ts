@@ -3,12 +3,59 @@ import { db } from "@workspace/db";
 import {
   eventoStartTable, cadernosDocumentaisTable,
   pacientesTable, tratamentosTable,
+  tratamentoItensTable, substanciasTable,
   SIGLA_LABELS,
 } from "@workspace/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { resolverCadernos, type ModalidadesAtivas } from "../lib/motor-toggles";
 
 const router = Router();
+
+/**
+ * derivarConsentimentosSubstancias
+ *
+ * (ADITIVO 18/06/2026) Coleta as siglas de consentimento (CINC/CPEP/CLIP...)
+ * das SUBSTANCIAS realmente prescritas. Fontes:
+ *   1. tratamento_itens.substancia_id do tratamento (modelo rico de prescricao);
+ *   2. ids/siglas passados explicitamente no body (override/preview).
+ * Retorna lista unica, sem nulos. Anti-ectoplasma: o motor emite o consentimento
+ * a partir do dado real cadastrado em substancias.consentimento_sigla.
+ */
+async function derivarConsentimentosSubstancias(
+  tratamentoId: number | null,
+  body: any,
+): Promise<string[]> {
+  const substanciaIds = new Set<number>();
+
+  if (tratamentoId) {
+    const itens = await db
+      .select({ substanciaId: tratamentoItensTable.substanciaId })
+      .from(tratamentoItensTable)
+      .where(eq(tratamentoItensTable.tratamentoId, tratamentoId));
+    for (const it of itens) if (it.substanciaId) substanciaIds.add(it.substanciaId);
+  }
+
+  if (Array.isArray(body?.substanciaIds)) {
+    for (const raw of body.substanciaIds) {
+      const n = Number(raw);
+      if (!Number.isNaN(n)) substanciaIds.add(n);
+    }
+  }
+
+  const consentimentos: string[] = Array.isArray(body?.consentimentos)
+    ? body.consentimentos.filter((s: unknown): s is string => typeof s === "string")
+    : [];
+
+  if (substanciaIds.size > 0) {
+    const subs = await db
+      .select({ sigla: substanciasTable.consentimentoSigla })
+      .from(substanciasTable)
+      .where(inArray(substanciasTable.id, [...substanciaIds]));
+    for (const s of subs) if (s.sigla) consentimentos.push(s.sigla);
+  }
+
+  return [...new Set(consentimentos.filter(Boolean))];
+}
 
 router.get("/tratamentos", async (req, res): Promise<void> => {
   const pacienteId = req.query.pacienteId ? Number(req.query.pacienteId) : null;
@@ -60,7 +107,9 @@ router.get("/ras/cadernos/:pacienteId/:tratamentoId", async (req, res): Promise<
 
 router.post("/ras/resolver-cadernos", async (req, res): Promise<void> => {
   const modalidades = req.body as ModalidadesAtivas;
-  const cadernos = resolverCadernos(modalidades);
+  const tratamentoIdPreview = req.body?.tratamentoId ? Number(req.body.tratamentoId) : null;
+  const consentimentosSubstancias = await derivarConsentimentosSubstancias(tratamentoIdPreview, req.body);
+  const cadernos = resolverCadernos(modalidades, consentimentosSubstancias);
   res.json({
     cadernos,
     racl: cadernos.filter(c => c.familia === "RACL"),
@@ -111,7 +160,11 @@ router.post("/ras/evento-start", async (req, res): Promise<void> => {
     psicologia: false,
   };
 
-  const cadernosResolvidos = resolverCadernos(mods);
+  // Auto-deriva os consentimentos das substancias prescritas (tratamento_itens)
+  // + override opcional no body. Faz o motor emitir CINC/CPEP/CLIP de verdade.
+  const consentimentosSubstancias = await derivarConsentimentosSubstancias(tratamentoId, req.body);
+
+  const cadernosResolvidos = resolverCadernos(mods, consentimentosSubstancias);
   const raclSiglas = cadernosResolvidos.filter(c => c.familia === "RACL").map(c => c.sigla);
   const racjSiglas = cadernosResolvidos.filter(c => c.familia === "RACJ").map(c => c.sigla);
 

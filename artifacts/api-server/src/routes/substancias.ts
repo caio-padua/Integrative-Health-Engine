@@ -44,6 +44,14 @@ const ALLOWED_FIELDS = [
   // Migration 081 — dose de referencia (D005=A).
   "doseMedia",
   "potencia",
+  // Aditivo 18/06/2026 — campos da planilha de peptideos + ligacao ao
+  // caderno de consentimento RACJ (etapa B anti-ectoplasma).
+  "apresentacao",
+  "consentimentoSigla",
+  "comoAtua",
+  "monitorar",
+  "riscosAlertas",
+  "fonteUrl",
   // NOTA: origemDado NAO entra aqui de proposito. E portao de confianca
   // clinica (D001): SEED_RASCUNHO -> VALIDADO_MEDICO so via fluxo de
   // validacao do Caio, nunca por PUT/PATCH livre do cliente.

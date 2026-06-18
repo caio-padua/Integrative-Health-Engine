@@ -32,6 +32,22 @@ fino so existe no nome oficial do termo (codigo entre parenteses).
 - NAO ha termo especifico para injetavel SUBCUTANEO puro (so IM/EV/implante) —
   notar ao CEO se isso aparecer.
 
+## Portao DATA-DRIVEN por consentimento_sigla (CEO 18/06/2026)
+O CSUB legado foi dividido em 3 codigos especificos no titulo: `(CINC)` analogos
+de incretinas / agonistas de GLP-1, `(CPEP)` peptideos+secretagogos de GH, `(CLIP)`
+agentes lipoliticos SC. `termoCasaMedicamento` agora PRIORIZA `m.consentimentoSigla`
+(dado cadastrado) sobre o regex de nome; CSUB legado agrega CINC+CPEP.
+
+**Armadilha que custou um FAIL do architect:** o gate data-driven so funciona se a
+sigla CHEGAR em `medicamentosDetalhados`. O pipeline de meds do RACJ
+(`revo_medicamentos` + `prescricao_blocos` em collectPdfData) NAO tem `substancia_id`,
+entao a sigla e plumbada por NOME: mapa `substancias.consentimento_sigla` →
+casa por palavra inteira (`(^|[^a-z0-9])core([^a-z0-9]|$)`, core sem sufixo entre
+parenteses, len>=3, mais especifico primeiro). Sem match = null → cai no regex (zero
+regressao). O regex sozinho cobria 29/30; so "Glow (blend)" dependia do plumb.
+**Why:** sem o plumb, `m.consentimentoSigla` e sempre undefined e o gate vira codigo morto.
+Melhoria futura: vincular por `substancia_id` quando o pipeline tiver (reduz match textual).
+
 ## How to apply
 - Codigo: `artifacts/api-server/src/pdf/rasxPdf.ts` (codigoEspecificoDoTermo +
   termoCasaMedicamento); montagem de `medicamentosDetalhados` em

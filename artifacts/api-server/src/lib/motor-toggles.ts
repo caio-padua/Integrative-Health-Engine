@@ -54,7 +54,25 @@ const RACJ_CONDICIONAL: Record<string, (m: ModalidadesAtivas) => boolean> = {
   IMAG: () => false,
 };
 
-export function resolverCadernos(modalidades: ModalidadesAtivas): CadernoResolucao[] {
+/**
+ * resolverCadernos
+ *
+ * @param modalidades  Toggles grossos por modalidade (injetavelIM/EV, implante,
+ *                     formula...) — dirigem CIMU/CEND/CIMP/CFORM etc.
+ * @param consentimentosSubstancias  (ADITIVO 18/06/2026) Siglas de consentimento
+ *                     (CINC/CPEP/CLIP/...) derivadas das SUBSTANCIAS prescritas
+ *                     (substancias.consentimento_sigla). Necessario porque
+ *                     peptideos/incretinas/lipoliticos sao todos subcutaneos e
+ *                     NAO se distinguem por modalidade — quem decide o caderno e
+ *                     a substancia. Cada sigla unica e valida vira um caderno
+ *                     RACJ obrigatorio. Parametro opcional: chamadores antigos
+ *                     que passam so modalidades continuam com o comportamento
+ *                     anterior, sem regressao.
+ */
+export function resolverCadernos(
+  modalidades: ModalidadesAtivas,
+  consentimentosSubstancias: string[] = [],
+): CadernoResolucao[] {
   const resultado: CadernoResolucao[] = [];
   const jaAdicionado = new Set<string>();
 
@@ -114,13 +132,40 @@ export function resolverCadernos(modalidades: ModalidadesAtivas): CadernoResoluc
     }
   }
 
+  // Consentimentos dirigidos por SUBSTANCIA prescrita (ADITIVO 18/06/2026).
+  // CINC/CPEP/CLIP (e quaisquer outras siglas RACJ ligadas a substancia) sao
+  // emitidos com base em substancias.consentimento_sigla, pois sao subcutaneos
+  // e nao se distinguem por modalidade. Cada sigla unica/valida vira caderno
+  // RACJ obrigatorio. Dedup compartilha o mesmo Set jaAdicionado das condicoes.
+  const siglasValidasRACJ = new Set<string>(SIGLAS_RACJ as readonly string[]);
+  for (const siglaBruta of consentimentosSubstancias) {
+    const sigla = (siglaBruta || "").trim().toUpperCase();
+    if (!sigla || !siglasValidasRACJ.has(sigla)) continue;
+    const key = `RACJ:${sigla}`;
+    if (jaAdicionado.has(key)) continue;
+    resultado.push({
+      familia: "RACJ",
+      sigla,
+      descricao: SIGLA_LABELS[sigla] || sigla,
+      obrigatorio: true,
+      condicao: "Substancia prescrita exige consentimento especifico (emitido 1x no START)",
+    });
+    jaAdicionado.add(key);
+  }
+
   return resultado;
 }
 
-export function resolverCadernosRACL(modalidades: ModalidadesAtivas): CadernoResolucao[] {
-  return resolverCadernos(modalidades).filter(c => c.familia === "RACL");
+export function resolverCadernosRACL(
+  modalidades: ModalidadesAtivas,
+  consentimentosSubstancias: string[] = [],
+): CadernoResolucao[] {
+  return resolverCadernos(modalidades, consentimentosSubstancias).filter(c => c.familia === "RACL");
 }
 
-export function resolverCadernosRACJ(modalidades: ModalidadesAtivas): CadernoResolucao[] {
-  return resolverCadernos(modalidades).filter(c => c.familia === "RACJ");
+export function resolverCadernosRACJ(
+  modalidades: ModalidadesAtivas,
+  consentimentosSubstancias: string[] = [],
+): CadernoResolucao[] {
+  return resolverCadernos(modalidades, consentimentosSubstancias).filter(c => c.familia === "RACJ");
 }

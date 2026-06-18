@@ -555,6 +555,41 @@ export async function collectPdfData(pacienteId: number) {
     ...medsDePrescricoes.filter(m => !nomesRevo.has(m.nome.toLowerCase())),
   ];
 
+  // PLUMB DATA-DRIVEN (CEO 18/06/2026, anti-ectoplasma): cruza cada medicamento
+  // com substancias.consentimento_sigla (fonte de verdade) pra o matcher RACJ
+  // "item 7" casar o termo especifico (CINC/CPEP/CLIP/CSUB) por DADO cadastrado,
+  // nao so por regex de nome. Casa por PALAVRA INTEIRA (nao substring solta) pra
+  // evitar falso positivo. Aditivo: sem match, o item fica sem sigla e cai no
+  // fallback regex de termoCasaMedicamento (zero regressao). Assim uma substancia
+  // nova cadastrada com sigla ja classifica sozinha, sem mexer no codigo.
+  const substanciasComSigla = (await db.execute(sql`
+    SELECT nome, consentimento_sigla FROM substancias
+    WHERE consentimento_sigla IS NOT NULL AND consentimento_sigla <> ''
+  `)).rows as Array<{ nome: string; consentimento_sigla: string }>;
+  const normalizarNome = (s: string) => String(s || "")
+    .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const escaparRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const mapaSiglas = substanciasComSigla
+    .map(s => ({
+      // remove sufixo entre parenteses (ex.: "BPC-157 (oral)" -> "bpc-157")
+      core: normalizarNome(String(s.nome).replace(/\s*\(.*?\)\s*/g, " ").trim()),
+      sigla: String(s.consentimento_sigla).trim().toUpperCase(),
+    }))
+    .filter(s => s.core.length >= 3)
+    .sort((a, b) => b.core.length - a.core.length); // mais especifico primeiro
+  const siglaPorNome = (texto: string): string | null => {
+    const alvo = normalizarNome(texto);
+    if (!alvo) return null;
+    for (const { core, sigla } of mapaSiglas) {
+      const re = new RegExp(`(^|[^a-z0-9])${escaparRegex(core)}([^a-z0-9]|$)`);
+      if (re.test(alvo)) return sigla;
+    }
+    return null;
+  };
+  for (const m of medicamentosEnriquecidos as any[]) {
+    m.consentimentoSigla = siglaPorNome(`${m.medicamentoDoseInline || ""} ${m.nome || ""}`);
+  }
+
   // Eventos extras: sintetizar a partir das prescricoes pra alimentar HLIN
   const eventosExtras = medsDePrescricoes.map(m => ({
     id: m.id,
@@ -687,6 +722,7 @@ router.get("/rasx/:pacienteId/arqu/pdf/:categoria", async (req, res): Promise<vo
         via: m.viaAdministracao ?? null,
         tipo: m.tipoMed ?? null,
         forma: m.formaFarmaceutica ?? null,
+        consentimentoSigla: m.consentimentoSigla ?? null,
       })),
     };
     const termosBanco = await db.select().from(termosJuridicosTable)
@@ -778,6 +814,7 @@ router.post("/rasx/:pacienteId/arqu/enviar", async (req, res): Promise<void> => 
           via: m.viaAdministracao ?? null,
           tipo: m.tipoMed ?? null,
           forma: m.formaFarmaceutica ?? null,
+          consentimentoSigla: m.consentimentoSigla ?? null,
         })),
       };
       const termosBanco = await db.select().from(termosJuridicosTable)
@@ -1005,6 +1042,7 @@ router.post("/rasx/:pacienteId/arqu/popular-drive", async (req, res): Promise<vo
       via: m.viaAdministracao ?? null,
       tipo: m.tipoMed ?? null,
       forma: m.formaFarmaceutica ?? null,
+      consentimentoSigla: m.consentimentoSigla ?? null,
     })),
   };
   const termosBancoCompleto = await db.select().from(termosJuridicosTable)

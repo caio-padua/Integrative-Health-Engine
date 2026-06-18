@@ -29,6 +29,18 @@ describe("codigoEspecificoDoTermo · extrai codigo do titulo", () => {
     assert.equal(codigoEspecificoDoTermo(mk("Consentimento Especifico — Peptideos, Agonistas de GLP-1 e Hormonio do Crescimento (CSUB)")), "CSUB");
   });
 
+  it("acha (CINC) no termo de incretinas/GLP-1 (split 18/06/2026)", () => {
+    assert.equal(codigoEspecificoDoTermo(mk("Consentimento Especifico Informado — Analogos de Incretinas e Agonistas de GLP-1 (CINC)")), "CINC");
+  });
+
+  it("acha (CPEP) no termo de peptideos/secretagogos/moleculas metabolicas", () => {
+    assert.equal(codigoEspecificoDoTermo(mk("Consentimento Especifico Informado — Peptideos, Secretagogos de Hormonio do Crescimento e Moleculas Metabolicas (CPEP)")), "CPEP");
+  });
+
+  it("acha (CLIP) no termo de agentes lipoliticos", () => {
+    assert.equal(codigoEspecificoDoTermo(mk("Consentimento Especifico Informado — Agentes Lipoliticos Injetaveis Subcutaneos (CLIP)")), "CLIP");
+  });
+
   it("retorna null em termo SEM codigo (LGPD, TCLE global)", () => {
     assert.equal(codigoEspecificoDoTermo(mk("Consentimento Livre para Tratamento de Dados Pessoais (LGPD)")), null);
     assert.equal(codigoEspecificoDoTermo(mk("TCLE Global do Protocolo Terapeutico Integrado")), null);
@@ -102,5 +114,60 @@ describe("termoCasaMedicamento · casa item prescrito ao termo certo", () => {
     assert.equal(termoCasaMedicamento(null, b12IM), false);
     assert.equal(termoCasaMedicamento("CEIN", b12IM), false);
     assert.equal(termoCasaMedicamento("CETE", glutationaEV), false);
+  });
+});
+
+// SPLIT CSUB -> CINC / CPEP / CLIP (CEO 18/06/2026): o termo combinado foi
+// dividido em tres especificos. Estes testes blindam a classificacao por NOME e
+// o portao data-driven (consentimento_sigla cadastrada vence o regex).
+describe("termoCasaMedicamento · split CINC/CPEP/CLIP por NOME", () => {
+  const tirzepatidaSC = { inline: "Tirzepatida 10mg", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
+  const retatrutidaSC = { inline: "Retatrutida 40mg", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
+  const bpc157 = { inline: "BPC-157 250mcg", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
+  const ipamorelin = { inline: "Ipamorelin", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
+  const lipoCB = { inline: "Lipo C + Lipo B", via: "Subcutanea", tipo: "remedio", forma: "Solucao injetavel" };
+
+  it("CINC casa SO incretinas/GLP-1 (tirzepatida, retatrutida)", () => {
+    assert.equal(termoCasaMedicamento("CINC", tirzepatidaSC), true);
+    assert.equal(termoCasaMedicamento("CINC", retatrutidaSC), true);
+    assert.equal(termoCasaMedicamento("CINC", bpc157), false);
+    assert.equal(termoCasaMedicamento("CINC", lipoCB), false);
+  });
+
+  it("CPEP casa peptideos/secretagogos, NUNCA incretina nem lipolitico", () => {
+    assert.equal(termoCasaMedicamento("CPEP", bpc157), true);
+    assert.equal(termoCasaMedicamento("CPEP", ipamorelin), true);
+    assert.equal(termoCasaMedicamento("CPEP", tirzepatidaSC), false);
+    assert.equal(termoCasaMedicamento("CPEP", lipoCB), false);
+  });
+
+  it("CLIP casa SO agentes lipoliticos (Lipo C + Lipo B)", () => {
+    assert.equal(termoCasaMedicamento("CLIP", lipoCB), true);
+    assert.equal(termoCasaMedicamento("CLIP", bpc157), false);
+    assert.equal(termoCasaMedicamento("CLIP", tirzepatidaSC), false);
+  });
+
+  it("especial nao aparece em termo de modalidade (sem dupla listagem)", () => {
+    for (const cod of ["CFOR", "CIMU", "CEND", "CIMP"] as const) {
+      assert.equal(termoCasaMedicamento(cod, tirzepatidaSC), false);
+      assert.equal(termoCasaMedicamento(cod, bpc157), false);
+      assert.equal(termoCasaMedicamento(cod, lipoCB), false);
+    }
+  });
+
+  it("CSUB legado segue agregando incretina + peptideo (compat)", () => {
+    assert.equal(termoCasaMedicamento("CSUB", tirzepatidaSC), true);
+    assert.equal(termoCasaMedicamento("CSUB", bpc157), true);
+    assert.equal(termoCasaMedicamento("CSUB", lipoCB), false);
+  });
+
+  it("portao data-driven: consentimento_sigla cadastrada VENCE o regex", () => {
+    // substancia cujo NOME o regex nao reconhece (ex.: blend "Glow"), mas que
+    // tem consentimento_sigla=CPEP cadastrada -> casa CPEP e exclui modalidade.
+    const glow = { inline: "Glow (blend)", via: "Subcutanea", tipo: "remedio", consentimentoSigla: "CPEP" };
+    assert.equal(termoCasaMedicamento("CPEP", glow), true);
+    assert.equal(termoCasaMedicamento("CINC", glow), false);
+    assert.equal(termoCasaMedicamento("CIMU", glow), false);
+    assert.equal(termoCasaMedicamento("CSUB", glow), true); // legado agrega CPEP
   });
 });
