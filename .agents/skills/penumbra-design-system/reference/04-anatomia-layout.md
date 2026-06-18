@@ -57,6 +57,9 @@ Tudo alinha em `LINHA_ESQ = 16`. Tudo sticky. Chrome com cor fixa (P07).
 - **Nivel 3** (172px): sigla + rotulo + sub-info + submenus com L de 90 (P13).
 - Troca por atalho `1/2/3`. Item ativo respira na cor do dominio (K1). Hover =
   luz por tras na cor (P09), sem respirar (P10).
+- TECLINHA VISIVEL obrigatoria: o menu expoe um botao clicavel (◂) pra recolher
+  pro nivel 1, e a tarja do nivel 1 e clicavel pra reabrir. O atalho de teclado
+  (`[`) e um ATALHO, nunca o unico caminho — todo colapso tem affordance visivel.
 
 ## 3. Os 2 paineis a direita (colapsaveis)
 
@@ -65,6 +68,9 @@ Tudo alinha em `LINHA_ESQ = 16`. Tudo sticky. Chrome com cor fixa (P07).
 - **PULSO** (accent2 ciano): timeline do paciente (MSG/EXM/AGD/RXC/FIN) com LED
   de vidro + timestamp relativo.
 - Cada um 200px aberto; colapsado vira tarja vertical 18px encostada no topo (P14).
+- TECLINHA VISIVEL obrigatoria: cada painel tem um botao clicavel no header (▸)
+  pra recolher; colapsado, a propria tarja vertical e clicavel (com ◂) pra
+  reabrir. O atalho `]` complementa, nunca substitui o botao visivel.
 
 ## 4. Blocos de conteudo (corpo)
 

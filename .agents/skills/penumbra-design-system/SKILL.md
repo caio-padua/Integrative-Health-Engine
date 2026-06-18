@@ -24,6 +24,34 @@ sem ela foi testada e REJEITADA pelo Caio.
 - As duas faces alternam por um toggle segmentado `[CLARO][ESCURO]` na faixa 1.
 - NUNCA criar um terceiro padrao de claro nem de escuro. So existem essas faces.
 
+## ARQUITETURA DESTA SKILL (uma skill, duas faces EM PARALELO)
+
+Decisao travada (anti-perdedos): as duas faces vivem na MESMA skill, lado a
+lado — NAO em duas skills separadas "pawards claro" e "pawards escuro".
+
+- Por que UMA so: ~80% do sistema (os 20 principios P01-P20, a anatomia, a
+  cognicao do Caio, o checklist) e COMUM as duas faces. Duas skills duplicariam
+  esse nucleo e divergiriam com o tempo (uma corrigida, a outra esquecida).
+  Fonte unica = zero divergencia ("drift", desvio silencioso entre copias).
+- O que e COMUM (nucleo): tudo, menos os valores de cor (hex). Vive nas secoes
+  gerais e nos reference/01, /02, /04, /05, /06.
+- O que e POR FACE (so muda o hex): a tabela de tokens em paralelo, em
+  reference/03-tokens-cores.md (secao 2 = CLARO, secao 3 = ESCURO, lado a lado).
+- Regra de ouro do par: ao mexer numa face, conferir a face-par na MESMA edicao
+  (sao `perfilPar`, perfis pareados). Nunca editar uma face sem a outra.
+
+## COMO OUTRO PROJETO REPLIT IMPORTA ESTA SKILL
+
+Esta skill e replicavel a qualquer projeto do Caio (Pactor, Manager, etc.):
+
+1. Copiar a pasta `.agents/skills/penumbra-design-system/` inteira pro outro repo.
+2. No projeto novo, montar os tokens das 2 faces preenchendo o contrato
+   `PerfilPenumbra` (reference/03, secao 1) com os hex DELE — mantendo a ordem
+   dos 8 dominios. Nunca hex solto no JSX (codigo da tela); sempre via token.
+3. Herdar o NUCLEO (P01-P20 + anatomia) sem alterar; adaptar so os dominios.
+4. O nucleo e a lei; cada projeto so afina a paleta. Assim todos os sistemas do
+   Caio ficam reconheciveis como "a mesma moeda" com faces locais.
+
 ## DUAS CAMADAS: NUCLEO (universal) x PERFIL COCKPIT (operacional)
 
 Separe sempre as duas camadas ao aplicar a um projeto novo:

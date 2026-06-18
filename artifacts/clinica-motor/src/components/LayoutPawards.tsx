@@ -814,6 +814,9 @@ function SidebarL2({ nivelViz, setNivelViz }: { nivelViz: NivelViz; setNivelViz:
     return (
       <div
         onClick={() => setNivelViz(3)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setNivelViz(3); } }}
+        role="button"
+        tabIndex={0}
         className="pwx-elem"
         data-testid="pwx-sidebar"
         style={{
@@ -842,6 +845,24 @@ function SidebarL2({ nivelViz, setNivelViz }: { nivelViz: NivelViz; setNivelViz:
         display: "flex", flexDirection: "column", padding: "10px 0", fontFamily: PW.mono, flexShrink: 0,
       }}
     >
+      {/* Teclinha visível: recolhe o menu pro nível 1 (tarja). Reabrir = clicar
+          na tarja. Espelha o atalho de teclado [. */}
+      <button
+        onClick={() => setNivelViz(1)}
+        className="pwx-elem"
+        data-testid="pwx-sidebar-collapse"
+        title="Recolher menu ([)"
+        style={{
+          alignSelf: "flex-end", margin: compacto ? "0 auto 8px" : "0 8px 8px",
+          width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "transparent", border: `1px solid ${PW.border}`, color: PW.cyan,
+          fontFamily: PW.mono, fontSize: 12, lineHeight: 1, cursor: "pointer", borderRadius: 0,
+          ["--cor" as any]: PW.cyan,
+        }}
+      >
+        ◂
+      </button>
+
       <Link
         href="/cockpit"
         data-testid="pwx-cockpit-btn"
@@ -942,7 +963,7 @@ function SidebarL2({ nivelViz, setNivelViz }: { nivelViz: NivelViz; setNivelViz:
 // ═══════════════════════════════════════════════════════════════════════
 // L2 — Painel direito (contexto)
 // ═══════════════════════════════════════════════════════════════════════
-function PainelContextoL2({ collapsed }: { collapsed: boolean }) {
+function PainelContextoL2({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const PW = useFace();
   const [location] = useLocation();
 
@@ -955,15 +976,30 @@ function PainelContextoL2({ collapsed }: { collapsed: boolean }) {
   }, [location]);
 
   if (collapsed) {
+    // Tarja inteira clicável pra reabrir + teclinha ◂ visível. Espelha o ].
     return (
       <aside
         data-testid="pwx-context-collapsed"
+        onClick={onToggle}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+        role="button"
+        tabIndex={0}
+        className="pwx-elem"
+        title="Expandir painel (])"
         style={{
           width: 40, background: PW.navy, borderLeft: `1px solid ${PW.border}`,
-          display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 14, flexShrink: 0,
+          display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 10,
+          flexShrink: 0, cursor: "pointer", ["--cor" as any]: PW.cyan,
         }}
       >
-        <div style={{ fontSize: 9, color: PW.cyan, writingMode: "vertical-rl", letterSpacing: 3, marginTop: 10, fontFamily: PW.mono }}>
+        <div style={{
+          width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center",
+          border: `1px solid ${PW.border}`, color: PW.cyan, fontSize: 12, lineHeight: 1,
+          fontFamily: PW.mono, marginBottom: 12,
+        }}>
+          ◂
+        </div>
+        <div style={{ fontSize: 9, color: PW.cyan, writingMode: "vertical-rl", letterSpacing: 3, fontFamily: PW.mono }}>
           ◆ CONTEXTO
         </div>
       </aside>
@@ -979,8 +1015,25 @@ function PainelContextoL2({ collapsed }: { collapsed: boolean }) {
         overflowY: "auto", padding: 18, fontFamily: PW.mono, flexShrink: 0,
       }}
     >
-      <div style={{ fontSize: 9, color: PW.cyan, letterSpacing: 2, marginBottom: 14, fontWeight: 800 }}>
-        ◆ PAINEL CONTEXTO
+      {/* Header com teclinha ▸ pra recolher (além do atalho ]). */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ fontSize: 9, color: PW.cyan, letterSpacing: 2, fontWeight: 800 }}>
+          ◆ PAINEL CONTEXTO
+        </div>
+        <button
+          onClick={onToggle}
+          className="pwx-elem"
+          data-testid="pwx-context-collapse"
+          title="Recolher painel (])"
+          style={{
+            width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center",
+            background: "transparent", border: `1px solid ${PW.border}`, color: PW.cyan,
+            fontFamily: PW.mono, fontSize: 12, lineHeight: 1, cursor: "pointer", borderRadius: 0,
+            flexShrink: 0, ["--cor" as any]: PW.cyan,
+          }}
+        >
+          ▸
+        </button>
       </div>
       {conteudo}
     </aside>
@@ -1141,6 +1194,11 @@ export function LayoutPawards({ children, face = "escuro" }: { children: ReactNo
   const [rightCollapsed, setRightCollapsed] = useState<boolean>(
     () => typeof window !== "undefined" && localStorage.getItem("pwx.right") === "collapsed"
   );
+  const toggleRight = () => setRightCollapsed((prev) => {
+    const next = !prev;
+    try { localStorage.setItem("pwx.right", next ? "collapsed" : "expanded"); } catch { /* ignore */ }
+    return next;
+  });
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -1206,7 +1264,7 @@ export function LayoutPawards({ children, face = "escuro" }: { children: ReactNo
             {children}
           </main>
 
-          <PainelContextoL2 collapsed={rightCollapsed} />
+          <PainelContextoL2 collapsed={rightCollapsed} onToggle={toggleRight} />
         </div>
       </div>
     </FaceContext.Provider>
