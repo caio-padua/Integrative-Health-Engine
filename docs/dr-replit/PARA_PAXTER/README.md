@@ -10,6 +10,7 @@
 |-------|-------------------------------------------------------------|------------------------------------------|
 | 1     | `CARTA_01_BEM_VINDO_PAXTER_E_MISSAO_MELHOR_DOS_2_MUNDOS_26.06.18.md` | A carta (missao + passo a passo) |
 | 2     | `00_MAPA_ARQUITETURA_FRONTEND_PAWARDS_26.06.18.md`          | O mapa de arquitetura nivel atomo        |
+| 3     | `02_PORTAL_LOGIN_E_LOGOS_REFERENCIA_26.06.19.md`           | Portal de entrada (login) + selos de validacao + logos (Pawards/Padcon) |
 
 ## A skill para clonar
 
