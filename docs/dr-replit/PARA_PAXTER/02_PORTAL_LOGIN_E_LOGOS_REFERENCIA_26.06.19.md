@@ -142,6 +142,70 @@ pasta `public/`.
 5.2 `import.meta.env.BASE_URL` = o prefixo de caminho do app (cada artefato tem o
 seu). Use o equivalente do seu projeto; nao use caminho que comece em `/` cru.
 
+### 5.3 Dimensoes reais dos arquivos (medidas, nao chute)
+
+| Arquivo                                | Largura x Altura (pixels) | Formato        | Tamanho |
+|----------------------------------------|---------------------------|----------------|---------|
+| `logo-pawards-medcore-transparent.png` | 1024 x 980                | PNG RGBA (com transparencia) | 1,19 MB |
+| `logo-pawards-medcore.png`             | 1024 x 980                | PNG RGB (fundo cheio)        | 1,01 MB |
+| `logo-dp.png`                          | 1284 x 2778               | PNG RGBA (vertical)          | 0,26 MB |
+
+5.3.1 Pixel = o pontinho que forma a imagem; RGBA = Red Green Blue Alpha (Alpha = transparencia).
+5.3.2 Na tela o logo nao usa tamanho fixo: ele estica pela altura da coluna
+(`h-full w-auto object-contain object-left`), entao a proporcao 1024x980 manda.
+
+### 5.4 As cores DOURADAS reais de dentro do logo (amostradas do PNG)
+
+Frase de chamada: o dourado do logo nao e uma cor so — e um degrade de 6 tons
+(do bronze escuro ao quase-branco), o que da o efeito metalico.
+
+| Tom                | Hexadecimal | Onde aparece no logo            |
+|--------------------|-------------|---------------------------------|
+| Realce quase branco| `#FBF2CD`   | brilho mais alto do metal       |
+| Dourado claro      | `#F2D998`   | luz do ouro                     |
+| Dourado medio (dominante) | `#D4AD60` | corpo principal do ouro     |
+| Ouro               | `#C49E55`   | meio-tom                        |
+| Bronze             | `#976D30`   | sombra media                    |
+| Bronze profundo    | `#67502D`   | sombra mais escura              |
+| Fundo              | transparente| (so no arquivo "transparent")   |
+
+5.4.1 Comparacao honesta: o dourado do TEXTO/CSS da tela e `#D4AF37` (token GOLD);
+o dourado DO LOGO gira em torno de `#D4AD60` (medido). Sao parentes, nao identicos
+— o logo e arte rasterizada (imagem), o texto e cor solida de CSS.
+
+### 5.5 O brilho (glow) dourado aplicado ao logo na tela
+
+```css
+filter: drop-shadow(0 0 32px rgba(212,175,55,0.40))
+        drop-shadow(0 0 12px rgba(212,175,55,0.22));
+```
+
+5.5.1 drop-shadow = sombra projetada; aqui sao 2 sombras douradas sobrepostas
+(uma larga e suave de 32px, outra menor de 12px) que dao a aura de luz atras do logo.
+
+---
+
+## 5B. TEXTOS DA MARCA — as duas marcas + subtitulos + citacao (copie exato)
+
+Frase de chamada: aqui estao, ao pe da letra, todas as frases em ingles e a
+citacao do fundador que aparecem na tela.
+
+| Elemento            | Texto exato (copie assim)                                   |
+|---------------------|-------------------------------------------------------------|
+| Marca 1 (wordmark)  | `PAWARDS MedCore®`                                          |
+| Subtitulo da marca 1| `Clinical Intelligence System` (Sistema de Inteligencia Clinica) |
+| Marca 2 (wordmark)  | `PADCON Platform®`                                          |
+| Subtitulo da marca 2| `Advanced Systems Architecture` (Arquitetura Avancada de Sistemas) |
+| Citacao do fundador | `"A excelência clínica começa pela consciência operacional."` |
+| Autoria da citacao  | `Dr. Caio Henrique Fernandes Pádua`                         |
+
+5B.1 Estilo dos wordmarks: dourado GOLD `#D4AF37`, JetBrains Mono, MAIUSCULAS,
+espacamento de letra largo (tracking ~0.35em), o simbolo ® menor e tambem dourado.
+5B.2 Estilo dos subtitulos: cinza apagado INK_MUTED `#9CA3AF`, italico, MAIUSCULAS, bem pequeno.
+5B.3 Estilo da citacao: fonte Georgia (serifada), italico, cor INK `#E5E7EB`; o
+nome do fundador na mesma fonte e cor, em redondo (sem italico).
+5B.4 "Wordmark" = a marca escrita em tipografia (o nome em si vira o logo, sem desenho).
+
 ---
 
 ## 6. A ASSINATURA PADCON — IMPORTANTE (sinceridade total)
