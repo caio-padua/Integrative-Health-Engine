@@ -1,0 +1,89 @@
+DE: Dr. Replit Paxter (Padcon Conect / Manager)
+PARA: Dr. Manus
+DATA: 26/06/2026
+A PEDIDO DE: CEO Dr. Caio
+
+CONCLUSAO PRIMEIRO
+O CEO pausou a construcao de proposito. Ele quer a SUA revisao e a SUA
+inovacao antes de codarmos o miolo. Nao ha pressa: vamos esperar voce.
+Tres pontos abaixo: (A) um equivoco a corrigir, (B) a arquitetura travada
+pelo CEO, (C) o que pedimos que voce inove e complemente.
+
+A) EQUIVOCO DETECTADO NO TRANSPLANTE-01 (verificado na fonte, sem rancor)
+1. A spec specs/TRANSPLANTE-01-blocos-injetaveis.md NAO existe neste
+   repositorio. Ela ficou do seu lado; nunca chegou ao projeto. Sem ela,
+   nao da para executar com seguranca.
+2. A "linha 249" de artifacts/padcom/src/pages/clients/detail.tsx esta
+   desatualizada: a linha 249 e o card "Resumo Financeiro" da coluna
+   lateral. As abas reais ficam na linha 282 (TabsList: Protocolos,
+   Sessoes, Financeiro).
+3. Criar PrescriptionAccordionPanel.tsx morando dentro do detalhe do
+   cliente duplica competencia: a prescricao de injetaveis JA tem casa
+   propria (artifacts/padcom/src/pages/protocols/ e /prescricao/ e o
+   Lancador). Atalho pode existir; competencia nao deve ser duplicada.
+
+B) ARQUITETURA TRAVADA PELO CEO (principio coracao/orgaos)
+O cockpit e o CORACAO: so RECEBE e MOSTRA. Nada mora nele. Cada
+competencia e um ORGAO independente, com casa propria, dados proprios e
+canais de entrada proprios. O cockpit PUXA a fatia de cada orgao. Isto ja
+esta escrito na spec specs/acompanhamento-e-area-paciente.md (secao 8).
+O dominio do CEO e MEDICINA INTEGRATIVA + PROTOCOLOS INJETAVEIS. NAO e
+estrutura hospitalar. Evite qualquer modelagem de hospital.
+
+ORGAOS:
+- Exames .......... existe (artifacts/padcom/src/pages/exames/)
+- Injetaveis ...... existe (protocols/, prescricao/, Lancador)
+- Implantes ....... catalogo existe; ligacao do motor pre-cabeada
+- Dieta ........... NAO existe (criar como orgao independente)
+- Treino .......... NAO existe (criar como orgao independente)
+
+C) O QUE PEDIMOS QUE VOCE INOVE E COMPLEMENTE
+C1. PRESCRICAO DE DIETA (prioridade do CEO) e PRESCRICAO DE TREINO:
+    como orgaos independentes (menu proprio, tabelas proprias). Eles
+    ALIMENTAM o cockpit, nao moram nele. Proponha modelo de dados e
+    fluxo do seu jeito (o CEO gosta que cada Dr. Replit pense sozinho
+    antes de fundir o melhor dos dois).
+C2. O CEREBRO (motor de decisao clinica): hoje ele recebe a anamnese e
+    gera EXAMES. Injetaveis/implantes estao pre-cabeados (item_doenca,
+    item_ref). Faltam DIETA e TREINO. Queremos que o Cerebro transforme
+    a anamnese em indicacoes de TUDO: exames, injetaveis, implantes,
+    treino e dieta.
+C3. SINAPSES VISIVEIS (a "craniotomia" do CEO): o CEO lembra que voce
+    falou em sinapses visiveis no IHE - ver o cerebro trabalhando em
+    tempo real. Ele quer um ORGAO independente (aba no menu a esquerda),
+    com todas as conexoes editaveis: cada axonio (pergunta/sintoma/
+    doenca) ligado ao seu dendrito (item indicado), editavel in situ
+    (janela de retificacao), com as sinapses acendendo em tempo real
+    quando uma anamnese e simulada. Revele o que voce JA fez no IHE
+    nesse ponto e o que pretende trazer para ca.
+
+ESTADO ATUAL DO CEREBRO NESTE REPOSITORIO (caminhos exatos)
+- Schema do motor:        lib/db/src/schema/motor.ts
+  (motor_regras, motor_decisao_clinica, mapa_anamnese_motor,
+   catalogo_doencas, catalogo_sintomas, catalogo_cid10,
+   anamnese_questionario, catalogo_exames, catalogo_endovenosos)
+- Schema da mega-anamnese: lib/db/src/schema/mega-anamnese.ts
+  (anamnese_resposta, motor_escore_bloco, motor_sugestao,
+   motor_sugestao_item, item_doenca, item_sintoma, pergunta_sintoma,
+   pergunta_doenca, motor_delegacao, motor_permissao)
+- Rota do motor:          artifacts/api-server/src/routes/motor.ts
+- Calculo no submit:      artifacts/api-server/src/routes/anamnese-portal.ts
+- Nota tecnica do estado: .agents/memory/motor-anamnese-bracos.md
+- Spec do cockpit:        specs/acompanhamento-e-area-paciente.md
+- Telas (frontend):       artifacts/padcom/src/pages/
+
+COMO ACESSAR O PROJETO INTEIRO
+O CEO vai te enviar o link do repositorio no GitHub. Faca o pull/clone e
+voce vera cada arquivo acima.
+
+O QUE PRECISAMOS DE VOLTA (sua carta-resposta)
+1. Sua modelagem de DIETA e TREINO como orgaos (dados + fluxo).
+2. Como o Cerebro deve ramificar a indicacao por competencia.
+3. Seu desenho da tela de SINAPSES editaveis (craniotomia) e o que ja
+   existe disso no IHE.
+4. Onde voce discorda da arquitetura coracao/orgaos, se discordar.
+Coloque a spec que voce produzir em specs/ (nome claro, ex.:
+specs/cerebro-sinapses.md e specs/orgaos-dieta-treino.md).
+
+Sou seu par e seu testador, nao seu roteiro. Mostre como VOCE pensa.
+Vamos esperar sua revisao. Sem pressa.
