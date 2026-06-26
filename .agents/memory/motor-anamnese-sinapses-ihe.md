@@ -48,5 +48,10 @@ sinapses "perdidos". Caçada confirmou: existem, mas mal ligados.
 - BRIEFING MESTRE por agente (índice único + braços de dados + porquê de cada campo + evolução/roadmap + mandato kaizen + sinapses divergentes + layout Craniotomia + ordem de implementar/rodar): `docs/dr-claude/BRIEFING_MESTRE_MOTOR_ANAMNESE_SINAPSES_26.06.15.md` e `docs/dr-replit/PARA_MANAGER/BRIEFING_MESTRE_MOTOR_ANAMNESE_SINAPSES_26.06.15.md`.
 - Branch: working branch atual = `ver-l2-dr-claude` (a skill do Dr. Claude já usa essa nos raws); README dr-claude lista `feat/dominio-pawards`/`main`. Push só após auto-commit do fim da task; devolver prova (raw URL + hash). NÃO commit manual (destrutivo p/ regras).
 
+## Órgãos Dieta x Treino (verificado 26/06/2026, p/ cartas cross-repo)
+- DIETA **já é órgão REAL no IHE**: tabela `dietas` + CRUD em `routes/catalogo.ts` + tela `pages/dietas/index.tsx` + código semântico B1 B2 B3 B4 SEQ. A carta do Manager assume "Dieta NÃO existe" — vale só pro repo deles, NÃO pro IHE.
+- TREINO é o gap REAL nos dois repos: só texto solto em PDF, sem tabela/CRUD.
+- Cérebro hoje ramifica p/ exame/fórmula/injetável/implante/protocolo; NÃO p/ dieta nem treino. Proposta enviada ao Dr. Manus: dimensão `competencia` na regra + contrato comum de órgão (catalogo/indicacao/fatia_cockpit). Carta: `docs/dr-replit/PARA_MANUS/CARTA_DR_REPLIT_PAWARDS_IHE_PARA_DR_MANUS_26.06.26.md` (publicada na branch ver-l2-dr-claude).
+
 ## Obra pendente (Wave, autorizada "sem perguntar")
 Ligar Craniotomia↔banco (ler regras reais), unir os mapas órfãos à rota, atualizar a rota V9→semântica de bloco/grade + gravidade por bloco, dar persistência+versionamento ao editor, criar amarração editável item↔doença/sintoma, preencher 229 itens órfãos e enriquecer sintomas.
