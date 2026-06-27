@@ -169,20 +169,24 @@ Nao tem cabimento temer o uso indevido de um token de algo que nunca operou e nu
 
 ## 10. BLUEPRINT DO TRANSPLANTE (passo a passo com setas)
 
-`ler os arquivos do IHE pelo raw (braco ver-l2-dr-claude) -> trazer telegramService.ts + lib/mensageria-core + migration 049 -> copiar os Secrets TELEGRAM_BOT_TOKEN e CEO_TELEGRAM_CHAT_ID no painel do repl Paxter (mesmo valor do CEO) -> ligar o canal "telegram" na tela de perfil -> rodar o script de teste -> confirmar message_id de volta -> repetir o mesmo para o ZapSign (carta-irma)`
+FASE 1 (AGORA — decisao do CEO):
+`ler os arquivos do IHE pelo raw (braco ver-l2-dr-claude) -> trazer telegramService.ts + lib/mensageria-core + migration 049 -> copiar os Secrets TELEGRAM_BOT_TOKEN e CEO_TELEGRAM_CHAT_ID no painel do repl Paxter (mesmo valor do CEO) -> ligar o canal "telegram" na tela de perfil -> rodar o script de teste -> confirmar message_id de volta`
+
+FASE 2 (DEPOIS — segunda etapa, nao agora):
+`repetir o mesmo processo para o ZapSign (ver carta-irma)`
 
 ---
 
-## 11. DECISAO (uma escolha, com recomendacao)
+## 11. DECISAO DO CEO (tomada em 26/06/2026): CAMINHO B
 
-| Codigo | Caminho | Ganho | Custo | Recomendo |
-|--------|---------|-------|-------|-----------|
-| A | Transplantar Telegram + ZapSign reusando as MESMAS contas do CEO (token via Secrets) | um so ecossistema, zero retrabalho, regra de ouro respeitada | copiar 4 a 6 segredos no painel | A (padrao) |
-| B | Transplantar so o Telegram agora, ZapSign depois | entrega rapida do canal de aviso | dois momentos | — |
-| C | Nao transplantar e reconstruir do zero no Paxter | independencia total | desperdicio de tudo que ja foi validado | — |
+| Codigo | Caminho | Status |
+|--------|---------|--------|
+| A | Transplantar Telegram + ZapSign juntos, reusando as contas do CEO | nao escolhido |
+| B | Transplantar SO o Telegram AGORA; ZapSign numa segunda etapa | ESCOLHIDO pelo CEO |
+| C | Nao transplantar e reconstruir do zero no Paxter | nao escolhido |
 
-11.1 Pergunta unica ao CEO: confirma o caminho A (transplantar os dois reusando as contas do CEO via Secrets)?
+11.1 Instrucao autoritativa: o CEO decidiu o caminho B — faca AGORA somente o transplante do Telegram (reusando o bot @Paduaclinica_bot e os segredos do CEO via painel de Secrets). O ZapSign fica para uma segunda etapa; as coordenadas dele continuam na carta-irma para quando for a hora.
 
 ---
 
-RESUMO EM 1 LINHA: o canal Telegram do IHE foi verificado AO VIVO hoje e esta funcional ponta a ponta (bot @Paduaclinica_bot, mensagem real entregue), o sistema segue 100% em laboratorio sob autonomia e risco exclusivos do CEO — portanto a preocupacao de seguranca e infundada nesta fase — e entrego aqui o kit completo (arquivos, rotas, segredos por NOME, branches e raw) pra transplantar Telegram e ZapSign pro Paxter reusando as mesmas ferramentas do CEO, com o unico cuidado pratico de copiar os tokens pelo painel de Secrets em vez de escreve-los em arquivo.
+RESUMO EM 1 LINHA: o canal Telegram do IHE foi verificado AO VIVO hoje e esta funcional ponta a ponta (bot @Paduaclinica_bot, mensagem real entregue), o sistema segue 100% em laboratorio sob autonomia e risco exclusivos do CEO — portanto a preocupacao de seguranca e infundada nesta fase — e o CEO decidiu o CAMINHO B: transplante AGORA somente o Telegram (kit completo aqui: arquivos, rotas, segredos por NOME, branches e raw, copiando os tokens pelo painel de Secrets em vez de escreve-los em arquivo); o ZapSign fica para uma segunda etapa.
