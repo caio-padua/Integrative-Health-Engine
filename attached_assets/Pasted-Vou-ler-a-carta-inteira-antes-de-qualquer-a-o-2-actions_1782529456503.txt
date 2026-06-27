@@ -1,0 +1,57 @@
+Vou ler a carta inteira antes de qualquer ação.
+
+
+2 actions
+Li a carta inteira. Antes de te entregar o plano, preciso conferir o que o Paxter (Manager) já tem de Telegram — a carta descreve o IHE, mas pela doutrina dos primos independentes eu não copio cego; vejo o que já existe aqui e só trago o que falta. Deixa eu varrer o código do Manager.
+
+
+2 actions
+Descoberta que muda tudo: o Paxter (Manager) já tem um canal Telegram nativo próprio — não preciso transplantar o código do IHE. Deixa eu confirmar o que esse canal já faz, para o plano ser honesto.
+
+
+2 actions
+Tenho o quadro completo. Antes de escrever o plano, uma última checagem barata: onde o envio Telegram já está ligado (ou se está solto).
+
+
+2 actions
+Li a carta inteira. E tenho uma conclusão que muda o plano — para melhor.
+
+Conclusão primeiro: não há transplante de código a fazer. O Paxter já cresceu o próprio braço Telegram nativo, usando o MESMO bot. Está tudo no lugar e já ligado ao motor de notificação. O que falta não é código — é configurar a sua chave e o destino, e provar com um disparo real. Isso é exatamente a doutrina dos primos independentes: o canal já é nativo aqui, sem prefixo de origem.
+
+1. O que o Paxter JÁ tem (verificado na fonte, agora)
+Peça	Existe?	O que faz
+Cliente Telegram real (sendTelegram)	Sim	Faz a chamada real ao Telegram; sem token entra em modo simulação; nunca expõe o token
+Webhook de vínculo /api/webhooks/telegram	Sim	Amarra o chat_id (identificador do destinatário) a um cliente, exigindo prova de posse (senha de validação)
+Tela de Configurações /settings/telegram	Sim	Liga/desliga o canal e guarda token + segredo do webhook no cofre cifrado
+Coluna telegram_chat_id na tabela de clientes	Sim	Guarda o destino por cliente
+Ligação no motor de notificação	Sim	A fila de assinatura já dispara por Telegram quando o cliente tem chat_id
+Botão de Telegram na tela Cartório	Sim	Telegram já aparece como canal de envio
+Frase de chamada: o braço Telegram do Paxter não "deveria existir" — ele EXISTE e está fiado ao motor; só está dormindo por falta da chave.
+
+2. O que realmente FALTA (configuração, não programação)
+Item	Quem faz	Como
+Token do bot @Paduaclinica_bot	Você	Colar no painel de Secrets com o nome TELEGRAM_BOT_TOKEN (o código lê o Secrets primeiro)
+Descobrir o seu chat_id	Você + eu	Você manda um "oi" para o @Paduaclinica_bot; eu leio uma vez e vinculo ao cliente 1924 (que é você)
+Webhook automático de vínculo	Eu	Apontar o Telegram para /api/webhooks/telegram — só fecha depois de publicar (exige endereço público)
+Prova real	Eu	Disparar uma mensagem de teste e confirmar a entrega (message_id)
+Linha vermelha respeitada: o token entra pelo painel de Secrets, nunca escrito em arquivo. O código já lê a variável de ambiente antes do cofre — então funciona na hora.
+
+3. Blueprint do que proponho
+FASE 1 (configuração): você cola TELEGRAM_BOT_TOKEN no Secrets -> você manda "oi" ao @Paduaclinica_bot -> eu leio o chat_id uma vez -> vinculo ao cliente 1924
+
+FASE 2 (prova, hoje): eu disparo uma mensagem de teste real -> confirmo o message_id -> você recebe no celular
+
+FASE 3 (opcional, depois de publicar): eu configuro o webhook para vincular qualquer cliente automaticamente (precisa de endereço público)
+
+Nota honesta: o ENVIO funciona já no preview (é chamada de saída, não precisa de endereço público). Só o RECEBIMENTO automático (webhook) depende de publicar. Por isso a prova de hoje usa "você manda oi + eu leio uma vez", igual ao espírito do teste do ZapSign.
+
+4. Decisão (uma escolha, com padrão recomendado)
+A (recomendado) — Prova rápida hoje: você cola o token e manda "oi" ao bot; eu leio o chat_id, vinculo ao cliente 1924 e disparo um teste real — você recebe no celular
+
+B — Completo com webhook automático: o de cima mais o vínculo automático de qualquer cliente, mas isso só fecha depois de publicar
+
+C — Só configurar agora e deixar o teste para depois
+
+Se você aprovar o A, meu primeiro passo concreto é abrir o pedido do segredo TELEGRAM_BOT_TOKEN para você colar — eu não começo nada antes disso.
+
+RESUMO EM 1 LINHA: o Paxter já tem o canal Telegram nativo inteiro e ligado ao motor — não falta código, falta só você colar o token no painel de Secrets e mandar um "oi" ao @Paduaclinica_bot para eu vincular o seu chat_id ao cliente 1924 e provar com um disparo real hoje; me diga A, B ou C.
