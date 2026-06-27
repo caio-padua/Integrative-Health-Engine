@@ -503,3 +503,9 @@ id = "FtisuYFtiYvJhatYQD8qw"
 uri = "file://.local/.audit_work/RAS_FAP_CAIO_26.06.17.xlsx"
 type = "table"
 title = "RAS FAP — Planilha Excel (.xlsx)"
+
+[[outputs]]
+id = "1MW3pPYWIkxMvZTa_4S1U"
+uri = "file://docs/dr-replit/PARA_MANAGER/CARTA_IHE_TELEGRAM_CERTIFICADO_AUTONOMIA_E_KIT_DE_COLETA_26.06.26.md"
+type = "text"
+title = "Carta Telegram — IHE para o agente transplantador (26/06/2026)"
