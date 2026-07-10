@@ -509,3 +509,9 @@ id = "1MW3pPYWIkxMvZTa_4S1U"
 uri = "file://docs/dr-replit/PARA_MANAGER/CARTA_IHE_TELEGRAM_CERTIFICADO_AUTONOMIA_E_KIT_DE_COLETA_26.06.26.md"
 type = "text"
 title = "Carta Telegram — IHE para o agente transplantador (26/06/2026)"
+
+[[outputs]]
+id = "sO1QgoZlnNdCtvO1JAh-X"
+uri = "file://docs/dr-replit/PARA_MANAGER/CARTA_IHE_COCKPIT_GPS_PADUA_ARSENAL_TERAPEUTICO_E_KAIZEN_26.07.10.md"
+type = "text"
+title = "Carta GPS Pádua / Cockpit — arsenal terapêutico e Kaizen (10/07/2026)"

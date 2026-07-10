@@ -55,3 +55,15 @@ channel = "stable-25_05"
 LGPD_DELETION_REQUIRES_DUAL_AUTH = "true"
 ZAPSIGN_BASE_URL = "https://api.zapsign.com.br"
 ZAPSIGN_WEBHOOK_DEV_BYPASS = "true"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 20809
+externalPort = 3000
