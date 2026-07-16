@@ -36,3 +36,5 @@ apontam pro repo real" — falso hoje.)
   logo a skill `.agents/skills/penumbra-design-system/` VAI pro GitHub e pode ser clonada
   por outro agente (ex.: Paxter) sem precisar espelhar em `docs/`. (Corrige a nota antiga
   errada de que `.agents/**` nao subia.)
+
+- 15/07/2026: listConnections("github") pode voltar VAZIO transitoriamente mesmo tendo funcionado minutos antes na MESMA sessao (queda temporaria do binding do conector). Nao e erro de codigo: aguardar/retentar mais tarde; nao existe GITHUB_TOKEN de ambiente como fallback neste repl.
