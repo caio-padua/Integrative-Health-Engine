@@ -521,3 +521,9 @@ id = "b-pOdgeNnPr-a0rIfooym"
 uri = "file://MAPA_MISSAO_CEO_DR_CAIO_26.07.16.pdf"
 type = "pdf"
 title = "MAPA DA MISSÃO — CEO Dr. Caio | Fix na Parede"
+
+[[outputs]]
+id = "U2QZip4oiglRd-SZqXuqm"
+uri = "file://GUIA_COMPLETO_CEO_DR_CAIO_26.07.16.pdf"
+type = "pdf"
+title = "GUIA COMPLETO — CEO Dr. Caio | 6 Páginas | Imprima e Cole na Parede"
