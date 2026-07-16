@@ -527,3 +527,9 @@ id = "U2QZip4oiglRd-SZqXuqm"
 uri = "file://GUIA_COMPLETO_CEO_DR_CAIO_26.07.16.pdf"
 type = "pdf"
 title = "GUIA COMPLETO — CEO Dr. Caio | 6 Páginas | Imprima e Cole na Parede"
+
+[[outputs]]
+id = "tCCiKzUz0uOCZrvxYG7_Y"
+uri = "file://GUIA CEO PAWARDS DR CAIO 26.07.16.pdf"
+type = "pdf"
+title = "GUIA CEO PAWARDS — Fundo Branco — 6 Páginas Profissionais"
