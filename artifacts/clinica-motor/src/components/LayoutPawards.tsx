@@ -169,6 +169,14 @@ function getNavGroups(PW: PWPalette): NavGroup[] {
       { label: "Sessões", href: "/sessoes", icon: Activity },
     ],
   },
+  {
+    id: "admin", label: "ADMIN IHE", color: PW.red,
+    items: [
+      { label: "Licenciamento", href: "/admin/licenciamento", icon: ShieldCheck },
+      { label: "Cobranças", href: "/admin/cobrancas", icon: Receipt },
+      { label: "Sub-agendas", href: "/admin/sub-agendas", icon: CalendarDays },
+    ],
+  },
   ];
 }
 

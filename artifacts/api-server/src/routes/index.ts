@@ -246,4 +246,7 @@ router.use(alertasDigestPreferenciasRouter);
 import farmaciasDisponiveisRouter from "./farmaciasDisponiveis";
 router.use(farmaciasDisponiveisRouter);
 
+import modulosSistemaRouter from "./modulosSistema";
+router.use(modulosSistemaRouter);
+
 export default router;

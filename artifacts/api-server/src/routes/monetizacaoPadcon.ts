@@ -189,7 +189,7 @@ router.get("/ledger/faturamento-live", async (req, res): Promise<void> => {
         COALESCE(SUM(l.valor_cobrado), 0) AS total_eventos,
         (SELECT COALESCE(SUM(m.preco_mensal), 0)
            FROM unidade_modulos_ativos uma
-           JOIN modulos_padcon m ON m.id = uma.modulo_id
+           JOIN modulos_sistema m ON m.id = uma.modulo_id
           WHERE uma.unidade_id = u.id AND uma.ativo = TRUE) AS total_modulos
       FROM unidades u
       LEFT JOIN unidade_eventos_ledger l ON l.unidade_id = u.id AND l.competencia_mes = ${competencia}
