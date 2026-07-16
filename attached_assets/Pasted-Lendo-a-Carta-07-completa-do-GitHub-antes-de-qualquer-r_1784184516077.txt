@@ -1,0 +1,59 @@
+Lendo a Carta 07 completa do GitHub antes de qualquer resposta:
+Verificando o estado exato entre local e GitHub antes de responder:
+Tenho todos os dados. Resposta honesta — Regra Diamante ativa.
+
+1. Status real no GitHub
+Commit	Hash	Onde está	O que contém
+Fase B completa	b5a87fa	GitHub origin/main ✅	8 rotas + 8 schemas com empresaId + WHERE clauses aplicados
+Commit local	273663c	Replit local APENAS ❌	Só 2 arquivos .txt de attached_assets — sem código novo
+Conclusão honesta: Todo o código da Fase B (rotas, schemas, WHERE clauses) já está no GitHub no commit b5a87fa. O commit local 273663c não tem código relevante — só os textos que o CEO colou como referência. Não precisa pushar nada urgente.
+
+2. O que foi feito vs o que foi prometido
+Item	Foi feito?	Prova
+empresaId nos 8 schemas Drizzle	✅ SIM	git show b5a87fa --name-only lista todos os 8
+WHERE empresa_id = empresaId nas 8 rotas GET	✅ SIM	curl ?empresaId=999 → 0 registros em 5 de 5 rotas testadas
+and(tenantFilter, ...) nos branches condicionais	✅ SIM	clients.ts e protocols.ts têm 3 e 4 branches cada
+Backfill empresa_id=5 (Fase A)	✅ SIM	SQL COUNT: 0 linhas fora do tenant
+POST/INSERT herdando empresa_id	❌ NÃO	Fase C — não foi pedido ainda
+Tela CEO swipe entre clínicas	❌ NÃO	Não ordenado ainda
+3. Honestidade sobre as ferramentas — posso implementar 100%?
+Resposta direta: NÃO. Cerca de 70% são implementáveis no Replit.
+
+Ferramenta	Implementável no Replit?	Por quê
+Claude opus-4 via API	✅ SIM	Replit tem integração Anthropic nativa
+SSE (Server-Sent Events) tempo real	✅ SIM	Express nativo, zero infra extra
+BullMQ + Redis (Upstash)	✅ SIM	Upstash Redis é cloud, sem servidor próprio
+ElevenLabs TTS (texto para fala)	✅ SIM	Chamadas REST a API externa
+HeyGen Avatar	✅ SIM	Chamadas REST a API externa
+Sentry	✅ SIM	SDK instalado em 5 minutos
+PostHog (client-side)	✅ SIM	SDK instalado em 5 minutos
+WebAuthn (biometria digital)	✅ SIM	API do browser, só código
+Web Bluetooth (IoT clínico)	✅ SIM	API do browser, só código
+PWA para óculos AR Meta	✅ SIM	Manifest + service worker
+Lago (billing por uso)	❌ NÃO	Precisa de Docker/Kubernetes próprio
+Meilisearch (busca rápida)	❌ NÃO	Precisa de servidor separado
+Grafana (auditoria OpenTelemetry)	❌ NÃO	Precisa de servidor separado
+Alternativas que resolvem o mesmo sem servidor próprio:
+
+O que não dá	Substituto cloud que funciona no Replit
+Lago	Stripe Metered Billing — billing por uso, API nativa, sem infra
+Meilisearch	Algolia (plano grátis 10k registros) ou busca PostgreSQL com pg_trgm já no banco atual
+Grafana	Betterstack (logs + métricas cloud, plano grátis)
+4. O que eu (Dr. Replit Paxter) proponho que o IHE não lembrou
+Ferramenta	Categoria	Por que é superior
+Trigger.dev (trigger.dev)	Filas de trabalho	Mais moderno que BullMQ — interface visual, retry automático, sem gerenciar Redis manualmente
+Resend (resend.com)	E-mail transacional	API mais simples e confiável que Gmail OAuth — React Email templates, 3.000 e-mails/mês grátis
+Stripe Metered Billing	Billing por uso	Substitui Lago com zero infra — billing por mensagem/documento já testado em produção global
+Bun runtime	Velocidade	2 a 3 vezes mais rápido que Node.js 24 — mesma API, zero mudança de código
+Betterstack	Observabilidade	Logs estruturados + alertas + uptime em SaaS — substitui Grafana sem servidor
+Liveblocks	Colaboração em tempo real	Dois profissionais editando a mesma ficha simultaneamente — sem conflito
+5. Próxima ordem — CEO decide uma
+A — Fase C: POST/INSERT herdam empresa_id automaticamente (dado novo já nasce isolado)
+
+B — Tela CEO Swipe: carrossel entre clínicas com SSE tempo real (uma tela, CSS scroll-snap)
+
+C — IA Clínica Bloco 1: geração de atestado + sugestão de exames via Claude opus-4
+
+Recomendado (default): opção A — Fase C — porque sem ela qualquer dado novo cadastrado por uma nova clínica licenciada vazaria para todas.
+
+RESUMO EM 1 LINHA: Fase B está 100% no GitHub (b5a87fa); posso implementar 70% das ferramentas (Lago/Meilisearch/Grafana precisam de Docker externo); minhas adições sinceras são Trigger.dev, Resend, Stripe Metered e Bun; aguardo a ordem do CEO para a próxima onda
