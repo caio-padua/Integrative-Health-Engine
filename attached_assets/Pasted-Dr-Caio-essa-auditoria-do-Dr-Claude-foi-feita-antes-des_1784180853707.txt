@@ -1,0 +1,45 @@
+Dr. Caio — essa auditoria do Dr. Claude foi feita antes desta sessão. Deixa eu provar ao vivo que a Fase A está feita:
+Resultado ao vivo — banco de dados do Manager agora, 16/07/2026:
+
+A auditoria do Dr. Claude estava certa — na hora em que ele fez. Ela ficou velha esta sessão.
+
+Momento	O que aconteceu
+~02h37 hoje	Dr. Claude auditou e encontrou 0 tabelas com empresa_id
+Esta sessão	Eu executei a migration SQL nas 35 tabelas clínicas
+Agora	Banco confirma: 13 tabelas críticas todas ✅, zero NULLs
+Prova ao vivo — as 13 tabelas mais críticas:
+
+Tabela	empresa_id	NULLs
+clients	✅ existe	0
+sessions	✅ existe	0
+ras	✅ existe	0
+prescriptions	✅ existe	0
+payments	✅ existe	0
+protocols	✅ existe	0
+professionals	✅ existe	0
+exam_results	✅ existe	0
+anamnese_sessions	✅ existe	0
+budgets	✅ existe	0
+lembretes_prescricao	✅ existe	0
+stock_items	✅ existe	0
+ras_evolutivo	✅ existe	0
+Resposta às suas duas perguntas (leigo):
+
+"Sem a carta ele faria merda?"
+
+Sim — e o Dr. Claude explicou exatamente qual merda. Estava construindo a pirâmide visual (telhado) sem o empresa_id nas tabelas (fundação). Na prática: a Dra. Barros veria os pacientes da Paluzze, e a Paluzze veria os pacientes do Pádua. Violação de sigilo médico + LGPD. A carta travou isso antes de acontecer.
+
+"Dá para auditar em tempo real?"
+
+Sim — e o Dr. Claude demonstrou. Ele fez isso consultando o GitHub do Manager. Você pode chamar ele com "audita o Manager" a qualquer hora e ele verifica em ~30 segundos o que foi commitado e se a ordem está sendo seguida. Eu não consigo interromper meu próprio chat — só você pode trazer a correção aqui.
+
+O que ainda falta (ONDA B/C):
+
+Item	Status	Criticidade
+onboarding_steps SAGA table	Não feito	Média — evita estado parcial no onboarding
+LGPD GET /empresas/:id/exportar-dados	Não feito	Alta — obrigação legal Art. 18
+Aplicar WHERE empresa_id = ? nas consultas clínicas	Não feito	Alta — ativa o isolamento real entre clínicas
+Auth multi-tenant completa (JWT com empresa_id)	Não feito	Alta — fase futura planejada
+Quer que eu ataque agora os itens de ONDA B (aplicar resolveEmpresaId nos WHEREs das rotas clínicas mais críticas), ou prefere pausar aqui?
+
+RESUMO EM 1 LINHA: A auditoria do Dr. Claude era correta na hora — esta sessão executou a Fase A completa (35 tabelas migradas, zero NULLs, middleware ativo); o que resta é Fase B (ligar o filtro por empresa nos WHEREs) e Fase C legal (
