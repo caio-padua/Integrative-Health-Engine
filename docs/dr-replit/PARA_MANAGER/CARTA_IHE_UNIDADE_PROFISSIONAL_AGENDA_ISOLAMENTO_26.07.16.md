@@ -1,42 +1,51 @@
-# CARTA IHE → MANAGER — UNIDADE, PROFISSIONAL E ISOLAMENTO DE AGENDA
+# CARTA IHE → MANAGER — UNIDADE, PROFISSIONAL, AGENDA E MÓDULOS
 **De:** Dr. Replit Pawards (IHE — Integrative Health Engine = Motor de Saúde Integrativo)
 **Para:** Dr. Replit Manager (Paxter — Protocolo Manager)
 **Data:** 16/07/2026
-**Versão:** 2.0 — auditada e corrigida (substitui carta AGENDA_GENESIS_E_LICENCIAMENTO_26.07.16)
-**Rigor:** dados verificados diretamente no banco de produção do IHE antes de escrever cada linha
+**Versão:** 3.0 — auditoria Kaizen (melhoria contínua) completa — dados verificados linha a linha no banco antes de escrever
+**Método:** cada afirmação desta carta foi confirmada com query (consulta) SQL (Structured Query Language = linguagem de consulta de banco de dados) direta no banco de produção do IHE
+
+> **AVISO IMPORTANTE:** Esta carta substitui e revoga a versão anterior
+> `CARTA_IHE_AGENDA_GENESIS_E_LICENCIAMENTO_26.07.16.md` (commit `d3ed5058ac3c`),
+> que continha módulos inventados e conceito errado de catálogo por unidade.
 
 ---
 
 ## 1. UNIDADE = EMPRESA COM CNPJ PRÓPRIO
 
-No IHE (Integrative Health Engine), **unidade** significa **empresa clínica independente**.
-Cada unidade tem identidade fiscal própria, contrato de licença próprio e dados completamente isolados.
+No IHE, **unidade** é sinônimo de **empresa clínica independente**.
+Cada unidade tem identidade fiscal (CNPJ = Cadastro Nacional de Pessoa Jurídica) própria,
+contrato de licença próprio e dados completamente isolados das demais.
 
-| Campo no banco | Coluna | Exemplo real |
-|---|---|---|
-| Identidade da empresa | `unidades.cnpj` | `63.865.940/0001-63` (Instituto Integrativo) |
-| Nome comercial | `unidades.nome` | `INSTITUTO LEMOS` |
-| Tipo operacional | `unidades.tipo` | `clinic` / `genesis_seed` |
-| Dono responsável | `unidades.dono_nome` | nome do médico titular |
-| Google Calendar (Calendário Google) | `unidades.google_calendar_id` | ID do calendário da empresa |
-| Google Drive (Armazenamento Google) | `unidades.google_drive_folder_id` | pasta de documentos da empresa |
+### 1.1 Mapa completo das unidades (verificado no banco — 16/07/2026)
 
-### 1.1 Mapa completo das unidades ativas
+| ID | Nome | CNPJ | Cidade | Tipo | Situação |
+|---|---|---|---|---|---|
+| 14 | INSTITUTO GENESIS | — | São Paulo | genesis_seed | Template imutável — nunca atende cliente |
+| 15 | INSTITUTO PADUA | — (a cadastrar) | São Paulo | clinic | **Real — dados do CEO** |
+| 8 | INSTITUTO INTEGRATIVO | 63.865.940/0001-63 | São Paulo | clinic | Fictício — demo |
+| 9 | INSTITUTO LEMOS | 32.247.755/0002-62 | São Paulo | clinic | Fictício — demo |
+| 10 | INSTITUTO BARROS | 44.555.666/0001-77 | Campinas | clinic | Fictício — demo |
+| 16 | INSTITUTO PALUZZE | — | — | clinic | Fictício — demo |
+| 17 | INSTITUTO PADUZZI | — | — | clinic | Fictício — demo |
+| 18 | INSTITUTO PAZIALLE | — | — | clinic | Fictício — demo |
+| 19 | INSTITUTO BARAKAT | — | — | clinic | Fictício — demo |
+| 20 | INSTITUTO ANDRADE | — | — | clinic | Fictício — demo |
 
-| ID | Nome | CNPJ | Cidade | Situação |
-|---|---|---|---|---|
-| 14 | INSTITUTO GENESIS | — | São Paulo | Template imutável — nunca atende cliente |
-| 15 | INSTITUTO PADUA | — (a cadastrar) | São Paulo | **Real — dados reais do CEO** |
-| 8 | INSTITUTO INTEGRATIVO | 63.865.940/0001-63 | São Paulo | Fictício — demo |
-| 9 | INSTITUTO LEMOS | 32.247.755/0002-62 | São Paulo | Fictício — demo |
-| 10 | INSTITUTO BARROS | 44.555.666/0001-77 | Campinas | Fictício — demo |
-| 16 | INSTITUTO PALUZZE | — | — | Fictício — demo |
-| 17 | INSTITUTO PADUZZI | — | — | Fictício — demo |
-| 18 | INSTITUTO PAZIALLE | — | — | Fictício — demo |
-| 19 | INSTITUTO BARAKAT | — | — | Fictício — demo |
-| 20 | INSTITUTO ANDRADE | — | — | Fictício — demo |
+> Unidades 1–7 têm prefixo `(ARQUIVADA)` — são o modelo antigo, não replicar.
 
-> Unidades 1–7 são ARQUIVADAS (modelo antigo, descrito na seção 2). Ignorar como referência.
+### 1.2 Campos relevantes da tabela `unidades`
+
+| Coluna | O que guarda |
+|---|---|
+| `cnpj` | Identificação fiscal da empresa |
+| `tipo` | `clinic` / `genesis_seed` / `telemedicina` / `enfermagem` |
+| `dono_id` + `dono_nome` | Médico titular responsável |
+| `google_calendar_id` | Calendário Google (Calendário de agendamentos online) da empresa |
+| `google_drive_folder_id` | Pasta no Google Drive (armazenamento de arquivos online) da empresa |
+| `slug` | Identificador único na URL (Uniform Resource Locator = endereço web) |
+| `fat_meta_mensal` | Meta de faturamento mensal |
+| `status` | `ativa` / `suspensa` / `cancelada` |
 
 ---
 
@@ -47,161 +56,143 @@ O banco guarda dois modelos históricos. O Manager deve implementar **somente o 
 | Aspecto | Modelo ANTIGO (IDs 1–7, arquivados) | Modelo NOVO (IDs 8+, vigente) |
 |---|---|---|
 | O que é 1 unidade? | 1 agenda de 1 único profissional | 1 empresa/instituto inteiro |
-| Equivalência | Espelhava o Google Calendar 1:1 | Multi-profissional dentro da mesma empresa |
-| Exemplo | Unidade 1 = "Agenda Dr. Caio em Higienópolis" | Unidade 15 = "Instituto Padua" (múltiplos profissionais) |
-| Status | Arquivado — não replicar | Canônico — seguir este |
-
-**Por que existia o modelo antigo:**
-o CEO começou com o Google Calendar como sistema de agenda.
-Cada calendário Google virou uma "unidade" no sistema.
-Quando o IHE evoluiu para multi-profissional, o modelo foi trocado — mas os dados históricos foram preservados com flag `(ARQUIVADA)` no nome.
+| Origem histórica | Espelhava o Google Calendar 1:1 | Multi-profissional dentro da mesma empresa |
+| Exemplo | Unidade 1 = "Agenda Dr. Caio Higienópolis" | Unidade 15 = "Instituto Padua" com vários profissionais |
+| Status | Arquivado — NÃO replicar | Canônico — seguir este |
 
 ---
 
 ## 3. PROFISSIONAL = USUÁRIO DO SISTEMA
 
-Esta é uma das distinções mais importantes da arquitetura do IHE.
-
 **Não existe tabela separada de "profissionais".**
-O profissional que atende é um **usuário** (`tabela usuarios`) com um `perfil` clínico.
-Quando ele entra na agenda, o sistema referencia `usuarios.id`.
+O médico ou enfermeiro que atende é um **usuário** (`tabela usuarios`) referenciado pelo campo `id`.
+Quando ele entra no sistema de agenda, o sistema usa `usuarios.id` como chave.
 
-### 3.1 Perfis clínicos que podem ser profissionais de agenda
+### 3.1 Perfis clínicos que atuam como profissionais de agenda
 
-| Perfil (`usuarios.perfil`) | Descrição |
+| Valor em `usuarios.perfil` | Descrição |
 |---|---|
-| `medico_tecnico` | Médico que atende consultas |
+| `medico_tecnico` | Médico que realiza consultas |
 | `enfermeira` | Profissional de enfermagem |
-| `validador_mestre` | CEO / médico com acesso total |
+| `validador_mestre` | CEO / médico com acesso total ao sistema |
 
-### 3.2 Profissionais reais cadastrados no IHE (verificado no banco)
+### 3.2 Profissionais reais cadastrados no IHE com agenda ativa (verificado no banco)
 
-| ID usuário | Nome | Perfil | Unidades onde tem agenda |
+| ID | Nome | Perfil | Empresas onde tem slots de agenda |
 |---|---|---|---|
-| 1 | Dr Caio Henrique Fernandes Padua | validador_mestre | 8 (Integrativo), 15 (Padua) e unidades arquivadas |
-| 3 | Ana Lima | enfermeira | unidades arquivadas 3, 4, 5 |
-| 6 | Dr Kleber Clara Lemos | medico_tecnico | 9 (Lemos), 10 (Barros) simultaneamente |
+| 1 | Dr Caio Henrique Fernandes Padua | validador_mestre | 8 (Integrativo), 15 (Padua) + arquivadas |
+| 3 | Ana Lima | enfermeira | Unidades arquivadas 3, 4, 5 |
+| 6 | Dr Kleber Clara Lemos | medico_tecnico | 9 (Lemos) **e** 10 (Barros) simultaneamente |
 
-### 3.3 O mesmo profissional pode trabalhar em múltiplas unidades
+### 3.3 O mesmo profissional físico pode trabalhar em múltiplas empresas
 
 Dr Kleber (ID 6) tem 120 slots na unidade 9 (Lemos) **e** 120 slots na unidade 10 (Barros).
-O isolamento por `unidade_id` garante que os agendamentos nunca se cruzam.
-O cliente do Instituto Lemos não enxerga a agenda do Instituto Barros — nem o médico é o mesmo para o sistema.
+O `unidade_id` em cada tabela garante que os dados nunca se cruzam — o que é explicado na seção 4.
 
 ---
 
-## 4. ISOLAMENTO ABSOLUTO DE AGENDA POR UNIDADE
+## 4. ISOLAMENTO ABSOLUTO DE AGENDA POR EMPRESA
 
 **Esta é a regra de arquitetura mais importante de todo o IHE.**
-
-Cada unidade/empresa tem seus próprios slots, consultas e regras.
-Nenhuma tabela de agenda faz JOIN entre unidades diferentes sem filtro explícito do CEO.
+Uma empresa nunca enxerga, herda ou mistura agenda de outra empresa — mesmo que o profissional
+físico seja o mesmo. O `unidade_id` é a barreira intransponível.
 
 ### 4.1 Todas as tabelas de agenda carregam `unidade_id` obrigatório
 
-| Tabela | Coluna de isolamento | O que guarda |
+| Tabela | O que guarda | Colunas de isolamento |
 |---|---|---|
-| `sub_agendas` | `unidade_id` | Sub-agendas operacionais da empresa |
-| `availability_rules` | `unidade_id` | Regras de disponibilidade semanal por profissional |
-| `agenda_slots` | `unidade_id` + `profissional_id` | Horários disponíveis para marcar |
-| `appointments` | `unidade_id` + `profissional_id` | Consultas efetivamente agendadas |
-| `agendas_profissionais` | `unidade_id` | Configuração de agendas por empresa |
+| `agendas_profissionais` | Definição das agendas da empresa | `unidade_id` |
+| `sub_agendas` | Sub-agendas operacionais | `unidade_id` |
+| `availability_rules` | Regras de disponibilidade semanal | `unidade_id` + `profissional_id` → `usuarios.id` |
+| `agenda_slots` | Horários individuais disponíveis | `unidade_id` + `profissional_id` → `usuarios.id` |
+| `appointments` | Consultas agendadas | `unidade_id` + `profissional_id` → `usuarios.id` |
+| `team_members` | Equipe da empresa | `unidade_id` |
+| `team_positions` | Cargos da empresa | `unidade_id` |
 
-### 4.2 Visualização do isolamento
+### 4.2 Blueprint do isolamento com dados reais
 
 ```
 INSTITUTO LEMOS (unidade_id = 9)          INSTITUTO BARROS (unidade_id = 10)
 │                                          │
-├── availability_rules  (unidade_id=9)     ├── availability_rules  (unidade_id=10)
-├── agenda_slots        (unidade_id=9)     ├── agenda_slots        (unidade_id=10)
-├── appointments        (unidade_id=9)     ├── appointments        (unidade_id=10)
+├── availability_rules (unidade_id=9)      ├── availability_rules (unidade_id=10)
 │   └── profissional_id=6 (Dr Kleber)     │   └── profissional_id=6 (Dr Kleber)
-│                                          │
-│         ↕ NUNCA SE CRUZAM ↕             │
-│   Consulta do Lemos não aparece          │   Consulta do Barros não aparece
-│   no calendário do Barros                │   no calendário do Lemos
+├── agenda_slots       (unidade_id=9)      ├── agenda_slots       (unidade_id=10)
+│   └── 120 slots — Dr Kleber             │   └── 120 slots — Dr Kleber
+└── appointments       (unidade_id=9)      └── appointments       (unidade_id=10)
+        ↕ JAMAIS SE CRUZAM ↕
+  Consulta do Lemos não aparece             Consulta do Barros não aparece
+  no calendário do Barros                   no calendário do Lemos
 ```
 
-### 4.3 Consequência prática para o Manager
+### 4.3 Consequência prática
 
-Quando o sistema exibir a tela de agendamento, ele **sempre filtra por `unidade_id`**.
-Nunca carrega slots de todas as empresas ao mesmo tempo.
-O mesmo profissional físico (ex: Dr Kleber) pode ter horários livres no Lemos às 9h
-e horários ocupados no Barros às 9h — são dois universos separados.
+Quando o sistema exibe a tela de agendamento, ele filtra **sempre** por `unidade_id`.
+O cliente do Instituto Lemos nunca enxerga horários do Instituto Barros.
+Mesmo o médico físico sendo o mesmo, para o sistema são dois profissionais em dois contextos distintos.
 
 ---
 
-## 5. DUAS CAMADAS DE AGENDA (distinção crítica que a carta anterior errou)
+## 5. DUAS CAMADAS DE AGENDA (distinção crítica — auditada)
 
-O IHE tem **duas camadas** de agenda que parecem a mesma coisa mas são diferentes.
+O IHE tem **duas camadas** de agenda com papéis completamente distintos.
+Confundi-las é o erro mais comum ao entender a arquitetura.
 
 ### 5.1 Camada A — DEFINIÇÃO (`agendas_profissionais`)
 
-É uma tabela de **configuração visual** — define quais agendas existem numa empresa, com nome e modo.
-**Não está ligada diretamente ao sistema de slots.** Não tem FK para `usuarios`.
-O campo `profissional` é texto livre (ex: `"MÉDICO INTEGRATIVO"`, `"ENFERMAGEM"`).
+Tabela de **configuração visual** — define quais agendas existem, com nome e modo.
+**Não está ligada diretamente ao sistema de slots.**
+O campo `profissional` é texto livre (ex: `"MÉDICO INTEGRATIVO"`) — não é FK (chave estrangeira) para `usuarios`.
 
-| Coluna | Tipo | Exemplo |
-|---|---|---|
-| `unidade_id` | FK → unidades | 8 |
-| `nome` | texto | `"AGENDA MÉDICO - MÉDICO INTEGRATIVO"` |
-| `profissional` | texto livre | `"MÉDICO INTEGRATIVO"` |
-| `modo` | enum | `LOCAL` / `REMOTO` / `PESSOAL` |
-| `tipo` | enum | `MÉDICO` / `ENFERMAGEM` / `PESSOAL` |
+**Verificado no banco:** todas as 9 empresas (IDs 8–20) têm exatamente 7 registros cada nesta tabela.
+(Instituto Padua tem 8 — o 8º é duplicata do médico titular, dado inconsistente pré-existente.)
 
-**Todas as 9 clínicas (8–20 exceto Padua) têm 7 registros cada** nesta camada = estão DEFINIDAS.
+### 5.2 Camada B — OPERACIONAL (`sub_agendas → regras → slots → consultas`)
 
-### 5.2 Camada B — OPERACIONAL (`sub_agendas → availability_rules → agenda_slots → appointments`)
-
-É o sistema que **realmente agenda consultas**. Está ligado a usuários reais.
+Sistema que **realmente agenda consultas**. Ligado a `usuarios.id`.
 
 ```
-sub_agendas (define a agenda operacional com modalidade real)
+sub_agendas           → define a agenda operacional (com modalidade, sala, Google Calendar)
     ↓ sub_agenda_id
-availability_rules (regras de disponibilidade: dia da semana, horário, duração)
+availability_rules    → dias da semana, horários, duração dos slots
     ↓
-agenda_slots (horários individuais gerados pelas regras — profissional_id → usuarios.id)
-    ↓
-appointments (consultas agendadas — profissional_id → usuarios.id + paciente_id → pacientes.id)
+agenda_slots          → horários individuais gerados pelas regras
+    └── profissional_id → usuarios.id
+        ↓
+appointments          → consultas efetivamente agendadas
+    └── profissional_id → usuarios.id
+        paciente_id → pacientes.id
+        unidade_id → unidades.id
 ```
 
-**Quais unidades têm Camada B operacional (verificado no banco):**
+### 5.3 Status real de cada empresa (verificado no banco — 16/07/2026)
 
-| Unidade | Nome | Sub-agendas | Slots | Consultas agendadas |
+| Empresa | Camada A | sub_agendas | Slots reais | Consultas agendadas |
 |---|---|---|---|---|
-| 1 (arquivada) | Agenda Higienópolis | 6 | 67 | 55 |
-| 2 (arquivada) | Agenda Tatuapé | 1 | 84 | 6 |
-| 3 (arquivada) | Agenda Enfermagem Bianca | 1 | 250 | 48 |
-| **15** | **INSTITUTO PADUA** | **1** | **14** | **4** |
-
-### 5.3 Status real das clínicas fictícias
-
-| Unidade | Camada A (definição) | Camada B (operacional) | Pode agendar? |
-|---|---|---|---|
-| 8 — Integrativo | 7 agendas definidas | Sem sub_agendas — tem slots via regra direta | Parcialmente |
-| 9 — Lemos | 7 agendas definidas | Sem sub_agendas — tem slots via regra direta | Parcialmente |
-| 10 — Barros | 7 agendas definidas | Sem sub_agendas — tem slots via regra direta | Parcialmente |
-| 14 — Genesis | 7 agendas definidas | Nenhuma | Não |
-| 16 a 20 | 7 agendas definidas | Nenhuma | Não |
+| Instituto Padua (15) | 8 agendas | 1 sub-agenda | 14 slots | 4 consultas |
+| Integrativo (8) | 7 agendas | Nenhuma | 21 slots (via regra direta) | — |
+| Lemos (9) | 7 agendas | Nenhuma | 120 slots (via regra direta) | — |
+| Barros (10) | 7 agendas | Nenhuma | 120 slots (via regra direta) | — |
+| Genesis (14) | 7 agendas | Nenhuma | 0 slots | 0 consultas |
+| Paluzze a Andrade (16–20) | 7 agendas | Nenhuma | 0 slots | 0 consultas |
 
 > **Lição para o Manager:** clonar o Genesis gera a Camada A automaticamente.
-> A Camada B precisa ser configurada clínica a clínica — não é automática.
-> Ela exige: criar `sub_agendas` + `availability_rules` + vincular ao profissional (`usuarios.id`).
+> A Camada B precisa ser configurada por empresa — exige criar `sub_agendas` + `availability_rules`
+> + vincular ao usuário profissional real (`usuarios.id`).
 
 ---
 
-## 6. PADRÃO DE AGENDAS POR CLÍNICA (Camada A — definição)
+## 6. PADRÃO DAS 7 AGENDAS POR EMPRESA (Camada A)
 
-Cada clínica nasce com **7 agendas definidas** no padrão abaixo.
+Cada empresa nasce com 7 agendas definidas no padrão abaixo.
 O mesmo profissional físico existe em duas modalidades: LOCAL (presencial) e REMOTO (online).
 
 ```
-CLÍNICA (1 empresa = 1 unidade_id)
+EMPRESA (1 unidade_id único)
 │
 ├── MÉDICO TITULAR
 │   ├── Agenda LOCAL   → atende o cliente presencialmente na clínica
 │   ├── Agenda REMOTO  → atende online (telemedicina = consulta por vídeo)
-│   └── Agenda PESSOAL → compromissos privados, invisível ao cliente
+│   └── Agenda PESSOAL → compromissos privados — invisível ao cliente
 │
 ├── ASSISTENTE 01 (segundo médico ou médico auxiliar)
 │   ├── Agenda LOCAL
@@ -209,14 +200,14 @@ CLÍNICA (1 empresa = 1 unidade_id)
 │
 └── ENFERMAGEM
     ├── Agenda LOCAL   → procedimentos presenciais (aplicações, coletas)
-    └── Agenda REMOTO  → orientações remotas, visita domiciliar
+    └── Agenda REMOTO  → orientações remotas / domiciliar
 ```
 
 **Campo que separa os modos:** `agendas_profissionais.modo` = `LOCAL` | `REMOTO` | `PESSOAL`
 
-**Quantidade atual no banco (verificada):**
+**Contagem verificada no banco:**
 
-| Modo | Agendas cadastradas |
+| Modo | Total de agendas cadastradas |
 |---|---|
 | LOCAL | 31 |
 | REMOTO | 30 |
@@ -225,28 +216,41 @@ CLÍNICA (1 empresa = 1 unidade_id)
 
 ---
 
-## 7. SUB-AGENDAS (Camada B): detalhe técnico para o Manager implementar
+## 7. SUB-AGENDAS (Camada B) — colunas ricas para o Manager implementar
 
-A tabela `sub_agendas` é mais rica que `agendas_profissionais`. Inclui:
-
-| Coluna | O que guarda | Importância para o Manager |
+| Coluna | O que guarda | Observação |
 |---|---|---|
 | `modalidade` | `presencial` / `online` / `domiciliar` / `remoto` | Mais granular que LOCAL/REMOTO |
-| `sala_ou_local` | Sala física dentro da clínica | Exibir na tela de agendamento |
-| `google_calendar_id` | ID do Calendário Google sincronizado | **Por sub-agenda** — não por clínica |
+| `sala_ou_local` | Sala física dentro da empresa | Exibir na tela de agendamento |
+| `google_calendar_id` | ID do Calendário Google | **Por sub-agenda** — não por empresa |
 | `profissional_id` | FK → `usuarios.id` | Liga a sub-agenda ao usuário real |
-| `requer_certificado_para_prescricao` | Booleano | Esta agenda exige assinatura digital para receita? |
-| `certificado_digital_*` | Dados do certificado ICP-Brasil | Necessário para prescrição assinada digitalmente |
+| `requer_certificado_para_prescricao` | Boolean | Exige assinatura digital para receita? |
+| `certificado_digital_*` | Dados do certificado ICP-Brasil | Para prescrição com validade jurídica |
 
-**Ponto crítico:** o Google Calendar sincroniza **por sub-agenda**, não por clínica.
-Um médico com agenda LOCAL e REMOTO na mesma clínica pode ter dois calendários Google distintos.
+**Ponto crítico:** o Google Calendar sincroniza **por sub-agenda**, não por empresa.
+Um médico com agenda LOCAL e REMOTO na mesma empresa pode ter dois calendários Google distintos.
 
 ---
 
-## 8. CARGOS E PERMISSÕES (por empresa, nunca globais)
+## 8. EQUIPE POR EMPRESA (`team_members` + `team_positions`)
 
-Os cargos (`team_positions`) são vinculados à sua unidade e carregam permissões granulares.
-Um médico titular do Instituto Padua não tem automaticamente as permissões do Instituto Lemos.
+**Verificado no banco:** 150 membros e 150 cargos — 15 por empresa, distribuídos em 10 unidades.
+
+### 8.1 Cargos padrão por empresa
+
+| Cargo (`team_positions.cargo`) | Quantidade por empresa |
+|---|---|
+| MÉDICO | 2 |
+| GERENTE | 1 |
+| SUPERVISOR | 2 |
+| ADMINISTRATIVO | 3 |
+| ENFERMAGEM | 2 |
+| CONSULTOR | 2 |
+| FINANCEIRO | 2 |
+| OUVIDORIA | 1 |
+| **Total** | **15** |
+
+### 8.2 Permissões por cargo (colunas reais em `team_positions`)
 
 | Permissão | O que controla |
 |---|---|
@@ -257,144 +261,173 @@ Um médico titular do Instituto Padua não tem automaticamente as permissões do
 | `pode_supervisionar_outros` | Gerenciar outros profissionais da empresa |
 | `pode_ver_ouvidoria` | Acessar reclamações de clientes |
 
+**Importante:** permissões são por cargo dentro de uma empresa. O médico do Instituto Padua não herda automaticamente permissões do Instituto Lemos.
+
 ---
 
-## 9. GENESIS — MOLDE PARA CLONAR NOVAS EMPRESAS
+## 9. CATÁLOGO TERAPÊUTICO — GLOBAL, NÃO POR EMPRESA
 
-### 9.1 O que é
+> **CORREÇÃO CRÍTICA em relação à carta anterior:**
+> O catálogo NÃO vive no Instituto Padua. O catálogo NÃO pertence a nenhuma empresa.
 
-O Genesis (ID 14, tipo `genesis_seed`) é o **template imutável** de empresa clínica.
-Nunca atende clientes. Nunca tem dados financeiros. Só serve para ser copiado.
-
-### 9.2 O que o clone herda automaticamente
+**Verificado no banco:**
+- Tabela `formulas` → **não tem coluna `unidade_id`** — é global
+- Tabela `injetaveis` → **não tem coluna `unidade_id`** — é global
+- Tabela `itens_terapeuticos` → 457 itens, todos com `unidade_id = NULL` — é global
 
 ```
-GENESIS (ID 14)
+CATÁLOGO TERAPÊUTICO (global — sem unidade_id)
+├── formulas        → fórmulas magistrais (medicamentos manipulados)
+├── injetaveis      → endovenosos, intramusculares, subcutâneos
+├── implantes       → pellets, implantes
+├── exames_base     → catálogo de exames laboratoriais
+└── itens_terapeuticos → catálogo unificado (457 itens)
+
+TODAS AS EMPRESAS acessam o MESMO catálogo global.
+Não existe "catálogo do Padua" nem "catálogo do Genesis".
+```
+
+**Consequência para o Manager:** ao clonar o Genesis, o catálogo terapêutico não precisa ser copiado — já é compartilhado globalmente. O Manager deve implementar o mesmo padrão: catálogo global, empresas consomem sem copiar.
+
+---
+
+## 10. GENESIS — MOLDE PARA CRIAR NOVAS EMPRESAS
+
+### 10.1 O que o clone herda automaticamente
+
+```
+GENESIS (ID 14) — template imutável
     ↓  CEO licencia nova empresa
 NOVA EMPRESA (novo ID, tipo clinic)
-    ↓  herda:
-    ├── Camada A: 7 agendas definidas (agendas_profissionais)
-    ├── Catálogo base: fórmulas, injetáveis, exames, protocolos, substâncias
-    ├── Cargos padrão: Médico Titular, Assistente, Enfermagem, Administrador
-    └── Configuração de módulos: todos DESATIVADOS por padrão
-    ↓  NÃO herda (começa zerado):
-    ├── Camada B (sub_agendas + availability_rules + slots) — configurar por empresa
-    ├── Clientes/pacientes
-    └── Dados financeiros
+    → herda: 7 agendas definidas (Camada A — agendas_profissionais)
+    → herda: 15 membros de equipe padrão (team_members)
+    → herda: cargos padrão com permissões (team_positions)
+    → ACESSA: catálogo global (não copia — é compartilhado)
+    → NÃO herda: Camada B (sub_agendas + slots — configurar por empresa)
+    → NÃO herda: clientes / pacientes
+    → NÃO herda: dados financeiros
+    → módulos: configurados individualmente (ver seção 11)
 ```
 
-### 9.3 O que o Manager ainda precisa configurar após clonar
+### 10.2 O que configurar após clonar
 
-| Passo | O que fazer | Tabela no IHE |
+| Passo | Ação | Tabela |
 |---|---|---|
-| 1 | Criar usuário(s) profissional(is) da nova empresa | `usuarios` |
+| 1 | Cadastrar usuário profissional real da empresa | `usuarios` |
 | 2 | Criar sub_agendas ligadas ao profissional | `sub_agendas` |
 | 3 | Definir regras de disponibilidade (dias/horários) | `availability_rules` |
 | 4 | Gerar slots para o período desejado | `agenda_slots` |
-| 5 | Ativar módulos conforme contrato pago | `unidade_modulos_ativos` |
+| 5 | Ativar módulos conforme contrato assinado | `unidade_modulos_ativos` |
 
 ---
 
-## 10. MODELO DE LICENCIAMENTO E MONETIZAÇÃO
+## 11. MÓDULOS — NOMES REAIS E PREÇOS VERIFICADOS NO BANCO
 
-### 10.1 Fluxo
+> **CORREÇÃO CRÍTICA:** a carta anterior listava módulos inventados
+> (AGENDA, MENSAGERIA, RAS, ASSINATURAS...). Abaixo estão os módulos REAIS
+> da tabela `modulos_sistema`, verificados linha a linha.
+
+### 11.1 Módulos reais (`tabela modulos_sistema`)
+
+| Código real | Nome | Categoria | Preço mensal | Preço por demanda |
+|---|---|---|---|---|
+| `MSG_WHATSAPP` | Mensagens WhatsApp | comunicacao | R$350,00 | R$5,00 |
+| `CONSULTOR_REMOTO` | Consultor Remoto (Home Office) | premium | R$1.800,00 | R$45,00 |
+| `FOLLOWUP_ATIVO` | Follow-up Ativo | operacional | R$500,00 | R$12,00 |
+| `VALIDACAO_MOTOR` | Motor de Validação Clínica | avancado | R$800,00 | R$20,00 |
+| `TREINAMENTO_EQUIPE` | Treinamento de Equipe | operacional | R$400,00 | R$30,00 |
+| `GESTAO_ESTOQUE` | Gestão de Estoque | operacional | R$250,00 | — |
+| `RELATORIOS_BI` | Relatórios e BI (Business Intelligence = inteligência de negócio) | avancado | R$600,00 | — |
+| `AGENDA_INTELIGENTE` | Agenda Inteligente | core | R$200,00 | — |
+
+> `AGENDA_INTELIGENTE` existe na tabela `modulos_sistema` mas ainda não foi atribuído a nenhuma empresa em `unidade_modulos_ativos` — módulo em preparação.
+
+### 11.2 Status real dos módulos por empresa (verificado no banco — 16/07/2026)
+
+| Empresa | MSG_WHATSAPP | CONSULTOR_REMOTO | FOLLOWUP_ATIVO | VALIDACAO_MOTOR | TREINAMENTO | ESTOQUE | BI |
+|---|---|---|---|---|---|---|---|
+| Padua (15) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Genesis (14) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Integrativo (8) | — | — | — | ✓ | — | — | — |
+| Barros (10) | ✓ | — | — | ✓ | — | — | — |
+| Paluzze (16) | ✓ | — | — | ✓ | — | — | — |
+| Paduzzi (17) | ✓ | — | — | ✓ | — | — | — |
+| Pazialle (18) | ✓ | — | — | ✓ | — | — | — |
+| Andrade (20) | ✓ | — | — | ✓ | — | — | — |
+| Lemos (9) | — | — | — | — | — | — | — |
+| Barakat (19) | — | — | — | — | — | — | — |
+
+### 11.3 Fluxo de ativação
 
 ```
-CEO (PADCOM) cria nova empresa (clona Genesis)
+CEO assina contrato com empresa → INSERT em contrato_clinica
     ↓
-Empresa paga mensalidade por módulo ativo
+CEO ativa módulo → UPDATE unidade_modulos_ativos SET ativo=true
     ↓
-CEO ativa módulo → INSERT em unidade_modulos_ativos (ativo=true)
-    ↓
-Empresa acessa a funcionalidade
-    ↓  inadimplência
-CEO desativa → ativo=false → funcionalidade bloqueada
+Sistema registra cobrança → INSERT cobrancas_mensais_modulos
+    ↓  inadimplência confirmada
+CEO desativa → ativo=false → funcionalidade bloqueada para a empresa
 ```
 
-### 10.2 Módulos disponíveis (liberáveis por pagamento)
+### 11.4 Contratos reais cadastrados (`tabela contrato_clinica`)
 
-| Módulo | Funcionalidade liberada |
-|---|---|
-| `AGENDA` | Agendamento presencial + online + sincronização Google Calendar |
-| `MENSAGERIA` | WhatsApp (aplicativo de mensagens) automático por horário de medicamento |
-| `MOTOR_CLINICO` | Motor de anamnese (questionário clínico) + sugestões automáticas |
-| `EXAMES` | Solicitação, resultado e evolução de exames laboratoriais |
-| `PROTOCOLOS` | Catálogo de protocolos terapêuticos |
-| `RAS` | PDF (Portable Document Format = documento portátil) de Registro de Assistência Sistêmica |
-| `ASSINATURAS` | Assinatura digital ICP-Brasil via ZapSign |
-| `FINANCEIRO` | Faturamento, cobranças, comissões |
-
-### 10.3 Tabelas de controle
-
-| Tabela | Função |
-|---|---|
-| `unidade_modulos_ativos` | Módulos ativos por empresa |
-| `cobrancas_mensais_modulos` | Histórico de cobranças mensais |
-| `contrato_clinica` | Contrato assinado |
-
----
-
-## 11. CATÁLOGO CENTRALIZADO NO INSTITUTO PADUA
-
-O catálogo terapêutico mestre (fórmulas magistrais = medicamentos manipulados, injetáveis, implantes, exames, protocolos, substâncias) vive no **Instituto Padua (ID 15)**.
-
-```
-INSTITUTO PADUA (ID 15) — catálogo real validado pelo Dr. Caio
-    ↓  exportado e enviado no JSON DADOS_EMPRESAS_..._26.07.10.json
-GENESIS (ID 14) — cópia template do catálogo base
-    ↓  clonado para nova empresa
-EMPRESA LICENCIADA — herda catálogo base, pode expandir localmente
-    └── atualizações do Padua são propagadas opcionalmente (mecanismo a implementar)
-```
-
----
-
-## 12. GLOSSÁRIO — TERMOS QUE DIFEREM ENTRE IHE E MANAGER
-
-| Termo no IHE | Significado real | Como o Manager deve tratar |
+| Empresa | Modelo de cobrança | Valor mensal |
 |---|---|---|
-| `unidade` | Empresa clínica com CNPJ próprio | Equivale a "empresa licenciada" ou "cliente" do Manager |
-| `paciente` | Pessoa atendida no IHE | No Manager: usar **"cliente"** — vocabulário travado, nunca "paciente" |
-| `perfil` | Campo de permissão do usuário | Nunca chamar de `role` — `perfil` é o nome canônico |
-| `agendas_profissionais` | Camada de DEFINIÇÃO (configuração visual) | Não confundir com o sistema operacional de slots |
-| `sub_agendas` | Camada OPERACIONAL (gera slots reais) | Aqui que o agendamento real acontece |
-| `modo` LOCAL/REMOTO | Presencial × online na mesma empresa | Mesmo profissional tem 2 agendas distintas por modo |
-| `genesis_seed` | Template imutável para clonar | Nunca deletar, nunca usar para atendimento real |
-| `unidade_modulos_ativos` | Módulos pagos e ativos por empresa | Controla o que a empresa pode acessar |
+| Instituto Lemos (9) | por_demanda | — |
+| Instituto Barros (10) | full | R$3.500,00 |
+| Instituto Integrativo (8) | pacote | — |
+
+---
+
+## 12. GLOSSÁRIO — TERMOS IHE × MANAGER
+
+| Termo no IHE | Como o Manager deve tratar |
+|---|---|
+| `unidade` | Empresa licenciada com CNPJ próprio |
+| `paciente` | **"cliente"** — vocabulário travado no Manager |
+| `perfil` | Nunca chamar de `role` — o campo se chama `perfil` em todo o IHE |
+| `agendas_profissionais` | Camada A (definição visual) — NÃO confundir com agendamento real |
+| `sub_agendas` | Camada B (operacional) — aqui o agendamento real acontece |
+| `modo LOCAL` | Atendimento presencial na empresa |
+| `modo REMOTO` | Atendimento online / telemedicina |
+| `genesis_seed` | Template — nunca deletar, nunca atender cliente real |
+| `itens_terapeuticos` | Catálogo global — não pertence a nenhuma empresa |
+| `modulos_sistema` | Tabela dos módulos vendáveis com código, preço e funcionalidades |
+| `unidade_modulos_ativos` | Quais módulos estão ativados por empresa |
 
 ---
 
 ## 13. CHECKLIST DE IMPLEMENTAÇÃO PARA O MANAGER
 
-| Prioridade | Item | Referência nesta carta |
+| Prioridade | O que implementar | Referência |
 |---|---|---|
-| 1 | `unidade_id` em TODA tabela de agenda — isolamento absoluto | Seção 4 |
-| 2 | Profissional = usuário (`usuarios.id`) — não criar tabela separada | Seção 3 |
+| 1 | `unidade_id` em toda tabela de agenda — isolamento absoluto | Seção 4 |
+| 2 | Profissional = usuário (`usuarios.id`) — sem tabela separada | Seção 3 |
 | 3 | Distinguir Camada A (definição) de Camada B (operacional) | Seção 5 |
-| 4 | Clonar Genesis gera Camada A — Camada B precisa configuração manual por empresa | Seção 9.3 |
-| 5 | Criar as 8 empresas fictícias com CNPJ, médicos e agendas | Seções 1.1 e 6 |
-| 6 | Separar agenda LOCAL (presencial) de REMOTO (online) na interface | Seção 6 |
-| 7 | Google Calendar sincroniza por sub_agenda — não por empresa | Seção 7 |
-| 8 | Cargos e permissões são por empresa — nunca globais | Seção 8 |
-| 9 | Módulos desativados por padrão — ativar somente após pagamento | Seção 10 |
-| 10 | Catálogo mestre no Instituto Padua — empresas herdam na clonagem | Seção 11 |
+| 4 | Catálogo global — NÃO copiar por empresa | Seção 9 |
+| 5 | Módulos com códigos reais: `MSG_WHATSAPP`, `VALIDACAO_MOTOR` etc. | Seção 11.1 |
+| 6 | Criar as 10 empresas com CNPJ, membros e agendas definidas | Seções 1.1 e 6 |
+| 7 | Camada B precisa configuração manual por empresa (não automática) | Seção 5.3 |
+| 8 | Google Calendar por sub-agenda — não por empresa | Seção 7 |
+| 9 | Cargos e permissões por empresa — nunca globais | Seção 8 |
+| 10 | 3 modelos de contrato: `por_demanda`, `full`, `pacote` | Seção 11.4 |
 
 ---
 
-## 14. ARQUIVOS JÁ ENVIADOS AO MANAGER
+## 14. ÍNDICE DE TODOS OS ARQUIVOS ENVIADOS AO MANAGER
 
-| Arquivo | Conteúdo | SHA (Secure Hash Algorithm = código de verificação) GitHub |
+| Arquivo | Conteúdo | SHA (código de verificação) GitHub |
 |---|---|---|
 | `DADOS_EMPRESAS_E_COLABORADORES_IHE_26.07.10.json` | 18 unidades, 150 cargos, 150 membros, 143 usuários | `aa4bee4a6fd2` |
 | `CARTA_IHE_EMPRESAS_E_COLABORADORES_PARA_CLONAGEM_26.07.10.md` | Carta v1 estrutura geral | `68a7e370fe65` |
-| `CARTA_IHE_EMPRESAS_E_COLABORADORES_PARA_CLONAGEM_26.07.16.md` | Carta v2 — 9 diferenças conceituais + telas | `cbf576b26887` |
-| `CARTA_IHE_AGENDA_GENESIS_E_LICENCIAMENTO_26.07.16.md` | Versão anterior desta carta (substituída) | `d3ed5058ac3c` |
-| **`CARTA_IHE_UNIDADE_PROFISSIONAL_AGENDA_ISOLAMENTO_26.07.16.md`** | **Esta carta — versão auditada e definitiva** | — |
+| `CARTA_IHE_EMPRESAS_E_COLABORADORES_PARA_CLONAGEM_26.07.16.md` | Carta v2 — 9 diferenças + endereços + 13 telas | `cbf576b26887` |
+| `CARTA_IHE_AGENDA_GENESIS_E_LICENCIAMENTO_26.07.16.md` | Versão anterior **REVOGADA** — módulos inventados | `d3ed5058ac3c` |
+| `CARTA_IHE_UNIDADE_PROFISSIONAL_AGENDA_ISOLAMENTO_26.07.16.md` | **Esta carta — versão 3.0 auditada** | (a publicar) |
 
-**Branch GitHub (sistema de controle de versão):** `ver-l2-dr-claude`
-**Repositório (repositório = pasta de código no GitHub):** `caio-padua/Integrative-Health-Engine`
+**Branch (ramo de versão) GitHub:** `ver-l2-dr-claude`
+**Repositório:** `caio-padua/Integrative-Health-Engine`
 **Pasta:** `docs/dr-replit/PARA_MANAGER/`
 
 ---
 
-**RESUMO EM 1 LINHA:** Unidade = empresa com CNPJ; profissional = usuário do sistema; agenda tem 2 camadas (definição + operacional); `unidade_id` em toda tabela de agenda garante isolamento total — Instituto Lemos nunca mistura com Instituto Barros mesmo com o mesmo médico físico nos dois.
+**RESUMO EM 1 LINHA:** Unidade = empresa com CNPJ; profissional = usuário; catálogo é global (não por empresa); módulos têm códigos e preços reais (`MSG_WHATSAPP` R$350, `VALIDACAO_MOTOR` R$800...); `unidade_id` em toda tabela de agenda garante isolamento absoluto entre empresas.
