@@ -533,3 +533,15 @@ id = "tCCiKzUz0uOCZrvxYG7_Y"
 uri = "file://GUIA CEO PAWARDS DR CAIO 26.07.16.pdf"
 type = "pdf"
 title = "GUIA CEO PAWARDS v3 — Fundo Branco — 6 Páginas — Sem Páginas em Branco"
+
+[[outputs]]
+id = "ie58HkFTZndMHXMmfbOTD"
+uri = "file://artifacts/api-server/GUIA CEO PAWARDS DR CAIO 26.07.16.pdf"
+type = "pdf"
+title = "GUIA CEO PAWARDS v4 — 6 pag. SEM PAGINAS EM BRANCO"
+
+[[outputs]]
+id = "feitvB_--Nc-dPCJ4_gLy"
+uri = "file://artifacts/api-server/ARQUITETURA EMAIL ZOHO PAXTER DR CAIO 26.07.16.pdf"
+type = "pdf"
+title = "ARQUITETURA EMAIL ZOHO PAXTER — 5 paginas — Aliases + 2FA + DNS + CLI Python"
