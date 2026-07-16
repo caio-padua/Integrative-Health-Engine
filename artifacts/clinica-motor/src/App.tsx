@@ -84,6 +84,7 @@ import AdminCobrancasAdicionais from "@/pages/admin-cobrancas-adicionais";
 import AdminLicenciamentoPage from "@/pages/admin-licenciamento";
 import AdminCobrancasPage from "@/pages/admin-cobrancas";
 import AdminSubAgendasPage from "@/pages/admin-sub-agendas";
+import AdminCadastroUnidadesPage from "@/pages/admin-cadastro-unidades";
 import AdminInadimplencia from "@/pages/admin-inadimplencia";
 import AdminContratosFarmacia from "@/pages/admin-contratos-farmacia";
 import AdminParmavaultReconciliacao from "@/pages/admin-parmavault-reconciliacao";
@@ -267,6 +268,7 @@ function Router() {
       <Route path="/admin/licenciamento" component={AdminLicenciamentoPage} />
       <Route path="/admin/cobrancas" component={AdminCobrancasPage} />
       <Route path="/admin/sub-agendas" component={AdminSubAgendasPage} />
+      <Route path="/admin/cadastro-unidades" component={AdminCadastroUnidadesPage} />
       {/* ══════ PADCOM V15 — Anamnese Integrativa (Manus Bundle) ══════ */}
       <Route path="/padcom" component={PadcomPaciente} />
       <Route path="/padcom/concluido" component={PadcomConcluido} />

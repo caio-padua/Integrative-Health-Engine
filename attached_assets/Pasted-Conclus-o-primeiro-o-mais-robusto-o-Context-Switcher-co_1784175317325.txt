@@ -1,0 +1,112 @@
+Conclusão primeiro: o mais robusto é o Context Switcher com empresa_id — padrão da indústria (Vercel, Linear, Notion, Shopify usam exatamente isso). Mas exige migração das tabelas atuais. Veja o comparativo completo:
+1. COMPARATIVO DAS 3 ARQUITETURAS MULTI-TENANT
+Critério	A — Context Switcher (empresa_id)	B — Schema Isolation (PostgreSQL schemas)	C — Instâncias Separadas
+Isolamento de dados	Lógico (filtro por ID)	Forte (tabelas separadas por schema)	Físico (banco separado)
+Custo operacional	Baixo (1 banco)	Médio (1 banco, N schemas)	Alto (N bancos/servidores)
+Complexidade de dev	Média (adicionar empresa_id nas tabelas)	Alta (migrações por schema)	Muito alta (deploy por cliente)
+Escalabilidade	Alta	Alta	Altíssima, mas cara
+Facilidade de relatório cruzado	Fácil (JOIN entre tabelas)	Difícil (cross-schema)	Impossível sem ETL
+Padrão da indústria SaaS	✅ Sim (Vercel, Linear, Notion)	Raro	AWS/Azure multi-tenant enterprise
+Indicado para PAXTER	✅ Sim	Não agora	Não agora
+2. COMO FUNCIONA O CONTEXT SWITCHER (Opção A — correta)
+
+PAXTER — banco único
+    │
+    ├─► TABELA empresas (já existe ✅)
+    │       id=1  Instituto Padua
+    │       id=2  Clínica Parceira X
+    │       id=3  Clínica Parceira Y
+    │
+    ├─► TODAS as outras tabelas ganham empresa_id:
+    │       clients.empresa_id = 1  →  só do Instituto Padua
+    │       clients.empresa_id = 2  →  só da Clínica X
+    │       protocols.empresa_id = 1
+    │       sessions.empresa_id = 1
+    │       (filtro automático em TODAS as queries)
+    │
+    └─► FRONTEND — seletor no topo do sidebar:
+            [Instituto Padua ▼]  ← troca de empresa aqui
+            Toda tela lê o contexto e filtra automaticamente
+
+3. O QUE PRECISARIA MUDAR NO PAXTER (honestidade total)
+Tabela	empresa_id atual	Ação necessária
+empresas	✅ é a tabela-raiz	nada
+clients	❌ ausente	ADD COLUMN + backfill id=1
+protocols	❌ ausente	ADD COLUMN + backfill id=1
+sessions	❌ ausente	ADD COLUMN + backfill id=1
+ras, payments, stock	❌ ausente	ADD COLUMN + backfill id=1
+substances, professionals	❌ ausente	ADD COLUMN + backfill id=1
+locations	❌ ausente (tem FK para professionals)	ADD COLUMN + backfill id=1
+Todas as rotas da API	Sem filtro por empresa	Adicionar middleware que injeta empresa_id
+Frontend — queries	Sem filtro	Passar empresa_id do contexto
+4. ESTRATÉGIA DE MIGRAÇÃO SEM QUEBRAR NADA
+
+FASE 0 (agora, 1 dia):
+    Criar guarda-chuva visual → seletor de empresa no sidebar
+    Instituto Padua = empresa_id=1 (hardcoded por enquanto)
+    Sistema funciona igual — zero impacto
+FASE 1 (próxima sprint):
+    ADD COLUMN empresa_id DEFAULT 1 em todas as tabelas
+    Backfill automático → tudo vira empresa_id=1
+    Sistema funciona igual — Instituto Padua não sente
+FASE 2 (quando licenciar a 1ª clínica parceira):
+    Middleware injeta empresa_id no contexto da sessão
+    Queries filtram por empresa_id
+    Clínica Parceira X começa com dados próprios e isolados
+FASE 3 (SaaS maduro):
+    RBAC completo por empresa_id + role
+    Billing por empresa_id
+    Dashboard master do CEO vê todas as empresas
+
+5. RECOMENDAÇÃO PARA HOJE
+
+Construir agora: Fase 0 — guarda-chuva visual (seletor de empresa no sidebar + tela home de empresas). Custo: 1 tela nova + pequena alteração no sidebar. Impacto no Instituto Padua: zero.
+
+Não fazer agora: Fases 1-3 — esperar o CEO licenciar a 1ª clínica real; aí vale a migração.
+Pergunta	Resposta recomendada
+Qual arquitetura é mais robusta?	Context Switcher com empresa_id — Opção A
+Quando migrar?	Fase 0 agora (guarda-chuva); Fase 1 quando licenciar a 1ª parceira
+Instituto Padua quebra?	Não — backfill garante empresa_id=1 em tudo
+Quanto custa a migração total?	2-3 dias de trabalho intenso (Fases 1+2)
+
+Quer que eu construa a Fase 0 agora (guarda-chuva visual + seletor no sidebar, sem tocar no Instituto Padua)? Ou prefere aguardar mais?
+
+RESUMO EM 1 LINHA: a arquitetura correta é empresa_id em todas as tabelas + context switcher no sidebar — hoje faço só o guarda-chuva visual (Fase 0), sem quebrar nada.
+
+qyuero que termine estas empresas o que voce estava fazendo e depois desmenbramos ela. e o que voce recomenda pensando no medio prazo ? context switcher ou schema isolation pstgre sql ?
+5 minutes ago
+
+Resposta primeiro, código depois.
+MÉDIO PRAZO: CONTEXT SWITCHER vs SCHEMA ISOLATION
+
+Recomendo Context Switcher — sem hesitação para o porte do PAXTER.
+Critério	Context Switcher (empresa_id)	Schema Isolation (PostgreSQL)
+Suporte do Drizzle ORM	✅ nativo — só adicionar coluna	⚠️ suporte parcial — exige código extra por schema
+Migração das tabelas existentes	ADD COLUMN + backfill (2 dias)	Recrear todas as tabelas — risco alto
+Relatório cruzado (CEO vê todas as clínicas)	✅ simples — JOIN normal	❌ difícil — cross-schema
+Número de clínicas suportadas	Milhares (basta índice na coluna)	Dezenas (cada schema = overhead)
+Complexidade de manutenção	Baixa	Alta
+Padrão da indústria para o porte PAXTER	✅ Vercel, Linear, Notion, Shopify	Empresas bancárias, compliance extremo
+Quando usar Schema Isolation?	Nunca para PAXTER	Se tiver regulação que exige isolamento físico por cliente (ex: LGPD nível hospitalar)
+
+Schema Isolation só valeria se o PAXTER tivesse clientes que exigem contrato com isolamento físico garantido (ex: hospital universitário). Para clínicas de estética e medicina integrativa: Context Switcher é o certo.
+
+Agora termino o formulário de empresas com abas. Vou ler o estado atual do Dialog e substituir:
+
+Substituindo o Dialog completo pela versão com 5 abas:
+
+Agora faço a substituição completa do Dialog em uma única operação:
+
+Vite atualizou sem erros — sem crash no browser. Vou capturar a tela para confirmar:
+
+Preciso verificar se o schema do formulário tem todos os campos novos das abas registrados:
+
+Schema e EMPTY completos — todos os campos novos estão registrados. Preciso verificar se a classe lbl que usei existe no CSS global:
+
+Classe lbl não existe — preciso adicioná-la ao CSS global e verificar o index.css:
+
+Vite vai atualizar automaticamente. Vou confirmar o resultado final:
+
+A tela de login é esperada — o screenshot não pode autenticar. O importante é que o Vite atualizou 7 vezes sem nenhum erro de compilação nos logs, confirmando que o formulário com abas compila e roda corretamente.
+
+Vou gravar o commit message e finalizar:

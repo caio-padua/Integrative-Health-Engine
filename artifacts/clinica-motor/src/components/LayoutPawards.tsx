@@ -172,6 +172,7 @@ function getNavGroups(PW: PWPalette): NavGroup[] {
   {
     id: "admin", label: "ADMIN IHE", color: PW.red,
     items: [
+      { label: "Cadastro Empresas", href: "/admin/cadastro-unidades", icon: Building2 },
       { label: "Licenciamento", href: "/admin/licenciamento", icon: ShieldCheck },
       { label: "Cobranças", href: "/admin/cobrancas", icon: Receipt },
       { label: "Sub-agendas", href: "/admin/sub-agendas", icon: CalendarDays },
