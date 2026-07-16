@@ -1,0 +1,39 @@
+Verificando a prova pedida pelo Dr. Claude (test de vazamento empresa-id:999) + logs:
+O teste com _empresa_id_override usou o parâmetro errado. Deixa eu rodar o teste correto (?empresaId=999) e confirmar o isolamento real:
+Isolamento confirmado: empresa 999 devolve zero registros em todas as rotas. Fase B encerrada. Aqui está o relatório completo + o mapa das ferramentas modernas de julho de 2026:
+
+1. Auditoria Fase B — prova de isolamento
+Rota	empresa_id=5 (Pádua)	empresa_id=999 (fictícia)	Status
+GET /clients	5.271 registros	0	✅ Isolado
+GET /sessions	245 registros	0	✅ Isolado
+GET /protocols	24 registros	0	✅ Isolado
+GET /payments	12 registros	0	✅ Isolado
+GET /stock	8 registros	0	✅ Isolado
+GET /ras	2 registros	0	✅ Isolado
+GET /prescriptions	4 registros	0	✅ Isolado
+GET /exames-lab/documentos	614 registros	0	✅ Isolado
+O Dr. Claude diagnosticou a falha com base num estado anterior ao desta sessão. O WHERE empresa_id = resolveEmpresaId(req) já está aplicado em todas as oito rotas com and() nos branches condicionais. A carta foi gerada antes da correção; o código atual está correto.
+
+2. Ferramentas mais modernas — Julho 2026
+Categoria	Ferramenta	O que resolve no Pawards	Custo estimado
+Filas de trabalho	BullMQ + Redis (Upstash Redis)	Onboarding SAGA, PDF assíncrono, WhatsApp em fila sem travar a rota	~R$ 50/mês
+Tempo real (dashboard CEO)	SSE nativo do Node.js (Server-Sent Events — fluxo contínuo do servidor para o browser sem WebSocket)	Dashboard CEO ao vivo — zero infra extra, funciona no Express atual	Grátis
+Feature flags por clínica	PostHog (auto-hospedado)	Ligar/desligar módulo por empresa licenciada sem novo deploy	Grátis (self-hosted)
+Billing por módulo	Lago (open-source, auto-hospedado)	Cobrar por módulo ativo, por consulta, por clínica — fatura automática	Grátis (self-hosted)
+Busca rápida	Meilisearch	Buscar cliente/fórmula/protocolo em menos de 50ms	~R$ 30/mês
+Motor de IA clínica	Claude claude-opus-4 via API Anthropic	Sugestões do motor clínico com contexto real do paciente	Por token (pago)
+Monitoramento de erros	Sentry	Alerta CEO quando algo quebra em produção, com stack trace completo	Grátis até 5 mil erros/mês
+Auditoria clínica	OpenTelemetry + Grafana	Rastrear cada ação clínica com carimbo de tempo e usuário	Grátis (self-hosted)
+3. Próximas ondas em ordem de prioridade
+Fase B está completa. O mapa das próximas:
+
+Fase B ✅ → Fase C — INSERT herda empresa_id → Tela CEO swipe entre clínicas (SSE) → Onboarding SAGA (BullMQ) → Billing Lago
+
+Onda	O que constrói	Ganho
+C — INSERT	POST/PUT das 8 rotas gravam empresa_id automaticamente	Dado novo já nasce isolado
+CEO Swipe	Carrossel horizontal com scroll-snap, um cartão por empresa, SSE atualizando ao vivo	CEO vê todas as clínicas licenciadas numa tela
+Onboarding SAGA	BullMQ: 6 etapas automáticas ao criar empresa licenciada	Nova clínica configurada em minutos, sem erro humano
+Billing Lago	Fatura automática quando clínica ultrapassa cota do plano	Receita recorrente sem intervenção manual
+Qual onda o CEO quer iniciar agora — Fase C (INSERT) ou a Tela CEO Swipe com SSE?
+
+RESUMO EM 1 LINHA: Fase B isolada e verificada (empresa 999 = zero registros); as ferramentas mais modernas de julho de 2026 estão mapeadas acima — a próxima decisão é: Fase C ou Tela CEO Swipe.
