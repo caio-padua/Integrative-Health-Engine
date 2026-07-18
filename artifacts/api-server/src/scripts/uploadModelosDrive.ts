@@ -150,3 +150,5 @@ async function main() {
 }
 
 main().catch(console.error);
+
+// PATCH: adicionado inline — rodar separadamente para a série luxo
