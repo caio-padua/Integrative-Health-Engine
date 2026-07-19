@@ -62,6 +62,7 @@ import ColaboradoresPage from "@/pages/colaboradores";
 import HierarquiaPage from "@/pages/hierarquia";
 import GovernancaEquipePage from "@/pages/governanca-equipe";
 import AgentesVirtuaisPage from "@/pages/agentes-virtuais";
+import CartaMagnaPadcomPage from "@/pages/carta-magna-padcom";
 import AcompanhamentoPage from "@/pages/acompanhamento";
 import ComissaoPage from "@/pages/comissao";
 import ComercialPage from "@/pages/comercial";
@@ -257,6 +258,7 @@ function Router() {
       <Route path="/hierarquia" component={HierarquiaPage} />
       <Route path="/governanca-equipe" component={GovernancaEquipePage} />
       <Route path="/agentes-virtuais" component={AgentesVirtuaisPage} />
+      <Route path="/carta-magna-padcom" component={CartaMagnaPadcomPage} />
       <Route path="/acompanhamento" component={AcompanhamentoPage} />
       <Route path="/comissao" component={ComissaoPage} />
       <Route path="/comercial" component={ComercialPage} />
