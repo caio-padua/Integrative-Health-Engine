@@ -18,31 +18,32 @@ function useGoogleFonts() {
 // Zero amarelo, zero laranja, zero verde, zero marrom.
 const N = {
   // Fundos — 6 camadas de profundidade
-  bg:   "#030610",   // superfície zero (page)
-  d6:   "#040818",   // camada mais funda
-  d5:   "#060C22",   // camada 5
-  d4:   "#080F2C",   // camada 4
-  d3:   "#0C1638",   // camada 3
-  d2:   "#101E4A",   // camada 2
-  d1:   "#162458",   // camada 1 (mais clara)
-  sur:  "#1C2C68",   // superfície de cards
-  hi:   "#223278",   // superfície elevada
+  // AZUL MARINHO REAL (não preto-vazio): bg levantado de #030610 → #0E1C40
+  bg:   "#0E1C40",   // superfície zero — azul marinho escuro, não preto
+  d6:   "#0A1530",   // camada mais funda
+  d5:   "#0D1A38",   // camada 5
+  d4:   "#102042",   // camada 4
+  d3:   "#14274E",   // camada 3
+  d2:   "#182E5A",   // camada 2
+  d1:   "#1E3668",   // camada 1 (mais clara)
+  sur:  "#243E78",   // superfície de cards
+  hi:   "#2A4888",   // superfície elevada
 
   // Acento — azul elétrico único
-  ax:   "#3B8AE8",   // azul vivo principal
-  axL:  "#70B2FF",   // azul vivo claro
-  axX:  "#A8D0FF",   // azul muito claro (texto em destaque)
+  ax:   "#4A9AFF",   // azul vivo principal (um toque mais brilhante)
+  axL:  "#80C0FF",   // azul vivo claro
+  axX:  "#B8D8FF",   // azul muito claro (texto em destaque)
 
-  // Texto
-  t1:   "#E8F4FF",   // branco-azulado (texto principal)
-  t2:   "#7AAEE8",   // azul médio (texto secundário)
-  t3:   "#3A5890",   // azul escuro (texto terciário)
+  // Texto — todos mais luminosos para nitidez sobre fundo marinho
+  t1:   "#F0F6FF",   // branco-azulado (texto principal — máximo contraste)
+  t2:   "#90BCEE",   // azul claro (texto secundário — visível)
+  t3:   "#6890CC",   // azul médio (texto terciário — ANTES era #3A5890, agora legível)
 
   // Borda
-  b1:   "#0E1C48",   // borda escura
-  b2:   "#1A2860",   // borda padrão
-  b3:   "#283878",   // borda clara
-  bHi:  "#3060B8",   // borda de destaque
+  b1:   "#162448",   // borda escura
+  b2:   "#1E3060",   // borda padrão
+  b3:   "#2A4078",   // borda clara
+  bHi:  "#3868C0",   // borda de destaque
 
   // ── SOMBRA 3D COM ESPESSURA ──────────────────────────────────────────────
   // Técnica: 3 camadas duras (sem blur) = face lateral física do painel
@@ -609,7 +610,12 @@ export default function CartaMagnaPadcomPage() {
   const lista = cat.length > 0 ? cat : CAT;
 
   return (
-    <div style={{ background:N.bg, minHeight:"100vh", fontFamily:"Inter, sans-serif" }}>
+    <div style={{
+      background:N.bg, minHeight:"100vh", fontFamily:"Inter, sans-serif",
+      // Nitidez máxima de fonte em todos os elementos filhos
+      WebkitFontSmoothing:"antialiased",
+      MozOsxFontSmoothing:"grayscale",
+    }}>
 
       {/* ── HEADER 3D — elevação máxima ─────────────────────────────────── */}
       <div style={{
@@ -624,10 +630,16 @@ export default function CartaMagnaPadcomPage() {
             <div style={{ ...SANS, fontSize:12, color:N.t3, letterSpacing:"0.16em", textTransform:"uppercase", marginBottom:10 }}>
               Sistema Pawards · Padcom · Módulo de Agentes Virtuais
             </div>
-            <div style={{ ...tCSS(tc.display), color:N.t1, lineHeight:1.1 }}>
+            <div style={{
+              ...tCSS(tc.display), color:N.t1, lineHeight:1.1,
+              // Efeito flutuante: halo azul faz a letra "flutuar" sobre o fundo
+              textShadow:"0 0 30px rgba(100,180,255,0.45), 0 2px 12px rgba(50,120,255,0.25)",
+            }}>
               Constituição dos Agentes Virtuais
             </div>
-            <div style={{ ...tCSS(tc.subhead), color:N.t3, marginTop:10 }}>
+            <div style={{ ...tCSS(tc.subhead), color:N.t2, marginTop:10,
+              textShadow:"0 0 16px rgba(80,150,255,0.25)",
+            }}>
               Carta Magna PADCOM · Edição 001 · Publicado em {new Date().toLocaleDateString("pt-BR")}
             </div>
           </div>
@@ -649,7 +661,7 @@ export default function CartaMagnaPadcomPage() {
                 boxShadow:N.e1,
                 display:"flex", flexDirection:"column", gap:6,
               }}>
-                <div style={{ ...SANS, fontSize:12, color:N.t3, letterSpacing:"0.12em", textTransform:"uppercase" }}>{k.l}</div>
+                <div style={{ ...SANS, fontSize:12, color:N.t2, letterSpacing:"0.12em", textTransform:"uppercase" }}>{k.l}</div>
                 <div style={{ ...MONO, fontSize:32, fontWeight:700, color:N.t1, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{k.v}</div>
               </div>
             ))}
@@ -674,16 +686,27 @@ export default function CartaMagnaPadcomPage() {
             const isAti = aba===i;
             return (
               <button key={i} onClick={()=>setAba(i)} style={{
-                ...SERIF, fontSize:16, fontWeight:isAti?600:400, fontStyle:isAti?"normal":"italic",
+                ...SERIF,
+                fontSize: isAti ? 17 : 16,
+                fontWeight: isAti ? 700 : 500,
+                fontStyle: "normal",       // sem itálico em nenhuma aba — todas retas e legíveis
                 padding:"11px 26px",
                 background:isAti ? N.bg : "transparent",
-                color:isAti ? N.axL : N.t3,
+                // Aba inativa: t2 (#90BCEE) — azul claro visível, não mais t3 escuro
+                color: isAti ? N.axX : N.t2,
                 border:"none",
-                borderTop:isAti ? `1px solid rgba(140,200,255,0.25)` : "none",
+                borderTop:isAti ? `1px solid rgba(160,220,255,0.30)` : "none",
                 borderRadius:`${N.r} ${N.r} 0 0`,
                 cursor:"pointer", whiteSpace:"nowrap",
-                // Aba ativa: 3D elevado
-                boxShadow:isAti ? N.e2 : "none",
+                // Aba ativa: glow flutuante; inativa: glow suave para não sumir
+                boxShadow: isAti
+                  ? N.e2
+                  : "none",
+                // Efeito flutuante nas letras — leve halo azul nas inativas
+                textShadow: isAti
+                  ? `0 0 20px rgba(120,190,255,0.55), 0 2px 8px rgba(60,130,255,0.30)`
+                  : `0 0 10px rgba(100,160,240,0.20)`,
+                letterSpacing:"0.02em",
                 position:"relative", zIndex:isAti?2:1, transition:"all 0.15s",
               }}>{a}</button>
             );
