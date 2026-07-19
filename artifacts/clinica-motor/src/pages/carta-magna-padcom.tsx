@@ -1,301 +1,531 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { apiFetch, ensureArray } from "@/lib/api-fetch";
 
-// ─── TEMA CLARO "PAINEL CLÁSSICO" ─────────────────────────────────────────────
-// Inspirado em Windows XP / Painel de Controle clássico: fundo azul-acinzentado,
-// painéis brancos com sombra em camadas, cantos levemente arredondados.
-const T = {
-  desktop:     "#D8E5F0",
-  panel:       "#FFFFFF",
-  panel2:      "#F0F6FB",
-  panel3:      "#E4EEF7",
-  titlebar:    "linear-gradient(180deg, #6EB3EF 0%, #1E6FC8 100%)",
-  titlebar2:   "linear-gradient(180deg, #4A8ACC 0%, #1A5FAD 100%)",
-  sidebar:     "linear-gradient(180deg, #1D5CA8 0%, #0F3E7C 100%)",
-  border:      "#BDD0E4",
-  borderMid:   "#9AB8D4",
-  borderDark:  "#7A9EC0",
-  text1:       "#1A2B3C",
-  text2:       "#3C5870",
-  text3:       "#7890A8",
-  accent:      "#1E6FC8",
-  accentH:     "#1558A0",
-  accentL:     "#EBF4FF",
-  ok:          "#2A7A4E",
-  okL:         "#E6F5EC",
-  warn:        "#A86800",
-  warnL:       "#FFF4DC",
-  danger:      "#B03030",
-  dangerL:     "#FDE8E8",
-  s1: "0 2px 5px rgba(0,40,100,0.09), 0 1px 2px rgba(0,40,100,0.06)",
-  s2: "0 4px 14px rgba(0,40,100,0.13), 0 2px 5px rgba(0,40,100,0.08)",
-  s3: "0 8px 28px rgba(0,40,100,0.18), 0 3px 8px rgba(0,40,100,0.10)",
-  inset: "inset 0 2px 4px rgba(0,40,100,0.08)",
-  r:  "6px",
-  rSm:"4px",
-  rLg:"8px",
+// ─── CARREGAR FONTES DO GOOGLE FONTS ─────────────────────────────────────────
+function useGoogleFonts() {
+  useEffect(() => {
+    const id = "hermes-fonts-link";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400&family=JetBrains+Mono:wght@400;600;700&display=swap";
+    document.head.appendChild(link);
+  }, []);
+}
+
+// ─── PALETA HERMÈS ────────────────────────────────────────────────────────────
+const H = {
+  // Fundos em camadas — creme aquecido
+  cream:   "#FAF7F0",  // nível 0 — desktop
+  ivory:   "#F5EDE0",  // nível 1 — painel
+  paper:   "#FFFDF8",  // nível 2 — card
+  white:   "#FFFFFF",  // nível 3 — superfície elevada
+
+  // Identidade Hermès
+  orange:  "#C85A10",  // laranja assinatura (mais rico que web-orange)
+  orangeM: "#E07030",  // laranja médio (hover, destaques)
+  orangeL: "#FCF0E4",  // laranja muito claro (fundo de badge)
+  orangeB: "#FBE8D4",  // laranja claro para bordas
+
+  // Dourado
+  gold:    "#9A7020",  // dourado escuro
+  goldM:   "#C49030",  // dourado médio
+  goldL:   "#FBF5DC",  // dourado claro
+
+  // Marrons — couro de sela
+  brown:   "#3C1E08",  // escuro quase preto
+  brownM:  "#5C3018",  // texto principal
+  brownS:  "#8A5C38",  // texto secundário
+  brownL:  "#B08060",  // texto terciário
+
+  // Borda e sombra aquecidos
+  border:  "#D8C8A8",
+  borderL: "#EAE0CC",
+  borderD: "#BCA888",
+
+  // Estados
+  ok:     "#2A6E4A",
+  okL:    "#E4F2EB",
+  warn:   "#A06010",
+  warnL:  "#FBF3DC",
+  danger: "#8A2020",
+  dangerL:"#FCEAEA",
+
+  // Sombras aquecidas — 3 níveis
+  s1: "0 2px 8px rgba(60,24,8,0.08), 0 1px 3px rgba(60,24,8,0.05)",
+  s2: "0 6px 22px rgba(60,24,8,0.12), 0 2px 8px rgba(60,24,8,0.07)",
+  s3: "0 14px 44px rgba(60,24,8,0.18), 0 4px 14px rgba(60,24,8,0.10)",
+
+  r:  "4px",
+  rLg:"6px",
 };
 
-const CARGO_COR: Record<string, { bg: string; text: string; light: string; border: string }> = {
-  ADMINISTRATIVO: { bg:"#1E6FC8", text:"#FFFFFF", light:"#EBF4FF", border:"#A8CCEC" },
-  ENFERMAGEM:     { bg:"#2A7A4E", text:"#FFFFFF", light:"#E6F5EC", border:"#9ACFB0" },
-  CONSULTOR:      { bg:"#5A3FA8", text:"#FFFFFF", light:"#EEE8FF", border:"#B8A8E8" },
-  SUPERVISOR:     { bg:"#A86800", text:"#FFFFFF", light:"#FFF4DC", border:"#DFC080" },
-  FINANCEIRO:     { bg:"#1A7A6E", text:"#FFFFFF", light:"#E4F5F2", border:"#88CCBF" },
-  OUVIDORIA:      { bg:"#A83060", text:"#FFFFFF", light:"#FDE8F2", border:"#DFA8C0" },
+// Cores por cargo — família Hermès
+const CARGO: Record<string, { bg:string; text:string; light:string; border:string }> = {
+  ADMINISTRATIVO: { bg:H.orange,  text:"#FFF", light:H.orangeL, border:H.orangeB },
+  ENFERMAGEM:     { bg:"#2A6E4A", text:"#FFF", light:"#E4F2EB", border:"#96C8AA" },
+  CONSULTOR:      { bg:"#4A3880", text:"#FFF", light:"#EDE8F8", border:"#B4A8D8" },
+  SUPERVISOR:     { bg:H.gold,    text:"#FFF", light:H.goldL,   border:"#D8C080" },
+  FINANCEIRO:     { bg:"#1A6868", text:"#FFF", light:"#E0F2F2", border:"#80C0C0" },
+  OUVIDORIA:      { bg:"#88204A", text:"#FFF", light:"#F8E4EE", border:"#D090B0" },
 };
 
-const FONT: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+// ─── TIPOGRAFIA — ESTADO GLOBAL ───────────────────────────────────────────────
+export interface TypoConfig {
+  display:  { family:string; size:number; weight:number; italic:boolean };
+  heading:  { family:string; size:number; weight:number; italic:boolean };
+  subhead:  { family:string; size:number; weight:number; italic:boolean };
+  body:     { family:string; size:number; weight:number; italic:boolean };
+  label:    { family:string; size:number; weight:number; italic:boolean };
+  number:   { family:string; size:number; weight:number; italic:boolean };
+  caption:  { family:string; size:number; weight:number; italic:boolean };
+}
+
+const TYPO_DEFAULT: TypoConfig = {
+  display: { family:"Cormorant Garamond", size:28, weight:600, italic:false },
+  heading: { family:"Cormorant Garamond", size:16, weight:600, italic:false },
+  subhead: { family:"Cormorant Garamond", size:13, weight:400, italic:true  },
+  body:    { family:"Libre Baskerville",  size:11, weight:400, italic:false },
+  label:   { family:"Inter",             size:9,  weight:600, italic:false },
+  number:  { family:"JetBrains Mono",    size:13, weight:700, italic:false },
+  caption: { family:"Inter",             size:8,  weight:400, italic:false },
 };
+
+const FONT_FAMILIES = [
+  "Cormorant Garamond",
+  "Playfair Display",
+  "Libre Baskerville",
+  "Inter",
+  "Montserrat",
+  "Lato",
+  "JetBrains Mono",
+  "Georgia",
+  "Palatino Linotype",
+];
+
+const TYPO_LEVELS: Array<{ key:keyof TypoConfig; label:string; desc:string }> = [
+  { key:"display", label:"Título Principal",   desc:"Grande destaque — topo de seção ou masthead" },
+  { key:"heading", label:"Título de Seção",    desc:"Cabeçalho de painel, cargo, capítulo" },
+  { key:"subhead", label:"Subtítulo / Ementa", desc:"Segunda linha de título, tagline, identificador" },
+  { key:"body",    label:"Corpo de Texto",     desc:"Descrição, narrativa, orientação ao usuário" },
+  { key:"label",   label:"Rótulo de Campo",    desc:"Label de formulário, badge, métrica (UPPERCASE)" },
+  { key:"number",  label:"Número / KPI",       desc:"Valor métrico grande, SLA, contador" },
+  { key:"caption", label:"Legenda / Nota",     desc:"Metadados, SHA, datas, rodapé técnico" },
+];
+
+function typoStyle(t: TypoConfig[keyof TypoConfig]): React.CSSProperties {
+  return {
+    fontFamily: `'${t.family}', ${t.family.includes("Mono") ? "ui-monospace, monospace" : t.family.includes("Inter") || t.family.includes("Montserrat") || t.family.includes("Lato") ? "sans-serif" : "Georgia, serif"}`,
+    fontSize: t.size,
+    fontWeight: t.weight,
+    fontStyle: t.italic ? "italic" : "normal",
+  };
+}
 
 // ─── SEED ─────────────────────────────────────────────────────────────────────
 const SEED_CATALOGO = [
-  { id:1,  codigoAgente:"agente_administrativo_01", nomeAgente:"Agente Administrativo Presencial", descricao:"Agendamento, boas-vindas, onboarding e informações da clínica. Primeiro contato do paciente.", funcaoAgente:"Agendamento, boas-vindas, onboarding e informações da clínica.", cargo:"ADMINISTRATIVO", modalidade:"presencial", slaDefaultHoras:2,  naoFaz:["Dúvidas clínicas","Valores de fórmulas","Decisões de desconto","Cancelamento de protocolos","Orientações pós-sessão"] },
-  { id:2,  codigoAgente:"agente_administrativo_02", nomeAgente:"Agente Administrativo Remoto",     descricao:"Confirmação de consultas D-1, reagendamentos via portal.", funcaoAgente:"Confirmação de consultas D-1 e reagendamentos.", cargo:"ADMINISTRATIVO", modalidade:"remoto",     slaDefaultHoras:2,  naoFaz:["Agendamentos novos","Dúvidas clínicas","Cancelamento definitivo sem aprovação"] },
-  { id:3,  codigoAgente:"agente_enfermagem_01",     nomeAgente:"Agente Enfermagem Presencial",     descricao:"Comunicação pós-sessão presencial, orientações de cuidado, envio do código de validação.", funcaoAgente:"Comunicação pós-sessão e código de validação.", cargo:"ENFERMAGEM", modalidade:"presencial", slaDefaultHoras:36, naoFaz:["Alterar protocolo","Dar prazo para sintomas sem avaliar","Decidir condutas novas"] },
-  { id:4,  codigoAgente:"agente_enfermagem_02",     nomeAgente:"Agente Enfermagem Auditoria",      descricao:"Auditoria oculta do pós-sessão. Verifica se o paciente recebeu cuidado adequado.", funcaoAgente:"Auditoria oculta de qualidade do atendimento.", cargo:"ENFERMAGEM", modalidade:"remoto",     slaDefaultHoras:36, naoFaz:["Revelar que é auditoria","Orientar condutas clínicas","Tomar decisões"] },
-  { id:5,  codigoAgente:"agente_consultor_01",      nomeAgente:"Agente Consultor Presencial",      descricao:"Suporte técnico clínico presencial — orienta sobre fórmulas, exames, avaliação clínica.", funcaoAgente:"Suporte técnico clínico presencial.", cargo:"CONSULTOR", modalidade:"presencial", slaDefaultHoras:36, naoFaz:["Prescrever","Alterar protocolo","Decidir condutas novas"] },
-  { id:6,  codigoAgente:"agente_consultor_02",      nomeAgente:"Agente Consultor Remoto",          descricao:"Follow-up semanal de evolução, reativação de pacientes parados.", funcaoAgente:"Follow-up semanal e reativação.", cargo:"CONSULTOR", modalidade:"remoto",     slaDefaultHoras:36, naoFaz:["Orientar condutas clínicas","Decidir sobre protocolo","Alterar prescrição"] },
-  { id:7,  codigoAgente:"agente_supervisor_01",     nomeAgente:"Agente Supervisor Operacional",    descricao:"Controle operacional interno — cobra SLA, registra advertências, escalona para gerente.", funcaoAgente:"Controle de SLA e cobrança interna à equipe.", cargo:"SUPERVISOR", modalidade:"remoto",     slaDefaultHoras:24, naoFaz:["Falar com paciente","Decidir questões clínicas","Aprovar descontos"] },
-  { id:8,  codigoAgente:"agente_supervisor_02",     nomeAgente:"Agente Supervisor Auditor",        descricao:"Auditoria oculta da qualidade dos atendimentos. Pesquisa de satisfação disfarçada.", funcaoAgente:"Auditoria oculta da qualidade via pesquisa.", cargo:"SUPERVISOR", modalidade:"remoto",     slaDefaultHoras:24, naoFaz:["Revelar que é auditoria","Fazer pressão","Influenciar respostas"] },
-  { id:9,  codigoAgente:"agente_financeiro_01",     nomeAgente:"Agente Financeiro",                descricao:"Cobranças, acordos, nota fiscal, inadimplência e renovações financeiras.", funcaoAgente:"Cobranças, acordos e nota fiscal.", cargo:"FINANCEIRO", modalidade:"remoto",     slaDefaultHoras:24, naoFaz:["Decidir descontos acima de 15%","Cancelar protocolos","Emitir boletos sem aprovação"] },
-  { id:10, codigoAgente:"agente_ouvidoria_01",      nomeAgente:"Agente Ouvidoria",                 descricao:"Canal confidencial para reclamações, sugestões e insatisfações. Protege a identidade.", funcaoAgente:"Canal confidencial de reclamações e sugestões.", cargo:"OUVIDORIA", modalidade:"remoto",     slaDefaultHoras:24, naoFaz:["Revelar identidade do reclamante","Tomar decisão punitiva","Minimizar reclamação"] },
+  { id:1,  codigoAgente:"agente_administrativo_01", nomeAgente:"Agente Administrativo Presencial", funcaoAgente:"Agendamento, boas-vindas, onboarding e informações da clínica. Primeiro contato do paciente.", cargo:"ADMINISTRATIVO", modalidade:"presencial", slaDefaultHoras:2,  naoFaz:["Dúvidas clínicas","Valores de fórmulas","Decisões de desconto","Cancelamento de protocolos","Orientações pós-sessão"] },
+  { id:2,  codigoAgente:"agente_administrativo_02", nomeAgente:"Agente Administrativo Remoto",     funcaoAgente:"Confirmação de consultas D-1, reagendamentos via portal.", cargo:"ADMINISTRATIVO", modalidade:"remoto",     slaDefaultHoras:2,  naoFaz:["Agendamentos novos","Dúvidas clínicas","Cancelamento definitivo sem aprovação"] },
+  { id:3,  codigoAgente:"agente_enfermagem_01",     nomeAgente:"Agente Enfermagem Presencial",     funcaoAgente:"Comunicação pós-sessão presencial, orientações de cuidado, envio do código de validação.", cargo:"ENFERMAGEM", modalidade:"presencial", slaDefaultHoras:36, naoFaz:["Alterar protocolo","Dar prazo para sintomas sem avaliar","Decidir condutas novas"] },
+  { id:4,  codigoAgente:"agente_enfermagem_02",     nomeAgente:"Agente Enfermagem Auditoria",      funcaoAgente:"Auditoria oculta do pós-sessão. Verifica se o paciente recebeu cuidado adequado.", cargo:"ENFERMAGEM", modalidade:"remoto",     slaDefaultHoras:36, naoFaz:["Revelar que é auditoria","Orientar condutas clínicas","Tomar decisões"] },
+  { id:5,  codigoAgente:"agente_consultor_01",      nomeAgente:"Agente Consultor Presencial",      funcaoAgente:"Suporte técnico clínico presencial — orienta sobre fórmulas, exames, avaliação clínica.", cargo:"CONSULTOR", modalidade:"presencial", slaDefaultHoras:36, naoFaz:["Prescrever","Alterar protocolo","Decidir condutas novas"] },
+  { id:6,  codigoAgente:"agente_consultor_02",      nomeAgente:"Agente Consultor Remoto",          funcaoAgente:"Follow-up semanal de evolução, reativação de pacientes parados.", cargo:"CONSULTOR", modalidade:"remoto",     slaDefaultHoras:36, naoFaz:["Orientar condutas clínicas","Decidir sobre protocolo","Alterar prescrição"] },
+  { id:7,  codigoAgente:"agente_supervisor_01",     nomeAgente:"Agente Supervisor Operacional",    funcaoAgente:"Controle operacional interno — cobra SLA, registra advertências, escalona para gerente.", cargo:"SUPERVISOR", modalidade:"remoto",     slaDefaultHoras:24, naoFaz:["Falar com paciente","Decidir questões clínicas","Aprovar descontos"] },
+  { id:8,  codigoAgente:"agente_supervisor_02",     nomeAgente:"Agente Supervisor Auditor",        funcaoAgente:"Auditoria oculta da qualidade dos atendimentos. Pesquisa de satisfação disfarçada.", cargo:"SUPERVISOR", modalidade:"remoto",     slaDefaultHoras:24, naoFaz:["Revelar que é auditoria","Fazer pressão","Influenciar respostas"] },
+  { id:9,  codigoAgente:"agente_financeiro_01",     nomeAgente:"Agente Financeiro",                funcaoAgente:"Cobranças, acordos, nota fiscal, inadimplência e renovações financeiras.", cargo:"FINANCEIRO", modalidade:"remoto",     slaDefaultHoras:24, naoFaz:["Decidir descontos acima de 15%","Cancelar protocolos","Emitir boletos sem aprovação"] },
+  { id:10, codigoAgente:"agente_ouvidoria_01",      nomeAgente:"Agente Ouvidoria",                 funcaoAgente:"Canal confidencial para reclamações, sugestões e insatisfações. Protege a identidade.", cargo:"OUVIDORIA", modalidade:"remoto",     slaDefaultHoras:24, naoFaz:["Revelar identidade do reclamante","Tomar decisão punitiva","Minimizar reclamação"] },
 ];
 
-const SEED_PERSONALIDADE: Record<string, {
-  formalidade:number; empatia:number; autoridade:number; objetividade:number;
-  calorHumano:number; proatividade:number; paciencia:number; nivelHumanizacao:number;
-  firmeza:number; didatismo:number; acolhimento:number; sensibilidade:number;
-  tomGeral:string; generoVoz:string; exemploFraseTipica:string;
-}> = {
-  agente_administrativo_01: { formalidade:10, empatia:6,  autoridade:3,  objetividade:8,  calorHumano:7, proatividade:8, paciencia:7, nivelHumanizacao:7, firmeza:4, didatismo:6,  acolhimento:7, sensibilidade:5,  tomGeral:"Acolhedor, organizado, preciso",      generoVoz:"Feminino", exemploFraseTipica:"Será um prazer organizar o seu atendimento." },
-  agente_administrativo_02: { formalidade:7,  empatia:5,  autoridade:3,  objetividade:9,  calorHumano:5, proatividade:7, paciencia:6, nivelHumanizacao:5, firmeza:5, didatismo:7,  acolhimento:5, sensibilidade:4,  tomGeral:"Gentil, direto, funcional",          generoVoz:"Neutro",   exemploFraseTipica:"Estou entrando em contato para confirmar seu atendimento." },
-  agente_enfermagem_01:     { formalidade:5,  empatia:9,  autoridade:4,  objetividade:7,  calorHumano:9, proatividade:7, paciencia:9, nivelHumanizacao:9, firmeza:3, didatismo:7,  acolhimento:9, sensibilidade:8,  tomGeral:"Técnico mas acolhedor, maternal",   generoVoz:"Feminino", exemploFraseTipica:"Estou te enviando as orientações do seu procedimento." },
-  agente_enfermagem_02:     { formalidade:5,  empatia:8,  autoridade:3,  objetividade:8,  calorHumano:7, proatividade:6, paciencia:8, nivelHumanizacao:7, firmeza:3, didatismo:6,  acolhimento:8, sensibilidade:9,  tomGeral:"Cuidadoso, detalhado, investigativo",generoVoz:"Feminino", exemploFraseTipica:"Gostaria de entender melhor como o senhor se sentiu." },
-  agente_consultor_01:      { formalidade:7,  empatia:6,  autoridade:7,  objetividade:9,  calorHumano:5, proatividade:6, paciencia:7, nivelHumanizacao:5, firmeza:6, didatismo:9,  acolhimento:5, sensibilidade:4,  tomGeral:"Científico mas acessível",           generoVoz:"Neutro",   exemploFraseTipica:"Boa pergunta! Vou te explicar com clareza." },
-  agente_consultor_02:      { formalidade:5,  empatia:8,  autoridade:4,  objetividade:6,  calorHumano:8, proatividade:9, paciencia:8, nivelHumanizacao:8, firmeza:4, didatismo:8,  acolhimento:7, sensibilidade:6,  tomGeral:"Próximo, interessado, motivador",    generoVoz:"Neutro",   exemploFraseTipica:"Estou fazendo o acompanhamento da sua evolução." },
-  agente_supervisor_01:     { formalidade:9,  empatia:2,  autoridade:9,  objetividade:10, calorHumano:1, proatividade:9, paciencia:3, nivelHumanizacao:1, firmeza:9, didatismo:5,  acolhimento:2, sensibilidade:1,  tomGeral:"Direto, sem rodeios, factual",       generoVoz:"Masculino",exemploFraseTipica:"ALERTA DE SLA — AÇÃO NECESSÁRIA." },
-  agente_supervisor_02:     { formalidade:4,  empatia:7,  autoridade:3,  objetividade:7,  calorHumano:6, proatividade:5, paciencia:8, nivelHumanizacao:6, firmeza:7, didatismo:6,  acolhimento:4, sensibilidade:3,  tomGeral:"Natural, curioso, casual",           generoVoz:"Neutro",   exemploFraseTipica:"Sou da equipe de qualidade da clínica." },
-  agente_financeiro_01:     { formalidade:8,  empatia:5,  autoridade:6,  objetividade:10, calorHumano:4, proatividade:7, paciencia:6, nivelHumanizacao:4, firmeza:6, didatismo:7,  acolhimento:3, sensibilidade:3,  tomGeral:"Cordial mas firme, factual",         generoVoz:"Neutro",   exemploFraseTipica:"Sou do setor financeiro da clínica." },
-  agente_ouvidoria_01:      { formalidade:7,  empatia:10, autoridade:2,  objetividade:7,  calorHumano:9, proatividade:5, paciencia:10,nivelHumanizacao:9, firmeza:2, didatismo:6,  acolhimento:9, sensibilidade:10, tomGeral:"Sereno, acolhedor, neutro",          generoVoz:"Neutro",   exemploFraseTipica:"Obrigado por trazer isso para nós." },
-};
-
-const SEED_CAPACIDADES: Record<string, boolean[]> = {
-  agente_administrativo_01: [true,  true,  true,  false, true,  false, true,  false, true,  false, true,  false, true ],
-  agente_administrativo_02: [true,  false, false, true,  true,  false, true,  false, true,  false, false, false, true ],
-  agente_enfermagem_01:     [true,  false, true,  false, false, true,  true,  true,  true,  false, false, true,  true ],
-  agente_enfermagem_02:     [true,  false, false, true,  false, true,  true,  true,  true,  false, false, false, true ],
-  agente_consultor_01:      [true,  false, true,  false, false, true,  true,  true,  true,  true,  false, false, true ],
-  agente_consultor_02:      [true,  false, true,  false, false, true,  true,  false, true,  false, false, false, true ],
-  agente_supervisor_01:     [true,  true,  true,  true,  true,  true,  true,  false, false, false, false, false, true ],
-  agente_supervisor_02:     [true,  false, false, true,  true,  false, true,  false, true,  false, false, false, true ],
-  agente_financeiro_01:     [true,  true,  true,  false, false, false, true,  true,  true,  false, false, false, true ],
-  agente_ouvidoria_01:      [true,  true,  true,  false, false, false, true,  true,  true,  false, false, false, true ],
-};
-
-const CAP_LABELS = ["WhatsApp","E-mail","Criar Tarefa","Atualizar Tarefa","Ler Agenda","Ler Acompan.","Escalar","Req. Validação","Nunca Caso Vermelho","Prontuário","Agendar","Cód. Validação","Registrar Memória"];
-
 const SEED_NARRATIVAS = [
-  { id:1,  codigoAgente:"agente_administrativo_01", titulo:"Novo paciente quer agendar consulta",    tag:"NOVO LEAD",       mensagens:[{lado:"paciente",texto:"Quero marcar uma consulta com o Dr. Caio"},{lado:"agente",texto:"Será um prazer organizar o seu agendamento!\n\nPara que eu encontre os melhores horários:\n\n• Qual unidade fica melhor para você?\n  — Tatuapé\n  — Alphaville\n  — Guaxupé\n\n• Qual o seu nome completo?"},{lado:"paciente",texto:"Tatuapé, me chamo João"},{lado:"agente",texto:"Perfeito, João! Para a unidade do Tatuapé:\n\nQui 17/04 — 09:00\nQui 17/04 — 10:00\nSex 18/04 — 14:00\n\nQual horário fica melhor?"}] },
-  { id:2,  codigoAgente:"agente_administrativo_01", titulo:"Paciente pergunta sobre plano de saúde", tag:"DÚVIDA FINANCEIRA", mensagens:[{lado:"paciente",texto:"Aceita plano de saúde?"},{lado:"agente",texto:"A clínica atende exclusivamente de forma particular.\n\nIsso nos permite oferecer consultas sem limite de tempo e protocolos personalizados.\n\nPosso te ajudar a agendar uma consulta?"}] },
-  { id:3,  codigoAgente:"agente_administrativo_02", titulo:"Confirmação de consulta D-1",            tag:"CONFIRMAÇÃO",      mensagens:[{lado:"agente",texto:"Estou entrando em contato para confirmar seu atendimento de amanhã:\n\nUnidade: Tatuapé · Data: Qui 17/04 às 09:00\n\nPor gentileza, confirme:\n1 — Confirmo\n2 — Preciso reagendar"},{lado:"paciente",texto:"1"},{lado:"agente",texto:"Perfeito! Confirmado. Te esperamos amanhã às 09:00."}] },
-  { id:4,  codigoAgente:"agente_enfermagem_01",     titulo:"Orientações pós-aplicação",              tag:"PÓS-SESSÃO",       mensagens:[{lado:"agente",texto:"João, seu procedimento de hoje foi realizado conforme o protocolo.\n\nOrientações:\n• Hidratação — beba ao menos 2L de água hoje\n• Esforço físico — evite por 24h\n• Alimentação — refeições leves, evite álcool\n\nSe sentir qualquer desconforto, responda esta mensagem."}] },
-  { id:5,  codigoAgente:"agente_enfermagem_02",     titulo:"Auditoria amarela — tontura relatada",   tag:"AUDITORIA",        mensagens:[{lado:"agente",texto:"Bom dia! Sou da equipe de acompanhamento da Clínica Pádua.\n\nComo você está após a sessão de ontem?\n• Como se sentiu durante o procedimento?\n• Teve algum desconforto depois?"},{lado:"paciente",texto:"Fiquei com um pouco de tontura logo depois"},{lado:"agente",texto:"Obrigado por me contar. Vou encaminhar esta informação para a equipe clínica avaliar. Alguém entrará em contato em breve."}] },
-  { id:6,  codigoAgente:"agente_consultor_01",      titulo:"Dúvida sobre exame G6PD",               tag:"DÚVIDA CLÍNICA",   mensagens:[{lado:"paciente",texto:"Preciso fazer o exame G6PD antes do IV?"},{lado:"agente",texto:"Sim, o exame de G6PD é necessário antes da terapia com Vitamina C intravenosa.\n\nEsse exame verifica uma enzima que protege suas células — é rápido e pode ser feito em qualquer laboratório.\n\nPosso te orientar sobre onde realizar?"}] },
-  { id:7,  codigoAgente:"agente_consultor_02",      titulo:"Follow-up semanal — semana 4",          tag:"FOLLOW-UP",        mensagens:[{lado:"agente",texto:"Estou fazendo o acompanhamento da sua 4ª semana de tratamento.\n\nComo tem se sentido?\n• Energia · Sono · Disposição geral"},{lado:"paciente",texto:"Estou dormindo muito melhor e com mais energia"},{lado:"agente",texto:"Essas são exatamente as melhorias esperadas nesta fase. Continue seguindo o protocolo. Seu próximo retorno está em 2 semanas."}] },
-  { id:8,  codigoAgente:"agente_supervisor_01",     titulo:"Alerta de SLA vencido",                 tag:"SLA INTERNO",      mensagens:[{lado:"agente",texto:"ALERTA DE SLA — AÇÃO NECESSÁRIA\n\nenf02 · Tarefa #1024 · Paciente: Maria Silva\nSLA: 36h · Vencido há: 4h\n\nAção requerida:\n• Concluir tarefa imediatamente\n• Justificar atraso\n\nPrazo final: hoje às 18h"}] },
-  { id:9,  codigoAgente:"agente_financeiro_01",     titulo:"Cobrança de parcela vencida",           tag:"COBRANÇA",         mensagens:[{lado:"agente",texto:"Sou do setor financeiro da Clínica Pádua.\n\nIdentifiquei que a parcela referente ao seu protocolo venceu em 10/04.\n\nValor: R$ 450,00\n\nPosso te ajudar a regularizar?\n• Pix · Cartão · Boleto atualizado"},{lado:"paciente",texto:"Estava com problema no cartão"},{lado:"agente",texto:"Posso te oferecer:\n1 — Pix com QR code\n2 — Boleto atualizado\n3 — Novo link de cartão\n\nQual opção fica melhor?"}] },
-  { id:10, codigoAgente:"agente_ouvidoria_01",      titulo:"Reclamação de atendimento",             tag:"RECLAMAÇÃO",       mensagens:[{lado:"paciente",texto:"Fui mal atendida pela enfermeira. Ela foi grossa e não explicou nada."},{lado:"agente",texto:"Obrigado por trazer isso para nós. Levamos muito a sério a qualidade do atendimento.\n\nEm qual unidade ocorreu? Qual a data aproximada?"},{lado:"paciente",texto:"Foi hoje de manhã no Tatuapé"},{lado:"agente",texto:"Registrado. Sua manifestação foi encaminhada para a direção com total sigilo. Você receberá um retorno em até 48 horas."}] },
+  { id:1, codigoAgente:"agente_administrativo_01", titulo:"Novo paciente quer agendar consulta",   tag:"Novo Lead",     mensagens:[{lado:"paciente",texto:"Quero marcar uma consulta com o Dr. Caio"},{lado:"agente",texto:"Será um prazer organizar o seu agendamento.\n\nPara que eu encontre os melhores horários:\n\n· Qual unidade fica melhor para você?\n  Tatuapé · Alphaville · Guaxupé\n\n· Qual o seu nome completo?"}] },
+  { id:2, codigoAgente:"agente_administrativo_01", titulo:"Paciente pergunta sobre plano de saúde",tag:"Dúvida",        mensagens:[{lado:"paciente",texto:"Aceita plano de saúde?"},{lado:"agente",texto:"A clínica atende exclusivamente de forma particular.\n\nIsso nos permite oferecer consultas sem limite de tempo e protocolos completamente personalizados.\n\nPosso te ajudar a agendar uma consulta?"}] },
+  { id:3, codigoAgente:"agente_administrativo_02", titulo:"Confirmação de consulta D-1",          tag:"Confirmação",   mensagens:[{lado:"agente",texto:"Estou entrando em contato para confirmar seu atendimento de amanhã:\n\nUnidade: Tatuapé · 09h00\n\n1 — Confirmo\n2 — Preciso reagendar"},{lado:"paciente",texto:"1"},{lado:"agente",texto:"Perfeito. Te esperamos amanhã às 09h00."}] },
+  { id:4, codigoAgente:"agente_enfermagem_01",     titulo:"Orientações pós-aplicação",            tag:"Pós-sessão",    mensagens:[{lado:"agente",texto:"João, seu procedimento foi realizado conforme o protocolo.\n\n· Hidratação — ao menos 2L de água hoje\n· Esforço físico — evite por 24 horas\n· Alimentação — refeições leves, sem álcool\n\nQualquer desconforto, me avise imediatamente."}] },
+  { id:5, codigoAgente:"agente_enfermagem_02",     titulo:"Auditoria — tontura relatada",        tag:"Auditoria",     mensagens:[{lado:"agente",texto:"Bom dia. Sou da equipe de acompanhamento.\n\nComo você está após a sessão de ontem?"},{lado:"paciente",texto:"Fiquei com um pouco de tontura logo depois"},{lado:"agente",texto:"Obrigado por me contar. Vou encaminhar esta informação para a equipe clínica avaliar. Alguém entrará em contato em breve."}] },
+  { id:6, codigoAgente:"agente_consultor_01",      titulo:"Dúvida sobre exame G6PD",             tag:"Técnica",       mensagens:[{lado:"paciente",texto:"Preciso fazer o exame G6PD antes do IV?"},{lado:"agente",texto:"Sim, o G6PD é necessário antes da Vitamina C intravenosa — verifica uma enzima que protege suas células. É rápido, qualquer laboratório realiza.\n\nPosso te orientar sobre onde realizar?"}] },
+  { id:7, codigoAgente:"agente_consultor_02",      titulo:"Follow-up semanal — semana 4",        tag:"Follow-up",     mensagens:[{lado:"agente",texto:"Estou fazendo o acompanhamento da sua 4ª semana.\n\nComo tem se sentido?\n· Energia · Sono · Disposição geral"},{lado:"paciente",texto:"Muito melhor, dormindo bem e com mais energia"},{lado:"agente",texto:"Exatamente o esperado nesta fase. Continue seguindo o protocolo. Próximo retorno em 2 semanas."}] },
+  { id:8, codigoAgente:"agente_financeiro_01",     titulo:"Cobrança de parcela vencida",         tag:"Financeiro",    mensagens:[{lado:"agente",texto:"Sou do setor financeiro da Clínica Pádua.\n\nA parcela referente ao seu protocolo venceu em 10/04.\nValor: R$ 450,00\n\n· Pix · Cartão · Boleto atualizado\n\nQual opção fica melhor?"}] },
+  { id:9, codigoAgente:"agente_ouvidoria_01",      titulo:"Reclamação de atendimento",           tag:"Ouvidoria",     mensagens:[{lado:"paciente",texto:"Fui mal atendida pela enfermeira. Ela foi grossa e não explicou nada."},{lado:"agente",texto:"Obrigado por trazer isso para nós. Levamos muito a sério a qualidade do atendimento.\n\nEm qual unidade ocorreu? Qual a data aproximada?"},{lado:"paciente",texto:"Hoje de manhã, Tatuapé"},{lado:"agente",texto:"Registrado com total sigilo. Você receberá um retorno da direção em até 48 horas."}] },
 ];
 
 const FLUXO_STEPS = [
-  { n:"01", titulo:"Gatilho",             desc:"Consulta confirmada · Sessão realizada · SLA vencido · Auditoria programada", cor:T.accent },
-  { n:"02", titulo:"Motor de Eventos",    desc:"Avalia qual agente deve atuar com base no tipo de evento e cargo responsável", cor:"#5A3FA8" },
-  { n:"03", titulo:"Busca de Contexto",   desc:"Agente busca: dados do paciente + sessão + histórico de conversas + memórias contextuais", cor:"#1A7A6E" },
-  { n:"04", titulo:"Motor de Escrita",    desc:"Template + contexto + informação + orientação + ação + regras (máx. 2 frases/bloco, quebra de linha obrigatória)", cor:"#2A7A4E" },
-  { n:"05", titulo:"Validação Humana",    desc:"Se requerValidacaoHumana=true — fila de aprovação → aprovador libera → disparo", cor:T.warn, extra:"CONDICIONAL" },
-  { n:"06", titulo:"Disparo",             desc:"WhatsApp via Twilio/Gupshup · E-mail via Gmail API · SLA iniciado", cor:T.accent },
-  { n:"07", titulo:"Resposta do Paciente",desc:"Motor analisa resposta → redireciona para narrativa correta → ou escalada para supervisor", cor:"#5A3FA8" },
-  { n:"08", titulo:"Log e Memória",       desc:"Grava em execucoes_agente + memorias_contextuais_agente + atualiza estado de prontidão", cor:"#1A7A6E" },
+  { n:"01", titulo:"Gatilho",               desc:"Consulta confirmada · Sessão realizada · SLA vencido · Auditoria programada", cor:H.orange },
+  { n:"02", titulo:"Motor de Eventos",      desc:"Avalia qual agente deve atuar com base no tipo de evento e cargo responsável",  cor:"#4A3880" },
+  { n:"03", titulo:"Busca de Contexto",     desc:"Dados do paciente + sessão + histórico de conversas + memórias contextuais",    cor:"#1A6868" },
+  { n:"04", titulo:"Motor de Escrita",      desc:"Template + contexto + ação + regras (máx. 2 frases/bloco, quebra obrigatória)", cor:"#2A6E4A" },
+  { n:"05", titulo:"Validação Humana",      desc:"Se requerValidacaoHumana=true — fila de aprovação → aprovador libera → disparo",cor:H.warn, extra:"Condicional" },
+  { n:"06", titulo:"Disparo",               desc:"WhatsApp via Twilio/Gupshup · E-mail via Gmail API · SLA iniciado",            cor:H.orange },
+  { n:"07", titulo:"Resposta do Paciente",  desc:"Motor analisa resposta → narrativa correta → ou escalada para supervisor",      cor:"#4A3880" },
+  { n:"08", titulo:"Log e Memória",         desc:"Grava em execucoes_agente + memorias_contextuais_agente + prontidão",           cor:"#1A6868" },
 ];
 
 const GAPS = [
-  { sev:"CRÍTICO", titulo:"Motor de Disparo",         desc:"Nenhum agente dispara WhatsApp real — campo podeEnviarWhatsapp=true existe mas não tem executor", cor:T.danger, corL:T.dangerL },
-  { sev:"CRÍTICO", titulo:"Worker de Execução",       desc:"Tabela execucoes_agente existe mas o consumer (listener de eventos) não foi construído", cor:T.danger, corL:T.dangerL },
-  { sev:"ALTA",    titulo:"Fila de Validação Humana", desc:"validacoes_humanas_agente existe sem interface de aprovação no frontend", cor:T.warn, corL:T.warnL },
-  { sev:"ALTA",    titulo:"Motor de Memórias",        desc:"memorias_contextuais_agente existe sem lógica de gravação e recuperação por paciente", cor:T.warn, corL:T.warnL },
-  { sev:"MÉDIA",   titulo:"Consumer de Eventos",      desc:"eventos_saida_operacionais existe sem consumer que processa os eventos disparados", cor:T.accent, corL:T.accentL },
+  { sev:"Crítico", titulo:"Motor de Disparo",         desc:"Nenhum agente dispara WhatsApp real — campo podeEnviarWhatsapp=true existe mas não tem executor", cor:H.danger, corL:H.dangerL },
+  { sev:"Crítico", titulo:"Worker de Execução",       desc:"Tabela execucoes_agente existe mas o consumer (listener de eventos) não foi construído",          cor:H.danger, corL:H.dangerL },
+  { sev:"Alta",    titulo:"Fila de Validação Humana", desc:"validacoes_humanas_agente existe sem interface de aprovação no frontend",                          cor:H.warn,   corL:H.warnL   },
+  { sev:"Alta",    titulo:"Motor de Memórias",        desc:"memorias_contextuais_agente existe sem lógica de gravação e recuperação por paciente",              cor:H.warn,   corL:H.warnL   },
+  { sev:"Média",   titulo:"Consumer de Eventos",      desc:"eventos_saida_operacionais existe sem consumer que processa os eventos disparados",                 cor:H.gold,   corL:H.goldL   },
 ];
 
 const ABAS = ["Catálogo de Agentes","Narrativas","Capacidades","Personalidade","Fluxo Operacional"];
 
-// ─── COMPONENTES BASE ─────────────────────────────────────────────────────────
+// ─── SELETOR DE TIPOGRAFIA ────────────────────────────────────────────────────
+function TypoSelector({ typo, onChange }: { typo: TypoConfig; onChange: (t: TypoConfig) => void }) {
+  const update = useCallback((key: keyof TypoConfig, field: string, value: unknown) => {
+    onChange({ ...typo, [key]: { ...typo[key], [field]: value } });
+  }, [typo, onChange]);
 
-function Painel({ titulo, children, corTopo, nivel = 1, badge }: {
-  titulo: React.ReactNode; children: React.ReactNode;
-  corTopo?: string; nivel?: 1|2|3; badge?: React.ReactNode;
-}) {
-  const shadows = [T.s1, T.s2, T.s3] as const;
-  const bgMap   = [T.panel, T.panel2, T.panel3] as const;
+  const onDocumentar = () => {
+    const linhas = [
+      "# Tipografia PAWARDS — Escolha Validada",
+      "",
+      `Data: ${new Date().toLocaleDateString("pt-BR")}`,
+      "",
+      "## Tabela de Níveis Tipográficos",
+      "",
+      "| Nível | Família | Tamanho | Peso | Itálico | Uso |",
+      "|-------|---------|---------|------|---------|-----|",
+      ...TYPO_LEVELS.map(l => {
+        const t = typo[l.key];
+        return `| ${l.label} | ${t.family} | ${t.size}px | ${t.weight} | ${t.italic ? "Sim" : "Não"} | ${l.desc} |`;
+      }),
+      "",
+      "## Código TypeScript — Objeto de Configuração",
+      "",
+      "```typescript",
+      "const TYPO: TypoConfig = {",
+      ...TYPO_LEVELS.map(l => {
+        const t = typo[l.key];
+        return `  ${l.key}: { family: "${t.family}", size: ${t.size}, weight: ${t.weight}, italic: ${t.italic} },`;
+      }),
+      "};",
+      "```",
+      "",
+      "## Regras de Uso",
+      "",
+      "1. Título Principal — apenas 1 por tela, espaçamento generoso",
+      "2. Título de Seção — cabeçalho de cada painel/grupo",
+      "3. Subtítulo/Ementa — segunda linha de título, itálico intencional",
+      "4. Corpo de Texto — parágrafos, descrições, narrativas",
+      "5. Rótulo de Campo — UPPERCASE, labels de métricas e formulários",
+      "6. Número/KPI — tabular-nums, valor métrico grande",
+      "7. Legenda/Nota — metadados, SHA, timestamps, rodapé técnico",
+    ].join("\n");
+
+    const blob = new Blob([linhas], { type: "text/markdown" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `TIPOGRAFIA_PAWARDS_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{
-      background: bgMap[nivel-1],
-      borderRadius: T.r,
-      boxShadow: shadows[nivel-1],
-      border: `1px solid ${T.border}`,
-      overflow: "hidden",
+      background: H.ivory, border: `1px solid ${H.border}`,
+      borderTop: `3px solid ${H.orange}`, borderRadius: H.rLg,
+      boxShadow: H.s3, padding: 0, overflow: "hidden",
     }}>
-      {/* Barra de título estilo XP */}
+      {/* Header do painel */}
       <div style={{
-        background: corTopo ?? T.titlebar,
-        padding: "8px 14px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: `linear-gradient(135deg, ${H.brown} 0%, ${H.brownM} 100%)`,
+        padding: "14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center",
       }}>
-        <div style={{ ...FONT, fontSize: 11, fontWeight: 700, color: "#FFFFFF", letterSpacing: "0.04em" }}>
-          {titulo}
+        <div>
+          <div style={{ fontFamily:"'Cormorant Garamond', Georgia, serif", fontSize:18, fontWeight:600, color:"#FFF", letterSpacing:"0.02em" }}>
+            Seleção Tipográfica
+          </div>
+          <div style={{ fontFamily:"Inter, sans-serif", fontSize:9, color:"rgba(255,255,255,0.6)", marginTop:2, letterSpacing:"0.08em" }}>
+            Escolha a fonte e o tamanho para cada nível — prévia ao vivo à direita
+          </div>
         </div>
-        {badge && <div>{badge}</div>}
+        <div style={{ fontFamily:"Inter, sans-serif", fontSize:9, color:"rgba(255,255,255,0.5)" }}>
+          PAINEL DE CONFIGURAÇÃO TIPOGRÁFICA
+        </div>
       </div>
-      <div style={{ padding: 0 }}>{children}</div>
-    </div>
-  );
-}
 
-function BadgeCargo({ cargo }: { cargo: string }) {
-  const c = CARGO_COR[cargo] ?? { bg:T.accent, text:"#fff", light:T.accentL, border:T.border };
-  return (
-    <span style={{
-      ...FONT, fontSize: 9, fontWeight: 700,
-      background: c.light, color: c.bg, border: `1px solid ${c.border}`,
-      padding: "2px 8px", borderRadius: T.rSm, letterSpacing: "0.06em",
-    }}>{cargo}</span>
-  );
-}
-
-function Barra({ valor, max = 10, cor }: { valor: number; max?: number; cor: string }) {
-  return (
-    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-      <div style={{ flex:1, height:6, background:T.panel3, borderRadius:3, overflow:"hidden" }}>
-        <div style={{
-          height:"100%", width:`${(valor/max)*100}%`, borderRadius:3,
-          background: cor, transition:"width 0.5s ease",
-        }} />
-      </div>
-      <span style={{ ...FONT, fontSize:10, color:T.text2, minWidth:16, fontVariantNumeric:"tabular-nums" }}>{valor}</span>
-    </div>
-  );
-}
-
-// ─── ABA 1: CATÁLOGO ─────────────────────────────────────────────────────────
-function TabCatalogo({ catalogo }: { catalogo: typeof SEED_CATALOGO }) {
-  const [exp, setExp] = useState<number | null>(null);
-  const lista = catalogo.length > 0 ? catalogo : SEED_CATALOGO;
-  const cargosOrdem = ["ADMINISTRATIVO","ENFERMAGEM","CONSULTOR","SUPERVISOR","FINANCEIRO","OUVIDORIA"];
-  const cargosPresentes = [...new Set(lista.map(a => a.cargo))].sort(
-    (a,b) => cargosOrdem.indexOf(a) - cargosOrdem.indexOf(b)
-  );
-
-  let idx = 0;
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-      {cargosPresentes.map(cargo => {
-        const c = CARGO_COR[cargo] ?? { bg:T.accent, text:"#fff", light:T.accentL, border:T.border };
-        const agentes = lista.filter(a => a.cargo === cargo);
-        return (
-          <Painel
-            key={cargo}
-            titulo={<span style={{ display:"flex", alignItems:"center", gap:10 }}>{cargo}<span style={{ fontSize:9, fontWeight:400, opacity:0.8 }}>— {agentes.length} agente{agentes.length > 1 ? "s" : ""}</span></span>}
-            corTopo={`linear-gradient(180deg, ${c.bg}DD 0%, ${c.bg} 100%)`}
-            nivel={1}
-          >
-            <div style={{ padding: "12px 14px", display:"flex", flexDirection:"column", gap:8 }}>
-              {agentes.map(ag => {
-                idx++;
-                const n = idx;
-                const isExp = exp === ag.id;
-                return (
-                  <div
-                    key={ag.id}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
+        {/* Coluna esquerda — controles */}
+        <div style={{ padding:"20px", borderRight:`1px solid ${H.border}` }}>
+          {TYPO_LEVELS.map(({ key, label, desc }) => {
+            const t = typo[key];
+            return (
+              <div key={key} style={{ marginBottom:16, paddingBottom:16, borderBottom:`1px solid ${H.borderL}` }}>
+                <div style={{
+                  fontFamily:"Inter, sans-serif", fontSize:10, fontWeight:700,
+                  color:H.orange, letterSpacing:"0.1em", textTransform:"uppercase",
+                  marginBottom:2,
+                }}>{label}</div>
+                <div style={{ fontFamily:"Inter, sans-serif", fontSize:8, color:H.brownL, marginBottom:8 }}>{desc}</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 70px 40px", gap:6, alignItems:"center" }}>
+                  {/* Família */}
+                  <select
+                    value={t.family}
+                    onChange={e => update(key, "family", e.target.value)}
                     style={{
-                      background: isExp ? c.light : T.panel,
-                      border: `1px solid ${isExp ? c.border : T.border}`,
-                      borderRadius: T.rSm,
-                      boxShadow: isExp ? T.s2 : T.s1,
-                      overflow: "hidden",
-                      transition: "all 0.2s ease",
-                      cursor: "pointer",
+                      fontFamily:`'${t.family}', serif`, fontSize:11, padding:"4px 6px",
+                      border:`1px solid ${H.border}`, borderRadius:H.r,
+                      background:H.paper, color:H.brownM, cursor:"pointer",
                     }}
-                    onClick={() => setExp(isExp ? null : ag.id)}
                   >
-                    {/* Linha principal */}
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                        {/* Número */}
-                        <div style={{
-                          ...FONT, fontSize:10, fontWeight:900, color:c.bg,
-                          background: c.light, border:`1px solid ${c.border}`,
-                          width:28, height:28, borderRadius:T.rSm,
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          flexShrink:0, fontVariantNumeric:"tabular-nums",
-                        }}>{String(n).padStart(2,"0")}</div>
-                        <div>
-                          <div style={{ ...FONT, fontSize:11, fontWeight:700, color:T.text1 }}>{ag.nomeAgente}</div>
-                          <div style={{ ...FONT, fontSize:9, color:T.text3, marginTop:2 }}>{ag.codigoAgente}</div>
-                        </div>
+                    {FONT_FAMILIES.map(f => (
+                      <option key={f} value={f} style={{ fontFamily:`'${f}', serif` }}>{f}</option>
+                    ))}
+                  </select>
+                  {/* Tamanho */}
+                  <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                    <input
+                      type="number" min={7} max={48} value={t.size}
+                      onChange={e => update(key, "size", Number(e.target.value))}
+                      style={{
+                        width:"100%", padding:"4px 6px", fontFamily:"'JetBrains Mono', monospace",
+                        fontSize:11, border:`1px solid ${H.border}`, borderRadius:H.r,
+                        background:H.paper, color:H.brownM, textAlign:"center",
+                      }}
+                    />
+                  </div>
+                  {/* Peso */}
+                  <select
+                    value={t.weight}
+                    onChange={e => update(key, "weight", Number(e.target.value))}
+                    style={{
+                      fontSize:11, padding:"4px 6px", border:`1px solid ${H.border}`,
+                      borderRadius:H.r, background:H.paper, color:H.brownM, cursor:"pointer",
+                      fontFamily:"Inter, sans-serif",
+                    }}
+                  >
+                    {[300,400,500,600,700].map(w => <option key={w} value={w}>{w}</option>)}
+                  </select>
+                  {/* Itálico */}
+                  <button
+                    onClick={() => update(key, "italic", !t.italic)}
+                    style={{
+                      fontFamily:"Georgia, serif", fontStyle:"italic", fontSize:12,
+                      fontWeight:700, padding:"4px 0", border:`1px solid ${t.italic ? H.orange : H.border}`,
+                      borderRadius:H.r, background:t.italic ? H.orangeL : H.paper,
+                      color:t.italic ? H.orange : H.brownL, cursor:"pointer",
+                    }}
+                    title="Ativar/desativar itálico"
+                  >I</button>
+                </div>
+              </div>
+            );
+          })}
+          <button
+            onClick={onDocumentar}
+            style={{
+              width:"100%", padding:"12px", marginTop:4,
+              background:`linear-gradient(135deg, ${H.orange} 0%, ${H.orangeM} 100%)`,
+              color:"#FFF", border:"none", borderRadius:H.r,
+              fontFamily:"Inter, sans-serif", fontSize:10, fontWeight:700,
+              letterSpacing:"0.06em", cursor:"pointer", boxShadow:H.s1,
+            }}
+          >
+            Baixar como .md — Documentar Tipografia
+          </button>
+        </div>
+
+        {/* Coluna direita — prévia */}
+        <div style={{ padding:"28px 24px", background:H.paper, display:"flex", flexDirection:"column", gap:20 }}>
+          <div style={{ borderBottom:`1px solid ${H.borderL}`, paddingBottom:20 }}>
+            <div style={{ ...typoStyle(typo.display), color:H.brownM, lineHeight:1.2, marginBottom:6 }}>
+              Constituição dos Agentes Virtuais
+            </div>
+            <div style={{ ...typoStyle(typo.subhead), color:H.brownL, lineHeight:1.5 }}>
+              Carta Magna PADCOM · Edição 001 · 19/07/2026
+            </div>
+          </div>
+          <div style={{ borderBottom:`1px solid ${H.borderL}`, paddingBottom:20 }}>
+            <div style={{ ...typoStyle(typo.heading), color:H.orange, letterSpacing:"0.04em", marginBottom:8, textTransform:"uppercase" }}>
+              Administrativo — 2 Agentes
+            </div>
+            <div style={{ ...typoStyle(typo.body), color:H.brownM, lineHeight:1.7 }}>
+              Agendamento, boas-vindas, onboarding e informações da clínica. Primeiro contato do paciente com a estrutura de atendimento.
+            </div>
+          </div>
+          <div style={{ borderBottom:`1px solid ${H.borderL}`, paddingBottom:20 }}>
+            <div style={{ ...typoStyle(typo.label), color:H.brownL, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>
+              SLA Padrão
+            </div>
+            <div style={{ ...typoStyle(typo.number), color:H.orange, fontVariantNumeric:"tabular-nums" }}>
+              2h — 36h — 24h
+            </div>
+          </div>
+          <div>
+            <div style={{ ...typoStyle(typo.caption), color:H.brownL, letterSpacing:"0.08em" }}>
+              SHA: 43d2765d · Documento: TSUNAMI 26.07.19 · Classificação: Restrito
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── COMPONENTES HERMÈS ───────────────────────────────────────────────────────
+function Divider() {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:12, margin:"20px 0" }}>
+      <div style={{ flex:1, height:1, background:H.borderL }} />
+      <div style={{ width:6, height:6, background:H.gold, transform:"rotate(45deg)" }} />
+      <div style={{ flex:1, height:1, background:H.borderL }} />
+    </div>
+  );
+}
+
+function CardCargo({ cargo, agentes, typo, num }: {
+  cargo:string; agentes:typeof SEED_CATALOGO; typo:TypoConfig; num:number;
+}) {
+  const [exp, setExp] = useState<number|null>(null);
+  const c = CARGO[cargo] ?? { bg:H.orange, text:"#FFF", light:H.orangeL, border:H.orangeB };
+  return (
+    <div style={{
+      background:H.paper, border:`1px solid ${H.border}`, borderRadius:H.rLg,
+      boxShadow:H.s2, overflow:"hidden", borderTop:`3px solid ${c.bg}`,
+    }}>
+      {/* Header do cargo */}
+      <div style={{
+        padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between",
+        borderBottom:`1px solid ${H.borderL}`,
+        background:`linear-gradient(180deg, ${c.light}, ${H.paper})`,
+      }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{
+            width:36, height:36, borderRadius:H.r,
+            background:c.bg, display:"flex", alignItems:"center", justifyContent:"center",
+            boxShadow:H.s1,
+          }}>
+            <span style={{ fontFamily:"'JetBrains Mono', monospace", fontSize:11, fontWeight:900, color:"#FFF", fontVariantNumeric:"tabular-nums" }}>
+              {String(num).padStart(2,"0")}
+            </span>
+          </div>
+          <div>
+            <div style={{ ...typoStyle(typo.heading), color:H.brownM, textTransform:"uppercase", letterSpacing:"0.06em" }}>
+              {cargo}
+            </div>
+            <div style={{ ...typoStyle(typo.caption), color:H.brownL, marginTop:2 }}>
+              {agentes.length} agente{agentes.length > 1 ? "s" : ""}
+            </div>
+          </div>
+        </div>
+        <div style={{
+          fontFamily:"'Cormorant Garamond', Georgia, serif", fontSize:11, fontStyle:"italic",
+          color:c.bg, opacity:0.7,
+        }}>
+          SLA {agentes[0]?.slaDefaultHoras}h
+        </div>
+      </div>
+      {/* Lista de agentes */}
+      <div style={{ padding:"12px 20px", display:"flex", flexDirection:"column", gap:8 }}>
+        {agentes.map((ag, i) => {
+          const isExp = exp === ag.id;
+          return (
+            <div
+              key={ag.id}
+              style={{
+                border:`1px solid ${isExp ? c.bg + "66" : H.borderL}`,
+                borderRadius:H.r,
+                background:isExp ? c.light : H.white,
+                boxShadow:isExp ? H.s2 : H.s1,
+                transition:"all 0.2s ease",
+                cursor:"pointer",
+                overflow:"hidden",
+              }}
+              onClick={() => setExp(isExp ? null : ag.id)}
+            >
+              {/* Linha */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{
+                    fontFamily:"'JetBrains Mono', monospace", fontSize:10, fontWeight:700,
+                    color:c.bg, background:c.light, border:`1px solid ${c.border}`,
+                    padding:"2px 7px", borderRadius:"3px", fontVariantNumeric:"tabular-nums",
+                  }}>
+                    {ag.modalidade === "presencial" ? "▶" : "◀"} {ag.modalidade}
+                  </span>
+                  <span style={{ ...typoStyle(typo.body), color:H.brownM, fontWeight:600 }}>
+                    {ag.nomeAgente}
+                  </span>
+                </div>
+                <span style={{ fontFamily:"'JetBrains Mono', monospace", fontSize:10, color:H.brownL }}>
+                  {isExp ? "▾" : "▸"}
+                </span>
+              </div>
+              {/* Expansão */}
+              {isExp && (
+                <div style={{ padding:"0 14px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+                  <div style={{
+                    background:H.ivory, border:`1px solid ${H.borderL}`,
+                    borderLeft:`3px solid ${c.bg}`, borderRadius:H.r, padding:"10px 14px",
+                  }}>
+                    <div style={{ ...typoStyle(typo.label), color:H.brownL, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:6 }}>
+                      Função Principal
+                    </div>
+                    <div style={{ ...typoStyle(typo.body), color:H.brownM, lineHeight:1.7 }}>
+                      {ag.funcaoAgente}
+                    </div>
+                  </div>
+                  {ag.naoFaz && ag.naoFaz.length > 0 && (
+                    <div style={{
+                      background:H.dangerL, border:`1px solid ${H.danger}33`,
+                      borderLeft:`3px solid ${H.danger}`, borderRadius:H.r, padding:"10px 14px",
+                    }}>
+                      <div style={{ ...typoStyle(typo.label), color:H.danger, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8 }}>
+                        Vedações — Não Pode Fazer
                       </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <span style={{ ...FONT, fontSize:9, color:T.text3 }}>SLA {ag.slaDefaultHoras}h</span>
-                        <span style={{ ...FONT, fontSize:9, color:T.text3 }}>{ag.modalidade === "presencial" ? "▶" : "◀"} {ag.modalidade}</span>
-                        <BadgeCargo cargo={ag.cargo} />
-                        <span style={{ color:T.text3, fontSize:12 }}>{isExp ? "▾" : "▸"}</span>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 14px" }}>
+                        {ag.naoFaz.map((v,j) => (
+                          <span key={j} style={{
+                            ...typoStyle(typo.caption), color:H.danger,
+                            background:"#FFF", border:`1px solid ${H.danger}44`,
+                            padding:"3px 9px", borderRadius:H.r,
+                          }}>✕ {v}</span>
+                        ))}
                       </div>
                     </div>
-                    {/* Expansão */}
-                    {isExp && (
-                      <div style={{ padding:"0 14px 14px", display:"flex", flexDirection:"column", gap:10 }}>
-                        {/* Função */}
-                        <Painel titulo="Função Principal" corTopo={`linear-gradient(180deg, ${c.bg}AA 0%, ${c.bg}99 100%)`} nivel={2}>
-                          <div style={{ padding:"10px 14px", ...FONT, fontSize:10, color:T.text1, lineHeight:1.7 }}>
-                            {ag.funcaoAgente}
-                          </div>
-                        </Painel>
-                        {/* Vedações */}
-                        {ag.naoFaz && ag.naoFaz.length > 0 && (
-                          <Painel titulo="Vedações — Não Pode Fazer" corTopo={`linear-gradient(180deg, ${T.danger}CC, ${T.danger})`} nivel={2}>
-                            <div style={{ padding:"10px 14px", display:"flex", flexWrap:"wrap", gap:"6px 16px" }}>
-                              {ag.naoFaz.map((v,i) => (
-                                <div key={i} style={{
-                                  ...FONT, fontSize:9, color:T.danger,
-                                  background:T.dangerL, border:`1px solid ${T.danger}44`,
-                                  padding:"3px 10px", borderRadius:T.rSm,
-                                }}>✕ {v}</div>
-                              ))}
-                            </div>
-                          </Painel>
-                        )}
-                      </div>
-                    )}
+                  )}
+                  <div style={{ ...typoStyle(typo.caption), color:H.brownL, paddingTop:4 }}>
+                    Identificador: {ag.codigoAgente}
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
-          </Painel>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// ─── ABA 2: NARRATIVAS ───────────────────────────────────────────────────────
-function TabNarrativas() {
-  const [filtro, setFiltro] = useState("TODOS");
-  const cargos = ["TODOS", ...new Set(SEED_NARRATIVAS.map(n => {
+function TabCatalogo({ typo, catalogo }: { typo:TypoConfig; catalogo:typeof SEED_CATALOGO }) {
+  const lista = catalogo.length > 0 ? catalogo : SEED_CATALOGO;
+  const cargosOrdem = ["ADMINISTRATIVO","ENFERMAGEM","CONSULTOR","SUPERVISOR","FINANCEIRO","OUVIDORIA"];
+  const grupos = cargosOrdem.filter(c => lista.some(a => a.cargo === c));
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      {grupos.map((cargo, gi) => (
+        <CardCargo
+          key={cargo}
+          cargo={cargo}
+          agentes={lista.filter(a => a.cargo === cargo)}
+          typo={typo}
+          num={gi + 1}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TabNarrativas({ typo }: { typo:TypoConfig }) {
+  const [filtro, setFiltro] = useState("Todos");
+  const cargos = ["Todos", ...new Set(SEED_NARRATIVAS.map(n => {
     const ag = SEED_CATALOGO.find(a => a.codigoAgente === n.codigoAgente);
     return ag?.cargo ?? "";
   }).filter(Boolean))];
-
-  const lista = filtro === "TODOS"
+  const lista = filtro === "Todos"
     ? SEED_NARRATIVAS
     : SEED_NARRATIVAS.filter(n => {
         const ag = SEED_CATALOGO.find(a => a.codigoAgente === n.codigoAgente);
@@ -304,66 +534,77 @@ function TabNarrativas() {
 
   return (
     <div>
-      {/* Filtro */}
-      <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
+      {/* Filtros */}
+      <div style={{ display:"flex", gap:6, marginBottom:20, flexWrap:"wrap" }}>
         {cargos.map(c => {
-          const cor = CARGO_COR[c]?.bg ?? T.accent;
+          const cor = CARGO[c]?.bg ?? H.orange;
           const isAti = filtro === c;
           return (
             <button key={c} onClick={() => setFiltro(c)} style={{
-              ...FONT, fontSize:9, fontWeight:700, cursor:"pointer",
-              padding:"4px 12px", borderRadius:T.rSm,
-              background: isAti ? cor : T.panel,
-              color: isAti ? "#FFF" : T.text2,
-              border: `1px solid ${isAti ? cor : T.border}`,
-              boxShadow: isAti ? T.s1 : "none",
-              transition:"all 0.15s",
+              fontFamily:"Inter, sans-serif", fontSize:9, fontWeight:600,
+              padding:"5px 14px", borderRadius:H.rLg, cursor:"pointer",
+              background:isAti ? cor : H.paper,
+              color:isAti ? "#FFF" : H.brownS,
+              border:`1px solid ${isAti ? cor : H.border}`,
+              boxShadow:isAti ? H.s1 : "none",
+              letterSpacing:"0.04em", transition:"all 0.15s",
             }}>{c}</button>
           );
         })}
       </div>
-      {/* Grid */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(420px,1fr))", gap:14 }}>
         {lista.map((narr, idx) => {
           const ag = SEED_CATALOGO.find(a => a.codigoAgente === narr.codigoAgente);
-          const c = CARGO_COR[ag?.cargo ?? ""] ?? { bg:T.accent, text:"#fff", light:T.accentL, border:T.border };
+          const c = CARGO[ag?.cargo ?? ""] ?? { bg:H.orange, text:"#FFF", light:H.orangeL, border:H.orangeB };
           return (
-            <Painel
-              key={narr.id}
-              nivel={1}
-              corTopo={`linear-gradient(180deg, ${c.bg}DD, ${c.bg})`}
-              titulo={
-                <div style={{ display:"flex", justifyContent:"space-between", width:"100%", alignItems:"center" }}>
-                  <span>{String(idx+1).padStart(3,"0")} · {narr.titulo}</span>
-                  <span style={{ ...FONT, fontSize:8, fontWeight:400, background:"rgba(255,255,255,0.25)", padding:"2px 7px", borderRadius:T.rSm }}>{narr.tag}</span>
+            <div key={narr.id} style={{
+              background:H.paper, border:`1px solid ${H.border}`,
+              borderRadius:H.rLg, boxShadow:H.s1, overflow:"hidden",
+              borderTop:`3px solid ${c.bg}`,
+            }}>
+              {/* Header */}
+              <div style={{
+                padding:"10px 16px", background:c.light,
+                borderBottom:`1px solid ${c.border}`,
+                display:"flex", justifyContent:"space-between", alignItems:"flex-start",
+              }}>
+                <div>
+                  <div style={{ fontFamily:"Inter, sans-serif", fontSize:8, color:c.bg, letterSpacing:"0.1em", fontWeight:700, textTransform:"uppercase", marginBottom:3 }}>
+                    {String(idx+1).padStart(3,"0")} · {ag?.nomeAgente ?? narr.codigoAgente}
+                  </div>
+                  <div style={{ ...typoStyle(typo.heading), color:H.brownM }}>
+                    {narr.titulo}
+                  </div>
                 </div>
-              }
-            >
-              <div style={{ padding:"10px 14px", display:"flex", flexDirection:"column", gap:8 }}>
-                <div style={{ ...FONT, fontSize:8, color:T.text3 }}>{ag?.nomeAgente ?? narr.codigoAgente}</div>
+                <span style={{
+                  fontFamily:"Inter, sans-serif", fontSize:8, fontWeight:700,
+                  color:c.bg, border:`1px solid ${c.border}`,
+                  padding:"2px 8px", borderRadius:H.r, whiteSpace:"nowrap", marginTop:2,
+                }}>{narr.tag}</span>
+              </div>
+              {/* Mensagens */}
+              <div style={{ padding:"12px 16px", display:"flex", flexDirection:"column", gap:8 }}>
                 {(narr.mensagens as Array<{lado:string;texto:string}>).map((m, mi) => {
                   const isPac = m.lado === "paciente";
                   return (
-                    <div key={mi} style={{ display:"flex", gap:8 }}>
+                    <div key={mi} style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
                       <div style={{
-                        ...FONT, fontSize:8, fontWeight:700,
-                        color: isPac ? T.text3 : c.bg,
-                        minWidth:70, paddingTop:6, letterSpacing:"0.04em",
+                        fontFamily:"Inter, sans-serif", fontSize:8, fontWeight:700,
+                        color:isPac ? H.brownL : c.bg, minWidth:56, paddingTop:7,
+                        letterSpacing:"0.04em",
                       }}>{isPac ? "Paciente" : "Agente"}</div>
                       <div style={{
-                        ...FONT, fontSize:9, lineHeight:1.7, flex:1,
-                        color: isPac ? T.text2 : T.text1,
-                        background: isPac ? T.panel2 : c.light,
-                        border: `1px solid ${isPac ? T.border : c.border}`,
-                        borderRadius: T.rSm,
-                        padding:"6px 10px",
-                        whiteSpace:"pre-wrap",
+                        ...typoStyle(typo.body), color:isPac ? H.brownS : H.brownM,
+                        background:isPac ? H.ivory : c.light,
+                        border:`1px solid ${isPac ? H.borderL : c.border}`,
+                        borderRadius:H.r, padding:"7px 11px", flex:1,
+                        lineHeight:1.7, whiteSpace:"pre-wrap",
                       }}>{m.texto}</div>
                     </div>
                   );
                 })}
               </div>
-            </Painel>
+            </div>
           );
         })}
       </div>
@@ -371,38 +612,61 @@ function TabNarrativas() {
   );
 }
 
-// ─── ABA 3: CAPACIDADES ──────────────────────────────────────────────────────
-function TabCapacidades() {
+function TabCapacidades({ typo }: { typo:TypoConfig }) {
+  const CAP_LABELS = ["WhatsApp","E-mail","Criar Tarefa","Atualizar Tarefa","Ler Agenda","Ler Acomp.","Escalar","Req. Validação","Nunca Caso Vermelho","Prontuário","Agendar","Cód. Validação","Memória"];
+  const CAPS: Record<string, boolean[]> = {
+    agente_administrativo_01: [true,  true,  true,  false, true,  false, true,  false, true,  false, true,  false, true ],
+    agente_administrativo_02: [true,  false, false, true,  true,  false, true,  false, true,  false, false, false, true ],
+    agente_enfermagem_01:     [true,  false, true,  false, false, true,  true,  true,  true,  false, false, true,  true ],
+    agente_enfermagem_02:     [true,  false, false, true,  false, true,  true,  true,  true,  false, false, false, true ],
+    agente_consultor_01:      [true,  false, true,  false, false, true,  true,  true,  true,  true,  false, false, true ],
+    agente_consultor_02:      [true,  false, true,  false, false, true,  true,  false, true,  false, false, false, true ],
+    agente_supervisor_01:     [true,  true,  true,  true,  true,  true,  true,  false, false, false, false, false, true ],
+    agente_supervisor_02:     [true,  false, false, true,  true,  false, true,  false, true,  false, false, false, true ],
+    agente_financeiro_01:     [true,  true,  true,  false, false, false, true,  true,  true,  false, false, false, true ],
+    agente_ouvidoria_01:      [true,  true,  true,  false, false, false, true,  true,  true,  false, false, false, true ],
+  };
   return (
-    <Painel titulo="Matriz de Capacidades — 10 Agentes × 13 Dimensões" corTopo={T.titlebar} nivel={1}>
-      <div style={{ padding:"14px", overflowX:"auto" }}>
-        <table style={{ ...FONT, borderCollapse:"separate", borderSpacing:0, width:"100%", fontSize:9 }}>
+    <div style={{ background:H.paper, border:`1px solid ${H.border}`, borderRadius:H.rLg, boxShadow:H.s2, overflow:"hidden" }}>
+      <div style={{
+        padding:"14px 20px", borderBottom:`1px solid ${H.border}`,
+        background:`linear-gradient(180deg, ${H.ivory}, ${H.paper})`,
+        display:"flex", alignItems:"center", gap:12,
+      }}>
+        <div style={{ width:3, height:20, background:H.orange, borderRadius:2 }} />
+        <div style={{ ...typoStyle(typo.heading), color:H.brownM, textTransform:"uppercase", letterSpacing:"0.06em" }}>
+          Matriz de Capacidades
+        </div>
+        <div style={{ ...typoStyle(typo.caption), color:H.brownL }}>
+          10 agentes × 13 dimensões
+        </div>
+      </div>
+      <div style={{ overflowX:"auto", padding:"0 0 4px" }}>
+        <table style={{ borderCollapse:"separate", borderSpacing:0, width:"100%", fontSize:9 }}>
           <thead>
             <tr>
-              <th style={{ ...thSt, textAlign:"left", minWidth:200, background:T.panel2, borderRadius:`${T.rSm} 0 0 0` }}>Agente</th>
+              <th style={{ ...thSt(typo), textAlign:"left", minWidth:200, background:H.ivory, borderRadius:`${H.r} 0 0 0`, paddingLeft:20 }}>Agente</th>
               {CAP_LABELS.map((l,i) => (
-                <th key={i} style={{ ...thSt, background:T.panel2, writingMode:"vertical-rl", height:110, minWidth:34, fontSize:8, fontWeight:400, color:T.text2 }}>{l}</th>
+                <th key={i} style={{ ...thSt(typo), background:H.ivory, writingMode:"vertical-rl", height:110, minWidth:34, fontSize:8, fontWeight:400, color:H.brownL }}>{l}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {SEED_CATALOGO.map((ag, ri) => {
-              const caps = SEED_CAPACIDADES[ag.codigoAgente] ?? [];
-              const c = CARGO_COR[ag.cargo] ?? { bg:T.accent, text:"#fff", light:T.accentL, border:T.border };
+              const caps = CAPS[ag.codigoAgente] ?? [];
+              const c = CARGO[ag.cargo] ?? { bg:H.orange };
               return (
                 <tr key={ag.codigoAgente}>
-                  <td style={{ ...tdSt, background: ri%2===0 ? T.panel : T.panel2, borderLeft:`4px solid ${c.bg}` }}>
-                    <div style={{ fontWeight:700, color:T.text1 }}>{ag.nomeAgente}</div>
-                    <div style={{ fontSize:8, color:T.text3, marginTop:1 }}>{ag.cargo}</div>
+                  <td style={{ ...tdSt(typo), background:ri%2===0?H.paper:H.ivory, borderLeft:`4px solid ${c.bg}`, paddingLeft:16 }}>
+                    <div style={{ fontWeight:700, color:H.brownM }}>{ag.nomeAgente}</div>
+                    <div style={{ fontSize:8, color:H.brownL, marginTop:1 }}>{ag.cargo}</div>
                   </td>
-                  {CAP_LABELS.map((_, ci) => {
-                    const val = caps[ci];
+                  {CAP_LABELS.map((_,ci) => {
+                    const v = caps[ci];
                     return (
-                      <td key={ci} style={{ ...tdSt, background: ri%2===0 ? T.panel : T.panel2, textAlign:"center" }}>
-                        {val
-                          ? <span style={{ color:T.ok, fontWeight:900, fontSize:13 }}>✓</span>
-                          : <span style={{ color:T.border, fontSize:11 }}>—</span>
-                        }
+                      <td key={ci} style={{ ...tdSt(typo), background:ri%2===0?H.paper:H.ivory, textAlign:"center" }}>
+                        {v ? <span style={{ color:H.ok, fontSize:13, fontWeight:900 }}>✓</span>
+                           : <span style={{ color:H.borderL, fontSize:11 }}>—</span>}
                       </td>
                     );
                   })}
@@ -412,173 +676,202 @@ function TabCapacidades() {
           </tbody>
         </table>
       </div>
-    </Painel>
+    </div>
   );
 }
 
-const thSt: React.CSSProperties = { ...FONT, padding:"8px 10px", border:`1px solid ${T.border}`, color:T.text1, fontWeight:700 };
-const tdSt: React.CSSProperties = { ...FONT, padding:"8px 10px", border:`1px solid ${T.border}`, verticalAlign:"middle" };
+const thSt = (typo: TypoConfig): React.CSSProperties => ({
+  ...typoStyle(typo.label), padding:"8px 10px",
+  border:`1px solid ${H.borderL}`, color:H.brownM, fontWeight:700,
+  textTransform:"uppercase", letterSpacing:"0.08em",
+});
+const tdSt = (typo: TypoConfig): React.CSSProperties => ({
+  ...typoStyle(typo.body), padding:"8px 10px",
+  border:`1px solid ${H.borderL}`, verticalAlign:"middle",
+});
 
-// ─── ABA 4: PERSONALIDADE ────────────────────────────────────────────────────
-function TabPersonalidade() {
-  const DIMS: Array<{ key: keyof typeof SEED_PERSONALIDADE[string]; label:string }> = [
-    { key:"formalidade",      label:"Formalidade"    },
-    { key:"empatia",          label:"Empatia"        },
-    { key:"autoridade",       label:"Autoridade"     },
-    { key:"objetividade",     label:"Objetividade"   },
-    { key:"calorHumano",      label:"Calor Humano"   },
-    { key:"proatividade",     label:"Proatividade"   },
-    { key:"paciencia",        label:"Paciência"      },
-    { key:"nivelHumanizacao", label:"Humanização"    },
-    { key:"firmeza",          label:"Firmeza"        },
-    { key:"didatismo",        label:"Didatismo"      },
-    { key:"acolhimento",      label:"Acolhimento"    },
-    { key:"sensibilidade",    label:"Sensibilidade"  },
+function TabPersonalidade({ typo }: { typo:TypoConfig }) {
+  const PERS: Record<string, {
+    formalidade:number; empatia:number; autoridade:number; objetividade:number;
+    calorHumano:number; proatividade:number; paciencia:number;
+    firmeza:number; didatismo:number; acolhimento:number; sensibilidade:number;
+    tomGeral:string; generoVoz:string; exemploFraseTipica:string;
+  }> = {
+    agente_administrativo_01: { formalidade:10, empatia:6,  autoridade:3,  objetividade:8,  calorHumano:7, proatividade:8, paciencia:7, firmeza:4, didatismo:6,  acolhimento:7, sensibilidade:5,  tomGeral:"Acolhedor, organizado, preciso",     generoVoz:"Feminino", exemploFraseTipica:"Será um prazer organizar o seu atendimento." },
+    agente_administrativo_02: { formalidade:7,  empatia:5,  autoridade:3,  objetividade:9,  calorHumano:5, proatividade:7, paciencia:6, firmeza:5, didatismo:7,  acolhimento:5, sensibilidade:4,  tomGeral:"Gentil, direto, funcional",         generoVoz:"Neutro",   exemploFraseTipica:"Estou entrando em contato para confirmar seu atendimento." },
+    agente_enfermagem_01:     { formalidade:5,  empatia:9,  autoridade:4,  objetividade:7,  calorHumano:9, proatividade:7, paciencia:9, firmeza:3, didatismo:7,  acolhimento:9, sensibilidade:8,  tomGeral:"Técnico mas acolhedor, maternal",   generoVoz:"Feminino", exemploFraseTipica:"Estou te enviando as orientações do seu procedimento." },
+    agente_enfermagem_02:     { formalidade:5,  empatia:8,  autoridade:3,  objetividade:8,  calorHumano:7, proatividade:6, paciencia:8, firmeza:3, didatismo:6,  acolhimento:8, sensibilidade:9,  tomGeral:"Cuidadoso, detalhado, investigativo",generoVoz:"Feminino", exemploFraseTipica:"Gostaria de entender melhor como o senhor se sentiu." },
+    agente_consultor_01:      { formalidade:7,  empatia:6,  autoridade:7,  objetividade:9,  calorHumano:5, proatividade:6, paciencia:7, firmeza:6, didatismo:9,  acolhimento:5, sensibilidade:4,  tomGeral:"Científico mas acessível",          generoVoz:"Neutro",   exemploFraseTipica:"Boa pergunta! Vou te explicar com clareza." },
+    agente_consultor_02:      { formalidade:5,  empatia:8,  autoridade:4,  objetividade:6,  calorHumano:8, proatividade:9, paciencia:8, firmeza:4, didatismo:8,  acolhimento:7, sensibilidade:6,  tomGeral:"Próximo, interessado, motivador",   generoVoz:"Neutro",   exemploFraseTipica:"Estou fazendo o acompanhamento da sua evolução." },
+    agente_supervisor_01:     { formalidade:9,  empatia:2,  autoridade:9,  objetividade:10, calorHumano:1, proatividade:9, paciencia:3, firmeza:9, didatismo:5,  acolhimento:2, sensibilidade:1,  tomGeral:"Direto, sem rodeios, factual",      generoVoz:"Masculino",exemploFraseTipica:"ALERTA DE SLA — AÇÃO NECESSÁRIA." },
+    agente_supervisor_02:     { formalidade:4,  empatia:7,  autoridade:3,  objetividade:7,  calorHumano:6, proatividade:5, paciencia:8, firmeza:7, didatismo:6,  acolhimento:4, sensibilidade:3,  tomGeral:"Natural, curioso, casual",          generoVoz:"Neutro",   exemploFraseTipica:"Sou da equipe de qualidade da clínica." },
+    agente_financeiro_01:     { formalidade:8,  empatia:5,  autoridade:6,  objetividade:10, calorHumano:4, proatividade:7, paciencia:6, firmeza:6, didatismo:7,  acolhimento:3, sensibilidade:3,  tomGeral:"Cordial mas firme, factual",        generoVoz:"Neutro",   exemploFraseTipica:"Sou do setor financeiro da clínica." },
+    agente_ouvidoria_01:      { formalidade:7,  empatia:10, autoridade:2,  objetividade:7,  calorHumano:9, proatividade:5, paciencia:10,firmeza:2, didatismo:6,  acolhimento:9, sensibilidade:10, tomGeral:"Sereno, acolhedor, neutro",         generoVoz:"Neutro",   exemploFraseTipica:"Obrigado por trazer isso para nós." },
+  };
+  const DIMS = [
+    { key:"formalidade",  label:"Formalidade"  },
+    { key:"empatia",      label:"Empatia"       },
+    { key:"autoridade",   label:"Autoridade"    },
+    { key:"objetividade", label:"Objetividade"  },
+    { key:"calorHumano",  label:"Calor Humano"  },
+    { key:"proatividade", label:"Proatividade"  },
+    { key:"paciencia",    label:"Paciência"     },
+    { key:"firmeza",      label:"Firmeza"       },
+    { key:"didatismo",    label:"Didatismo"     },
+    { key:"acolhimento",  label:"Acolhimento"   },
+    { key:"sensibilidade",label:"Sensibilidade" },
   ];
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(360px,1fr))", gap:14 }}>
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))", gap:14 }}>
       {SEED_CATALOGO.map(ag => {
-        const pers = SEED_PERSONALIDADE[ag.codigoAgente];
-        if (!pers) return null;
-        const c = CARGO_COR[ag.cargo] ?? { bg:T.accent, text:"#fff", light:T.accentL, border:T.border };
+        const p = PERS[ag.codigoAgente];
+        if (!p) return null;
+        const c = CARGO[ag.cargo] ?? { bg:H.orange, text:"#FFF", light:H.orangeL, border:H.orangeB };
         return (
-          <Painel
-            key={ag.codigoAgente}
-            nivel={1}
-            corTopo={`linear-gradient(180deg, ${c.bg}DD, ${c.bg})`}
-            titulo={ag.nomeAgente}
-            badge={
-              <span style={{ ...FONT, fontSize:8, color:T.text2, background:"rgba(255,255,255,0.25)", padding:"2px 7px", borderRadius:T.rSm }}>
-                {pers.generoVoz}
-              </span>
-            }
-          >
-            <div style={{ padding:"12px 14px" }}>
-              {/* Tom geral */}
-              <div style={{
-                ...FONT, fontSize:9, fontStyle:"italic", color:c.bg,
-                background:c.light, border:`1px solid ${c.border}`,
-                padding:"6px 10px", borderRadius:T.rSm, marginBottom:10, lineHeight:1.5,
-              }}>"{pers.tomGeral}"</div>
-              {/* Dimensões */}
-              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {DIMS.map(({ key, label }) => {
-                  const val = pers[key] as number;
-                  return (
-                    <div key={key} style={{ display:"grid", gridTemplateColumns:"110px 1fr", gap:8, alignItems:"center" }}>
-                      <div style={{ ...FONT, fontSize:8, color:T.text3 }}>{label}</div>
-                      <Barra valor={val} cor={c.bg} />
-                    </div>
-                  );
-                })}
+          <div key={ag.id} style={{
+            background:H.paper, border:`1px solid ${H.border}`,
+            borderRadius:H.rLg, boxShadow:H.s1, overflow:"hidden",
+            borderTop:`3px solid ${c.bg}`,
+          }}>
+            <div style={{ padding:"12px 16px", background:c.light, borderBottom:`1px solid ${c.border}` }}>
+              <div style={{ ...typoStyle(typo.label), color:c.bg, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:2 }}>
+                {ag.cargo} · {p.generoVoz}
               </div>
-              {/* Frase típica */}
-              <div style={{
-                ...FONT, fontSize:9, color:T.text2,
-                background:T.panel2, border:`1px solid ${T.border}`,
-                padding:"7px 10px", borderRadius:T.rSm, marginTop:10,
-                fontStyle:"italic", lineHeight:1.6,
-              }}>"{pers.exemploFraseTipica}"</div>
+              <div style={{ ...typoStyle(typo.heading), color:H.brownM }}>
+                {ag.nomeAgente}
+              </div>
+              <div style={{ ...typoStyle(typo.subhead), color:c.bg, marginTop:4 }}>
+                "{p.tomGeral}"
+              </div>
             </div>
-          </Painel>
+            <div style={{ padding:"12px 16px" }}>
+              {DIMS.map(({ key, label }) => {
+                const val = (p as Record<string, number|string>)[key] as number;
+                return (
+                  <div key={key} style={{ display:"grid", gridTemplateColumns:"100px 1fr", gap:8, alignItems:"center", marginBottom:6 }}>
+                    <div style={{ ...typoStyle(typo.caption), color:H.brownL, textTransform:"uppercase", letterSpacing:"0.06em" }}>{label}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ flex:1, height:5, background:H.ivory, borderRadius:3, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:`${val*10}%`, background:c.bg, borderRadius:3, transition:"width 0.5s" }} />
+                      </div>
+                      <span style={{ fontFamily:"'JetBrains Mono', monospace", fontSize:9, color:H.brownL, minWidth:14, fontVariantNumeric:"tabular-nums" }}>{val}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{
+                ...typoStyle(typo.body), fontStyle:"italic", color:H.brownS,
+                background:H.ivory, border:`1px solid ${H.borderL}`,
+                borderLeft:`3px solid ${c.bg}`, borderRadius:H.r,
+                padding:"7px 11px", marginTop:10, lineHeight:1.6,
+              }}>
+                "{p.exemploFraseTipica}"
+              </div>
+            </div>
+          </div>
         );
       })}
     </div>
   );
 }
 
-// ─── ABA 5: FLUXO OPERACIONAL ─────────────────────────────────────────────────
-function TabFluxo() {
+function TabFluxo({ typo }: { typo:TypoConfig }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-      {/* Diagrama de fluxo */}
-      <Painel titulo="Arquitetura de Disparo — Do Gatilho ao Log" corTopo={T.titlebar} nivel={1}>
-        <div style={{ padding:"20px 24px" }}>
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:0 }}>
-            {FLUXO_STEPS.map((s, i) => {
-              const isLast = i === FLUXO_STEPS.length - 1;
-              return (
-                <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", width:"100%" }}>
-                  <div style={{
-                    display:"flex", alignItems:"flex-start", gap:14,
-                    background:T.panel, border:`1px solid ${T.border}`,
-                    borderLeft:`5px solid ${s.cor}`,
-                    borderRadius:T.rSm, boxShadow:T.s1,
-                    padding:"12px 16px", width:"100%",
-                  }}>
-                    {/* Número */}
-                    <div style={{
-                      ...FONT, fontSize:11, fontWeight:900, color:"#FFF",
-                      background:s.cor, width:32, height:32, borderRadius:"50%",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      flexShrink:0, fontVariantNumeric:"tabular-nums",
-                    }}>{s.n}</div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                        <div style={{ ...FONT, fontSize:11, fontWeight:700, color:T.text1 }}>{s.titulo}</div>
-                        {s.extra && (
-                          <span style={{ ...FONT, fontSize:8, color:T.warn, background:T.warnL, border:`1px solid ${T.warn}44`, padding:"2px 7px", borderRadius:T.rSm }}>{s.extra}</span>
-                        )}
-                      </div>
-                      <div style={{ ...FONT, fontSize:9, color:T.text2, lineHeight:1.7 }}>{s.desc}</div>
-                    </div>
-                  </div>
-                  {!isLast && (
-                    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", margin:"4px 0" }}>
-                      <div style={{ width:2, height:14, background:T.borderMid }} />
-                      <div style={{ ...FONT, fontSize:14, color:T.text3, lineHeight:1 }}>▼</div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+      {/* Diagrama */}
+      <div style={{ background:H.paper, border:`1px solid ${H.border}`, borderRadius:H.rLg, boxShadow:H.s2, overflow:"hidden" }}>
+        <div style={{ padding:"14px 20px", borderBottom:`1px solid ${H.border}`, background:`linear-gradient(180deg,${H.ivory},${H.paper})`, display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:3, height:20, background:H.orange, borderRadius:2 }} />
+          <div style={{ ...typoStyle(typo.heading), color:H.brownM, textTransform:"uppercase", letterSpacing:"0.06em" }}>
+            Arquitetura de Disparo — Do Gatilho ao Log
           </div>
         </div>
-      </Painel>
+        <div style={{ padding:"20px 24px", display:"flex", flexDirection:"column", alignItems:"center" }}>
+          {FLUXO_STEPS.map((s, i) => {
+            const isLast = i === FLUXO_STEPS.length - 1;
+            return (
+              <div key={i} style={{ width:"100%", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                <div style={{
+                  display:"flex", alignItems:"flex-start", gap:14,
+                  background:H.white, border:`1px solid ${H.borderL}`,
+                  borderLeft:`5px solid ${s.cor}`, borderRadius:H.r,
+                  boxShadow:H.s1, padding:"12px 16px", width:"100%",
+                }}>
+                  <div style={{
+                    fontFamily:"'JetBrains Mono', monospace", fontSize:11, fontWeight:900,
+                    color:"#FFF", background:s.cor, width:34, height:34, borderRadius:"50%",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    flexShrink:0, fontVariantNumeric:"tabular-nums",
+                  }}>{s.n}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                      <div style={{ ...typoStyle(typo.heading), color:H.brownM }}>{s.titulo}</div>
+                      {s.extra && (
+                        <span style={{
+                          fontFamily:"Inter, sans-serif", fontSize:8, fontWeight:700,
+                          color:H.warn, background:H.warnL, border:`1px solid ${H.warn}44`,
+                          padding:"2px 7px", borderRadius:H.r,
+                        }}>{s.extra}</span>
+                      )}
+                    </div>
+                    <div style={{ ...typoStyle(typo.body), color:H.brownS, lineHeight:1.7 }}>{s.desc}</div>
+                  </div>
+                </div>
+                {!isLast && (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", margin:"3px 0" }}>
+                    <div style={{ width:2, height:12, background:H.borderD }} />
+                    <div style={{ color:H.brownL, fontSize:12 }}>▼</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <Divider />
 
       {/* GAPS */}
-      <Painel titulo="Gaps Críticos — O que ainda não existe no sistema" corTopo={`linear-gradient(180deg, ${T.danger}CC, ${T.danger})`} nivel={1}>
-        <div style={{ padding:"14px", display:"flex", flexDirection:"column", gap:8 }}>
+      <div style={{ background:H.paper, border:`1px solid ${H.border}`, borderRadius:H.rLg, boxShadow:H.s1, overflow:"hidden" }}>
+        <div style={{ padding:"14px 20px", borderBottom:`1px solid ${H.border}`, background:`linear-gradient(180deg,${H.dangerL},${H.paper})`, display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:3, height:20, background:H.danger, borderRadius:2 }} />
+          <div style={{ ...typoStyle(typo.heading), color:H.danger, textTransform:"uppercase", letterSpacing:"0.06em" }}>
+            Gaps Críticos — O que ainda não existe
+          </div>
+        </div>
+        <div style={{ padding:"14px 20px", display:"flex", flexDirection:"column", gap:8 }}>
           {GAPS.map((g, i) => (
             <div key={i} style={{
               display:"flex", gap:12, alignItems:"flex-start",
-              background:g.corL, border:`1px solid ${g.cor}44`,
-              borderLeft:`4px solid ${g.cor}`, borderRadius:T.rSm, padding:"10px 14px",
+              background:g.corL, border:`1px solid ${g.cor}33`,
+              borderLeft:`4px solid ${g.cor}`, borderRadius:H.r, padding:"10px 14px",
             }}>
               <span style={{
-                ...FONT, fontSize:8, fontWeight:900, color:"#FFF",
-                background:g.cor, padding:"3px 8px", borderRadius:T.rSm, whiteSpace:"nowrap", flexShrink:0, marginTop:1,
+                fontFamily:"Inter, sans-serif", fontSize:8, fontWeight:900,
+                color:"#FFF", background:g.cor, padding:"3px 9px",
+                borderRadius:H.r, whiteSpace:"nowrap", flexShrink:0, marginTop:1,
               }}>{g.sev}</span>
               <div>
-                <div style={{ ...FONT, fontSize:10, fontWeight:700, color:T.text1 }}>{g.titulo}</div>
-                <div style={{ ...FONT, fontSize:9, color:T.text2, marginTop:3, lineHeight:1.6 }}>{g.desc}</div>
+                <div style={{ ...typoStyle(typo.heading), color:H.brownM }}>{g.titulo}</div>
+                <div style={{ ...typoStyle(typo.body), color:H.brownS, marginTop:3, lineHeight:1.6 }}>{g.desc}</div>
               </div>
             </div>
           ))}
         </div>
-      </Painel>
-
-      {/* Tabelas */}
-      <Painel titulo="15 Tabelas do Banco de Dados" corTopo={`linear-gradient(180deg, ${T.ok}CC, ${T.ok})`} nivel={1}>
-        <div style={{ padding:"14px", display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:6 }}>
-          {["catalogo_agentes","agentes_clinica","capacidades_agente_clinica","execucoes_agente","acoes_agente","memorias_contextuais_agente","validacoes_humanas_agente","eventos_saida_operacionais","narrativas_agente","agentes_personalidade","agentes_motor_escrita","agentes_identidade","agentes_frases","agentes_regras","agentes_versionamento"].map((t,i) => (
-            <div key={i} style={{
-              ...FONT, fontSize:9, color:T.text2,
-              background:T.panel, border:`1px solid ${T.border}`,
-              borderRadius:T.rSm, padding:"6px 10px", boxShadow:T.s1,
-            }}>{t}</div>
-          ))}
-        </div>
-      </Painel>
+      </div>
     </div>
   );
 }
 
 // ─── PAGE PRINCIPAL ───────────────────────────────────────────────────────────
 export default function CartaMagnaPadcomPage() {
-  const [aba, setAba] = useState(0);
+  useGoogleFonts();
+
+  const [aba,      setAba     ] = useState(0);
+  const [typo,     setTypo    ] = useState<TypoConfig>(TYPO_DEFAULT);
+  const [mostraTypo, setMostraTypo] = useState(false);
   const [catalogo, setCatalogo] = useState<typeof SEED_CATALOGO>([]);
-  const [stats, setStats] = useState<{catalogoTotal:number;provisionadosTotal:number;narrativasTotal:number;execucoesTotal:number}|null>(null);
+  const [stats,    setStats   ] = useState<{catalogoTotal:number;provisionadosTotal:number;narrativasTotal:number;execucoesTotal:number}|null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -593,47 +886,70 @@ export default function CartaMagnaPadcomPage() {
   const s = stats ?? { catalogoTotal:20, provisionadosTotal:100, narrativasTotal:22, execucoesTotal:0 };
 
   return (
-    <div style={{ background:T.desktop, minHeight:"100vh", ...FONT }}>
+    <div style={{ background:H.cream, minHeight:"100vh", fontFamily:"'Cormorant Garamond', Georgia, serif" }}>
 
-      {/* ── HEADER PRINCIPAL ─────────────────────────────────────────────── */}
-      <div style={{ background:T.titlebar2, boxShadow:"0 3px 12px rgba(0,40,100,0.28)", padding:"0 24px" }}>
-        {/* Linha do título */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 0 10px" }}>
+      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+      <div style={{
+        background:`linear-gradient(180deg, #5C3018 0%, #3C1E08 100%)`,
+        boxShadow:`0 4px 20px rgba(60,24,8,0.35)`,
+      }}>
+        {/* Faixa superior — marca + KPIs */}
+        <div style={{ padding:"20px 32px 0", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          {/* Identidade */}
           <div>
-            <div style={{ fontSize:9, color:"rgba(255,255,255,0.65)", letterSpacing:"0.12em", marginBottom:3 }}>
-              SISTEMA PAWARDS · PADCOM · MÓDULO DE AGENTES VIRTUAIS
+            <div style={{ fontFamily:"Inter, sans-serif", fontSize:8, color:"rgba(255,255,255,0.5)", letterSpacing:"0.16em", textTransform:"uppercase", marginBottom:6 }}>
+              Sistema Pawards · Padcom · Módulo de Inteligência
             </div>
-            <div style={{ fontSize:16, fontWeight:900, color:"#FFFFFF", letterSpacing:"0.04em" }}>
+            <div style={{ ...typoStyle(typo.display), color:"#FFFFFF", lineHeight:1.1, letterSpacing:"0.02em" }}>
               Constituição dos Agentes Virtuais
             </div>
-            <div style={{ fontSize:9, color:"rgba(255,255,255,0.6)", marginTop:2 }}>
+            <div style={{ ...typoStyle(typo.subhead), color:"rgba(255,255,255,0.55)", marginTop:6 }}>
               Carta Magna PADCOM · Edição 001 · Publicado em {new Date().toLocaleDateString("pt-BR")}
             </div>
           </div>
-          {/* KPIs no header */}
-          <div style={{ display:"flex", gap:3 }}>
+
+          {/* KPIs */}
+          <div style={{ display:"flex", gap:4, alignItems:"stretch" }}>
             {[
-              { label:"Agentes",    valor:s.catalogoTotal,        sub:"catálogo global" },
-              { label:"Instâncias", valor:s.provisionadosTotal,   sub:"20 × 5 clínicas" },
-              { label:"Narrativas", valor:s.narrativasTotal,      sub:"roteiros" },
-              { label:"Execuções",  valor:s.execucoesTotal,       sub:"realizadas" },
+              { label:"Agentes",    valor:s.catalogoTotal        },
+              { label:"Instâncias", valor:s.provisionadosTotal   },
+              { label:"Narrativas", valor:s.narrativasTotal      },
+              { label:"Execuções",  valor:s.execucoesTotal       },
             ].map((k, i) => (
               <div key={i} style={{
-                background:"rgba(255,255,255,0.15)",
-                border:"1px solid rgba(255,255,255,0.25)",
-                borderRadius:T.rSm, padding:"8px 16px", textAlign:"center",
-                backdropFilter:"blur(4px)",
+                background:"rgba(255,255,255,0.10)", border:"1px solid rgba(255,255,255,0.18)",
+                borderRadius:H.r, padding:"10px 20px", textAlign:"center",
+                display:"flex", flexDirection:"column", gap:4,
               }}>
-                <div style={{ fontSize:9, color:"rgba(255,255,255,0.65)", letterSpacing:"0.08em", marginBottom:2 }}>{k.label}</div>
-                <div style={{ fontSize:22, fontWeight:900, color:"#FFFFFF", fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{k.valor}</div>
-                <div style={{ fontSize:8, color:"rgba(255,255,255,0.5)", marginTop:2 }}>{k.sub}</div>
+                <div style={{ fontFamily:"Inter, sans-serif", fontSize:8, color:"rgba(255,255,255,0.5)", letterSpacing:"0.12em", textTransform:"uppercase" }}>{k.label}</div>
+                <div style={{ fontFamily:"'JetBrains Mono', monospace", fontSize:26, fontWeight:700, color:"#FFFFFF", fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{k.valor}</div>
               </div>
             ))}
+            {/* Botão tipografia */}
+            <button
+              onClick={() => setMostraTypo(v => !v)}
+              style={{
+                fontFamily:"'Cormorant Garamond', Georgia, serif", fontSize:13, fontStyle:"italic",
+                background: mostraTypo ? H.orange : "rgba(255,255,255,0.10)",
+                border:`1px solid ${mostraTypo ? H.orange : "rgba(255,255,255,0.18)"}`,
+                color:"#FFF", borderRadius:H.r, padding:"10px 16px", cursor:"pointer",
+                transition:"all 0.2s", boxShadow:mostraTypo ? H.s2 : "none",
+              }}
+            >
+              {mostraTypo ? "Fechar Tipografia" : "Tipografia"}
+            </button>
           </div>
         </div>
 
-        {/* Abas navegação */}
-        <div style={{ display:"flex", gap:2, paddingBottom:0 }}>
+        {/* Divisor ornamental */}
+        <div style={{ margin:"12px 32px 0", display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.12)" }} />
+          <div style={{ width:5, height:5, background:H.goldM, transform:"rotate(45deg)" }} />
+          <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.12)" }} />
+        </div>
+
+        {/* Abas */}
+        <div style={{ display:"flex", gap:2, padding:"8px 24px 0", overflowX:"auto" }}>
           {ABAS.map((a, i) => {
             const isAti = aba === i;
             return (
@@ -641,16 +957,15 @@ export default function CartaMagnaPadcomPage() {
                 key={i}
                 onClick={() => setAba(i)}
                 style={{
-                  ...FONT, fontSize:10, fontWeight:700, cursor:"pointer",
-                  padding:"8px 18px",
-                  background: isAti ? T.desktop : "rgba(255,255,255,0.12)",
-                  color: isAti ? T.accent : "rgba(255,255,255,0.8)",
-                  border:"none",
-                  borderRadius:`${T.rSm} ${T.rSm} 0 0`,
-                  borderBottom: isAti ? `2px solid ${T.desktop}` : "2px solid transparent",
-                  boxShadow: isAti ? T.s1 : "none",
-                  transition:"all 0.15s",
-                  letterSpacing:"0.04em",
+                  fontFamily:"'Cormorant Garamond', Georgia, serif", fontSize:13, fontWeight: isAti ? 600 : 400,
+                  fontStyle: isAti ? "normal" : "italic",
+                  padding:"10px 22px",
+                  background: isAti ? H.cream : "transparent",
+                  color: isAti ? H.orange : "rgba(255,255,255,0.65)",
+                  border:"none", borderRadius:`${H.r} ${H.r} 0 0`,
+                  cursor:"pointer", transition:"all 0.15s",
+                  letterSpacing:"0.02em", whiteSpace:"nowrap",
+                  boxShadow: isAti ? `0 -2px 8px rgba(60,24,8,0.15)` : "none",
                   position:"relative", zIndex: isAti ? 2 : 1,
                 }}
               >{a}</button>
@@ -659,13 +974,33 @@ export default function CartaMagnaPadcomPage() {
         </div>
       </div>
 
-      {/* ── CONTEÚDO DAS ABAS ────────────────────────────────────────────── */}
-      <div style={{ padding:"20px 24px", maxWidth:1400, margin:"0 auto" }}>
-        {aba === 0 && <TabCatalogo catalogo={catalogo} />}
-        {aba === 1 && <TabNarrativas />}
-        {aba === 2 && <TabCapacidades />}
-        {aba === 3 && <TabPersonalidade />}
-        {aba === 4 && <TabFluxo />}
+      {/* ── CONTEÚDO ─────────────────────────────────────────────────────── */}
+      <div style={{ padding:"24px 32px", maxWidth:1400, margin:"0 auto" }}>
+
+        {/* Painel de tipografia */}
+        {mostraTypo && (
+          <div style={{ marginBottom:24 }}>
+            <TypoSelector typo={typo} onChange={setTypo} />
+          </div>
+        )}
+
+        {/* Conteúdo das abas */}
+        {aba === 0 && <TabCatalogo typo={typo} catalogo={catalogo} />}
+        {aba === 1 && <TabNarrativas typo={typo} />}
+        {aba === 2 && <TabCapacidades typo={typo} />}
+        {aba === 3 && <TabPersonalidade typo={typo} />}
+        {aba === 4 && <TabFluxo typo={typo} />}
+
+        {/* Rodapé */}
+        <Divider />
+        <div style={{ textAlign:"center", paddingBottom:24 }}>
+          <div style={{ fontFamily:"'Cormorant Garamond', Georgia, serif", fontSize:11, fontStyle:"italic", color:H.brownL }}>
+            Constituição dos Agentes Virtuais · Carta Magna PADCOM · Edição 001 · 19/07/2026
+          </div>
+          <div style={{ fontFamily:"'JetBrains Mono', monospace", fontSize:8, color:H.borderD, marginTop:4, letterSpacing:"0.08em" }}>
+            SHA: 43d2765d · TSUNAMI_AGENTES_VIRTUAIS_CARTA_MAGNA_PADCOM_26.07.19.md · Classificação: Restrito
+          </div>
+        </div>
       </div>
     </div>
   );
