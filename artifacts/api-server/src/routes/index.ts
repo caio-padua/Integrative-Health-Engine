@@ -249,4 +249,12 @@ router.use(farmaciasDisponiveisRouter);
 import modulosSistemaRouter from "./modulosSistema";
 router.use(modulosSistemaRouter);
 
+// PADTEAM — Hierarquia Visual de colaboradores (árvore recursiva por cargo)
+import hierarquiaRouter from "./hierarquia";
+router.use("/hierarquia", hierarquiaRouter);
+
+// PADTEAM — Governança de Equipe (SLA + justificativas + escalonamentos + disciplinar)
+import padteamGovernoRouter from "./padteamGoverno";
+router.use("/padteam-governo", padteamGovernoRouter);
+
 export default router;
