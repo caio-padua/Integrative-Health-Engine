@@ -59,6 +59,8 @@ import PainelTransmutacao from "@/pages/painel-transmutacao";
 import ProtocoloNatacha from "@/pages/protocolo-natacha";
 import DelegacaoPage from "@/pages/delegacao";
 import ColaboradoresPage from "@/pages/colaboradores";
+import HierarquiaPage from "@/pages/hierarquia";
+import GovernancaEquipePage from "@/pages/governanca-equipe";
 import AgentesVirtuaisPage from "@/pages/agentes-virtuais";
 import AcompanhamentoPage from "@/pages/acompanhamento";
 import ComissaoPage from "@/pages/comissao";
@@ -252,6 +254,8 @@ function Router() {
       <Route path="/protocolo-natacha" component={ProtocoloNatacha} />
       <Route path="/delegacao" component={DelegacaoPage} />
       <Route path="/colaboradores" component={ColaboradoresPage} />
+      <Route path="/hierarquia" component={HierarquiaPage} />
+      <Route path="/governanca-equipe" component={GovernancaEquipePage} />
       <Route path="/agentes-virtuais" component={AgentesVirtuaisPage} />
       <Route path="/acompanhamento" component={AcompanhamentoPage} />
       <Route path="/comissao" component={ComissaoPage} />
