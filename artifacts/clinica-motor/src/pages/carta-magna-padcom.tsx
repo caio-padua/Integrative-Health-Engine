@@ -17,70 +17,75 @@ function useGoogleFonts() {
 // Uma única família cromática: azul marinho escuro → azul vivo.
 // Zero amarelo, zero laranja, zero verde, zero marrom.
 const N = {
-  // Fundos — 6 camadas de profundidade
-  // AZUL MARINHO REAL (não preto-vazio): bg levantado de #030610 → #0E1C40
-  bg:   "#0E1C40",   // superfície zero — azul marinho escuro, não preto
-  d6:   "#0A1530",   // camada mais funda
-  d5:   "#0D1A38",   // camada 5
-  d4:   "#102042",   // camada 4
-  d3:   "#14274E",   // camada 3
-  d2:   "#182E5A",   // camada 2
-  d1:   "#1E3668",   // camada 1 (mais clara)
-  sur:  "#243E78",   // superfície de cards
-  hi:   "#2A4888",   // superfície elevada
+  // ── FILOSOFIA DA PALETA ────────────────────────────────────────────────
+  // Fundo = navy médio (não preto). Painéis = nitidamente mais claros que o fundo.
+  // O contraste é ENTRE TONS DE AZUL, nunca entre azul e preto.
+  // Resultado: página azul-marinho com profundidade, sem sensação de "tela apagada".
 
-  // Acento — azul elétrico único
-  ax:   "#4A9AFF",   // azul vivo principal (um toque mais brilhante)
-  axL:  "#80C0FF",   // azul vivo claro
-  axX:  "#B8D8FF",   // azul muito claro (texto em destaque)
+  // Page background — navy médio, claramente azul (não preto-vazio)
+  bg:   "#152050",   // azul marinho médio — o "chão" sobre o qual os painéis flutuam
 
-  // Texto — todos mais luminosos para nitidez sobre fundo marinho
-  t1:   "#F0F6FF",   // branco-azulado (texto principal — máximo contraste)
-  t2:   "#90BCEE",   // azul claro (texto secundário — visível)
-  t3:   "#6890CC",   // azul médio (texto terciário — ANTES era #3A5890, agora legível)
+  // Painéis — progressivamente mais claros (mais claros que bg)
+  d6:   "#182558",   // painel mais escuro (pouco mais claro que bg)
+  d5:   "#1C2A62",   // painel 5
+  d4:   "#20306C",   // painel 4
+  d3:   "#243676",   // painel 3
+  d2:   "#283C80",   // painel 2
+  d1:   "#2C428A",   // painel 1 (mais claro)
+  sur:  "#304894",   // superfície de cards
+  hi:   "#344E9E",   // superfície elevada (header, topo de grupos)
 
-  // Borda
-  b1:   "#162448",   // borda escura
-  b2:   "#1E3060",   // borda padrão
-  b3:   "#2A4078",   // borda clara
-  bHi:  "#3868C0",   // borda de destaque
+  // Acento — azul elétrico
+  ax:   "#5AAAFF",   // azul vivo (mais brilhante sobre fundo menos escuro)
+  axL:  "#88C8FF",   // azul claro
+  axX:  "#C0E0FF",   // azul muito claro
+
+  // Texto — alto contraste sobre fundo azul
+  t1:   "#F4F8FF",   // quase branco — título e corpo principal
+  t2:   "#A0C4F0",   // azul claro — texto secundário visível
+  t3:   "#7099D8",   // azul médio — legendas, rótulos discretos
+
+  // Borda — azul médio, não preta
+  b1:   "#1E2E68",   // borda fina escura
+  b2:   "#283C7C",   // borda padrão
+  b3:   "#344C90",   // borda clara
+  bHi:  "#4468B8",   // borda de destaque
 
   // ── SOMBRA 3D COM ESPESSURA ──────────────────────────────────────────────
-  // Técnica: 3 camadas duras (sem blur) = face lateral física do painel
-  //          depois a sombra longa projetada no plano abaixo
-  // Nível 1 — elevação 6px (painel base)
+  // Edge = navy escuro (não preto absoluto) — mantém o caráter azul até na sombra
+  // Nível 1 — elevação 6px
   e1: [
-    "0 1px 0 0 rgba(120,190,255,0.22) inset",   // quina superior iluminada
-    "0 6px 0 0 #020510",                          // face lateral: 1ª camada (dura)
-    "0 7px 0 0 #010308",                          // face lateral: 2ª camada
-    "0 8px 0 0 #010206",                          // face lateral: 3ª camada
-    "0 12px 24px rgba(1,3,16,0.80)",             // sombra cast próxima
-    "0 28px 56px rgba(1,3,16,0.55)",             // sombra cast longa
+    "0 1px 0 0 rgba(160,210,255,0.25) inset",   // quina superior iluminada
+    "0 6px 0 0 #0E1840",                          // face lateral (dark navy, não preto)
+    "0 7px 0 0 #0B1436",
+    "0 8px 0 0 #09112C",
+    "0 12px 20px rgba(8,12,40,0.75)",
+    "0 24px 48px rgba(8,12,40,0.50)",
   ].join(", "),
 
-  // Nível 2 — elevação 10px (painel médio)
+  // Nível 2 — elevação 10px
   e2: [
-    "0 1px 0 0 rgba(140,200,255,0.28) inset",
-    "0 10px 0 0 #020510",                          // face lateral mais alta
-    "0 11px 0 0 #010308",
-    "0 12px 0 0 #010206",
-    "0 16px 32px rgba(1,3,16,0.88)",
-    "0 36px 72px rgba(1,3,16,0.65)",
-    "0 64px 100px rgba(1,3,16,0.40)",
+    "0 1px 0 0 rgba(170,220,255,0.30) inset",
+    "0 10px 0 0 #0E1840",
+    "0 11px 0 0 #0B1436",
+    "0 12px 0 0 #09112C",
+    "0 16px 30px rgba(8,12,40,0.85)",
+    "0 36px 64px rgba(8,12,40,0.60)",
+    "0 60px 96px rgba(8,12,40,0.40)",
   ].join(", "),
 
-  // Nível 3 — elevação 16px (painel altíssimo, como header)
+  // Nível 3 — elevação 16px (header)
   e3: [
-    "0 1px 0 0 rgba(160,220,255,0.35) inset",
-    "0 16px 0 0 #020408",
-    "0 17px 0 0 #010206",
-    "0 18px 0 0 #010104",
-    "0 22px 44px rgba(1,3,16,0.95)",
-    "0 50px 100px rgba(1,3,16,0.75)",
-    "0 90px 140px rgba(1,3,16,0.50)",
+    "0 1px 0 0 rgba(180,230,255,0.38) inset",
+    "0 16px 0 0 #0C1638",
+    "0 17px 0 0 #0A1230",
+    "0 18px 0 0 #080E28",
+    "0 22px 40px rgba(8,12,40,0.90)",
+    "0 48px 90px rgba(8,12,40,0.70)",
+    "0 80px 130px rgba(8,12,40,0.45)",
   ].join(", "),
 
-  r: "2px",   // quinas quase retas — mínimo arredondamento
+  r: "2px",
 };
 
 // Fontes
@@ -141,11 +146,11 @@ function P3D({
   const sMap   = [N.e1, N.e2, N.e3]   as const;
   const bdrMap = [N.b2, N.b3, N.bHi]  as const;
 
-  // Gradiente sutil para sensação de superfície iluminada de cima
+  // Gradiente sutil: topo 8% mais claro = sensação de luz vindo de cima
   const gradientes = [
-    `linear-gradient(180deg, #1A2A64 0%, ${N.d2} 100%)`,
-    `linear-gradient(180deg, #20327A 0%, ${N.d1} 100%)`,
-    `linear-gradient(180deg, #263888 0%, ${N.sur} 100%)`,
+    `linear-gradient(180deg, #2E4490 0%, ${N.d2} 100%)`,
+    `linear-gradient(180deg, #344C9C 0%, ${N.d1} 100%)`,
+    `linear-gradient(180deg, #3A54A8 0%, ${N.sur} 100%)`,
   ] as const;
 
   return (
