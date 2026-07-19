@@ -22,67 +22,69 @@ const N = {
   // O contraste é ENTRE TONS DE AZUL, nunca entre azul e preto.
   // Resultado: página azul-marinho com profundidade, sem sensação de "tela apagada".
 
-  // Page background — navy médio, claramente azul (não preto-vazio)
-  bg:   "#152050",   // azul marinho médio — o "chão" sobre o qual os painéis flutuam
+  // ── FILOSOFIA REVISADA ───────────────────────────────────────────────────
+  // Painéis devem ser "azul real" — não azul-quase-preto.
+  // Regra: nenhum painel abaixo de #2A50A0. O olho precisa reconhecer "azul",
+  // não "escuro com leve tinta azul".
 
-  // Painéis — progressivamente mais claros (mais claros que bg)
-  d6:   "#182558",   // painel mais escuro (pouco mais claro que bg)
-  d5:   "#1C2A62",   // painel 5
-  d4:   "#20306C",   // painel 4
-  d3:   "#243676",   // painel 3
-  d2:   "#283C80",   // painel 2
-  d1:   "#2C428A",   // painel 1 (mais claro)
-  sur:  "#304894",   // superfície de cards
-  hi:   "#344E9E",   // superfície elevada (header, topo de grupos)
+  // Fundo — azul marinho firme
+  bg:   "#1A3468",
 
-  // Acento — azul elétrico
-  ax:   "#5AAAFF",   // azul vivo (mais brilhante sobre fundo menos escuro)
-  axL:  "#88C8FF",   // azul claro
-  axX:  "#C0E0FF",   // azul muito claro
+  // Painéis — azul real, progressivamente mais claro
+  d6:   "#1E3A72",
+  d5:   "#224080",
+  d4:   "#27468C",
+  d3:   "#2C4C98",
+  d2:   "#3154A4",
+  d1:   "#3660B0",
+  sur:  "#3B66BC",
+  hi:   "#4070C8",
 
-  // Texto — alto contraste sobre fundo azul
-  t1:   "#F4F8FF",   // quase branco — título e corpo principal
-  t2:   "#A0C4F0",   // azul claro — texto secundário visível
-  t3:   "#7099D8",   // azul médio — legendas, rótulos discretos
+  // Acento
+  ax:   "#62B8FF",
+  axL:  "#96D0FF",
+  axX:  "#C8E8FF",
 
-  // Borda — azul médio, não preta
-  b1:   "#1E2E68",   // borda fina escura
-  b2:   "#283C7C",   // borda padrão
-  b3:   "#344C90",   // borda clara
-  bHi:  "#4468B8",   // borda de destaque
+  // Texto
+  t1:   "#F6F9FF",
+  t2:   "#B0D0F8",
+  t3:   "#82AADC",
 
-  // ── SOMBRA 3D COM ESPESSURA ──────────────────────────────────────────────
-  // Edge = navy escuro (não preto absoluto) — mantém o caráter azul até na sombra
-  // Nível 1 — elevação 6px
+  // Borda
+  b1:   "#243E80",
+  b2:   "#2E50A0",
+  b3:   "#3A60B8",
+  bHi:  "#5080D0",
+
+  // ── SOMBRA 3D ─────────────────────────────────────────────────────────
+  // A edge (face lateral) usa navy profundo para contraste com o painel mais claro.
   e1: [
-    "0 1px 0 0 rgba(160,210,255,0.25) inset",   // quina superior iluminada
-    "0 6px 0 0 #0E1840",                          // face lateral (dark navy, não preto)
-    "0 7px 0 0 #0B1436",
-    "0 8px 0 0 #09112C",
-    "0 12px 20px rgba(8,12,40,0.75)",
-    "0 24px 48px rgba(8,12,40,0.50)",
+    "0 1px 0 0 rgba(180,220,255,0.30) inset",
+    "0 6px 0 0 #102848",
+    "0 7px 0 0 #0D2038",
+    "0 8px 0 0 #0A1A2E",
+    "0 12px 22px rgba(10,20,60,0.72)",
+    "0 26px 50px rgba(10,20,60,0.48)",
   ].join(", "),
 
-  // Nível 2 — elevação 10px
   e2: [
-    "0 1px 0 0 rgba(170,220,255,0.30) inset",
-    "0 10px 0 0 #0E1840",
-    "0 11px 0 0 #0B1436",
-    "0 12px 0 0 #09112C",
-    "0 16px 30px rgba(8,12,40,0.85)",
-    "0 36px 64px rgba(8,12,40,0.60)",
-    "0 60px 96px rgba(8,12,40,0.40)",
+    "0 1px 0 0 rgba(190,230,255,0.35) inset",
+    "0 10px 0 0 #102848",
+    "0 11px 0 0 #0D2038",
+    "0 12px 0 0 #0A1A2E",
+    "0 16px 32px rgba(10,20,60,0.82)",
+    "0 38px 68px rgba(10,20,60,0.58)",
+    "0 64px 100px rgba(10,20,60,0.38)",
   ].join(", "),
 
-  // Nível 3 — elevação 16px (header)
   e3: [
-    "0 1px 0 0 rgba(180,230,255,0.38) inset",
-    "0 16px 0 0 #0C1638",
-    "0 17px 0 0 #0A1230",
-    "0 18px 0 0 #080E28",
-    "0 22px 40px rgba(8,12,40,0.90)",
-    "0 48px 90px rgba(8,12,40,0.70)",
-    "0 80px 130px rgba(8,12,40,0.45)",
+    "0 1px 0 0 rgba(200,235,255,0.40) inset",
+    "0 16px 0 0 #0E2240",
+    "0 17px 0 0 #0B1C34",
+    "0 18px 0 0 #081628",
+    "0 22px 42px rgba(10,20,60,0.88)",
+    "0 50px 92px rgba(10,20,60,0.68)",
+    "0 84px 130px rgba(10,20,60,0.44)",
   ].join(", "),
 
   r: "2px",
@@ -146,11 +148,11 @@ function P3D({
   const sMap   = [N.e1, N.e2, N.e3]   as const;
   const bdrMap = [N.b2, N.b3, N.bHi]  as const;
 
-  // Gradiente sutil: topo 8% mais claro = sensação de luz vindo de cima
+  // Gradiente: topo 10% mais claro = luz vindo de cima, fundo = cor base do nível
   const gradientes = [
-    `linear-gradient(180deg, #2E4490 0%, ${N.d2} 100%)`,
-    `linear-gradient(180deg, #344C9C 0%, ${N.d1} 100%)`,
-    `linear-gradient(180deg, #3A54A8 0%, ${N.sur} 100%)`,
+    `linear-gradient(180deg, #3A60B8 0%, ${N.d2} 100%)`,
+    `linear-gradient(180deg, #4068C4 0%, ${N.d1} 100%)`,
+    `linear-gradient(180deg, #4672D0 0%, ${N.sur} 100%)`,
   ] as const;
 
   return (
