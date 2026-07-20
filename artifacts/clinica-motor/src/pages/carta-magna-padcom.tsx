@@ -13,78 +13,65 @@ function useGoogleFonts() {
   }, []);
 }
 
-// ─── PALETA NAVAL ÚNICA ────────────────────────────────────────────────────────
-// Uma única família cromática: azul marinho escuro → azul vivo.
-// Zero amarelo, zero laranja, zero verde, zero marrom.
+// ─── PALETA PAPER CIANO (PENUMBRA FACE CLARA) ─────────────────────────────────
+// Exatamente a paleta do layout branco aprovado (penumbra-claro.ts).
+// Fundo = #EEF2F4 (cinza-azul clarinho = "bege" que o CEO reconhece).
+// Painéis = progressivamente mais claros → branco limpo.
+// Acento = ciano #1E7A6E (cor oficial Penumbra Paper Ciano).
 const N = {
-  // ── FILOSOFIA DA PALETA ────────────────────────────────────────────────
-  // Fundo = navy médio (não preto). Painéis = nitidamente mais claros que o fundo.
-  // O contraste é ENTRE TONS DE AZUL, nunca entre azul e preto.
-  // Resultado: página azul-marinho com profundidade, sem sensação de "tela apagada".
+  bg:   "#EEF2F4",   // fundo — paper ciano base
 
-  // ── FILOSOFIA REVISADA ───────────────────────────────────────────────────
-  // Painéis devem ser "azul real" — não azul-quase-preto.
-  // Regra: nenhum painel abaixo de #2A50A0. O olho precisa reconhecer "azul",
-  // não "escuro com leve tinta azul".
+  // Painéis — escala do ligeiramente cinza ao quase branco
+  d6:   "#E4EBF0",
+  d5:   "#E8EEF2",
+  d4:   "#ECF1F4",
+  d3:   "#F0F4F7",
+  d2:   "#F3F6F9",
+  d1:   "#F6F9FB",
+  sur:  "#F8FBFC",
+  hi:   "#FBFCFD",
 
-  // Fundo — azul marinho firme
-  bg:   "#1A3468",
+  // Acento — ciano oficial Penumbra Clara
+  ax:   "#1E7A6E",
+  axL:  "#2A9A8C",
+  axX:  "#3ABAB0",
 
-  // Painéis — azul real, progressivamente mais claro
-  d6:   "#1E3A72",
-  d5:   "#224080",
-  d4:   "#27468C",
-  d3:   "#2C4C98",
-  d2:   "#3154A4",
-  d1:   "#3660B0",
-  sur:  "#3B66BC",
-  hi:   "#4070C8",
-
-  // Acento
-  ax:   "#62B8FF",
-  axL:  "#96D0FF",
-  axX:  "#C8E8FF",
-
-  // Texto
-  t1:   "#F6F9FF",
-  t2:   "#B0D0F8",
-  t3:   "#82AADC",
+  // Texto — escuro sobre fundo claro
+  t1:   "#0F1A1F",
+  t2:   "#3F5258",
+  t3:   "#6E8088",
 
   // Borda
-  b1:   "#243E80",
-  b2:   "#2E50A0",
-  b3:   "#3A60B8",
-  bHi:  "#5080D0",
+  b1:   "#D2DCE0",
+  b2:   "#B8C4CA",
+  b3:   "#A4B4BC",
+  bHi:  "#1E7A6E",
 
-  // ── SOMBRA 3D ─────────────────────────────────────────────────────────
-  // A edge (face lateral) usa navy profundo para contraste com o painel mais claro.
+  // ── SOMBRAS 3D — APENAS EDGE SHARP, ZERO BLUR ────────────────────────────
+  // Blurs grandes (0 26px 50px etc.) se propagavam além da borda do painel
+  // e "manchavam" o painel adjacente, criando sobreposição visual indesejada.
+  // Fix: apenas linhas de offset fixo com blur=0 → espessura física limpa.
+  // Quina superior = linha branca inset (iluminação de cima).
+  // Face lateral = linha de sombra escura discreta.
   e1: [
-    "0 1px 0 0 rgba(180,220,255,0.30) inset",
-    "0 6px 0 0 #102848",
-    "0 7px 0 0 #0D2038",
-    "0 8px 0 0 #0A1A2E",
-    "0 12px 22px rgba(10,20,60,0.72)",
-    "0 26px 50px rgba(10,20,60,0.48)",
+    "0 1px 0 0 rgba(255,255,255,0.90) inset",
+    "0 6px 0 0 #8A9CA8",
+    "0 7px 0 0 #7A8E9A",
   ].join(", "),
 
   e2: [
-    "0 1px 0 0 rgba(190,230,255,0.35) inset",
-    "0 10px 0 0 #102848",
-    "0 11px 0 0 #0D2038",
-    "0 12px 0 0 #0A1A2E",
-    "0 16px 32px rgba(10,20,60,0.82)",
-    "0 38px 68px rgba(10,20,60,0.58)",
-    "0 64px 100px rgba(10,20,60,0.38)",
+    "0 1px 0 0 rgba(255,255,255,0.90) inset",
+    "0 10px 0 0 #8A9CA8",
+    "0 11px 0 0 #7A8E9A",
+    "0 12px 0 0 #6E8490",
   ].join(", "),
 
   e3: [
-    "0 1px 0 0 rgba(200,235,255,0.40) inset",
-    "0 16px 0 0 #0E2240",
-    "0 17px 0 0 #0B1C34",
-    "0 18px 0 0 #081628",
-    "0 22px 42px rgba(10,20,60,0.88)",
-    "0 50px 92px rgba(10,20,60,0.68)",
-    "0 84px 130px rgba(10,20,60,0.44)",
+    "0 1px 0 0 rgba(255,255,255,0.90) inset",
+    "0 16px 0 0 #8A9CA8",
+    "0 17px 0 0 #7A8E9A",
+    "0 18px 0 0 #6E8490",
+    "0 19px 0 0 #607880",
   ].join(", "),
 
   r: "2px",
@@ -148,11 +135,11 @@ function P3D({
   const sMap   = [N.e1, N.e2, N.e3]   as const;
   const bdrMap = [N.b2, N.b3, N.bHi]  as const;
 
-  // Gradiente: topo 10% mais claro = luz vindo de cima, fundo = cor base do nível
+  // Gradiente: branco no topo → cor base do nível → sensação de superfície iluminada
   const gradientes = [
-    `linear-gradient(180deg, #3A60B8 0%, ${N.d2} 100%)`,
-    `linear-gradient(180deg, #4068C4 0%, ${N.d1} 100%)`,
-    `linear-gradient(180deg, #4672D0 0%, ${N.sur} 100%)`,
+    `linear-gradient(180deg, #FFFFFF 0%, ${N.d2} 100%)`,
+    `linear-gradient(180deg, #FFFFFF 0%, ${N.d1} 100%)`,
+    `linear-gradient(180deg, #FFFFFF 0%, ${N.sur} 100%)`,
   ] as const;
 
   return (
@@ -161,15 +148,15 @@ function P3D({
       background: bg ?? gradientes[nv-1],
       borderRadius: N.r,
       border: `1px solid ${bdrMap[nv-1]}`,
-      // A quina superior: borda superior mais brilhante = impressão de fio de luz
-      borderTop: `1px solid rgba(150,210,255,${0.12 + nv * 0.06})`,
+      // Quina superior branca = luz vindo de cima (fundo claro)
+      borderTop: `1px solid rgba(255,255,255,0.95)`,
       boxShadow: sMap[nv-1],
       overflow:"hidden",
       ...style,
     }}>
       {head && (
         <div style={{
-          background:`linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%)`,
+          background:`linear-gradient(180deg, rgba(255,255,255,0.55) 0%, transparent 100%)`,
           borderBottom:`1px solid ${bdrMap[nv-1]}`,
           padding:"16px 24px",
         }}>{head}</div>
@@ -627,8 +614,8 @@ export default function CartaMagnaPadcomPage() {
       {/* ── HEADER 3D — elevação máxima ─────────────────────────────────── */}
       <div style={{
         background:`linear-gradient(180deg, ${N.hi} 0%, ${N.d1} 100%)`,
-        // Borda superior muito iluminada = quina reta de acrílico
-        borderTop:`2px solid rgba(160,220,255,0.40)`,
+        // Borda superior branca = quina reta em fundo claro
+        borderTop:`2px solid rgba(255,255,255,0.95)`,
         boxShadow: N.e3,
         position:"relative", zIndex:100,
       }}>
@@ -639,14 +626,10 @@ export default function CartaMagnaPadcomPage() {
             </div>
             <div style={{
               ...tCSS(tc.display), color:N.t1, lineHeight:1.1,
-              // Efeito flutuante: halo azul faz a letra "flutuar" sobre o fundo
-              textShadow:"0 0 30px rgba(100,180,255,0.45), 0 2px 12px rgba(50,120,255,0.25)",
             }}>
               Constituição dos Agentes Virtuais
             </div>
-            <div style={{ ...tCSS(tc.subhead), color:N.t2, marginTop:10,
-              textShadow:"0 0 16px rgba(80,150,255,0.25)",
-            }}>
+            <div style={{ ...tCSS(tc.subhead), color:N.t2, marginTop:10 }}>
               Carta Magna PADCOM · Edição 001 · Publicado em {new Date().toLocaleDateString("pt-BR")}
             </div>
           </div>
@@ -662,7 +645,7 @@ export default function CartaMagnaPadcomPage() {
               <div key={i} style={{
                 background:`linear-gradient(180deg, ${N.sur} 0%, ${N.d2} 100%)`,
                 border:`1px solid ${N.b3}`,
-                borderTop:`1px solid rgba(140,200,255,0.30)`,
+                borderTop:`1px solid rgba(255,255,255,0.95)`,
                 borderRadius:N.r,
                 padding:"12px 22px", textAlign:"center",
                 boxShadow:N.e1,
@@ -675,9 +658,9 @@ export default function CartaMagnaPadcomPage() {
             <button onClick={()=>setShowT(v=>!v)} style={{
               ...SANS, fontSize:13, fontWeight:600,
               background:showT?N.ax:`linear-gradient(180deg, ${N.sur} 0%, ${N.d2} 100%)`,
-              color:"#FFF",
+              color:showT?"#FFF":N.t1,
               border:`1px solid ${showT?N.ax:N.b3}`,
-              borderTop:`1px solid ${showT?"rgba(180,230,255,0.5)":"rgba(140,200,255,0.3)"}`,
+              borderTop:`1px solid rgba(255,255,255,0.95)`,
               borderRadius:N.r, padding:"12px 18px", cursor:"pointer",
               boxShadow:N.e1, letterSpacing:"0.04em", transition:"all 0.2s",
             }}>{showT?"✕ Tipografia":"Aa Tipografia"}</button>
@@ -699,20 +682,13 @@ export default function CartaMagnaPadcomPage() {
                 fontStyle: "normal",       // sem itálico em nenhuma aba — todas retas e legíveis
                 padding:"11px 26px",
                 background:isAti ? N.bg : "transparent",
-                // Aba inativa: t2 (#90BCEE) — azul claro visível, não mais t3 escuro
-                color: isAti ? N.axX : N.t2,
+                color: isAti ? N.ax : N.t2,
                 border:"none",
-                borderTop:isAti ? `1px solid rgba(160,220,255,0.30)` : "none",
+                borderTop:isAti ? `1px solid rgba(255,255,255,0.95)` : "none",
                 borderRadius:`${N.r} ${N.r} 0 0`,
                 cursor:"pointer", whiteSpace:"nowrap",
-                // Aba ativa: glow flutuante; inativa: glow suave para não sumir
-                boxShadow: isAti
-                  ? N.e2
-                  : "none",
-                // Efeito flutuante nas letras — leve halo azul nas inativas
-                textShadow: isAti
-                  ? `0 0 20px rgba(120,190,255,0.55), 0 2px 8px rgba(60,130,255,0.30)`
-                  : `0 0 10px rgba(100,160,240,0.20)`,
+                boxShadow: isAti ? N.e2 : "none",
+                textShadow: "none",
                 letterSpacing:"0.02em",
                 position:"relative", zIndex:isAti?2:1, transition:"all 0.15s",
               }}>{a}</button>
