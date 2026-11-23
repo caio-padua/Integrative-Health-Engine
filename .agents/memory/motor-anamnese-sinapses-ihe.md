@@ -53,5 +53,3 @@ sinapses "perdidos". Caçada confirmou: existem, mas mal ligados.
 - TREINO é o gap REAL nos dois repos: só texto solto em PDF, sem tabela/CRUD.
 - Cérebro hoje ramifica p/ exame/fórmula/injetável/implante/protocolo; NÃO p/ dieta nem treino. Proposta enviada ao Dr. Manus: dimensão `competencia` na regra + contrato comum de órgão (catalogo/indicacao/fatia_cockpit). Carta: `docs/dr-replit/PARA_MANUS/CARTA_DR_REPLIT_PAWARDS_IHE_PARA_DR_MANUS_26.06.26.md` (publicada na branch ver-l2-dr-claude).
 
-## Obra pendente (Wave, autorizada "sem perguntar")
-Ligar Craniotomia↔banco (ler regras reais), unir os mapas órfãos à rota, atualizar a rota V9→semântica de bloco/grade + gravidade por bloco, dar persistência+versionamento ao editor, criar amarração editável item↔doença/sintoma, preencher 229 itens órfãos e enriquecer sintomas.

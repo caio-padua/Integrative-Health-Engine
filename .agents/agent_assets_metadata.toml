@@ -41,507 +41,620 @@ id = "GfOOjYC--b85IYK9KIAFz"
 uri = "file://screenshots/variante_a.jpg"
 type = "image"
 title = "Variante A - Header Escuro Navy + Barra Dourada"
+logical_id = "1f324e73-d624-4e89-b09a-3bf7e23b43a3"
 
 [[outputs]]
 id = "8-TK37riI9p_VyVasqQjQ"
 uri = "file://screenshots/variante_b.jpg"
 type = "image"
 title = "Variante B - Branco + Moldura Dourada + Farmacia"
+logical_id = "b67aa3b8-1b97-40b2-b685-418432a278bf"
 
 [[outputs]]
 id = "7RHsZyz1JWtwj8kIqzFn6"
 uri = "file://screenshots/variante_c.jpg"
 type = "image"
 title = "Variante C - Logo Dourado + Borda Superior Ouro"
+logical_id = "a47d8f2b-3349-48e8-8bf6-868d8843f0a3"
 
 [[outputs]]
 id = "zot8aXzSTZMQG81v6bLXk"
 uri = "file://screenshots/variante_d.jpg"
 type = "image"
 title = "Variante D - P&B Classico (APROVADA)"
+logical_id = "83c840a5-7aa0-4eb4-8581-fe499271c664"
 
 [[outputs]]
 id = "rqRLu3pXApdO7I1xgqCFZ"
 uri = "file://screenshots/receita_variante_a.jpg"
 type = "image"
 title = "Receita A - Texto completo da farmacia + formulas em caixas"
+logical_id = "60fd5939-045a-4184-8eba-2bba7ac2fb86"
 
 [[outputs]]
 id = "bGjEIPYtIg9znpPXGAc4I"
 uri = "file://screenshots/receita_variante_b.jpg"
 type = "image"
 title = "Receita B - Titulo A FARMACIA + formulas numeradas"
+logical_id = "6aad55ca-9e05-43e5-889c-e4bb9e169311"
 
 [[outputs]]
 id = "74kkRtyeV_3xKN54lOHEE"
 uri = "file://screenshots/receita_variante_c.jpg"
 type = "image"
 title = "Receita C - Texto compacto + borda lateral + formulas em linha"
+logical_id = "fd936726-e7bd-4a06-ad5b-6c6876393260"
 
 [[outputs]]
 id = "tfsdMczjLzT-JLHiAYZWD"
 uri = "file://screenshots/receita_variante_d.jpg"
 type = "image"
 title = "Receita D - Compacto com 5 formulas + todos os campos"
+logical_id = "f509626a-6d15-4b91-a4b6-49b57b2e6498"
 
 [[outputs]]
 id = "gpd77JOM6cha3lKMV4xrU"
 uri = "file://screenshots/receita_variante_b_v2.jpg"
 type = "image"
 title = "Receita B v2 - Com funcao ao lado de cada formula, sem campos de farmacia no rodape"
+logical_id = "76ab7fe9-940c-4723-8875-3257e010c7c5"
 
 [[outputs]]
 id = "FzsGksFHUnUqsZ5B8M0lU"
 uri = "file://ras_preview.pdf"
 type = "pdf"
 title = "RAS - Registro Administracao de Substancias (4 Paginas)"
+logical_id = "b32d1697-c904-4a46-bfc2-6d6f35c29a8e"
 
 [[outputs]]
 id = "XD7oQnAU-s6_Bw0vXsddH"
 uri = "file://screenshots/01-login.jpg"
 type = "image"
 title = "1. Dashboard - Visao Geral do Motor"
+logical_id = "e1fa2474-df89-4577-b4b7-02305a1e1fcf"
 
 [[outputs]]
 id = "zCLdnJogZQf7S8s_DtchE"
 uri = "file://screenshots/02-financeiro.jpg"
 type = "image"
 title = "2. Financeiro - Modulo Completo"
+logical_id = "964b060d-a0b2-40a5-88cc-c87c44ac7ce4"
 
 [[outputs]]
 id = "1At_6pt0y3BKz32r2ecbL"
 uri = "file://screenshots/03-pacientes.jpg"
 type = "image"
 title = "3. Pacientes - Tabela com Bordas Claras"
+logical_id = "5ece6e8f-ea28-4c8c-ba6c-7dfaf4f8d1b5"
 
 [[outputs]]
 id = "tKc7iFv-Z2UUG57b39N7i"
 uri = "file://screenshots/04-agenda.jpg"
 type = "image"
 title = "4. Agenda Semanal - Cards por Dia"
+logical_id = "982eebb7-6542-43a4-b90d-ab69021e17da"
 
 [[outputs]]
 id = "5EF8njne0pSm_NbmYE5ol"
 uri = "file://screenshots/05-itens.jpg"
 type = "image"
 title = "5. Itens Terapeuticos - 490 Itens Catalogo"
+logical_id = "eea8aaa9-5a83-4f18-9384-8b6f64fa408d"
 
 [[outputs]]
 id = "TYT9cdDnMFD7nqAmSsYZb"
 uri = "file://screenshots/v2-01-dashboard.jpg"
 type = "image"
 title = "1. Dashboard - Azul Pastel + Logo DP"
+logical_id = "2f5b6d87-f573-4834-a029-84b67e35aa4c"
 
 [[outputs]]
 id = "SDIkwx-hpVx2rXjBu3AV7"
 uri = "file://screenshots/v2-02-financeiro.jpg"
 type = "image"
 title = "2. Financeiro - Modulo Completo"
+logical_id = "d49717ea-b7ee-4f16-8cb9-035bcf7bd609"
 
 [[outputs]]
 id = "EmwVWzBHhrB-TsV_FxBA5"
 uri = "file://screenshots/v2-03-substancias.jpg"
 type = "image"
 title = "3. Substancias - Codigos PADCOM Discretos"
+logical_id = "4e205dd0-562b-40d3-aa60-cc90adeb54ef"
 
 [[outputs]]
 id = "9CRzNmaoU35Uv9_NFQtCh"
 uri = "file://screenshots/v2-04-agenda.jpg"
 type = "image"
 title = "4. Agenda Semanal"
+logical_id = "cc66e10e-2918-496c-8d22-ded978947c66"
 
 [[outputs]]
 id = "u9DgMXJyS3axJN2EvtsG2"
 uri = "file://screenshots/v2-05-pacientes.jpg"
 type = "image"
 title = "5. Pacientes - Tabela com Bordas"
+logical_id = "b7b4450c-503e-45c5-8702-58e20a1b6675"
 
 [[outputs]]
 id = "lAYErHFrWVON7G-2Zer1p"
 uri = "file://screenshots/v2-06-itens.jpg"
 type = "image"
 title = "6. Itens Terapeuticos - 490 Itens"
+logical_id = "c17af9b2-8c01-4ff6-a4e8-94e3abcfe0b7"
 
 [[outputs]]
 id = "zc5cFGoYnHEsdoaz-VI7o"
 uri = "file://.local/briefing-staff.md"
 type = "text"
 title = "Briefing Staff — Próximos Passos PADCOM V15.2"
+logical_id = "98f6c4f8-a955-4b81-a2d9-655000a73fbb"
 
 [[outputs]]
 id = "VYvUJD9YqHnDVF7o22EmO"
 uri = "file://exports/codigo_completo_padcom_v15.txt"
 type = "text"
 title = "Codigo Completo PADCOM V15.2 - Para Validacao"
+logical_id = "e4eb0d08-61d4-41ca-b344-754743e8e79f"
 
 [[outputs]]
 id = "QlsN_Rfr1Aw-tMtp9mEYz"
 uri = "file://exports/PARECER_ESTRATEGICO_10_PASSOS.md"
 type = "text"
 title = "Parecer Estrategico — 10 Passos a Frente (Para todos os Doutores)"
+logical_id = "bbac5f7d-3066-4f26-a6fd-5c272b152c34"
 
 [[outputs]]
 id = "Q6rqaKcwxBwpqSrCRDymO"
 uri = "file://exports/PARECER_DR_REPLIT_PROXIMOS_PASSOS.md"
 type = "text"
 title = "Parecer Dr. Replit — Proximos Passos (Para o Staff)"
+logical_id = "085a2b89-b87b-46de-8270-90d8237936d8"
 
 [[outputs]]
 id = "IZzIh3r7J5NSXuw1SEWdk"
 uri = "file://screenshots/painel-transmutacao.jpg"
 type = "image"
 title = "Painel de Transmutação Semântica — Amostra Visual do Todo"
+logical_id = "e86adf91-cb93-4126-bdb1-4bf0582d4fb4"
 
 [[outputs]]
 id = "KF_h4CiQrsQ8KXUQgVNil"
 uri = "file://screenshots/protocolo-natacha-1.jpg"
 type = "image"
 title = "Protocolo da Natacha — motor em operação (Receita + Exames)"
+logical_id = "91ae5dad-ad8b-47ad-9535-809b8e29101f"
 
 [[outputs]]
 id = "G0iuJBxSpivRoInzj6xMP"
 uri = "file://output/natacha/README.md"
 type = "text"
 title = "📋 Dossiê Natacha — README"
+logical_id = "75fa7816-d1cf-4842-a261-a42151109a7e"
 
 [[outputs]]
 id = "Be-9WAkrpV9rrUSpfFA0L"
 uri = "file://output/natacha/ras/04_RAS_COMPLETO.pdf"
 type = "pdf"
 title = "RAS Completo (11 cadernos clínico+evolutivo)"
+logical_id = "6cbc5a76-16d2-4920-ae4d-a7a5fc30dd84"
 
 [[outputs]]
 id = "q1G2ViOhikYp_p5AzkAhK"
 uri = "file://output/natacha/ras/01_RAS_CLINICO.pdf"
 type = "pdf"
 title = "RAS Clínico (7 cadernos)"
+logical_id = "71df9c2c-3cff-4a39-943d-6a397b92231f"
 
 [[outputs]]
 id = "KeUUoa5dtdlSU0O0j5gh4"
 uri = "file://output/natacha/ras/02_RAS_EVOLUTIVO.pdf"
 type = "pdf"
 title = "RAS Evolutivo (4 cadernos)"
+logical_id = "d44e5e7b-6e7d-43e3-ac3a-0bb70fbc2c93"
 
 [[outputs]]
 id = "7S94nopud76LpExth6PMM"
 uri = "file://output/natacha/ras/03_RAS_ESTADO_SAUDE.pdf"
 type = "pdf"
 title = "RAS Estado de Saúde"
+logical_id = "492d6f36-71a3-40e6-8362-76056e98726f"
 
 [[outputs]]
 id = "9XFDzaUO506OT5HVyWgdI"
 uri = "file://output/natacha/ras/05_RAS_JURIDICO.pdf"
 type = "pdf"
 title = "RAS Jurídico (LGPD/TCLE/Riscos)"
+logical_id = "e5b0f26d-5ffa-4abb-8407-387eb84af56d"
 
 [[outputs]]
 id = "VJkejUIm9uLCwwTBBC5CX"
 uri = "file://output/natacha/ras/06_RAS_LEGADO_CONSOLIDADO.pdf"
 type = "pdf"
 title = "RAS Legado Consolidado V4"
+logical_id = "6ef1feac-cf80-406b-9b38-84902c8d6a3f"
 
 [[outputs]]
 id = "nnc5qdjZgzdGIJRDAZfws"
 uri = "file://output/natacha/agenda/agenda_tratamento_22.csv"
 type = "table"
 title = "📅 Agenda — 515 sessões (Excel/CSV)"
+logical_id = "6e03c2ae-d203-44a8-a415-c24342e48c6e"
 
 [[outputs]]
 id = "vVP2Tb8lSjdM5_2awbhDb"
 uri = "file://output/natacha/agenda/agenda_tratamento_22.json"
 type = "unspecified"
 title = "📅 Agenda — 515 sessões (JSON)"
+logical_id = "1d475938-148e-43a6-8282-ede1148ba799"
 
 [[outputs]]
 id = "y5rTfQRm_XtkzLlPngB4W"
 uri = "file://output/natacha/dados/anastomose_genotipo_fenotipo.csv"
 type = "table"
 title = "🧬 Anastomose item↔código↔patologia"
+logical_id = "a20ae09e-7a5e-4ad7-80c6-1c7fea5a1e4b"
 
 [[outputs]]
 id = "tPa_r4fe3di9NGLj526F1"
 uri = "file://output/natacha/dados/dados_clinicos_completos.json"
 type = "unspecified"
 title = "📊 Dados clínicos brutos (paciente+anamnese+patologias+meds+itens)"
+logical_id = "915f433a-206a-4b01-afab-24cabaecf319"
 
 [[outputs]]
 id = "w12f5cGg4NuzsRNlpBCPr"
 uri = "file://exports/operacional-dia-preview.pdf"
 type = "pdf"
 title = "PDF Operacional do Dia — Manifesto PADCON 2.0"
+logical_id = "c6ebdc89-6061-421d-a655-b10443aaf7bd"
 
 [[outputs]]
 id = "IHkXBLcxDkkgb9Tnoczf0"
 uri = "file://screenshots/1-login-master.jpeg"
 type = "image"
 title = "1 — Login Master (/admin/login)"
+logical_id = "60a351c8-bf60-409f-87ce-bae12ac7549c"
 
 [[outputs]]
 id = "11Y2wh96Uryd5RhVPLKHp"
 uri = "file://screenshots/2-dashboard-global-ceo.jpeg"
 type = "image"
 title = "2 — Dashboard Global CEO (caiu de volta pro login!)"
+logical_id = "de19a659-0ad7-47db-8e84-e97034217640"
 
 [[outputs]]
 id = "rOeJqV66GqIe641Lp1YbC"
 uri = "file://screenshots/3-pacientes.jpeg"
 type = "image"
 title = "3 — Pacientes (logado)"
+logical_id = "638c5d58-2f0e-43fa-a688-e8e71c0fe3f0"
 
 [[outputs]]
 id = "CqSS803EPoDoTWhujNaZD"
 uri = "file://screenshots/4-farmacias-parmavault.jpeg"
 type = "image"
 title = "4 — Parmavault Farmácias (com modal antigo aparecendo)"
+logical_id = "22da69f2-38ca-40d9-9e35-4e5205337044"
 
 [[outputs]]
 id = "2MpDmG_aBO8wX8OImq1q6"
 uri = "file://screenshots/5-agenda-semanal.jpeg"
 type = "image"
 title = "5 — Agenda Semanal (logado)"
+logical_id = "58f24100-3fdd-4ada-bbfd-d74c94460bb0"
 
 [[outputs]]
 id = "-LN6aPivAA5TnPnCS4iu2"
 uri = "file://screenshots/dashboard-global-completo.jpeg"
 type = "image"
 title = "Dashboard Global · CEO Master — ao vivo, dados reais"
+logical_id = "f39be5be-f898-4d85-9247-47efaefa1cf3"
 
 [[outputs]]
 id = "VqtZSvPA9pIJtbAfGPqNl"
 uri = "file://exports/pdfs-ficticios/01_relatorio_mensal_todas_unidades.pdf"
 type = "pdf"
 title = "1. Relatório Mensal - Todas as Unidades (Mar vs Abr/2026)"
+logical_id = "74af20a6-b5a0-4f36-9749-2a3d83e9a38f"
 
 [[outputs]]
 id = "759hOluFxnGwo61DniU40"
 uri = "file://exports/pdfs-ficticios/02_comparativo_genesis_vs_paziale.pdf"
 type = "pdf"
 title = "2. Comparativo Estratégico - Genesis vs Paziale (2 meses)"
+logical_id = "1ca13dc6-7416-4652-ba50-57362a43873e"
 
 [[outputs]]
 id = "snQvHkj5eI6Kq4-OAX1eK"
 uri = "file://exports/handoffs/handoff-tsunami-dr-claude-2026-04-22.md"
 type = "text"
 title = "Handoff Dr. Claude — Onda PARMASUPRA-TSUNAMI 22-abr-2026 (5 commits, smoke 10/10)"
+logical_id = "fea83702-7dad-44a5-bc2b-e2e0b027c46e"
 
 [[outputs]]
 id = "TBTa8XiPKDeaXv8fY2gih"
 uri = "file://attached_assets/wave7_smoke/wave7_pdf_reconciliacao_FAMA_smoke.pdf"
 type = "pdf"
 title = "Wave 7 · PDF Reconciliação LUXUOSO (smoke FAMA - 6 receitas ficcionais)"
+logical_id = "5ccd36e6-d6cc-4229-bb04-52fef3b92cc2"
 
 [[outputs]]
 id = "0XmYZl1XhPVQlAMukHLTy"
 uri = "file://attached_assets/wave7_smoke/wave7_pdf_reconciliacao_FAMA_smoke_v2.pdf"
 type = "pdf"
 title = "Wave 7.1 · PDF Reconciliação FAMA smoke v2 (fixes Dr. Claude: encoding + barras mínimas)"
+logical_id = "11b749ed-7e47-46a8-b7a1-b8f7549f0b86"
 
 [[outputs]]
 id = "CQqs3rctbP9EQuXHtju_V"
 uri = "file://attached_assets/dossies/dossie_pawards_dr_claude_2026-04-23_08-40_SHA-90f73f5.md"
 type = "text"
 title = "Dossiê PAWARDS pro Dr. Claude (468KB · SHA 90f73f5 · tudo em 1 arquivo)"
+logical_id = "f856293d-bf10-4351-aa53-ddeafe74f867"
 
 [[outputs]]
 id = "PU7hO65ZTVgKpHQD3guYo"
 uri = "file://attached_assets/PLANILHA_BLOCOS_SEMANTICOS_FINAL_2_RECUPERADA.xlsx"
 type = "table"
 title = "PLANILHA BLOCOS SEMANTICOS FINAL 2 (xlsx original, 14 abas, 233 exames Dr. Manus)"
+logical_id = "bd4fb9d2-eec1-4edc-83f8-0587380401c8"
 
 [[outputs]]
 id = "oR7oMfZHZwrmODYEULs0n"
 uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V15.2_(CONSOLIDADA_FORMULAS_E_INJET_1775526641616.xlsx"
 type = "table"
 title = "PADCOM V15.2 (mais recente, formulas injetaveis)"
+logical_id = "72fe632a-1375-442a-97c8-d925b9ea8969"
 
 [[outputs]]
 id = "NCHlWa-4DfGwS5THF_vNx"
 uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V15_(CONSOLIDADA_UNIFICADA_ARQUITET_1775526641627.xlsx"
 type = "table"
 title = "PADCOM V15 (arquitetura unificada)"
+logical_id = "925a271f-b5a3-45fa-a97e-5b4bbc680247"
 
 [[outputs]]
 id = "smd7lieeTSLNTMPRRFRHo"
 uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V14.3_(FISCAL_GATEWAYS_MAPA_NF_INCO_1775526641636.xlsx"
 type = "table"
 title = "PADCOM V14.3 (camada fiscal)"
+logical_id = "9631e21b-66fb-4de1-a8e5-019fcce5349a"
 
 [[outputs]]
 id = "OYdx8N7qF75r8oRTHPRNH"
 uri = "file://attached_assets/PADCOM_SAAS_MOTOR_CLINICO_V14.2_(APPEND_QUESTIONARIO_CONTRATO_1775526641638.xlsx"
 type = "table"
 title = "PADCOM V14.2 (append questionario)"
+logical_id = "719ada17-9cc6-4869-be68-fb1baff82724"
 
 [[outputs]]
 id = "BhvzP6h21_tPYWwrokwi-"
 uri = "file://attached_assets/dossies/inventario_exames_dr_claude_2026-04-23.md"
 type = "text"
 title = "INVENTARIO COMPLETO DE EXAMES (209 analitos sangue + schemas + 71 faixas atuais) pro Dr. Claude"
+logical_id = "a6b581f9-3c7d-48a9-8318-4a9916bc3e8e"
 
 [[outputs]]
 id = "4Ay1pxF-fZOlYMG76kiKa"
 uri = "file://attached_assets/dossies/carta_dr_claude_kaizen_2026-04-23.md"
 type = "text"
 title = "CARTA AO DR. CLAUDE — Kaizen completo (8 secoes, URLs raw pinadas SHA 35a9503)"
+logical_id = "850c0b0d-8f3f-444a-9b64-608ae52518be"
 
 [[outputs]]
 id = "xFEdOzNbd-piFCRvo635t"
 uri = "file://attached_assets/planilha_blocos_csv/02_exames_bloco_grade_exame.csv"
 type = "table"
 title = "EXAMES BLOCO-GRADE-EXAME (236 linhas - vista funil fechando, em CSV pro Dr. Claude ler direto)"
+logical_id = "aee445c8-789f-4016-b33f-bd60de92f5a7"
 
 [[outputs]]
 id = "8xO1g8Hfoo6SwAWPOGv9J"
 uri = "file://attached_assets/planilha_blocos_csv/13_dicionario_nicks_b4.csv"
 type = "table"
 title = "DICIONARIO NICKS B4 (375 entradas - alfabetico nick->nome real)"
+logical_id = "d0cfa96d-22ca-4d46-8108-7556f689639e"
 
 [[outputs]]
 id = "MjbQprtgofbTiu6xuZc_u"
 uri = "file://docs/dr-claude/08_IGNICAO_MOTOR_E_SINAPSES.md"
 type = "text"
 title = "08 — Ignição do Motor PADCOM + Sinapses (anamnese → sugestões)"
+logical_id = "d4b9b1ae-4636-43ef-829a-cf05a7fc4ad2"
 
 [[outputs]]
 id = "0iw_XIFxhQAsaSCxD-fi_"
 uri = "file://docs/dr-claude/09_CATALOGO_CLINICO_ESTRATIFICADO.md"
 type = "text"
 title = "09 — Catálogo Clínico Estratificado (2 visões + domínios completos)"
+logical_id = "ce2866f3-1f5a-45a1-a1da-0abfb1f20c8f"
 
 [[outputs]]
 id = "6bIfwm6V0tgCIM1MN56yW"
 uri = "file://docs/dr-claude/10_INJETAVEIS_IM_EV_E_IMPLANTES.md"
 type = "text"
 title = "10 — Catálogo Parenteral Completo: 162 injetáveis IM/EV + 11 soros + 32 implantes"
+logical_id = "da1b6bf1-177a-4ad8-b934-1f68fba175f4"
 
 [[outputs]]
 id = "XTdXHteqG5GmH60LqdH9h"
 uri = "file://docs/dr-claude/11_ANALISE_ENCOMENDA_01_80_FORMULAS.md"
 type = "text"
 title = "11 — Análise da Encomenda 01: 80 fórmulas Dr. Claude (auditoria + 3 blockers + 8 perguntas)"
+logical_id = "2195fadc-403a-479c-b85f-261b20733bff"
 
 [[outputs]]
 id = "XuCcaX-9oqTf8FFvqOqLh"
 uri = "file://docs/dr-claude/12_ANALISE_ENCOMENDA_02_SINAPSES_E_CRANIOTOMIA.md"
 type = "text"
 title = "12 — Análise da Encomenda 02: 83 sinapses + Craniotomia (9 blockers + matriz Hipótese A/B + plano 12 sprints)"
+logical_id = "82b0bf05-bce5-4498-b743-e77abc47a4ed"
 
 [[outputs]]
 id = "F-1DX0cWkA1Yk2zb3uxL9"
 uri = "file://docs/dr-claude/22_CARTA_MAGNA_LAYOUT_DEFINITIVO_PAWARDS.md"
 type = "text"
 title = "Carta Magna · Layout Definitivo Pawards (pro Dr. Claude)"
+logical_id = "dfaea1ef-ae12-446f-b5a4-9905756f23c3"
 
 [[outputs]]
 id = "6kV4RUI8Fr_C4TqUGP1rT"
 uri = "file://docs/dr-replit/PROPOSTAS/2026-06-02_BLUEPRINT_DESMEMBRAMENTO_RECEITAS_E_NUMERACAO_SNCR.pdf"
 type = "pdf"
 title = "Blueprint — Desmembramento de Receitas + Numeração SNCR/Anvisa"
+logical_id = "037b350a-737c-4625-9371-8bc8dcffc01f"
 
 [[outputs]]
 id = "AHlCaCAZawTEGK9w1wwDD"
 uri = "file://docs/dr-replit/PROPOSTAS/2026-06-02_ORGANOGRAMA_REGRA14_VS_WAVE_ATUAL.pdf"
 type = "pdf"
 title = "Organograma — REGRA 14 (já feita) vs Wave Atual"
+logical_id = "e2a0f37b-956d-4783-8692-591d9bf208e3"
 
 [[outputs]]
 id = "4e-sDRa5cfLYa8agcg58T"
 uri = "file://docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.02.xlsx"
 type = "table"
 title = "Glossário de Conceitos PAWARDS — para validar (Excel)"
+logical_id = "e8af31f9-9afc-425b-9b22-d72ef57076c3"
 
 [[outputs]]
 id = "SPrF7RAhW34VxoxmZHVdZ"
 uri = "file://docs/dr-replit/PROPOSTAS/GLOSSARIO_CONCEITOS_PAWARDS_26.06.03.xlsx"
 type = "table"
 title = "Glossário PAWARDS v2 — frequência = intervalo em dias (validar)"
+logical_id = "2f8184ce-360f-4cb4-a10c-ecd6f478f4fe"
 
 [[outputs]]
 id = "7g6xlVdgYCKVmhw-rHKDa"
 uri = "file://docs/dr-replit/exports/DIETAS_48_SEEDS_26.06.11.csv"
 type = "table"
 title = "48 seeds da tabela dietas (para veredito M0.1)"
+logical_id = "f4376e2d-78f1-4701-b30d-7955e480f6b2"
 
 [[outputs]]
 id = "3Egc0zHpQtz7Ox9ZNMtOD"
 uri = "file://docs/dr-claude/BRIEF_DR_REPLIT_PROTOCOLO_ALIMENTAR_PARAMETRICO.md"
 type = "text"
 title = "Carta para o Dr. Claude — Protocolo Alimentar Paramétrico e Editável"
+logical_id = "a4f93951-a5b1-497f-8f5b-7362eb662bb6"
 
 [[outputs]]
 id = "gKo2E-4ad3jYVEMUBFMx1"
 uri = "file://.local/.audit_work/prescricao_213_pdf_1_branco_76dc4275fb84ce7c.pdf"
 type = "pdf"
 title = "Prescricao 213 - PDF 1 (Formula Suporte Tireoide)"
+logical_id = "c338c435-8a45-4d5a-9aa5-58180a9f450d"
 
 [[outputs]]
 id = "cccOmbACQ-ZrjN2Lacj79"
 uri = "file://.local/.audit_work/prescricao_213_pdf_2_branco_b89817adecbd3b22.pdf"
 type = "pdf"
 title = "Prescricao 213 - PDF 2 (Injetavel Acido Alfa Lipoico EV)"
+logical_id = "bbd2aa41-9ca1-451d-b52e-6972e06dcd23"
 
 [[outputs]]
 id = "4HxefRyfjIe2FdOoBp8Nu"
 uri = "file://.local/.audit_work/ras_paciente_3104.pdf"
 type = "pdf"
 title = "RAS Paciente 3104 - Caio (17 paginas)"
+logical_id = "de8ea9df-4327-43ee-b523-6542770956be"
 
 [[outputs]]
 id = "0dbPPR6liUZo94VgYMb_D"
 uri = "file://.local/.audit_work/RAS_FAP_CAIO_PREMIUM_26.06.17.pdf"
 type = "pdf"
 title = "RAS FAP — PDF PREMIUM (cor + branding)"
+logical_id = "7ea1e70e-ae30-415e-aa4e-00347b1487c9"
 
 [[outputs]]
 id = "-Z9YMIYH6QdBj6oHfHLO9"
 uri = "file://.local/.audit_work/RAS_FAP_CAIO_SIMPLES_26.06.17.pdf"
 type = "pdf"
 title = "RAS FAP — PDF SIMPLES (preto e branco, p/ impressão)"
+logical_id = "fef48d34-6c83-479f-a195-bceefd41077a"
 
 [[outputs]]
 id = "FtisuYFtiYvJhatYQD8qw"
 uri = "file://.local/.audit_work/RAS_FAP_CAIO_26.06.17.xlsx"
 type = "table"
 title = "RAS FAP — Planilha Excel (.xlsx)"
+logical_id = "c540e70d-4ba3-430f-b564-fa551a4088ba"
 
 [[outputs]]
 id = "1MW3pPYWIkxMvZTa_4S1U"
 uri = "file://docs/dr-replit/PARA_MANAGER/CARTA_IHE_TELEGRAM_CERTIFICADO_AUTONOMIA_E_KIT_DE_COLETA_26.06.26.md"
 type = "text"
 title = "Carta Telegram — IHE para o agente transplantador (26/06/2026)"
+logical_id = "fcd166fa-25c9-42cf-8160-501b5c760e7c"
 
 [[outputs]]
 id = "sO1QgoZlnNdCtvO1JAh-X"
 uri = "file://docs/dr-replit/PARA_MANAGER/CARTA_IHE_COCKPIT_GPS_PADUA_ARSENAL_TERAPEUTICO_E_KAIZEN_26.07.10.md"
 type = "text"
 title = "Carta GPS Pádua / Cockpit — arsenal terapêutico e Kaizen (10/07/2026)"
+logical_id = "8552c116-3afe-4f29-956b-bec5e6f7cc57"
 
 [[outputs]]
 id = "b-pOdgeNnPr-a0rIfooym"
 uri = "file://MAPA_MISSAO_CEO_DR_CAIO_26.07.16.pdf"
 type = "pdf"
 title = "MAPA DA MISSÃO — CEO Dr. Caio | Fix na Parede"
+logical_id = "f1247ad4-3d84-4a97-ac17-3636421edf64"
 
 [[outputs]]
 id = "U2QZip4oiglRd-SZqXuqm"
 uri = "file://GUIA_COMPLETO_CEO_DR_CAIO_26.07.16.pdf"
 type = "pdf"
 title = "GUIA COMPLETO — CEO Dr. Caio | 6 Páginas | Imprima e Cole na Parede"
+logical_id = "cc08755a-014e-42d6-b348-fb397ac7f41c"
 
 [[outputs]]
 id = "tCCiKzUz0uOCZrvxYG7_Y"
 uri = "file://GUIA CEO PAWARDS DR CAIO 26.07.16.pdf"
 type = "pdf"
 title = "GUIA CEO PAWARDS v3 — Fundo Branco — 6 Páginas — Sem Páginas em Branco"
+logical_id = "c7379c61-318c-4d65-b895-63453ec3771c"
 
 [[outputs]]
 id = "ie58HkFTZndMHXMmfbOTD"
 uri = "file://artifacts/api-server/GUIA CEO PAWARDS DR CAIO 26.07.16.pdf"
 type = "pdf"
 title = "GUIA CEO PAWARDS v4 — 6 pag. SEM PAGINAS EM BRANCO"
+logical_id = "7793dbe2-c6b6-4ba7-9ede-a8c7c743cdcc"
 
 [[outputs]]
 id = "feitvB_--Nc-dPCJ4_gLy"
 uri = "file://artifacts/api-server/ARQUITETURA EMAIL ZOHO PAXTER DR CAIO 26.07.16.pdf"
 type = "pdf"
 title = "ARQUITETURA EMAIL ZOHO PAXTER — 5 paginas — Aliases + 2FA + DNS + CLI Python"
+logical_id = "fada0c02-b49f-435d-93b0-6c6464d79d26"
+
+[[outputs]]
+id = "AG94YeYdNu3lEKJoAXRwa"
+uri = "file://.local/auditoria-sinapses/auditoria-sinapses-23-11-2026.html"
+type = "html"
+title = "Auditoria completa das sinapses clínicas"
+description = "Relatório com 16 seções, 21 links de telas, matriz completa dos gatilhos e 20 cenários de verificação."
+logical_id = "4999046b-b34e-45a6-9a94-22136910c787"
+content_hash = "sha256:06faf4c951e426d34d81c70433e5a3c743e814fd1a2058b1303f1915e7cde41d"
+size = 52275
+mtime_ms = 1795474561243
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/4999046b-b34e-45a6-9a94-22136910c787/7e66d4fd-2339-4b04-8798-3d6434b34374"
+storage_version_token = "1795474571809367"
+content_type = "text/html"
+
+[[outputs]]
+id = "utbHtnV7OcuRu6epQNuzi"
+uri = "file://.local/auditoria-sinapses/auditoria-sinapses-evidencias-23-11-2026.zip"
+type = "unspecified"
+title = "Relatório e evidências para download"
+description = "Inclui documento Markdown para o Obsidian, relatório para leitura, regras, perguntas, mapas e resultados dos testes isolados."
+logical_id = "be33415b-297a-4d73-b594-e6e2fe0e3946"
+content_hash = "sha256:fe0d74c94946fe70c7c31f4a6bbc02f37c552321b26c6322e6e216133db1e38a"
+size = 36655
+mtime_ms = 1795474561259
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/be33415b-297a-4d73-b594-e6e2fe0e3946/c68cf444-ac53-45d3-85e5-387cb0592b95"
+storage_version_token = "1795474572283538"
+content_type = "application/octet-stream"
