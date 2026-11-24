@@ -19,6 +19,23 @@ que `git push` funciona.
 rejeitada, usar o fluxo de reconexao documentado. Nao contornar a falha com commits
 avulsos pela Contents API, pois isso pode criar mais divergencia.
 
+**Alternativa verificada para sincronizacao interna:** com autorizacao expressa
+do usuario para enviar o repositorio e uma integracao GitHub com escrita funcionando,
+a Git Data API permite transportar blobs, trees e commits originais via proxyFetch,
+em ordem de dependencias, sem acessar tokens. Conferir SHA identico para CADA objeto;
+preservar pais, mensagem, autor, committer, data e fuso. Parar se houver cabecalho nao
+suportado ou divergencia de SHA. Somente ao final atualizar a referencia com force=false,
+conferindo primeiro que o remoto nao mudou. Fazer fetch e exigir contagem 0/0.
+
+**Why:** a credencial do Git tradicional pode estar invalida enquanto o proxy da
+integracao permanece autorizado; transportar objetos exatos preserva a ancestralidade,
+ao contrario de recriar arquivos isolados. Isso sincroniza o estado atual, mas NAO
+renova a credencial do botao Git para envios futuros.
+
+**Limite do proxy observado:** arvores grandes podem retornar 502; construir lotes
+menores com base_tree intermediaria e conferir SHA da arvore final. Nao repetir
+indefinidamente a mesma requisicao grande. Nunca mover a referencia antes de conferir tudo.
+
 **Why:** a configuracao de remotos muda entre sessoes e pode conter credenciais
 embutidas; nao imprimir `git remote -v`. Existencia de checkpoint local nao
 comprova sincronizacao com GitHub.
