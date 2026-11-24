@@ -5,10 +5,19 @@ description: Como gravar arquivos nos repos GitHub do Caio a partir do repl IHE 
 
 # Sync GitHub a partir deste repl
 
-A forma confiavel de gravar em QUALQUER repo do Caio (incl. este mesmo, IHE) e a
-**GitHub Contents API** com token de `listConnections('github')[0].settings.access_token`
-(owner do token = `caio-padua`; NUNCA imprimir o token). PUT em
-`/repos/{owner}/{repo}/contents/{path}` com `{message, content(base64), sha?, branch?}`.
+Para operacoes pela integracao, seguir a skill atual e usar `proxyFetch`,
+sem extrair credenciais da conexao. A Contents API serve para arquivos individuais,
+mas NAO sincroniza o historico Git local. Para sincronizacao solicitada pelo usuario,
+usar o fluxo Git autorizado, preservando ambos os historicos e sem envio forcado.
+
+**Why:** a integracao GitHub App pode responder com permissao de escrita enquanto
+o remoto Git rejeita a credencial embutida; sao caminhos de autenticacao distintos.
+Um segredo alternativo tambem pode estar invalido. Sucesso na integracao nao prova
+que `git push` funciona.
+
+**How to apply:** conferir envio real e ancestralidade; diante de autenticacao
+rejeitada, usar o fluxo de reconexao documentado. Nao contornar a falha com commits
+avulsos pela Contents API, pois isso pode criar mais divergencia.
 
 **Why:** a configuracao de remotos muda entre sessoes e pode conter credenciais
 embutidas; nao imprimir `git remote -v`. Existencia de checkpoint local nao
