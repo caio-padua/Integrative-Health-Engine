@@ -3,3 +3,4 @@
 
 # No need to store the pnpm store twice.
 .local
+/artifacts/clinica-motor/public/CRANIOTOMIA_GEMINI_DOWNLOAD.zip
