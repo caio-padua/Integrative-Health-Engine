@@ -10,10 +10,14 @@ A forma confiavel de gravar em QUALQUER repo do Caio (incl. este mesmo, IHE) e a
 (owner do token = `caio-padua`; NUNCA imprimir o token). PUT em
 `/repos/{owner}/{repo}/contents/{path}` com `{message, content(base64), sha?, branch?}`.
 
-**Why:** o `git remote -v` deste repl so tem remotos internos `subrepl-*` (ssh.kirk.replit.dev),
-NAO ha remoto direto pro github.com. O sync repl->GitHub e feito pela integracao do
-Replit, nao por `git push`. (Isso corrige a nota antiga de que "origin e github
-apontam pro repo real" — falso hoje.)
+**Why:** a configuracao de remotos muda entre sessoes e pode conter credenciais
+embutidas; nao imprimir `git remote -v`. Existencia de checkpoint local nao
+comprova sincronizacao com GitHub.
+
+**How to apply ao reparar sincronizacao:** guardar alteracoes locais antes de
+cancelar um rebase e verificar novamente o estado depois. Foi observado um novo
+rebase apos um cancelamento bem-sucedido; nao declarar reparo permanente com base
+somente no retorno do comando, nem usar envio forcado para contornar recorrencia.
 
 **How to apply:**
 - Repos do Caio (todos owner caio-padua): `Integrative-Health-Engine` (IHE, PUBLICO),

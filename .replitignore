@@ -2,5 +2,6 @@
 # It is used to reduce the size of deployed images to make the process of publishing faster.
 
 # No need to store the pnpm store twice.
+/artifacts/clinica-motor/public/CRANIOTOMIA_MANAGER_COMPLETO.zip
 .local
 /artifacts/clinica-motor/public/CRANIOTOMIA_GEMINI_DOWNLOAD.zip
