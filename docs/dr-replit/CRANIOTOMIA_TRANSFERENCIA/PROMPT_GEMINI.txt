@@ -1,0 +1,39 @@
+OBJETIVO
+Quero reproduzir no meu projeto Manager a tela CRANIOTOMIA V4 deste pacote: os três retângulos VISUALIZAÇÃO / EDIÇÃO / SIMULAÇÃO, as caixas clicáveis, grafo superior, matriz-espelho inferior, legenda esquerda recolhível e inspetor direito recolhível e redimensionável.
+
+LEITURA
+Leia LEIA_PRIMEIRO.md, MANUAL_REPRODUCAO.md, CONTRATO_INTEGRACAO.md, CHECKLIST_ACEITE.md e a auditoria incluída.
+Examine a captura referencia-craniotomia-v4.jpg.
+Use como fonte visual original CraniotomiaV4.tsx, _group.css e _mockData.ts, não redesenhe de memória.
+As demais variantes são referências secundárias, não substitutas da V4.
+
+DISTINÇÃO ESSENCIAL
+A V4 é um protótipo visual: filtros e painéis funcionam localmente, mas edição, simulação clínica e histórico não são completos.
+O editor real craniotomia.tsx e suas rotas oferecem outra aparência.
+Quero o VISUAL da V4 ligado ao motor real do Manager, não uma tabela simples no lugar dela e não dados falsos apresentados como reais.
+Não copie os defeitos documentados do motor de origem.
+
+EXECUÇÃO
+Trabalhe em fila, uma etapa por vez, sem iniciar agentes paralelos.
+Inspecione primeiro o Manager e reuse seu motor, catálogo, autenticação e convenções.
+Preserve o cálculo de orçamento e os cadastros existentes.
+Não substitua bibliotecas, banco ou navegação global apenas para portar esta tela.
+Não importe as regras clínicas automaticamente nem execute sync-catalogo.
+Apresente a correspondência dos campos antes de ligar operações clínicas.
+Depois reproduza o visual; conecte leitura real; conecte gravação autorizada; implemente simulação sem escrita; valide o caminho clínico.
+Dados sem fonte devem aparecer como indisponíveis, não como contagem, peso ou histórico fictício.
+Conserve a aparência solicitada e corrija sobreposição de caixas e problemas de acesso sem redesenhar a identidade visual.
+No Manager, chame a pessoa atendida de cliente.
+
+SE VOCÊ ESTIVER APENAS NO CHAT DO GEMINI
+Não afirme que editou o repositório.
+Entregue os arquivos completos ou alterações aplicáveis e instruções de integração para o agente do Manager.
+Distinga código proposto de código executado e testado.
+
+ENTREGA
+Use CHECKLIST_ACEITE.md como critério.
+Mostre o endereço da tela, capturas reais, testes, arquivos alterados e limitações restantes.
+Salve documentação em docs/craniotomia/.
+Se tiver acesso autorizado ao repositório, faça Commit & Push e devolva endereço bruto dos arquivos e identificador da revisão.
+Se não puder enviar, declare claramente que os arquivos estão somente locais.
+Não invente funcionamento clínico, evidência de teste nem publicação no GitHub.

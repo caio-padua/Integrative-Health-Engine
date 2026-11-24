@@ -658,3 +658,45 @@ mtime_ms = 1795474561259
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/be33415b-297a-4d73-b594-e6e2fe0e3946/c68cf444-ac53-45d3-85e5-387cb0592b95"
 storage_version_token = "1795474572283538"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "gIeso3dtXoxrhT1XVnfMn"
+uri = "file://.local/craniotomia-pack/CRANIOTOMIA_V4_MANAGER_COMPLETO_26.11.23.zip"
+type = "unspecified"
+title = "Craniotomia V4 — pacote completo para o Manager"
+description = "53 arquivos: fontes originais, captura, manual de reprodução, contrato de integração, auditoria e instrução para o Gemini."
+logical_id = "841b798f-2a9b-4a3d-a174-70e29d13d4e6"
+content_hash = "sha256:848b86e4b7f839e88d9e92d743139ec1430b2ee3c636e24b01675aa0f1cc52d8"
+size = 394976
+mtime_ms = 1795482413256
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/841b798f-2a9b-4a3d-a174-70e29d13d4e6/d48b8c0c-4e4a-433e-a2ee-6fc9a0440dba"
+storage_version_token = "1795482430747383"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "N4e9BcxHwE3ieEljGNm2N"
+uri = "file://.local/craniotomia-pack/CRANIOTOMIA_PARA_GEMINI_26.11.23.txt"
+type = "text"
+title = "Craniotomia — texto completo para o Gemini"
+description = "Documentação e fontes reunidas em um arquivo de texto para anexar quando o ZIP não for suportado."
+logical_id = "440a593f-c2b0-404b-bb5f-f4b1308628b3"
+content_hash = "sha256:ccd4244e82ffd3c06ee94b377c1248ddca397a00490e523106e10ae2a46faec4"
+size = 693757
+mtime_ms = 1795482413264
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/440a593f-c2b0-404b-bb5f-f4b1308628b3/f81ae492-f7f5-479f-b8b8-a7c03408a9f0"
+storage_version_token = "1795482431276032"
+content_type = "text/plain"
+
+[[outputs]]
+id = "W9vEtmTMeI3-NOHHVt6Ms"
+uri = "file://.local/craniotomia-pack/referencia-craniotomia-v4.jpg"
+type = "image"
+title = "Referência visual — Craniotomia V4 original"
+description = "Captura real com os três modos superiores, grafo, matriz e inspetor; contém dados demonstrativos."
+logical_id = "a49b55e6-2d80-45ec-aba1-62246d7cfdaf"
+content_hash = "sha256:c9826b0ba344205aa3c79170d42913192b315caf603dfdf80bf69c9bd1cdb41e"
+size = 243368
+mtime_ms = 1795482200911
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/a49b55e6-2d80-45ec-aba1-62246d7cfdaf/d83ca2cf-dde9-4b56-ab32-d919b338fe19"
+storage_version_token = "1795482431748134"
+content_type = "image/jpeg"
