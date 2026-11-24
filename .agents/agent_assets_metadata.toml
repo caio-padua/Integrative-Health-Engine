@@ -677,14 +677,14 @@ content_type = "application/octet-stream"
 id = "N4e9BcxHwE3ieEljGNm2N"
 uri = "file://.local/craniotomia-pack/CRANIOTOMIA_PARA_GEMINI_26.11.23.txt"
 type = "text"
-title = "Craniotomia — texto completo para o Gemini"
-description = "Documentação e fontes reunidas em um arquivo de texto para anexar quando o ZIP não for suportado."
+title = "Baixar novamente o arquivo de texto"
+description = "Texto completo da Craniotomia para anexar ao Gemini."
 logical_id = "440a593f-c2b0-404b-bb5f-f4b1308628b3"
 content_hash = "sha256:ccd4244e82ffd3c06ee94b377c1248ddca397a00490e523106e10ae2a46faec4"
 size = 693757
 mtime_ms = 1795482413264
-storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/440a593f-c2b0-404b-bb5f-f4b1308628b3/f81ae492-f7f5-479f-b8b8-a7c03408a9f0"
-storage_version_token = "1795482431276032"
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/440a593f-c2b0-404b-bb5f-f4b1308628b3/736796e7-fc4f-437e-b6a0-ed4c6a5bdbf4"
+storage_version_token = "1795484283574648"
 content_type = "text/plain"
 
 [[outputs]]
@@ -700,3 +700,17 @@ mtime_ms = 1795482200911
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/a49b55e6-2d80-45ec-aba1-62246d7cfdaf/d83ca2cf-dde9-4b56-ab32-d919b338fe19"
 storage_version_token = "1795482431748134"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "BtSLfWRxlbGYkjNI2PpxY"
+uri = "file://.local/craniotomia-pack/TEXTO_GEMINI.zip"
+type = "unspecified"
+title = "Baixar texto do Gemini compactado"
+description = "Contém somente CRANIOTOMIA_PARA_GEMINI.txt, completo e sem alterações. Extraia o ZIP para obter o texto."
+logical_id = "672f7707-6153-4e57-9534-c604022fb480"
+content_hash = "sha256:4bc5e34bcbdd73bb005508198f57bda4bcffa188a80f20585768f63ca16a65de"
+size = 131887
+mtime_ms = 1795484278048
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2ef80136-fd8b-403c-a5cc-938820e2c326/672f7707-6153-4e57-9534-c604022fb480/31f357ab-a1ef-498c-9cec-28dba1d2bac6"
+storage_version_token = "1795484283099944"
+content_type = "application/octet-stream"
